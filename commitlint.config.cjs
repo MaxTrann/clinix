@@ -1,0 +1,40 @@
+// Conventional Commits. Scope lấy theo module trong SOW §2.1.1.
+module.exports = {
+  extends: ["@commitlint/config-conventional"],
+  rules: {
+    "type-enum": [2, "always", ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"]],
+    "scope-enum": [
+      1, // cảnh báo, không chặn — thêm scope mới khi cần
+      "always",
+      [
+        "auth",
+        "patient",
+        "search",
+        "doctor",
+        "booking",
+        "payment",
+        "wallet",
+        "waitlist",
+        "followup",
+        "notification",
+        "admin",
+        "rbac",
+        "audit",
+        "import-export",
+        "report",
+        "ai",
+        "api",
+        "web",
+        "mobile",
+        "db",
+        "ci",
+        "docker",
+        "docs",
+        "deps",
+        "repo",
+      ],
+    ],
+    "header-max-length": [2, "always", 100],
+    "subject-case": [0],
+  },
+};
