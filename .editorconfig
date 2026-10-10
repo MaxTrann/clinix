@@ -1,0 +1,12 @@
+root = true
+
+[*] // các quy tắc chung cho tất cả các file
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md] // các quy tắc riêng cho file markdown
+trim_trailing_whitespace = false
