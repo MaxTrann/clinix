@@ -1,0 +1,689 @@
+// CLINIX - Database Diagram (ERD) - bản 2
+// Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
+// Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
+// DBMS mục tiêu: MySQL 8.0.16+ (utf8mb4)
+// Các ràng buộc CHECK và cột sinh được khai báo đầy đủ trong clinix_mysql.sql
+
+Project clinix {
+  database_type: 'MySQL'
+}
+
+// ===================== ENUM =====================
+
+Enum trang_thai_hoat_dong_enum {
+  DangHoatDong
+  NgungHoatDong
+}
+
+Enum loai_tai_khoan_enum {
+  BenhNhan
+  BacSi
+  LeTan
+  QuanTriVien
+}
+
+Enum hoc_vi_enum {
+  BS
+  ThS
+  TS
+  PGS
+  GS
+}
+
+Enum pham_vi_quan_tri_enum {
+  ToanHeThong
+  ChiNhanh
+}
+
+Enum ca_lam_viec_enum {
+  CaSang
+  CaChieu
+  CaToi
+}
+
+Enum hinh_thuc_nghi_enum {
+  CaNgay
+  TheoCa
+}
+
+Enum trang_thai_khung_gio_enum {
+  ConTrong
+  DaDat
+  DangGiuCho
+  HetHan
+}
+
+Enum trang_thai_lich_hen_enum {
+  ChoThanhToan
+  DaXacNhan
+  DaTiepDon
+  HoanThanh
+  DaHuy
+  DaDoiLich
+  VangMat
+}
+
+Enum trang_thai_yeu_cau_enum {
+  ChoDuyet
+  DaDuyet
+  TuChoi
+}
+
+Enum trang_thai_muc_cho_enum {
+  DangCho
+  DaMoi
+  DaChapNhan
+  DaTuChoi
+  HetHan
+}
+
+Enum loai_giao_dich_enum {
+  NapVi
+  ThanhToanLichHen
+}
+
+Enum phuong_thuc_enum {
+  Vi
+  VNPay
+  MoMo
+  TienMatTaiQuay
+}
+
+Enum trang_thai_giao_dich_enum {
+  KhoiTao
+  DangXuLy
+  ThanhCong
+  ThatBai
+  HetHan
+}
+
+Enum trang_thai_doi_soat_enum {
+  KhongCan
+  ChoDoiSoat
+  DaDoiSoat
+}
+
+Enum loai_giao_dich_vi_enum {
+  Nap
+  ThanhToan
+  HoanTien
+  Rut
+}
+
+Enum ket_qua_enum {
+  ThanhCong
+  ThatBai
+}
+
+Enum hanh_dong_nhay_cam_enum {
+  DoiQuyen
+  OverrideLichHen
+  HoanTienDacBiet
+  DoiChiNhanhBacSi
+  ChinhNoShow
+  AnDanhGia
+  XuLyDoiLichNgoaiChinhSach
+  SuaGhiChuKham
+  BacSiHuyDotXuat
+}
+
+Enum loai_doi_tuong_enum {
+  tai_khoan
+  benh_nhan
+  lich_hen
+  ho_so_kham
+  danh_gia_bac_si
+  giao_dich_thanh_toan
+  yeu_cau_doi_lich_ngoai_chinh_sach
+}
+
+Enum loai_hoi_thoai_enum {
+  BenhNhan_BacSi
+  BenhNhan_LeTan
+}
+
+Enum loai_cam_xuc_enum {
+  Thich
+  KhongThich
+}
+
+Enum trang_thai_bai_viet_enum {
+  BanNhap
+  DaXuatBan
+  LuuTruAn
+}
+
+Enum loai_xac_thuc_enum {
+  DangKy
+  QuenMatKhau
+  KichHoatNhanSu
+}
+
+Enum moi_quan_he_enum {
+  Cha
+  Me
+  Vo
+  Chong
+  Con
+  AnhChiEm
+  OngBa
+  Khac
+}
+
+// ===================== CỤM 1: TÀI KHOẢN & HỒ SƠ =====================
+
+Table tai_khoan {
+  tai_khoan_id bigint [pk, increment]
+  ho_ten varchar(100) [not null]
+  ngay_sinh date [note: 'Có thể để trống: lúc đăng ký chỉ nhập họ tên, email, SĐT, mật khẩu']
+  gioi_tinh varchar(10) [note: 'Có thể để trống (như ngày sinh)']
+  so_dien_thoai varchar(20) [not null]
+  anh_dai_dien varchar(255)
+  dia_chi varchar(255)
+  email varchar(255) [not null, unique]
+  mat_khau_bam varchar(255) [not null]
+  trang_thai trang_thai_hoat_dong_enum [not null, default: 'DangHoatDong']
+  da_xac_minh_email boolean [not null, default: false, note: 'false thì không được đặt lịch']
+  bat_buoc_doi_mat_khau boolean [not null, default: false]
+  loai_tai_khoan loai_tai_khoan_enum [not null, note: 'Cột đề xuất thêm để biết nhanh loại tài khoản, không cần JOIN 4 bảng con']
+  thoi_diem_tao datetime [not null, default: `now()`, note: 'Thời điểm đăng ký tài khoản']
+}
+
+Table benh_nhan {
+  tai_khoan_id bigint [pk, ref: - tai_khoan.tai_khoan_id]
+  khoa_dat_lich_do_no_show boolean [not null, default: false, note: 'Quản trị viên mở khóa thủ công nên là trạng thái độc lập']
+  so_lan_no_show int [not null, default: 0]
+}
+
+Table bac_si {
+  tai_khoan_id bigint [pk, ref: - tai_khoan.tai_khoan_id]
+  mo_ta_chuyen_mon text
+  so_nam_kinh_nghiem int [not null, default: 0]
+  hoc_vi hoc_vi_enum [not null]
+  chuyen_khoa_id bigint [not null, ref: > chuyen_khoa.chuyen_khoa_id]
+  chi_nhanh_id bigint [not null, ref: > chi_nhanh.chi_nhanh_id, note: 'Quản trị viên đổi trực tiếp trong hồ sơ bác sĩ; chỉ khi bác sĩ không còn lịch hẹn đang hoạt động ở chi nhánh hiện tại (kiểm tra ở service); ghi nhật ký DoiChiNhanhBacSi']
+  dich_vu_kham_id bigint [not null, ref: > dich_vu_kham.dich_vu_kham_id]
+
+  Note: '1 bác sĩ thuộc 1 chuyên khoa và nhận 1 dịch vụ khám chính; chuyên khoa và dịch vụ là hai chiều phân loại độc lập. Giá khám = giá mặc định của dịch vụ + phụ phí (bảng phu_phi_bac_si). Ràng buộc (kiểm tra ở service): cặp (chi_nhanh_id, dich_vu_kham_id) phải có trong chi_nhanh_dich_vu_kham.'
+}
+
+Table le_tan {
+  tai_khoan_id bigint [pk, ref: - tai_khoan.tai_khoan_id]
+  chi_nhanh_id bigint [not null, ref: > chi_nhanh.chi_nhanh_id, note: 'Lễ tân luôn được gán đúng 1 chi nhánh']
+}
+
+Table quan_tri_vien {
+  tai_khoan_id bigint [pk, ref: - tai_khoan.tai_khoan_id]
+  pham_vi_quan_tri pham_vi_quan_tri_enum [not null]
+  chi_nhanh_id bigint [ref: >? chi_nhanh.chi_nhanh_id]
+
+  Note: 'Ràng buộc: phạm vi Chi nhánh thì bắt buộc có chi_nhanh_id; phạm vi Toàn hệ thống thì để trống.'
+}
+
+Table ho_so_nguoi_than {
+  ho_so_nguoi_than_id bigint [pk, increment]
+  benh_nhan_id bigint [not null, ref: > benh_nhan.tai_khoan_id]
+  ho_ten varchar(100) [not null]
+  ngay_sinh date [not null]
+  gioi_tinh varchar(10) [not null]
+  dia_chi varchar(255)
+  moi_quan_he moi_quan_he_enum [not null, note: '[đề xuất] danh sách giá trị; Khac cho quan hệ không có trong danh sách']
+  so_dien_thoai varchar(20)
+  trang_thai_hieu_luc boolean [not null, default: true, note: 'Không xóa thật, chỉ đổi trạng thái']
+}
+
+Table ma_xac_thuc {
+  ma_xac_thuc_id bigint [pk, increment]
+  tai_khoan_id bigint [not null, ref: > tai_khoan.tai_khoan_id]
+  loai loai_xac_thuc_enum [not null]
+  ma_bam varchar(255) [not null, note: 'Lưu bản băm của OTP hoặc token, không lưu bản rõ']
+  het_han_luc datetime [not null]
+  da_dung_luc datetime [note: 'Để trống = chưa dùng; liên kết kích hoạt chỉ dùng 1 lần']
+  so_lan_nhap_sai int [not null, default: 0]
+
+  indexes {
+    (tai_khoan_id, loai, het_han_luc)
+  }
+}
+
+// ===================== CỤM 2: DANH MỤC =====================
+
+Table chi_nhanh {
+  chi_nhanh_id bigint [pk, increment]
+  ten varchar(100) [not null]
+  dia_chi varchar(255) [not null]
+  toa_do_lat decimal(10,7)
+  toa_do_lng decimal(10,7)
+  gio_mo_cua time [not null]
+  gio_dong_cua time [not null]
+}
+
+Table chuyen_khoa {
+  chuyen_khoa_id bigint [pk, increment]
+  ten varchar(100) [not null, note: 'Lĩnh vực chuyên môn của bác sĩ. Ví dụ: Cơ Xương Khớp, Thần kinh, Tiêu hóa, Nội tổng quát, Y học gia đình, Tâm thần']
+  mo_ta text
+  anh_dai_dien varchar(255) [note: 'Đường dẫn ảnh minh họa hiển thị trên thẻ chuyên khoa; có thể để trống']
+  trang_thai_hoat_dong trang_thai_hoat_dong_enum [not null, default: 'DangHoatDong']
+}
+
+Table nhom_dich_vu {
+  nhom_dich_vu_id bigint [pk, increment]
+  ten varchar(100) [not null, unique, note: 'Ví dụ: Khám chuyên khoa, Khám tổng quát, Khám từ xa, Xét nghiệm y học, Sức khỏe tinh thần, Khám nha khoa']
+  thu_tu_hien_thi int [not null, default: 0, note: '[đề xuất] Thứ tự hiển thị trên màn điều hướng']
+
+  Note: 'Chỉ để phân loại và điều hướng, không dùng trực tiếp để đặt lịch hay tính giá.'
+}
+
+Table dich_vu_kham {
+  dich_vu_kham_id bigint [pk, increment]
+  nhom_dich_vu_id bigint [not null, ref: > nhom_dich_vu.nhom_dich_vu_id]
+  ten varchar(100) [not null]
+  thoi_luong int [not null, note: 'phút']
+  gia_mac_dinh decimal(12,2) [not null]
+  muc_dat_coc decimal(12,2) [not null, default: 0, note: 'Mức cọc cố định theo dịch vụ; 0 = không đặt cọc']
+}
+
+Table moc_hoan_tien {
+  moc_hoan_tien_id bigint [pk, increment]
+  dich_vu_kham_id bigint [not null, ref: > dich_vu_kham.dich_vu_kham_id]
+  so_gio_truoc_toi_thieu int [not null, note: 'Hủy trước giờ hẹn ít nhất bấy nhiêu giờ thì áp dụng tỷ lệ này']
+  ty_le_hoan tinyint [not null, note: 'Ràng buộc: 0 đến 100. Ví dụ [đề xuất]: 24 giờ -> 100, 2 giờ -> 50, 0 giờ -> 0']
+
+  indexes {
+    (dich_vu_kham_id, so_gio_truoc_toi_thieu) [unique]
+  }
+}
+
+Table chi_nhanh_dich_vu_kham {
+  chi_nhanh_id bigint [ref: > chi_nhanh.chi_nhanh_id]
+  dich_vu_kham_id bigint [ref: > dich_vu_kham.dich_vu_kham_id]
+
+  indexes {
+    (chi_nhanh_id, dich_vu_kham_id) [pk]
+  }
+
+  Note: 'Dịch vụ của bác sĩ phải nằm trong danh sách này của chi nhánh bác sĩ công tác. Lúc đặt lịch, cặp (chi nhánh, dịch vụ) cũng phải có ở đây.'
+}
+
+Table phu_phi_bac_si {
+  phu_phi_bac_si_id bigint [pk, increment]
+  hoc_vi hoc_vi_enum [not null]
+  so_nam_kinh_nghiem_tu int [not null, default: 0, note: 'Áp dụng từ mốc số năm này trở lên']
+  phu_phi decimal(12,2) [not null, note: 'Giá trị [cần điền]; 150.000 chỉ là ví dụ minh họa']
+
+  indexes {
+    (hoc_vi, so_nam_kinh_nghiem_tu) [unique]
+  }
+
+  Note: 'Quy tắc phụ phí do Quản trị viên cấu hình. Phụ phí của bác sĩ = dòng cùng học vị có so_nam_kinh_nghiem_tu lớn nhất nhưng không vượt số năm của bác sĩ; không có dòng thì bằng 0. Giá chốt lưu ở lich_hen.gia_snapshot.'
+}
+
+Table thong_tin_phong_kham {
+  id tinyint [pk, note: 'Luôn bằng 1, bảng chỉ có 1 dòng']
+  ten_thuong_hieu varchar(100)
+  dia_chi_tru_so varchar(255)
+  duong_day_nong varchar(20)
+  email varchar(255)
+}
+
+Table cau_hinh_he_thong {
+  id tinyint [pk, note: 'Luôn bằng 1, bảng chỉ có 1 dòng']
+  thoi_luong_khung_gio_mac_dinh int [not null, note: 'phút; [cần điền]']
+  thoi_gian_giu_cho int [not null, default: 15, note: 'phút; [đề xuất] 15']
+  thoi_diem_nhac_lich json [not null, default: `json_array(72,24,2)`, note: 'Mảng số giờ trước giờ hẹn; [đề xuất] 72, 24, 2']
+  so_ngay_dat_truoc_toi_da int [not null, note: '[cần điền]']
+  so_lich_hen_toi_da_moi_tk int [not null, note: '[cần điền]']
+  so_lan_tu_doi_lich_toi_da int [not null, note: '[cần điền]']
+  check_in_truoc_phut int [not null, note: '[cần điền]']
+  check_in_sau_phut int [not null, note: '[cần điền]']
+  thoi_han_phan_hoi_loi_moi int [not null, default: 60, note: 'phút; [đề xuất] 60']
+  so_muc_cho_toi_da int [not null, default: 2, note: '[đề xuất] 2']
+  nguong_no_show int [not null, default: 3, note: '[đề xuất] 3 lần']
+  so_ngay_bao_truoc_doi_gio_lam int [not null, note: '[cần điền]']
+  bac_si_uu_tien_id bigint [ref: >? bac_si.tai_khoan_id, note: 'Ghim ưu tiên 1 bác sĩ khi gợi ý; để trống = không ghim']
+  trong_so_w1 decimal(3,2) [not null, note: '[cần điền]']
+  trong_so_w2 decimal(3,2) [not null, note: '[cần điền]']
+
+  Note: 'Bảng 1 dòng. Cột chưa có mặc định là [cần điền], phải nhập khi khởi tạo dữ liệu.'
+}
+
+// ===================== CỤM 3: LỊCH LÀM VIỆC & KHUNG GIỜ =====================
+
+Table lich_lam_viec {
+  lich_lam_viec_id bigint [pk, increment]
+  bac_si_id bigint [not null, ref: > bac_si.tai_khoan_id]
+  chi_nhanh_id bigint [not null, ref: > chi_nhanh.chi_nhanh_id, note: 'Chi nhánh tại thời điểm phân công, giữ nguyên khi bác sĩ đổi chi nhánh']
+  ngay date [not null]
+  ca ca_lam_viec_enum [not null]
+
+  indexes {
+    (bac_si_id, ngay, ca) [unique]
+    (chi_nhanh_id, ngay)
+  }
+}
+
+Table khung_gio {
+  khung_gio_id bigint [pk, increment]
+  lich_lam_viec_id bigint [not null, ref: > lich_lam_viec.lich_lam_viec_id]
+  ngay_gio datetime [not null]
+  trang_thai trang_thai_khung_gio_enum [not null, default: 'ConTrong']
+  giu_cho_den datetime [note: 'Hạn giữ chỗ tạm; để trống khi không giữ']
+
+  indexes {
+    (lich_lam_viec_id, ngay_gio) [unique]
+    (trang_thai, ngay_gio)
+    (trang_thai, giu_cho_den)
+  }
+}
+
+Table yeu_cau_nghi_phep {
+  yeu_cau_nghi_phep_id bigint [pk, increment]
+  bac_si_id bigint [not null, ref: > bac_si.tai_khoan_id]
+  hinh_thuc_nghi hinh_thuc_nghi_enum [not null]
+  ngay_bat_dau date [not null]
+  ngay_ket_thuc date [not null]
+  ca ca_lam_viec_enum [note: 'Bắt buộc khi nghỉ theo ca (TheoCa)']
+  ly_do text [not null]
+  trang_thai trang_thai_yeu_cau_enum [not null, default: 'ChoDuyet']
+  nguoi_xu_ly_id bigint [ref: >? quan_tri_vien.tai_khoan_id]
+  thoi_diem_xu_ly datetime [note: 'Ràng buộc: ChoDuyet thì người xử lý và thời điểm xử lý đều trống; DaDuyet hoặc TuChoi thì cả hai đều có']
+  thoi_diem_tao datetime [not null]
+
+  indexes {
+    (bac_si_id, ngay_bat_dau, trang_thai)
+  }
+
+  Note: 'Ràng buộc theo hình thức nghỉ. CaNgay: không có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày). TheoCa: bắt buộc có ca, chỉ nghỉ 1 ngày.'
+}
+
+// ===================== CỤM 4: LỊCH HẸN & DANH SÁCH CHỜ =====================
+
+Table lich_hen {
+  lich_hen_id bigint [pk, increment]
+  ma_lich_hen varchar(20) [not null, unique]
+  khung_gio_id bigint [not null, ref: > khung_gio.khung_gio_id, note: 'KHÔNG unique: lịch đã hủy hoặc đã đổi vẫn giữ khung_gio_id để truy vết']
+  khung_gio_dang_giu bigint [unique, note: 'Bằng khung_gio_id khi lịch còn hiệu lực (ChoThanhToan, DaXacNhan, DaTiepDon, HoanThanh, VangMat); NULL khi DaHuy hoặc DaDoiLich. Cột sinh STORED + UNIQUE: mỗi slot chỉ có 1 lịch còn hiệu lực.']
+  lich_hen_truoc_id bigint [unique, ref: - lich_hen.lich_hen_id, note: 'Lịch cũ bị thay thế khi đổi lịch. UNIQUE: 1 lịch cũ chỉ sinh tối đa 1 lịch mới. Chỉ tạo lịch mới trong cùng giao dịch với việc chuyển lịch cũ sang DaDoiLich. Chi tiết xem tài liệu quy tắc nghiệp vụ.']
+  benh_nhan_id bigint [not null, ref: > benh_nhan.tai_khoan_id, note: 'Người đặt']
+  ho_so_nguoi_than_id bigint [ref: >? ho_so_nguoi_than.ho_so_nguoi_than_id, note: 'Để trống = chính bệnh nhân đi khám; nếu có thì phải thuộc cùng benh_nhan_id (kiểm tra ở service)']
+  bac_si_id bigint [not null, ref: > bac_si.tai_khoan_id]
+  chi_nhanh_id bigint [not null, ref: > chi_nhanh.chi_nhanh_id, note: 'Snapshot chi nhánh tại thời điểm đặt']
+  dich_vu_kham_id bigint [not null, ref: > dich_vu_kham.dich_vu_kham_id, note: 'Snapshot dịch vụ tại thời điểm đặt']
+  thoi_gian datetime [not null, note: 'Sao chép từ khung_gio.ngay_gio, không đổi']
+  gia_snapshot decimal(12,2) [not null, note: 'Giá cuối = giá mặc định + phụ phí lúc đặt; lịch mới do đổi lịch sao chép từ lịch trước']
+  tien_coc_snapshot decimal(12,2) [not null, default: 0, note: 'Lịch mới do đổi lịch sao chép từ lịch trước']
+  chinh_sach_hoan_snapshot json [note: 'Bản sao các mốc hoàn tiền lúc đặt (chính sách không hồi tố); lịch mới do đổi lịch sao chép từ lịch trước']
+  trang_thai trang_thai_lich_hen_enum [not null]
+  han_thanh_toan datetime [note: 'Quá hạn mà chưa thanh toán thì tự hủy']
+  thoi_diem_huy datetime
+  ly_do_huy varchar(255)
+  ly_do_kham text
+  thoi_diem_tao datetime [not null, default: `now()`, note: 'Thời điểm đặt lịch']
+  cap_nhat_lan_cuoi datetime [not null, default: `now()`, note: 'Tự cập nhật mỗi khi dòng thay đổi (ON UPDATE trong SQL)']
+
+  indexes {
+    (benh_nhan_id, trang_thai, thoi_gian)
+    (bac_si_id, thoi_gian)
+    (trang_thai, han_thanh_toan)
+  }
+}
+
+Table yeu_cau_doi_lich_ngoai_chinh_sach {
+  yeu_cau_doi_lich_ngoai_chinh_sach_id bigint [pk, increment]
+  lich_hen_id bigint [not null, ref: > lich_hen.lich_hen_id]
+  khung_gio_mong_muon_id bigint [not null, ref: > khung_gio.khung_gio_id]
+  ly_do_yeu_cau text [not null, note: 'Lý do bệnh nhân cần đổi lịch']
+  trang_thai trang_thai_yeu_cau_enum [not null, default: 'ChoDuyet']
+  ghi_chu_xu_ly varchar(255) [note: 'Ghi chú của Lễ tân hoặc Quản trị viên khi duyệt hoặc từ chối']
+  nguoi_xu_ly_id bigint [ref: >? tai_khoan.tai_khoan_id, note: 'Lễ tân hoặc Quản trị viên']
+  thoi_diem_xu_ly datetime [note: 'Ràng buộc: ChoDuyet thì người xử lý và thời điểm xử lý đều trống; DaDuyet hoặc TuChoi thì cả hai đều có']
+  thoi_diem_tao datetime [not null]
+
+  indexes {
+    (trang_thai, thoi_diem_tao)
+  }
+
+  Note: 'Ràng buộc: khi đã xử lý (khác ChoDuyet) thì bắt buộc có ghi_chu_xu_ly.'
+}
+
+Table ho_so_kham {
+  ho_so_kham_id bigint [pk, increment]
+  lich_hen_id bigint [not null, unique, ref: - lich_hen.lich_hen_id]
+  trieu_chung text
+  chan_doan_so_bo text
+  huong_xu_ly text
+  ngay_tai_kham_du_kien date
+  cap_nhat_lan_cuoi datetime [not null]
+
+  Note: 'Cần ít nhất 1 ghi chú không rỗng (kiểm tra ở service) mới cho xác nhận hoàn thành ca khám.'
+}
+
+Table muc_cho_danh_sach_cho {
+  muc_cho_danh_sach_cho_id bigint [pk, increment]
+  benh_nhan_id bigint [not null, ref: > benh_nhan.tai_khoan_id]
+  bac_si_id bigint [not null, ref: > bac_si.tai_khoan_id]
+  ngay_mong_muon date [not null]
+  ca_mong_muon ca_lam_viec_enum [not null]
+  thoi_diem_dang_ky datetime [not null, note: 'Dùng để xếp thứ hạng']
+  trang_thai trang_thai_muc_cho_enum [not null, default: 'DangCho']
+  khung_gio_duoc_moi_id bigint [ref: >? khung_gio.khung_gio_id, note: 'Slot đang giữ cho lời mời']
+  khung_gio_dang_moi bigint [unique, note: 'Bằng khung_gio_duoc_moi_id khi trạng thái = DaMoi, còn lại NULL. Cột sinh STORED + UNIQUE: mỗi lúc chỉ 1 ứng viên cho 1 slot']
+  thoi_han_phan_hoi datetime
+
+  indexes {
+    (bac_si_id, ngay_mong_muon, ca_mong_muon, trang_thai, thoi_diem_dang_ky)
+    (trang_thai, thoi_han_phan_hoi)
+    (benh_nhan_id, trang_thai)
+  }
+
+  Note: 'Không cho đăng ký trùng tiêu chí (bệnh nhân, bác sĩ, ngày, ca) khi còn DangCho hoặc DaMoi (kiểm tra ở service).'
+}
+
+// ===================== CỤM 5: THANH TOÁN & VÍ =====================
+
+Table vi_noi_bo {
+  vi_noi_bo_id bigint [pk, increment]
+  benh_nhan_id bigint [not null, unique, ref: - benh_nhan.tai_khoan_id]
+  so_du decimal(12,2) [not null, default: 0]
+  so_tien_dang_giu decimal(12,2) [not null, default: 0, note: 'Tiền đang giữ cho yêu cầu rút chờ duyệt']
+
+  Note: 'Ràng buộc: so_du >= 0, so_tien_dang_giu >= 0 và so_tien_dang_giu <= so_du. Số dư khả dụng = so_du - so_tien_dang_giu (tính khi đọc, không lưu).'
+}
+
+Table giao_dich_thanh_toan {
+  giao_dich_thanh_toan_id bigint [pk, increment]
+  vi_noi_bo_id bigint [ref: >? vi_noi_bo.vi_noi_bo_id, note: 'NapVi hoặc thanh toán bằng ví; để trống khi thu tiền mặt tại quầy']
+  lich_hen_id bigint [ref: >? lich_hen.lich_hen_id, note: 'Chỉ có khi ThanhToanLichHen; trỏ LỊCH GỐC của chuỗi đổi lịch, không đổi khi đổi lịch']
+  loai loai_giao_dich_enum [not null]
+  phuong_thuc phuong_thuc_enum [not null]
+  so_tien decimal(12,2) [not null]
+  trang_thai trang_thai_giao_dich_enum [not null, default: 'KhoiTao']
+  ma_giao_dich_cong varchar(100) [note: 'Mã cổng thanh toán trả về; chống xử lý trùng (idempotent)']
+  trang_thai_doi_soat trang_thai_doi_soat_enum [not null, default: 'KhongCan']
+  thoi_diem_tao datetime [not null]
+
+  indexes {
+    (phuong_thuc, ma_giao_dich_cong) [unique]
+    (vi_noi_bo_id, thoi_diem_tao)
+    (trang_thai, thoi_diem_tao)
+    (trang_thai_doi_soat)
+  }
+
+  Note: 'Ràng buộc: NapVi thì lich_hen_id để trống và có vi_noi_bo_id; ThanhToanLichHen thì bắt buộc có lich_hen_id.'
+}
+
+Table lich_su_hoan_tien {
+  lich_su_hoan_tien_id bigint [pk, increment]
+  giao_dich_thanh_toan_id bigint [not null, ref: > giao_dich_thanh_toan.giao_dich_thanh_toan_id, note: 'Khoản cọc được hoàn = giao dịch thanh toán của lịch gốc']
+  vi_noi_bo_id bigint [not null, ref: > vi_noi_bo.vi_noi_bo_id, note: 'Tiền hoàn chỉ về ví, không hoàn tiền mặt']
+  so_tien decimal(12,2) [not null]
+  ly_do varchar(255)
+  trang_thai ket_qua_enum [not null]
+  so_lan_thu int [not null, default: 1, note: 'Mỗi dòng = 1 lần thử, kể cả thất bại']
+  thoi_diem datetime [not null]
+
+  indexes {
+    (giao_dich_thanh_toan_id, so_lan_thu) [unique]
+  }
+}
+
+Table yeu_cau_rut_tien {
+  yeu_cau_rut_tien_id bigint [pk, increment]
+  vi_noi_bo_id bigint [not null, ref: > vi_noi_bo.vi_noi_bo_id]
+  so_tien decimal(12,2) [not null]
+  trang_thai trang_thai_yeu_cau_enum [not null, default: 'ChoDuyet']
+  nguoi_xu_ly_id bigint [ref: >? quan_tri_vien.tai_khoan_id]
+  thoi_diem_yeu_cau datetime [not null]
+  thoi_diem_xu_ly datetime [note: 'Ràng buộc: ChoDuyet thì người xử lý và thời điểm xử lý đều trống; DaDuyet hoặc TuChoi thì cả hai đều có']
+
+  indexes {
+    (trang_thai, thoi_diem_yeu_cau)
+  }
+
+  Note: 'Tạo yêu cầu: so_tien_dang_giu tăng so_tien. Duyệt: ghi giao_dich_vi loại Rut, so_du và so_tien_dang_giu cùng giảm so_tien. Từ chối: so_tien_dang_giu giảm so_tien.'
+}
+
+Table giao_dich_vi {
+  giao_dich_vi_id bigint [pk, increment]
+  vi_noi_bo_id bigint [not null, ref: > vi_noi_bo.vi_noi_bo_id]
+  loai loai_giao_dich_vi_enum [not null]
+  so_tien decimal(12,2) [not null, note: 'Có dấu: dương = tiền vào, âm = tiền ra']
+  so_du_sau decimal(12,2) [not null]
+  giao_dich_thanh_toan_id bigint [ref: >? giao_dich_thanh_toan.giao_dich_thanh_toan_id]
+  lich_su_hoan_tien_id bigint [ref: >? lich_su_hoan_tien.lich_su_hoan_tien_id]
+  yeu_cau_rut_tien_id bigint [ref: >? yeu_cau_rut_tien.yeu_cau_rut_tien_id]
+  thoi_diem datetime [not null]
+
+  indexes {
+    (vi_noi_bo_id, thoi_diem)
+  }
+
+  Note: 'Sổ cái lịch sử nạp/trừ/hoàn/rút, chỉ thêm không sửa. Ràng buộc: đúng 1 trong 3 cột tham chiếu có giá trị, tùy theo loại.'
+}
+
+// ===================== CỤM 6: KHÁM & ĐÁNH GIÁ =====================
+
+Table danh_gia_bac_si {
+  danh_gia_bac_si_id bigint [pk, increment]
+  lich_hen_id bigint [not null, unique, ref: - lich_hen.lich_hen_id, note: 'Tối đa 1 đánh giá cho mỗi lịch hẹn; bác sĩ và bệnh nhân suy ra qua lich_hen']
+  so_sao tinyint [not null, note: 'Ràng buộc: 1 đến 5']
+  nhan_xet text
+  bi_an boolean [not null, default: false]
+  ly_do_an varchar(255) [note: 'Bắt buộc khi bi_an = true; để trống khi bi_an = false. Người ẩn và thời điểm ẩn nằm trong nhat_ky_hanh_dong (AnDanhGia)']
+  thoi_diem_tao datetime [not null]
+
+  Note: 'Chỉ cho đánh giá khi lịch hẹn ở trạng thái HoanThanh (kiểm tra ở service). Ràng buộc: bi_an = false thì ly_do_an để trống; bi_an = true thì bắt buộc có ly_do_an.'
+}
+
+// ===================== CỤM 7: NỘI DUNG & VẬN HÀNH =====================
+
+Table bai_viet {
+  bai_viet_id bigint [pk, increment]
+  tac_gia_id bigint [not null, ref: > quan_tri_vien.tai_khoan_id]
+  tieu_de varchar(255) [not null]
+  mo_ta_ngan varchar(500)
+  noi_dung text [not null]
+  anh_dai_dien varchar(255)
+  trang_thai trang_thai_bai_viet_enum [not null, default: 'BanNhap']
+  thoi_diem_xuat_ban datetime
+  thoi_diem_tao datetime [not null, default: `now()`]
+  cap_nhat_lan_cuoi datetime [not null, default: `now()`, note: 'Tự cập nhật mỗi khi dòng thay đổi (ON UPDATE trong SQL)']
+}
+
+Table hashtag {
+  hashtag_id bigint [pk, increment]
+  ten varchar(50) [not null, unique, note: 'Chuẩn hóa chữ thường']
+  trang_thai_hoat_dong boolean [not null, default: true]
+}
+
+Table bai_viet_hashtag {
+  bai_viet_id bigint [ref: > bai_viet.bai_viet_id]
+  hashtag_id bigint [ref: > hashtag.hashtag_id]
+
+  indexes {
+    (bai_viet_id, hashtag_id) [pk]
+    (hashtag_id, bai_viet_id)
+  }
+}
+
+Table benh_nhan_danh_gia_bai_viet {
+  benh_nhan_id bigint [ref: > benh_nhan.tai_khoan_id]
+  bai_viet_id bigint [ref: > bai_viet.bai_viet_id]
+  loai loai_cam_xuc_enum [not null]
+
+  indexes {
+    (benh_nhan_id, bai_viet_id) [pk]
+    (bai_viet_id, loai)
+  }
+}
+
+Table thong_bao {
+  thong_bao_id bigint [pk, increment]
+  tai_khoan_id bigint [not null, ref: > tai_khoan.tai_khoan_id]
+  noi_dung varchar(500) [not null]
+  loai_su_kien varchar(100) [not null]
+  trang_thai_doc boolean [not null, default: false]
+  thoi_diem_tao datetime [not null]
+
+  indexes {
+    (tai_khoan_id, trang_thai_doc, thoi_diem_tao)
+  }
+}
+
+Table hoi_thoai {
+  hoi_thoai_id bigint [pk, increment]
+  loai loai_hoi_thoai_enum [not null]
+  chi_nhanh_id bigint [ref: >? chi_nhanh.chi_nhanh_id, note: 'BenhNhan_LeTan: bắt buộc (hộp thư chung chi nhánh); BenhNhan_BacSi: để trống']
+  nguoi_tao_id bigint [not null, ref: > tai_khoan.tai_khoan_id]
+  thoi_diem_tao datetime [not null]
+
+  indexes {
+    (chi_nhanh_id, loai, thoi_diem_tao)
+  }
+
+  Note: 'Ràng buộc: BenhNhan_LeTan thì bắt buộc có chi_nhanh_id; BenhNhan_BacSi thì để trống. Hội thoại không có trạng thái đóng.'
+}
+
+Table tai_khoan_hoi_thoai {
+  tai_khoan_id bigint [ref: > tai_khoan.tai_khoan_id]
+  hoi_thoai_id bigint [ref: > hoi_thoai.hoi_thoai_id]
+  tin_nhan_cuoi_da_doc_id bigint [ref: >? tin_nhan.tin_nhan_id, note: 'Tin mới nhất người này đã đọc; để trống = chưa đọc gì']
+
+  indexes {
+    (tai_khoan_id, hoi_thoai_id) [pk]
+    (hoi_thoai_id, tai_khoan_id)
+  }
+
+  Note: 'Tin chưa đọc = tin có tin_nhan_id lớn hơn mốc đã đọc (hoặc tất cả nếu để trống) và người gửi khác chính mình. Mốc phải thuộc cùng hội thoại (kiểm tra ở service). Hộp thư chung Lễ tân: mỗi Lễ tân có dòng riêng, tạo khi mở hoặc trả lời hội thoại lần đầu; chưa có dòng thì coi như chưa đọc.'
+}
+
+Table tin_nhan {
+  tin_nhan_id bigint [pk, increment]
+  hoi_thoai_id bigint [not null, ref: > hoi_thoai.hoi_thoai_id]
+  nguoi_gui_id bigint [not null, ref: > tai_khoan.tai_khoan_id]
+  noi_dung text [not null]
+  tep_dinh_kem varchar(255)
+  thoi_diem_gui datetime [not null]
+
+  indexes {
+    (hoi_thoai_id, tin_nhan_id)
+  }
+}
+
+Table nhat_ky_hanh_dong {
+  nhat_ky_hanh_dong_id bigint [pk, increment]
+  tai_khoan_id bigint [not null, ref: > tai_khoan.tai_khoan_id, note: 'Người thực hiện']
+  chi_nhanh_id bigint [ref: >? chi_nhanh.chi_nhanh_id, note: 'Chi nhánh liên quan, để Quản trị viên phạm vi Chi nhánh lọc nhật ký']
+  hanh_dong hanh_dong_nhay_cam_enum [not null]
+  loai_doi_tuong loai_doi_tuong_enum [not null, note: 'Bảng bị tác động']
+  ma_doi_tuong bigint [not null, note: 'Khóa chính của bản ghi bị tác động; không có FK để nhật ký còn nguyên khi bản ghi gốc bị xóa hoặc ẩn']
+  thoi_diem datetime [not null]
+  ket_qua ket_qua_enum [not null]
+  chi_tiet_thay_doi json [note: 'Nội dung trước và sau khi thay đổi']
+
+  indexes {
+    (loai_doi_tuong, ma_doi_tuong, thoi_diem)
+    (tai_khoan_id, thoi_diem)
+    (chi_nhanh_id, thoi_diem)
+  }
+}

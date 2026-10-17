@@ -28,10 +28,13 @@ docker compose up --build
 - Web: http://localhost:5173 · API: http://localhost:3000 (`/health`) · MySQL: `localhost:3306`
 
 Thiết lập repo lần đầu (khởi tạo app, bảo vệ nhánh, CD): xem [`docs/REPO_SETUP.md`](docs/REPO_SETUP.md).
+Thành viên mới clone repo để code: xem [`docs/DEV_SETUP.md`](docs/DEV_SETUP.md).
 
 ## Quy trình làm việc
 Xem [`CONTRIBUTING.md`](CONTRIBUTING.md) và [`docs/CODING_CONVENTION.md`](docs/CODING_CONVENTION.md).
 Nhật ký dùng AI: [`AI_USAGE_LOG.md`](AI_USAGE_LOG.md). Nợ kỹ thuật: [`docs/TECH_DEBT.md`](docs/TECH_DEBT.md).
+Kế hoạch phát triển: [`docs/PLAN.md`](docs/PLAN.md). Nhật ký thay đổi mã nguồn: [`docs/TRACKING.md`](docs/TRACKING.md).
+Bắt đầu một tính năng mới: [`docs/FEATURE_PLANNING_PROMPT.md`](docs/FEATURE_PLANNING_PROMPT.md).
 
 ## Kiểm tra chất lượng (chạy ở CI cho mọi PR)
 PR title (Conventional Commits) → gitleaks → lint/build/test + coverage → jscpd (trùng lặp ≤ 3%) → Trivy (CRITICAL/HIGH) → build image Docker.
