@@ -28,7 +28,7 @@ Phải xong trước khi viết nghiệp vụ, vì mọi module sau đều phụ
 | # | Quyết định | Vì sao chặn | Trạng thái |
 |---|---|---|---|
 | 1 | ORM cho NestJS + MySQL (TypeORM / Prisma) | Entity, migration, mọi module đều dựa vào | `[cần điền]` |
-| 2 | Cơ chế xác thực chính thức (JWT access/refresh — hiện chỉ là `[đề xuất]` trong `.env.example`) | Auth là nền cho phân quyền (RBAC) ở mọi module khác | `[cần điền]` |
+| 2 | Cơ chế xác thực chính thức (JWT access/refresh — hiện chỉ là `[đề xuất]` trong `.env.example`) | Auth là nền cho phân quyền (RBAC) ở mọi module khác | **Chốt 17/10:** JWT access token ngắn hạn + refresh token lưu băm trong DB (đăng xuất = vô hiệu refresh token). Thời hạn từng loại token: `[cần điền]` |
 | 3 | Ngày bắt đầu / kết thúc kỳ đồ án thật | Quyết định mốc 50% của quy tắc chặn điểm G1 (rubric) — trễ hạn = không đủ điều kiện bảo vệ | `[cần điền]`, hỏi GVHD |
 | 4 | Server staging (VPS nào; GitHub Student Pack còn hiệu lực không) | TC2.2, TC2.6, TC2.7 đều cần staging công khai | `[cần điền]` |
 
