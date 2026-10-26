@@ -52,6 +52,8 @@ jobs:
           # Nếu repo thuộc một GitHub Organization, cần thêm secret GITLEAKS_LICENSE.
 
   # Chặng 3 — lint + build + test + coverage cho API (chỉ chạy khi apps/api đã tồn tại)
+  # Có MySQL 8.4 thật để chạy test tích hợp và e2e. Mật khẩu root bên dưới chỉ dùng cho container tạm của job này,
+  # không phải bí mật; test tự tạo/xóa các DB tên *_test nên không đụng dữ liệu nào khác.
   api:
     needs: detect
     if: needs.detect.outputs.api == 'true'
@@ -59,6 +61,25 @@ jobs:
     defaults:
       run:
         working-directory: apps/api
+    env:
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: "3306"
+      TEST_DB_USER: root
+      TEST_DB_PASSWORD: ci-only-throwaway-db
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-only-throwaway-db
+          # Giống docker-compose: container DB chạy giờ Việt Nam, còn runner chạy UTC để test múi giờ có ý nghĩa
+          TZ: Asia/Ho_Chi_Minh
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
@@ -70,6 +91,8 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test -- --coverage
+      - run: npm run test:int -- --coverage
+      - run: npm run test:e2e
       - uses: actions/upload-artifact@v6
         if: always()
         with:

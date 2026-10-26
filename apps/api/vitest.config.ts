@@ -11,7 +11,13 @@ export default defineConfig({
     coverage: {
       // Đo mọi file mã nguồn (kể cả file chưa được test chạm tới) để con số coverage không bị đẹp giả
       include: ['src/**/*.ts'],
-      exclude: ['src/main.ts', 'src/**/*.spec.ts'],
+      // main.ts và migrate.ts là điểm vào (chạy thật ở bước kiểm tra docker/CI); testing/ là mã hỗ trợ test
+      exclude: [
+        'src/main.ts',
+        'src/database/migrate.ts',
+        'src/**/*spec.ts',
+        'src/**/testing/**',
+      ],
     },
   },
 });

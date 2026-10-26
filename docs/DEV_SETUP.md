@@ -3,8 +3,8 @@
 Dành cho thành viên đã được mời làm **Collaborator** trên GitHub, muốn đưa code về máy để bắt đầu làm việc.
 Nếu bạn là người *tạo* repo lần đầu (tạo ruleset, tạo `apps/api`/`apps/web`...), xem [`REPO_SETUP.md`](REPO_SETUP.md) thay vì file này.
 
-> **Lưu ý trạng thái hiện tại (13/10/2026):** `apps/api` và `apps/web` mới có `Dockerfile`, **chưa có mã NestJS/React thật**.
-> Một vài lệnh ở dưới sẽ báo lỗi cho tới khi hai app này được tạo — đã ghi chú rõ ở từng chỗ, không phải do bạn làm sai.
+> **Trạng thái hiện tại (26/10/2026):** `apps/api` (NestJS) và `apps/web` (React + Vite) đã được khởi tạo. API đã nối MySQL và có migration cho 5 bảng
+> của module `auth`; web mới có trang placeholder. Các lệnh bên dưới chạy được đủ.
 
 ## 0. Cài đặt trước khi bắt đầu
 
@@ -65,13 +65,39 @@ Mở `.env` vừa tạo, điền giá trị thật (hỏi Đại nếu chưa bi�
 docker compose up --build
 ```
 
-**Hiện tại lệnh này sẽ lỗi** ở bước build `api` và `web`, vì hai thư mục đó chưa có `package.json` (chưa tạo app NestJS/React). Đây là trạng thái tạm thời, không phải bạn làm sai. Muốn thử trước phần đã chạy được (MySQL):
+Chạy đủ 3 service: Web (http://localhost:5173), API (http://localhost:3000, thử `http://localhost:3000/health`) và MySQL (`localhost:3306`). Lần đầu mất vài phút vì build image và `npm ci`.
+Chỉ cần cơ sở dữ liệu (ví dụ để chạy test tích hợp trên máy): `docker compose up -d db`.
+
+### 5.1 Cơ sở dữ liệu: migration và múi giờ
+
+- Schema do **migration viết tay** quản lý (TypeORM không tự đồng bộ, `synchronize: false`); nguồn gốc là `docs/database/clinix_mysql.sql`. Trong `.env.example`, `DB_MIGRATIONS_RUN=true`
+  nên **API tự áp các migration chưa chạy mỗi lần khởi động** (chỉ để tiện khi phát triển; mặc định trong mã là `false`). Chạy tay bằng lệnh trong container `api`:
+
+  ```powershell
+  docker compose exec api npm run migration:status   # liệt kê migration: [x] đã chạy, [ ] chưa
+  docker compose exec api npm run migration:run      # áp dụng migration chưa chạy
+  docker compose exec api npm run migration:revert   # hoàn tác MỘT migration cuối cùng
+  ```
+
+  Cần xóa sạch dữ liệu dev và dựng lại từ đầu: `docker compose down -v` (xóa volume `db-data`) rồi `docker compose up --build`.
+- **Múi giờ nghiệp vụ là giờ Việt Nam (`+07:00`)**, đặt ở ba chỗ phải khớp nhau: `TZ` của container `db` (`docker-compose.yml`), `DB_TIMEZONE` của driver, và lệnh `SET time_zone`
+  mà API chạy cho **mỗi** kết nối MySQL (xem `apps/api/src/database/data-source.ts`). Nhờ vậy `NOW()`/`DEFAULT CURRENT_TIMESTAMP` của DB cùng mốc giờ với thời gian ứng dụng ghi,
+  kể cả khi MySQL chạy ở máy khác không đặt múi giờ.
+- Đổi schema: sửa **cả ba** file `docs/database/*` trước, rồi viết migration mới khớp từng dòng và đăng ký vào `apps/api/src/database/migrations/index.ts`
+  (xem `docs/CODING_CONVENTION.md`).
+
+### 5.2 Test tích hợp và e2e của API (cần MySQL thật)
 
 ```powershell
-docker compose up db
+docker compose up -d db          # MySQL của compose, cổng 3306
+cd apps/api
+npm run test:int                 # *.int-spec.ts: migration, ràng buộc CHECK/UNIQUE/FK, múi giờ…
+npm run test:e2e                 # AppModule + MySQL thật
 ```
 
-Khi nào `apps/api`/`apps/web` đã được tạo (xem `docs/REPO_SETUP.md` mục 4), `docker compose up --build` sẽ chạy đủ cả Web (http://localhost:5173), API (http://localhost:3000) và MySQL (`localhost:3306`).
+- Hai lệnh tự đọc `.env` ở gốc repo: dùng `TEST_DB_HOST/PORT/USER/NAME` (mặc định `127.0.0.1:3306`, user `root`, DB `clinix_test`) và mật khẩu `TEST_DB_PASSWORD`, nếu không đặt thì lấy `MYSQL_ROOT_PASSWORD`.
+- Test **xóa và tạo lại** các DB `clinix_test`, `clinix_ref_test`, `clinix_migration_test`; tên DB test bắt buộc viết thường và kết thúc `_test` (mã từ chối chạy với tên khác) nên **không bao giờ đụng DB dev `clinix`**.
+- Chạy tuần tự (không song song) vì các file dùng chung một DB test. Trên CI, job `api` có service MySQL 8.4 riêng và chạy cả hai lệnh này.
 
 ## 6. Quy trình làm việc hằng ngày
 
@@ -102,9 +128,9 @@ git branch -d feat/ten-viec
 ## 7. Lệnh kiểm tra trước khi push (chạy ở gốc repo)
 
 ```powershell
-npm run lint      # hiện báo lỗi vì apps/api, apps/web chưa tồn tại — bình thường tới khi có app
-npm test
-npm run dup       # jscpd — kiểm mã trùng lặp
+npm run lint      # lint apps/api và apps/web
+npm test          # test đơn vị của hai app (test tích hợp/e2e của API chạy riêng, xem mục 5.2)
+npm run dup       # jscpd — kiểm mã trùng lặp (trên Windows có thể quét 0 file, xem docs/TECH_DEBT.md dòng 5)
 npm run secrets   # gitleaks — cần cài gitleaks trước, xem bên dưới
 ```
 

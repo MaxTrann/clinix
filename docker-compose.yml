@@ -9,6 +9,8 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # Giờ Việt Nam cho container DB (Q43 plan admin); API đặt thêm `SET time_zone` cho từng kết nối
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
     ports:
       - "3306:3306"
     volumes:

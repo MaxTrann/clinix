@@ -27,6 +27,10 @@
 -- chk_lich_hoat_dong_khong_chong, chk_lich_hoat_dong_ngay => 44 bảng, 27 enum (không thêm bảng/enum), 36 CHECK. Chuyển đổi từ DB cũ: mục 8 của clinix_quy_tac_nghiep_vu.md.
 -- 20/10/2026 (truy vết Lễ tân thu tiền mặt tại quầy): giao_dich_thanh_toan thêm nguoi_thu_id (khóa ngoại tới le_tan.tai_khoan_id) và chk_gd_tien_mat_nguoi_thu
 -- => 44 bảng, 27 enum (không thêm bảng/enum), 37 CHECK. Chuyển đổi từ DB cũ: mục 9 của clinix_quy_tac_nghiep_vu.md.
+-- 26/10/2026 (module auth, task P3): ma_xac_thuc thêm 3 cột dữ liệu lần đăng ký (ho_ten_dang_ky, so_dien_thoai_dang_ky, mat_khau_bam_dang_ky) và
+-- chk_ma_xac_thuc_du_lieu_dang_ky; da_gui_luc/thu_hoi_luc dùng cả cho OTP; tài khoản Bệnh nhân chưa xác minh giữ 24 giờ; phien_dang_nhap chốt tên và
+-- thời hạn (bỏ [đề xuất]); vi_noi_bo tạo cùng benh_nhan khi xác minh OTP; chỉ đổi cột/CHECK/ghi chú của ma_xac_thuc, không thêm bảng hoặc enum => 44
+-- bảng, 27 enum, 38 CHECK. Chuyển đổi từ DB cũ: mục 10 của clinix_quy_tac_nghiep_vu.md.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -52,6 +56,7 @@
 --   * Không trùng mã giao dịch cổng thanh toán trong cùng phương thức (chống xử lý lặp)  [giao_dich_thanh_toan (phuong_thuc, ma_giao_dich_cong)]
 --   * Tài khoản: ChoKichHoat thì chưa có mật khẩu, DangHoatDong bắt buộc có mật khẩu; Bệnh nhân không bao giờ ChoKichHoat  [chk_tai_khoan_mat_khau, chk_tai_khoan_cho_kich_hoat_nhan_su]
 --   * Mã xác thực: mỗi tài khoản tối đa 1 liên kết KichHoatNhanSu hợp lệ (đã gửi, chưa thu hồi, chưa dùng); mã đã dùng không bị thu hồi; liên kết đã dùng phải đã được gửi  [ma_xac_thuc.kich_hoat_dang_hieu_luc UNIQUE, chk_ma_xac_thuc_dung_hoac_thu_hoi, chk_ma_xac_thuc_kich_hoat_da_gui]
+--   * Mã xác thực loại DangKy mang dữ liệu của lần đăng ký (họ tên, SĐT, mật khẩu băm): ba cột cùng có giá trị hoặc cùng NULL; loại khác không có dữ liệu này  [chk_ma_xac_thuc_du_lieu_dang_ky]
 --   * Lịch hoạt động chi nhánh: thứ 1 đến 7; mỗi (chi nhánh, thứ) tối đa 1 dòng; tối đa hai khoảng nhận khám (sáng, chiều), mỗi khoảng hoặc để trống cả hai giờ hoặc đủ giờ với bắt đầu < kết thúc trong ngày (không qua đêm); hai khoảng không chồng nhau; hoat_dong = true thì có ít nhất một khoảng, ngày nghỉ thì cả bốn giờ để trống  [chk_lich_hoat_dong_thu, chk_lich_hoat_dong_khoang, chk_lich_hoat_dong_khong_chong, chk_lich_hoat_dong_ngay, PRIMARY KEY]
 --   * Yêu cầu thay đổi chi nhánh: nội dung trước/sau là JSON object không rỗng; ChoDuyet chưa có người duyệt và hiệu lực; DaDuyet có người duyệt, số ngày báo trước và hieu_luc_tu >= thời điểm duyệt + số ngày báo trước; TuChoi bắt buộc có lý do  [chk_yc_chi_nhanh_noi_dung, chk_yc_chi_nhanh_xu_ly]
 --   * Mỗi thông báo có tối đa 1 dòng email; thông báo của 1 yêu cầu thay đổi chi nhánh không trùng theo (yêu cầu, tài khoản, loại sự kiện); email DaGui phải có da_gui_luc, ThatBai phải có lỗi  [email_thong_bao.thong_bao_id UNIQUE, thong_bao_index_yeu_cau_chi_nhanh, chk_email_thong_bao_ket_qua]
@@ -112,7 +117,7 @@ CREATE TABLE `tai_khoan` (
   `email` varchar(255) UNIQUE NOT NULL,
   `mat_khau_bam` varchar(255) COMMENT 'NULL chỉ khi trang_thai = ChoKichHoat (nhân sự chưa tự đặt mật khẩu qua liên kết kích hoạt). DangHoatDong bắt buộc có mật khẩu (chk_tai_khoan_mat_khau)',
   `trang_thai` ENUM ('ChoKichHoat', 'DangHoatDong', 'NgungHoatDong') NOT NULL DEFAULT 'DangHoatDong' COMMENT 'ChoKichHoat chỉ cho nhân sự vừa tạo, chưa đăng nhập được; chỉ chuyển sang DangHoatDong khi nhân sự đặt mật khẩu qua liên kết kích hoạt, không chuyển bằng Mở khóa',
-  `da_xac_minh_email` boolean NOT NULL DEFAULT false COMMENT 'false thì không được đặt lịch. Đăng ký tạo tài khoản ngay với false; OTP đúng thì đặt true. Tài khoản chưa xác minh quá hạn bị xóa [cần điền: thời hạn giữ]. Nhân sự: đặt true khi kích hoạt thành công vì liên kết gửi tới đúng email này [đề xuất]',
+  `da_xac_minh_email` boolean NOT NULL DEFAULT false COMMENT 'false thì không được đặt lịch. Đăng ký tạo tài khoản ngay với false; OTP đúng thì đặt true. Tài khoản Bệnh nhân chưa xác minh bị xóa sau 24 giờ kể từ thoi_diem_tao (không gia hạn khi gửi lại OTP; không bao giờ xóa tài khoản nhân sự). Nhân sự: đặt true khi kích hoạt thành công vì liên kết gửi tới đúng email này [đề xuất]',
   `so_lan_dang_nhap_sai` int NOT NULL DEFAULT 0 COMMENT 'Số lần đăng nhập sai liên tiếp, về 0 khi đăng nhập đúng. Email không tồn tại thì không đếm',
   `khoa_dang_nhap_den` datetime COMMENT 'Còn ở tương lai thì đang bị khóa đăng nhập (5 lần sai liên tiếp, khóa 15 phút); NULL = không khóa',
   `loai_tai_khoan` ENUM ('BenhNhan', 'BacSi', 'LeTan', 'QuanTriVien') NOT NULL COMMENT 'Cột đề xuất thêm để biết nhanh loại tài khoản, không cần JOIN 4 bảng con',
@@ -163,24 +168,27 @@ CREATE TABLE `ma_xac_thuc` (
   `ma_xac_thuc_id` bigint PRIMARY KEY AUTO_INCREMENT,
   `tai_khoan_id` bigint NOT NULL,
   `loai` ENUM ('DangKy', 'QuenMatKhau', 'KichHoatNhanSu') NOT NULL,
-  `ma_bam` varchar(255) NOT NULL COMMENT 'Lưu bản băm của OTP hoặc token, không lưu bản rõ',
+  `ma_bam` varchar(255) NOT NULL COMMENT 'Lưu bản băm, không lưu bản rõ: OTP (DangKy, QuenMatKhau) = HMAC-SHA-256 với khóa bí mật riêng, dữ liệu băm gồm tai_khoan_id, loai, ma_xac_thuc_id và mã (không dùng SHA-256 trơn); liên kết kích hoạt = băm của token',
   `het_han_luc` datetime NOT NULL,
   `da_dung_luc` datetime COMMENT 'Để trống = chưa dùng; liên kết kích hoạt chỉ dùng 1 lần',
-  `da_gui_luc` datetime COMMENT 'Chỉ dùng cho loai = KichHoatNhanSu: thời điểm dịch vụ email xác nhận đã gửi THÀNH CÔNG; để trống = liên kết mới tạo, chưa có hiệu lực. OTP không dùng cột này',
-  `thu_hoi_luc` datetime COMMENT 'Chỉ dùng cho loai = KichHoatNhanSu: thời điểm liên kết bị vô hiệu (gửi lại thành công thì liên kết cũ bị thu hồi; liên kết mới gửi thất bại thì chính nó bị thu hồi). Để trống = chưa thu hồi',
+  `da_gui_luc` datetime COMMENT 'Thời điểm dịch vụ email xác nhận đã gửi THÀNH CÔNG; để trống = mới tạo hoặc gửi lỗi, chưa có hiệu lực. KichHoatNhanSu: liên kết chưa gửi thì chưa hợp lệ. OTP (DangKy, QuenMatKhau): mã chưa gửi thành công không xác minh được và không thay thế mã cũ; chỉ mã mới nhất ĐÃ GỬI THÀNH CÔNG mới thay thế mã cũ',
+  `thu_hoi_luc` datetime COMMENT 'Thời điểm mã bị vô hiệu; để trống = chưa thu hồi. KichHoatNhanSu: gửi lại thành công thì liên kết cũ bị thu hồi; liên kết mới gửi thất bại thì chính nó bị thu hồi. OTP: bị thu hồi khi mã mới gửi thành công, khi gửi lỗi (chính hàng mới), khi nhập sai đủ 5 lần, hoặc khi đặt lại mật khẩu thành công trên tài khoản chưa xác minh',
   `kich_hoat_dang_hieu_luc` bigint GENERATED ALWAYS AS (IF(`loai` = 'KichHoatNhanSu' AND `da_gui_luc` IS NOT NULL AND `thu_hoi_luc` IS NULL AND `da_dung_luc` IS NULL, `tai_khoan_id`, NULL)) STORED UNIQUE COMMENT 'Bằng tai_khoan_id khi liên kết kích hoạt đã gửi, chưa thu hồi, chưa dùng; NULL ở mọi trường hợp khác. UNIQUE => mỗi tài khoản tối đa 1 liên kết kích hoạt hợp lệ (hết hạn kiểm tra ở service)',
-  `so_lan_nhap_sai` int NOT NULL DEFAULT 0,
-  `tao_luc` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Dùng đếm giới hạn gửi lại OTP: cách mã trước ≥ 60 giây, tối đa 5 mã/giờ theo (tai_khoan_id, loai)'
+  `so_lan_nhap_sai` int NOT NULL DEFAULT 0 COMMENT 'Số lần nhập sai của MÃ NÀY (OTP: đủ 5 lần thì thu hồi mã)',
+  `tao_luc` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Dùng đếm giới hạn gửi lại OTP: cách mã trước ≥ 60 giây, tối đa 5 mã/giờ theo (tai_khoan_id, loai); tính cả hàng gửi lỗi',
+  `ho_ten_dang_ky` varchar(100) COMMENT 'Chỉ loai = DangKy: họ tên của LẦN ĐĂNG KÝ gắn với mã này; chỉ được ghi vào tai_khoan khi chính mã này được xác minh đúng. NULL khi không phải DangKy, hoặc sau khi mã đã dùng/bị thu hồi do đặt lại mật khẩu (ba cột dữ liệu đăng ký cùng NULL hoặc cùng có giá trị: chk_ma_xac_thuc_du_lieu_dang_ky)',
+  `so_dien_thoai_dang_ky` varchar(20) COMMENT 'Số điện thoại của lần đăng ký này (xem ho_ten_dang_ky)',
+  `mat_khau_bam_dang_ky` varchar(255) COMMENT 'Bản băm Argon2id của mật khẩu của lần đăng ký này, không bao giờ lưu bản rõ (xem ho_ten_dang_ky)'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- [đề xuất] Refresh token của JWT: chỉ lưu bản băm; đăng xuất = đặt thu_hoi_luc. Tên bảng/cột chưa chốt.
+-- Phiên đăng nhập (tên bảng và cột đã chốt, Q10): refresh token ngẫu nhiên 256 bit chỉ lưu bản băm; xoay tại chỗ mỗi lần làm mới; đăng xuất hoặc dùng lại token cũ thì đặt thu_hoi_luc.
 CREATE TABLE `phien_dang_nhap` (
   `phien_dang_nhap_id` bigint PRIMARY KEY AUTO_INCREMENT,
   `tai_khoan_id` bigint NOT NULL,
-  `refresh_token_bam` varchar(255) UNIQUE NOT NULL COMMENT 'Lưu bản băm của refresh token, không lưu bản rõ',
-  `tao_luc` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `het_han_luc` datetime NOT NULL COMMENT 'Thời hạn refresh token [cần điền]',
-  `thu_hoi_luc` datetime COMMENT 'Để trống = còn hiệu lực; đăng xuất thì ghi thời điểm thu hồi'
+  `refresh_token_bam` varchar(255) UNIQUE NOT NULL COMMENT 'Lưu SHA-256 của refresh token (chuỗi ngẫu nhiên 256 bit, dạng sid.ngẫu nhiên.chữ ký), không lưu bản rõ; thay bằng băm mới mỗi lần làm mới (xoay tại chỗ)',
+  `tao_luc` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Thời điểm đăng nhập; mốc tính trần tuyệt đối 8 giờ',
+  `het_han_luc` datetime NOT NULL COMMENT 'Hết hạn trượt: lúc đăng nhập = tao_luc + 30 phút (không hoạt động); mỗi lần làm mới = min(bây giờ + 30 phút, tao_luc + 8 giờ). Quá het_han_luc hoặc quá trần 8 giờ kể từ tao_luc thì refresh bị từ chối',
+  `thu_hoi_luc` datetime COMMENT 'Để trống = còn hiệu lực. Ghi thời điểm khi: đăng xuất, phát hiện dùng lại refresh token cũ, đặt lại hoặc đổi mật khẩu (các phiên khác), khóa tài khoản'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `chi_nhanh` (
@@ -677,7 +685,7 @@ ALTER TABLE `ho_so_kham` COMMENT = 'Ghi hồ sơ khám là thao tác độc lậ
 
 ALTER TABLE `muc_cho_danh_sach_cho` COMMENT = 'Không cho đăng ký trùng tiêu chí (bệnh nhân, bác sĩ, ngày, ca) khi còn DangCho hoặc DaMoi (kiểm tra ở service).';
 
-ALTER TABLE `vi_noi_bo` COMMENT = 'Ràng buộc: so_du >= 0, so_tien_dang_giu >= 0 và so_tien_dang_giu <= so_du. Số dư khả dụng = so_du - so_tien_dang_giu (tính khi đọc, không lưu).';
+ALTER TABLE `vi_noi_bo` COMMENT = 'Ràng buộc: so_du >= 0, so_tien_dang_giu >= 0 và so_tien_dang_giu <= so_du. Số dư khả dụng = so_du - so_tien_dang_giu (tính khi đọc, không lưu). Ví được tạo cùng giao dịch với benh_nhan khi xác minh OTP đăng ký (so_du = 0, so_tien_dang_giu = 0); mỗi bệnh nhân đúng một ví.';
 
 ALTER TABLE `giao_dich_thanh_toan` COMMENT = 'Ràng buộc: NapVi thì lich_hen_id để trống và có vi_noi_bo_id; ThanhToanLichHen thì bắt buộc có lich_hen_id. Thu tiền mặt tại quầy (phuong_thuc = TienMatTaiQuay): chỉ ThanhToanLichHen, bắt buộc có lich_hen_id (lịch gốc) và nguoi_thu_id, không có vi_noi_bo_id và ma_giao_dich_cong, so_tien > 0, trang_thai = ThanhCong (dòng chỉ được tạo khi Lễ tân đã thu đủ phần còn lại; thu không thành công thì không tạo dòng); mọi phương thức khác thì nguoi_thu_id để trống (chk_gd_tien_mat_nguoi_thu). Một lịch hẹn có thể có nhiều dòng (khoản cọc và khoản thu còn lại) nên KHÔNG có UNIQUE theo lich_hen_id. Service chịu trách nhiệm: lấy nguoi_thu_id từ phiên đăng nhập, Lễ tân đúng chi nhánh của lịch hẹn, thu đủ đúng số còn phải thu, chống ghi trùng và ghi cùng giao dịch với việc chuyển DaTiepDon (xem clinix_quy_tac_nghiep_vu.md mục 2 dòng 45 đến 47).';
 
@@ -852,6 +860,10 @@ ALTER TABLE `ma_xac_thuc` ADD CONSTRAINT `chk_ma_xac_thuc_dung_hoac_thu_hoi` CHE
 );
 ALTER TABLE `ma_xac_thuc` ADD CONSTRAINT `chk_ma_xac_thuc_kich_hoat_da_gui` CHECK (
     `loai` <> 'KichHoatNhanSu' OR `da_dung_luc` IS NULL OR `da_gui_luc` IS NOT NULL
+);
+ALTER TABLE `ma_xac_thuc` ADD CONSTRAINT `chk_ma_xac_thuc_du_lieu_dang_ky` CHECK (
+    (`ho_ten_dang_ky` IS NULL AND `so_dien_thoai_dang_ky` IS NULL AND `mat_khau_bam_dang_ky` IS NULL)
+ OR (`loai` = 'DangKy' AND `ho_ten_dang_ky` IS NOT NULL AND `so_dien_thoai_dang_ky` IS NOT NULL AND `mat_khau_bam_dang_ky` IS NOT NULL)
 );
 ALTER TABLE `quan_tri_vien` ADD CONSTRAINT `chk_qtv_pham_vi` CHECK (
     (`pham_vi_quan_tri` = 'ChiNhanh' AND `chi_nhanh_id` IS NOT NULL) OR (`pham_vi_quan_tri` = 'ToanHeThong' AND `chi_nhanh_id` IS NULL)

@@ -1,6 +1,6 @@
 # CLINIX – Quy tắc nghiệp vụ trong Database (bản 2)
 
-Nguồn: `clinix.dbml` và `clinix_mysql.sql` (cùng thư mục `docs/database/`, là bản chuẩn từ 17/10/2026; hai file này giữ đồng bộ bằng tay; cập nhật 20/10/2026: 44 bảng, 27 enum, 37 CHECK). Cần MySQL 8.0.17+ (CHECK được thực thi từ 8.0.16; hàm `JSON_SCHEMA_VALID` của `chk_cau_hinh_nhac_lich` cần 8.0.17).
+Nguồn: `clinix.dbml` và `clinix_mysql.sql` (cùng thư mục `docs/database/`, là bản chuẩn từ 17/10/2026; hai file này giữ đồng bộ bằng tay; cập nhật 26/10/2026: 44 bảng, 27 enum, 38 CHECK). Cần MySQL 8.0.17+ (CHECK được thực thi từ 8.0.16; hàm `JSON_SCHEMA_VALID` của `chk_cau_hinh_nhac_lich` cần 8.0.17).
 
 ## 1. Do database bảo vệ
 
@@ -45,6 +45,7 @@ Nguồn: `clinix.dbml` và `clinix_mysql.sql` (cùng thư mục `docs/database/`
 | 37 | `phu_phi` >= 0 và `so_nam_kinh_nghiem_tu` >= 0; `bac_si.so_nam_kinh_nghiem` >= 0 [đề xuất miền giá trị] | `chk_phu_phi_bac_si_gia_tri`, `chk_bac_si_kinh_nghiem` | CHECK |
 | 38 | Chức danh (7 mức) và học vị (5 mức) của bác sĩ tương thích: BS, BS_CKI, BS_CKII ↔ BS; ThS_BS ↔ ThS; TS_BS ↔ TS; PGS_TS_BS ↔ PGS; GS_TS_BS ↔ GS. Ánh xạ BS_CKI và BS_CKII ↔ BS là [đề xuất] | `chk_bac_si_chuc_danh_hoc_vi` | CHECK |
 | 39 | Thu tiền mặt tại quầy (`phuong_thuc` = `TienMatTaiQuay`): chỉ `ThanhToanLichHen`, bắt buộc có `lich_hen_id` và `nguoi_thu_id` (Lễ tân xác nhận đã nhận tiền), không có `vi_noi_bo_id` và `ma_giao_dich_cong`, `so_tien` > 0, `trang_thai` = `ThanhCong`; mọi phương thức khác thì `nguoi_thu_id` để trống. `nguoi_thu_id` chỉ nhận mã tài khoản có dòng `le_tan` (không thể là bác sĩ, bệnh nhân, quản trị viên) và không xóa được Lễ tân còn giao dịch. Các cột đứng trong phép so sánh của CHECK đều NOT NULL; cột cho phép NULL chỉ được thử bằng `IS NULL` / `IS NOT NULL`, nên không có trường hợp UNKNOWN (MySQL cho qua CHECK khi UNKNOWN) | `chk_gd_tien_mat_nguoi_thu`, khóa ngoại `giao_dich_thanh_toan.nguoi_thu_id` → `le_tan` | CHECK + FK |
+| 40 | Mã xác thực loại DangKy mang dữ liệu của lần đăng ký (họ tên, SĐT, mật khẩu băm): ba cột cùng có giá trị hoặc cùng NULL; mã loại khác không có dữ liệu này | `chk_ma_xac_thuc_du_lieu_dang_ky` | CHECK |
 
 ## 2. Do tầng ứng dụng (service) bảo vệ
 
@@ -56,7 +57,7 @@ Nguồn: `clinix.dbml` và `clinix_mysql.sql` (cùng thư mục `docs/database/`
 | 4 | Tài chính sau đổi lịch: không tạo giao dịch thanh toán mới; lần theo lich_hen_truoc_id về lịch gốc để tìm giao dịch (xem truy vấn mẫu cuối file) | Service |
 | 5 | (Đã chuyển sang DB từ 18/10/2026 đợt 2, xem mục 1 dòng 33.) Service chỉ còn phải xử lý lỗi khóa ngoại 1452 và hồ sơ người thân đã ngừng hiệu lực (`trang_thai_hieu_luc` = false) | Service |
 | 6 | lich_hen.bac_si_id, chi_nhanh_id, thoi_gian khớp với khung giờ (dữ liệu snapshot) | Service |
-| 7 | loai_tai_khoan của tai_khoan khớp đúng 1 bảng con (benh_nhan / bac_si / le_tan / quan_tri_vien). Ngoại lệ: tài khoản BenhNhan chưa xác minh email chưa có dòng benh_nhan (hồ sơ bệnh nhân tạo khi OTP đúng, xem 2.4 Đăng ký bước 9). Nhân sự không có ngoại lệ: tài khoản và hồ sơ vai trò (bac_si / le_tan / quan_tri_vien) tạo trong CÙNG 1 giao dịch, kể cả khi ChoKichHoat | Service |
+| 7 | loai_tai_khoan của tai_khoan khớp đúng 1 bảng con (benh_nhan / bac_si / le_tan / quan_tri_vien). Ngoại lệ: tài khoản BenhNhan chưa xác minh email chưa có dòng benh_nhan (hồ sơ bệnh nhân tạo khi OTP đúng, xem 2.4 Đăng ký bước 9). Nhân sự không có ngoại lệ: tài khoản và hồ sơ vai trò (bac_si / le_tan / quan_tri_vien) tạo trong CÙNG 1 giao dịch, kể cả khi ChoKichHoat. Ví nội bộ: dòng vi_noi_bo (so_du = 0, so_tien_dang_giu = 0) được tạo cùng giao dịch với benh_nhan khi xác minh OTP đăng ký (quyết định Q9 của module auth) | Service |
 | 8 | Chỉ cho đánh giá khi lịch hẹn ở trạng thái HoanThanh | Service |
 | 9 | Ghi hồ sơ khám độc lập với Hoàn thành ca khám: bác sĩ phụ trách chuyển Đã tiếp đón -> Hoàn thành KHÔNG cần đã có hồ sơ khám, ghi được trước hoặc sau; khi bác sĩ lưu hồ sơ thì triệu chứng, chẩn đoán sơ bộ, hướng xử lý phải có nội dung (DB cho phép NULL nên chỉ service kiểm tra); chưa có hồ sơ thì giao diện bệnh nhân hiển thị "Chưa có hồ sơ khám", không tạo nội dung giả; quyền đánh giá mở khi Hoàn thành | Service (chưa có mã triển khai) |
 | 10 | Danh sách chờ: không đăng ký trùng (bệnh nhân, bác sĩ, ngày, ca) khi còn DangCho hoặc DaMoi | Service |
@@ -64,11 +65,11 @@ Nguồn: `clinix.dbml` và `clinix_mysql.sql` (cùng thư mục `docs/database/`
 | 12 | Rút tiền: tạo yêu cầu tăng so_tien_dang_giu; duyệt ghi giao_dich_vi loại Rut và giảm cả so_du lẫn so_tien_dang_giu; từ chối chỉ giảm so_tien_dang_giu | Giao dịch ở tầng ứng dụng |
 | 13 | Đổi chi nhánh công tác của bác sĩ (chỉ Quản trị viên Toàn hệ thống, sửa trực tiếp hồ sơ, không có yêu cầu riêng) chỉ khi bác sĩ ĐỒNG THỜI (a) không còn lịch hẹn đang hoạt động (`ChoThanhToan`/`DaXacNhan`/`DaTiepDon`) có `lich_hen.bac_si_id` = bác sĩ và `lich_hen.chi_nhanh_id` = chi nhánh hiện tại, và (b) không còn dòng `lich_lam_viec` của bác sĩ có `chi_nhanh_id` = chi nhánh hiện tại và `ngay` >= ngày hiện tại (ca của hôm nay tính là còn, kể cả khi khoảng nhận khám của ca đã kết thúc: chưa quy định ca đã kết thúc trong ngày có được coi là đã qua không [cần điền]). Lịch hẹn và ca đã qua giữ nguyên để truy vết; `lich_lam_viec.chi_nhanh_id` là chi nhánh tại thời điểm phân công, không đổi khi hồ sơ đổi chi nhánh. Kiểm tra ngay trước khi lưu, không chỉ khóa nút trên giao diện; bị chặn thì không lưu trường nào của lần gửi và trả về danh sách lịch hẹn/ca đang chặn; được phép thì ghi nhật ký DoiChiNhanhBacSi. Không có thao tác hủy hay chuyển ca tự động. DB không tự chặn (không có CHECK hay trigger) | Service |
 | 14 | Mốc đã đọc của chat (tin_nhan_cuoi_da_doc_id) phải thuộc cùng hội thoại | Service |
-| 15 | Đăng ký: tạo tai_khoan ngay với da_xac_minh_email = false và gửi OTP; OTP đúng thì đặt true và tạo dòng benh_nhan trong cùng 1 giao dịch; tài khoản chưa xác minh quá hạn bị xóa [cần điền: thời hạn giữ]; tài khoản chưa xác minh không được đặt lịch (quyết định 17/10/2026) | Giao dịch ở tầng ứng dụng |
-| 16 | Email trùng khi đăng ký: thuộc tài khoản đã xác minh → từ chối; thuộc tài khoản chưa xác minh → gửi lại OTP mới và vô hiệu mã cũ | Service |
-| 17 | Giới hạn gửi lại OTP: mã mới cách mã trước (theo ma_xac_thuc.tao_luc) ≥ 60 giây và tối đa 5 mã trong 1 giờ theo (tai_khoan_id, loai); mỗi mã tối đa 5 lần nhập sai (so_lan_nhap_sai), hiệu lực 10 phút | Service |
+| 15 | Đăng ký: tạo tai_khoan ngay với da_xac_minh_email = false (dữ liệu của lần đăng ký đầu) và gửi OTP; dữ liệu của MỖI lần đăng ký (họ tên, SĐT, mật khẩu băm) nằm ở hàng ma_xac_thuc DangKy tương ứng và chỉ được ghi vào tai_khoan khi chính mã đó được xác minh đúng. OTP đúng thì trong cùng 1 giao dịch: ghi dữ liệu của hàng đó vào tai_khoan, đặt da_xac_minh_email = true, tạo dòng benh_nhan và vi_noi_bo (số dư 0), đặt da_dung_luc, thu hồi các mã khác và đặt NULL dữ liệu đăng ký của mọi hàng DangKy. Tài khoản Bệnh nhân chưa xác minh bị xóa sau 24 giờ kể từ thoi_diem_tao (không gia hạn khi gửi lại OTP; không bao giờ xóa tài khoản nhân sự). Khi xóa phải xóa ma_xac_thuc và phien_dang_nhap của tài khoản trước (khóa ngoại không CASCADE). Tài khoản chưa xác minh không được đặt lịch (quyết định 17/10/2026) | Giao dịch ở tầng ứng dụng |
+| 16 | Email trùng khi đăng ký: thuộc tài khoản đã xác minh (hoặc tài khoản nhân sự) → từ chối; thuộc tài khoản Bệnh nhân chưa xác minh còn hạn → chèn hàng ma_xac_thuc DangKy mới mang dữ liệu của lần đăng ký này (tai_khoan KHÔNG đổi cho tới khi OTP đúng). Chỉ sau khi gửi thành công (đặt da_gui_luc) mới thu hồi các mã DangKy cũ chưa dùng, theo đúng thứ tự này; gửi lỗi thì chỉ thu hồi chính hàng mới và giữ mã cũ. Xác minh và gửi lại phải kèm ma_xac_thuc_id; hàng không còn là hàng DangKy đã gửi mới nhất thì bị từ chối (chống chiếm trước tài khoản) | Service |
+| 17 | Giới hạn gửi lại OTP: mã mới cách mã trước (theo ma_xac_thuc.tao_luc) ≥ 60 giây và tối đa 5 mã trong 1 giờ theo (tai_khoan_id, loai), tính cả hàng gửi lỗi; mỗi mã tối đa 5 lần nhập sai (so_lan_nhap_sai), hiệu lực 10 phút; kiểm hạn trước khi so mã; OTP lưu HMAC-SHA-256 (khóa bí mật riêng) của tai_khoan_id, loai, ma_xac_thuc_id và mã | Service |
 | 18 | Đăng nhập sai: tăng so_lan_dang_nhap_sai của tài khoản; đủ 5 lần liên tiếp thì đặt khoa_dang_nhap_den = bây giờ + 15 phút; đăng nhập đúng thì về 0. Email không tồn tại thì không đếm và vẫn trả thông báo chung | Service |
-| 19 | Phiên: JWT access token ngắn hạn + refresh token chỉ lưu bản băm trong phien_dang_nhap; đăng xuất đặt thu_hoi_luc; refresh chỉ hợp lệ khi chưa thu hồi và chưa quá het_han_luc [thời hạn token cần điền] | Service |
+| 19 | Phiên: JWT access token 15 phút + refresh token ngẫu nhiên 256 bit chỉ lưu bản băm (SHA-256) trong phien_dang_nhap, xoay tại chỗ mỗi lần làm mới; không hoạt động 30 phút (het_han_luc trượt) và tối đa 8 giờ kể từ tao_luc; dùng lại refresh token cũ (chữ ký hợp lệ, băm không khớp) thì thu hồi phiên; đăng xuất đặt thu_hoi_luc; refresh chỉ hợp lệ khi chưa thu hồi, chưa quá het_han_luc và chưa quá trần 8 giờ | Service |
 | 20 | Tạo tài khoản nhân sự (2.4.39): 1 giao dịch tạo tai_khoan (ChoKichHoat, mat_khau_bam NULL) + hồ sơ vai trò + liên kết kích hoạt (da_gui_luc rỗng). Bác sĩ: bắt buộc đủ chuc_danh, hoc_vi, so_nam_kinh_nghiem, chuyen_khoa_id, chi_nhanh_id, dich_vu_kham_id (cặp chi nhánh – dịch vụ phải có trong chi_nhanh_dich_vu_kham); mo_ta_chuyen_mon là TÙY CHỌN. Lưu ý: DB chỉ thật sự bắt buộc chuyen_khoa_id, chi_nhanh_id, dich_vu_kham_id; nếu bỏ trống thì chuc_danh và hoc_vi tự cùng thành BS (ENUM NOT NULL lấy giá trị đầu, nên vẫn thỏa CHECK tương thích) và so_nam_kinh_nghiem tự thành 0 (DEFAULT 0), nên service phải bắt buộc nhập tường minh ba trường này (đã kiểm chứng ở test GAP). Thiếu hồ sơ bắt buộc thì không tạo tài khoản. Quản trị viên không đặt, không nhìn thấy, không gửi mật khẩu | Giao dịch ở tầng ứng dụng |
 | 21 | Gửi email kích hoạt (tạo tài khoản hoặc Gửi lại): sau khi dịch vụ email xác nhận gửi THÀNH CÔNG, trong 1 giao dịch: thu hồi liên kết cũ chưa dùng (`thu_hoi_luc` = bây giờ) rồi đặt `da_gui_luc` cho liên kết mới (đúng thứ tự này để không vi phạm UNIQUE). Gửi THẤT BẠI: chỉ đặt `thu_hoi_luc` cho chính liên kết mới, KHÔNG đụng liên kết cũ — liên kết cũ còn hạn vẫn hợp lệ; tài khoản vẫn ChoKichHoat; không báo "đã gửi thành công" | Giao dịch ở tầng ứng dụng |
 | 22 | Kích hoạt: liên kết hợp lệ khi `da_gui_luc` có giá trị, `thu_hoi_luc` và `da_dung_luc` rỗng, `het_han_luc` > bây giờ (thời hạn [đề xuất: 24 giờ], chưa chốt; chưa có cột cấu hình). Đặt mật khẩu hợp lệ thì trong 1 giao dịch: `da_dung_luc`, `mat_khau_bam`, `trang_thai` = DangHoatDong, `da_xac_minh_email` = true [đề xuất]. Liên kết sai/hết hạn/đã dùng/bị thu hồi hoặc tài khoản không còn ChoKichHoat thì từ chối, không đổi gì | Giao dịch ở tầng ứng dụng |
@@ -501,3 +502,26 @@ Kiểm tra sau chuyển đổi: dòng `TienMatTaiQuay` cũ vẫn còn đủ (cù
 - **Mỗi lịch tối đa một khoản tiền mặt?** **[đề xuất, chưa chốt]**; hiện chỉ service chống trùng. Nếu chốt thì DB có thể thêm cột sinh + UNIQUE (xem quy tắc service 46).
 - **Audit Log cho thu tiền mặt**: 2.4 chưa yêu cầu; `nguoi_thu_id` và `thoi_diem_tao` đã là dấu vết, không thêm hành động enum. **[cần điền]** nếu nhóm muốn ghi cả vào `nhat_ky_hanh_dong`.
 - **Hoàn tiền mặt, kết ca thu ngân, đối soát tiền mặt**: ngoài phạm vi (nhóm chỉ cần số liệu tương đối); `trang_thai_doi_soat` của dòng tiền mặt để `KhongCan`.
+
+## 10. Chuyển đổi: dữ liệu lần đăng ký của mã xác thực (26/10/2026, module auth P3)
+
+Chỉ cần với DB đã nạp từ bản `clinix_mysql.sql` trước ngày này. DB tạo bằng migration của task auth P3 (hoặc nạp lại file SQL mới) đã có sẵn.
+
+Thay đổi: `ma_xac_thuc` thêm 3 cột `ho_ten_dang_ky`, `so_dien_thoai_dang_ky`, `mat_khau_bam_dang_ky` (đều NULL được) và CHECK `chk_ma_xac_thuc_du_lieu_dang_ky` (quy tắc 40 mục 1); không thêm bảng hay enum (44 bảng, 27 enum), tổng 38 CHECK. Ghi chú (COMMENT) của `tai_khoan.da_xac_minh_email`, `ma_xac_thuc` (`ma_bam`, `da_gui_luc`, `thu_hoi_luc`, `so_lan_nhap_sai`, `tao_luc`), `phien_dang_nhap` và bảng `vi_noi_bo` được cập nhật; hành vi DB không đổi.
+
+```sql
+ALTER TABLE ma_xac_thuc
+  ADD COLUMN ho_ten_dang_ky varchar(100) NULL,
+  ADD COLUMN so_dien_thoai_dang_ky varchar(20) NULL,
+  ADD COLUMN mat_khau_bam_dang_ky varchar(255) NULL;
+ALTER TABLE ma_xac_thuc ADD CONSTRAINT chk_ma_xac_thuc_du_lieu_dang_ky CHECK (
+    (ho_ten_dang_ky IS NULL AND so_dien_thoai_dang_ky IS NULL AND mat_khau_bam_dang_ky IS NULL)
+ OR (loai = 'DangKy' AND ho_ten_dang_ky IS NOT NULL AND so_dien_thoai_dang_ky IS NOT NULL AND mat_khau_bam_dang_ky IS NOT NULL)
+);
+```
+
+Hàng `DangKy` cũ chưa dùng (nếu có) không có dữ liệu đăng ký nên không xác minh được theo luồng mới; thu hồi để người dùng đăng ký lại:
+
+```sql
+UPDATE ma_xac_thuc SET thu_hoi_luc = NOW() WHERE loai = 'DangKy' AND da_dung_luc IS NULL AND thu_hoi_luc IS NULL;
+```
