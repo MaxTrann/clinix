@@ -27,10 +27,10 @@ Phải xong trước khi viết nghiệp vụ, vì mọi module sau đều phụ
 
 | # | Quyết định | Vì sao chặn | Trạng thái |
 |---|---|---|---|
-| 1 | ORM cho NestJS + MySQL (TypeORM / Prisma) | Entity, migration, mọi module đều dựa vào | `[cần điền]` |
-| 2 | Cơ chế xác thực chính thức (JWT access/refresh — hiện chỉ là `[đề xuất]` trong `.env.example`) | Auth là nền cho phân quyền (RBAC) ở mọi module khác | **Chốt 17/10:** JWT access token ngắn hạn + refresh token lưu băm trong DB (đăng xuất = vô hiệu refresh token). Thời hạn từng loại token: `[cần điền]` |
+| 1 | ORM cho NestJS + MySQL (TypeORM / Prisma) | Entity, migration, mọi module đều dựa vào | **Chốt 25/10:** TypeORM, `synchronize: false`, migration SQL viết tay, đối chiếu từng dòng với `docs/database/clinix_mysql.sql` (Q1 của module auth, xem `docs/features/auth/TRACKING.md`) |
+| 2 | Cơ chế xác thực chính thức (JWT access/refresh — hiện chỉ là `[đề xuất]` trong `.env.example`) | Auth là nền cho phân quyền (RBAC) ở mọi module khác | **Chốt 17/10:** JWT access token ngắn hạn + refresh token lưu băm trong DB (đăng xuất = vô hiệu refresh token). **Chốt thêm 25/10 (Q2 của module auth):** access JWT 15 phút; phiên không hoạt động 30 phút, tối đa 8 giờ từ lúc đăng nhập; refresh token ngẫu nhiên 256 bit, lưu băm, xoay mỗi lần dùng (dùng lại token cũ thì thu hồi phiên); cookie `HttpOnly; Secure; SameSite=Lax`, access token chỉ giữ trong bộ nhớ; web và API cùng origin qua proxy |
 | 3 | Ngày bắt đầu / kết thúc kỳ đồ án thật | Quyết định mốc 50% của quy tắc chặn điểm G1 (rubric) — trễ hạn = không đủ điều kiện bảo vệ | `[cần điền]`, hỏi GVHD |
-| 4 | Server staging (VPS nào; GitHub Student Pack còn hiệu lực không) | TC2.2, TC2.6, TC2.7 đều cần staging công khai | `[cần điền]` |
+| 4 | Server staging (VPS nào; GitHub Student Pack còn hiệu lực không) | TC2.2, TC2.6, TC2.7 đều cần staging công khai | `[cần điền]` (chọn VPS). **Yêu cầu đã chốt 25/10 (N5 của module auth):** staging có người truy cập qua mạng phải chạy **HTTPS** (domain + chứng chỉ) vì cookie `Secure`; chỉ tắt `Secure` ở phát triển cục bộ (`COOKIE_SECURE=false`; API từ chối khởi động nếu tắt ngoài `development`) |
 
 ## Phase 1 — Khởi tạo `apps/api` và `apps/web`
 
@@ -74,7 +74,7 @@ Nghiệp vụ đã chốt sẵn trong repo `TLCN_CLINIX`, chỉ còn implement �
 
 Làm **song song** từ khi có 1–2 tính năng chạy được, không chờ Phase 3 xong hẳn.
 
-- [ ] Thuê server staging, khai biến `STAGING_HOST/USER/PATH/API_URL` + secret `STAGING_SSH_KEY` trên GitHub.
+- [ ] Thuê server staging, khai biến `STAGING_HOST/USER/PATH/API_URL` + secret `STAGING_SSH_KEY` trên GitHub. Staging cần domain và chứng chỉ HTTPS (cookie `Secure`, N5 của module auth).
 - [ ] Bắt đầu đếm deploy tự động — mục tiêu rubric ≥ 10 lần **trải đều**, bắt đầu càng sớm càng tốt, đừng dồn cuối kỳ.
 - [ ] Bật Secret scanning + Push protection trên GitHub (Settings → Code security).
 - [ ] Coverage test leo dần lên ≥ 70% ở module lõi.
