@@ -15,7 +15,7 @@ chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá s
 
 | Ngày | Việc đã làm | Test case | Kết quả | Vấn đề phát sinh / cách xử lý |
 |---|---|---|---|---|
-| | | | | |
+| 26/10/2026 | **P0** (issue #12): ghi quyết định Q1 (TypeORM), Q2 (thời hạn token, cookie, cùng origin) và N5 (staging phải HTTPS) vào `docs/PLAN.md` Phase 0 (dòng #1, #2, #4) và Phase 4 (mục thuê server staging) | Không áp dụng (chỉ sửa tài liệu) | n/a | Không có. Đã kiểm số liệu với mục 3 của file này và cấu trúc bảng ở `docs/PLAN.md` |
 | | | | | |
 | | | | | |
 
