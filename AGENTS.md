@@ -1,7 +1,7 @@
 # CLINIX — hướng dẫn cho AI agent (Codex, Claude Code…)
 
 Đồ án TLCN của nhóm 2 người: **hệ thống đặt lịch khám bệnh** (nguyên mẫu học thuật, chỉ dùng dữ liệu mẫu). Repo này là **mã nguồn**.
-Mọi thành viên làm việc với AI đều đọc file này trước. Trạng thái ghi trong file là của **25/10/2026** — sửa file này khi thực tế đổi.
+Mọi thành viên làm việc với AI đều đọc file này trước. Trạng thái ghi trong file là của **26/10/2026** — sửa file này khi thực tế đổi.
 
 | Thành phần | Công nghệ |
 |---|---|
@@ -9,8 +9,8 @@ Mọi thành viên làm việc với AI đều đọc file này trước. Trạn
 | API (`apps/api`) | NestJS + TypeScript, TypeORM, MySQL 8.4 |
 | Hạ tầng | Docker Compose, GitHub Actions, GHCR; Mobile (Flutter) làm sau |
 
-**Trạng thái hiện tại:** `apps/api` và `apps/web` mới có `Dockerfile` (chưa có `package.json`, chưa có mã). Việc khởi tạo hai app nằm trong
-kế hoạch module `auth` (task P1, P2). Các lệnh `npm run lint/test` ở dưới chỉ chạy được sau khi hai app được tạo.
+**Trạng thái hiện tại:** `apps/api` đã khởi tạo NestJS (Vitest + oxlint + ESM) với `GET /health`; `apps/web` mới có `Dockerfile` (chưa có `package.json`, chưa có mã).
+Việc khởi tạo `apps/web` nằm trong kế hoạch module `auth` (task P2). Các lệnh chạy cả hai app ở dưới (`npm run lint`, `npm test` ở gốc) chỉ chạy đủ sau khi `apps/web` được tạo.
 
 ## 1. Quy tắc cứng (vi phạm là hỏng quy trình chấm điểm của đồ án)
 
@@ -53,9 +53,10 @@ Nếu issue hoặc plan dẫn tới thứ không có trong repo (ví dụ đoạ
 
 - Định danh trong mã: tiếng Anh; comment/tài liệu: tiếng Việt **có dấu**. File `kebab-case`; Class/Component `PascalCase`; biến/hàm `camelCase`; hằng `UPPER_SNAKE_CASE`.
   Bảng/cột DB giữ đúng tên `snake_case` tiếng Việt không dấu của schema (ví dụ `tai_khoan`, `chi_nhanh`) — không đổi tên.
-- TypeScript `strict`; cấm `any` không có lý do. Prettier + ESLint, 0 lỗi.
+- TypeScript `strict`; cấm `any` không có lý do. Prettier + oxlint cho api, ESLint cho web, 0 lỗi.
 - Backend: mỗi module một thư mục `controller → service → repository`; controller chỉ nhận/trả, không chứa logic. DTO + `class-validator` cho mọi dữ liệu vào.
   **Quyền và phạm vi dữ liệu kiểm ở backend** (vai trò + sở hữu + phạm vi chi nhánh), không dựa vào việc ẩn nút ở UI. Không ghi mật khẩu/token/OTP vào log.
+  Mọi import tương đối trong `apps/api` phải có đuôi `.js` (dự án dùng ESM), ví dụ `import { AppModule } from './app.module.js';`.
 - Frontend: component hàm + hooks; **một** lớp API client duy nhất; xử lý đủ loading/rỗng/lỗi/mất mạng/timeout; giao diện **bám đúng frame Figma**, thiếu thì hỏi.
 - Test đặt cạnh mã (`*.spec.ts` / `*.test.tsx`); **mỗi test ghi mã test case** trong plan mà nó phủ. Luôn có ca âm và ca biên; endpoint mới có ca đúng/sai vai trò, đúng/sai chi nhánh;
   logic cần DB thật (CHECK, UNIQUE, khóa hàng, chạy đua) có test tích hợp trên MySQL thật.

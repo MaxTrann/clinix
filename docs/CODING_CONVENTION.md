@@ -4,8 +4,8 @@
 
 ## Chung
 - Ngôn ngữ mã và tên định danh: tiếng Anh. Comment/tài liệu: tiếng Việt có dấu.
-- **[đề xuất]** TypeScript `strict: true` cho cả API và Web; cấm `any` không có lý do (ESLint `no-explicit-any`).
-- Format bằng Prettier, lint bằng ESLint; cả hai chạy ở pre-commit và CI. 0 lỗi lint tồn đọng.
+- **[đề xuất]** TypeScript `strict: true` cho cả API và Web; cấm `any` không có lý do (quy tắc `no-explicit-any`: oxlint cho api, ESLint cho web).
+- Format bằng Prettier, lint bằng oxlint cho api, ESLint cho web; cả hai chạy ở pre-commit và CI. 0 lỗi lint tồn đọng.
 - Không hardcode URL, khóa, thông tin kết nối — đọc qua biến môi trường (`.env`, mẫu ở `.env.example`).
 
 ## Đặt tên
@@ -17,6 +17,7 @@
 - DTO + `class-validator` cho mọi dữ liệu vào; kiểm tra phân quyền ở backend (Role + Ownership + Scope), không dựa vào việc ẩn nút ở UI.
 - Không ghi mật khẩu, token, OTP vào log. Thao tác nhạy cảm đi qua Audit Log.
 - Mật khẩu băm bằng Argon2id hoặc bcrypt.
+- Mọi import tương đối trong `apps/api` phải có đuôi `.js` (dự án dùng ESM), ví dụ `import { AppModule } from './app.module.js';`.
 
 ## Frontend (React)
 - Component hàm + hooks; tách UI / logic gọi API / state.
