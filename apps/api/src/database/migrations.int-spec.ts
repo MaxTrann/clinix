@@ -5,6 +5,7 @@ import {
   runPendingMigrations,
 } from './migration-runner.js';
 import { MIGRATIONS } from './migrations/index.js';
+import { TaoBangDanhMuc1793024340000 } from './migrations/1793024340000-tao-bang-danh-muc.js';
 import {
   createTestDataSource,
   listTables,
@@ -12,8 +13,8 @@ import {
   recreateDatabase,
 } from './testing/test-database.js';
 
-// Task P3 — không có mã test case riêng trong plan auth. Vòng đời migration trên một DB riêng (clinix_migration_test)
-// để không làm hỏng DB dùng chung của các file test khác.
+// Task P1/P3 — vòng đời migration và các tiền kiểm dữ liệu trên DB riêng
+// (clinix_migration_test), không dùng DB của các file test khác.
 const AUTH_TABLES = [
   'benh_nhan',
   'ma_xac_thuc',
@@ -21,6 +22,15 @@ const AUTH_TABLES = [
   'tai_khoan',
   'vi_noi_bo',
 ];
+const CATALOG_TABLES = [
+  'chi_nhanh',
+  'chi_nhanh_lich_hoat_dong',
+  'chuyen_khoa',
+  'nhom_dich_vu',
+  'dich_vu_kham',
+  'chi_nhanh_dich_vu_kham',
+];
+const MIGRATED_TABLES = [...AUTH_TABLES, ...CATALOG_TABLES];
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -33,6 +43,74 @@ afterAll(async () => {
   await dataSource?.destroy();
 });
 
+describe('tiền kiểm migration danh mục trên dữ liệu có sẵn (CK-18, DV-21)', () => {
+  it('CK-18: dừng, liệt kê chuyên khoa trùng sau trim/gộp khoảng trắng và giữ nguyên dữ liệu', async () => {
+    await dataSource.query(`
+      CREATE TABLE \`chuyen_khoa\` (
+        \`chuyen_khoa_id\` bigint PRIMARY KEY AUTO_INCREMENT,
+        \`ten\` varchar(100) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    await dataSource.query(
+      'INSERT INTO `chuyen_khoa` (`ten`) VALUES (?), (?)',
+      ['Cơ   xương khớp', '  Cơ xương khớp  '],
+    );
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      await expect(
+        new TaoBangDanhMuc1793024340000().up(queryRunner),
+      ).rejects.toThrow(/chưa thực hiện DDL nào[\s\S]*CK id=1[\s\S]*CK id=2/);
+      const rows = (await dataSource.query(
+        'SELECT `chuyen_khoa_id`, `ten` FROM `chuyen_khoa` ORDER BY `chuyen_khoa_id`',
+      )) as { ten: string }[];
+      expect(rows.map((row) => row.ten)).toEqual([
+        'Cơ   xương khớp',
+        '  Cơ xương khớp  ',
+      ]);
+      expect(await listTables(dataSource)).toEqual(['chuyen_khoa']);
+    } finally {
+      await queryRunner.release();
+      await dataSource.query('DROP TABLE `chuyen_khoa`');
+    }
+  });
+
+  it('DV-21: dừng và liệt kê tên dịch vụ trùng trong cùng nhóm, nhưng bỏ qua nhóm khác', async () => {
+    await dataSource.query(`
+      CREATE TABLE \`dich_vu_kham\` (
+        \`dich_vu_kham_id\` bigint PRIMARY KEY AUTO_INCREMENT,
+        \`nhom_dich_vu_id\` bigint NOT NULL,
+        \`ten\` varchar(100) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    await dataSource.query(
+      'INSERT INTO `dich_vu_kham` (`nhom_dich_vu_id`, `ten`) VALUES (1, ?), (1, ?), (2, ?)',
+      ['Khám   tổng quát', ' Khám tổng quát ', 'Khám tổng quát'],
+    );
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      let migrationError: unknown;
+      try {
+        await new TaoBangDanhMuc1793024340000().up(queryRunner);
+      } catch (error) {
+        migrationError = error;
+      }
+      expect(migrationError).toBeInstanceOf(Error);
+      const message = (migrationError as Error).message;
+      expect(message).toContain('DV id=1, nhom_dich_vu_id=1');
+      expect(message).toContain('DV id=2, nhom_dich_vu_id=1');
+      expect(message).not.toContain('DV id=3');
+      const rows = await dataSource.query('SELECT * FROM `dich_vu_kham`');
+      expect(rows).toHaveLength(3);
+      expect(await listTables(dataSource)).toEqual(['dich_vu_kham']);
+    } finally {
+      await queryRunner.release();
+      await dataSource.query('DROP TABLE `dich_vu_kham`');
+    }
+  });
+});
+
 describe('vòng đời migration', () => {
   it('DB mới tinh: chưa có bảng nào và mọi migration ở trạng thái chưa áp dụng', async () => {
     expect(await listTables(dataSource)).toEqual([]);
@@ -41,11 +119,11 @@ describe('vòng đời migration', () => {
     expect(status.every((item) => !item.executed)).toBe(true);
   });
 
-  it('up: áp dụng migration và tạo đủ 5 bảng của auth', async () => {
+  it('up: áp dụng mọi migration và tạo đủ bảng auth cùng danh mục', async () => {
     const done = await runPendingMigrations(dataSource);
     expect(done).toEqual(MIGRATIONS.map((migration) => migration.name));
     expect(await listTables(dataSource)).toEqual(
-      expect.arrayContaining(AUTH_TABLES),
+      expect.arrayContaining(MIGRATED_TABLES),
     );
     expect(
       (await listMigrations(dataSource)).every((item) => item.executed),
@@ -56,16 +134,17 @@ describe('vòng đời migration', () => {
     expect(await runPendingMigrations(dataSource)).toEqual([]);
   });
 
-  it('down hoàn tác đúng migration cuối: xóa các bảng của nó, rồi up lại được', async () => {
+  it('down hoàn tác migration danh mục cuối: giữ auth, xóa danh mục, rồi up lại được', async () => {
     const last = MIGRATIONS.at(-1)?.name;
     expect(await revertLastMigration(dataSource)).toBe(last);
     const tables = await listTables(dataSource);
-    for (const table of AUTH_TABLES) expect(tables).not.toContain(table);
+    for (const table of CATALOG_TABLES) expect(tables).not.toContain(table);
+    for (const table of AUTH_TABLES) expect(tables).toContain(table);
     expect((await listMigrations(dataSource)).at(-1)?.executed).toBe(false);
 
     expect(await runPendingMigrations(dataSource)).toEqual([last]);
     expect(await listTables(dataSource)).toEqual(
-      expect.arrayContaining(AUTH_TABLES),
+      expect.arrayContaining(MIGRATED_TABLES),
     );
   });
 

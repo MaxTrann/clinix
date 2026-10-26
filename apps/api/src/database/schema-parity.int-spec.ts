@@ -1,5 +1,6 @@
 import type { DataSource } from 'typeorm';
 import { TAO_BANG_AUTH_SQL } from './migrations/1793001600000-tao-bang-auth.js';
+import { TAO_BANG_DANH_MUC_SQL } from './migrations/1793024340000-tao-bang-danh-muc.js';
 import {
   normalizeStatement,
   officialStatementsFor,
@@ -13,7 +14,7 @@ import {
   recreateDatabase,
 } from './testing/test-database.js';
 
-// Task P3 — không có mã test case riêng trong plan auth. Đây là phép "so sánh migration với clinix_mysql.sql từng dòng".
+// Task P1 — sáu bảng danh mục; Task P3 — năm bảng auth.
 const AUTH_TABLES = [
   'tai_khoan',
   'benh_nhan',
@@ -21,6 +22,15 @@ const AUTH_TABLES = [
   'phien_dang_nhap',
   'vi_noi_bo',
 ];
+const CATALOG_TABLES = [
+  'chi_nhanh',
+  'chi_nhanh_lich_hoat_dong',
+  'chuyen_khoa',
+  'nhom_dich_vu',
+  'dich_vu_kham',
+  'chi_nhanh_dich_vu_kham',
+];
+const MIGRATED_TABLES = [...AUTH_TABLES, ...CATALOG_TABLES];
 let migrated: DataSource;
 let reference: DataSource;
 
@@ -59,7 +69,7 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     const tables = (await listTables(migrated)).filter(
       (table) => table !== 'migrations',
     );
-    expect(tables).toEqual([...AUTH_TABLES].sort());
+    expect(tables).toEqual([...MIGRATED_TABLES].sort());
 
     // Dựng DB tham chiếu: chỉ các câu lệnh của bảng đã có migration, và khóa ngoại chỉ tới bảng đã có
     const known = new Set(tables);
@@ -79,6 +89,18 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
   it('mọi câu lệnh trong migration thuộc đúng 5 bảng auth', () => {
     for (const statement of TAO_BANG_AUTH_SQL) {
       expect(AUTH_TABLES).toContain(targetTable(statement));
+    }
+  });
+
+  it('văn bản DDL danh mục trùng TỪNG CÂU, cùng thứ tự, với file SQL chính thức', () => {
+    const official = officialStatementsFor(CATALOG_TABLES).map(normalizeStatement);
+    expect(official.length).toBeGreaterThan(0);
+    expect(TAO_BANG_DANH_MUC_SQL.map(normalizeStatement)).toEqual(official);
+  });
+
+  it('mọi câu lệnh trong migration danh mục chỉ tác động sáu bảng P1', () => {
+    for (const statement of TAO_BANG_DANH_MUC_SQL) {
+      expect(CATALOG_TABLES).toContain(targetTable(statement));
     }
   });
 });

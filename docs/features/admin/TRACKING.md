@@ -18,8 +18,7 @@ chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá s
 |---|---|---|---|---|
 | 25/10/2026 | Lập `PLAN.md` bản nháp 1 (8 use case, 46 câu hỏi); nhận trả lời Q1–Q46 và cập nhật bản nháp 2 (thêm Q47, Q48; task B21; mục 4.2a, 5.10) | — | — | Tài liệu, chưa có test chạy. Dùng AI: **cần ghi `AI_USAGE_LOG.md`** (bảng 1). Còn mở: Q47, Q48, phần còn lại của Q45 |
 | 25/10/2026 | Nhận trả lời Q47, Q48 (phương án B + quá hạn); cập nhật `PLAN.md` bản nháp 3: bỏ cổng chặn lúc duyệt, thêm quy trình quá hạn/dời hiệu lực (B22, 5.4), dừng email khi hủy/dời, test CN-100…CN-111 | — | — | Tài liệu. Việc còn lại: phần còn lại của Q45; xác nhận chi tiết schema khi viết migration |
-| | | | | |
-| | | | | |
+| 26/10/2026 | P1 (#45): thêm sáu entity danh mục, migration có tiền kiểm tên chuẩn hóa, cập nhật registry và đồng bộ Q12/Q16 trong ba tài liệu schema | CK-18, DV-21 | Pass | Build, lint và unit 18/18 pass. `npm run test:int` trên MySQL 8.4: 4 file, 34/34 test pass, gồm CK-18/DV-21, migration up/down/up và `SHOW CREATE TABLE` khớp schema chuẩn cho 11 bảng auth + danh mục. Đã tạo lại ba DB test theo yêu cầu người dùng. Bảng P1 có sẵn thì dừng và liệt kê, không nâng cấp tại chỗ hoặc đổi dữ liệu. Làm rõ quy tắc 41–42: service chuẩn hóa trước khi lưu, UNIQUE kiểm giá trị đã lưu. Chờ người dùng commit/push, mở PR và người còn lại review/squash merge |
 
 ## 2. Kết quả test theo use case
 
@@ -27,8 +26,8 @@ Cập nhật lần chạy mới nhất; chi tiết từng ca xem mục 1.
 
 | Nhóm test (PLAN.md mục 7) | Tổng số ca | Pass | Fail | Chưa chạy | Ngày chạy gần nhất |
 |---|---|---|---|---|---|
-| Quản lý chuyên khoa (`CK-*`) | | | | | |
-| Quản lý loại dịch vụ khám (`DV-*`) | | | | | |
+| Quản lý chuyên khoa (`CK-*`) | 18 | 1 (CK-18) | 0 | 17 | 26/10/2026 |
+| Quản lý loại dịch vụ khám (`DV-*`) | 21 | 1 (DV-21) | 0 | 20 | 26/10/2026 |
 | Quản lý hồ sơ bác sĩ (`BS-*`) | | | | | |
 | Tạo tài khoản nhân sự và kích hoạt (`NS-*`) | | | | | |
 | Quản lý tài khoản người dùng (`TK-*`) | | | | | |

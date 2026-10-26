@@ -12,6 +12,7 @@
 // 20/10/2026 (truy vết Lễ tân thu tiền mặt tại quầy): giao_dich_thanh_toan thêm nguoi_thu_id (khóa ngoại tới le_tan.tai_khoan_id) và CHECK chk_gd_tien_mat_nguoi_thu; không thêm bảng hoặc enum. Chuyển đổi từ DB cũ: mục 9 của clinix_quy_tac_nghiep_vu.md.
 // 19/10/2026 (lịch hoạt động chi nhánh hai khoảng nhận khám): chi_nhanh_lich_hoat_dong bỏ gio_mo_cua/gio_dong_cua, thay bằng gio_bat_dau_sang, gio_ket_thuc_sang, gio_bat_dau_chieu, gio_ket_thuc_chieu; ràng buộc (chk_lich_hoat_dong_khoang/_khong_chong/_ngay) khai báo trong clinix_mysql.sql; 44 bảng, 27 enum.
 // 26/10/2026 (module auth, task P3): ma_xac_thuc thêm 3 cột dữ liệu lần đăng ký (ho_ten_dang_ky, so_dien_thoai_dang_ky, mat_khau_bam_dang_ky) và chk_ma_xac_thuc_du_lieu_dang_ky; da_gui_luc/thu_hoi_luc dùng cả cho OTP; tài khoản Bệnh nhân chưa xác minh giữ 24 giờ; phien_dang_nhap chốt tên và thời hạn (bỏ [đề xuất]); vi_noi_bo tạo cùng benh_nhan khi xác minh OTP; chỉ đổi cột/CHECK/ghi chú của ma_xac_thuc, không thêm bảng hoặc enum => 44 bảng, 27 enum, 38 CHECK. Chuyển đổi từ DB cũ: mục 10 của clinix_quy_tac_nghiep_vu.md.
+// 26/10/2026 (admin P1): UNIQUE chuyen_khoa.ten (Q12) và dich_vu_kham (nhom_dich_vu_id, ten) (Q16); migration kiểm trùng sau chuẩn hóa trước khi thêm UNIQUE.
 
 Project clinix {
   database_type: 'MySQL'
@@ -360,6 +361,10 @@ Table chuyen_khoa {
   mo_ta text
   anh_dai_dien varchar(255) [note: 'Đường dẫn ảnh minh họa hiển thị trên thẻ chuyên khoa; có thể để trống']
   trang_thai_hoat_dong trang_thai_hoat_dong_enum [not null, default: 'DangHoatDong']
+
+  indexes {
+    (ten) [unique]
+  }
 }
 
 Table nhom_dich_vu {
@@ -377,6 +382,10 @@ Table dich_vu_kham {
   thoi_luong int [not null, note: 'phút']
   gia_mac_dinh decimal(12,2) [not null]
   muc_dat_coc decimal(12,2) [not null, default: 0, note: 'Mức cọc cố định theo dịch vụ; 0 = không đặt cọc']
+
+  indexes {
+    (nhom_dich_vu_id, ten) [unique]
+  }
 }
 
 Table moc_hoan_tien {

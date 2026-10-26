@@ -46,6 +46,8 @@ Nguồn: `clinix.dbml` và `clinix_mysql.sql` (cùng thư mục `docs/database/`
 | 38 | Chức danh (7 mức) và học vị (5 mức) của bác sĩ tương thích: BS, BS_CKI, BS_CKII ↔ BS; ThS_BS ↔ ThS; TS_BS ↔ TS; PGS_TS_BS ↔ PGS; GS_TS_BS ↔ GS. Ánh xạ BS_CKI và BS_CKII ↔ BS là [đề xuất] | `chk_bac_si_chuc_danh_hoc_vi` | CHECK |
 | 39 | Thu tiền mặt tại quầy (`phuong_thuc` = `TienMatTaiQuay`): chỉ `ThanhToanLichHen`, bắt buộc có `lich_hen_id` và `nguoi_thu_id` (Lễ tân xác nhận đã nhận tiền), không có `vi_noi_bo_id` và `ma_giao_dich_cong`, `so_tien` > 0, `trang_thai` = `ThanhCong`; mọi phương thức khác thì `nguoi_thu_id` để trống. `nguoi_thu_id` chỉ nhận mã tài khoản có dòng `le_tan` (không thể là bác sĩ, bệnh nhân, quản trị viên) và không xóa được Lễ tân còn giao dịch. Các cột đứng trong phép so sánh của CHECK đều NOT NULL; cột cho phép NULL chỉ được thử bằng `IS NULL` / `IS NOT NULL`, nên không có trường hợp UNKNOWN (MySQL cho qua CHECK khi UNKNOWN) | `chk_gd_tien_mat_nguoi_thu`, khóa ngoại `giao_dich_thanh_toan.nguoi_thu_id` → `le_tan` | CHECK + FK |
 | 40 | Mã xác thực loại DangKy mang dữ liệu của lần đăng ký (họ tên, SĐT, mật khẩu băm): ba cột cùng có giá trị hoặc cùng NULL; mã loại khác không có dữ liệu này | `chk_ma_xac_thuc_du_lieu_dang_ky` | CHECK |
+| 41 | Tên chuyên khoa đã lưu là duy nhất theo collation `utf8mb4_unicode_ci` (không phân biệt hoa/thường và dấu). Service phải trim và gộp khoảng trắng trước khi lưu; UNIQUE không tự chuẩn hóa khoảng trắng | `chuyen_khoa_index_ten` | UNIQUE |
+| 42 | Tên dịch vụ đã lưu là duy nhất trong cùng nhóm; tên giống nhau ở nhóm khác được phép. Service phải trim và gộp khoảng trắng trước khi lưu; UNIQUE không tự chuẩn hóa khoảng trắng | `dich_vu_kham_index_nhom_ten` | UNIQUE |
 
 ## 2. Do tầng ứng dụng (service) bảo vệ
 

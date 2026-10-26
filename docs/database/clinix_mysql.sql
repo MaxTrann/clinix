@@ -31,6 +31,7 @@
 -- chk_ma_xac_thuc_du_lieu_dang_ky; da_gui_luc/thu_hoi_luc dùng cả cho OTP; tài khoản Bệnh nhân chưa xác minh giữ 24 giờ; phien_dang_nhap chốt tên và
 -- thời hạn (bỏ [đề xuất]); vi_noi_bo tạo cùng benh_nhan khi xác minh OTP; chỉ đổi cột/CHECK/ghi chú của ma_xac_thuc, không thêm bảng hoặc enum => 44
 -- bảng, 27 enum, 38 CHECK. Chuyển đổi từ DB cũ: mục 10 của clinix_quy_tac_nghiep_vu.md.
+-- 26/10/2026 (admin P1): UNIQUE chuyen_khoa.ten (Q12) và dich_vu_kham (nhom_dich_vu_id, ten) (Q16); migration kiểm trùng sau chuẩn hóa trước khi thêm UNIQUE.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -58,6 +59,7 @@
 --   * Mã xác thực: mỗi tài khoản tối đa 1 liên kết KichHoatNhanSu hợp lệ (đã gửi, chưa thu hồi, chưa dùng); mã đã dùng không bị thu hồi; liên kết đã dùng phải đã được gửi  [ma_xac_thuc.kich_hoat_dang_hieu_luc UNIQUE, chk_ma_xac_thuc_dung_hoac_thu_hoi, chk_ma_xac_thuc_kich_hoat_da_gui]
 --   * Mã xác thực loại DangKy mang dữ liệu của lần đăng ký (họ tên, SĐT, mật khẩu băm): ba cột cùng có giá trị hoặc cùng NULL; loại khác không có dữ liệu này  [chk_ma_xac_thuc_du_lieu_dang_ky]
 --   * Lịch hoạt động chi nhánh: thứ 1 đến 7; mỗi (chi nhánh, thứ) tối đa 1 dòng; tối đa hai khoảng nhận khám (sáng, chiều), mỗi khoảng hoặc để trống cả hai giờ hoặc đủ giờ với bắt đầu < kết thúc trong ngày (không qua đêm); hai khoảng không chồng nhau; hoat_dong = true thì có ít nhất một khoảng, ngày nghỉ thì cả bốn giờ để trống  [chk_lich_hoat_dong_thu, chk_lich_hoat_dong_khoang, chk_lich_hoat_dong_khong_chong, chk_lich_hoat_dong_ngay, PRIMARY KEY]
+--   * Tên chuyên khoa duy nhất; tên dịch vụ duy nhất trong cùng nhóm dịch vụ  [chuyen_khoa_index_ten, dich_vu_kham_index_nhom_ten]
 --   * Yêu cầu thay đổi chi nhánh: nội dung trước/sau là JSON object không rỗng; ChoDuyet chưa có người duyệt và hiệu lực; DaDuyet có người duyệt, số ngày báo trước và hieu_luc_tu >= thời điểm duyệt + số ngày báo trước; TuChoi bắt buộc có lý do  [chk_yc_chi_nhanh_noi_dung, chk_yc_chi_nhanh_xu_ly]
 --   * Mỗi thông báo có tối đa 1 dòng email; thông báo của 1 yêu cầu thay đổi chi nhánh không trùng theo (yêu cầu, tài khoản, loại sự kiện); email DaGui phải có da_gui_luc, ThatBai phải có lỗi  [email_thong_bao.thong_bao_id UNIQUE, thong_bao_index_yeu_cau_chi_nhanh, chk_email_thong_bao_ket_qua]
 --   * Cấu hình hệ thống: thời gian giữ chỗ, thời hạn phản hồi lời mời > 0; ngưỡng no-show và số lịch hẹn tối đa mỗi hồ sơ >= 1; các số còn lại >= 0 [đề xuất, chưa có giới hạn trên]; mốc nhắc lịch là mảng số nguyên dương không trùng  [chk_cau_hinh_gia_tri, chk_cau_hinh_nhac_lich]
@@ -560,6 +562,11 @@ CREATE INDEX `ma_xac_thuc_index_0` ON `ma_xac_thuc` (`tai_khoan_id`, `loai`, `he
 CREATE INDEX `ma_xac_thuc_index_tao_luc` ON `ma_xac_thuc` (`tai_khoan_id`, `loai`, `tao_luc`);
 
 CREATE INDEX `phien_dang_nhap_index_tai_khoan` ON `phien_dang_nhap` (`tai_khoan_id`, `thu_hoi_luc`);
+
+-- Q12, Q16: tránh trùng tên chuyên khoa và trùng tên dịch vụ trong cùng nhóm
+CREATE UNIQUE INDEX `chuyen_khoa_index_ten` ON `chuyen_khoa` (`ten`);
+
+CREATE UNIQUE INDEX `dich_vu_kham_index_nhom_ten` ON `dich_vu_kham` (`nhom_dich_vu_id`, `ten`);
 
 CREATE UNIQUE INDEX `moc_hoan_tien_index_1` ON `moc_hoan_tien` (`dich_vu_kham_id`, `so_gio_truoc_toi_thieu`);
 
