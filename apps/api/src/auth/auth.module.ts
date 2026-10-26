@@ -5,13 +5,15 @@ import { MaXacThuc } from './entities/ma-xac-thuc.entity.js';
 import { PhienDangNhap } from './entities/phien-dang-nhap.entity.js';
 import { TaiKhoan } from './entities/tai-khoan.entity.js';
 import { ViNoiBo } from './entities/vi-noi-bo.entity.js';
+import { PasswordHasher } from './password-hasher.service.js';
 
 const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 
-// Khung module auth (task P3): mới chỉ đăng ký và xuất 5 entity để module khác (admin…) import,
-// không sao chép. Controller, service và repository của từng use case được thêm ở các task A*.
+// Khung module auth: xuất 5 entity (task P3) và PasswordHasher (task A1) để module khác (admin…) import,
+// không sao chép. Controller, service và repository của từng use case được thêm ở các task A* sau.
 @Module({
   imports: [TypeOrmModule.forFeature(AUTH_ENTITIES)],
-  exports: [TypeOrmModule],
+  providers: [PasswordHasher],
+  exports: [TypeOrmModule, PasswordHasher],
 })
 export class AuthModule {}
