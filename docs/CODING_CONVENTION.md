@@ -19,7 +19,7 @@
 - Mỗi module nghiệp vụ một thư mục: `controller` → `service` → `repository`. Controller không chứa logic nghiệp vụ.
 - DTO + `class-validator` cho mọi dữ liệu vào; kiểm tra phân quyền ở backend (Role + Ownership + Scope), không dựa vào việc ẩn nút ở UI.
 - Không ghi mật khẩu, token, OTP vào log. Thao tác nhạy cảm đi qua Audit Log.
-- Mật khẩu băm bằng Argon2id hoặc bcrypt.
+- Mật khẩu băm bằng **Argon2id** (m=19 MiB, t=2, p=1 — quyết định S6) qua `PasswordHasher` của module `auth`; không dùng bcrypt, không tự viết hàm băm riêng.
 - Mọi import tương đối trong `apps/api` phải có đuôi `.js` (dự án dùng ESM), ví dụ `import { AppModule } from './app.module.js';`.
 - TypeORM luôn `synchronize: false`; schema chỉ đổi bằng **migration viết tay** trong `src/database/migrations/`, đăng ký vào mảng `MIGRATIONS` (và entity vào `ENTITIES`) — không dùng glob.
   Sửa schema thì sửa **cả ba** file `docs/database/*` trước, rồi viết migration khớp từng dòng (test `schema-parity.int-spec.ts` kiểm điều này).
