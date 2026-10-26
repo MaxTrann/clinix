@@ -9,8 +9,8 @@ Mọi thành viên làm việc với AI đều đọc file này trước. Trạn
 | API (`apps/api`) | NestJS + TypeScript, TypeORM, MySQL 8.4 |
 | Hạ tầng | Docker Compose, GitHub Actions, GHCR; Mobile (Flutter) làm sau |
 
-**Trạng thái hiện tại:** `apps/api` đã khởi tạo NestJS (Vitest + oxlint + ESM) với `GET /health`; `apps/web` mới có `Dockerfile` (chưa có `package.json`, chưa có mã).
-Việc khởi tạo `apps/web` nằm trong kế hoạch module `auth` (task P2). Các lệnh chạy cả hai app ở dưới (`npm run lint`, `npm test` ở gốc) chỉ chạy đủ sau khi `apps/web` được tạo.
+**Trạng thái hiện tại:** cả hai app đã khởi tạo. `apps/api`: NestJS (Vitest + oxlint + ESM) với `GET /health`. `apps/web`: React + Vite + TypeScript `strict`
+(Vitest + happy-dom, ESLint, Prettier), mới có trang placeholder "CLINIX"; router, lớp API client và proxy `/api` thuộc task P6 của module `auth`.
 
 ## 1. Quy tắc cứng (vi phạm là hỏng quy trình chấm điểm của đồ án)
 

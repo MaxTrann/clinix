@@ -17,7 +17,6 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  OWNER: ${{ github.repository_owner }}
 
 jobs:
   # hashFiles() không dùng được ở `if` cấp job nên kiểm tra app đã khởi tạo qua job riêng.
@@ -41,6 +40,8 @@ jobs:
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
     steps:
+      # Tên image trên GHCR bắt buộc viết thường mà owner có thể có chữ hoa (vd. MaxTrann) → hạ chữ thường rồi mới dùng ở `tags`.
+      - run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
       - id: meta
         run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
@@ -100,7 +101,7 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             sed -i '/^TAG=/d;/^GHCR_OWNER=/d' .env
             echo "TAG=${TAG}" >> .env
-            echo "GHCR_OWNER=${{ github.repository_owner }}" >> .env
+            echo "GHCR_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> .env
             docker compose pull
             docker compose up -d --remove-orphans
           EOF
