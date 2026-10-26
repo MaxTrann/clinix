@@ -9,7 +9,8 @@ Mọi thành viên làm việc với AI đều đọc file này trước. Trạn
 | API (`apps/api`) | NestJS + TypeScript, TypeORM, MySQL 8.4 |
 | Hạ tầng | Docker Compose, GitHub Actions, GHCR; Mobile (Flutter) làm sau |
 
-**Trạng thái hiện tại:** cả hai app đã khởi tạo. `apps/api`: NestJS (Vitest + oxlint + ESM) với `GET /health`. `apps/web`: React + Vite + TypeScript `strict`
+**Trạng thái hiện tại:** cả hai app đã khởi tạo. `apps/api`: NestJS (Vitest + oxlint + ESM) với `GET /health`, đã nối MySQL bằng TypeORM và có migration cho 5 bảng
+`tai_khoan`, `benh_nhan`, `vi_noi_bo`, `ma_xac_thuc`, `phien_dang_nhap` (task P3; hạ tầng DB dùng chung nằm ở `apps/api/src/database/`, entity ở `apps/api/src/auth/entities/`). `apps/web`: React + Vite + TypeScript `strict`
 (Vitest + happy-dom, ESLint, Prettier), mới có trang placeholder "CLINIX"; router, lớp API client và proxy `/api` thuộc task P6 của module `auth`.
 
 ## 1. Quy tắc cứng (vi phạm là hỏng quy trình chấm điểm của đồ án)
@@ -45,7 +46,8 @@ Nếu issue hoặc plan dẫn tới thứ không có trong repo (ví dụ đoạ
 - Email: **Gmail SMTP** qua `MailService` dùng chung; **test tự động luôn mock `MailService`**, không gửi thư thật.
 - Mật khẩu: 8–64 ký tự ASCII in được, ≥ 1 chữ số, ≥ 1 ký tự đặc biệt. Email: ASCII, `trim`, tên miền chữ thường. SĐT: 10 số bắt đầu bằng 0.
 - Mã lỗi nghiệp vụ **ổn định** cho từng nhánh (để FE chọn đúng thông báo); không trả 500 cho lỗi UNIQUE/FK đã lường trước.
-- Thời gian nghiệp vụ tính theo **giờ Việt Nam** (`nowVN()`/`todayVN()`), test dùng đồng hồ giả.
+- Thời gian nghiệp vụ tính theo **giờ Việt Nam** (`nowVN()`/`todayVN()`), test dùng đồng hồ giả. Múi giờ `+07:00` đã đặt ở driver (`DB_TIMEZONE`), ở **session MySQL** (`SET time_zone` cho mỗi kết nối
+  trong pool, xem `src/database/data-source.ts`) và ở `TZ` của container `db`; `nowVN()`/`todayVN()` do task P5 của module admin làm.
 - Mọi thao tác đa bảng nằm **trong một giao dịch** ở tầng service; chống chạy đua bằng khóa hàng/ràng buộc UNIQUE, không chỉ kiểm bằng đọc-rồi-ghi.
 - Chưa làm throttling theo IP (việc X3 của auth/admin, làm **trước khi mở công khai**).
 
@@ -53,6 +55,8 @@ Nếu issue hoặc plan dẫn tới thứ không có trong repo (ví dụ đoạ
 
 - Định danh trong mã: tiếng Anh; comment/tài liệu: tiếng Việt **có dấu**. File `kebab-case`; Class/Component `PascalCase`; biến/hàm `camelCase`; hằng `UPPER_SNAKE_CASE`.
   Bảng/cột DB giữ đúng tên `snake_case` tiếng Việt không dấu của schema (ví dụ `tai_khoan`, `chi_nhanh`) — không đổi tên.
+  **Ngoại lệ có chủ đích cho entity TypeORM:** tên class = PascalCase của tên bảng (`tai_khoan` → `TaiKhoan`), thuộc tính = camelCase của tên cột tiếng Việt không dấu
+  (`ho_ten` → `hoTen`, `tai_khoan_id` → `taiKhoanId`), để khớp 1–1 với schema và Class Diagram; không dịch sang tiếng Anh. Mọi định danh khác vẫn tiếng Anh.
 - TypeScript `strict`; cấm `any` không có lý do. Prettier + oxlint cho api, ESLint cho web, 0 lỗi.
 - Backend: mỗi module một thư mục `controller → service → repository`; controller chỉ nhận/trả, không chứa logic. DTO + `class-validator` cho mọi dữ liệu vào.
   **Quyền và phạm vi dữ liệu kiểm ở backend** (vai trò + sở hữu + phạm vi chi nhánh), không dựa vào việc ẩn nút ở UI. Không ghi mật khẩu/token/OTP vào log.
@@ -104,6 +108,10 @@ cp .env.example .env           # điền giá trị giả/dev; KHÔNG commit .en
 docker compose up --build      # db + api + web (sau khi hai app được khởi tạo)
 npm run lint ; npm test        # chạy lint/test của apps/api và apps/web
 npm run secrets                # gitleaks (cần cài gitleaks)
+# Trong apps/api (cần MySQL: `docker compose up -d db`, đọc TEST_DB_* hoặc MYSQL_ROOT_PASSWORD từ .env ở gốc repo):
+npm run test:int               # test tích hợp *.int-spec.ts trên MySQL thật (DB *_test, chạy tuần tự)
+npm run test:e2e               # e2e qua AppModule + MySQL thật
+npm run migration:status       # liệt kê migration; migration:run áp dụng, migration:revert hoàn tác MỘT migration cuối
 npm run dup                    # jscpd, trùng lặp ≤ 3%
 ```
 Chi tiết cài đặt cho thành viên mới: `docs/DEV_SETUP.md`. Quy trình PR/tiêu chuẩn chất lượng: `CONTRIBUTING.md`, `README.md`.

@@ -11,6 +11,7 @@
 // 20/10/2026 (cách chia khung giờ): chỉ sửa Note của khung_gio và mô tả quy tắc 39/mục (b) của clinix_quy_tac_nghiep_vu.md: các khung giờ nối liền nhau theo thời lượng khám, phần dư cuối khoảng nhận khám không sinh khung giờ; không đổi bảng, cột, enum, constraint.
 // 20/10/2026 (truy vết Lễ tân thu tiền mặt tại quầy): giao_dich_thanh_toan thêm nguoi_thu_id (khóa ngoại tới le_tan.tai_khoan_id) và CHECK chk_gd_tien_mat_nguoi_thu; không thêm bảng hoặc enum. Chuyển đổi từ DB cũ: mục 9 của clinix_quy_tac_nghiep_vu.md.
 // 19/10/2026 (lịch hoạt động chi nhánh hai khoảng nhận khám): chi_nhanh_lich_hoat_dong bỏ gio_mo_cua/gio_dong_cua, thay bằng gio_bat_dau_sang, gio_ket_thuc_sang, gio_bat_dau_chieu, gio_ket_thuc_chieu; ràng buộc (chk_lich_hoat_dong_khoang/_khong_chong/_ngay) khai báo trong clinix_mysql.sql; 44 bảng, 27 enum.
+// 26/10/2026 (module auth, task P3): ma_xac_thuc thêm 3 cột dữ liệu lần đăng ký (ho_ten_dang_ky, so_dien_thoai_dang_ky, mat_khau_bam_dang_ky) và chk_ma_xac_thuc_du_lieu_dang_ky; da_gui_luc/thu_hoi_luc dùng cả cho OTP; tài khoản Bệnh nhân chưa xác minh giữ 24 giờ; phien_dang_nhap chốt tên và thời hạn (bỏ [đề xuất]); vi_noi_bo tạo cùng benh_nhan khi xác minh OTP; chỉ đổi cột/CHECK/ghi chú của ma_xac_thuc, không thêm bảng hoặc enum => 44 bảng, 27 enum, 38 CHECK. Chuyển đổi từ DB cũ: mục 10 của clinix_quy_tac_nghiep_vu.md.
 
 Project clinix {
   database_type: 'MySQL'
@@ -228,7 +229,7 @@ Table tai_khoan {
   email varchar(255) [not null, unique]
   mat_khau_bam varchar(255) [note: 'NULL chỉ khi trang_thai = ChoKichHoat (nhân sự chưa tự đặt mật khẩu qua liên kết kích hoạt; Quản trị viên không đặt, không nhìn thấy, không gửi mật khẩu). DangHoatDong bắt buộc có mật khẩu (chk_tai_khoan_mat_khau)']
   trang_thai trang_thai_tai_khoan_enum [not null, default: 'DangHoatDong', note: 'Bệnh nhân đăng ký vào thẳng DangHoatDong (chưa xác minh email thì chưa được đặt lịch). Nhân sự tạo mới ở ChoKichHoat, chưa đăng nhập được, chỉ chuyển sang DangHoatDong khi tự đặt mật khẩu qua liên kết kích hoạt; KHÔNG chuyển bằng thao tác Mở khóa']
-  da_xac_minh_email boolean [not null, default: false, note: 'false thì không được đặt lịch. Đăng ký tạo tài khoản ngay với false; OTP đúng thì đặt true. Tài khoản chưa xác minh quá hạn bị xóa [cần điền: thời hạn giữ]. Nhân sự: đặt true khi kích hoạt thành công vì liên kết gửi tới đúng email này [đề xuất]']
+  da_xac_minh_email boolean [not null, default: false, note: 'false thì không được đặt lịch. Đăng ký tạo tài khoản ngay với false; OTP đúng thì đặt true. Tài khoản Bệnh nhân chưa xác minh bị xóa sau 24 giờ kể từ thoi_diem_tao (không gia hạn khi gửi lại OTP; không bao giờ xóa tài khoản nhân sự). Nhân sự: đặt true khi kích hoạt thành công vì liên kết gửi tới đúng email này [đề xuất]']
   so_lan_dang_nhap_sai int [not null, default: 0, note: 'Số lần đăng nhập sai liên tiếp, về 0 khi đăng nhập đúng. Email không tồn tại thì không đếm']
   khoa_dang_nhap_den datetime [note: 'Còn ở tương lai thì đang bị khóa đăng nhập (5 lần sai liên tiếp, khóa 15 phút); NULL = không khóa']
   loai_tai_khoan loai_tai_khoan_enum [not null, note: 'Cột đề xuất thêm để biết nhanh loại tài khoản, không cần JOIN 4 bảng con']
@@ -291,14 +292,17 @@ Table ma_xac_thuc {
   ma_xac_thuc_id bigint [pk, increment]
   tai_khoan_id bigint [not null, ref: > tai_khoan.tai_khoan_id]
   loai loai_xac_thuc_enum [not null]
-  ma_bam varchar(255) [not null, note: 'Lưu bản băm của OTP hoặc token, không lưu bản rõ']
+  ma_bam varchar(255) [not null, note: 'Lưu bản băm, không lưu bản rõ: OTP (DangKy, QuenMatKhau) = HMAC-SHA-256 với khóa bí mật riêng, dữ liệu băm gồm tai_khoan_id, loai, ma_xac_thuc_id và mã (không dùng SHA-256 trơn); liên kết kích hoạt = băm của token']
   het_han_luc datetime [not null]
   da_dung_luc datetime [note: 'Để trống = chưa dùng; liên kết kích hoạt chỉ dùng 1 lần']
-  da_gui_luc datetime [note: 'Chỉ dùng cho loai = KichHoatNhanSu: thời điểm dịch vụ email xác nhận đã gửi THÀNH CÔNG; để trống = liên kết mới tạo, chưa có hiệu lực. OTP (DangKy, QuenMatKhau) không dùng cột này']
-  thu_hoi_luc datetime [note: 'Chỉ dùng cho loai = KichHoatNhanSu: thời điểm liên kết bị vô hiệu (gửi lại thành công thì liên kết cũ bị thu hồi; liên kết mới gửi thất bại thì chính nó bị thu hồi). Để trống = chưa bị thu hồi']
+  da_gui_luc datetime [note: 'Thời điểm dịch vụ email xác nhận đã gửi THÀNH CÔNG; để trống = mới tạo hoặc gửi lỗi, chưa có hiệu lực. KichHoatNhanSu: liên kết chưa gửi thì chưa hợp lệ. OTP (DangKy, QuenMatKhau): mã chưa gửi thành công không xác minh được và không thay thế mã cũ; chỉ mã mới nhất ĐÃ GỬI THÀNH CÔNG mới thay thế mã cũ']
+  thu_hoi_luc datetime [note: 'Thời điểm mã bị vô hiệu; để trống = chưa thu hồi. KichHoatNhanSu: gửi lại thành công thì liên kết cũ bị thu hồi; liên kết mới gửi thất bại thì chính nó bị thu hồi. OTP: bị thu hồi khi mã mới gửi thành công, khi gửi lỗi (chính hàng mới), khi nhập sai đủ 5 lần, hoặc khi đặt lại mật khẩu thành công trên tài khoản chưa xác minh']
   kich_hoat_dang_hieu_luc bigint [unique, note: 'Cột sinh STORED + UNIQUE: bằng tai_khoan_id khi loai = KichHoatNhanSu, da_gui_luc có giá trị, chưa thu hồi, chưa dùng; NULL trong mọi trường hợp khác. Nhờ đó mỗi tài khoản chỉ có tối đa 1 liên kết kích hoạt hợp lệ tại một thời điểm (hết hạn het_han_luc kiểm tra ở service)']
-  so_lan_nhap_sai int [not null, default: 0]
-  tao_luc datetime [not null, default: `now()`, note: 'Dùng đếm giới hạn gửi lại OTP: cách mã trước ≥ 60 giây, tối đa 5 mã/giờ theo (tai_khoan_id, loai)']
+  so_lan_nhap_sai int [not null, default: 0, note: 'Số lần nhập sai của MÃ NÀY (OTP: đủ 5 lần thì thu hồi mã)']
+  tao_luc datetime [not null, default: `now()`, note: 'Dùng đếm giới hạn gửi lại OTP: cách mã trước ≥ 60 giây, tối đa 5 mã/giờ theo (tai_khoan_id, loai); tính cả hàng gửi lỗi']
+  ho_ten_dang_ky varchar(100) [note: 'Chỉ loai = DangKy: họ tên của LẦN ĐĂNG KÝ gắn với mã này; chỉ được ghi vào tai_khoan khi chính mã này được xác minh đúng. NULL khi không phải DangKy, hoặc sau khi mã đã dùng/bị thu hồi do đặt lại mật khẩu (ba cột dữ liệu đăng ký cùng NULL hoặc cùng có giá trị: chk_ma_xac_thuc_du_lieu_dang_ky)']
+  so_dien_thoai_dang_ky varchar(20) [note: 'Số điện thoại của lần đăng ký này (xem ho_ten_dang_ky)']
+  mat_khau_bam_dang_ky varchar(255) [note: 'Bản băm Argon2id của mật khẩu của lần đăng ký này, không bao giờ lưu bản rõ (xem ho_ten_dang_ky)']
 
   indexes {
     (tai_khoan_id, loai, het_han_luc)
@@ -308,14 +312,14 @@ Table ma_xac_thuc {
   Note: 'Vòng đời liên kết KichHoatNhanSu (token chỉ lưu bản băm; URL chứa ma_xac_thuc_id + token, so token với ma_bam). Hợp lệ khi da_gui_luc có giá trị, thu_hoi_luc rỗng, da_dung_luc rỗng và het_han_luc > bây giờ (thời hạn [đề xuất: 24 giờ], chưa chốt). (1) Tạo tài khoản hoặc Gửi lại: INSERT liên kết mới với da_gui_luc rỗng (chưa hợp lệ), rồi gửi email. (2) Gửi thành công, trong 1 giao dịch: thu hồi liên kết cũ chưa dùng (thu_hoi_luc = bây giờ) rồi đặt da_gui_luc = bây giờ cho liên kết mới => chỉ liên kết mới hợp lệ. (3) Gửi thất bại: đặt thu_hoi_luc cho CHÍNH liên kết mới, không đụng liên kết cũ => liên kết cũ còn hạn vẫn hợp lệ. (4) Kích hoạt, trong 1 giao dịch: đặt da_dung_luc, mat_khau_bam, trang_thai = DangHoatDong (và da_xac_minh_email = true [đề xuất]). Giới hạn tần suất gửi lại liên kết: [cần điền].'
 }
 
-// [đề xuất] Refresh token của JWT: chỉ lưu bản băm; đăng xuất = đặt thu_hoi_luc. Tên bảng/cột chưa chốt.
+// Phiên đăng nhập (tên bảng và cột đã chốt, Q10): refresh token ngẫu nhiên 256 bit chỉ lưu bản băm; xoay tại chỗ mỗi lần làm mới; đăng xuất hoặc dùng lại token cũ thì đặt thu_hoi_luc.
 Table phien_dang_nhap {
   phien_dang_nhap_id bigint [pk, increment]
   tai_khoan_id bigint [not null, ref: > tai_khoan.tai_khoan_id]
-  refresh_token_bam varchar(255) [not null, unique, note: 'Lưu bản băm của refresh token, không lưu bản rõ']
-  tao_luc datetime [not null, default: `now()`]
-  het_han_luc datetime [not null, note: 'Thời hạn refresh token [cần điền]']
-  thu_hoi_luc datetime [note: 'Để trống = còn hiệu lực; đăng xuất thì ghi thời điểm thu hồi']
+  refresh_token_bam varchar(255) [not null, unique, note: 'Lưu SHA-256 của refresh token (chuỗi ngẫu nhiên 256 bit, dạng sid.ngẫu nhiên.chữ ký), không lưu bản rõ; thay bằng băm mới mỗi lần làm mới (xoay tại chỗ)']
+  tao_luc datetime [not null, default: `now()`, note: 'Thời điểm đăng nhập; mốc tính trần tuyệt đối 8 giờ']
+  het_han_luc datetime [not null, note: 'Hết hạn trượt: lúc đăng nhập = tao_luc + 30 phút (không hoạt động); mỗi lần làm mới = min(bây giờ + 30 phút, tao_luc + 8 giờ). Quá het_han_luc hoặc quá trần 8 giờ kể từ tao_luc thì refresh bị từ chối']
+  thu_hoi_luc datetime [note: 'Để trống = còn hiệu lực. Ghi thời điểm khi: đăng xuất, phát hiện dùng lại refresh token cũ, đặt lại hoặc đổi mật khẩu (các phiên khác), khóa tài khoản']
 
   indexes {
     (tai_khoan_id, thu_hoi_luc)
@@ -620,7 +624,7 @@ Table vi_noi_bo {
   so_du decimal(12,2) [not null, default: 0]
   so_tien_dang_giu decimal(12,2) [not null, default: 0, note: 'Tiền đang giữ cho yêu cầu rút chờ duyệt']
 
-  Note: 'Ràng buộc: so_du >= 0, so_tien_dang_giu >= 0 và so_tien_dang_giu <= so_du. Số dư khả dụng = so_du - so_tien_dang_giu (tính khi đọc, không lưu).'
+  Note: 'Ràng buộc: so_du >= 0, so_tien_dang_giu >= 0 và so_tien_dang_giu <= so_du. Số dư khả dụng = so_du - so_tien_dang_giu (tính khi đọc, không lưu). Ví được tạo cùng giao dịch với benh_nhan khi xác minh OTP đăng ký (so_du = 0, so_tien_dang_giu = 0); mỗi bệnh nhân đúng một ví.'
 }
 
 Table giao_dich_thanh_toan {

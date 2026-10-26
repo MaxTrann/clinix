@@ -40,7 +40,7 @@ vai trò khi điều hướng, ĐN b8).
   biến SMTP, `OTP_HMAC_SECRET`, `JWT_RESET_SECRET`, thời hạn token.
 - `apps/web/nginx.conf` **không proxy** sang API → hiện web và API khác origin; quyết định Q2 (cùng origin qua proxy) yêu cầu đổi.
 - `.github/workflows/ci.yml` chạy `npm test -- --coverage` cho api/web, **không có service MySQL** → test tích hợp cần DB
-  không chạy được trên CI trừ khi bổ sung (xem P3).
+  không chạy được trên CI trừ khi bổ sung (xem P3). *(Đã bổ sung ở P3: job `api` có service MySQL 8.4 và chạy `test:int`, `test:e2e`.)*
 - `commitlint.config.cjs` có scope `auth`. `docs/PLAN.md` Phase 0: #1 ORM, #2 thời hạn token vẫn `[cần điền]` → P0 điền.
 
 ## 3. Phân tích ảnh hưởng
@@ -358,7 +358,7 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 |---|---|---|---|---|---|
 | ☑ | P0 | Ghi quyết định Q1/Q2 vào `docs/PLAN.md` Phase 0 (#1 ORM = TypeORM, #2 thời hạn token) và thêm yêu cầu **staging có HTTPS** (domain + chứng chỉ) vào Phase 0 #4/Phase 4 (N5) | — | Mọi UC | `[ĐỒNG BỘ TL]` `docs(repo)` |
 | ☑ | P1 | Khởi tạo `apps/api` (NestJS TS `strict`, script `lint`/`build`/`test`/`start:dev`, ValidationPipe toàn cục, đọc cấu hình từ env, `cookie-parser`, `trust proxy`, `GET /health` → `{status:"ok"}`); **cài được `argon2` trong `Dockerfile`** (S6: lỗi build thì xử lý lỗi, không chuyển bcrypt) | — | Nền | `[TIỀN ĐỀ]` `feat(api)` |
-| ☐ | P2 | Khởi tạo `apps/web` (React + Vite + TS, Vitest, script `lint`/`test`) | — (song song P1) | Nền | `[TIỀN ĐỀ]` `feat(web)` |
+| ☑ | P2 | Khởi tạo `apps/web` (React + Vite + TS, Vitest, script `lint`/`test`) | — (song song P1) | Nền | `[TIỀN ĐỀ]` `feat(web)` |
 | ☐ | P3 | TypeORM + MySQL; **migration viết tay** cho `tai_khoan`, `benh_nhan`, `vi_noi_bo`, `ma_xac_thuc` (kèm 3 cột dữ liệu đăng ký + CHECK, mục 5.2), `phien_dang_nhap` + CHECK, cột sinh, index, FK — đối chiếu từng dòng với `clinix_mysql.sql` **đã cập nhật**; DB test (schema riêng); `docker compose up --build` chạy đủ 3 service; **quyết định cách chạy test tích hợp trên CI** (thêm service MySQL vào `ci.yml` hoặc chỉ chạy local) | P1 | Nền cho mọi UC | `[TIỀN ĐỀ]` `[ĐỒNG BỘ TL]` D7 · `feat(db)` |
 | ☐ | P4 | `MailService` (nodemailer, SMTP qua env, giao diện để mock), biến `SMTP_*`/`MAIL_*` vào `.env.example`, hướng dẫn tạo Gmail riêng + App Password trong `docs/DEV_SETUP.md` (không lộ bí mật); mẫu văn bản thô 2 loại OTP; **không** thêm Mailpit. Chạy thật cần nhóm đã tạo Gmail (N8) | P1 | ĐK b6; QMK b5 | `[TIỀN ĐỀ]` `feat(api)` |
 | ☐ | P5 | Hạ tầng chung: bộ lọc lỗi chuẩn hoá (mã lỗi ổn định), logger che mật khẩu/token/OTP. **Không** throttler (S7) | P1 | SOW 3.2.2 | `[TIỀN ĐỀ]` `feat(api)` |
@@ -402,13 +402,13 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 
 | ID | Nội dung | Đi cùng | Từ |
 |---|---|---|---|
-| D1 | Điền "24 giờ" vào ghi chú `da_xac_minh_email` (dbml/sql) và quy tắc 15; bỏ "[15 phút]" trong 2.4 ĐK b5 | A7 | Q4 |
-| D2 | `ma_xac_thuc.thu_hoi_luc` và `da_gui_luc` dùng cho OTP (ghi chú dbml/sql); quy tắc 16–17: HMAC, gửi lỗi, **mã đã gửi thành công mới thay mã cũ**, giới hạn tính cả hàng lỗi | A2 | S1, S3, N1 |
-| D3 | `phien_dang_nhap`: bỏ `[đề xuất]`; 15 phút/30 phút/8 giờ; xoay + phát hiện dùng lại; quy tắc 19; 2.4 ĐX A1 ("không hoạt động" = 30 phút) | A3 | Q2, Q10 |
-| D4 | Tạo `vi_noi_bo` ở ĐK b9: 2.4 (bước 9 + hậu điều kiện) + quy tắc 15 và 7 + ghi chú `benh_nhan`/`vi_noi_bo`; Class Diagram nếu cần | A6 | Q9 |
+| D1 | Điền "24 giờ" vào ghi chú `da_xac_minh_email` (dbml/sql) và quy tắc 15; bỏ "[15 phút]" trong 2.4 ĐK b5 | **P3** (phần `docs/database`, xong 26/10/2026); A7 (phần 2.4) | Q4 |
+| D2 | `ma_xac_thuc.thu_hoi_luc` và `da_gui_luc` dùng cho OTP (ghi chú dbml/sql); quy tắc 16–17: HMAC, gửi lỗi, **mã đã gửi thành công mới thay mã cũ**, giới hạn tính cả hàng lỗi | **P3** (toàn bộ, xong 26/10/2026) | S1, S3, N1 |
+| D3 | `phien_dang_nhap`: bỏ `[đề xuất]`; 15 phút/30 phút/8 giờ; xoay + phát hiện dùng lại; quy tắc 19; 2.4 ĐX A1 ("không hoạt động" = 30 phút) | **P3** (phần `docs/database`, xong 26/10/2026); A3 (phần 2.4) | Q2, Q10 |
+| D4 | Tạo `vi_noi_bo` ở ĐK b9: 2.4 (bước 9 + hậu điều kiện) + quy tắc 15 và 7 + ghi chú `benh_nhan`/`vi_noi_bo`; Class Diagram nếu cần | **P3** (phần `docs/database`, xong 26/10/2026); A6 (phần 2.4) | Q9 |
 | D5 | Chính sách mật khẩu (8–64, chỉ ASCII in được, chữ số, ký tự đặc biệt — N10), SĐT, email ASCII, OTP 6 số, thứ tự kiểm hạn vs sai mã (sửa câu chữ ĐK A4) vào 2.4; thông báo lỗi trong Figma | A1, A2 | Q11, N9, N10, S3, S5 |
 | D6 | QMK: `resetToken`, xoá khoá đăng nhập, từ chối tài khoản chưa từng có mật khẩu, tài khoản chưa xác minh được phép (chỉ đổi mật khẩu; thu hồi OTP đăng ký đang chờ và yêu cầu đăng ký lại — N3), cảnh báo `NgungHoatDong` (N7) | A11, A12 | S2, S4, Q6, N3, N7 |
-| D7 | Lần đăng ký (Q7): 3 cột + CHECK `chk_ma_xac_thuc_du_lieu_dang_ky` trong dbml/sql; quy tắc 16 viết lại (có `da_gui_luc`, trạng thái hàng); 2.4 ĐK b5, b9, A2/4c; cập nhật dòng lịch sử `clinix.dbml` (số bảng không đổi, chỉ thêm cột) | P3 | Q7, N1 |
+| D7 | Lần đăng ký (Q7): 3 cột + CHECK `chk_ma_xac_thuc_du_lieu_dang_ky` trong dbml/sql; quy tắc 16 viết lại (có `da_gui_luc`, trạng thái hàng); 2.4 ĐK b5, b9, A2/4c; cập nhật dòng lịch sử `clinix.dbml` (số bảng không đổi, chỉ thêm cột) | P3 (phần `docs/database`, xong 26/10/2026); **2.4 (file Word) còn lại — làm cùng A5/A6** | Q7, N1 |
 | D8 | 2.4 ĐN: chưa xác minh ⇒ không phiên, hướng tới OTP (bước + luồng thay thế mới); quy tắc 23; 2.4 ĐK b10; 2.4 ĐMK/QMK: thu hồi phiên (Q8) | A8, A12, A13 | Q5, Q8 |
 | D9 | `docs/PLAN.md` (tick auth Phase 2, Phase 0); `docs/TRACKING.md` (đúng **một** dòng); `docs/TECH_DEBT.md`: S7 hoãn throttling (+ H3, H4), phát hiện dùng lại làm thu hồi nhầm và **mất phản hồi mạng khi xoay refresh token** (H12, N4), tiết lộ tồn tại tài khoản theo 2.4 (H7), phụ thuộc Gmail (H11) | X2 | S7, N4 |
 
