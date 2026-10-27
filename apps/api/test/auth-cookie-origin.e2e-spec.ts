@@ -19,6 +19,7 @@ import { Public } from './../src/auth/decorators/public.decorator.js';
 import { OriginGuard } from './../src/auth/guards/origin.guard.js';
 import { RefreshCookieService } from './../src/auth/session/refresh-cookie.service.js';
 import { TEST_AUTH_ENV } from './../src/auth/testing/auth-test-env.js';
+import { expectErrorResponse } from './../src/common/testing/error-assertions.js';
 
 // Task A3. Test case: DN-33 (cookie refresh), DN-34 và DX-07 (Origin), qua HTTP thật với AppModule + MySQL thật.
 // Endpoint thật (refresh, logout) thuộc A9/A10; ở đây dùng controller thử chỉ tồn tại trong file test này.
@@ -160,14 +161,12 @@ describe('cookie refresh và OriginGuard qua HTTP (DN-33, DN-34, DX-07)', () => 
       const res = await request(app.getHttpServer())
         .post('/probe/guarded')
         .set('Origin', origin);
-      expect(res.status).toBe(403);
-      expect(JSON.stringify(res.body)).toContain('ORIGIN_KHONG_HOP_LE');
+      expectErrorResponse(res, 403, 'ORIGIN_KHONG_HOP_LE');
     },
   );
 
   it('DN-34 / DX-07: vắng header Origin → 403', async () => {
     const res = await request(app.getHttpServer()).post('/probe/guarded');
-    expect(res.status).toBe(403);
-    expect(JSON.stringify(res.body)).toContain('ORIGIN_KHONG_HOP_LE');
+    expectErrorResponse(res, 403, 'ORIGIN_KHONG_HOP_LE');
   });
 });

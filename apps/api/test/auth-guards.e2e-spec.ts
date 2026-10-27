@@ -32,6 +32,10 @@ import {
 import { SessionService } from './../src/auth/session/session.service.js';
 import { TokenService } from './../src/auth/session/token.service.js';
 import { TEST_AUTH_ENV } from './../src/auth/testing/auth-test-env.js';
+import {
+  expectErrorResponse,
+  type HttpResponseLike,
+} from './../src/common/testing/error-assertions.js';
 import { resetTables } from './../src/database/testing/test-database.js';
 
 // Task A4. Test case: DN-25, DN-26, DN-35, DX-02, DM-05, SE-05, SE-06, qua HTTP thật với AppModule + MySQL thật + đồng hồ giả.
@@ -130,14 +134,9 @@ function call(path: string, token?: string) {
     : req.set('Authorization', `Bearer ${token}`);
 }
 
-// Mã lỗi ổn định nằm trong `message` (dạng JSON chuẩn do bộ lọc lỗi P5 quyết định sau; khi đó chỉ sửa hàm này)
-function expectError(
-  res: { status: number; body: { message?: unknown } },
-  status: number,
-  code: string,
-) {
-  expect(res.status).toBe(status);
-  expect(res.body.message).toBe(code);
+// Dạng JSON lỗi chuẩn do P5 quyết định (thân { maLoi, thongBao, … }); việc kiểm nằm ở expectErrorResponse dùng chung
+function expectError(res: HttpResponseLike, status: number, code: string) {
+  expectErrorResponse(res, status, code);
 }
 
 async function login(

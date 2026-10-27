@@ -329,6 +329,37 @@ Các câu đã có trong Figma/2.4 giữ nguyên; các câu còn lại là **đ�
 | `CHUA_DANG_NHAP` | Vui lòng đăng nhập để tiếp tục. | **[đề xuất]** A4 — 401: thiếu hoặc sai dạng `Authorization: Bearer <token>`; cũng khi route có `@Roles` mà chưa có người dùng |
 | `TOKEN_KHONG_HOP_LE` | Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại. | **[đề xuất]** A4 — 401: sai chữ ký, `alg` không phải HS256 (kể cả none), khoá khác, hết hạn, sai `iss`/`aud`; FE làm mới một lần rồi mới về đăng nhập |
 | `PHIEN_HET_HIEU_LUC` | Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại. | **[đề xuất]** A4 — 401: phiên đã thu hồi, không tồn tại hoặc quá trần 8 giờ, hoặc tài khoản không còn `DangHoatDong`; làm mới cũng sẽ thất bại nên về đăng nhập ngay |
+| `LOI_HE_THONG` | Hệ thống đang gặp sự cố. Vui lòng thử lại sau. | **[đề xuất]** P5 — mọi lỗi ngoài dự kiến (5xx); thân kèm `requestId` |
+| `YEU_CAU_KHONG_HOP_LE` | Yêu cầu không hợp lệ. | **[đề xuất]** P5 — 4xx chung: JSON hỏng, tham số sai |
+| `DU_LIEU_KHONG_HOP_LE` | Dữ liệu không hợp lệ. (chi tiết từng trường ở `loi`) | plan admin 5.9; P5 — lỗi kiểm dữ liệu (400) |
+| `TRUONG_KHONG_DUOC_PHEP` | (mã của MỘT trường trong `loi`) Trường này không được phép gửi. | **[đề xuất]** P5 — trường lạ (`forbidNonWhitelisted`) |
+| `KHONG_DU_QUYEN` | Bạn không có quyền thực hiện thao tác này. | A4 (403 sai vai trò); plan admin 5.9 |
+| `KHONG_TIM_THAY` | Không tìm thấy dữ liệu. | plan admin 5.9; P5 — route lạ, sai method và tài nguyên không có/ngoài phạm vi cùng một thân phản hồi |
+| `PHUONG_THUC_KHONG_DUOC_PHEP` | Phương thức không được hỗ trợ. | **[đề xuất]** P5 — 405 (Nest trả 404 khi sai method; mã này chỉ khi code ném `MethodNotAllowedException`) |
+| `DU_LIEU_QUA_LON` | Dữ liệu gửi lên quá lớn. | **[đề xuất]** P5 — 413 (body JSON quá 100 KB) |
+| `ORIGIN_KHONG_HOP_LE` | Yêu cầu không đến từ trang web được phép. | **[đề xuất]** A3 — 403 ở `/auth/refresh`, `/auth/logout` (bổ sung vào bảng ở P5) |
+
+**Dạng JSON của MỌI lỗi (task P5; tên trường và các mã đánh dấu `[đề xuất]` chờ nhóm duyệt):**
+
+```json
+{
+  "maLoi": "DU_LIEU_KHONG_HOP_LE",
+  "thongBao": "Dữ liệu không hợp lệ.",
+  "loi": [{ "truong": "email", "ma": "EMAIL_KHONG_HOP_LE" }],
+  "chiTiet": {},
+  "requestId": "…"
+}
+```
+
+- `maLoi` và `thongBao` luôn có. `loi` (mỗi lỗi `{truong, ma}`; `truong` là đường dẫn có dấu chấm như `address.city`) chỉ có ở lỗi kiểm dữ liệu (400 `DU_LIEU_KHONG_HOP_LE`).
+  `chiTiet` là tuỳ chọn, JSON thuần (đối tượng hoặc mảng) cho dữ liệu nghiệp vụ kèm theo (ví dụ lỗi lịch hoạt động của admin, xem bullet kế tiếp). `requestId` chỉ có ở lỗi 5xx và khớp dòng log ERROR của đúng request đó.
+- **Lỗi lịch hoạt động của admin (plan admin 5.9, CN A3) — Trung xác nhận 27/10/2026:** HTTP 400; `maLoi` là `LICH_HOAT_DONG_KHONG_HOP_LE` ở ngoài; `chiTiet` là **mảng** đặt trực tiếp, mỗi phần tử `{ thu, maLoi }` (ví dụ trong test: `{ thu: 2, maLoi: GIO_BAT_DAU_SAU_KET_THUC }`; bộ mã con do plan admin quyết định); không có khoá `loi`, vì `loi[{truong, ma}]` chỉ dành cho lỗi kiểm dữ liệu theo trường (`DU_LIEU_KHONG_HOP_LE`). Ca kiểm: `apps/api/src/common/errors/all-exceptions.filter.spec.ts`.
+- **Frontend chọn thông báo theo `maLoi` (và `loi[].ma`)**, không theo `thongBao`: `thongBao` chỉ là câu mặc định theo trạng thái hoặc do người ném lỗi đặt; câu chữ chốt ở bảng trên và Figma.
+- **Không bao giờ** có stack, thông điệp lỗi gốc, SQL, tên bảng/cột hay `cause` trong phản hồi, ở mọi môi trường. Lỗi ngoài dự kiến là 500 `LOI_HE_THONG`; chi tiết nằm trong log, tra bằng `requestId`.
+- Mã mặc định theo trạng thái khi lỗi không mang mã: 400 `YEU_CAU_KHONG_HOP_LE`, 401 `CHUA_DANG_NHAP`, 403 `KHONG_DU_QUYEN`, 404 `KHONG_TIM_THAY`, 405 `PHUONG_THUC_KHONG_DUOC_PHEP`, 413 `DU_LIEU_QUA_LON`, 5xx `LOI_HE_THONG`.
+  Thông điệp tự do của thư viện ("Cannot GET /x?token=…", đoạn JSON hỏng) **không** được chuyển ra. Mọi 404 (route lạ, sai method, tài nguyên không có hoặc ngoài phạm vi) có cùng một thân phản hồi.
+- Lỗi kiểm dữ liệu: mã của từng trường lấy từ `message` của decorator nếu đó là mã (A1); trường lạ là `TRUONG_KHONG_DUOC_PHEP`; ràng buộc có sẵn của class-validator là tên ràng buộc viết SNAKE_CASE hoa (ví dụ `IS_STRING`).
+- Cách ném lỗi: `docs/CODING_CONVENTION.md`. Mã nguồn: `apps/api/src/common/errors/`.
 
 ### 6.1 Sơ đồ phụ thuộc (cùng một hàng = làm song song được)
 
@@ -366,7 +397,7 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 | ☑ | P2 | Khởi tạo `apps/web` (React + Vite + TS, Vitest, script `lint`/`test`) | — (song song P1) | Nền | `[TIỀN ĐỀ]` `feat(web)` |
 | ☑ | P3 | TypeORM + MySQL; **migration viết tay** cho `tai_khoan`, `benh_nhan`, `vi_noi_bo`, `ma_xac_thuc` (kèm 3 cột dữ liệu đăng ký + CHECK, mục 5.2), `phien_dang_nhap` + CHECK, cột sinh, index, FK — đối chiếu từng dòng với `clinix_mysql.sql` **đã cập nhật**; DB test (schema riêng); `docker compose up --build` chạy đủ 3 service; **quyết định cách chạy test tích hợp trên CI** (thêm service MySQL vào `ci.yml` hoặc chỉ chạy local) | P1 | Nền cho mọi UC | `[TIỀN ĐỀ]` `[ĐỒNG BỘ TL]` D7 · `feat(db)` |
 | ☐ | P4 | `MailService` (nodemailer, SMTP qua env, giao diện để mock), biến `SMTP_*`/`MAIL_*` vào `.env.example`, hướng dẫn tạo Gmail riêng + App Password trong `docs/DEV_SETUP.md` (không lộ bí mật); mẫu văn bản thô 2 loại OTP; **không** thêm Mailpit. Chạy thật cần nhóm đã tạo Gmail (N8) | P1 | ĐK b6; QMK b5 | `[TIỀN ĐỀ]` `feat(api)` |
-| ☐ | P5 | Hạ tầng chung: bộ lọc lỗi chuẩn hoá (mã lỗi ổn định), logger che mật khẩu/token/OTP. **Không** throttler (S7) | P1 | SOW 3.2.2 | `[TIỀN ĐỀ]` `feat(api)` |
+| ☑ | P5 | Hạ tầng chung: bộ lọc lỗi chuẩn hoá (mã lỗi ổn định), logger che mật khẩu/token/OTP. **Không** throttler (S7) | P1 | SOW 3.2.2 | `[TIỀN ĐỀ]` `feat(api)` |
 | ☐ | P6 | Web shell: router (public/protected), **một** lớp API client duy nhất (gọi `/api/...`), thành phần loading/lỗi/mất mạng/timeout; **proxy cùng origin**: `server.proxy` của Vite + `location /api/` trong `apps/web/nginx.conf`, `VITE_API_URL=/api`; kiểm `docker-compose.staging.yml` | P2 | Nền cho F*; Q2 | `[TIỀN ĐỀ]` `feat(web)` |
 | ☐ | P7 | Sau PR code đầu tiên: bật `api`, `web`, `docker` vào required status checks của ruleset (làm trên GitHub) | P1, P2 | `docs/PLAN.md` Phase 1 | `[TIỀN ĐỀ]` cấu hình |
 
@@ -377,7 +408,7 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 | ☑ | A1 | `PasswordHasher` Argon2id (m=19 MiB, t=2, p=1; có hàm so giả cân bằng thời gian, H7; đo hiệu năng trên môi trường chạy thật); validator mật khẩu theo N10: chỉ ASCII in được (`\x20`–`\x7E`), 8–64 ký tự, `[0-9]`, ≥ 1 trong 32 dấu câu/ký hiệu ASCII, dấu cách không tính, không trim, không chuẩn hoá Unicode; lỗi `MAT_KHAU_KHONG_HOP_LE` / `MAT_KHAU_KY_TU_KHONG_HOP_LE`; SĐT (10 số bắt đầu 0, chuẩn hoá), email (trim, **ASCII**, ≤ 255, tên miền chữ thường); DTO dùng chung | P1 | ĐK b4, A1; QMK b10, A4; ĐMK b4, A2; SOW 3.2.2 | `[ĐỒNG BỘ TL]` D5 · `feat(auth)` |
 | ☐ | A2 | `OtpService` + repo `ma_xac_thuc`: sinh 6 số (`crypto.randomInt`), HMAC (S3) gồm `ma_xac_thuc_id`, kiểm hạn trước, so hằng định, đếm sai theo mã (5 ⇒ thu hồi), **đặt `da_gui_luc` rồi thu hồi mã cũ chỉ sau khi gửi thành công** (N1), giới hạn gửi lại (≥ 60 giây, ≤ 5 hàng/giờ **kể cả gửi lỗi**) dưới khoá hàng `tai_khoan`, xử lý gửi lỗi, suy ra trạng thái hàng (bảng mục 5.2) | P3, A1, P4 (giao diện mail) | ĐK b6, b8–b9, A2/4c–4d, A3, A4, A5; QMK b5, b7, A2, A3, A6 | `[ĐỒNG BỘ TL]` D2 · `feat(auth)` |
 | ☑ | A3 | `TokenService` + `SessionService` + repo `phien_dang_nhap`: access JWT (có `sid`, 15 phút); refresh token `sid.ngẫu nhiên.HMAC`; cấp/xoay/thu hồi; hết hạn trượt 30 phút + trần 8 giờ; phát hiện dùng lại ⇒ thu hồi; thu hồi hàng loạt theo tài khoản (trừ một phiên); cookie helper; `OriginGuard`; **từ chối khởi động nếu `COOKIE_SECURE=false` khi `NODE_ENV` ≠ `development`** (N5) | P3 | ĐN b7; ĐX b2, A1; Q2 | `[ĐỒNG BỘ TL]` D3 · `feat(auth)` |
-| ☐ | A4 | `JwtAuthGuard` (chữ ký, `alg` cố định, phiên theo `sid` chưa thu hồi/chưa quá trần, `trang_thai = DangHoatDong`), `RolesGuard` + `@Roles()`, `@Public()`, `@CurrentUser()` | A3 | ĐMK/ĐX tiền điều kiện; SOW 3.2.1/3.2.2 | `feat(auth)` |
+| ☑ | A4 | `JwtAuthGuard` (chữ ký, `alg` cố định, phiên theo `sid` chưa thu hồi/chưa quá trần, `trang_thai = DangHoatDong`), `RolesGuard` + `@Roles()`, `@Public()`, `@CurrentUser()` | A3 | ĐMK/ĐX tiền điều kiện; SOW 3.2.1/3.2.2 | `feat(auth)` |
 | ☐ | A5 | **Đăng ký** (mục 5.2): kiểm dữ liệu → các nhánh 1–5; email đã dùng/nhân sự ⇒ `EMAIL_DA_DUNG`; quá 24 giờ ⇒ xoá rồi tạo mới; UNIQUE chạy đua ⇒ như A2; gửi lỗi không thay mã cũ | A1, A2, P4 | ĐK b3–b6, A1, A2, A5 | `[ĐỒNG BỘ TL]` D7 · `feat(auth)` |
 | ☐ | A6 | **Xác minh OTP đăng ký** + **Gửi lại mã** (mục 5.2): chỉ hàng đã gửi thành công, không bị thay thế; giao dịch {ghi dữ liệu từ hàng OTP vào `tai_khoan`, `da_xac_minh_email`, `benh_nhan`, `vi_noi_bo`, `da_dung_luc`, NULL dữ liệu đăng ký}; sai/hết hạn/hết lượt/bị thay thế/`CAN_DANG_KY_LAI`; xác minh lặp không tạo trùng | A5 | ĐK b7–b10, A3, A4, A5/6b | `[ĐỒNG BỘ TL]` D4 · `feat(auth)` |
 | ☐ | A7 | **Dọn tài khoản** `BenhNhan` chưa xác minh quá 24 giờ kể từ `thoi_diem_tao`: job (`@nestjs/schedule`) + hàm dùng lại cho xoá lười ở A5; xoá `ma_xac_thuc` → `phien_dang_nhap` → `tai_khoan` trong một giao dịch; không đụng nhân sự (H1) | A5 | ĐK b5 (câu cuối) | `[ĐỒNG BỘ TL]` D1 · `feat(auth)` |
