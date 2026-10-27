@@ -1,4 +1,4 @@
-import { PASSWORD_ISSUES } from './password-policy.js';
+import { PASSWORD_ISSUES } from '../password/password-policy.js';
 
 // Mã lỗi ổn định cho dữ liệu đầu vào của tài khoản (PLAN.md mục 5.5). Frontend chọn thông báo theo MÃ, không theo câu chữ.
 export const VALIDATION_CODES = {

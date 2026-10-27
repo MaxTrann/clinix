@@ -1,7 +1,7 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
-import { ARGON2_OPTIONS } from './auth.constants.js';
+import { ARGON2_OPTIONS } from '../auth.constants.js';
 
 // Băm và so mật khẩu bằng Argon2id (S6). Đây là loại băm riêng cho MẬT KHẨU (H10):
 // OTP dùng HMAC-SHA-256, refresh token dùng SHA-256, nên không dùng lẫn hàm này cho chúng.

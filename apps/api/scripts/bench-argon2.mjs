@@ -22,7 +22,7 @@ if (!Number.isInteger(runs) || runs < 5)
 const dist =
   process.env.BENCH_DIST ?? fileURLToPath(new URL('../dist', import.meta.url));
 const { PasswordHasher } = await import(
-  pathToFileURL(resolve(dist, 'auth/password-hasher.service.js')).href
+  pathToFileURL(resolve(dist, 'auth/password/password-hasher.service.js')).href
 );
 const hasher = new PasswordHasher();
 

@@ -3,21 +3,21 @@ import {
   createTestDataSource,
   readTestDbSettings,
   resetTables,
-} from '../database/testing/test-database.js';
-import { SESSION_IDLE_MS, SESSION_MAX_MS } from './auth.constants.js';
-import { PhienDangNhap } from './entities/phien-dang-nhap.entity.js';
-import { TaiKhoan } from './entities/tai-khoan.entity.js';
+} from '../../database/testing/test-database.js';
+import { SESSION_IDLE_MS, SESSION_MAX_MS } from '../auth.constants.js';
+import { PhienDangNhap } from '../entities/phien-dang-nhap.entity.js';
+import { TaiKhoan } from '../entities/tai-khoan.entity.js';
 import {
   insertPhienDangNhap,
   insertTaiKhoan,
-} from './entities/testing/auth-fixtures.js';
-import { PhienDangNhapRepository } from './repositories/phien-dang-nhap.repository.js';
+} from '../entities/testing/auth-fixtures.js';
+import { PhienDangNhapRepository } from '../repositories/phien-dang-nhap.repository.js';
+import { createTestConfigService } from '../testing/auth-test-config.js';
 import {
   SessionService,
   type IssuedSession,
   type RefreshResult,
 } from './session.service.js';
-import { createTestConfigService } from './testing/auth-test-config.js';
 import { TokenService, sha256Hex } from './token.service.js';
 
 // Task A3. Test case (mức dịch vụ, MySQL thật, đồng hồ giả): DN-27, DN-28, DN-29, DN-30, DN-31, DN-35, DX-01..DX-06,

@@ -24,6 +24,13 @@
 - TypeORM luôn `synchronize: false`; schema chỉ đổi bằng **migration viết tay** trong `src/database/migrations/`, đăng ký vào mảng `MIGRATIONS` (và entity vào `ENTITIES`) — không dùng glob.
   Sửa schema thì sửa **cả ba** file `docs/database/*` trước, rồi viết migration khớp từng dòng (test `schema-parity.int-spec.ts` kiểm điều này).
 - Cột `bigint`/`decimal` trả về **chuỗi** (không mất độ chính xác); quan hệ hai chiều giữa các entity dùng `import type` + `Relation<>` để không vòng import khi chạy ESM.
+- **Cấu trúc module `auth`** (`apps/api/src/auth/`): ở gốc chỉ có `auth.module.ts` và `auth.constants.ts`; controller/service của từng use case sẽ đặt theo quyết định
+  khi làm A5–A13 (chưa chốt tên file). File còn lại nằm trong thư mục theo nhóm: `password/` (băm Argon2id, chính sách mật khẩu và bộ vector dùng chung FE/BE),
+  `validation/` (chuẩn hoá và kiểm email, SĐT, mã lỗi đầu vào), `session/` (access token, phiên đăng nhập, cookie refresh), `guards/`, `repositories/`, `dto/`, `entities/`,
+  `testing/` (mã hỗ trợ test dùng chung); `otp/` và `decorators/` chưa có, sẽ thêm khi có file đầu tiên.
+  File mới đặt theo nhóm: OTP vào `otp/`, guard vào `guards/`, decorator vào `decorators/`, repository vào `repositories/` (mỗi bảng một file, ví dụ `phien-dang-nhap.repository.ts`),
+  DTO vào `dto/`, entity vào `entities/`. Chỉ tạo thư mục khi có file đầu tiên (không tạo thư mục rỗng); test đặt cạnh mã nó kiểm;
+  module khác dùng thứ của `auth` qua các provider mà `AuthModule` export.
 
 ## Frontend (React)
 - Component hàm + hooks; tách UI / logic gọi API / state.

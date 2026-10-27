@@ -7,14 +7,14 @@ import {
   randomBytes,
   timingSafeEqual,
 } from 'node:crypto';
-import type { EnvironmentVariables } from '../config/env.validation.js';
+import type { EnvironmentVariables } from '../../config/env.validation.js';
 import {
   ACCESS_TOKEN_ALGORITHM,
   ACCESS_TOKEN_AUDIENCE,
   ACCESS_TOKEN_ISSUER,
   ACCESS_TOKEN_TTL_MS,
   REFRESH_TOKEN_RANDOM_BYTES,
-} from './auth.constants.js';
+} from '../auth.constants.js';
 
 export interface AccessTokenClaims {
   accountId: string;

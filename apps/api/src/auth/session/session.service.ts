@@ -1,10 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { EntityManager } from 'typeorm';
-import { SESSION_IDLE_MS, SESSION_MAX_MS } from './auth.constants.js';
-import type { LoaiTaiKhoan } from './entities/enums.js';
-import type { PhienDangNhap } from './entities/phien-dang-nhap.entity.js';
-import { PhienDangNhapRepository } from './repositories/phien-dang-nhap.repository.js';
+import { SESSION_IDLE_MS, SESSION_MAX_MS } from '../auth.constants.js';
+import type { LoaiTaiKhoan } from '../entities/enums.js';
+import type { PhienDangNhap } from '../entities/phien-dang-nhap.entity.js';
+import { PhienDangNhapRepository } from '../repositories/phien-dang-nhap.repository.js';
 import { TokenService, sha256Hex } from './token.service.js';
 
 export interface IssuedSession {

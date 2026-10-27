@@ -211,8 +211,8 @@ Ngoài phạm vi `auth` (không làm): 3 frame "Kích hoạt tài khoản" và 2
 ### 5.1 Cấu trúc và cấu hình
 
 **`apps/api/src/auth/`:** `auth.controller.ts` (chỉ nhận/trả) → `auth.service.ts` (điều phối use case, giao dịch) → `repositories/` (`tai-khoan`, `ma-xac-thuc`,
-`phien-dang-nhap`, `benh-nhan`, `vi-noi-bo`) → entity TypeORM. Phụ: `password-hasher.service.ts` (Argon2id), `password-policy.ts`, `otp.service.ts` (HMAC),
-`token.service.ts`, `session.service.ts`, `guards/` (`jwt-auth.guard.ts`, `roles.guard.ts`, `origin.guard.ts`), `decorators/` (`@Public()`, `@Roles()`, `@CurrentUser()`),
+`phien-dang-nhap`, `benh-nhan`, `vi-noi-bo`) → entity TypeORM. Phụ: `password/` (`password-hasher.service.ts` Argon2id, `password-policy.ts`), `validation/` (`email-policy.ts`, `phone-policy.ts`, `validation-codes.ts`), `otp/otp.service.ts` (HMAC),
+`session/` (`token.service.ts`, `session.service.ts`, `refresh-cookie.service.ts`), `guards/` (`jwt-auth.guard.ts`, `roles.guard.ts`, `origin.guard.ts`), `decorators/` (`@Public()`, `@Roles()`, `@CurrentUser()`),
 `dto/`, `auth.constants.ts` (10 phút, 5 lần sai, 60 giây, 5 mã/giờ, 5 lần đăng nhập sai, 15 phút khoá, 24 giờ giữ tài khoản — mỗi hằng có comment trỏ điều khoản 2.4).
 `MailService` dùng chung ở `apps/api/src/mail/`.
 
