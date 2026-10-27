@@ -13,6 +13,8 @@ async function bootstrap(): Promise<void> {
   });
   configureApp(app);
   const config = app.get(ConfigService<EnvironmentVariables, true>);
+  // Đồng nhất timezone của các thư viện dùng timezone tiến trình với giờ nghiệp vụ.
+  process.env.TZ = config.get('TZ', { infer: true });
   // Không đặt global prefix: /health nằm ở gốc (Dockerfile HEALTHCHECK gọi thẳng).
   // Tiền tố /api là của proxy (Vite/nginx) và được gỡ trước khi tới API (task P6).
   await app.listen(config.get('API_PORT', { infer: true }));

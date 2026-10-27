@@ -101,9 +101,9 @@ Chỉ cần cơ sở dữ liệu (ví dụ để chạy test tích hợp trên m
   ```
 
   Cần xóa sạch dữ liệu dev và dựng lại từ đầu: `docker compose down -v` (xóa volume `db-data`) rồi `docker compose up --build`.
-- **Múi giờ nghiệp vụ là giờ Việt Nam (`+07:00`)**, đặt ở ba chỗ phải khớp nhau: `TZ` của container `db` (`docker-compose.yml`), `DB_TIMEZONE` của driver, và lệnh `SET time_zone`
-  mà API chạy cho **mỗi** kết nối MySQL (xem `apps/api/src/database/data-source.ts`). Nhờ vậy `NOW()`/`DEFAULT CURRENT_TIMESTAMP` của DB cùng mốc giờ với thời gian ứng dụng ghi,
-  kể cả khi MySQL chạy ở máy khác không đặt múi giờ.
+- **Múi giờ nghiệp vụ là giờ Việt Nam (`+07:00`)**: `TZ=Asia/Ho_Chi_Minh` được truyền vào API và container `db`; API xác thực và áp dụng TZ lúc khởi động.
+  `DB_TIMEZONE` cấu hình driver và API chạy `SET time_zone` cho **mỗi** kết nối MySQL (xem `apps/api/src/database/data-source.ts`). Nhờ vậy `NOW()`/`DEFAULT CURRENT_TIMESTAMP`
+  của DB cùng mốc giờ với ngày và thứ ứng dụng tính, kể cả khi MySQL chạy ở máy khác không đặt múi giờ.
 - Đổi schema: sửa **cả ba** file `docs/database/*` trước, rồi viết migration mới khớp từng dòng và đăng ký vào `apps/api/src/database/migrations/index.ts`
   (xem `docs/CODING_CONVENTION.md`).
 
