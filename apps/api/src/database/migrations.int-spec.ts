@@ -13,7 +13,7 @@ import {
   recreateDatabase,
 } from './testing/test-database.js';
 
-// Task P1/P3 — vòng đời migration và các tiền kiểm dữ liệu trên DB riêng
+// P1/P2/P3 — vòng đời migration và các tiền kiểm dữ liệu trên DB riêng
 // (clinix_migration_test), không dùng DB của các file test khác.
 const AUTH_TABLES = [
   'benh_nhan',
@@ -30,7 +30,17 @@ const CATALOG_TABLES = [
   'dich_vu_kham',
   'chi_nhanh_dich_vu_kham',
 ];
-const MIGRATED_TABLES = [...AUTH_TABLES, ...CATALOG_TABLES];
+const STAFF_TABLES = [
+  'bac_si',
+  'le_tan',
+  'quan_tri_vien',
+  'phu_phi_bac_si',
+  'ho_so_nguoi_than',
+  'lich_lam_viec',
+  'khung_gio',
+  'lich_hen',
+];
+const MIGRATED_TABLES = [...AUTH_TABLES, ...CATALOG_TABLES, ...STAFF_TABLES];
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -119,7 +129,7 @@ describe('vòng đời migration', () => {
     expect(status.every((item) => !item.executed)).toBe(true);
   });
 
-  it('up: áp dụng mọi migration và tạo đủ bảng auth cùng danh mục', async () => {
+  it('up: áp dụng mọi migration và tạo đủ bảng auth, danh mục, nhân sự và bảng nền', async () => {
     const done = await runPendingMigrations(dataSource);
     expect(done).toEqual(MIGRATIONS.map((migration) => migration.name));
     expect(await listTables(dataSource)).toEqual(
@@ -134,11 +144,12 @@ describe('vòng đời migration', () => {
     expect(await runPendingMigrations(dataSource)).toEqual([]);
   });
 
-  it('down hoàn tác migration danh mục cuối: giữ auth, xóa danh mục, rồi up lại được', async () => {
+  it('down hoàn tác migration P2 cuối: giữ auth và danh mục, xóa bảng nền, rồi up lại được', async () => {
     const last = MIGRATIONS.at(-1)?.name;
     expect(await revertLastMigration(dataSource)).toBe(last);
     const tables = await listTables(dataSource);
-    for (const table of CATALOG_TABLES) expect(tables).not.toContain(table);
+    for (const table of STAFF_TABLES) expect(tables).not.toContain(table);
+    for (const table of CATALOG_TABLES) expect(tables).toContain(table);
     for (const table of AUTH_TABLES) expect(tables).toContain(table);
     expect((await listMigrations(dataSource)).at(-1)?.executed).toBe(false);
 
