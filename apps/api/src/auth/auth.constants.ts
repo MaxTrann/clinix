@@ -9,3 +9,17 @@ export const ARGON2_OPTIONS = {
   timeCost: 2,
   parallelism: 1,
 } as const;
+
+// --- Token và phiên đăng nhập (task A3, quyết định Q2). Cố định theo quyết định nên là hằng số, không phải biến môi trường.
+export const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000; // access JWT sống 15 phút
+export const SESSION_IDLE_MS = 30 * 60 * 1000; // phiên không hoạt động quá 30 phút thì hết hạn (trượt theo mỗi lần làm mới)
+export const SESSION_MAX_MS = 8 * 60 * 60 * 1000; // trần tuyệt đối 8 giờ kể từ lúc đăng nhập (tao_luc), không gia hạn được
+
+export const ACCESS_TOKEN_ALGORITHM = 'HS256'; // cố định; verify chỉ nhận đúng thuật toán này (chặn alg: none / đổi alg)
+export const ACCESS_TOKEN_ISSUER = 'clinix-api';
+export const ACCESS_TOKEN_AUDIENCE = 'clinix-web';
+
+export const REFRESH_TOKEN_RANDOM_BYTES = 32; // 256 bit ngẫu nhiên
+export const REFRESH_COOKIE_NAME = 'refresh_token';
+// Đường dẫn NHÌN TỪ TRÌNH DUYỆT (proxy gỡ tiền tố /api trước khi tới API), nên cookie chỉ được gửi tới /api/auth/*
+export const REFRESH_COOKIE_PATH = '/api/auth';

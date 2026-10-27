@@ -217,9 +217,11 @@ Ngoài phạm vi `auth` (không làm): 3 frame "Kích hoạt tài khoản" và 2
 `MailService` dùng chung ở `apps/api/src/mail/`.
 
 **Biến môi trường mới (`.env.example`, không giá trị thật):** `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (App Password), `MAIL_FROM_NAME` (= CLINIX),
-`MAIL_FROM_ADDRESS`, `MAIL_SUPPORT_ADDRESS` (địa chỉ Gmail thật do nhóm điền, N8), `OTP_HMAC_SECRET`, `JWT_RESET_SECRET`, `JWT_ACCESS_TTL` (15m), `SESSION_IDLE_MINUTES` (30),
-`SESSION_MAX_HOURS` (8), `COOKIE_SECURE` (**mặc định true**; API từ chối khởi động nếu `false` khi `NODE_ENV` ≠ `development`, N5); `JWT_REFRESH_SECRET` vẫn dùng (ký refresh token);
-`VITE_API_URL` đổi thành đường dẫn tương đối `/api`.
+`MAIL_FROM_ADDRESS`, `MAIL_SUPPORT_ADDRESS` (địa chỉ Gmail thật do nhóm điền, N8), `OTP_HMAC_SECRET`, `JWT_RESET_SECRET`, `COOKIE_SECURE` (**mặc định true**; API từ chối khởi động nếu `false`
+khi `NODE_ENV` ≠ `development`, N5); `JWT_ACCESS_SECRET` và `JWT_REFRESH_SECRET` (ký access token / ký refresh token; mỗi khoá ≥ 32 ký tự và hai khoá phải khác nhau — đã làm ở A3);
+`WEB_ORIGIN` (so với header `Origin` ở `/auth/refresh`, `/auth/logout`; đã làm ở A3); `VITE_API_URL` đổi thành đường dẫn tương đối `/api`.
+*(Đã chốt ở A3, 27/10/2026: 15 phút của access token, 30 phút không hoạt động và 8 giờ trần tuyệt đối là **hằng số** trong `auth.constants.ts`, không phải biến môi trường
+`JWT_ACCESS_TTL`, `SESSION_IDLE_MINUTES`, `SESSION_MAX_HOURS` như bản nháp trước — các giá trị này đã chốt ở Q2 và không khác nhau giữa các môi trường.)*
 
 **Cùng origin qua proxy:** dev: `server.proxy` của Vite (`/api` → `http://api:3000`); build/staging: `location /api/` trong `apps/web/nginx.conf`; API đặt `trust proxy`.
 Không cần CORS cho trình duyệt; `WEB_ORIGIN` dùng để so `Origin` ở `/auth/refresh` và `/auth/logout`. Cookie tên `refresh_token`, `Path=/api/auth`.
@@ -369,7 +371,7 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 
 | ☐ | ID | Việc | Phụ thuộc | Truy vết | Thẻ |
 |---|---|---|---|---|---|
-| ☐ | A1 | `PasswordHasher` Argon2id (m=19 MiB, t=2, p=1; có hàm so giả cân bằng thời gian, H7; đo hiệu năng trên môi trường chạy thật); validator mật khẩu theo N10: chỉ ASCII in được (`\x20`–`\x7E`), 8–64 ký tự, `[0-9]`, ≥ 1 trong 32 dấu câu/ký hiệu ASCII, dấu cách không tính, không trim, không chuẩn hoá Unicode; lỗi `MAT_KHAU_KHONG_HOP_LE` / `MAT_KHAU_KY_TU_KHONG_HOP_LE`; SĐT (10 số bắt đầu 0, chuẩn hoá), email (trim, **ASCII**, ≤ 255, tên miền chữ thường); DTO dùng chung | P1 | ĐK b4, A1; QMK b10, A4; ĐMK b4, A2; SOW 3.2.2 | `[ĐỒNG BỘ TL]` D5 · `feat(auth)` |
+| ☑ | A1 | `PasswordHasher` Argon2id (m=19 MiB, t=2, p=1; có hàm so giả cân bằng thời gian, H7; đo hiệu năng trên môi trường chạy thật); validator mật khẩu theo N10: chỉ ASCII in được (`\x20`–`\x7E`), 8–64 ký tự, `[0-9]`, ≥ 1 trong 32 dấu câu/ký hiệu ASCII, dấu cách không tính, không trim, không chuẩn hoá Unicode; lỗi `MAT_KHAU_KHONG_HOP_LE` / `MAT_KHAU_KY_TU_KHONG_HOP_LE`; SĐT (10 số bắt đầu 0, chuẩn hoá), email (trim, **ASCII**, ≤ 255, tên miền chữ thường); DTO dùng chung | P1 | ĐK b4, A1; QMK b10, A4; ĐMK b4, A2; SOW 3.2.2 | `[ĐỒNG BỘ TL]` D5 · `feat(auth)` |
 | ☐ | A2 | `OtpService` + repo `ma_xac_thuc`: sinh 6 số (`crypto.randomInt`), HMAC (S3) gồm `ma_xac_thuc_id`, kiểm hạn trước, so hằng định, đếm sai theo mã (5 ⇒ thu hồi), **đặt `da_gui_luc` rồi thu hồi mã cũ chỉ sau khi gửi thành công** (N1), giới hạn gửi lại (≥ 60 giây, ≤ 5 hàng/giờ **kể cả gửi lỗi**) dưới khoá hàng `tai_khoan`, xử lý gửi lỗi, suy ra trạng thái hàng (bảng mục 5.2) | P3, A1, P4 (giao diện mail) | ĐK b6, b8–b9, A2/4c–4d, A3, A4, A5; QMK b5, b7, A2, A3, A6 | `[ĐỒNG BỘ TL]` D2 · `feat(auth)` |
 | ☐ | A3 | `TokenService` + `SessionService` + repo `phien_dang_nhap`: access JWT (có `sid`, 15 phút); refresh token `sid.ngẫu nhiên.HMAC`; cấp/xoay/thu hồi; hết hạn trượt 30 phút + trần 8 giờ; phát hiện dùng lại ⇒ thu hồi; thu hồi hàng loạt theo tài khoản (trừ một phiên); cookie helper; `OriginGuard`; **từ chối khởi động nếu `COOKIE_SECURE=false` khi `NODE_ENV` ≠ `development`** (N5) | P3 | ĐN b7; ĐX b2, A1; Q2 | `[ĐỒNG BỘ TL]` D3 · `feat(auth)` |
 | ☐ | A4 | `JwtAuthGuard` (chữ ký, `alg` cố định, phiên theo `sid` chưa thu hồi/chưa quá trần, `trang_thai = DangHoatDong`), `RolesGuard` + `@Roles()`, `@Public()`, `@CurrentUser()` | A3 | ĐMK/ĐX tiền điều kiện; SOW 3.2.1/3.2.2 | `feat(auth)` |
