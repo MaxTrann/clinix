@@ -52,3 +52,66 @@ export const TRANG_THAI_LICH_HEN = [
   'VangMat',
 ] as const;
 export type TrangThaiLichHen = (typeof TRANG_THAI_LICH_HEN)[number];
+
+export const TRANG_THAI_YEU_CAU_THAY_DOI_CHI_NHANH = [
+  'ChoDuyet',
+  'DaDuyet',
+  'TuChoi',
+  'DaRut',
+  'DaHuy',
+] as const;
+export type TrangThaiYeuCauThayDoiChiNhanh =
+  (typeof TRANG_THAI_YEU_CAU_THAY_DOI_CHI_NHANH)[number];
+
+export const LY_DO_ANH_HUONG_LICH_HEN = [
+  'NgayNghi',
+  'NgoaiGioHoatDong',
+  'BoDichVu',
+] as const;
+export type LyDoAnhHuongLichHen = (typeof LY_DO_ANH_HUONG_LICH_HEN)[number];
+
+export const TRANG_THAI_EMAIL_THONG_BAO = [
+  'ChoGui',
+  'DaGui',
+  'ThatBai',
+  'BoQua',
+] as const;
+export type TrangThaiEmailThongBao =
+  (typeof TRANG_THAI_EMAIL_THONG_BAO)[number];
+
+export const HANH_DONG_NHAY_CAM = [
+  'DoiQuyen',
+  'OverrideLichHen',
+  'HoanTienDacBiet',
+  'DoiChiNhanhBacSi',
+  'ChinhNoShow',
+  'AnDanhGia',
+  'XuLyDoiLichNgoaiChinhSach',
+  'SuaGhiChuKham',
+  'BacSiHuyDotXuat',
+  'CapNhatCauHinh',
+  'XuLyNapViChuaCong',
+  'TaoTaiKhoanNhanSu',
+  'KhoaTaiKhoan',
+  'MoKhoaTaiKhoan',
+  'MoKhoaNoShow',
+  'DuyetThayDoiChiNhanh',
+  'TuChoiThayDoiChiNhanh',
+  'RutThayDoiChiNhanh',
+  'HuyThayDoiChiNhanh',
+  'DoiHieuLucThayDoiChiNhanh',
+] as const;
+export type HanhDongNhayCam = (typeof HANH_DONG_NHAY_CAM)[number];
+
+export const LOAI_DOI_TUONG_NHAT_KY = [
+  'tai_khoan',
+  'benh_nhan',
+  'lich_hen',
+  'ho_so_kham',
+  'danh_gia_bac_si',
+  'giao_dich_thanh_toan',
+  'yeu_cau_doi_lich_ngoai_chinh_sach',
+  'cau_hinh_he_thong',
+  'yeu_cau_thay_doi_chi_nhanh',
+] as const;
+export type LoaiDoiTuongNhatKy = (typeof LOAI_DOI_TUONG_NHAT_KY)[number];

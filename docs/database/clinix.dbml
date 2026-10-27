@@ -13,6 +13,7 @@
 // 19/10/2026 (lịch hoạt động chi nhánh hai khoảng nhận khám): chi_nhanh_lich_hoat_dong bỏ gio_mo_cua/gio_dong_cua, thay bằng gio_bat_dau_sang, gio_ket_thuc_sang, gio_bat_dau_chieu, gio_ket_thuc_chieu; ràng buộc (chk_lich_hoat_dong_khoang/_khong_chong/_ngay) khai báo trong clinix_mysql.sql; 44 bảng, 27 enum.
 // 26/10/2026 (module auth, task P3): ma_xac_thuc thêm 3 cột dữ liệu lần đăng ký (ho_ten_dang_ky, so_dien_thoai_dang_ky, mat_khau_bam_dang_ky) và chk_ma_xac_thuc_du_lieu_dang_ky; da_gui_luc/thu_hoi_luc dùng cả cho OTP; tài khoản Bệnh nhân chưa xác minh giữ 24 giờ; phien_dang_nhap chốt tên và thời hạn (bỏ [đề xuất]); vi_noi_bo tạo cùng benh_nhan khi xác minh OTP; chỉ đổi cột/CHECK/ghi chú của ma_xac_thuc, không thêm bảng hoặc enum => 44 bảng, 27 enum, 38 CHECK. Chuyển đổi từ DB cũ: mục 10 của clinix_quy_tac_nghiep_vu.md.
 // 26/10/2026 (admin P1): UNIQUE chuyen_khoa.ten (Q12) và dich_vu_kham (nhom_dich_vu_id, ten) (Q16); migration kiểm trùng sau chuẩn hóa trước khi thêm UNIQUE.
+// 27/10/2026 (admin P3 #47): yêu cầu chi nhánh có enum trạng thái riêng cho rút/hủy/quá hạn và một yêu cầu mở mỗi chi nhánh; audit mở rộng; email thông báo có enum BoQua riêng, không đổi email nhắc lịch => 44 bảng, 29 enum, 38 CHECK.
 
 Project clinix {
   database_type: 'MySQL'
@@ -99,6 +100,14 @@ Enum trang_thai_yeu_cau_enum {
   TuChoi
 }
 
+Enum trang_thai_yc_chi_nhanh_enum {
+  ChoDuyet
+  DaDuyet
+  TuChoi
+  DaRut
+  DaHuy
+}
+
 Enum trang_thai_muc_cho_enum {
   DangCho
   DaMoi
@@ -157,6 +166,15 @@ Enum hanh_dong_nhay_cam_enum {
   BacSiHuyDotXuat
   CapNhatCauHinh
   XuLyNapViChuaCong
+  TaoTaiKhoanNhanSu
+  KhoaTaiKhoan
+  MoKhoaTaiKhoan
+  MoKhoaNoShow
+  DuyetThayDoiChiNhanh
+  TuChoiThayDoiChiNhanh
+  RutThayDoiChiNhanh
+  HuyThayDoiChiNhanh
+  DoiHieuLucThayDoiChiNhanh
 }
 
 Enum loai_doi_tuong_enum {
@@ -168,6 +186,7 @@ Enum loai_doi_tuong_enum {
   giao_dich_thanh_toan
   yeu_cau_doi_lich_ngoai_chinh_sach
   cau_hinh_he_thong
+  yeu_cau_thay_doi_chi_nhanh
 }
 
 Enum loai_hoi_thoai_enum {
@@ -193,11 +212,18 @@ Enum ly_do_anh_huong_enum {
   BoDichVu
 }
 
-// Kết quả gửi email (bảng email_thong_bao: email của thông báo; bảng nhac_lich_hen: email nhắc lịch hẹn)
+// Kết quả gửi email nhắc lịch hẹn; email thông báo dùng enum riêng để có BoQua.
 Enum trang_thai_gui_email_enum {
   ChoGui
   DaGui
   ThatBai
+}
+
+Enum trang_thai_email_thong_bao_enum {
+  ChoGui
+  DaGui
+  ThatBai
+  BoQua
 }
 
 Enum loai_xac_thuc_enum {
@@ -417,21 +443,27 @@ Table yeu_cau_thay_doi_chi_nhanh {
   nguoi_de_xuat_id bigint [not null, ref: > quan_tri_vien.tai_khoan_id, note: 'Người gửi yêu cầu (Quản trị viên Chi nhánh của chi nhánh đó, hoặc Toàn hệ thống). Phạm vi kiểm tra ở service']
   noi_dung_truoc json [not null, note: 'Bản chụp phần SẮP BỊ ĐỔI tại lúc đề xuất, cùng khóa với noi_dung_sau. Ví dụ: {"lich_hoat_dong":[{"thu_trong_tuan":6,"hoat_dong":true,"gio_bat_dau_sang":"07:30:00","gio_ket_thuc_sang":"12:00:00","gio_bat_dau_chieu":null,"gio_ket_thuc_chieu":null}],"dich_vu_kham_ids":[1,2,3]}']
   noi_dung_sau json [not null, note: 'Phần đề xuất, chỉ gồm các khóa lich_hoat_dong và/hoặc dich_vu_kham_ids muốn đổi (lich_hoat_dong: mỗi phần tử là TOÀN BỘ dòng của một thứ muốn đổi, luôn đủ 6 khóa thu_trong_tuan, hoat_dong, gio_bat_dau_sang, gio_ket_thuc_sang, gio_bat_dau_chieu, gio_ket_thuc_chieu, khoảng không tồn tại ghi null tường minh, khi áp dụng thì thay cả dòng của thứ đó; dich_vu_kham_ids: danh sách MỚI đầy đủ). KHÔNG áp dụng vào chi_nhanh_lich_hoat_dong / chi_nhanh_dich_vu_kham khi mới gửi hoặc mới duyệt, chỉ áp dụng ở hieu_luc_tu']
-  trang_thai trang_thai_yeu_cau_enum [not null, default: 'ChoDuyet']
+  trang_thai trang_thai_yc_chi_nhanh_enum [not null, default: 'ChoDuyet']
   thoi_diem_tao datetime [not null, default: `now()`]
   nguoi_duyet_id bigint [ref: >? quan_tri_vien.tai_khoan_id, note: 'Phải là Quản trị viên Toàn hệ thống (kiểm tra ở service). Chưa chốt: Quản trị viên Toàn hệ thống có được tự duyệt đề xuất của chính mình không [cần điền]; DB chưa chặn']
   thoi_diem_duyet datetime [note: 'Thời điểm duyệt hoặc từ chối']
   ly_do_tu_choi varchar(255) [note: 'Bắt buộc khi TuChoi [đề xuất], để trống ở trạng thái khác']
   so_ngay_bao_truoc int [note: 'Chỉ khi DaDuyet: bản chụp cau_hinh_he_thong.so_ngay_bao_truoc_doi_gio_lam tại lúc duyệt (ngày), để cấu hình đổi sau này không làm sai lịch sử']
   hieu_luc_tu datetime [note: 'Chỉ khi DaDuyet: thời điểm thay đổi bắt đầu có hiệu lực. Ràng buộc: >= thoi_diem_duyet + so_ngay_bao_truoc ngày, nên thông báo luôn đi trước. Ai chọn thời điểm này (hệ thống tự tính hay người duyệt nhập) [cần điền]']
-  ap_dung_luc datetime [note: 'Thời điểm hệ thống thực sự ghi thay đổi vào bảng đang áp dụng; để trống = chưa áp dụng. Không thể sớm hơn hieu_luc_tu']
+  ap_dung_luc datetime [note: 'Lúc hệ thống thực sự ghi thay đổi vào bảng đang áp dụng; để trống = chưa áp dụng. Không thể sớm hơn hieu_luc_tu']
+  nguoi_huy_id bigint [ref: >? quan_tri_vien.tai_khoan_id, note: 'Quản trị viên Toàn hệ thống hủy yêu cầu đã duyệt (Q47)']
+  thoi_diem_huy datetime
+  ly_do_huy varchar(255) [note: 'Bắt buộc khi DaHuy, sau trim không rỗng']
+  qua_han_luc datetime [note: 'Đánh dấu yêu cầu DaDuyet bị hoãn vì còn lịch hẹn/ca chưa xử lý; job không tự áp dụng muộn']
+  so_lan_doi_hieu_luc int [not null, default: 0, note: 'Tăng mỗi lần Admin Toàn hệ thống dời hiệu lực']
+  dang_mo_chi_nhanh bigint [unique, note: 'Cột sinh STORED: bằng chi_nhanh_id khi ChoDuyet hoặc DaDuyet chưa áp dụng; NULL ở trạng thái khác. UNIQUE giữ tối đa một yêu cầu đang mở mỗi chi nhánh']
 
   indexes {
     (chi_nhanh_id, trang_thai)
     (trang_thai, hieu_luc_tu)
   }
 
-  Note: 'Thứ tự nghiệp vụ: đề xuất (ChoDuyet) -> kiểm tra lịch hẹn bị ảnh hưởng -> duyệt hoặc từ chối -> (duyệt) tạo thông báo + email cho bệnh nhân bị ảnh hưởng, ghi danh sách vào yeu_cau_thay_doi_chi_nhanh_lich_hen -> đến hieu_luc_tu mới áp dụng (ap_dung_luc). Chưa quy định: cho phép nhiều yêu cầu ChoDuyet cùng 1 chi nhánh hay không [cần điền], người gửi có được rút yêu cầu không [cần điền], cách xử lý lịch hẹn bị ảnh hưởng sau khi áp dụng [cần điền].'
+  Note: 'Vòng đời: ChoDuyet -> DaDuyet/TuChoi/DaRut; DaDuyet -> DaHuy hoặc áp dụng. Mỗi chi nhánh chỉ có một yêu cầu ChoDuyet hoặc DaDuyet chưa áp dụng (dang_mo_chi_nhanh). hieu_luc_tu là lúc dự kiến có hiệu lực; ap_dung_luc là lúc thực sự áp dụng. Job đến hạn tính lại ảnh hưởng; còn lịch/ca thì ghi qua_han_luc và không tự áp dụng muộn. Admin Toàn hệ thống có thể dời hiệu lực (xóa qua_han_luc, tăng so_lan_doi_hieu_luc) hoặc hủy yêu cầu DaDuyet chưa áp dụng; người gửi chỉ rút khi ChoDuyet.'
 }
 
 Table yeu_cau_thay_doi_chi_nhanh_lich_hen {
@@ -784,7 +816,7 @@ Table thong_bao {
 Table email_thong_bao {
   email_thong_bao_id bigint [pk, increment]
   thong_bao_id bigint [not null, unique, ref: - thong_bao.thong_bao_id, note: 'UNIQUE: mỗi thông báo có đúng 1 dòng email; gửi lại cập nhật chính dòng này, không tạo dòng mới']
-  trang_thai trang_thai_gui_email_enum [not null, default: 'ChoGui']
+  trang_thai trang_thai_email_thong_bao_enum [not null, default: 'ChoGui']
   so_lan_thu int [not null, default: 0, note: 'Số lần đã thử gửi, tăng khi nhận việc gửi']
   lan_thu_cuoi_luc datetime
   da_gui_luc datetime [note: 'Chỉ có khi DaGui']
@@ -795,7 +827,7 @@ Table email_thong_bao {
     (trang_thai, lan_thu_cuoi_luc)
   }
 
-  Note: 'Ghi nhận và gửi lại email của thông báo sự kiện (use case Gửi email thông báo theo sự kiện). Email lỗi chỉ đổi dòng này sang ThatBai, KHÔNG xóa thông báo trong ứng dụng và KHÔNG hoàn tác nghiệp vụ đã duyệt. Không gửi trùng: DaGui là trạng thái cuối; mỗi lần nhận việc là 1 UPDATE có điều kiện (trang_thai khác DaGui và so_lan_thu còn đúng giá trị đã đọc), chỉ worker có ROW_COUNT = 1 được gửi. Số lần thử lại tối đa và khoảng cách [cần điền] ([đề xuất] như nhắc lịch: 3 lần, cách 5 phút). Email nhắc lịch hẹn (2.4.69) không có thong_bao đi kèm nên KHÔNG đi qua bảng này mà ghi ở nhac_lich_hen.'
+  Note: 'Email lỗi chỉ đổi dòng này sang ThatBai, không xóa thông báo và không hoàn tác nghiệp vụ. Hủy/dời yêu cầu thay đổi chi nhánh chuyển email chưa gửi sang BoQua; worker chỉ nhận ChoGui/ThatBai. DaGui là trạng thái cuối; email đã nhận việc có thể vẫn tới người nhận. Email nhắc lịch hẹn dùng enum trang_thai_gui_email_enum riêng và không đi qua bảng này.'
 }
 
 Table nhac_lich_hen {
@@ -873,7 +905,7 @@ Table nhat_ky_hanh_dong {
     (chi_nhanh_id, thoi_diem)
   }
 
-  Note: 'CapNhatCauHinh: loai_doi_tuong = cau_hinh_he_thong, ma_doi_tuong = 1, chi_nhanh_id để trống; ghi cùng giao dịch với việc sửa cấu hình (DB không tự ép: không dùng trigger, service chịu trách nhiệm). XuLyNapViChuaCong: loai_doi_tuong = giao_dich_thanh_toan, ma_doi_tuong = giao_dich_thanh_toan_id; ghi cùng giao dịch với thao tác cộng ví và đánh dấu đã đối soát (UC 53/70). Giới hạn quyền Admin theo UC 53, DB không tự kiểm tra vai trò.'
+  Note: 'Audit mở rộng các hành động Admin theo Q39/PLAN 5.10. CapNhatCauHinh: đối tượng cau_hinh_he_thong mã 1, không có chi nhánh, ghi cùng giao dịch sửa cấu hình. XuLyNapViChuaCong: đối tượng giao_dich_thanh_toan; ghi cùng giao dịch cộng ví/đánh dấu đối soát. Quyền và dữ liệu chi tiết do service kiểm soát; không ghi mật khẩu/token/băm.'
 }
 
 // Khóa ngoại kép: hồ sơ người thân của lịch hẹn phải thuộc đúng bệnh nhân đặt lịch. ho_so_nguoi_than_id NULL (bản thân) thì MySQL không kiểm tra cặp này

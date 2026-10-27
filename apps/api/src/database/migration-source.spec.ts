@@ -1,5 +1,6 @@
 import { TAO_BANG_DANH_MUC_SQL } from './migrations/1793024340000-tao-bang-danh-muc.js';
 import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-su.js';
+import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
 import {
   normalizeStatement,
   officialStatementsFor,
@@ -23,6 +24,15 @@ const STAFF_TABLES = [
   'lich_lam_viec',
   'khung_gio',
   'lich_hen',
+];
+const OPERATIONS_TABLES = [
+  'yeu_cau_thay_doi_chi_nhanh',
+  'yeu_cau_thay_doi_chi_nhanh_lich_hen',
+  'thong_tin_phong_kham',
+  'cau_hinh_he_thong',
+  'nhat_ky_hanh_dong',
+  'thong_bao',
+  'email_thong_bao',
 ];
 
 describe('migration P1 khớp schema SQL chính thức', () => {
@@ -51,6 +61,21 @@ describe('migration P2 khớp schema SQL chính thức', () => {
   it('mọi câu migration chỉ tác động tám bảng nhân sự và bảng nền P2', () => {
     for (const statement of TAO_BANG_NHAN_SU_SQL) {
       expect(STAFF_TABLES).toContain(targetTable(statement));
+    }
+  });
+});
+
+describe('migration P3 khớp schema SQL chính thức', () => {
+  it('sao chép đúng từng câu DDL, cùng thứ tự, từ clinix_mysql.sql', () => {
+    const official =
+      officialStatementsFor(OPERATIONS_TABLES).map(normalizeStatement);
+    expect(official.length).toBeGreaterThan(0);
+    expect(TAO_BANG_VAN_HANH_SQL.map(normalizeStatement)).toEqual(official);
+  });
+
+  it('mọi câu migration chỉ tác động bảy bảng vận hành P3', () => {
+    for (const statement of TAO_BANG_VAN_HANH_SQL) {
+      expect(OPERATIONS_TABLES).toContain(targetTable(statement));
     }
   });
 });

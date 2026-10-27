@@ -32,6 +32,7 @@
 -- thời hạn (bỏ [đề xuất]); vi_noi_bo tạo cùng benh_nhan khi xác minh OTP; chỉ đổi cột/CHECK/ghi chú của ma_xac_thuc, không thêm bảng hoặc enum => 44
 -- bảng, 27 enum, 38 CHECK. Chuyển đổi từ DB cũ: mục 10 của clinix_quy_tac_nghiep_vu.md.
 -- 26/10/2026 (admin P1): UNIQUE chuyen_khoa.ten (Q12) và dich_vu_kham (nhom_dich_vu_id, ten) (Q16); migration kiểm trùng sau chuẩn hóa trước khi thêm UNIQUE.
+-- 27/10/2026 (admin P3 #47): đồng bộ trạng thái rút/hủy/quá hạn, email BoQua và enum audit mở rộng; DBML tách enum trạng thái yêu cầu/email thông báo khỏi enum dùng chung. Tổng thể: 44 bảng, 29 enum DBML, 38 CHECK.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -254,14 +255,20 @@ CREATE TABLE `yeu_cau_thay_doi_chi_nhanh` (
   `nguoi_de_xuat_id` bigint NOT NULL COMMENT 'Người gửi yêu cầu (Quản trị viên Chi nhánh của chi nhánh đó, hoặc Toàn hệ thống). Phạm vi kiểm tra ở service',
   `noi_dung_truoc` json NOT NULL COMMENT 'Bản chụp phần SẮP BỊ ĐỔI tại lúc đề xuất, cùng khóa với noi_dung_sau. Ví dụ: {"lich_hoat_dong":[{"thu_trong_tuan":6,"hoat_dong":true,"gio_bat_dau_sang":"07:30:00","gio_ket_thuc_sang":"12:00:00","gio_bat_dau_chieu":null,"gio_ket_thuc_chieu":null}],"dich_vu_kham_ids":[1,2,3]}',
   `noi_dung_sau` json NOT NULL COMMENT 'Phần đề xuất, chỉ gồm các khóa lich_hoat_dong và/hoặc dich_vu_kham_ids muốn đổi (lich_hoat_dong: mỗi phần tử là TOÀN BỘ dòng của một thứ muốn đổi, luôn đủ 6 khóa thu_trong_tuan, hoat_dong, gio_bat_dau_sang, gio_ket_thuc_sang, gio_bat_dau_chieu, gio_ket_thuc_chieu, khoảng không tồn tại ghi null tường minh, khi áp dụng thì thay cả dòng của thứ đó; dich_vu_kham_ids: danh sách MỚI đầy đủ). KHÔNG áp dụng vào chi_nhanh_lich_hoat_dong / chi_nhanh_dich_vu_kham khi mới gửi hoặc mới duyệt, chỉ áp dụng ở hieu_luc_tu',
-  `trang_thai` ENUM ('ChoDuyet', 'DaDuyet', 'TuChoi') NOT NULL DEFAULT 'ChoDuyet',
+  `trang_thai` ENUM ('ChoDuyet', 'DaDuyet', 'TuChoi', 'DaRut', 'DaHuy') NOT NULL DEFAULT 'ChoDuyet',
   `thoi_diem_tao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `nguoi_duyet_id` bigint COMMENT 'Phải là Quản trị viên Toàn hệ thống (kiểm tra ở service). Chưa chốt: Quản trị viên Toàn hệ thống có được tự duyệt đề xuất của chính mình không [cần điền]; DB chưa chặn',
   `thoi_diem_duyet` datetime COMMENT 'Thời điểm duyệt hoặc từ chối',
   `ly_do_tu_choi` varchar(255) COMMENT 'Bắt buộc khi TuChoi [đề xuất], để trống ở trạng thái khác',
   `so_ngay_bao_truoc` int COMMENT 'Chỉ khi DaDuyet: bản chụp cau_hinh_he_thong.so_ngay_bao_truoc_doi_gio_lam tại lúc duyệt (ngày), để cấu hình đổi sau này không làm sai lịch sử',
   `hieu_luc_tu` datetime COMMENT 'Chỉ khi DaDuyet: thời điểm thay đổi bắt đầu có hiệu lực. Ràng buộc: >= thoi_diem_duyet + so_ngay_bao_truoc ngày, nên thông báo luôn đi trước. Ai chọn thời điểm này (hệ thống tự tính hay người duyệt nhập) [cần điền]',
-  `ap_dung_luc` datetime COMMENT 'Thời điểm hệ thống thực sự ghi thay đổi vào bảng đang áp dụng; để trống = chưa áp dụng. Không thể sớm hơn hieu_luc_tu'
+  `ap_dung_luc` datetime COMMENT 'Lúc hệ thống thực sự ghi thay đổi vào bảng đang áp dụng; để trống = chưa áp dụng. Không thể sớm hơn hieu_luc_tu',
+  `nguoi_huy_id` bigint COMMENT 'Quản trị viên Toàn hệ thống hủy yêu cầu đã duyệt (Q47)',
+  `thoi_diem_huy` datetime,
+  `ly_do_huy` varchar(255) COMMENT 'Bắt buộc khi DaHuy, sau trim không rỗng',
+  `qua_han_luc` datetime COMMENT 'Đánh dấu yêu cầu DaDuyet bị hoãn vì còn lịch hẹn/ca chưa xử lý; job không tự áp dụng muộn',
+  `so_lan_doi_hieu_luc` int NOT NULL DEFAULT 0 COMMENT 'Tăng mỗi lần Admin Toàn hệ thống dời hiệu lực',
+  `dang_mo_chi_nhanh` bigint GENERATED ALWAYS AS (IF((`trang_thai` = 'ChoDuyet' OR (`trang_thai` = 'DaDuyet' AND `ap_dung_luc` IS NULL)), `chi_nhanh_id`, NULL)) STORED
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `yeu_cau_thay_doi_chi_nhanh_lich_hen` (
@@ -501,7 +508,7 @@ CREATE TABLE `thong_bao` (
 CREATE TABLE `email_thong_bao` (
   `email_thong_bao_id` bigint PRIMARY KEY AUTO_INCREMENT,
   `thong_bao_id` bigint UNIQUE NOT NULL COMMENT 'UNIQUE: mỗi thông báo có đúng 1 dòng email; gửi lại cập nhật chính dòng này, không tạo dòng mới',
-  `trang_thai` ENUM ('ChoGui', 'DaGui', 'ThatBai') NOT NULL DEFAULT 'ChoGui',
+  `trang_thai` ENUM ('ChoGui', 'DaGui', 'ThatBai', 'BoQua') NOT NULL DEFAULT 'ChoGui',
   `so_lan_thu` int NOT NULL DEFAULT 0 COMMENT 'Số lần đã thử gửi, tăng khi nhận việc gửi',
   `lan_thu_cuoi_luc` datetime,
   `da_gui_luc` datetime COMMENT 'Chỉ có khi DaGui',
@@ -549,8 +556,8 @@ CREATE TABLE `nhat_ky_hanh_dong` (
   `nhat_ky_hanh_dong_id` bigint PRIMARY KEY AUTO_INCREMENT,
   `tai_khoan_id` bigint NOT NULL COMMENT 'Người thực hiện',
   `chi_nhanh_id` bigint COMMENT 'Chi nhánh liên quan, để Quản trị viên phạm vi Chi nhánh lọc nhật ký',
-  `hanh_dong` ENUM ('DoiQuyen', 'OverrideLichHen', 'HoanTienDacBiet', 'DoiChiNhanhBacSi', 'ChinhNoShow', 'AnDanhGia', 'XuLyDoiLichNgoaiChinhSach', 'SuaGhiChuKham', 'BacSiHuyDotXuat', 'CapNhatCauHinh', 'XuLyNapViChuaCong') NOT NULL,
-  `loai_doi_tuong` ENUM ('tai_khoan', 'benh_nhan', 'lich_hen', 'ho_so_kham', 'danh_gia_bac_si', 'giao_dich_thanh_toan', 'yeu_cau_doi_lich_ngoai_chinh_sach', 'cau_hinh_he_thong') NOT NULL COMMENT 'Bảng bị tác động',
+  `hanh_dong` ENUM ('DoiQuyen', 'OverrideLichHen', 'HoanTienDacBiet', 'DoiChiNhanhBacSi', 'ChinhNoShow', 'AnDanhGia', 'XuLyDoiLichNgoaiChinhSach', 'SuaGhiChuKham', 'BacSiHuyDotXuat', 'CapNhatCauHinh', 'XuLyNapViChuaCong', 'TaoTaiKhoanNhanSu', 'KhoaTaiKhoan', 'MoKhoaTaiKhoan', 'MoKhoaNoShow', 'DuyetThayDoiChiNhanh', 'TuChoiThayDoiChiNhanh', 'RutThayDoiChiNhanh', 'HuyThayDoiChiNhanh', 'DoiHieuLucThayDoiChiNhanh') NOT NULL,
+  `loai_doi_tuong` ENUM ('tai_khoan', 'benh_nhan', 'lich_hen', 'ho_so_kham', 'danh_gia_bac_si', 'giao_dich_thanh_toan', 'yeu_cau_doi_lich_ngoai_chinh_sach', 'cau_hinh_he_thong', 'yeu_cau_thay_doi_chi_nhanh') NOT NULL COMMENT 'Bảng bị tác động',
   `ma_doi_tuong` bigint NOT NULL COMMENT 'Khóa chính của bản ghi bị tác động; không có FK để nhật ký còn nguyên khi bản ghi gốc bị xóa hoặc ẩn',
   `thoi_diem` datetime NOT NULL,
   `ket_qua` ENUM ('ThanhCong', 'ThatBai') NOT NULL,
@@ -638,6 +645,8 @@ CREATE INDEX `yeu_cau_thay_doi_chi_nhanh_index_chi_nhanh` ON `yeu_cau_thay_doi_c
 
 CREATE INDEX `yeu_cau_thay_doi_chi_nhanh_index_hieu_luc` ON `yeu_cau_thay_doi_chi_nhanh` (`trang_thai`, `hieu_luc_tu`);
 
+CREATE UNIQUE INDEX `yeu_cau_thay_doi_chi_nhanh_unique_dang_mo` ON `yeu_cau_thay_doi_chi_nhanh` (`dang_mo_chi_nhanh`);
+
 CREATE INDEX `yeu_cau_thay_doi_chi_nhanh_lich_hen_index_lich_hen` ON `yeu_cau_thay_doi_chi_nhanh_lich_hen` (`lich_hen_id`);
 
 CREATE INDEX `hoi_thoai_index_26` ON `hoi_thoai` (`chi_nhanh_id`, `loai`, `thoi_diem_tao`);
@@ -668,7 +677,7 @@ ALTER TABLE `chi_nhanh` COMMENT = 'Ngày và giờ hoạt động nằm ở bả
 
 ALTER TABLE `chi_nhanh_lich_hoat_dong` COMMENT = 'Lịch NHẬN KHÁM hằng tuần của chi nhánh, mỗi thứ tối đa 1 dòng và tối đa 2 khoảng nhận khám: buổi sáng (gio_bat_dau_sang đến gio_ket_thuc_sang, dùng cho ca CaSang) và buổi chiều (gio_bat_dau_chieu đến gio_ket_thuc_chieu, dùng cho ca CaChieu); mỗi khoảng có thể không tồn tại (cả hai giờ để trống). Ngày nghỉ: hoat_dong = false và cả bốn giờ để trống. Ngày hoạt động: có ít nhất một khoảng đầy đủ, bắt đầu < kết thúc, hai khoảng không chồng nhau (kết thúc sáng <= bắt đầu chiều), không có ca qua đêm (chk_lich_hoat_dong_khoang, chk_lich_hoat_dong_khong_chong, chk_lich_hoat_dong_ngay). Giờ mở và giờ đóng tổng quát để hiển thị KHÔNG lưu riêng mà suy ra từ các khoảng (giờ bắt đầu sớm nhất, giờ kết thúc muộn nhất; truy vấn mẫu cuối file). Giờ lưu ở đây là giờ nhận khám: khung giờ đặt khám phải nằm trọn trong một khoảng. Giờ mở cửa tiếp đón (nếu sớm hơn giờ nhận khám) chưa có chỗ lưu [cần điền: 07:30 trong giao diện minh họa là giờ bắt đầu nhận khám hay chỉ giờ mở cửa tiếp đón]. Chưa có lịch nghỉ lễ (chưa có quyết định). Là trạng thái ĐANG ÁP DỤNG: thay đổi ảnh hưởng lịch hẹn chỉ được ghi vào đây khi đến hieu_luc_tu của yeu_cau_thay_doi_chi_nhanh. DB không chặn phân công/đặt lịch ngoài khoảng nhận khám hoặc vào ca không tồn tại: service kiểm tra (truy vấn mẫu cuối file).';
 
-ALTER TABLE `yeu_cau_thay_doi_chi_nhanh` COMMENT = 'Thứ tự nghiệp vụ: đề xuất (ChoDuyet) -> kiểm tra lịch hẹn bị ảnh hưởng -> duyệt hoặc từ chối -> (duyệt) tạo thông báo + email cho bệnh nhân bị ảnh hưởng, ghi danh sách vào yeu_cau_thay_doi_chi_nhanh_lich_hen -> đến hieu_luc_tu mới áp dụng (ap_dung_luc). Thay đổi không ảnh hưởng lịch hẹn nào thì áp dụng ngay, không cần dòng này. Chưa quy định: nhiều yêu cầu ChoDuyet cùng chi nhánh, rút yêu cầu, cách xử lý lịch hẹn bị ảnh hưởng sau khi áp dụng [cần điền].';
+ALTER TABLE `yeu_cau_thay_doi_chi_nhanh` COMMENT = 'Vòng đời: ChoDuyet -> DaDuyet/TuChoi/DaRut; DaDuyet -> DaHuy hoặc áp dụng. Mỗi chi nhánh chỉ có một yêu cầu ChoDuyet hoặc DaDuyet chưa áp dụng (dang_mo_chi_nhanh). hieu_luc_tu là lúc dự kiến có hiệu lực; ap_dung_luc là lúc thực sự áp dụng. Job đến hạn tính lại ảnh hưởng; còn lịch/ca thì ghi qua_han_luc và không tự áp dụng muộn. Admin Toàn hệ thống có thể dời hiệu lực (xóa qua_han_luc, tăng so_lan_doi_hieu_luc) hoặc hủy yêu cầu DaDuyet chưa áp dụng; người gửi chỉ rút khi ChoDuyet. Khi hủy, email thay đổi còn chờ được dừng bằng BoQua.';
 
 ALTER TABLE `yeu_cau_thay_doi_chi_nhanh_lich_hen` COMMENT = 'Danh sách lịch hẹn (Chờ thanh toán, Đã xác nhận) bị ảnh hưởng, chụp lúc duyệt, tính với thời điểm có hiệu lực. Là cơ sở tạo thông báo cho đúng bệnh nhân đặt lịch (lich_hen.benh_nhan_id). Chưa lưu cách xử lý từng lịch hẹn [cần điền].';
 
@@ -678,11 +687,11 @@ ALTER TABLE `khung_gio` COMMENT = 'Khung giờ chỉ được sinh, hiển thị
 
 ALTER TABLE `thong_bao` COMMENT = 'Thông báo trong ứng dụng. "Đẩy tức thời" là cách giao diện hiển thị ngay cho phiên đang mở, không phải thông báo đẩy trên thiết bị di động; CSDL không có bảng token thiết bị. Email của thông báo nằm ở email_thong_bao.';
 
-ALTER TABLE `email_thong_bao` COMMENT = 'Ghi nhận và gửi lại email của thông báo sự kiện. Email lỗi chỉ đổi dòng này sang ThatBai, KHÔNG xóa thông báo và KHÔNG hoàn tác nghiệp vụ. Không gửi trùng: DaGui là trạng thái cuối; mỗi lần nhận việc là 1 UPDATE có điều kiện (trang_thai khác DaGui và so_lan_thu còn đúng giá trị đã đọc), chỉ worker có ROW_COUNT = 1 được gửi. Số lần thử lại tối đa và khoảng cách [cần điền]. Email nhắc lịch hẹn (2.4.69) không có thông báo đi kèm nên ghi ở nhac_lich_hen, không ở bảng này.';
+ALTER TABLE `email_thong_bao` COMMENT = 'Ghi nhận và gửi lại email của thông báo sự kiện. Email lỗi chỉ đổi dòng này sang ThatBai, KHÔNG xóa thông báo và KHÔNG hoàn tác nghiệp vụ. Hủy/dời yêu cầu thay đổi chi nhánh chuyển email chưa gửi sang BoQua; worker chỉ nhận ChoGui/ThatBai. DaGui là trạng thái cuối; email đã nhận việc có thể vẫn tới người nhận. Email nhắc lịch hẹn không đi qua bảng này mà ghi ở nhac_lich_hen.';
 
 ALTER TABLE `nhac_lich_hen` COMMENT = 'Ghi nhận việc gửi email nhắc lịch hẹn theo từng mốc (use case Gửi nhắc lịch hẹn theo lịch trình). Nhắc lịch chỉ qua email, không có thong_bao đi kèm. Dòng chỉ được tạo khi mốc đến hạn (INSERT ... ON DUPLICATE KEY UPDATE lich_hen_id = lich_hen_id; ROW_COUNT 1 = vừa tạo). Nhận việc gửi bằng UPDATE có điều kiện (trang_thai khác DaGui và so_lan_thu còn đúng giá trị đã đọc), chỉ worker có ROW_COUNT = 1 được gửi. Thử lại theo 2.4.69 (3 lần, cách 5 phút, chỉ khi lịch hẹn còn DaXacNhan và chưa tới giờ hẹn) là hằng số của service; hết lần thì giữ ThatBai, không gửi bù mốc khác. Lịch hẹn đổi giờ tạo lich_hen mới nên tự có bộ mốc mới. Chưa chốt [cần điền]: lần gửi đầu có tính vào số lần thử lại không; cho phép trễ tối đa bao lâu sau khi đạt mốc.';
 
-ALTER TABLE `nhat_ky_hanh_dong` COMMENT = 'CapNhatCauHinh: loai_doi_tuong = cau_hinh_he_thong, ma_doi_tuong = 1, chi_nhanh_id để trống; ghi cùng giao dịch với việc sửa cấu hình (DB không tự ép: không dùng trigger, service chịu trách nhiệm). XuLyNapViChuaCong: loai_doi_tuong = giao_dich_thanh_toan, ma_doi_tuong = giao_dich_thanh_toan_id; ghi cùng giao dịch với thao tác cộng ví và đánh dấu đã đối soát (UC 53/70). Giới hạn quyền Admin theo UC 53, DB không tự kiểm tra vai trò.';
+ALTER TABLE `nhat_ky_hanh_dong` COMMENT = 'Audit dùng hanh_dong_nhay_cam_enum và loai_doi_tuong_enum. Các hành động Admin mới gồm TaoTaiKhoanNhanSu, KhoaTaiKhoan, MoKhoaTaiKhoan, MoKhoaNoShow, DuyetThayDoiChiNhanh, TuChoiThayDoiChiNhanh, RutThayDoiChiNhanh, HuyThayDoiChiNhanh, DoiHieuLucThayDoiChiNhanh. CapNhatCauHinh: đối tượng cau_hinh_he_thong mã 1, không có chi nhánh, ghi cùng giao dịch sửa cấu hình. XuLyNapViChuaCong: đối tượng giao_dich_thanh_toan; ghi cùng giao dịch cộng ví/đánh dấu đối soát. Quyền và dữ liệu chi tiết do service kiểm soát; không ghi mật khẩu/token/băm.';
 
 ALTER TABLE `yeu_cau_nghi_phep` COMMENT = 'Ràng buộc theo hình thức nghỉ. CaNgay: không có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày). TheoCa: bắt buộc có ca, chỉ nghỉ 1 ngày.';
 
@@ -745,6 +754,8 @@ ALTER TABLE `yeu_cau_thay_doi_chi_nhanh` ADD FOREIGN KEY (`chi_nhanh_id`) REFERE
 ALTER TABLE `yeu_cau_thay_doi_chi_nhanh` ADD FOREIGN KEY (`nguoi_de_xuat_id`) REFERENCES `quan_tri_vien` (`tai_khoan_id`);
 
 ALTER TABLE `yeu_cau_thay_doi_chi_nhanh` ADD FOREIGN KEY (`nguoi_duyet_id`) REFERENCES `quan_tri_vien` (`tai_khoan_id`);
+
+ALTER TABLE `yeu_cau_thay_doi_chi_nhanh` ADD FOREIGN KEY (`nguoi_huy_id`) REFERENCES `quan_tri_vien` (`tai_khoan_id`);
 
 ALTER TABLE `yeu_cau_thay_doi_chi_nhanh_lich_hen` ADD FOREIGN KEY (`yeu_cau_thay_doi_chi_nhanh_id`) REFERENCES `yeu_cau_thay_doi_chi_nhanh` (`yeu_cau_thay_doi_chi_nhanh_id`);
 
@@ -946,15 +957,19 @@ ALTER TABLE `yeu_cau_thay_doi_chi_nhanh` ADD CONSTRAINT `chk_yc_chi_nhanh_noi_du
     JSON_TYPE(`noi_dung_truoc`) = 'OBJECT' AND JSON_LENGTH(`noi_dung_truoc`) > 0 AND JSON_TYPE(`noi_dung_sau`) = 'OBJECT' AND JSON_LENGTH(`noi_dung_sau`) > 0
 );
 ALTER TABLE `yeu_cau_thay_doi_chi_nhanh` ADD CONSTRAINT `chk_yc_chi_nhanh_xu_ly` CHECK (
-    (`trang_thai` = 'ChoDuyet' AND `nguoi_duyet_id` IS NULL AND `thoi_diem_duyet` IS NULL AND `ly_do_tu_choi` IS NULL AND `so_ngay_bao_truoc` IS NULL AND `hieu_luc_tu` IS NULL AND `ap_dung_luc` IS NULL)
- OR (`trang_thai` = 'DaDuyet' AND `nguoi_duyet_id` IS NOT NULL AND `thoi_diem_duyet` IS NOT NULL AND `ly_do_tu_choi` IS NULL AND `so_ngay_bao_truoc` IS NOT NULL AND `so_ngay_bao_truoc` >= 0
-     AND `hieu_luc_tu` IS NOT NULL AND `hieu_luc_tu` >= DATE_ADD(`thoi_diem_duyet`, INTERVAL `so_ngay_bao_truoc` DAY) AND (`ap_dung_luc` IS NULL OR `ap_dung_luc` >= `hieu_luc_tu`))
- OR (`trang_thai` = 'TuChoi' AND `nguoi_duyet_id` IS NOT NULL AND `thoi_diem_duyet` IS NOT NULL AND `ly_do_tu_choi` IS NOT NULL AND `so_ngay_bao_truoc` IS NULL AND `hieu_luc_tu` IS NULL AND `ap_dung_luc` IS NULL)
+    `so_lan_doi_hieu_luc` >= 0 AND (
+       (`trang_thai` = 'ChoDuyet' AND `nguoi_duyet_id` IS NULL AND `thoi_diem_duyet` IS NULL AND `ly_do_tu_choi` IS NULL AND `so_ngay_bao_truoc` IS NULL AND `hieu_luc_tu` IS NULL AND `ap_dung_luc` IS NULL AND `nguoi_huy_id` IS NULL AND `thoi_diem_huy` IS NULL AND `ly_do_huy` IS NULL AND `qua_han_luc` IS NULL AND `so_lan_doi_hieu_luc` = 0)
+    OR (`trang_thai` = 'DaDuyet' AND `nguoi_duyet_id` IS NOT NULL AND `thoi_diem_duyet` IS NOT NULL AND `ly_do_tu_choi` IS NULL AND `so_ngay_bao_truoc` IS NOT NULL AND `so_ngay_bao_truoc` >= 0 AND `hieu_luc_tu` IS NOT NULL AND `hieu_luc_tu` >= DATE_ADD(`thoi_diem_duyet`, INTERVAL `so_ngay_bao_truoc` DAY) AND (`ap_dung_luc` IS NULL OR `ap_dung_luc` >= `hieu_luc_tu`) AND `nguoi_huy_id` IS NULL AND `thoi_diem_huy` IS NULL AND `ly_do_huy` IS NULL AND (`qua_han_luc` IS NULL OR `qua_han_luc` >= `hieu_luc_tu`))
+    OR (`trang_thai` = 'TuChoi' AND `nguoi_duyet_id` IS NOT NULL AND `thoi_diem_duyet` IS NOT NULL AND `ly_do_tu_choi` IS NOT NULL AND `so_ngay_bao_truoc` IS NULL AND `hieu_luc_tu` IS NULL AND `ap_dung_luc` IS NULL AND `nguoi_huy_id` IS NULL AND `thoi_diem_huy` IS NULL AND `ly_do_huy` IS NULL AND `qua_han_luc` IS NULL AND `so_lan_doi_hieu_luc` = 0)
+    OR (`trang_thai` = 'DaRut' AND `nguoi_duyet_id` IS NULL AND `thoi_diem_duyet` IS NULL AND `ly_do_tu_choi` IS NULL AND `so_ngay_bao_truoc` IS NULL AND `hieu_luc_tu` IS NULL AND `ap_dung_luc` IS NULL AND `nguoi_huy_id` IS NULL AND `thoi_diem_huy` IS NULL AND `ly_do_huy` IS NULL AND `qua_han_luc` IS NULL AND `so_lan_doi_hieu_luc` = 0)
+    OR (`trang_thai` = 'DaHuy' AND `nguoi_duyet_id` IS NOT NULL AND `thoi_diem_duyet` IS NOT NULL AND `ly_do_tu_choi` IS NULL AND `so_ngay_bao_truoc` IS NOT NULL AND `so_ngay_bao_truoc` >= 0 AND `hieu_luc_tu` IS NOT NULL AND `hieu_luc_tu` >= DATE_ADD(`thoi_diem_duyet`, INTERVAL `so_ngay_bao_truoc` DAY) AND `ap_dung_luc` IS NULL AND `nguoi_huy_id` IS NOT NULL AND `thoi_diem_huy` IS NOT NULL AND `ly_do_huy` IS NOT NULL AND CHAR_LENGTH(TRIM(`ly_do_huy`)) >= 1 AND (`qua_han_luc` IS NULL OR `qua_han_luc` >= `hieu_luc_tu`))
+    )
 );
 ALTER TABLE `email_thong_bao` ADD CONSTRAINT `chk_email_thong_bao_ket_qua` CHECK (
     (`trang_thai` = 'ChoGui' AND `da_gui_luc` IS NULL)
  OR (`trang_thai` = 'DaGui' AND `da_gui_luc` IS NOT NULL AND `so_lan_thu` >= 1)
  OR (`trang_thai` = 'ThatBai' AND `da_gui_luc` IS NULL AND `loi_cuoi` IS NOT NULL AND `so_lan_thu` >= 1)
+ OR (`trang_thai` = 'BoQua' AND `da_gui_luc` IS NULL)
 );
 ALTER TABLE `nhac_lich_hen` ADD CONSTRAINT `chk_nhac_lich_hen_moc` CHECK (
     `so_gio_truoc` >= 1

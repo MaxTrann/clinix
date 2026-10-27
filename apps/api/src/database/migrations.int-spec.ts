@@ -40,7 +40,21 @@ const STAFF_TABLES = [
   'khung_gio',
   'lich_hen',
 ];
-const MIGRATED_TABLES = [...AUTH_TABLES, ...CATALOG_TABLES, ...STAFF_TABLES];
+const OPERATIONS_TABLES = [
+  'yeu_cau_thay_doi_chi_nhanh',
+  'yeu_cau_thay_doi_chi_nhanh_lich_hen',
+  'thong_tin_phong_kham',
+  'cau_hinh_he_thong',
+  'nhat_ky_hanh_dong',
+  'thong_bao',
+  'email_thong_bao',
+];
+const MIGRATED_TABLES = [
+  ...AUTH_TABLES,
+  ...CATALOG_TABLES,
+  ...STAFF_TABLES,
+  ...OPERATIONS_TABLES,
+];
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -144,11 +158,54 @@ describe('vòng đời migration', () => {
     expect(await runPendingMigrations(dataSource)).toEqual([]);
   });
 
-  it('down hoàn tác migration P2 cuối: giữ auth và danh mục, xóa bảng nền, rồi up lại được', async () => {
+  it('P3 giữ một yêu cầu mở mỗi chi nhánh, cho phép BoQua và enum audit mới', async () => {
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+      const insertRequest = `
+        INSERT INTO yeu_cau_thay_doi_chi_nhanh
+          (chi_nhanh_id, nguoi_de_xuat_id, noi_dung_truoc, noi_dung_sau)
+        VALUES (900001, 900001, JSON_OBJECT('x', 1), JSON_OBJECT('x', 2))
+      `;
+      await queryRunner.query(insertRequest);
+      await expect(queryRunner.query(insertRequest)).rejects.toThrow();
+
+      await queryRunner.query(
+        "UPDATE yeu_cau_thay_doi_chi_nhanh SET trang_thai = 'DaRut' WHERE chi_nhanh_id = 900001",
+      );
+      await queryRunner.query(insertRequest);
+      const openRequests = await queryRunner.query(
+        'SELECT dang_mo_chi_nhanh FROM yeu_cau_thay_doi_chi_nhanh WHERE chi_nhanh_id = 900001 AND dang_mo_chi_nhanh IS NOT NULL',
+      );
+      expect(openRequests).toHaveLength(1);
+
+      await queryRunner.query(
+        "INSERT INTO email_thong_bao (thong_bao_id, trang_thai) VALUES (900001, 'BoQua')",
+      );
+      await queryRunner.query(
+        "INSERT INTO nhat_ky_hanh_dong (tai_khoan_id, hanh_dong, loai_doi_tuong, ma_doi_tuong, thoi_diem, ket_qua) VALUES (900001, 'DoiHieuLucThayDoiChiNhanh', 'yeu_cau_thay_doi_chi_nhanh', 1, NOW(), 'ThanhCong')",
+      );
+
+      await expect(
+        queryRunner.query('INSERT INTO thong_tin_phong_kham (id) VALUES (2)'),
+      ).rejects.toThrow();
+      const configRows = await queryRunner.query(
+        'SELECT COUNT(*) AS total FROM cau_hinh_he_thong',
+      );
+      expect(Number(configRows[0]?.total)).toBe(0);
+    } finally {
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+      await queryRunner.release();
+    }
+  });
+
+  it('down hoàn tác migration P3 cuối: giữ P1/P2, xóa bảy bảng vận hành, rồi up lại được', async () => {
     const last = MIGRATIONS.at(-1)?.name;
     expect(await revertLastMigration(dataSource)).toBe(last);
     const tables = await listTables(dataSource);
-    for (const table of STAFF_TABLES) expect(tables).not.toContain(table);
+    for (const table of OPERATIONS_TABLES) expect(tables).not.toContain(table);
+    for (const table of STAFF_TABLES) expect(tables).toContain(table);
     for (const table of CATALOG_TABLES) expect(tables).toContain(table);
     for (const table of AUTH_TABLES) expect(tables).toContain(table);
     expect((await listMigrations(dataSource)).at(-1)?.executed).toBe(false);

@@ -2,6 +2,7 @@ import type { DataSource } from 'typeorm';
 import { TAO_BANG_AUTH_SQL } from './migrations/1793001600000-tao-bang-auth.js';
 import { TAO_BANG_DANH_MUC_SQL } from './migrations/1793024340000-tao-bang-danh-muc.js';
 import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-su.js';
+import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
 import {
   normalizeStatement,
   officialStatementsFor,
@@ -41,7 +42,21 @@ const STAFF_TABLES = [
   'khung_gio',
   'lich_hen',
 ];
-const MIGRATED_TABLES = [...AUTH_TABLES, ...CATALOG_TABLES, ...STAFF_TABLES];
+const OPERATIONS_TABLES = [
+  'yeu_cau_thay_doi_chi_nhanh',
+  'yeu_cau_thay_doi_chi_nhanh_lich_hen',
+  'thong_tin_phong_kham',
+  'cau_hinh_he_thong',
+  'nhat_ky_hanh_dong',
+  'thong_bao',
+  'email_thong_bao',
+];
+const MIGRATED_TABLES = [
+  ...AUTH_TABLES,
+  ...CATALOG_TABLES,
+  ...STAFF_TABLES,
+  ...OPERATIONS_TABLES,
+];
 let migrated: DataSource;
 let reference: DataSource;
 
@@ -126,6 +141,19 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
   it('mọi câu lệnh trong migration P2 chỉ tác động tám bảng được giao', () => {
     for (const statement of TAO_BANG_NHAN_SU_SQL) {
       expect(STAFF_TABLES).toContain(targetTable(statement));
+    }
+  });
+
+  it('văn bản DDL vận hành P3 trùng từng câu, cùng thứ tự, với schema chính thức', () => {
+    const official =
+      officialStatementsFor(OPERATIONS_TABLES).map(normalizeStatement);
+    expect(official.length).toBeGreaterThan(0);
+    expect(TAO_BANG_VAN_HANH_SQL.map(normalizeStatement)).toEqual(official);
+  });
+
+  it('mọi câu lệnh trong migration P3 chỉ tác động bảy bảng vận hành', () => {
+    for (const statement of TAO_BANG_VAN_HANH_SQL) {
+      expect(OPERATIONS_TABLES).toContain(targetTable(statement));
     }
   });
 });
