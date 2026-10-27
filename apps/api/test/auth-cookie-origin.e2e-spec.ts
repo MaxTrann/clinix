@@ -15,12 +15,15 @@ import request from 'supertest';
 import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/app.setup.js';
 import { AuthModule } from './../src/auth/auth.module.js';
+import { Public } from './../src/auth/decorators/public.decorator.js';
 import { OriginGuard } from './../src/auth/guards/origin.guard.js';
 import { RefreshCookieService } from './../src/auth/session/refresh-cookie.service.js';
 import { TEST_AUTH_ENV } from './../src/auth/testing/auth-test-env.js';
 
 // Task A3. Test case: DN-33 (cookie refresh), DN-34 và DX-07 (Origin), qua HTTP thật với AppModule + MySQL thật.
 // Endpoint thật (refresh, logout) thuộc A9/A10; ở đây dùng controller thử chỉ tồn tại trong file test này.
+// @Public vì guard đăng nhập toàn cục (A4) chặn mọi route mặc định; các ca ở đây chỉ kiểm cookie và Origin, không kiểm đăng nhập.
+@Public()
 @Controller('probe')
 class ProbeController {
   constructor(

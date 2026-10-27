@@ -31,6 +31,7 @@
   File mới đặt theo nhóm: OTP vào `otp/`, guard vào `guards/`, decorator vào `decorators/`, repository vào `repositories/` (mỗi bảng một file, ví dụ `phien-dang-nhap.repository.ts`),
   DTO vào `dto/`, entity vào `entities/`. Chỉ tạo thư mục khi có file đầu tiên (không tạo thư mục rỗng); test đặt cạnh mã nó kiểm;
   module khác dùng thứ của `auth` qua các provider mà `AuthModule` export.
+- **Xác thực mặc định (task A4 của `auth`):** mọi controller mặc định cần đăng nhập (`JwtAuthGuard` và `RolesGuard` là guard toàn cục trong `AuthModule`); mở route công khai bằng `@Public()`, giới hạn vai trò bằng `@Roles(...)`, lấy người dùng bằng `@CurrentUser()` (cả ba nằm ở `auth/decorators/`).
 
 ## Frontend (React)
 - Component hàm + hooks; tách UI / logic gọi API / state.
