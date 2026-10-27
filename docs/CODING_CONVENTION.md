@@ -36,6 +36,7 @@
   mã viết `HOA_GACH_DUOI`, chỉ 4xx). Đừng ném `BadRequestException('câu tự do')`: câu tự do bị bỏ khi trả ra ngoài. `message` của decorator class-validator đặt bằng **mã** (như `VALIDATION_CODES`).
   Mọi lỗi API có dạng `{ maLoi, thongBao, loi?, chiTiet?, requestId? }` (PLAN auth mục 5.5); lỗi ngoài dự kiến là 500 `LOI_HE_THONG` kèm `requestId`, stack chỉ nằm trong log.
 - **Log:** dùng `Logger` của Nest (đi qua bộ che mật khẩu, token, OTP, mã băm), không dùng `console.*`. Không bật `logging` của TypeORM: logger riêng của nó dùng `console`, không đi qua bộ che.
+- **Gửi email (task P4 của `auth`):** import `MailModule` rồi `@Inject(MailService)` (`src/mail/`); chỉ gọi `await mail.send({ to, subject, text })` với `to` đã chuẩn hoá bằng chính sách email của auth (A1). `send` resolve khi và chỉ khi máy chủ SMTP đã nhận thư; lỗi là `MailSendError` (không phải `AppException`, nơi gọi tự đổi sang mã lỗi API). Không tạo transport `nodemailer` riêng, không truyền `bcc` hay header, không log địa chỉ, tiêu đề, nội dung hay OTP. Mẫu OTP: `renderOtpMail` (`mail/templates/otp-mail.ts`). Test tự động dùng `FakeMailService` (`mail/testing/`), không bao giờ gửi thật.
 
 ## Frontend (React)
 - Component hàm + hooks; tách UI / logic gọi API / state.

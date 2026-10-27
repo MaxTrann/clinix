@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { TEST_AUTH_ENV } from './src/auth/testing/auth-test-env.js';
+import { TEST_MAIL_ENV } from './src/mail/testing/mail-test-env.js';
 
 // Biến môi trường cho test tích hợp/e2e. Thứ tự ưu tiên: biến môi trường của tiến trình (CI) > file .env ở GỐC repo > mặc định.
 // Mặc định trỏ vào MySQL của `docker compose` qua cổng đã publish, dùng tài khoản root để được phép tạo/xóa DB test.
@@ -33,5 +34,7 @@ export function applyTestEnv(): void {
     DB_MIGRATIONS_RUN: 'false',
     // Khoá xác thực GIẢ cho test, ghi đè cả biến môi trường lẫn file .env: test không phụ thuộc cấu hình của từng máy
     ...TEST_AUTH_ENV,
+    // Ép cấu hình email về rỗng: test không bao giờ dùng Gmail thật dù máy có SMTP_* (MailService báo NOT_CONFIGURED)
+    ...TEST_MAIL_ENV,
   });
 }

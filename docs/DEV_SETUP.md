@@ -80,6 +80,36 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 
 Test tự động (`npm test`, `test:int`, `test:e2e`) dùng khoá **giả cố định** trong mã test, không đọc `JWT_*` từ `.env` của bạn nên không phải cấu hình gì thêm. File `.env` trên server staging (`docker-compose.staging.yml` đọc cùng tên biến) phải được bổ sung các biến trên bằng tay.
 
+### 4.2 Gửi email OTP qua Gmail SMTP (từ task P4 của module `auth`)
+
+API gửi email mã OTP (đăng ký, quên mật khẩu) bằng **Gmail SMTP** qua biến môi trường. Test tự động (`npm test`, `test:int`, `test:e2e`) **không bao giờ gửi thật**: chúng ép các biến email về rỗng và dùng `MailService` giả, kể cả khi máy bạn đã có `SMTP_*`.
+
+| Biến | Ý nghĩa | Dev, test | Staging, production |
+|---|---|---|---|
+| `SMTP_HOST` | Máy chủ SMTP, với Gmail là `smtp.gmail.com` (chỉ tên máy chủ, không kèm cổng) | tuỳ chọn | **bắt buộc** |
+| `SMTP_USER` | Địa chỉ Gmail riêng của dự án | tuỳ chọn | **bắt buộc** |
+| `SMTP_PASS` | Mật khẩu ứng dụng (App Password) của tài khoản đó | tuỳ chọn | **bắt buộc** |
+| `SMTP_PORT` | Mặc định 465 | 465 | 465 |
+| `MAIL_FROM_NAME` | Tên hiển thị người gửi, mặc định `CLINIX` | | |
+| `MAIL_FROM_ADDRESS` | Địa chỉ người gửi; bỏ trống thì dùng `SMTP_USER` | | |
+| `MAIL_SUPPORT_ADDRESS` | Địa chỉ hỗ trợ in trong thư; bỏ trống thì thư bỏ dòng hỗ trợ | | |
+
+- **Không cần sửa `.env` hiện có** nếu bạn chưa muốn gửi thư thật: bỏ trống cả ba biến `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` (hoặc không có chúng) thì API vẫn khởi động, chỉ các chức năng gửi email báo lỗi. Đặt **nửa vời** (có `SMTP_USER` mà thiếu `SMTP_PASS`…) thì API không khởi động; thông báo lỗi chỉ nêu tên biến, không in giá trị.
+- **Staging và production** (`NODE_ENV=staging` hoặc `production`, ảnh `prod` mặc định là `production`) **bắt buộc** đủ ba biến; thiếu thì API dừng ngay lúc khởi động. File `.env` trên server staging phải được bổ sung bằng tay (xem `docs/TECH_DEBT.md` dòng 19).
+- **Cổng:** 465 là TLS ngay từ đầu (khuyến nghị); cổng khác (ví dụ 587) bắt buộc STARTTLS, nếu máy chủ không hỗ trợ thì gửi lỗi chứ **không** tự hạ xuống gửi dạng rõ. Không có chế độ không mã hoá, nên không dùng được SMTP cục bộ dạng rõ (Mailpit và tương tự), đúng quyết định Q3. Chứng chỉ của máy chủ luôn được kiểm.
+
+**Tạo Gmail riêng và mật khẩu ứng dụng** (việc của nhóm, N8; thao tác trên giao diện Google, các bước dưới viết theo cách Google mô tả **[cần kiểm khi tạo Gmail thật, N8]** — giao diện có thể khác, hãy sửa tài liệu này nếu lệch):
+
+1. Tạo **một tài khoản Gmail riêng cho CLINIX**, không dùng Gmail cá nhân.
+2. Bật **Xác minh 2 bước** cho tài khoản đó (Tài khoản Google → Bảo mật).
+3. Tạo **Mật khẩu ứng dụng** (App Password) trong mục Xác minh 2 bước. Google chỉ hiện giá trị này một lần.
+4. Mở `.env` của bạn (**không phải** `.env.example`) và điền: `SMTP_HOST=smtp.gmail.com`, `SMTP_USER=<địa chỉ Gmail>`, `SMTP_PASS=<mật khẩu ứng dụng>`.
+5. **Gõ mật khẩu ứng dụng liền 16 ký tự, không dấu cách** (Google hiển thị thành 4 nhóm cách nhau; bỏ các dấu cách) **[cần kiểm khi tạo Gmail thật, N8: Google có chấp nhận dạng có dấu cách hay không]**. Lý do thêm: bộ che log chỉ che đúng giá trị có trong `.env`.
+6. Hai người dùng chung một hộp thư thì chia sẻ mật khẩu ứng dụng qua kênh riêng tư (tin nhắn trực tiếp hoặc trình quản lý mật khẩu).
+
+> **Tuyệt đối không dán mật khẩu ứng dụng vào chat (kể cả khi trò chuyện với AI), issue, PR, commit hay bất kỳ file nào trong repo.** Repo này công khai. Nếu lỡ lộ: vào Tài khoản Google, thu hồi mật khẩu ứng dụng đó ngay và tạo cái mới.
+
+Giới hạn cần biết (H11): Gmail có hạn mức gửi hằng ngày; thư có thể vào hộp spam; Google có thể chặn đăng nhập từ IP máy chủ lạ. Việc gửi thật cả hai loại OTP (và đường gửi lỗi bằng cách đặt sai mật khẩu ứng dụng) được kiểm tay ở task X1.
 ## 5. Chạy thử môi trường
 
 ```powershell
