@@ -1,6 +1,6 @@
 # Kế hoạch module `admin`
 
-> **Trạng thái: bản nháp 3 (25/10/2026) — đã chốt Q1–Q48, trừ phần còn lại của Q45.** Q47 (rút/hủy) và Q48 (**phương án B**, kèm xử lý quá hạn) đã được nhóm trả lời; quyết định cuối ở mục 4.2a và `TRACKING.md` mục 3. **Còn mở:** phần còn lại của Q45 và các việc của nhóm (mục 4.5). Một số chi tiết thiết kế bổ sung theo Q47/Q48 là **đề xuất cần xác nhận khi viết migration** (cột `qua_han_luc`, `so_lan_doi_hieu_luc`, trạng thái email `BoQua`, hành động audit `DoiHieuLucThayDoiChiNhanh`, mã sự kiện thông báo kèm phiên bản — mục 4.2a, 5.4, 5.10). Hiện không còn task nào mang thẻ `[CHỜ …]`.
+> **Trạng thái: bản nháp 3 (25/10/2026) — đã chốt Q1–Q48, trừ phần còn lại của Q45.** Issue P3 #47 chốt migration các bảng vận hành, trạng thái/cột quá hạn và email BoQua; Trung xác nhận dùng toàn bộ tên audit PLAN 5.10 ngày 27/10/2026. Mã sự kiện thông báo kèm phiên bản vẫn là đề xuất cho service thông báo.
 > Phần đầu của module `admin` = 8 use case: Quản lý chi nhánh / cơ sở, Quản lý chuyên khoa, Quản lý loại dịch vụ khám, Quản lý hồ sơ bác sĩ, Tạo tài khoản nhân sự, Quản lý tài khoản người dùng, Cập nhật thông tin phòng khám, Cập nhật cấu hình hệ thống.
 > Kế hoạch do AI (Claude) lập theo [`docs/FEATURE_PLANNING_PROMPT.md`](../../FEATURE_PLANNING_PROMPT.md) và `Prompt_Admin_2026-10-25.md` →
 > **ghi `AI_USAGE_LOG.md` (bảng 1) cho lần này và cho mọi lần dùng AI sinh code theo kế hoạch** (kế hoạch này không tự ghi vì chỉ được tạo đúng 2 file).
@@ -595,7 +595,7 @@ Miền giá trị (Q34 — nhóm đồng ý dùng làm giới hạn kỹ thuật
 | `CAU_HINH_GIA_TRI_KHONG_HOP_LE`, `THIEU_LY_DO` (400) | (theo từng thông số) / Vui lòng nhập lý do thay đổi. | CH A1 |
 | `ANH_KHONG_HOP_LE` (400) | Ảnh phải là JPEG, PNG hoặc WebP, tối đa 2 MB. | Q13 |
 
-### 5.10 Audit mở rộng (Q39) — **tên giá trị là đề xuất, nhóm xác nhận khi làm C2/P3**
+### 5.10 Audit mở rộng (Q39) — tên giá trị được Trung xác nhận ngày 27/10/2026 khi làm P3
 
 Thêm vào `hanh_dong_nhay_cam_enum` (đổi schema 3 file, migration ở P3): `TaoTaiKhoanNhanSu`, `KhoaTaiKhoan`, `MoKhoaTaiKhoan`, `MoKhoaNoShow`, `DuyetThayDoiChiNhanh`, `TuChoiThayDoiChiNhanh`, `RutThayDoiChiNhanh`, `HuyThayDoiChiNhanh`, `DoiHieuLucThayDoiChiNhanh` (Q48); thêm `yeu_cau_thay_doi_chi_nhanh` vào `loai_doi_tuong_enum`. Giữ nguyên `DoiChiNhanhBacSi`, `CapNhatCauHinh`.
 

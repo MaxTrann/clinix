@@ -13,10 +13,17 @@ import { BacSi } from '../admin/entities/bac-si.entity.js';
 import { HoSoNguoiThan } from '../admin/entities/ho-so-nguoi-than.entity.js';
 import { KhungGio } from '../admin/entities/khung-gio.entity.js';
 import { LeTan } from '../admin/entities/le-tan.entity.js';
+import { NhatKyHanhDong } from '../admin/entities/nhat-ky-hanh-dong.entity.js';
 import { LichHen } from '../admin/entities/lich-hen.entity.js';
 import { LichLamViec } from '../admin/entities/lich-lam-viec.entity.js';
 import { PhuPhiBacSi } from '../admin/entities/phu-phi-bac-si.entity.js';
 import { QuanTriVien } from '../admin/entities/quan-tri-vien.entity.js';
+import { CauHinhHeThong } from '../admin/entities/cau-hinh-he-thong.entity.js';
+import { EmailThongBao } from '../admin/entities/email-thong-bao.entity.js';
+import { ThongBao } from '../admin/entities/thong-bao.entity.js';
+import { ThongTinPhongKham } from '../admin/entities/thong-tin-phong-kham.entity.js';
+import { YeuCauThayDoiChiNhanh } from '../admin/entities/yeu-cau-thay-doi-chi-nhanh.entity.js';
+import { YeuCauThayDoiChiNhanhLichHen } from '../admin/entities/yeu-cau-thay-doi-chi-nhanh-lich-hen.entity.js';
 
 // Sổ đăng ký entity (một nơi duy nhất cho app, script migration và test). Module mới (admin…) thêm entity của
 // mình vào đây; bài test registry.spec.ts báo lỗi nếu có file *.entity.ts chưa được đăng ký.
@@ -40,4 +47,11 @@ export const ENTITIES = [
   LichLamViec,
   KhungGio,
   LichHen,
+  YeuCauThayDoiChiNhanh,
+  YeuCauThayDoiChiNhanhLichHen,
+  ThongTinPhongKham,
+  CauHinhHeThong,
+  ThongBao,
+  EmailThongBao,
+  NhatKyHanhDong,
 ];
