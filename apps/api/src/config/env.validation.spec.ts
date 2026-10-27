@@ -1,4 +1,6 @@
 import { TEST_AUTH_ENV } from '../auth/testing/auth-test-env.js';
+import { fakeSecretValue } from '../common/testing/sample-secrets.js';
+import { TEST_MAIL_ENV } from '../mail/testing/mail-test-env.js';
 import { validateEnv } from './env.validation.js';
 
 // Task P1/P3 — không có mã test case riêng trong plan auth. Task A3: SE-09 và các ràng buộc cấu hình xác thực (cuối file).
@@ -9,6 +11,15 @@ const DB = {
 };
 // Cấu hình hợp lệ tối thiểu: thông tin DB + cấu hình xác thực (JWT_*, WEB_ORIGIN)
 const VALID = { ...DB, ...TEST_AUTH_ENV };
+// Task P4: staging/production BẮT BUỘC có SMTP_HOST, SMTP_USER, SMTP_PASS. Các ca cũ của A3 dùng NODE_ENV đó chỉ để kiểm điều khác,
+// nên thêm cấu hình email hợp lệ (giá trị giả) cho riêng hai môi trường này.
+const MAIL_OK = {
+  SMTP_HOST: 'smtp.example.test',
+  SMTP_USER: 'clinix@example.test',
+  SMTP_PASS: fakeSecretValue('smtp'),
+};
+const mailFor = (nodeEnv: string) =>
+  nodeEnv === 'production' || nodeEnv === 'staging' ? MAIL_OK : {};
 
 describe('validateEnv', () => {
   it('dùng giá trị mặc định khi chỉ khai báo bắt buộc (thông tin đăng nhập DB)', () => {
@@ -37,6 +48,7 @@ describe('validateEnv', () => {
       API_PORT: '3100',
       DB_PORT: '3307',
       NODE_ENV: 'production',
+      ...MAIL_OK,
     });
     expect(env.API_PORT).toBe(3100);
     expect(env.DB_PORT).toBe(3307);
@@ -121,8 +133,11 @@ describe('validateEnv — cấu hình xác thực (task A3)', () => {
     const { COOKIE_SECURE: _bo, ...withoutCookieSecure } = VALID;
     expect(validateEnv(withoutCookieSecure).COOKIE_SECURE).toBe(true);
     expect(
-      validateEnv({ ...withoutCookieSecure, NODE_ENV: 'production' })
-        .COOKIE_SECURE,
+      validateEnv({
+        ...withoutCookieSecure,
+        NODE_ENV: 'production',
+        ...MAIL_OK,
+      }).COOKIE_SECURE,
     ).toBe(true);
   });
 
@@ -166,10 +181,20 @@ describe('validateEnv — cấu hình xác thực (task A3)', () => {
     'COOKIE_SECURE=false bị từ chối khi NODE_ENV=%s — API không khởi động (SE-09, N5)',
     (nodeEnv) => {
       expect(() =>
-        validateEnv({ ...VALID, NODE_ENV: nodeEnv, COOKIE_SECURE: 'false' }),
+        validateEnv({
+          ...VALID,
+          ...mailFor(nodeEnv),
+          NODE_ENV: nodeEnv,
+          COOKIE_SECURE: 'false',
+        }),
       ).toThrow('COOKIE_SECURE');
       expect(() =>
-        validateEnv({ ...VALID, NODE_ENV: nodeEnv, COOKIE_SECURE: false }),
+        validateEnv({
+          ...VALID,
+          ...mailFor(nodeEnv),
+          NODE_ENV: nodeEnv,
+          COOKIE_SECURE: false,
+        }),
       ).toThrow('COOKIE_SECURE');
     },
   );
@@ -186,8 +211,12 @@ describe('validateEnv — cấu hình xác thực (task A3)', () => {
   it('COOKIE_SECURE=true hợp lệ ở mọi môi trường', () => {
     for (const nodeEnv of ['development', 'test', 'staging', 'production']) {
       expect(
-        validateEnv({ ...VALID, NODE_ENV: nodeEnv, COOKIE_SECURE: 'true' })
-          .COOKIE_SECURE,
+        validateEnv({
+          ...VALID,
+          ...mailFor(nodeEnv),
+          NODE_ENV: nodeEnv,
+          COOKIE_SECURE: 'true',
+        }).COOKIE_SECURE,
       ).toBe(true);
     }
   });
@@ -244,5 +273,218 @@ describe('validateEnv — cấu hình xác thực (task A3)', () => {
     }
     expect(message).toContain('JWT_ACCESS_SECRET');
     expect(message).not.toContain(secret);
+  });
+});
+
+describe('validateEnv — cấu hình gửi email (task P4)', () => {
+  const messageOf = (config: Record<string, unknown>): string => {
+    try {
+      validateEnv(config);
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return '';
+  };
+
+  it('mặc định ở dev: không cần SMTP; cổng 465, tên người gửi CLINIX, các địa chỉ tuỳ chọn không đặt', () => {
+    const env = validateEnv({ ...VALID });
+    expect(env.SMTP_HOST).toBeUndefined();
+    expect(env.SMTP_USER).toBeUndefined();
+    expect(env.SMTP_PASS).toBeUndefined();
+    expect(env.SMTP_PORT).toBe(465);
+    expect(env.MAIL_FROM_NAME).toBe('CLINIX');
+    expect(env.MAIL_FROM_ADDRESS).toBeUndefined();
+    expect(env.MAIL_SUPPORT_ADDRESS).toBeUndefined();
+  });
+
+  it('môi trường test của dự án (mọi biến email ép về rỗng) hợp lệ và coi như không đặt', () => {
+    const env = validateEnv({ ...VALID, NODE_ENV: 'test', ...TEST_MAIL_ENV });
+    expect(env.SMTP_HOST).toBeUndefined();
+    expect(env.SMTP_PORT).toBe(465);
+    expect(env.MAIL_FROM_NAME).toBe('CLINIX');
+  });
+
+  it.each(['development', 'test'])(
+    'NODE_ENV=%s không bắt buộc SMTP: API vẫn khởi động (không ép mọi người sửa .env)',
+    (nodeEnv) => {
+      expect(() => validateEnv({ ...VALID, NODE_ENV: nodeEnv })).not.toThrow();
+    },
+  );
+
+  it.each(['production', 'staging'])(
+    'NODE_ENV=%s thiếu cả ba biến SMTP: API không khởi động và thông báo nêu đủ tên từng biến',
+    (nodeEnv) => {
+      const message = messageOf({ ...VALID, NODE_ENV: nodeEnv });
+      for (const name of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS']) {
+        expect(message, name).toContain(
+          `${name}: bắt buộc khi NODE_ENV=${nodeEnv}`,
+        );
+      }
+    },
+  );
+
+  it.each(['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS'])(
+    'production thiếu riêng %s (không đặt hoặc để trống) thì không khởi động',
+    (name) => {
+      for (const value of [undefined, '']) {
+        const message = messageOf({
+          ...VALID,
+          NODE_ENV: 'production',
+          ...MAIL_OK,
+          [name]: value,
+        });
+        expect(message, `${name}=${String(value)}`).toContain(name);
+      }
+    },
+  );
+
+  it.each(['production', 'staging'])(
+    'NODE_ENV=%s đủ ba biến SMTP thì hợp lệ',
+    (nodeEnv) => {
+      const env = validateEnv({ ...VALID, NODE_ENV: nodeEnv, ...MAIL_OK });
+      expect(env.SMTP_HOST).toBe('smtp.example.test');
+      expect(env.SMTP_USER).toBe('clinix@example.test');
+      expect(env.SMTP_PASS).toBe(MAIL_OK.SMTP_PASS);
+    },
+  );
+
+  it.each([
+    [{ SMTP_USER: 'clinix@example.test' }, 'SMTP_HOST, SMTP_PASS'],
+    [{ SMTP_PASS: MAIL_OK.SMTP_PASS }, 'SMTP_HOST, SMTP_USER'],
+    [{ SMTP_HOST: 'smtp.example.test' }, 'SMTP_USER, SMTP_PASS'],
+    [
+      { SMTP_HOST: 'smtp.example.test', SMTP_USER: 'clinix@example.test' },
+      'SMTP_PASS',
+    ],
+  ])(
+    'ở dev, đặt nửa vời %j là cấu hình sai (đặt đủ ba hoặc bỏ trống cả ba)',
+    (partial, missing) => {
+      const message = messageOf({ ...VALID, ...partial });
+      expect(message).toContain(missing);
+      expect(message).toContain('phải đặt đủ cả ba hoặc bỏ trống cả ba');
+    },
+  );
+
+  it('SMTP_PORT: mặc định 465, đổi chuỗi sang số, để trống là 465; ngoài 1–65535 hoặc không phải số thì lỗi', () => {
+    expect(validateEnv({ ...VALID, SMTP_PORT: '587' }).SMTP_PORT).toBe(587);
+    expect(validateEnv({ ...VALID, SMTP_PORT: '' }).SMTP_PORT).toBe(465);
+    for (const bad of ['0', '70000', 'abc', '587.5', '-1']) {
+      expect(() => validateEnv({ ...VALID, SMTP_PORT: bad }), bad).toThrow(
+        'SMTP_PORT',
+      );
+    }
+  });
+
+  it.each([
+    'smtp.gmail.com:465',
+    'smtp.example.test/x',
+    'a b',
+    'smtp@example.test',
+    'smtp host',
+  ])(
+    'SMTP_HOST phải là tên máy chủ thuần, không kèm cổng/đường dẫn: từ chối %j',
+    (host) => {
+      expect(() =>
+        validateEnv({ ...VALID, ...MAIL_OK, SMTP_HOST: host }),
+      ).toThrow('SMTP_HOST');
+    },
+  );
+
+  it('địa chỉ gửi: mặc định là SMTP_USER nên SMTP_USER phải là địa chỉ email, trừ khi đặt MAIL_FROM_ADDRESS', () => {
+    const apiKeyLogin = { ...MAIL_OK, SMTP_USER: 'apikey' };
+    expect(() => validateEnv({ ...VALID, ...apiKeyLogin })).toThrow(
+      'MAIL_FROM_ADDRESS',
+    );
+    expect(
+      validateEnv({
+        ...VALID,
+        ...apiKeyLogin,
+        MAIL_FROM_ADDRESS: 'gui@example.test',
+      }).MAIL_FROM_ADDRESS,
+    ).toBe('gui@example.test');
+  });
+
+  it.each([
+    'khong-phai-email',
+    'a@example.test\r\nBcc: evil@example.test',
+    'a@example.test,b@example.test',
+    'Ten <a@example.test>',
+  ])(
+    'MAIL_FROM_ADDRESS và MAIL_SUPPORT_ADDRESS không an toàn bị từ chối (kể cả khi chưa cấu hình SMTP): %j',
+    (address) => {
+      expect(() =>
+        validateEnv({ ...VALID, MAIL_FROM_ADDRESS: address }),
+      ).toThrow('MAIL_FROM_ADDRESS');
+      expect(() =>
+        validateEnv({ ...VALID, MAIL_SUPPORT_ADDRESS: address }),
+      ).toThrow('MAIL_SUPPORT_ADDRESS');
+    },
+  );
+
+  it('MAIL_SUPPORT_ADDRESS hợp lệ được nhận; để trống là không đặt', () => {
+    expect(
+      validateEnv({ ...VALID, MAIL_SUPPORT_ADDRESS: 'hotro@example.test' })
+        .MAIL_SUPPORT_ADDRESS,
+    ).toBe('hotro@example.test');
+    expect(
+      validateEnv({ ...VALID, MAIL_SUPPORT_ADDRESS: '' }).MAIL_SUPPORT_ADDRESS,
+    ).toBeUndefined();
+  });
+
+  it('MAIL_FROM_NAME: để trống là CLINIX; không được có ký tự điều khiển hay dài quá 100', () => {
+    expect(validateEnv({ ...VALID, MAIL_FROM_NAME: '' }).MAIL_FROM_NAME).toBe(
+      'CLINIX',
+    );
+    expect(
+      validateEnv({ ...VALID, MAIL_FROM_NAME: 'Phòng khám CLINIX' })
+        .MAIL_FROM_NAME,
+    ).toBe('Phòng khám CLINIX');
+    for (const bad of ['CLINIX\r\nBcc: evil@example.test', 'A'.repeat(101)]) {
+      expect(() => validateEnv({ ...VALID, MAIL_FROM_NAME: bad })).toThrow(
+        'MAIL_FROM_NAME',
+      );
+    }
+  });
+
+  it('SMTP_USER và SMTP_PASS không được chứa ký tự xuống dòng, và thông báo lỗi không in giá trị', () => {
+    const user = 'nguoi.dung.bi.mat@example.test\nx';
+    const pass = 'mat-khau-bi-mat\ndef-ghi-jkl';
+    const userMessage = messageOf({ ...VALID, ...MAIL_OK, SMTP_USER: user });
+    const passMessage = messageOf({ ...VALID, ...MAIL_OK, SMTP_PASS: pass });
+    expect(userMessage).toContain('SMTP_USER');
+    expect(userMessage).not.toContain('nguoi.dung.bi.mat');
+    expect(passMessage).toContain('SMTP_PASS');
+    expect(passMessage).not.toContain('mat-khau-bi-mat');
+  });
+
+  it('mật khẩu ứng dụng có dấu cách (cách Google hiển thị) được nhận nguyên văn, không tự cắt', () => {
+    const spaced = 'abcd efgh ijkl mnop';
+    expect(
+      validateEnv({ ...VALID, ...MAIL_OK, SMTP_PASS: spaced }).SMTP_PASS,
+    ).toBe(spaced);
+  });
+
+  it('thông báo lỗi không bao giờ in giá trị SMTP_PASS, SMTP_USER hay SMTP_HOST', () => {
+    const pass = fakeSecretValue('smtp-bi-mat');
+    const message = messageOf({
+      ...VALID,
+      NODE_ENV: 'production',
+      SMTP_HOST: 'smtp host sai',
+      SMTP_USER: 'nguoi.dung.bi.mat@example.test',
+      SMTP_PASS: pass,
+      SMTP_PORT: 'abc',
+      MAIL_FROM_ADDRESS: 'dia-chi-sai-bi-mat',
+    });
+    expect(message).toContain('SMTP_HOST');
+    expect(message).toContain('SMTP_PORT');
+    expect(message).toContain('MAIL_FROM_ADDRESS');
+    for (const value of [
+      pass,
+      'nguoi.dung.bi.mat',
+      'smtp host sai',
+      'dia-chi-sai-bi-mat',
+    ]) {
+      expect(message).not.toContain(value);
+    }
   });
 });

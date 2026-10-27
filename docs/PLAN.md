@@ -40,7 +40,7 @@ Theo `docs/REPO_SETUP.md` mục 4. Rubric: TC2.1, TC2.4 (repo build được —
 - [ ] `apps/web`: khởi tạo React + Vite, cài Vitest.
 - [ ] Kết nối MySQL qua ORM đã chọn ở Phase 0, chạy migration đầu tiên (bảng rỗng là đủ để xác nhận kết nối).
 - [ ] `docker compose up --build` chạy đủ 3 service (`db`, `api`, `web`).
-- [ ] PR đầu tiên có code thật → bật `api`, `web`, `docker` vào required status checks của ruleset (hiện chỉ có `detect`, `pr-title`, `secrets`, `security`).
+- [x] PR đầu tiên có code thật → bật `api`, `web`, `docker` vào required status checks của ruleset (đã bật ngày 27/10/2026, task P7 của auth; hiện có 7 check: `detect`, `pr-title`, `secrets`, `security`, `api`, `web`, `docker`).
 
 ## Phase 2 — Nghiệp vụ lõi
 

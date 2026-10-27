@@ -5,13 +5,16 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
+  Length,
   Matches,
   Max,
   Min,
   MinLength,
   validateSync,
 } from 'class-validator';
+import { isSafeMailAddress } from '../mail/mail-safety.js';
 
 // Biến môi trường mà API đọc. Biến của các task sau (JWT, SMTP…) được thêm khi task đó cần.
 export class EnvironmentVariables {
@@ -85,6 +88,78 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   WEB_ORIGIN!: string;
+
+  // --- Gửi email (task P4). Dev/test: bỏ trống cả ba SMTP_HOST/SMTP_USER/SMTP_PASS thì MailService báo NOT_CONFIGURED khi gửi.
+  // Staging/production: bắt buộc (kiểm ở crossFieldProblems), thiếu thì API không khởi động. Biến để trống ('') coi như không đặt.
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9.-]+$/, {
+    message:
+      'SMTP_HOST phải là tên máy chủ (chữ, số, dấu chấm, gạch ngang), không kèm cổng hay đường dẫn',
+  })
+  SMTP_HOST?: string;
+
+  // 465 = TLS ngay từ đầu; cổng khác (587…) bắt buộc STARTTLS. Không có chế độ không mã hoá (mail/mail-config.ts)
+  @Transform(({ obj, key }: { obj: Record<string, unknown>; key: string }) => {
+    const raw = obj[key];
+    return raw === undefined || raw === '' ? 465 : Number(raw);
+  })
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  SMTP_PORT: number = 465;
+
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  @Matches(/^[^\r\n\0]+$/, {
+    message: 'SMTP_USER không được chứa ký tự xuống dòng',
+  })
+  SMTP_USER?: string;
+
+  // Mật khẩu ứng dụng Gmail (App Password). Tên biến khớp quy tắc của logger P5 (collectSecretValues) nên được che khỏi log.
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  @Matches(/^[^\r\n\0]+$/, {
+    message: 'SMTP_PASS không được chứa ký tự xuống dòng',
+  })
+  SMTP_PASS?: string;
+
+  @Transform(({ obj, key }: { obj: Record<string, unknown>; key: string }) => {
+    const raw = obj[key];
+    return raw === undefined || raw === '' ? 'CLINIX' : raw;
+  })
+  @IsString()
+  @Length(1, 100)
+  @Matches(/^[^\p{Cc}\p{Zl}\p{Zp}]+$/u, {
+    message: 'MAIL_FROM_NAME không được chứa ký tự điều khiển',
+  })
+  MAIL_FROM_NAME: string = 'CLINIX';
+
+  // Mặc định bằng SMTP_USER (Gmail gửi bằng đúng tài khoản đã đăng nhập). Kiểm ở crossFieldProblems.
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  MAIL_FROM_ADDRESS?: string;
+
+  // Địa chỉ hỗ trợ in trong thư (N8, G4). Không đặt thì mẫu thư bỏ dòng hỗ trợ.
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  MAIL_SUPPORT_ADDRESS?: string;
+}
+
+// Biến môi trường để trống (SMTP_HOST=) là "không đặt", không phải chuỗi rỗng
+function emptyToUndefined({
+  obj,
+  key,
+}: {
+  obj: Record<string, unknown>;
+  key: string;
+}): unknown {
+  return obj[key] === '' ? undefined : obj[key];
 }
 
 // Một origin chuẩn: http(s)://host[:port], không đường dẫn, không dấu / ở cuối
@@ -122,6 +197,51 @@ function crossFieldProblems(env: EnvironmentVariables): string[] {
     problems.push(
       'WEB_ORIGIN: phải là một origin dạng http(s)://host[:port], không có đường dẫn hay dấu / ở cuối',
     );
+  }
+  problems.push(...mailProblems(env));
+  return problems;
+}
+
+// Cấu hình gửi email (task P4). Thông báo chỉ nêu TÊN biến, không bao giờ in giá trị (SMTP_PASS là mật khẩu ứng dụng).
+function mailProblems(env: EnvironmentVariables): string[] {
+  const problems: string[] = [];
+  const credentials = {
+    SMTP_HOST: env.SMTP_HOST,
+    SMTP_USER: env.SMTP_USER,
+    SMTP_PASS: env.SMTP_PASS,
+  };
+  const missing = Object.entries(credentials)
+    .filter(([, value]) => typeof value !== 'string' || value === '')
+    .map(([name]) => name);
+
+  if (env.NODE_ENV === 'staging' || env.NODE_ENV === 'production') {
+    // Thiếu thì OTP không bao giờ gửi được: dừng ngay lúc khởi động thay vì chờ tới lần đăng ký đầu tiên
+    for (const name of missing) {
+      problems.push(
+        `${name}: bắt buộc khi NODE_ENV=${env.NODE_ENV} (cần để gửi email OTP)`,
+      );
+    }
+  } else if (missing.length > 0 && missing.length < 3) {
+    problems.push(
+      `${missing.join(', ')}: SMTP_HOST, SMTP_USER và SMTP_PASS phải đặt đủ cả ba hoặc bỏ trống cả ba`,
+    );
+  }
+
+  // Địa chỉ gửi: đặt tường minh thì luôn phải hợp lệ; không đặt thì dùng SMTP_USER nên SMTP_USER phải là địa chỉ email
+  if (env.MAIL_FROM_ADDRESS !== undefined) {
+    if (!isSafeMailAddress(env.MAIL_FROM_ADDRESS)) {
+      problems.push('MAIL_FROM_ADDRESS: phải là một địa chỉ email hợp lệ');
+    }
+  } else if (missing.length === 0 && !isSafeMailAddress(env.SMTP_USER)) {
+    problems.push(
+      'MAIL_FROM_ADDRESS: bắt buộc khi SMTP_USER không phải địa chỉ email (mặc định địa chỉ gửi là SMTP_USER)',
+    );
+  }
+  if (
+    env.MAIL_SUPPORT_ADDRESS !== undefined &&
+    !isSafeMailAddress(env.MAIL_SUPPORT_ADDRESS)
+  ) {
+    problems.push('MAIL_SUPPORT_ADDRESS: phải là một địa chỉ email hợp lệ');
   }
   return problems;
 }
