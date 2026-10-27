@@ -1,6 +1,7 @@
 import type { DataSource } from 'typeorm';
 import { TAO_BANG_AUTH_SQL } from './migrations/1793001600000-tao-bang-auth.js';
 import { TAO_BANG_DANH_MUC_SQL } from './migrations/1793024340000-tao-bang-danh-muc.js';
+import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-su.js';
 import {
   normalizeStatement,
   officialStatementsFor,
@@ -14,7 +15,7 @@ import {
   recreateDatabase,
 } from './testing/test-database.js';
 
-// Task P1 — sáu bảng danh mục; Task P3 — năm bảng auth.
+// P1 — danh mục; P2 — nhân sự và bảng nền; auth P3 — tài khoản và xác thực.
 const AUTH_TABLES = [
   'tai_khoan',
   'benh_nhan',
@@ -30,7 +31,17 @@ const CATALOG_TABLES = [
   'dich_vu_kham',
   'chi_nhanh_dich_vu_kham',
 ];
-const MIGRATED_TABLES = [...AUTH_TABLES, ...CATALOG_TABLES];
+const STAFF_TABLES = [
+  'bac_si',
+  'le_tan',
+  'quan_tri_vien',
+  'phu_phi_bac_si',
+  'ho_so_nguoi_than',
+  'lich_lam_viec',
+  'khung_gio',
+  'lich_hen',
+];
+const MIGRATED_TABLES = [...AUTH_TABLES, ...CATALOG_TABLES, ...STAFF_TABLES];
 let migrated: DataSource;
 let reference: DataSource;
 
@@ -67,7 +78,7 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
 
   it('SHOW CREATE TABLE của DB dựng bằng migration giống hệt DB dựng thẳng từ file SQL chính thức', async () => {
     const tables = (await listTables(migrated)).filter(
-      (table) => table !== 'migrations',
+      (table) => table !== 'migrations' && table !== 'typeorm_metadata',
     );
     expect(tables).toEqual([...MIGRATED_TABLES].sort());
 
@@ -93,7 +104,8 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
   });
 
   it('văn bản DDL danh mục trùng TỪNG CÂU, cùng thứ tự, với file SQL chính thức', () => {
-    const official = officialStatementsFor(CATALOG_TABLES).map(normalizeStatement);
+    const official =
+      officialStatementsFor(CATALOG_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
     expect(TAO_BANG_DANH_MUC_SQL.map(normalizeStatement)).toEqual(official);
   });
@@ -101,6 +113,19 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
   it('mọi câu lệnh trong migration danh mục chỉ tác động sáu bảng P1', () => {
     for (const statement of TAO_BANG_DANH_MUC_SQL) {
       expect(CATALOG_TABLES).toContain(targetTable(statement));
+    }
+  });
+
+  it('văn bản DDL nhân sự và bảng nền trùng TỪNG CÂU, cùng thứ tự, với schema chính thức', () => {
+    const official =
+      officialStatementsFor(STAFF_TABLES).map(normalizeStatement);
+    expect(official.length).toBeGreaterThan(0);
+    expect(TAO_BANG_NHAN_SU_SQL.map(normalizeStatement)).toEqual(official);
+  });
+
+  it('mọi câu lệnh trong migration P2 chỉ tác động tám bảng được giao', () => {
+    for (const statement of TAO_BANG_NHAN_SU_SQL) {
+      expect(STAFF_TABLES).toContain(targetTable(statement));
     }
   });
 });
