@@ -5,15 +5,34 @@ import { MaXacThuc } from './entities/ma-xac-thuc.entity.js';
 import { PhienDangNhap } from './entities/phien-dang-nhap.entity.js';
 import { TaiKhoan } from './entities/tai-khoan.entity.js';
 import { ViNoiBo } from './entities/vi-noi-bo.entity.js';
+import { OriginGuard } from './guards/origin.guard.js';
 import { PasswordHasher } from './password-hasher.service.js';
+import { RefreshCookieService } from './refresh-cookie.service.js';
+import { PhienDangNhapRepository } from './repositories/phien-dang-nhap.repository.js';
+import { SessionService } from './session.service.js';
+import { TokenService } from './token.service.js';
 
 const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 
-// Khung module auth: xuất 5 entity (task P3) và PasswordHasher (task A1) để module khác (admin…) import,
-// không sao chép. Controller, service và repository của từng use case được thêm ở các task A* sau.
+// Khung module auth: xuất 5 entity (task P3), PasswordHasher (A1) và các dịch vụ token/phiên/cookie (A3) để module khác
+// (admin…) import, không sao chép. Controller và guard đăng nhập của từng use case được thêm ở các task A* sau.
 @Module({
   imports: [TypeOrmModule.forFeature(AUTH_ENTITIES)],
-  providers: [PasswordHasher],
-  exports: [TypeOrmModule, PasswordHasher],
+  providers: [
+    PasswordHasher,
+    TokenService,
+    PhienDangNhapRepository,
+    SessionService,
+    RefreshCookieService,
+    OriginGuard,
+  ],
+  exports: [
+    TypeOrmModule,
+    PasswordHasher,
+    TokenService,
+    SessionService,
+    RefreshCookieService,
+    OriginGuard,
+  ],
 })
 export class AuthModule {}

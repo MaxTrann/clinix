@@ -9,6 +9,7 @@ import {
   Matches,
   Max,
   Min,
+  MinLength,
   validateSync,
 } from 'class-validator';
 
@@ -56,25 +57,91 @@ export class EnvironmentVariables {
   )
   @IsBoolean()
   DB_MIGRATIONS_RUN: boolean = false;
+
+  // --- Xác thực (task A3). Mỗi loại token một khoá riêng (SE-06); ràng buộc "khác nhau" nằm ở crossFieldProblems.
+  // Ký access token (JWT, HS256). Tối thiểu 32 ký tự để không dùng nhầm chuỗi quá ngắn.
+  @IsString()
+  @MinLength(32)
+  JWT_ACCESS_SECRET!: string;
+
+  // Ký (HMAC) refresh token, không dùng cho JWT
+  @IsString()
+  @MinLength(32)
+  JWT_REFRESH_SECRET!: string;
+
+  // Cookie refresh token có thuộc tính Secure hay không. Mặc định BẬT; chỉ tắt được khi NODE_ENV=development (N5, SE-09).
+  // Chỉ nhận đúng 'true'/'false': gõ nhầm thì báo lỗi chứ không lặng lẽ thành giá trị khác.
+  @Transform(({ obj, key }: { obj: Record<string, unknown>; key: string }) => {
+    const raw = obj[key];
+    if (raw === undefined || raw === '' || raw === true || raw === 'true')
+      return true;
+    if (raw === false || raw === 'false') return false;
+    return raw;
+  })
+  @IsBoolean()
+  COOKIE_SECURE: boolean = true;
+
+  // Origin của web, ví dụ http://localhost:5173. /auth/refresh và /auth/logout chỉ nhận request có header Origin đúng bằng giá trị này.
+  @IsString()
+  @IsNotEmpty()
+  WEB_ORIGIN!: string;
+}
+
+// Một origin chuẩn: http(s)://host[:port], không đường dẫn, không dấu / ở cuối
+function isOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'http:' || url.protocol === 'https:') &&
+      url.origin === value
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Các ràng buộc liên quan nhiều biến, chỉ kiểm khi các biến đó đã đúng kiểu (lỗi từng biến đã được báo riêng)
+function crossFieldProblems(env: EnvironmentVariables): string[] {
+  const problems: string[] = [];
+  const { JWT_ACCESS_SECRET: access, JWT_REFRESH_SECRET: refresh } = env;
+  if (typeof access === 'string' && access !== '' && access === refresh) {
+    problems.push(
+      'JWT_REFRESH_SECRET: phải khác JWT_ACCESS_SECRET (mỗi loại token một khoá riêng)',
+    );
+  }
+  if (env.COOKIE_SECURE === false && env.NODE_ENV !== 'development') {
+    problems.push(
+      'COOKIE_SECURE: chỉ được đặt false khi NODE_ENV=development (cookie đăng nhập phải Secure ở môi trường khác)',
+    );
+  }
+  if (
+    typeof env.WEB_ORIGIN === 'string' &&
+    env.WEB_ORIGIN !== '' &&
+    !isOrigin(env.WEB_ORIGIN)
+  ) {
+    problems.push(
+      'WEB_ORIGIN: phải là một origin dạng http(s)://host[:port], không có đường dẫn hay dấu / ở cuối',
+    );
+  }
+  return problems;
 }
 
 // Kiểm tra lúc khởi động: cấu hình sai thì dừng ngay thay vì chạy với giá trị bậy.
-// Chỉ in tên biến và lý do, không in giá trị (đây là chỗ chứa mật khẩu DB).
+// Chỉ in tên biến và lý do, không in giá trị (đây là chỗ chứa mật khẩu DB và khoá ký token).
 export function validateEnv(
   config: Record<string, unknown>,
 ): EnvironmentVariables {
   const parsed = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });
-  const errors = validateSync(parsed);
-  if (errors.length > 0) {
-    const detail = errors
-      .map(
-        (e) =>
-          `${e.property}: ${Object.values(e.constraints ?? {}).join('; ')}`,
-      )
-      .join(' | ');
-    throw new Error(`Cấu hình môi trường không hợp lệ — ${detail}`);
+  const problems = validateSync(parsed).map(
+    (e) => `${e.property}: ${Object.values(e.constraints ?? {}).join('; ')}`,
+  );
+  problems.push(...crossFieldProblems(parsed));
+  if (problems.length > 0) {
+    throw new Error(
+      `Cấu hình môi trường không hợp lệ — ${problems.join(' | ')}`,
+    );
   }
   return parsed;
 }

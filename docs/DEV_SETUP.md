@@ -59,6 +59,27 @@ Copy-Item .env.example .env
 
 Mở `.env` vừa tạo, điền giá trị thật (hỏi Đại nếu chưa biết giá trị dùng chung của nhóm là gì). **Không bao giờ commit file `.env`** — nó đã bị `.gitignore` chặn, đừng tìm cách ép thêm vào.
 
+### 4.1 Khoá ký token đăng nhập và cấu hình cookie (từ task A3 của module `auth`)
+
+API **từ chối khởi động** nếu thiếu hoặc sai các biến sau (thông báo lỗi chỉ nêu tên biến, không in giá trị):
+
+| Biến | Quy tắc |
+|---|---|
+| `JWT_ACCESS_SECRET` | Khoá ký access token. Tối thiểu 32 ký tự |
+| `JWT_REFRESH_SECRET` | Khoá ký refresh token. Tối thiểu 32 ký tự và **khác** `JWT_ACCESS_SECRET` |
+| `COOKIE_SECURE` | Mặc định `true`. Chỉ được đặt `false` khi `NODE_ENV=development` (mặc định của API khi chạy cục bộ); ở staging/production đặt `false` thì API không khởi động |
+| `WEB_ORIGIN` | Origin của web dạng `http://localhost:5173` (không có đường dẫn, không dấu `/` cuối). Staging đặt thành địa chỉ web thật, dùng `https` |
+
+Hai khoá trong `.env.example` chỉ là chuỗi **giả** để chạy thử. Muốn dùng khoá riêng của bạn, sinh chuỗi ngẫu nhiên (chạy hai lần, mỗi khoá một giá trị) rồi dán vào `.env`:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
+
+**Nếu `.env` của bạn có từ trước task A3** (hai dòng `JWT_*` cũ rất ngắn như `change_me_access`), `docker compose up` và `npm run start:dev` sẽ dừng với lỗi `JWT_ACCESS_SECRET must be longer than or equal to 32 characters`. Cách sửa một lần: mở `.env`, thay giá trị hai dòng `JWT_ACCESS_SECRET` và `JWT_REFRESH_SECRET` bằng hai chuỗi khác nhau dài ≥ 32 ký tự (copy hai dòng mới từ `.env.example` hoặc dùng lệnh trên). Nếu thiếu `WEB_ORIGIN` thì thêm `WEB_ORIGIN=http://localhost:5173`. Không cần thêm `COOKIE_SECURE` (mặc định đã là `true`).
+
+Test tự động (`npm test`, `test:int`, `test:e2e`) dùng khoá **giả cố định** trong mã test, không đọc `JWT_*` từ `.env` của bạn nên không phải cấu hình gì thêm. File `.env` trên server staging (`docker-compose.staging.yml` đọc cùng tên biến) phải được bổ sung các biến trên bằng tay.
+
 ## 5. Chạy thử môi trường
 
 ```powershell
