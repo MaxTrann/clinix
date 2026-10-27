@@ -18,6 +18,11 @@ export class EnvironmentVariables {
   @IsIn(['development', 'test', 'staging', 'production'])
   NODE_ENV: string = 'development';
 
+  @IsIn(['Asia/Ho_Chi_Minh'], {
+    message: 'TZ phải là Asia/Ho_Chi_Minh',
+  })
+  TZ: string = 'Asia/Ho_Chi_Minh';
+
   @IsInt()
   @Min(1)
   @Max(65535)

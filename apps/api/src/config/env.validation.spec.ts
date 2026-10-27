@@ -18,7 +18,15 @@ describe('validateEnv', () => {
     expect(env.DB_HOST).toBe('127.0.0.1');
     expect(env.DB_PORT).toBe(3306);
     expect(env.DB_TIMEZONE).toBe('+07:00');
+    expect(env.TZ).toBe('Asia/Ho_Chi_Minh');
     expect(env.DB_MIGRATIONS_RUN).toBe(false);
+  });
+
+  it('(SE-A14) chỉ nhận timezone Việt Nam cho tiến trình API', () => {
+    expect(validateEnv({ ...VALID, TZ: 'Asia/Ho_Chi_Minh' }).TZ).toBe(
+      'Asia/Ho_Chi_Minh',
+    );
+    expect(() => validateEnv({ ...VALID, TZ: 'UTC' })).toThrow('TZ');
   });
 
   it('bắt buộc có MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD', () => {
