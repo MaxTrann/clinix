@@ -4,9 +4,9 @@ import {
   ACCESS_TOKEN_AUDIENCE,
   ACCESS_TOKEN_ISSUER,
   SESSION_MAX_MS,
-} from './auth.constants.js';
-import { TEST_AUTH_ENV } from './testing/auth-test-env.js';
-import { createTestConfigService } from './testing/auth-test-config.js';
+} from '../auth.constants.js';
+import { TEST_AUTH_ENV } from '../testing/auth-test-env.js';
+import { createTestConfigService } from '../testing/auth-test-config.js';
 import { TokenService } from './token.service.js';
 
 // Task A3. Test case: DN-25 (token sai chữ ký / alg none / hết hạn), DN-29 (định dạng refresh token, băm SHA-256),

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
-import { REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH } from './auth.constants.js';
+import { REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH } from '../auth.constants.js';
+import { createTestConfigService } from '../testing/auth-test-config.js';
 import { RefreshCookieService } from './refresh-cookie.service.js';
-import { createTestConfigService } from './testing/auth-test-config.js';
 
 // Task A3. Test case: DN-33 (thuộc tính cookie refresh: HttpOnly, Secure, SameSite=Lax, Path=/api/auth). Bản kiểm qua HTTP thật
 // (header Set-Cookie) ở test/auth-cookie-origin.e2e-spec.ts.

@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
-import type { EnvironmentVariables } from '../config/env.validation.js';
-import { REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH } from './auth.constants.js';
+import type { EnvironmentVariables } from '../../config/env.validation.js';
+import { REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH } from '../auth.constants.js';
 
 const MAX_COOKIE_VALUE_LENGTH = 300;
 

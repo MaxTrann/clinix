@@ -3,13 +3,13 @@ import {
   createTestDataSource,
   readTestDbSettings,
   resetTables,
-} from '../database/testing/test-database.js';
+} from '../../database/testing/test-database.js';
 import {
   dbErrorCode,
   insertTaiKhoan,
-} from './entities/testing/auth-fixtures.js';
-import { TaiKhoan } from './entities/tai-khoan.entity.js';
-import { normalizeEmail } from './email-policy.js';
+} from '../entities/testing/auth-fixtures.js';
+import { TaiKhoan } from '../entities/tai-khoan.entity.js';
+import { normalizeEmail } from '../validation/email-policy.js';
 import { PasswordHasher } from './password-hasher.service.js';
 
 // Task A1. Test case: SE-01 (`mat_khau_bam` trong DB), DK-17 (email chuẩn hoá không lọt UNIQUE; phần trước @ giữ nguyên).

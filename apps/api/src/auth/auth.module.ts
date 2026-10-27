@@ -6,11 +6,11 @@ import { PhienDangNhap } from './entities/phien-dang-nhap.entity.js';
 import { TaiKhoan } from './entities/tai-khoan.entity.js';
 import { ViNoiBo } from './entities/vi-noi-bo.entity.js';
 import { OriginGuard } from './guards/origin.guard.js';
-import { PasswordHasher } from './password-hasher.service.js';
-import { RefreshCookieService } from './refresh-cookie.service.js';
+import { PasswordHasher } from './password/password-hasher.service.js';
 import { PhienDangNhapRepository } from './repositories/phien-dang-nhap.repository.js';
-import { SessionService } from './session.service.js';
-import { TokenService } from './token.service.js';
+import { RefreshCookieService } from './session/refresh-cookie.service.js';
+import { SessionService } from './session/session.service.js';
+import { TokenService } from './session/token.service.js';
 
 const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 

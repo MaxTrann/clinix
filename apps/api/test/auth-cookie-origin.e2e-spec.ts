@@ -16,7 +16,7 @@ import { AppModule } from './../src/app.module.js';
 import { configureApp } from './../src/app.setup.js';
 import { AuthModule } from './../src/auth/auth.module.js';
 import { OriginGuard } from './../src/auth/guards/origin.guard.js';
-import { RefreshCookieService } from './../src/auth/refresh-cookie.service.js';
+import { RefreshCookieService } from './../src/auth/session/refresh-cookie.service.js';
 import { TEST_AUTH_ENV } from './../src/auth/testing/auth-test-env.js';
 
 // Task A3. Test case: DN-33 (cookie refresh), DN-34 và DX-07 (Origin), qua HTTP thật với AppModule + MySQL thật.

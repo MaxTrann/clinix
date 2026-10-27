@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import argon2 from 'argon2';
-import { ARGON2_OPTIONS } from './auth.constants.js';
+import { ARGON2_OPTIONS } from '../auth.constants.js';
 import { PasswordHasher } from './password-hasher.service.js';
 
 // Task A1. Test case: SE-01 (định dạng băm; phần lưu trong DB ở password-hasher.int-spec.ts),

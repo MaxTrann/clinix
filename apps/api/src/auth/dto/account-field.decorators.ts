@@ -3,10 +3,10 @@
 import { applyDecorators } from '@nestjs/common';
 import { Transform } from 'class-transformer';
 import { ValidateBy, type ValidationOptions } from 'class-validator';
-import { isValidEmail, normalizeEmail } from '../email-policy.js';
-import { checkPassword } from '../password-policy.js';
-import { normalizePhone } from '../phone-policy.js';
-import { VALIDATION_CODES } from '../validation-codes.js';
+import { checkPassword } from '../password/password-policy.js';
+import { isValidEmail, normalizeEmail } from '../validation/email-policy.js';
+import { normalizePhone } from '../validation/phone-policy.js';
+import { VALIDATION_CODES } from '../validation/validation-codes.js';
 
 // Chuẩn hoá chạy lúc chuyển body thành DTO (ValidationPipe có transform: true), trước khi kiểm.
 // Giá trị không phải chuỗi được giữ nguyên để bước kiểm báo lỗi đúng mã của trường đó.
@@ -52,7 +52,7 @@ export function IsAccountPhone(options?: ValidationOptions): PropertyDecorator {
   );
 }
 
-// KHÔNG chuẩn hoá mật khẩu (không trim): xem password-policy.ts
+// KHÔNG chuẩn hoá mật khẩu (không trim): xem password/password-policy.ts
 export function IsAccountPassword(
   options?: ValidationOptions,
 ): PropertyDecorator {
