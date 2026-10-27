@@ -32,6 +32,10 @@
   DTO vào `dto/`, entity vào `entities/`. Chỉ tạo thư mục khi có file đầu tiên (không tạo thư mục rỗng); test đặt cạnh mã nó kiểm;
   module khác dùng thứ của `auth` qua các provider mà `AuthModule` export.
 - **Xác thực mặc định (task A4 của `auth`):** mọi controller mặc định cần đăng nhập (`JwtAuthGuard` và `RolesGuard` là guard toàn cục trong `AuthModule`); mở route công khai bằng `@Public()`, giới hạn vai trò bằng `@Roles(...)`, lấy người dùng bằng `@CurrentUser()` (cả ba nằm ở `auth/decorators/`).
+- **Lỗi có mã ổn định (task P5 của `auth`):** ném lỗi nghiệp vụ đã lường trước bằng `throw new AppException(409, 'YEU_CAU_DANG_CHO', { thongBao, loi, chiTiet })` (`common/errors/app.exception.ts`;
+  mã viết `HOA_GACH_DUOI`, chỉ 4xx). Đừng ném `BadRequestException('câu tự do')`: câu tự do bị bỏ khi trả ra ngoài. `message` của decorator class-validator đặt bằng **mã** (như `VALIDATION_CODES`).
+  Mọi lỗi API có dạng `{ maLoi, thongBao, loi?, chiTiet?, requestId? }` (PLAN auth mục 5.5); lỗi ngoài dự kiến là 500 `LOI_HE_THONG` kèm `requestId`, stack chỉ nằm trong log.
+- **Log:** dùng `Logger` của Nest (đi qua bộ che mật khẩu, token, OTP, mã băm), không dùng `console.*`. Không bật `logging` của TypeORM: logger riêng của nó dùng `console`, không đi qua bộ che.
 
 ## Frontend (React)
 - Component hàm + hooks; tách UI / logic gọi API / state.
@@ -46,4 +50,6 @@
 ## Kiểm thử
 - Test đặt cạnh mã (`*.spec.ts` / `*.test.tsx`). Mỗi test case ghi mã acceptance criteria / use case mà nó phủ.
 - Test cần MySQL thật (CHECK, UNIQUE, khóa hàng, múi giờ…) đặt tên `*.int-spec.ts`, chạy bằng `npm run test:int` trên DB có tên kết thúc `_test` (tự tạo/xóa), tuần tự; không mock DB cho các ràng buộc này.
+- **Mọi test e2e phải dựng app qua `configureApp(app)`** (`src/app.setup.ts`): không có nó thì không có bộ lọc lỗi chuẩn hoá, `ValidationPipe` và bộ che log, và test sẽ kiểm một ứng dụng khác với ứng dụng thật.
+  Kiểm mã lỗi bằng `expectErrorResponse` (`common/testing/error-assertions.ts`), không tự đọc `res.body`.
 - Luôn có ca âm và ca biên (đặc biệt: đặt trùng khung giờ đồng thời, hết hạn giữ chỗ, sai quyền).
