@@ -1,4 +1,5 @@
 // CLINIX - Database Diagram (ERD) - bản 2
+// 28/10/2026 (Admin P7): thêm anh_tai_len và FK ảnh chuyên khoa nullable UNIQUE RESTRICT; 45 bảng, 28 enum; giữ URL cũ để chuyển đổi.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17
@@ -382,6 +383,7 @@ Table chi_nhanh_lich_hoat_dong {
 }
 
 Table chuyen_khoa {
+  anh_tai_len_id char(36) [unique, ref: > anh_tai_len.anh_tai_len_id, note: 'P7 nullable, FK RESTRICT; giữ anh_dai_dien cũ trong giai đoạn chuyển đổi']
   chuyen_khoa_id bigint [pk, increment]
   ten varchar(100) [not null, note: 'Lĩnh vực chuyên môn của bác sĩ. Ví dụ: Cơ Xương Khớp, Thần kinh, Tiêu hóa, Nội tổng quát, Y học gia đình, Tâm thần']
   mo_ta text
@@ -910,3 +912,32 @@ Table nhat_ky_hanh_dong {
 
 // Khóa ngoại kép: hồ sơ người thân của lịch hẹn phải thuộc đúng bệnh nhân đặt lịch. ho_so_nguoi_than_id NULL (bản thân) thì MySQL không kiểm tra cặp này
 Ref: lich_hen.(ho_so_nguoi_than_id, benh_nhan_id) > ho_so_nguoi_than.(ho_so_nguoi_than_id, benh_nhan_id)
+
+
+// P7: bảng ảnh công khai, không chứa dữ liệu bệnh nhân; UUID/public_id so sánh ascii_bin ở SQL.
+Enum trang_thai_anh_tai_len_enum {
+  ChuaGan
+  DaGan
+  ChoXoa
+}
+
+Table anh_tai_len {
+  anh_tai_len_id char(36) [pk]
+  public_id varchar(255) [not null, unique]
+  secure_url varchar(2048)
+  nguoi_tai_len_id bigint [not null, ref: > tai_khoan.tai_khoan_id]
+  muc_dich varchar(32) [not null, default: 'ChuyenKhoa']
+  trang_thai trang_thai_anh_tai_len_enum [not null, default: 'ChuaGan']
+  tao_luc datetime [not null]
+  het_han_gan_luc datetime [not null]
+  upload_xac_nhan_luc datetime
+  so_lan_thu_xoa int [not null, default: 0]
+  thu_xoa_lai_luc datetime
+  khoa_don_token char(36)
+  khoa_don_den_luc datetime
+  ma_loi_cuoi varchar(64)
+  indexes {
+    (trang_thai, thu_xoa_lai_luc, het_han_gan_luc) [name: 'ix_anh_don']
+  }
+  Note: 'P7: FK RESTRICT; CHECK muc_dich=ChuyenKhoa, so_lan_thu_xoa 0..5, URL/xác nhận cùng NULL hoặc cùng có giá trị, DaGan phải xác nhận; token/hạn lease cùng NULL hoặc cùng có giá trị. Chi tiết constraint ở canonical SQL.'
+}

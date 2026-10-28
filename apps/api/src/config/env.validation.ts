@@ -1,3 +1,4 @@
+import { readUploadConfig } from '../common/upload/upload-config.js';
 import 'reflect-metadata'; // class-transformer cần Reflect.getMetadata, kể cả khi chạy ngoài Nest (ví dụ test)
 import { Transform, plainToInstance } from 'class-transformer';
 import {
@@ -164,6 +165,23 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   MAIL_SUPPORT_ADDRESS?: string;
+
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_CLOUD_NAME?: string;
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_API_KEY?: string;
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_API_SECRET?: string;
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_UPLOAD_PREFIX?: string;
 }
 
 // Biến môi trường để trống (SMTP_HOST=) là "không đặt", không phải chuỗi rỗng
@@ -301,5 +319,6 @@ export function validateEnv(
       `Cấu hình môi trường không hợp lệ — ${problems.join(' | ')}`,
     );
   }
+  readUploadConfig(parsed as unknown as Record<string, unknown>);
   return parsed;
 }

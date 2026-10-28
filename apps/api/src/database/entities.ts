@@ -1,3 +1,4 @@
+import { AnhTaiLen } from '../common/upload/anh-tai-len.entity.js';
 import { BenhNhan } from '../auth/entities/benh-nhan.entity.js';
 import { MaXacThuc } from '../auth/entities/ma-xac-thuc.entity.js';
 import { PhienDangNhap } from '../auth/entities/phien-dang-nhap.entity.js';
@@ -28,6 +29,7 @@ import { YeuCauThayDoiChiNhanhLichHen } from '../admin/entities/yeu-cau-thay-doi
 // Sổ đăng ký entity (một nơi duy nhất cho app, script migration và test). Module mới (admin…) thêm entity của
 // mình vào đây; bài test registry.spec.ts báo lỗi nếu có file *.entity.ts chưa được đăng ký.
 export const ENTITIES = [
+  AnhTaiLen,
   TaiKhoan,
   BenhNhan,
   ViNoiBo,

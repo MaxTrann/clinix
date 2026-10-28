@@ -36,5 +36,9 @@ export function applyTestEnv(): void {
     ...TEST_AUTH_ENV,
     // Ép cấu hình email về rỗng: test không bao giờ dùng Gmail thật dù máy có SMTP_* (MailService báo NOT_CONFIGURED)
     ...TEST_MAIL_ENV,
+    CLOUDINARY_CLOUD_NAME: '',
+    CLOUDINARY_API_KEY: '',
+    CLOUDINARY_API_SECRET: '',
+    CLOUDINARY_UPLOAD_PREFIX: '',
   });
 }

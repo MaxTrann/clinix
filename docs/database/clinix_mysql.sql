@@ -1239,3 +1239,33 @@ ALTER TABLE `thong_tin_phong_kham` ADD CONSTRAINT `chk_phong_kham_mot_dong` CHEC
 -- Phải ảnh hưởng đúng 1 dòng; khác 1 thì ROLLBACK cả giao dịch tiền mặt ở bước 4.
 -- ============================================================================
 -- UPDATE lich_hen SET trang_thai = 'DaTiepDon' WHERE lich_hen_id = :lich_hen_hien_tai AND trang_thai = 'DaXacNhan';
+
+
+-- P7 (28/10/2026): bổ sung quản lý ảnh Cloudinary; giữ URL chuyên khoa cũ.
+CREATE TABLE `anh_tai_len` (
+  `anh_tai_len_id` char(36) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+  `public_id` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `secure_url` varchar(2048),
+  `nguoi_tai_len_id` bigint NOT NULL,
+  `muc_dich` varchar(32) NOT NULL DEFAULT 'ChuyenKhoa',
+  `trang_thai` ENUM ('ChuaGan','DaGan','ChoXoa') NOT NULL DEFAULT 'ChuaGan',
+  `tao_luc` datetime NOT NULL,
+  `het_han_gan_luc` datetime NOT NULL,
+  `upload_xac_nhan_luc` datetime,
+  `so_lan_thu_xoa` int NOT NULL DEFAULT 0,
+  `thu_xoa_lai_luc` datetime,
+  `khoa_don_token` char(36) CHARACTER SET ascii COLLATE ascii_bin,
+  `khoa_don_den_luc` datetime,
+  `ma_loi_cuoi` varchar(64),
+  UNIQUE KEY `uq_anh_public_id` (`public_id`),
+  KEY `ix_anh_don` (`trang_thai`, `thu_xoa_lai_luc`, `het_han_gan_luc`),
+  CONSTRAINT `fk_anh_nguoi_tai` FOREIGN KEY (`nguoi_tai_len_id`) REFERENCES `tai_khoan` (`tai_khoan_id`) ON DELETE RESTRICT,
+  CONSTRAINT `chk_anh_muc_dich` CHECK (`muc_dich` = 'ChuyenKhoa'),
+  CONSTRAINT `chk_anh_so_lan` CHECK (`so_lan_thu_xoa` BETWEEN 0 AND 5),
+  CONSTRAINT `chk_anh_xac_nhan` CHECK ((`upload_xac_nhan_luc` IS NULL AND `secure_url` IS NULL) OR (`upload_xac_nhan_luc` IS NOT NULL AND `secure_url` IS NOT NULL)),
+  CONSTRAINT `chk_anh_da_gan` CHECK (`trang_thai` <> 'DaGan' OR `upload_xac_nhan_luc` IS NOT NULL),
+  CONSTRAINT `chk_anh_khoa` CHECK ((`khoa_don_token` IS NULL AND `khoa_don_den_luc` IS NULL) OR (`khoa_don_token` IS NOT NULL AND `khoa_don_den_luc` IS NOT NULL))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ALTER TABLE `chuyen_khoa` ADD COLUMN `anh_tai_len_id` char(36) CHARACTER SET ascii COLLATE ascii_bin NULL;
+ALTER TABLE `chuyen_khoa` ADD UNIQUE KEY `uq_chuyen_khoa_anh` (`anh_tai_len_id`);
+ALTER TABLE `chuyen_khoa` ADD CONSTRAINT `fk_chuyen_khoa_anh` FOREIGN KEY (`anh_tai_len_id`) REFERENCES `anh_tai_len` (`anh_tai_len_id`) ON DELETE RESTRICT;

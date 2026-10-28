@@ -1,3 +1,4 @@
+import { TAO_BANG_ANH_SQL } from './migrations/1793188800000-tao-bang-anh.js';
 import type { DataSource } from 'typeorm';
 import { TAO_BANG_AUTH_SQL } from './migrations/1793001600000-tao-bang-auth.js';
 import { TAO_BANG_DANH_MUC_SQL } from './migrations/1793024340000-tao-bang-danh-muc.js';
@@ -56,6 +57,7 @@ const MIGRATED_TABLES = [
   ...CATALOG_TABLES,
   ...STAFF_TABLES,
   ...OPERATIONS_TABLES,
+  'anh_tai_len',
 ];
 let migrated: DataSource;
 let reference: DataSource;
@@ -122,7 +124,12 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     const official =
       officialStatementsFor(CATALOG_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    expect(TAO_BANG_DANH_MUC_SQL.map(normalizeStatement)).toEqual(official);
+    expect(
+      [
+        ...TAO_BANG_DANH_MUC_SQL,
+        ...TAO_BANG_ANH_SQL.filter((sql) => targetTable(sql) === 'chuyen_khoa'),
+      ].map(normalizeStatement),
+    ).toEqual(official);
   });
 
   it('mọi câu lệnh trong migration danh mục chỉ tác động sáu bảng P1', () => {
@@ -155,5 +162,20 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     for (const statement of TAO_BANG_VAN_HANH_SQL) {
       expect(OPERATIONS_TABLES).toContain(targetTable(statement));
     }
+  });
+});
+
+describe('P7 — canonical SQL ảnh Cloudinary', () => {
+  it('CK-11/SE-A7: migration ảnh khớp canonical SQL và ALTER chuyên khoa bổ sung', () => {
+    const expected = officialStatementsFor([
+      'anh_tai_len',
+      'chuyen_khoa',
+    ]).filter(
+      (sql) =>
+        targetTable(sql) === 'anh_tai_len' || sql.includes('`anh_tai_len_id`'),
+    );
+    expect(TAO_BANG_ANH_SQL.map(normalizeStatement)).toEqual(
+      expected.map(normalizeStatement),
+    );
   });
 });
