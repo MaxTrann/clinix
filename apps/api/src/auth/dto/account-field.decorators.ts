@@ -5,6 +5,10 @@ import { Transform } from 'class-transformer';
 import { ValidateBy, type ValidationOptions } from 'class-validator';
 import { checkPassword } from '../password/password-policy.js';
 import { isValidEmail, normalizeEmail } from '../validation/email-policy.js';
+import {
+  isValidFullName,
+  normalizeFullName,
+} from '../validation/full-name-policy.js';
 import { normalizePhone } from '../validation/phone-policy.js';
 import { VALIDATION_CODES } from '../validation/validation-codes.js';
 
@@ -45,6 +49,26 @@ export function IsAccountPhone(options?: ValidationOptions): PropertyDecorator {
           validate: (value: unknown) =>
             typeof value === 'string' && normalizePhone(value) === value,
           defaultMessage: () => VALIDATION_CODES.INVALID_PHONE,
+        },
+      },
+      options,
+    ),
+  );
+}
+
+// Họ tên (task A5): chuẩn hoá NFC + cắt khoảng trắng ASCII hai đầu, rồi kiểm theo validation/full-name-policy.ts
+export function IsAccountFullName(
+  options?: ValidationOptions,
+): PropertyDecorator {
+  return applyDecorators(
+    transformString(normalizeFullName),
+    ValidateBy(
+      {
+        name: 'isAccountFullName',
+        validator: {
+          validate: (value: unknown) =>
+            typeof value === 'string' && isValidFullName(value),
+          defaultMessage: () => VALIDATION_CODES.INVALID_FULL_NAME,
         },
       },
       options,

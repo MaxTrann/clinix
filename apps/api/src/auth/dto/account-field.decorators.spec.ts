@@ -3,6 +3,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
   IsAccountEmail,
+  IsAccountFullName,
   IsAccountPassword,
   IsAccountPhone,
   MatchesField,
@@ -265,5 +266,59 @@ describe('decorator — mật khẩu mới khi đổi / đặt lại mật khẩ
         xacNhan: 'Matkhau1!',
       }),
     ).toEqual({});
+  });
+});
+
+// Task A5: họ tên (quy tắc ở validation/full-name-policy.ts; mã (HT-nn) là [đề xuất])
+class FullNameDto {
+  @IsAccountFullName()
+  hoTen!: string;
+}
+
+describe('decorator họ tên (task A5, DK-08)', () => {
+  it('(HT-09) họ tên hợp lệ không có lỗi', async () => {
+    expect(await errorsOf(FullNameDto, { hoTen: 'Nguyễn Văn A' })).toEqual({});
+  });
+
+  it.each([
+    ['thiếu trường', {}],
+    ['rỗng', { hoTen: '' }],
+    ['toàn dấu cách', { hoTen: '    ' }],
+    ['không phải chuỗi (số)', { hoTen: 123 }],
+    ['không phải chuỗi (null)', { hoTen: null }],
+    ['không phải chuỗi (mảng)', { hoTen: ['A'] }],
+    ['không phải chuỗi (đối tượng)', { hoTen: { ten: 'A' } }],
+    [
+      'chứa ký tự đảo chiều chữ U+202E',
+      { hoTen: `A${String.fromCodePoint(0x202e)}B` },
+    ],
+    ['101 ký tự', { hoTen: 'A'.repeat(101) }],
+  ])(
+    '(HT-09) %s → HO_TEN_KHONG_HOP_LE đúng trường hoTen',
+    async (_label, body) => {
+      expect(await errorsOf(FullNameDto, body)).toEqual({
+        hoTen: ['HO_TEN_KHONG_HOP_LE'],
+      });
+    },
+  );
+
+  it('(HT-10) qua ValidationPipe: chuẩn hoá NFC và cắt khoảng trắng ASCII trước khi kiểm, dạng tổ hợp ≤ 100 ký tự sau chuẩn hoá vẫn qua', async () => {
+    const decomposed = ` Nguye${String.fromCodePoint(0x0302, 0x0303)}n `;
+    const dto = (await pipe.transform(
+      { hoTen: decomposed },
+      { type: 'body', metatype: FullNameDto },
+    )) as FullNameDto;
+    expect(dto.hoTen).toBe(`Nguy${String.fromCodePoint(0x1ec5)}n`);
+
+    const long = `e${String.fromCodePoint(0x0302, 0x0303)}`.repeat(34); // 102 điểm mã thô, 34 ký tự sau NFC
+    await expect(
+      pipe.transform({ hoTen: long }, { type: 'body', metatype: FullNameDto }),
+    ).resolves.toMatchObject({ hoTen: expect.any(String) as string });
+  });
+
+  it('(HT-10) qua ValidationPipe: họ tên sai bị từ chối bằng BadRequestException', async () => {
+    await expect(
+      pipe.transform({ hoTen: '   ' }, { type: 'body', metatype: FullNameDto }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

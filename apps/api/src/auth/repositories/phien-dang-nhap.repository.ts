@@ -158,4 +158,16 @@ export class PhienDangNhapRepository {
     );
     return rows[0]?.loai_tai_khoan ?? null;
   }
+
+  // Xoá MỌI phiên của tài khoản. Chỉ để xoá tài khoản Bệnh nhân chưa xác minh quá 24 giờ (task A5; H2, H5: khoá ngoại không CASCADE,
+  // và phòng thủ: tài khoản chưa xác minh không có phiên nhưng vẫn xoá để khỏi vướng khoá ngoại). Người gọi đã khoá hàng tai_khoan.
+  async deleteByAccount(em: EntityManager, accountId: string): Promise<number> {
+    const result = await em
+      .createQueryBuilder()
+      .delete()
+      .from(PhienDangNhap)
+      .where('tai_khoan_id = :accountId', { accountId })
+      .execute();
+    return result.affected ?? 0;
+  }
 }

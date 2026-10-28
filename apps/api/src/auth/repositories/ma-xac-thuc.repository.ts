@@ -7,8 +7,16 @@ import type { OtpLoai, RegistrationData } from '../otp/otp.types.js';
 // Mọi hàm nhận `em` (EntityManager) để chạy trong GIAO DỊCH của người gọi.
 //
 // Quy ước khoá (để không deadlock): LUÔN khoá hàng `tai_khoan` TRƯỚC, rồi mới khoá các hàng `ma_xac_thuc` (cùng thứ tự với A3: tài khoản trước,
-// phiên sau). Mọi lần đọc dùng để QUYẾT ĐỊNH (giới hạn, "bị thay thế", hàng cần xác minh) là đọc KHOÁ (FOR UPDATE): đọc khoá luôn
-// thấy dữ liệu đã commit mới nhất, không bị kẹt ở ảnh chụp cũ của giao dịch (REPEATABLE READ) như đọc thường.
+// phiên sau). Hàng được khoá điểm theo khoá chính (`findByIdForUpdate`) trước khi ghi.
+//
+// Ba lần đọc QUÉT KHOẢNG dùng để quyết định (`findLatestSentForUpdate`, `existsNewerSentForUpdate`, `listCreatedSinceForUpdate`) có tham số
+// `lock` (mặc định true):
+//  - `lock = true`: đọc KHOÁ (FOR UPDATE). Luôn thấy dữ liệu đã commit mới nhất, không kẹt ở ảnh chụp cũ của giao dịch REPEATABLE READ; đúng ở mọi
+//    mức cô lập. Nhưng quét khoảng chỉ mục nên KHOÁ KHOẢNG/BẢN GHI BIÊN của tài khoản khác: nhiều tài khoản cùng cấp mã sẽ deadlock (task A5 đo được
+//    43% yêu cầu cấp mã bị 1213 khi 6 tài khoản cùng lúc).
+//  - `lock = false`: đọc thường. CHỈ đúng trong giao dịch READ COMMITTED (mỗi câu đọc thấy dữ liệu đã commit mới nhất) và khi người gọi đã giữ khoá
+//    hàng `tai_khoan` (mọi bên ghi ma_xac_thuc của một tài khoản đều khoá hàng đó trước nên chúng xếp hàng). OtpService chỉ truyền false cho
+//    giao dịch do chính nó mở (xem OtpService.transaction).
 
 /** Mã tạm ghi lúc chèn hàng (cột ma_bam NOT NULL); không phải hex 64 ký tự nên không bao giờ khớp mã nào. Được thay bằng HMAC ngay trong cùng giao dịch. */
 const PLACEHOLDER_HASH = 'cho-dat-hmac';
@@ -50,18 +58,19 @@ export class MaXacThucRepository {
     em: EntityManager,
     taiKhoanId: string,
     loai: OtpLoai,
+    lock = true,
   ): Promise<MaXacThuc | null> {
-    return em
+    const query = em
       .createQueryBuilder(MaXacThuc, 'm')
-      .setLock('pessimistic_write')
       .where('m.taiKhoanId = :taiKhoanId AND m.loai = :loai', {
         taiKhoanId,
         loai,
       })
       .andWhere('m.daGuiLuc IS NOT NULL')
       .orderBy('m.maXacThucId', 'DESC')
-      .limit(1)
-      .getOne();
+      .limit(1);
+    if (lock) query.setLock('pessimistic_write');
+    return query.getOne();
   }
 
   /** Đọc thường, chỉ để HIỂN THỊ trạng thái (đăng nhập chưa xác minh, N2); không dùng để quyết định ghi. */
@@ -107,8 +116,9 @@ export class MaXacThucRepository {
   async existsNewerSentForUpdate(
     em: EntityManager,
     row: MaXacThuc,
+    lock = true,
   ): Promise<boolean> {
-    return (await this.countNewerSent(em, row, true)) > 0;
+    return (await this.countNewerSent(em, row, lock)) > 0;
   }
 
   private async countNewerSent(
@@ -140,18 +150,19 @@ export class MaXacThucRepository {
     taiKhoanId: string,
     loai: OtpLoai,
     since: Date,
+    lock = true,
   ): Promise<Date[]> {
-    const rows = await em
+    const query = em
       .createQueryBuilder(MaXacThuc, 'm')
       .select(['m.maXacThucId', 'm.taoLuc'])
-      .setLock('pessimistic_write')
       .where('m.taiKhoanId = :taiKhoanId AND m.loai = :loai', {
         taiKhoanId,
         loai,
       })
       .andWhere('m.taoLuc > :since', { since })
-      .orderBy('m.taoLuc', 'ASC')
-      .getMany();
+      .orderBy('m.taoLuc', 'ASC');
+    if (lock) query.setLock('pessimistic_write');
+    const rows = await query.getMany();
     return rows.map((r) => r.taoLuc);
   }
 
@@ -297,6 +308,23 @@ export class MaXacThucRepository {
         "tai_khoan_id = :taiKhoanId AND loai = 'DangKy' AND (ho_ten_dang_ky IS NOT NULL OR so_dien_thoai_dang_ky IS NOT NULL OR mat_khau_bam_dang_ky IS NOT NULL)",
         { taiKhoanId },
       )
+      .execute();
+    return result.affected ?? 0;
+  }
+
+  /**
+   * Xoá MỌI hàng OTP của tài khoản (mọi loại). Chỉ để xoá tài khoản Bệnh nhân chưa xác minh quá 24 giờ (task A5; H2: khoá ngoại không CASCADE
+   * nên phải xoá hàng con trước). Người gọi đã khoá hàng tai_khoan. Trả số hàng đã xoá.
+   */
+  async deleteByAccount(
+    em: EntityManager,
+    taiKhoanId: string,
+  ): Promise<number> {
+    const result = await em
+      .createQueryBuilder()
+      .delete()
+      .from(MaXacThuc)
+      .where('tai_khoan_id = :taiKhoanId', { taiKhoanId })
       .execute();
     return result.affected ?? 0;
   }

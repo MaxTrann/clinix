@@ -126,12 +126,33 @@ describe('AppException', () => {
     expect(JSON.stringify(exception.getResponse())).not.toContain('gốc');
   });
 
-  it.each([200, 302, 399, 500, 503, 40.5, Number.NaN])(
-    'từ chối trạng thái %j (chỉ dành cho 4xx)',
+  // Task A5 (đã duyệt): ngoài 4xx chỉ cho đúng 503 (phụ thuộc ngoài tạm lỗi, GUI_MAIL_LOI); các 5xx khác vẫn bị cấm
+  it.each([200, 302, 399, 500, 501, 502, 504, 599, 40.5, Number.NaN])(
+    'từ chối trạng thái %j (chỉ 4xx và đúng 503)',
     (status) => {
       expect(() => new AppException(status, 'MA_HOP_LE')).toThrow(/4xx/);
     },
   );
+
+  it('cho phép đúng 503: thân mang mã, thongBao, chiTiet; cause giữ để log, không vào thân (GUI_MAIL_LOI)', () => {
+    const cause = new Error('gốc SMTP');
+    const exception = new AppException(503, 'GUI_MAIL_LOI', {
+      thongBao: 'Không gửi được email. Vui lòng thử lại sau ít phút.',
+      chiTiet: { maXacThucId: '7', coTheGuiLaiLuc: '2026-11-02T01:01:00.000Z' },
+      cause,
+    });
+
+    expect(exception.getStatus()).toBe(503);
+    expect(exception.maLoi).toBe('GUI_MAIL_LOI');
+    expect(exception.message).toBe('GUI_MAIL_LOI');
+    expect(exception.getResponse()).toEqual({
+      maLoi: 'GUI_MAIL_LOI',
+      thongBao: 'Không gửi được email. Vui lòng thử lại sau ít phút.',
+      chiTiet: { maXacThucId: '7', coTheGuiLaiLuc: '2026-11-02T01:01:00.000Z' },
+    });
+    expect(exception.cause).toBe(cause);
+    expect(JSON.stringify(exception.getResponse())).not.toContain('gốc SMTP');
+  });
 
   it.each([
     'Có lỗi xảy ra',

@@ -125,6 +125,26 @@ describe('toErrorResponse — AppException và lỗi của Express/body-parser',
     });
   });
 
+  // Task A5 (đã duyệt): AppException 503 đi nguyên (khác HttpException 503 thường, bị ẩn thành LOI_HE_THONG ở test bên dưới)
+  it('AppException 503 (GUI_MAIL_LOI) đi nguyên: giữ trạng thái, mã, thongBao, chiTiet', () => {
+    const result = toErrorResponse(
+      new AppException(503, 'GUI_MAIL_LOI', {
+        thongBao: 'Không gửi được email. Vui lòng thử lại sau ít phút.',
+        chiTiet: { maXacThucId: '7', coTheGuiLaiLuc: 'mốc' },
+        cause: new Error('Máy chủ SMTP từ chối đăng nhập'),
+      }),
+    );
+    expect(result).toEqual({
+      status: 503,
+      body: {
+        maLoi: 'GUI_MAIL_LOI',
+        thongBao: 'Không gửi được email. Vui lòng thử lại sau ít phút.',
+        chiTiet: { maXacThucId: '7', coTheGuiLaiLuc: 'mốc' },
+      },
+    });
+    expect(JSON.stringify(result.body)).not.toContain('SMTP');
+  });
+
   // Plan admin 5.9, dạng lỗi của CN-03; Trung (admin) xác nhận 27/10/2026: mã ở ngoài, chiTiet là MẢNG đặt trực tiếp,
   // `loi` chỉ dành cho lỗi kiểm dữ liệu theo trường.
   it('LICH_HOAT_DONG_KHONG_HOP_LE: chiTiet là mảng [{thu, maLoi}] được giữ nguyên, không có khoá loi', () => {
@@ -296,6 +316,30 @@ describe('AllExceptionsFilter', () => {
     expect(header).not.toContain('BI-MAT-QUERY');
     expect(detail).toContain('hỏng nặng');
     expect(detail).toContain('all-exceptions.filter.spec.ts'); // stack thật để chẩn đoán
+  });
+
+  it('AppException 503 (task A5): bộ lọc KHÔNG đổi, vẫn thêm requestId, giữ mã và chiTiet, log ERROR cùng requestId', () => {
+    const { response, logger } = run(
+      new AppException(503, 'GUI_MAIL_LOI', {
+        chiTiet: { maXacThucId: '7' },
+        cause: new Error('Máy chủ SMTP từ chối đăng nhập'),
+      }),
+      { method: 'POST', path: '/auth/register', url: '/auth/register' },
+    );
+
+    expect(response.status).toHaveBeenCalledExactlyOnceWith(503);
+    const body = response.json.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(body['maLoi']).toBe('GUI_MAIL_LOI');
+    expect(body['chiTiet']).toEqual({ maXacThucId: '7' });
+    expect(body['requestId']).toMatch(UUID);
+    expect(JSON.stringify(body)).not.toContain('SMTP');
+
+    expect(logger.error).toHaveBeenCalledOnce();
+    const [header, detail] = logger.error.mock.calls[0] as [string, string];
+    expect(header).toBe(
+      `[${String(body['requestId'])}] POST /auth/register → 503`,
+    );
+    expect(detail).toContain('GUI_MAIL_LOI');
   });
 
   it('ghi kèm mã tài khoản (đã đăng nhập) vào dòng log để tìm lại người gặp lỗi', () => {
