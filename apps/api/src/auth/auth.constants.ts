@@ -46,3 +46,18 @@ export const OTP_MAX_WRONG_ATTEMPTS = 5; // ĐK A3/8d: mỗi mã tối đa 5 l�
 export const OTP_RESEND_MIN_INTERVAL_MS = 60 * 1000; // ĐK A2/4d: mã mới cách mã trước (theo tao_luc) ít nhất 60 giây
 export const OTP_MAX_PER_WINDOW = 5; // ĐK A2/4d: tối đa 5 mã trong cửa sổ dưới đây, theo (tài khoản, loại), tính cả mã gửi lỗi
 export const OTP_WINDOW_MS = 60 * 60 * 1000; // cửa sổ 1 giờ
+// Pha 2 của cấp mã (ghi kết quả gửi) chạy SAU khi thư đã đi nên không thể làm lại từ đầu; gặp deadlock (1213) thì giao dịch đã hoàn tác hoàn toàn
+// và các lệnh trong đó đều có điều kiện (idempotent), nên thử lại tối đa chừng này lần (task A5, sau khi đo deadlock chéo tài khoản của A2)
+export const OTP_PHASE2_MAX_ATTEMPTS = 3;
+
+// --- Đăng ký (task A5; quyết định Q4, Q5, Q7, N1)
+// Bệnh nhân chưa xác minh email sống 24 giờ kể từ thoi_diem_tao, KHÔNG gia hạn khi gửi lại OTP (ĐK b5, Q4); quá hạn là bị xoá (nửa mở:
+// đúng 24:00:00 là hết, cùng kiểu OTP và phiên). Không bao giờ xoá nhân sự, và (quyết định A5-F) không xoá tài khoản NgungHoatDong.
+export const UNVERIFIED_ACCOUNT_TTL_MS = 24 * 60 * 60 * 1000;
+// Số lần thử tối đa của POST /auth/register khi đua với yêu cầu khác (lỗi trùng khoá hoặc deadlock thì làm lại từ đầu); hết thì lỗi 500 có log.
+export const REGISTER_MAX_ATTEMPTS = 3;
+// Mã lỗi của đăng ký (PLAN 5.5). EMAIL_DA_DUNG: 409. GUI_MAIL_LOI: 503 (AppException cho phép đúng 503; quyết định A5-B).
+export const REGISTER_ERROR_CODES = {
+  EMAIL_IN_USE: 'EMAIL_DA_DUNG',
+  MAIL_FAILED: 'GUI_MAIL_LOI',
+} as const;

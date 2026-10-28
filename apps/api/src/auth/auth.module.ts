@@ -14,6 +14,10 @@ import { OtpService } from './otp/otp.service.js';
 import { PasswordHasher } from './password/password-hasher.service.js';
 import { MaXacThucRepository } from './repositories/ma-xac-thuc.repository.js';
 import { PhienDangNhapRepository } from './repositories/phien-dang-nhap.repository.js';
+import { TaiKhoanRepository } from './repositories/tai-khoan.repository.js';
+import { RegisterController } from './register/register.controller.js';
+import { RegisterService } from './register/register.service.js';
+import { UnverifiedPatientCleaner } from './register/unverified-patient-cleaner.js';
 import { RefreshCookieService } from './session/refresh-cookie.service.js';
 import { SessionService } from './session/session.service.js';
 import { TokenService } from './session/token.service.js';
@@ -21,14 +25,19 @@ import { TokenService } from './session/token.service.js';
 const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 
 // Khung module auth: xuất 5 entity (task P3), PasswordHasher (A1), các dịch vụ token/phiên/cookie (A3) và OtpService (A2) để module khác
-// (admin…) import, không sao chép. Controller của từng use case được thêm ở các task A* sau.
+// (admin…) import, không sao chép. Controller của từng use case đặt trong thư mục theo chức năng và được thêm ở các task A* sau
+// (A5: register/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
 //
 // Task A4: hai guard TOÀN CỤC (APP_GUARD) nằm ở đây để mọi module graph có AuthModule đều tự có chúng:
 // mặc định MỌI route cần đăng nhập, mở bằng @Public(), giới hạn vai trò bằng @Roles(). Hai APP_GUARD chạy theo đúng thứ tự
 // khai báo dưới đây: JwtAuthGuard (gắn request.user) trước, RolesGuard (đọc request.user) sau; đừng đảo.
 @Module({
   imports: [TypeOrmModule.forFeature(AUTH_ENTITIES), MailModule],
+  controllers: [RegisterController],
   providers: [
+    TaiKhoanRepository,
+    UnverifiedPatientCleaner,
+    RegisterService,
     PasswordHasher,
     TokenService,
     PhienDangNhapRepository,

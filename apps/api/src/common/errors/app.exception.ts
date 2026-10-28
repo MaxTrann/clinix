@@ -27,8 +27,12 @@ export interface AppExceptionOptions {
 }
 
 // Cách ném lỗi nghiệp vụ có mã ổn định: `throw new AppException(409, 'YEU_CAU_DANG_CHO', { thongBao: '…' })`.
-// Chỉ dùng cho lỗi 4xx đã lường trước; lỗi hệ thống cứ để Error thường lan ra, bộ lọc sẽ trả 500 `LOI_HE_THONG`.
+// Dùng cho lỗi 4xx đã lường trước, và DUY NHẤT một 5xx là 503 cho phụ thuộc ngoài tạm lỗi mà nơi gọi muốn báo bằng mã ổn định
+// (task A5: GUI_MAIL_LOI khi SMTP lỗi). Bộ lọc vẫn thêm requestId và log ERROR cho mọi 5xx, kể cả 503 này.
+// Lỗi hệ thống cứ để Error thường lan ra, bộ lọc sẽ trả 500 `LOI_HE_THONG`.
 // `message` của ngoại lệ đặt bằng mã, để test ở mức ngoại lệ so mã như với UnauthorizedException(mã) của A3/A4.
+const SERVICE_UNAVAILABLE = 503;
+
 export class AppException extends HttpException {
   readonly maLoi: string;
 
@@ -37,9 +41,11 @@ export class AppException extends HttpException {
     maLoi: string,
     options: AppExceptionOptions = {},
   ) {
-    if (!Number.isInteger(status) || status < 400 || status > 499) {
+    const isClientError =
+      Number.isInteger(status) && status >= 400 && status <= 499;
+    if (!isClientError && status !== SERVICE_UNAVAILABLE) {
       throw new Error(
-        `AppException chỉ dành cho lỗi 4xx, nhận ${String(status)}`,
+        `AppException chỉ dành cho lỗi 4xx hoặc 503, nhận ${String(status)}`,
       );
     }
     if (!ERROR_CODE_PATTERN.test(maLoi)) {

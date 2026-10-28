@@ -3,11 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import { DataSource, type EntityManager } from 'typeorm';
 import type { EnvironmentVariables } from '../../config/env.validation.js';
+import { isDeadlockError } from '../../database/mysql-errors.js';
 import { MailSendError } from '../../mail/mail-send.error.js';
 import { MailService } from '../../mail/mail.service.js';
 import { renderOtpMail } from '../../mail/templates/otp-mail.js';
 import {
   OTP_MAX_WRONG_ATTEMPTS,
+  OTP_PHASE2_MAX_ATTEMPTS,
   OTP_TTL_MINUTES,
   OTP_TTL_MS,
   OTP_WINDOW_MS,
@@ -87,6 +89,13 @@ function toVerified(row: MaXacThuc): VerifiedOtp {
  * `issueAndDeliver` gộp hai pha khi người gọi không có việc ghi nào khác chung giao dịch.
  *
  * Thứ tự khoá cố định: hàng `tai_khoan` TRƯỚC, hàng `ma_xac_thuc` SAU (cùng quy ước A3), ở mọi đường, để không deadlock.
+ *
+ * Giao dịch và cô lập (task A5 phát hiện, đo trên MySQL thật): mọi giao dịch do OtpService mở chạy READ COMMITTED, và ba lần đọc quét khoảng dùng để
+ * quyết định (đếm giới hạn, "bị thay thế", hàng đã gửi mới nhất) là đọc KHÔNG khoá, vì mọi bên ghi của một tài khoản đã xếp hàng ở khoá hàng tai_khoan.
+ * Đọc khoá (FOR UPDATE) của bản gốc khoá khoảng chỉ mục và bản ghi biên của tài khoản KHÁC nên nhiều tài khoản cùng cấp mã bị deadlock (1213).
+ * Người gọi muốn gộp việc ghi của mình với issue/reissue/consume PHẢI mở giao dịch bằng `transaction` (cách dùng chuẩn). Giao dịch lạ (người gọi tự mở,
+ * không biết mức cô lập vì MySQL không cho đọc mức cô lập của giao dịch hiện tại) vẫn được chấp nhận và vẫn ĐÚNG ở mọi mức cô lập (đọc khoá như bản gốc),
+ * nhưng dễ deadlock chéo tài khoản và bị cảnh báo một lần.
  * Đồng hồ duy nhất: `nowVN()` của common/time cắt xuống giây; mọi mốc thời gian ghi tường minh từ đó, không dùng NOW() của DB.
  * OTP rõ không bao giờ vào log, thông điệp lỗi hay phản hồi: chỉ nằm trong IssuedOtp (ẩn), thân thư và băm HMAC trong DB.
  */
@@ -94,6 +103,9 @@ function toVerified(row: MaXacThuc): VerifiedOtp {
 export class OtpService {
   private readonly logger = new Logger(OtpService.name);
   private readonly key: Buffer;
+  // Các EntityManager do `transaction` mở (READ COMMITTED): chỉ với chúng mới được đọc không khoá. WeakSet nên không giữ giao dịch đã xong.
+  private readonly readCommittedManagers = new WeakSet<EntityManager>();
+  private warnedForeignManager = false;
 
   constructor(
     @Inject(DataSource) private readonly dataSource: DataSource,
@@ -121,11 +133,58 @@ export class OtpService {
     throw new Error('OTP_HMAC_SECRET: bắt buộc khi NODE_ENV khác development');
   }
 
+  /**
+   * Mở giao dịch READ COMMITTED và đăng ký nó là giao dịch "chuẩn" của OtpService. CÁCH DÙNG CHUẨN khi người gọi cần ghi cùng giao dịch với
+   * `issue` / `reissue` / `consume` (A5 đăng ký, A6 gửi lại, A12 đặt mật khẩu): truyền `em` làm `{ manager: em }`. Không tự thử lại khi
+   * deadlock (`work` của người gọi có thể có tác dụng phụ); người gọi tự quyết định có làm lại không.
+   */
+  transaction<T>(work: (em: EntityManager) => Promise<T>): Promise<T> {
+    return this.dataSource.transaction('READ COMMITTED', (em) => {
+      this.readCommittedManagers.add(em);
+      return work(em);
+    });
+  }
+
   private inTransaction<T>(
     manager: EntityManager | undefined,
     work: (em: EntityManager) => Promise<T>,
   ): Promise<T> {
-    return manager ? work(manager) : this.dataSource.transaction(work);
+    return manager ? work(manager) : this.transaction(work);
+  }
+
+  // true = phải đọc KHOÁ (giao dịch lạ, không chắc mức cô lập); false = giao dịch READ COMMITTED do chính OtpService mở, đọc không khoá
+  private mustLockReads(em: EntityManager): boolean {
+    return !this.readCommittedManagers.has(em);
+  }
+
+  // Giao dịch lạ gọi issue/reissue: vẫn đúng nhưng dễ deadlock chéo tài khoản; nhắc người viết dùng `transaction` (một lần cho mỗi OtpService)
+  private warnIfForeignManager(em: EntityManager): void {
+    if (this.warnedForeignManager || !this.mustLockReads(em)) return;
+    this.warnedForeignManager = true;
+    this.logger.warn(
+      'issue/reissue được gọi trong giao dịch KHÔNG do OtpService.transaction mở: vẫn đúng (đọc khoá) nhưng dễ deadlock khi nhiều tài khoản ' +
+        'cấp mã cùng lúc; hãy mở giao dịch bằng otp.transaction (docs/CODING_CONVENTION.md)',
+    );
+  }
+
+  // Thử lại `work` tối đa OTP_PHASE2_MAX_ATTEMPTS lần khi MySQL báo deadlock (1213). Chỉ dùng cho việc idempotent mà làm lại từ đầu
+  // không được nữa (pha 2 chạy sau khi thư đã gửi). Lỗi khác hoặc hết lần thì ném lại nguyên lỗi.
+  private async retryOnDeadlock<T>(
+    label: string,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await work();
+      } catch (error) {
+        if (!isDeadlockError(error) || attempt >= OTP_PHASE2_MAX_ATTEMPTS) {
+          throw error;
+        }
+        this.logger.warn(
+          `${label}: deadlock (1213) lần ${String(attempt)}/${String(OTP_PHASE2_MAX_ATTEMPTS)}, thử lại`,
+        );
+      }
+    }
   }
 
   // ------------------------------------------------------------------------------------------------ cấp mã
@@ -166,9 +225,14 @@ export class OtpService {
       if (!(await this.repo.lockAccount(em, source.taiKhoanId))) {
         return fail({ code: 'OTP_SAI', reason: 'NOT_FOUND' });
       }
+      this.warnIfForeignManager(em);
       const row = await this.repo.findByIdForUpdate(em, source.maXacThucId);
       if (!row) return fail({ code: 'OTP_SAI', reason: 'NOT_FOUND' });
-      const replaced = await this.repo.existsNewerSentForUpdate(em, row);
+      const replaced = await this.repo.existsNewerSentForUpdate(
+        em,
+        row,
+        this.mustLockReads(em),
+      );
       const state = deriveOtpState(row, currentSecond(), replaced);
       const refusal = resendRefusalFor(state);
       if (refusal) return fail(refusal);
@@ -194,12 +258,14 @@ export class OtpService {
     }
 
     // Đếm cả hàng gửi lỗi (theo tao_luc, không theo da_gui_luc) dưới khoá tài khoản: hai yêu cầu cùng lúc xếp hàng ở khoá,
-    // yêu cầu sau thấy hàng của yêu cầu trước (DK-28)
+    // yêu cầu sau thấy hàng của yêu cầu trước (DK-28). Giao dịch READ COMMITTED do OtpService mở: đọc không khoá vẫn thấy hàng vừa commit.
+    this.warnIfForeignManager(em);
     const createdAt = await this.repo.listCreatedSinceForUpdate(
       em,
       input.taiKhoanId,
       input.loai,
       new Date(now.getTime() - OTP_WINDOW_MS),
+      this.mustLockReads(em),
     );
     const decision = decideIssue(createdAt, now);
     if (!decision.allowed) {
@@ -304,36 +370,50 @@ export class OtpService {
     };
   }
 
-  private async recordSendSuccess(issued: IssuedOtp): Promise<void> {
-    await this.dataSource.transaction(async (em) => {
-      await this.repo.lockAccount(em, issued.taiKhoanId);
-      const now = currentSecond();
-      if (!(await this.repo.markSent(em, issued.maXacThucId, now))) {
-        // Hàng đã bị thu hồi/đã dùng trong lúc gửi (ví dụ một lần gửi mới hơn đã thành công trước): thư đã đi nhưng mã không dùng được
-        this.logger.warn(
-          `Mã OTP ${issued.maXacThucId} gửi xong nhưng đã không còn hiệu lực: không đặt da_gui_luc`,
-        );
-        return;
-      }
-      const revoked = await this.repo.revokeOlderPending(
-        em,
-        issued.taiKhoanId,
-        issued.loai,
-        issued.maXacThucId,
-        now,
-      );
-      this.logger.log(
-        `Mã OTP ${issued.maXacThucId} đã gửi; thu hồi ${String(revoked)} mã cũ`,
-      );
-    });
+  // Pha 2 chạy SAU khi thư đã đi nên không làm lại từ đầu được: deadlock (1213) thì thử lại giao dịch (idempotent: `markSent` và
+  // `revokeOlderPending` đều có điều kiện, và 1213 đã hoàn tác trọn giao dịch). Tối đa OTP_PHASE2_MAX_ATTEMPTS lần.
+  private recordSendSuccess(issued: IssuedOtp): Promise<void> {
+    return this.retryOnDeadlock(
+      `Ghi kết quả gửi thành công của mã OTP ${issued.maXacThucId}`,
+      () =>
+        this.transaction(async (em) => {
+          await this.repo.lockAccount(em, issued.taiKhoanId);
+          const now = currentSecond();
+          if (!(await this.repo.markSent(em, issued.maXacThucId, now))) {
+            // Hàng đã bị thu hồi/đã dùng trong lúc gửi (ví dụ một lần gửi mới hơn đã thành công trước): thư đã đi nhưng mã không dùng được
+            this.logger.warn(
+              `Mã OTP ${issued.maXacThucId} gửi xong nhưng đã không còn hiệu lực: không đặt da_gui_luc`,
+            );
+            return;
+          }
+          const revoked = await this.repo.revokeOlderPending(
+            em,
+            issued.taiKhoanId,
+            issued.loai,
+            issued.maXacThucId,
+            now,
+          );
+          this.logger.log(
+            `Mã OTP ${issued.maXacThucId} đã gửi; thu hồi ${String(revoked)} mã cũ`,
+          );
+        }),
+    );
   }
 
   private async recordSendFailure(issued: IssuedOtp): Promise<void> {
     try {
-      await this.dataSource.transaction(async (em) => {
-        await this.repo.lockAccount(em, issued.taiKhoanId);
-        await this.repo.revokeUnsent(em, issued.maXacThucId, currentSecond());
-      });
+      await this.retryOnDeadlock(
+        `Ghi kết quả gửi lỗi của mã OTP ${issued.maXacThucId}`,
+        () =>
+          this.transaction(async (em) => {
+            await this.repo.lockAccount(em, issued.taiKhoanId);
+            await this.repo.revokeUnsent(
+              em,
+              issued.maXacThucId,
+              currentSecond(),
+            );
+          }),
+      );
       this.logger.warn(
         `Mã OTP ${issued.maXacThucId} gửi lỗi: đã thu hồi mã mới, giữ mã cũ`,
       );
@@ -395,25 +475,38 @@ export class OtpService {
       return fail({ code: 'OTP_SAI', reason: 'WRONG_ACCOUNT' });
     }
 
-    return this.dataSource.transaction(
+    return this.transaction(
       async (em): Promise<VerifyOtpResult<T | undefined>> => {
         if (!(await this.repo.lockAccount(em, accountId))) {
           return fail({ code: 'OTP_SAI', reason: 'NOT_FOUND' });
         }
-        const row =
+        // Tìm hàng cần xác minh. Quên mật khẩu: hàng đã gửi mới nhất, tìm bằng đọc KHÔNG khoá (giao dịch READ COMMITTED, đã khoá tài khoản).
+        // Dù tìm bằng cách nào, hàng cuối cùng LUÔN được khoá điểm theo khoá chính trước khi đếm sai hoặc đánh dấu đã dùng.
+        const rowId =
           'maXacThucId' in input
-            ? await this.repo.findByIdForUpdate(em, input.maXacThucId)
-            : await this.repo.findLatestSentForUpdate(
-                em,
-                accountId,
-                input.loai,
-              );
+            ? input.maXacThucId
+            : (
+                await this.repo.findLatestSentForUpdate(
+                  em,
+                  accountId,
+                  input.loai,
+                  this.mustLockReads(em),
+                )
+              )?.maXacThucId;
+        const row =
+          rowId === undefined
+            ? null
+            : await this.repo.findByIdForUpdate(em, rowId);
         if (!row || row.taiKhoanId !== accountId || row.loai !== input.loai) {
           return fail({ code: 'OTP_SAI', reason: 'NOT_FOUND' });
         }
 
         const now = currentSecond();
-        const replaced = await this.repo.existsNewerSentForUpdate(em, row);
+        const replaced = await this.repo.existsNewerSentForUpdate(
+          em,
+          row,
+          this.mustLockReads(em),
+        );
         const refusal = refusalFor(deriveOtpState(row, now, replaced));
         if (refusal) return fail(refusal);
 
