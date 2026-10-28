@@ -2,7 +2,7 @@ import argon2 from 'argon2';
 
 // Tham số băm mật khẩu (quyết định S6): Argon2id, bộ nhớ 19 MiB (= 19456 KiB), 2 lượt, 1 luồng.
 // Test SE-01 kiểm đúng các giá trị này trong chuỗi băm lưu ở DB. Muốn đổi phải đổi quyết định S6 trước, không sửa lặng lẽ ở đây.
-// Các hằng của task sau (10 phút OTP, 5 lần sai, 60 giây gửi lại…) được thêm vào file này khi task đó cần.
+// Các hằng của task sau được thêm vào file này khi task đó cần (OTP: task A2, ở cuối file).
 export const ARGON2_OPTIONS = {
   type: argon2.argon2id,
   memoryCost: 19456,
@@ -36,3 +36,13 @@ export const AUTH_ERROR_CODES = {
   // 403: đã đăng nhập nhưng vai trò không nằm trong @Roles(). Mã đã có trong plan admin (mục 5.9), dùng chung để FE chỉ cần một mã
   FORBIDDEN: 'KHONG_DU_QUYEN',
 } as const;
+
+// --- Mã OTP (task A2; quyết định S3, G2, N1; quy tắc nghiệp vụ 16–17 của docs/database). Cố định theo quyết định nên là hằng số.
+export const OTP_LENGTH = 6; // ĐK b6, QMK b5: mã 6 chữ số
+// Hiệu lực 10 phút (G2). Cả hạn lưu ở DB lẫn chữ "10 phút" trong thư (renderOtpMail) lấy từ ĐÚNG hằng này nên không thể lệch nhau.
+export const OTP_TTL_MINUTES = 10;
+export const OTP_TTL_MS = OTP_TTL_MINUTES * 60 * 1000;
+export const OTP_MAX_WRONG_ATTEMPTS = 5; // ĐK A3/8d: mỗi mã tối đa 5 lần nhập sai, đủ 5 lần thì mã bị thu hồi
+export const OTP_RESEND_MIN_INTERVAL_MS = 60 * 1000; // ĐK A2/4d: mã mới cách mã trước (theo tao_luc) ít nhất 60 giây
+export const OTP_MAX_PER_WINDOW = 5; // ĐK A2/4d: tối đa 5 mã trong cửa sổ dưới đây, theo (tài khoản, loại), tính cả mã gửi lỗi
+export const OTP_WINDOW_MS = 60 * 60 * 1000; // cửa sổ 1 giờ
