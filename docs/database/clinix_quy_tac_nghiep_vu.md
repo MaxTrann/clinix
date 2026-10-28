@@ -527,3 +527,12 @@ Hàng `DangKy` cũ chưa dùng (nếu có) không có dữ liệu đăng ký nê
 ```sql
 UPDATE ma_xac_thuc SET thu_hoi_luc = NOW() WHERE loai = 'DangKy' AND da_dung_luc IS NULL AND thu_hoi_luc IS NULL;
 ```
+
+
+## P7 — Ảnh chuyên khoa Cloudinary (28/10/2026)
+
+- anh_tai_len quản lý UUID, public_id, URL và xác nhận upload; chuyên khoa tham chiếu FK nullable UNIQUE RESTRICT. Một ảnh tối đa một chuyên khoa. Giữ anh_dai_dien cũ, không tự backfill public_id từ URL.
+- Chỉ Admin Toàn hệ thống upload; khi gắn kiểm người tải, mục đích ChuyenKhoa, xác nhận thành công, ChuaGan và còn hạn trong cùng giao dịch có khóa. Ảnh ChoXoa không được gắn lại.
+- Đầu vào ảnh tĩnh JPEG/PNG/WebP ≤10 MB/25 MP; ≤2 MB không chủ động resize/nén, >2 MB nén trước/resize khi cần, output ≤2 MB; mục tiêu mềm 700–800 KB. Chuẩn hóa EXIF, bỏ metadata riêng tư, giữ alpha/tỷ lệ.
+- Thay/gỡ ảnh: commit DB trước network; ảnh cũ ChoXoa. ChuaGan hết hạn sau 24 giờ. Dọn mỗi giờ tối đa 50 ảnh, nhận lease 5 phút bằng DB, tối đa 5 lần xóa lỗi rồi kiểm tra thủ công. Không xóa ảnh đang tham chiếu hoặc upload chưa xác định kết quả.
+- Side effect Cloudinary không nằm trong transaction. Timeout upload giữ dấu để kiểm tra thủ công; không tự retry hoặc coi đã thành công. Rollback migration khi bảng còn dữ liệu bị chặn để không mất dấu tài nguyên.

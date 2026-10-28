@@ -1,3 +1,4 @@
+import { TAO_BANG_ANH_SQL } from './migrations/1793188800000-tao-bang-anh.js';
 import { TAO_BANG_DANH_MUC_SQL } from './migrations/1793024340000-tao-bang-danh-muc.js';
 import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-su.js';
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
@@ -40,7 +41,12 @@ describe('migration P1 khớp schema SQL chính thức', () => {
     const official =
       officialStatementsFor(CATALOG_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    expect(TAO_BANG_DANH_MUC_SQL.map(normalizeStatement)).toEqual(official);
+    expect(
+      [
+        ...TAO_BANG_DANH_MUC_SQL,
+        ...TAO_BANG_ANH_SQL.filter((sql) => targetTable(sql) === 'chuyen_khoa'),
+      ].map(normalizeStatement),
+    ).toEqual(official);
   });
 
   it('mọi câu migration chỉ tác động các bảng catalog P1', () => {
@@ -77,5 +83,20 @@ describe('migration P3 khớp schema SQL chính thức', () => {
     for (const statement of TAO_BANG_VAN_HANH_SQL) {
       expect(OPERATIONS_TABLES).toContain(targetTable(statement));
     }
+  });
+});
+
+describe('P7 — canonical SQL ảnh Cloudinary', () => {
+  it('CK-11/SE-A7: migration ảnh khớp canonical SQL và ALTER chuyên khoa bổ sung', () => {
+    const expected = officialStatementsFor([
+      'anh_tai_len',
+      'chuyen_khoa',
+    ]).filter(
+      (sql) =>
+        targetTable(sql) === 'anh_tai_len' || sql.includes('`anh_tai_len_id`'),
+    );
+    expect(TAO_BANG_ANH_SQL.map(normalizeStatement)).toEqual(
+      expected.map(normalizeStatement),
+    );
   });
 });

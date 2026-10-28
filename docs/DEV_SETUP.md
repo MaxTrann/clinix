@@ -221,3 +221,18 @@ winget install gitleaks
 - [`docs/CODING_CONVENTION.md`](CODING_CONVENTION.md) — quy ước viết mã
 - [`docs/REPO_SETUP.md`](REPO_SETUP.md) — cách tạo `apps/api`/`apps/web` lần đầu (nếu bạn là người làm việc đó)
 - [`AI_USAGE_LOG.md`](../AI_USAGE_LOG.md) — ghi lại **mọi lần dùng AI hỗ trợ code**, ngay khi dùng, không viết bù cuối kỳ
+
+
+## Ảnh chuyên khoa Cloudinary — Admin P7
+
+1. Dùng tài khoản Cloudinary thử nghiệm của nhóm; tự điền CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET vào .env local hoặc môi trường API. Không commit/chia sẻ giá trị secret. CLOUDINARY_UPLOAD_PREFIX trống dùng clinix/<NODE_ENV>/specialties, hoặc đặt prefix riêng dạng a/b/c (không traversal).
+2. Dev/test có thể bỏ trống cả ba credential: API vẫn khởi động, chức năng upload trả 503 LOI_HE_THONG kèm requestId. Cấu hình dở dang hoặc staging/production thiếu credential làm API dừng với tên biến thiếu. Test tự động ép credential rỗng, chỉ dùng fake provider.
+3. Sau khi review migration, người dùng áp dụng migration mới theo quy trình DB của nhóm; lần triển khai P7 không tự chạy lên DB dev/chia sẻ. Migration bổ sung bảng anh_tai_len và FK ảnh nullable vào chuyen_khoa, giữ URL cũ. Không DROP/đổi ý nghĩa dữ liệu ảnh cũ; down bị chặn nếu ledger còn dữ liệu.
+4. API nội bộ: POST /admin/uploads/specialty-image, Bearer access token, multipart trường file. Auth P6 chịu phần proxy /api; API không tự thêm global prefix, /health giữ nguyên. Chỉ Admin Toàn hệ thống, đúng một ảnh tĩnh JPEG/PNG/WebP ≤10 MB/25 MP. Thành công 201: { uploadId, url, expiresAt }. Không cần volume ảnh hoặc Nginx /uploads.
+5. ≤2 MB không chủ động resize/nén; ảnh lớn nén trước/resize khi cần xuống ≤2 MB, mục tiêu mềm 700–800 KB. Chuẩn hóa EXIF/loại metadata riêng tư, giữ alpha. Cấu hình chất lượng/timeout/giới hạn tài nguyên là policy typed trong upload-policy.ts, không cần thêm nhiều biến env.
+6. B1 gọi UploadRepository.assignSpecialty trong CÙNG giao dịch lưu chuyên khoa, sau khi kiểm quyền của B1; bỏ imageUploadId khi PATCH = giữ, null = gỡ, UUID = gắn/thay. Kiểm chủ/mục đích/xác nhận/hạn/trạng thái và khóa hàng. Đọc URL qua JOIN ledger, fallback anh_dai_dien chỉ khi FK NULL; khi chủ động thay/gỡ sẽ xóa URL cũ để không hiện lại. B1/F2 chưa triển khai trong P7; F2 preview URL kết quả và timeout dự kiến 60 giây.
+7. Cleanup chạy mỗi giờ trong API, tối đa 50 ảnh/lượt; chỉ ảnh đã xác nhận và không còn tham chiếu, lease DB 5 phút. Thử xóa lỗi tối đa 5 lần; không gắn lại ChoXoa. Bản ghi ma_loi_cuoi=UPLOAD_CAN_KIEM_TRA hoặc upload_xac_nhan_luc NULL cần đối soát thủ công, không tự xóa chỉ vì chưa thấy ảnh một lần. Kiểm tra thủ công bằng public_id trong đúng cloud/prefix; không tự xóa ảnh đang dùng. Không coi CDN invalidation là tức thời.
+8. Kiểm thử: trong apps/api chạy npm run test:p7 để TẠO DB test mới có timestamp và DB tham chiếu riêng, không reset DB cũ; cần MySQL và TEST_DB_* phù hợp. Không dùng cấu hình DB chia sẻ cho thao tác test. DB mới được giữ lại nếu dùng MySQL của mình; tự dọn sau khi xem evidence. npm run test:int là bộ chuẩn có DROP/recreate DB test, cần cho phép trước khi dùng trên môi trường hiện có.
+9. Dependency mới pin sharp 0.35.5/cloudinary 2.11.0/@nestjs/schedule 12.0.2. Sharp có binary theo nền tảng: chạy npm ci ở đúng Windows hoặc Linux/Docker, không copy node_modules từ Windows sang container.
+
+Kiểm thủ công còn cần: credential thử nghiệm → upload thật → preview/lưu/thay/gỡ qua B1/F2 → xác minh cleanup. Không dùng ảnh bệnh nhân thật hoặc in file/token/credential vào log. Local test không thay cho acceptance UI hoặc 7 CI check của PR.

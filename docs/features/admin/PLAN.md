@@ -93,7 +93,7 @@
 |---|---|---|
 | `auth` (đã chốt) | `tai_khoan`, `ma_xac_thuc`, `phien_dang_nhap`, `MailService` (auth P4), `JwtAuthGuard`/`RolesGuard`/`@CurrentUser` (auth A4), `PasswordHasher` + chính sách mật khẩu + validator email/SĐT (auth A1), thu hồi phiên hàng loạt (auth A3), khung mẫu email (auth A14), trang `/kich-hoat` | **Tái dùng, không thiết kế lại.** Admin chỉ ghi `trang_thai` (khoá/mở khoá, kích hoạt) — auth không ghi trường này. Guard auth đã kiểm `trang_thai = DangHoatDong` **mỗi request** nên khoá có hiệu lực ngay (Q29 chỉ bổ sung thu hồi phiên). |
 | `auth` — tài liệu/DB | auth D2/D3/D7 sửa ghi chú `ma_xac_thuc` (`da_gui_luc`, `thu_hoi_luc`, 3 cột dữ liệu đăng ký) trong **cả 3 file** `docs/database/*` | Task D6 của admin sửa **cùng dòng** (TTL, giới hạn gửi lại, ghi chú KichHoatNhanSu) → **merge sau auth D7**, hoặc làm cùng một PR tài liệu; không để hai PR sửa song song cùng khối dòng. |
-| `auth` — job dọn A7 | xoá lười/định kỳ Bệnh nhân chưa xác minh quá 24 giờ; đã chốt **không xoá nhân sự** (H1, DK-35) | Admin không đụng; NS A1 phải coi email của tài khoản `ChoKichHoat` là đã dùng. Email trùng với Bệnh nhân chưa xác minh quá hạn: Q32. |
+| `auth` — A5/A7 | A5 cung cấp `UnverifiedPatientCleaner.purgeIfExpired` để xoá lười; A7 chạy job dọn định kỳ. Chỉ xoá Bệnh nhân chưa xác minh **Đang hoạt động** quá 24 giờ; không xoá Bệnh nhân `NgungHoatDong` hoặc nhân sự. | B15 dùng hàm của A5 cho Q32 sau khi A5 merge, không chờ job A7. Email của tài khoản không đủ điều kiện xoá vẫn là `EMAIL_DA_DUNG`. |
 | `auth` — QMK S4 | tài khoản chưa từng có mật khẩu ⇒ "kích hoạt nhân sự" | Thông báo trỏ về "liên hệ Quản trị viên để gửi lại liên kết" — khớp TK A2. |
 | `booking` / `schedule` (lịch làm việc) | (a) kiểm lịch hoạt động khi sinh khung giờ/giữ chỗ/đặt lịch (quy tắc 29); (b) **phải khoá `bac_si` bằng `FOR SHARE` trong cùng giao dịch khi tạo `lich_hen`/`lich_lam_viec` cho bác sĩ** để việc đổi chi nhánh bác sĩ (BS) không bị lọt chạy đua; (c) **phải chặn đặt VÀ đổi lịch** vào khung giờ không còn hợp lệ sau `hieu_luc_tu` (Q6 đã chốt; admin cung cấp `getPendingEffectiveChanges`, kiểm tra nằm ở `booking`); (d) bác sĩ/chuyên khoa/dịch vụ ngừng hoạt động | Ghi chú sang PLAN của `booking` và `schedule`. |
 | `search` (tra cứu công khai) | ẩn chuyên khoa `NgungHoatDong` (CK hậu điều kiện); chi nhánh chưa khai báo đủ lịch; tính chi nhánh gần nhất dùng toạ độ (nhập tay) | Admin cung cấp cột trạng thái và dữ liệu; lọc nằm ở `search`. |
@@ -101,7 +101,7 @@
 | `notification` | tạo `thong_bao` + `email_thong_bao`, worker gửi/gửi lại không trùng (quy tắc 34), mẫu email "Kết quả thay đổi thông tin chi nhánh" (689:2) và "Thay đổi chi nhánh ảnh hưởng bệnh nhân" (690:2) | Q9: làm tối thiểu ở `apps/api/src/notification/` để module sau mở rộng. |
 | `audit` | `AuditService.record(...)` dùng cùng giao dịch | Q39: làm tối thiểu ở `apps/api/src/audit/` hay chờ. |
 | module "Cấu hình phụ phí bác sĩ", "Cấu hình chính sách đặt cọc" | cùng nhóm màn "Hệ thống/Nội dung" trên Figma | Ngoài 8 use case; chỉ phụ thuộc: admin đọc `phu_phi_bac_si` (Q21) và **không** nhận `muc_dat_coc` từ form DV (DV-18). |
-| hạ tầng (`docker`, staging) | thư mục ảnh tải lên (Q13), proxy `/uploads`, biến môi trường mới, múi giờ (Q43) | Task P7, D8. |
+| hạ tầng (`docker`, staging) | cấu hình Cloudinary ở backend (Q13), biến môi trường mới, múi giờ (Q43); ảnh không cần volume hoặc proxy `/uploads` | Task P7, D8. |
 
 ### 3.4 Chỗ 2.4, schema và Figma lệch/mơ hồ — **nêu rõ, không tự chọn**
 
@@ -144,7 +144,7 @@
 - **H12 — Trộn giờ cũ khi áp dụng.** Mỗi phần tử `lich_hoat_dong` là **toàn bộ dòng** của thứ đó, thay cả dòng (quy tắc 43); không `UPDATE` từng cột. Đọc được cả dạng cũ `gio_mo_cua/gio_dong_cua` ở yêu cầu lịch sử (CN-90).
 - **H13 — Múi giờ.** `datetime` MySQL không mang múi giờ; "hôm nay", "thứ trong tuần" (`WEEKDAY`), `hieu_luc_tu`, ca hôm nay phải cùng một múi giờ (Q43). Test biên 23:59/00:00 (BS-37).
 - **H14 — Tên có dấu/hoa thường.** Trùng tên so theo collation `unicode_ci` (không phân biệt dấu) — người dùng thấy "Tim mạch" và "Tim mach" là một. Chuẩn hoá khoảng trắng (trim, gộp khoảng trắng liên tiếp) trước khi so.
-- **H15 — Upload ảnh** (nếu Q13 chọn lưu tệp): kiểm bằng nội dung (magic bytes) không tin `Content-Type`/đuôi; cấm SVG (có thể chứa script); tên tệp ngẫu nhiên (không dùng tên gốc); giới hạn dung lượng; không ghi ngoài thư mục tải lên. SE-A7.
+- **H15 — Upload ảnh Cloudinary:** backend kiểm magic bytes, không tin `Content-Type`/đuôi; chỉ ảnh tĩnh JPEG/PNG/WebP đầu vào ≤ 10 MB/25 MP; ảnh ≤ 2 MB không chủ động resize/nén; > 2 MB đến 10 MB nén trước/resize khi cần, output ≤ 2 MB (mục tiêu mềm 700–800 KB); tự chuẩn hóa EXIF, giữ alpha/tỷ lệ, không phóng to/crop, cấm SVG/tệp rỗng; từ chối tên chứa traversal, định danh do server tạo, không dùng tên gốc. Kiểm quyền trước khi gọi provider; secret chỉ ở backend, không ghi log. Test tự động mock adapter. Khi lỗi/timeout không báo thành công, không thay tham chiếu ảnh cũ; timeout có thể đã tạo tài nguyên, đối soát/dọn theo working-doc/P7/plan.md mục 3c, hoàn tất cơ chế kỹ thuật trước code. SE-A7.
 - **H16 — Số lượng thông báo lớn.** Một yêu cầu có thể ảnh hưởng hàng trăm lịch hẹn ⇒ tạo `thong_bao`/`email_thong_bao` theo lô trong giao dịch duyệt (gom theo bệnh nhân), gửi email **ngoài** giao dịch bằng worker; không gửi đồng bộ trong request.
 - **H17 — Thông tin cá nhân Bệnh nhân.** Quản trị viên Chi nhánh chỉ XEM danh sách trường hành chính đã chốt (Q26); response không chứa `mat_khau_bam`, mã xác thực, ví, hồ sơ khám. Test TK-04.
 - **H18 — Tạo Admin Toàn hệ thống đầu tiên** không thể dùng giao diện (cần admin có sẵn) ⇒ script bootstrap (Q30) — chỉ chạy khi chưa có Toàn hệ thống nào, không log mật khẩu.
@@ -196,7 +196,7 @@ Các bảng dưới giữ nguyên **đề xuất ban đầu của AI** để tru
 |---|---|---|---|---|
 | Q11 | L4: Quản trị viên Chi nhánh được **sửa** chuyên khoa/nhóm/dịch vụ hay chỉ **xem**? | **Chỉ xem** (khớp Figma); sửa 2.4 | Dữ liệu dùng chung toàn hệ thống | B1–B3, F2, F3, D2 |
 | Q12 | L6: chống trùng tên chuyên khoa: chỉ ở service hay thêm **UNIQUE** ở DB? | **Thêm UNIQUE `chuyen_khoa.ten`** (đổi schema, đồng bộ 3 file) + service báo lỗi thân thiện; so sánh sau trim/gộp khoảng trắng | Chống chạy đua hai request cùng tên; collation `unicode_ci` đã không phân biệt hoa/thường/dấu | P1, B1, D6 |
-| Q13 | Tải **hình ảnh** chuyên khoa (CK b2) lưu ở đâu? | **Đĩa cục bộ** (volume Docker `UPLOAD_DIR`), Nginx phục vụ `/uploads/`, lưu đường dẫn tương đối vào `anh_dai_dien`; chỉ JPEG/PNG/WebP ≤ 2 MB, kiểm magic bytes, tên ngẫu nhiên, cấm SVG; ghi `TECH_DEBT` (không CDN, cần sao lưu volume). Lựa chọn khác: chỉ nhận URL ảnh | Chưa có dịch vụ lưu trữ ngoài; phạm vi TLCN | P7, B1, F2 |
+| Q13 | Tải **hình ảnh** chuyên khoa (CK b2) lưu ở đâu? | **Cloudinary** (người dùng đổi quyết định ngày 28/10/2026): frontend → API kiểm quyền/nội dung → adapter Cloudinary; chỉ ảnh tĩnh JPEG/PNG/WebP đầu vào ≤ 10 MB/25 MP; ảnh ≤ 2 MB không chủ động resize/nén; > 2 MB đến 10 MB nén trước/resize khi cần, output ≤ 2 MB (mục tiêu mềm 700–800 KB); tự chuẩn hóa EXIF, giữ alpha/tỷ lệ, không phóng to/crop, kiểm magic bytes, định danh ngẫu nhiên, cấm SVG. Bỏ kế hoạch volume ảnh và Nginx `/uploads/`. **Đã duyệt thiết kế:** bảng anh_tai_len lưu URL/public_id, chuyên khoa tham chiếu FK; uploadId; Chưa gắn/Đã gắn/Chờ xóa, hạn gắn 24 giờ, dọn mỗi giờ tối đa 50 ảnh/lượt; giữ trường hợp timeout chưa rõ để kiểm tra thủ công. DDL/cấu hình/SDK đã triển khai và kiểm local; manual acceptance còn mở; xem `working-doc/P7/plan.md`. | Đã đồng ý thiết kế dữ liệu/API/vòng đời ảnh; chưa triển khai | P7, B1, F2 |
 | Q14 | L5: nhóm dịch vụ có **xoá** (Figma có "Xác nhận xóa nhóm") và `thu_tu_hien_thi` nhập được? | **Xoá chỉ khi nhóm không còn dịch vụ** (`NHOM_DICH_VU_CON_DICH_VU`); `thu_tu_hien_thi` nhập số nguyên ≥ 0; bổ sung vào 2.4 | FK `dich_vu_kham → nhom_dich_vu` | B2, D2 |
 | Q15 | "[cần điền] quy tắc bật/tắt nhóm và dịch vụ"? | **Không làm bật/tắt** ở đợt này (không đổi schema); "ngừng cung cấp" = bỏ dịch vụ khỏi `chi_nhanh_dich_vu_kham` (qua CN). Nếu muốn bật/tắt: thêm cột trạng thái cho `dich_vu_kham` (đổi schema + ảnh hưởng `booking`/`search`) | Schema/Figma chưa có trạng thái | B2, B3, D2 |
 | Q16 | L15: sửa `thoi_luong` dịch vụ khi dịch vụ đang là dịch vụ chính của bác sĩ có khung giờ tương lai/lịch hẹn hoạt động; tên dịch vụ có được trùng? | **Chặn đổi `thoi_luong`** khi còn lịch hẹn đang hoạt động hoặc khung giờ chưa qua của bác sĩ dùng dịch vụ đó (`THOI_LUONG_DANG_DUNG`); sửa tên/giá/nhóm luôn được; **tên không trùng trong cùng nhóm** (so sánh như H14) | Khung giờ sinh theo `thoi_luong`; truy vấn ảnh hưởng dùng giá trị hiện tại | B3, D2 |
@@ -225,7 +225,7 @@ Các bảng dưới giữ nguyên **đề xuất ban đầu của AI** để tru
 | Q29 | Làm phiên cũ mất hiệu lực khi khoá (auth mục 3.3 yêu cầu chốt cách) | **Cả hai**: guard auth kiểm `trang_thai` mỗi request (hiệu lực tức thì, không cần làm gì thêm) **và** trong cùng giao dịch khoá đặt `thu_hoi_luc` cho mọi `phien_dang_nhap` chưa thu hồi (refresh cũng hỏng; dữ liệu nhất quán) | Phòng thủ nhiều lớp, chi phí thấp | B18 |
 | Q30 | Tạo **Quản trị viên Toàn hệ thống đầu tiên** | Script `npm run seed:first-admin` (đọc `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` từ env, tạo `DangHoatDong`, `da_xac_minh_email=true`; **từ chối nếu đã có Toàn hệ thống**; không log mật khẩu) | Không có giao diện nào tạo được Admin đầu tiên | C5 |
 | Q31 | L10: nút "Mở khoá no-show" nằm ở đâu trong Figma (frame có "Điều chỉnh số lần no-show UC 52")? Sau mở khoá, số lần ≥ ngưỡng thì no-show kế tiếp có khoá lại ngay? | Nút chỉ hiện khi `khoa_dat_lich_do_no_show = true`, trong panel chi tiết, chỉ Toàn hệ thống. Câu hỏi thứ hai **chuyển cho module no-show** (admin giữ đúng hậu điều kiện: không đổi `so_lan_no_show`) | UC 52 nằm ngoài phạm vi | B19, F9 |
-| Q32 | Email trùng với **Bệnh nhân chưa xác minh đã quá 24 giờ** nhưng job dọn chưa chạy | Gọi hàm xoá lười của auth A7 trước khi báo trùng; nếu A7 chưa có thì coi là đã dùng | Tránh chặn oan một email thực sự đã hết hạn | B15 |
+| Q32 | Email trùng với **Bệnh nhân chưa xác minh Đang hoạt động đã quá 24 giờ** nhưng job dọn chưa chạy | Sau khi auth A5 merge, gọi `UnverifiedPatientCleaner.purgeIfExpired` trước khi báo trùng; B15 không chờ job A7. Bệnh nhân `NgungHoatDong` và nhân sự không bị xoá, trả `EMAIL_DA_DUNG`. | Chỉ giải phóng email của tài khoản đủ điều kiện xoá | B15 |
 
 **E. Phòng khám & cấu hình (PK, CH)**
 
@@ -269,7 +269,7 @@ Các bảng dưới giữ nguyên **đề xuất ban đầu của AI** để tru
 | Q10 | Chốt | Toạ độ tùy chọn nhưng đủ cặp; kiểm miền; thiếu toạ độ vẫn hiển thị, chỉ không tham gia "gần nhất". |
 | Q11 | Chốt | Admin Chi nhánh chỉ xem chuyên khoa, nhóm, dịch vụ. |
 | Q12 | Chốt, **bổ sung** | `UNIQUE` ở DB + chuẩn hoá (bỏ khoảng trắng thừa) trước khi lưu. **Phải kiểm và xử lý dữ liệu trùng đã có trước migration.** |
-| Q13 | Chốt | Docker volume; JPEG/PNG/WebP; kiểm nội dung (không chỉ đuôi/`Content-Type`); tên ngẫu nhiên; **cần sao lưu volume**. |
+| Q13 | Đã duyệt thiết kế; chưa triển khai | 28/10/2026: Cloudinary thay Docker volume. Giữ ảnh tĩnh JPEG/PNG/WebP đầu vào ≤ 10 MB/25 MP; ảnh ≤ 2 MB không chủ động resize/nén; > 2 MB đến 10 MB nén trước/resize khi cần, output ≤ 2 MB (mục tiêu mềm 700–800 KB); tự chuẩn hóa EXIF, giữ alpha/tỷ lệ, không phóng to/crop và kiểm nội dung; đã duyệt bảng upload + FK, uploadId và ba trạng thái, TTL 24 giờ/dọn mỗi giờ tối đa 50 ảnh/lượt; chi tiết còn lại tại `working-doc/P7/plan.md`. |
 | Q14 | Chốt | Chỉ xoá nhóm rỗng; `thu_tu_hien_thi` nguyên ≥ 0. |
 | Q15 | Chốt | Không làm bật/tắt; "chi nhánh ngừng cung cấp" = bỏ liên kết chi nhánh–dịch vụ. Muốn ngừng toàn hệ thống: chức năng và trạng thái riêng, sau này. |
 | Q16 | Chốt, **bổ sung** | Chặn đổi thời lượng khi còn khung giờ tương lai hoặc lịch hẹn hoạt động phụ thuộc; giữ giá đã chốt. **Tên dịch vụ không trùng trong cùng nhóm, có `UNIQUE (nhom_dich_vu_id, ten)` ở DB sau chuẩn hoá, giống Q12.** |
@@ -288,7 +288,7 @@ Các bảng dưới giữ nguyên **đề xuất ban đầu của AI** để tru
 | Q29 | Chốt | Thu hồi các phiên **và** guard auth kiểm trạng thái mỗi request. |
 | Q30 | Chốt | Script tạo Admin Toàn hệ thống đầu tiên, chỉ khi chưa có; email/mật khẩu từ môi trường; không log mật khẩu. |
 | Q31 | Chốt | Nút chỉ hiện khi đang bị khoá, chỉ Toàn hệ thống; giữ `so_lan_no_show`; giao diện báo rõ no-show kế tiếp có thể khoá lại ngay; muốn giảm số lần thì dùng use case điều chỉnh riêng. |
-| Q32 | Chốt, **thêm phụ thuộc** | Dùng hàm dọn của auth A7; chưa có thì task **phụ thuộc auth A7**; không âm thầm coi email hết hạn là đã dùng mãi. |
+| Q32 | Chốt, **phụ thuộc auth A5** | Dùng `UnverifiedPatientCleaner.purgeIfExpired` của A5; sau khi A5 merge, B15 không chờ job A7. Chỉ xoá Bệnh nhân chưa xác minh `DangHoatDong` quá 24 giờ; `NgungHoatDong` và nhân sự giữ email đã dùng. |
 | Q33 | Chốt | Hotline dùng quy tắc riêng (10 số hoặc 1800/1900); 4 trường bắt buộc ở service; lần lưu đầu tạo `id = 1`. |
 | Q34 | Chốt, **sửa** | Cận trên theo 5.7; `w1 + w2 = 1`; nhắc lịch không trùng, không rỗng; **`so_ngay_bao_truoc_doi_gio_lam` 1–60 (không cho 0)**. |
 | Q35 | Chốt | Cấu hình lần đầu nhập qua biểu mẫu (có audit); seed chỉ dev/demo. |
@@ -382,7 +382,7 @@ CN A3 (lỗi lịch không hợp lệ theo thứ); CK A1 (tên trùng); DV A1 (l
 ### 4.5 Việc của nhóm (ngoài repo)
 
 - **Còn phải trả lời:** phần còn lại của Q45 (4.3). **Xác nhận khi viết migration** các chi tiết đề xuất theo Q47/Q48 (4.2a).
-- **Chốt từng số** của `cau_hinh_he_thong` (Q36) trước khi dùng trong báo cáo/demo như chính sách CLINIX; **xác nhận ánh xạ chức danh–học vị** (Q20); **ghi quyết định giá** "tắt mốc cao → mốc thấp hơn" (Q21); **kiểm dữ liệu trùng** tên chuyên khoa/dịch vụ trước migration UNIQUE (Q12, Q16); **sao lưu volume ảnh** (Q13).
+- **Chốt từng số** của `cau_hinh_he_thong` (Q36) trước khi dùng trong báo cáo/demo như chính sách CLINIX; **xác nhận ánh xạ chức danh–học vị** (Q20); **ghi quyết định giá** "tắt mốc cao → mốc thấp hơn" (Q21); **kiểm dữ liệu trùng** tên chuyên khoa/dịch vụ trước migration UNIQUE (Q12, Q16); **chuẩn bị tài khoản Cloudinary, review DDL/cơ chế dọn ảnh và theo dõi hạn mức** (Q13).
 - Sửa **2.4** (file Word ở repo `TLCN_CLINIX`) theo D1–D5 và D10; sửa Figma như 4.4.
 - Tạo Gmail/App Password (auth N8) — cần cho gửi thật email kích hoạt ở X1.
 - Chuẩn bị **giá trị chính thức** cho `cau_hinh_he_thong` (Q36) và danh mục thật (chi nhánh, dịch vụ, giờ nhận khám) trước khi demo.
@@ -413,7 +413,7 @@ apps/web/src/features/admin/  # F1…F9; apps/web/src/features/staff-activation/
 ```
 Quy ước: controller chỉ nhận/trả; logic ở service; truy vấn ở repository; entity/repository dùng chung với auth (`tai_khoan`, `ma_xac_thuc`, `phien_dang_nhap`, `benh_nhan`) được **import qua module đã export**, không sao chép — kiểm lại vị trí entity khi auth P3 merge.
 
-**Biến môi trường mới (`.env.example`, không giá trị thật):** `STAFF_ACTIVATION_TTL_HOURS` (24, Q22), `STAFF_ACTIVATION_RESEND_MIN_SECONDS` (60), `STAFF_ACTIVATION_RESEND_MAX_PER_HOUR` (5) (Q23), `UPLOAD_DIR`, `UPLOAD_MAX_BYTES` (2 MB), `UPLOAD_PUBLIC_PATH` (`/uploads`) (Q13), `TZ=Asia/Ho_Chi_Minh`, `DB_TIMEZONE=+07:00` (Q43; áp dụng cả `SET time_zone` mỗi kết nối MySQL và `TZ` của container `db`), `BRANCH_CHANGE_APPLY_CRON` (mỗi phút), `EMAIL_OUTBOX_MAX_ATTEMPTS` (3), `EMAIL_OUTBOX_RETRY_MINUTES` (5), `EMAIL_OUTBOX_POLL_SECONDS` (30) (Q9), `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` (Q30; **chỉ khi chạy script**, không đọc ở runtime). `WEB_ORIGIN` (đã có) dùng dựng liên kết kích hoạt.
+**Biến môi trường mới (`.env.example`, không giá trị thật):** `STAFF_ACTIVATION_TTL_HOURS` (24, Q22), `STAFF_ACTIVATION_RESEND_MIN_SECONDS` (60), `STAFF_ACTIVATION_RESEND_MAX_PER_HOUR` (5) (Q23), **[policy P7]** giới hạn input 10 MB/25 MP, ngưỡng tối ưu/output 2 MB, mục tiêu mềm 700–800 KB; tự chỉnh EXIF, nén trước/resize khi cần (tách cấu hình input/output; tên biến cụ thể chờ review thay cho `UPLOAD_MAX_BYTES` chung), **[đề xuất P7]** `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (chỉ backend; placeholder, không giá trị thật; Q13), `TZ=Asia/Ho_Chi_Minh`, `DB_TIMEZONE=+07:00` (Q43; áp dụng cả `SET time_zone` mỗi kết nối MySQL và `TZ` của container `db`), `BRANCH_CHANGE_APPLY_CRON` (mỗi phút), `EMAIL_OUTBOX_MAX_ATTEMPTS` (3), `EMAIL_OUTBOX_RETRY_MINUTES` (5), `EMAIL_OUTBOX_POLL_SECONDS` (30) (Q9), `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` (Q30; **chỉ khi chạy script**, không đọc ở runtime). `WEB_ORIGIN` (đã có) dùng dựng liên kết kích hoạt. P7 không dùng `UPLOAD_DIR`/`UPLOAD_PUBLIC_PATH` cho ảnh Cloudinary.
 
 ### 5.2 Cơ chế phạm vi theo chi nhánh (module `rbac`, task C1)
 
@@ -593,7 +593,7 @@ Miền giá trị (Q34 — nhóm đồng ý dùng làm giới hạn kỹ thuật
 | `TRANG_THAI_KHONG_PHU_HOP` (409) | Trạng thái hiện tại của tài khoản không cho phép thao tác này. | TK b4 |
 | `KHONG_CO_THAY_DOI` (400) | Không có thay đổi nào để lưu. | CH, CN |
 | `CAU_HINH_GIA_TRI_KHONG_HOP_LE`, `THIEU_LY_DO` (400) | (theo từng thông số) / Vui lòng nhập lý do thay đổi. | CH A1 |
-| `ANH_KHONG_HOP_LE` (400) | Ảnh phải là JPEG, PNG hoặc WebP, tối đa 2 MB. | Q13 |
+| `ANH_KHONG_HOP_LE` (400) | Ảnh phải là JPEG, PNG hoặc WebP tĩnh, đọc được; giới hạn đầu vào 10 MB/25 MP. Lỗi quá dung lượng/tiền xử lý cần thông báo riêng theo plan P7 mục 3b–3d. | Q13 |
 
 ### 5.10 Audit mở rộng (Q39) — tên giá trị được Trung xác nhận ngày 27/10/2026 khi làm P3
 
@@ -647,7 +647,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 | ☐ | P4 | Hạ tầng **test tích hợp admin**: factory/fixture (chi nhánh, 7 thứ, bác sĩ, lịch hẹn theo trạng thái, ca, khung giờ, tài khoản các loại), đồng hồ giả, `MailService` giả, helper chạy song song (`Promise.all`) cho test chạy đua | auth P3, P1 | NGAY | tất cả test | `[TIỀN ĐỀ]` · `test(admin)` |
 | ☐ | P5 | `common/time`: `nowVN()`, `todayVN()`, `weekdayVN()`; cấu hình `TZ`, TypeORM `timezone` **và `SET time_zone = '+07:00'` mỗi kết nối MySQL** (+ `TZ` container `db`); test biên 23:59/00:00 gồm `NOW()` phía DB | auth P1 | NGAY | BS b4, CN b8, H13 | `[TIỀN ĐỀ]` · `feat(api)` |
 | ☐ | P6 | `common/paging`: `PageQueryDto`, `Paged<T>`, helper escape LIKE; test | auth P1 | NGAY | TK b2, danh sách | `[TIỀN ĐỀ]` · `feat(api)` |
-| ☐ | P7 | Tải ảnh: `UploadService` (magic bytes JPEG/PNG/WebP, giới hạn dung lượng, tên ngẫu nhiên, cấm SVG), `UPLOAD_DIR` + volume Docker + `location /uploads/` ở `apps/web/nginx.conf` (+ proxy dev), `.env.example`; **tài liệu sao lưu volume** | auth P1, P6(web) | NGAY | CK b2 | `[TIỀN ĐỀ]` · `feat(api)`/`feat(docker)` |
+| ☐ | P7 | Tải ảnh qua `UploadService` + adapter Cloudinary từ backend; magic bytes ảnh tĩnh JPEG/PNG/WebP đầu vào ≤ 10 MB/25 MP; ảnh ≤ 2 MB không chủ động resize/nén; > 2 MB đến 10 MB nén trước/resize khi cần, output ≤ 2 MB (mục tiêu mềm 700–800 KB); tự chuẩn hóa EXIF, giữ alpha/tỷ lệ, không phóng to/crop, định danh ngẫu nhiên, cấm SVG; cấu hình mẫu + DEV_SETUP, mock provider và test nhánh dung lượng/nén/resize/EXIF; bảng upload + FK, uploadId và vòng đời ba trạng thái đã duyệt; DDL/cấu hình/SDK đã triển khai; evidence tại tracker P7. Bỏ volume/proxy ảnh. Plan và nháp issue #51: `working-doc/P7/plan.md` | auth P1; guard auth A4 và policy C1 cho controller; phối hợp B1/F2 | VERIFIED local; Cloudinary thật/B1/F2 acceptance pending | CK b2; CK-11, SE-A7 | `[TIỀN ĐỀ]` · `feat(api)` |
 
 ### 6.3 Nhóm C — Thành phần dùng chung
 
@@ -663,7 +663,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 
 | ☐ | ID | Việc | Phụ thuộc | Bắt đầu | Truy vết | Thẻ |
 |---|---|---|---|---|---|---|
-| ☐ | B1 | **Chuyên khoa**: list/get/create/update/đổi trạng thái; chuẩn hoá (trim + gộp khoảng trắng) + kiểm trùng tên (bắt thêm lỗi UNIQUE khi chạy đua); ngừng hoạt động **không** gỡ bác sĩ; ảnh qua P7; Chi nhánh chỉ GET | P1, P6, C1; Q11, Q12, Q13 | SOẠN TRƯỚC; controller sau C1 | CK b1–b5, A1, A2 | `feat(admin)` |
+| ☐ | B1 | **Chuyên khoa**: list/get/create/update/đổi trạng thái; chuẩn hoá (trim + gộp khoảng trắng) + kiểm trùng tên (bắt thêm lỗi UNIQUE khi chạy đua); ngừng hoạt động **không** gỡ bác sĩ; ảnh qua P7: imageUploadId và FK bản ghi ảnh, gắn/thay/gỡ theo plan P7 mục 3; Chi nhánh chỉ GET | P1, P6, C1; Q11, Q12, Q13 | SOẠN TRƯỚC; controller sau C1 | CK b1–b5, A1, A2 | `feat(admin)` |
 | ☐ | B2 | **Nhóm dịch vụ**: list/create/update/(delete); tên không trùng; `thu_tu_hien_thi` | P1, P6, C1; Q11, Q14, Q15 | SOẠN TRƯỚC; controller sau C1 | DV b1–b5, A1 | `feat(admin)` |
 | ☐ | B3 | **Dịch vụ khám**: list/create/update; kiểm nhóm tồn tại, tên không rỗng, giá > 0, thời lượng nguyên dương; không nhận `mucDatCoc`; kiểm sửa `thoi_luong` (Q16: chặn khi còn khung giờ tương lai/lịch hẹn hoạt động); tên không trùng trong nhóm (UNIQUE DB) | B2, P2 (kiểm khung giờ/lịch hẹn); Q16 | SOẠN TRƯỚC | DV b4–b5, A1 | `feat(admin)` |
 | ☐ | B4 | **Thông tin phòng khám**: `GET/PUT` (upsert `id=1`), kiểm email/hotline (Q33), chỉ Toàn hệ thống (cả `GET`) | P3, C1; Q33 | SOẠN TRƯỚC | PK b1–b5, A1, A2 | `feat(admin)` |
@@ -677,7 +677,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 | ☐ | B12 | **Hồ sơ bác sĩ — đọc**: list/get (lọc chuyên khoa, Chi nhánh chỉ chi nhánh mình), `computeSurcharge` (+ test bảng) | P2, C1, P6; Q21 | SOẠN TRƯỚC (`computeSurcharge`) | BS b1–b2 | `feat(admin)` |
 | ☐ | B13 | **Hồ sơ bác sĩ — sửa**: toàn bộ kiểm (b4), chặn đổi chi nhánh **và đổi dịch vụ khám chính** (A2, Q17), quyền đổi chi nhánh ở service (A3), khoá `FOR UPDATE`, Audit `DoiChiNhanhBacSi`, không lưu một phần | B12, B7, P5, C2; Q17, Q18, Q19, Q20, Q39 | SAU B12, C2 | BS b3–b5, A1–A3 | `feat(admin)` · `[ĐỒNG BỘ TL]` D5 |
 | ☐ | B14 | **`ActivationLinkService`**: sinh/băm token, tạo hàng, gửi mail (ngoài giao dịch), xác nhận hiệu lực/thu hồi theo quy tắc 21, kiểm giới hạn gửi lại; mẫu email 674:2 và 675:2 (dựng trên khung auth A14) | auth P4, auth A14, auth P5, P3; Q22, Q23, Q25 | SOẠN TRƯỚC | NS b6, A4; TK A2 | `feat(admin)` · `[ĐỒNG BỘ TL]` D3, D6 |
-| ☐ | B15 | **Tạo tài khoản nhân sự**: kiểm quyền/chi nhánh/vai trò (A2, A3); email (auth A1 + Q32); trường theo vai trò; giao dịch {tài khoản + hồ sơ + liên kết}; trả `guiEmail` | B14, C1, P2, auth A1, auth P4, auth A7; Q19, Q20, Q24, Q32, Q39 | SAU B14; phần email trùng tài khoản hết hạn **SAU auth A7** (Q32) | NS b1–b7, A1–A4 | `feat(admin)` · `[ĐỒNG BỘ TL]` D3 |
+| ☐ | B15 | **Tạo tài khoản nhân sự**: kiểm quyền/chi nhánh/vai trò (A2, A3); email (auth A1 + Q32); trường theo vai trò; giao dịch {tài khoản + hồ sơ + liên kết}; trả `guiEmail` | B14, C1, P2, auth A1, auth P4, auth A5 (`UnverifiedPatientCleaner.purgeIfExpired`); Q19, Q20, Q24, Q32, Q39 | SAU B14; phần email trùng tài khoản hết hạn **SAU khi auth A5 merge** (Q32), không chờ job A7 | NS b1–b7, A1–A4 | `feat(admin)` · `[ĐỒNG BỘ TL]` D3 |
 | ☐ | B16 | **Kích hoạt (công khai)**: `validate` + `complete` (5.5); `@Public`; lỗi chung; `da_xac_minh_email = true` | B14, auth A1, auth A4; Q24, Q25 | SAU B14 | NS b8–b12, A5, A6 | `feat(admin)` |
 | ☐ | B17 | **Danh sách + chi tiết tài khoản**: lọc vai trò/trạng thái/cờ no-show/chi nhánh/tìm kiếm; phạm vi qua `BranchAccessPolicy`; Chi nhánh xem Bệnh nhân với 6 trường (họ tên, email, SĐT, ngày sinh, giới tính, trạng thái — Q26); không thấy Quản trị viên (Q27); ngoài phạm vi ⇒ 404 (Q40) | P2, C1, P6; Q26, Q27, Q41, Q42 | SOẠN TRƯỚC | TK b1–b2 | `feat(admin)` |
 | ☐ | B18 | **Khoá / Mở khoá**: ma trận 5.6, thứ tự kiểm, khoá hàng Toàn hệ thống, thu hồi phiên; khoá Bác sĩ trả danh sách lịch hẹn/ca phụ thuộc (Q28); mở khoá xoá bộ đếm/khoá tạm | B17, auth A3 (`SessionService`), auth A4, C2; Q28, Q29, Q39 | SAU B17, auth A3 | TK b3–b7, A1, A4–A6 | `feat(admin)` · `[ĐỒNG BỘ TL]` D4 |
@@ -715,7 +715,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 | D5 | 2.4 **BS, PK, CH**: chặn đổi dịch vụ chính (Q17); "ca hôm nay" (Q18); học vị/kinh nghiệm (Q20); hotline + bắt buộc (Q33); lý do bắt buộc 1–500 ký tự (Q38); `so_ngay_bao_truoc_doi_gio_lam` 1–60 (Q34) | B4, B5, B13 | Q17, Q18, Q20, Q33, Q38 |
 | D6 | `docs/database/*` (3 file): `UNIQUE chuyen_khoa.ten` (Q12) và `UNIQUE dich_vu_kham (nhom_dich_vu_id, ten)` (Q16); `yeu_cau_thay_doi_chi_nhanh`: `DaRut`/`DaHuy`, cột huỷ, `qua_han_luc`, `so_lan_doi_hieu_luc`, cột sinh UNIQUE `dang_mo_chi_nhanh`, sửa `chk_yc_chi_nhanh_xu_ly`, ghi chú **`hieu_luc_tu` = thời điểm dự kiến / `ap_dung_luc` = lúc thực sự áp dụng** (Q47, Q48); `email_thong_bao.BoQua`; quy tắc 31 viết lại theo luồng quá hạn; enum nhật ký mở rộng (Q39, 5.10); quy tắc phụ phí "tắt mốc cao → mốc thấp hơn" ghi là **quyết định giá của nhóm** (Q21); ghi chú `ma_xac_thuc` KichHoatNhanSu (TTL, giới hạn gửi lại, token băm, URL); cận trên cấu hình + giá trị đã chốt (Q34, Q36); quy tắc 13/29 ("ca hôm nay"), 30–32 (đã chốt từng điểm `[cần điền]`), 36; không thêm cột trạng thái nhóm/dịch vụ (Q15); `phu_phi` ghi chú đọc; dòng lịch sử đầu `clinix.dbml` (số bảng/enum/CHECK nếu đổi) | P1, B5, B10, B14, C2 | Q12, Q15, Q22–Q23, Q34, Q36, Q39 |
 | D7 | Figma: trạng thái còn thiếu (4.4) **gồm "Quá hạn – chờ xử lý", Dời hiệu lực, Hủy, Rút, nhãn "dự kiến"/"đã áp dụng lúc", email "hủy"/"dời hiệu lực"**, dòng Admin trong danh sách chi nhánh (L9), nút mở khoá no-show (L10), nhãn giờ nhận khám, ô SĐT Quản trị viên | các F-task | 4.4 |
-| D8 | `.env.example` (mọi biến mới), `docs/DEV_SETUP.md` (seed, `first-admin`, thư mục `uploads`, Gmail cho email kích hoạt) | C5, P7, B14 | 5.1 |
+| D8 | `.env.example` (mọi biến mới), `docs/DEV_SETUP.md` (seed, `first-admin`, cấu hình Cloudinary và quản lý/hạn mức ảnh, Gmail cho email kích hoạt) | C5, P7, B14 | 5.1 |
 | D9 | `docs/PLAN.md` (tick "Chức năng quản trị tối thiểu" Phase 2), `docs/TRACKING.md` (đúng **một** dòng), `docs/TECH_DEBT.md` (ảnh cục bộ, không có cách ghi "vẫn tiếp nhận theo lịch cũ" cho từng lịch hẹn/ca bị ảnh hưởng (Q7), throttling X3, mất phản hồi email…) | X2 | — |
 | D10 | 2.4 **phạm vi (Q40)**: BS A3, TK A1, NS A3, CN A1: phân biệt "ngoài tầm nhìn ⇒ không tìm thấy (404)" và "thấy được nhưng không có quyền ⇒ không đủ quyền (403)"; trang/chức năng chỉ-Toàn-hệ-thống vẫn báo "không đủ quyền" | C1, B13, B15, B17, B18 | Q40 |
 
@@ -738,7 +738,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 | **Chờ auth P4 / A14** | B14, C4 (gửi mail, mẫu email) | `MailService`, khung mẫu |
 | **Chờ auth A3** | B18 (thu hồi phiên hàng loạt) | `SessionService` |
 | **Chờ auth F1 / P6(web)** | F1–F10 | lõi xác thực FE, router, API client |
-| **Chờ nhóm trả lời** | Không còn `[CHỜ …]`. Còn: phần còn lại của Q45; **SAU auth A7**: phần Q32 của B15; xác nhận chi tiết Q47/Q48 khi viết migration | 4.2a, 4.3 |
+| **Chờ nhóm trả lời** | Không còn `[CHỜ …]`. Còn: phần còn lại của Q45; **SAU khi auth A5 merge**: phần Q32 của B15 (dùng `purgeIfExpired`, không chờ A7); xác nhận chi tiết Q47/Q48 khi viết migration | 4.2a, 4.3 |
 
 ## 7. Test case dự kiến
 
@@ -759,7 +759,7 @@ Ca có `[Qn]` phụ thuộc điểm còn mở — mong đợi là đề xuất. 
 | CK-08 | Ngừng rồi bật lại | `DangHoatDong` | CK b1–b5 | I |
 | CK-09 | Ngừng chuyên khoa đang ngừng (lặp) | Idempotent (200), không lỗi | CK b5 | I |
 | CK-10 | Hai yêu cầu tạo cùng tên song song | Đúng 1 dòng; yêu cầu kia nhận `TEN_CHUYEN_KHOA_TRUNG`, không 500 `[Q12]` | CK A1; H14 | I |
-| CK-11 | Ảnh: JPEG/PNG/WebP hợp lệ; sai định dạng; đuôi đúng nội dung sai (exe đổi đuôi); SVG; > 2 MB; tên có `../` `[Q13]` | Hợp lệ lưu đường dẫn ngẫu nhiên; còn lại `ANH_KHONG_HOP_LE`, không ghi tệp | CK b2; H15 | I |
+| CK-11 | Ảnh: JPEG/PNG/WebP hợp lệ; sai định dạng; đuôi đúng nội dung sai (exe đổi đuôi); SVG/ảnh động/hỏng; biên 2 MB/10 MB/25 MP đầu vào, 2 MB đầu ra; ảnh nhỏ không chủ động resize/nén, ảnh lớn nén trước/resize khi cần; alpha, không phóng to/crop, chuẩn hóa EXIF 1–8 và preview kết quả; tên có `../`; provider lỗi/timeout `[Q13]` | Hợp lệ resize/nén theo plan P7 mục 3d trước khi gọi adapter Cloudinary và trả uploadId/url/expiresAt theo working-doc/P7/plan.md mục 3b; đầu vào sai trả lỗi phù hợp theo mục 3b–3d; đầu vào sai/tiền xử lý lỗi/đầu ra vượt trần không gọi provider; lỗi provider không báo thành công, giữ tham chiếu cũ. Test tự động dùng fake adapter, test thật tách riêng | CK b2; H15 | I |
 | CK-12 | Mô tả rỗng được; mô tả rất dài | Rỗng hợp lệ; giới hạn độ dài trả 400 | CK b2 | U |
 | CK-13 | Quản trị viên Chi nhánh `GET` / `POST` / `PATCH` / đổi trạng thái `[Q11]` | `GET` được; ghi ⇒ 403 | CK b1; L4 | I |
 | CK-14 | Ép lỗi DB giữa chừng khi lưu | Rollback, không đổi gì | CK hậu điều kiện thất bại | I |
@@ -848,7 +848,7 @@ Ca có `[Qn]` phụ thuộc điểm còn mở — mong đợi là đề xuất. 
 | NS-07 | Quản trị viên Chi nhánh chọn vai trò **Quản trị viên** | `KHONG_DU_QUYEN`, kết thúc | NS A2/4a–4b | I |
 | NS-08 | Toàn hệ thống tạo ở **mọi** chi nhánh | Thành công | NS tiền điều kiện | I |
 | NS-09 | Email đã có (bất kỳ loại/trạng thái, khác hoa/thường/khoảng trắng, tài khoản `ChoKichHoat`) | `EMAIL_DA_DUNG`; không tạo; nhập email khác ⇒ thành công | NS A1 | I |
-| NS-10 | Email thuộc Bệnh nhân chưa xác minh quá 24 giờ, job dọn chưa chạy `[Q32]` | Gọi hàm xoá lười của auth A7 rồi tạo (Q32); nếu A7 chưa có thì task chờ A7 — **không** coi email hết hạn là đã dùng mãi | NS tiền điều kiện | I |
+| NS-10 | Email thuộc Bệnh nhân chưa xác minh `DangHoatDong` quá 24 giờ, job dọn chưa chạy `[Q32]`; đối chiếu với Bệnh nhân `NgungHoatDong` và nhân sự | Sau khi A5 merge, gọi `UnverifiedPatientCleaner.purgeIfExpired`: chỉ tài khoản `DangHoatDong` đủ hạn bị xoá rồi tạo nhân sự; hai trường hợp còn lại trả `EMAIL_DA_DUNG`, không xoá | NS tiền điều kiện | I |
 | NS-11 | Thiếu từng trường bắt buộc theo vai trò (Bác sĩ: chi nhánh, chuyên khoa, dịch vụ chính, chức danh, học vị, kinh nghiệm; Lễ tân: chi nhánh; Quản trị viên: phạm vi) | `DU_LIEU_KHONG_HOP_LE` đúng trường; **không** tạo tài khoản, hồ sơ, liên kết; giữ dữ liệu (FE) | NS A3/4a–4c; H8 | I |
 | NS-12 | Kinh nghiệm âm / không nguyên / quá lớn | 400 | NS A3 | U |
 | NS-13 | Dịch vụ chính không có ở chi nhánh chọn | `DICH_VU_KHONG_O_CHI_NHANH`; không tạo gì | NS A3/4a | I |
@@ -1133,7 +1133,7 @@ Ma trận: **Khách → 401 · Bệnh nhân/Bác sĩ/Lễ tân → 403 · Quản
 | SE-A4 | Token kích hoạt: 32 byte ngẫu nhiên, hai lần tạo khác nhau, đủ entropy | Đúng | H6 | U |
 | SE-A5 | Mật khẩu kích hoạt lưu Argon2id (`$argon2id$`, m=19456, t=2, p=1) | Đúng | auth S6 | I |
 | SE-A6 | Tên/mô tả có HTML/script hiển thị ở FE | Escape, không thực thi | SOW 3.2.2 | C |
-| SE-A7 | Upload: MIME giả, SVG, `../` trong tên, tệp 0 byte, quá cỡ, tải nhiều lần | Từ chối đúng; không ghi ngoài `UPLOAD_DIR` | H15 | I |
+| SE-A7 | Upload: MIME giả, SVG, `../` trong tên, tệp 0 byte, ảnh hỏng/động, quá 10 MB/25 MP, output quá 2 MB, tải nhiều lần; sai quyền; thiếu cấu hình; lỗi/timeout Cloudinary | Từ chối đầu vào sai/tiền xử lý thất bại trước provider; giới hạn decoder/buffer/tài nguyên; sai quyền không gọi provider; định danh server tạo, không lộ secret. Lỗi 4xx theo contract; provider 503/504 dùng LOI_HE_THONG + requestId theo convention hiện tại, không báo thành công giả; tải nhiều lần không ghi đè tài nguyên khác. Test tự động dùng fake adapter | H15 | I |
 | SE-A8 | SQL injection qua `q`, `sort`, `order`, id, `lyDo` | Không lọt (tham số hoá/whitelist) | SOW 3.2.2 | I |
 | SE-A9 | Mọi thao tác ghi đa bảng: ép lỗi bước cuối | Rollback toàn bộ | 5.8 | I |
 | SE-A10 | Giới hạn độ dài `lyDo`, mô tả, `q` | Từ chối chuỗi quá dài (không DoS) | 5.8 | U |
@@ -1157,7 +1157,7 @@ Nguyên tắc: **một người làm trọn module `admin` (backend + frontend)*
 |---|---|---|---|
 | **0 — Chốt câu hỏi** | Q1–Q48 **đã trả lời 25/10/2026**; còn phần còn lại của Q45 | Tránh làm lại | — |
 | **1 — Nền dữ liệu** | P1, P3 (+P2 nếu Q41), P4, P5, P6, C3 | Không cần chờ tính năng auth | auth P1 + P3 |
-| **2 — Phạm vi & dùng chung** | C1 (policy thuần trước, controller sau auth A4), C2 `[Q39]`, P7 `[Q13]` | Mọi controller cần phạm vi | auth A4 |
+| **2 — Phạm vi & dùng chung** | C1 (policy thuần trước, controller sau auth A4), C2 `[Q39]`, P7 `[Q13; PLAN Cloudinary, Q1–Q3 đã duyệt]` | Mọi controller cần phạm vi | auth A4 |
 | **3 — Danh mục đơn giản** | B1 → F2; B2 → B3 → F3; B4 → F4 | Dữ liệu nền cho bác sĩ/chi nhánh; ít phụ thuộc | C1 |
 | **4 — Cấu hình hệ thống** | B5 → F5 (+B6) ; C5 (seed catalog + config-dev) | Cần cho duyệt yêu cầu chi nhánh và cho nhóm dùng chung dữ liệu mẫu | C2, C3 |
 | **5 — Chi nhánh (đọc/thêm)** | B7 → F6a | Bác sĩ/nhân sự cần chi nhánh + dịch vụ khả dụng | B1–B3 |
