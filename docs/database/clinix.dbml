@@ -271,7 +271,7 @@ Table benh_nhan {
   khoa_dat_lich_do_no_show boolean [not null, default: false, note: 'Quản trị viên mở khóa thủ công nên là trạng thái độc lập']
   so_lan_no_show int [not null, default: 0]
 
-  Note: 'Cố ý KHÔNG có chi_nhanh_id. Quản trị viên Chi nhánh chỉ XEM Bệnh nhân có ít nhất 1 lich_hen (mọi trạng thái) với lich_hen.chi_nhanh_id = chi nhánh được gán (snapshot lúc đặt); lọc qua lich_hen.benh_nhan_id + lich_hen.chi_nhanh_id, không thêm cột chi nhánh vào bảng này.'
+  Note: 'Dòng này chỉ được tạo khi OTP đăng ký đúng, cùng giao dịch với vi_noi_bo; Bệnh nhân chưa xác minh email chưa có dòng này (quy tắc 7). Cố ý KHÔNG có chi_nhanh_id. Quản trị viên Chi nhánh chỉ XEM Bệnh nhân có ít nhất 1 lich_hen (mọi trạng thái) với lich_hen.chi_nhanh_id = chi nhánh được gán (snapshot lúc đặt); lọc qua lich_hen.benh_nhan_id + lich_hen.chi_nhanh_id, không thêm cột chi nhánh vào bảng này.'
 }
 
 Table bac_si {

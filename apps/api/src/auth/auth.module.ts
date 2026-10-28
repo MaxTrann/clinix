@@ -13,9 +13,12 @@ import { RolesGuard } from './guards/roles.guard.js';
 import { OtpService } from './otp/otp.service.js';
 import { PasswordHasher } from './password/password-hasher.service.js';
 import { MaXacThucRepository } from './repositories/ma-xac-thuc.repository.js';
+import { BenhNhanRepository } from './repositories/benh-nhan.repository.js';
 import { PhienDangNhapRepository } from './repositories/phien-dang-nhap.repository.js';
 import { TaiKhoanRepository } from './repositories/tai-khoan.repository.js';
+import { ViNoiBoRepository } from './repositories/vi-noi-bo.repository.js';
 import { RegisterController } from './register/register.controller.js';
+import { RegisterVerificationService } from './register/register-verification.service.js';
 import { RegisterService } from './register/register.service.js';
 import { UnverifiedPatientCleaner } from './register/unverified-patient-cleaner.js';
 import { RefreshCookieService } from './session/refresh-cookie.service.js';
@@ -26,7 +29,7 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 
 // Khung module auth: xuất 5 entity (task P3), PasswordHasher (A1), các dịch vụ token/phiên/cookie (A3) và OtpService (A2) để module khác
 // (admin…) import, không sao chép. Controller của từng use case đặt trong thư mục theo chức năng và được thêm ở các task A* sau
-// (A5: register/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
+// (A5, A6: register/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
 //
 // Task A4: hai guard TOÀN CỤC (APP_GUARD) nằm ở đây để mọi module graph có AuthModule đều tự có chúng:
 // mặc định MỌI route cần đăng nhập, mở bằng @Public(), giới hạn vai trò bằng @Roles(). Hai APP_GUARD chạy theo đúng thứ tự
@@ -36,8 +39,11 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
   controllers: [RegisterController],
   providers: [
     TaiKhoanRepository,
+    BenhNhanRepository,
+    ViNoiBoRepository,
     UnverifiedPatientCleaner,
     RegisterService,
+    RegisterVerificationService,
     PasswordHasher,
     TokenService,
     PhienDangNhapRepository,
