@@ -184,6 +184,16 @@ describe('refresh — làm mới có xoay (DN-27)', () => {
       at(50 * 60 + IDLE),
     );
   });
+
+  it('cắt mili giây: làm mới lúc 08:10:00.900 vẫn lưu het_han_luc 08:40:00 và trả cùng giá trị (DATETIME chỉ có giây)', async () => {
+    const issued = await login(await newAccount());
+    vi.setSystemTime(new Date(at(600).getTime() + 900));
+    const next = await refreshOk(issued.refreshToken);
+    expect((await sessionRow(issued.sessionId)).hetHanLuc).toEqual(
+      at(600 + IDLE),
+    );
+    expect(next.refreshTokenExpiresAt).toEqual(at(600 + IDLE));
+  });
 });
 
 describe('refresh — các biên hết hạn và từ chối (DN-28)', () => {

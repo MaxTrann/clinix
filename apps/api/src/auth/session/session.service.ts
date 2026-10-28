@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { EntityManager } from 'typeorm';
+import { toSecond } from '../../common/time/time.js';
 import { SESSION_IDLE_MS, SESSION_MAX_MS } from '../auth.constants.js';
 import type { LoaiTaiKhoan } from '../entities/enums.js';
 import type { PhienDangNhap } from '../entities/phien-dang-nhap.entity.js';
@@ -41,10 +42,7 @@ export interface WriteOptions {
   manager?: EntityManager;
 }
 
-// DATETIME của MySQL chỉ có độ chính xác giây (và làm tròn phần lẻ khi lưu). Cắt mili giây trước khi ghi để
-// giá trị lưu và giá trị so sánh trong mã luôn khớp nhau, hạn chỉ có thể sớm hơn thật tối đa dưới 1 giây.
-const toSecond = (date: Date): Date =>
-  new Date(Math.floor(date.getTime() / 1000) * 1000);
+// Mốc thời gian ghi DB được cắt xuống giây bằng `toSecond` (common/time): hạn chỉ có thể sớm hơn thật tối đa dưới 1 giây.
 const earliest = (a: Date, b: Date): Date =>
   a.getTime() <= b.getTime() ? a : b;
 const absoluteLimitOf = (createdAt: Date): Date =>

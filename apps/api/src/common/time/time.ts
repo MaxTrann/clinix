@@ -13,6 +13,14 @@ export function nowVN(): Date {
   return new Date();
 }
 
+/**
+ * Cắt phần mili giây (làm tròn XUỐNG giây), trả về Date MỚI và không sửa đầu vào. DATETIME của MySQL chỉ có độ chính xác giây
+ * và làm tròn phần lẻ khi lưu, nên cắt trước khi ghi để giá trị lưu và giá trị so sánh trong mã luôn khớp nhau.
+ */
+export function toSecond(date: Date): Date {
+  return new Date(Math.floor(date.getTime() / 1000) * 1000);
+}
+
 /** Ngày lịch Việt Nam ở dạng YYYY-MM-DD. */
 export function todayVN(instant: Date = nowVN()): string {
   const { year, month, day } = vietnamDateParts(instant);
