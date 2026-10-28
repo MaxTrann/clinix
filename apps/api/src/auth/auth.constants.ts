@@ -57,7 +57,10 @@ export const UNVERIFIED_ACCOUNT_TTL_MS = 24 * 60 * 60 * 1000;
 // Số lần thử tối đa của POST /auth/register khi đua với yêu cầu khác (lỗi trùng khoá hoặc deadlock thì làm lại từ đầu); hết thì lỗi 500 có log.
 export const REGISTER_MAX_ATTEMPTS = 3;
 // Mã lỗi của đăng ký (PLAN 5.5). EMAIL_DA_DUNG: 409. GUI_MAIL_LOI: 503 (AppException cho phép đúng 503; quyết định A5-B).
+// TAI_KHOAN_NGUNG: 403 (quyết định A6-D), xác minh/gửi lại OTP đăng ký của Bệnh nhân chưa xác minh bị admin ngưng hoạt động; A8 (đăng nhập)
+// dùng CÙNG mã và CÙNG trạng thái HTTP để FE chỉ cần một cách xử lý.
 export const REGISTER_ERROR_CODES = {
   EMAIL_IN_USE: 'EMAIL_DA_DUNG',
   MAIL_FAILED: 'GUI_MAIL_LOI',
+  ACCOUNT_SUSPENDED: 'TAI_KHOAN_NGUNG',
 } as const;

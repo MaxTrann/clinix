@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { TaiKhoan } from '../entities/tai-khoan.entity.js';
+import type { RegistrationData } from '../otp/otp.types.js';
 
-// Truy vấn bảng `tai_khoan` cho đăng ký (task A5); A8, A11–A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
+// Truy vấn bảng `tai_khoan` cho đăng ký (task A5) và xác minh OTP đăng ký (A6); A8, A11–A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
 // (đăng ký mở, hết 24 giờ) nằm ở register/unverified-account-rules.ts. Mọi hàm nhận `em` để chạy trong GIAO DỊCH của người gọi.
 //
 // Quy ước khoá: hàng `tai_khoan` LUÔN được khoá TRƯỚC các hàng con (ma_xac_thuc, phien_dang_nhap), cùng thứ tự với A2 và A3.
@@ -77,6 +78,36 @@ export class TaiKhoanRepository {
       thoiDiemTao: row.createdAt,
     });
     return String(result.identifiers[0]?.taiKhoanId);
+  }
+
+  /**
+   * Hoàn tất đăng ký khi OTP đúng (task A6): ghi dữ liệu của CHÍNH lần đăng ký đã xác minh (họ tên, SĐT, băm mật khẩu) vào tài khoản, đặt đã
+   * xác minh email, và đặt lại bộ đếm đăng nhập sai + khoá đăng nhập (tài khoản chưa từng đăng nhập được nên mọi giá trị cũ đều vô nghĩa).
+   * Điều kiện bảo vệ nằm trong CHÍNH câu UPDATE (cùng ý với deleteUnverifiedPatient): dù tầng trên kiểm sai, nhân sự, tài khoản đã xác
+   * minh và tài khoản bị ngưng vẫn không thể bị ghi đè mật khẩu. Trả true nếu đúng một hàng được cập nhật. `thoi_diem_tao` KHÔNG đổi (Q4).
+   */
+  async activateRegistration(
+    em: EntityManager,
+    id: string,
+    data: RegistrationData,
+  ): Promise<boolean> {
+    const result = await em
+      .createQueryBuilder()
+      .update(TaiKhoan)
+      .set({
+        hoTen: data.hoTen,
+        soDienThoai: data.soDienThoai,
+        matKhauBam: data.matKhauBam,
+        daXacMinhEmail: true,
+        soLanDangNhapSai: 0,
+        khoaDangNhapDen: null,
+      })
+      .where(
+        "tai_khoan_id = :id AND loai_tai_khoan = 'BenhNhan' AND da_xac_minh_email = 0 AND trang_thai = 'DangHoatDong'",
+        { id },
+      )
+      .execute();
+    return (result.affected ?? 0) === 1;
   }
 
   /**

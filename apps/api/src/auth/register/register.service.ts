@@ -10,17 +10,17 @@ import {
   REGISTER_MAX_ATTEMPTS,
 } from '../auth.constants.js';
 import type { IssuedOtp } from '../otp/issued-otp.js';
-import { OtpDeliveryError, toOtpException } from '../otp/otp-errors.js';
+import { toOtpException } from '../otp/otp-errors.js';
 import { currentSecond } from '../otp/otp-time.js';
 import { OtpService } from '../otp/otp.service.js';
 import type { OtpFailure } from '../otp/otp.types.js';
 import { PasswordHasher } from '../password/password-hasher.service.js';
 import { TaiKhoanRepository } from '../repositories/tai-khoan.repository.js';
+import { deliverRegistrationOtp } from './register-delivery.js';
 import type { RegisterInput, RegisterResult } from './register.types.js';
 import {
   isExpiredUnverifiedPatient,
   isOpenRegistration,
-  resendAvailableAt,
 } from './unverified-account-rules.js';
 import { UnverifiedPatientCleaner } from './unverified-patient-cleaner.js';
 
@@ -189,37 +189,16 @@ export class RegisterService {
     }
   }
 
-  // Pha 2 (NGOÀI giao dịch). Gửi lỗi: tài khoản và việc đăng ký đã commit ở pha 1 nên GIỮ NGUYÊN; OtpService đã thu hồi chính hàng mới
-  // (chưa gửi) và giữ mã cũ (N1). FE nhận maXacThucId của hàng lỗi để "Gửi lại mã" (DK-48) và mốc được gửi lại (hàng lỗi vẫn tính giới hạn).
-  private async deliver(
+  // Pha 2 (NGOÀI giao dịch): gửi thư rồi báo kết quả. Cách báo lỗi gửi thư (503 GUI_MAIL_LOI, DK-25) nằm ở register-delivery.ts, dùng chung
+  // với "Gửi lại mã" của A6 (DK-48).
+  private deliver(
     issued: IssuedOtp,
     email: string,
     fullName: string,
   ): Promise<RegisterResult> {
-    const coTheGuiLaiLuc = resendAvailableAt(issued.hetHanLuc);
-    try {
-      await this.otp.deliver(issued, { email, fullName });
-    } catch (error) {
-      if (error instanceof OtpDeliveryError) {
-        this.logger.warn(
-          `Gửi OTP đăng ký lỗi (${error.kind}): tài khoản vẫn giữ, mã xác thực ${error.maXacThucId} đã bị thu hồi`,
-        );
-        throw new AppException(503, REGISTER_ERROR_CODES.MAIL_FAILED, {
-          thongBao: 'Không gửi được email. Vui lòng thử lại sau ít phút.',
-          // Cố ý KHÔNG nêu loại lỗi SMTP: người ngoài không cần biết hạ tầng thư đang hỏng ở đâu
-          chiTiet: {
-            maXacThucId: error.maXacThucId,
-            coTheGuiLaiLuc: coTheGuiLaiLuc.toISOString(),
-          },
-          cause: error,
-        });
-      }
-      throw error;
-    }
-    return {
-      maXacThucId: issued.maXacThucId,
-      hetHanLuc: issued.hetHanLuc,
-      coTheGuiLaiLuc,
-    };
+    return deliverRegistrationOtp(this.otp, this.logger, issued, {
+      email,
+      fullName,
+    });
   }
 }
