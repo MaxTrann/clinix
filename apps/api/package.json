@@ -25,23 +25,27 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "migration:run": "nest build && node dist/database/migrate.js up",
     "migration:revert": "nest build && node dist/database/migrate.js down",
-    "migration:status": "nest build && node dist/database/migrate.js status"
+    "migration:status": "nest build && node dist/database/migrate.js status",
+    "test:p7": "vitest run --config ./vitest.config.p7.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.0.1",
     "@nestjs/core": "^12.0.1",
     "@nestjs/platform-express": "^12.0.1",
+    "@nestjs/schedule": "12.0.2",
     "@nestjs/typeorm": "^12.0.2",
     "argon2": "^0.45.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "cloudinary": "2.11.0",
     "cookie-parser": "^1.4.7",
     "jose": "^6.2.13",
     "mysql2": "^3.24.6",
     "nodemailer": "^10.2.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sharp": "0.35.5",
     "typeorm": "^1.1.2"
   },
   "devDependencies": {

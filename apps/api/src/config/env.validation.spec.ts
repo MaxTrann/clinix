@@ -14,6 +14,9 @@ const VALID = { ...DB, ...TEST_AUTH_ENV };
 // Task P4: staging/production BẮT BUỘC có SMTP_HOST, SMTP_USER, SMTP_PASS. Các ca cũ của A3 dùng NODE_ENV đó chỉ để kiểm điều khác,
 // nên thêm cấu hình email hợp lệ (giá trị giả) cho riêng hai môi trường này.
 const MAIL_OK = {
+  CLOUDINARY_CLOUD_NAME: 'clinix-test',
+  CLOUDINARY_API_KEY: 'test-key',
+  CLOUDINARY_API_SECRET: fakeSecretValue('cloudinary'),
   SMTP_HOST: 'smtp.example.test',
   SMTP_USER: 'clinix@example.test',
   SMTP_PASS: fakeSecretValue('smtp'),
