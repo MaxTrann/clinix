@@ -496,3 +496,121 @@ describe('validateEnv — cấu hình gửi email (task P4)', () => {
     }
   });
 });
+
+describe('validateEnv — khoá HMAC của OTP (task A2)', () => {
+  const messageOf = (config: Record<string, unknown>): string => {
+    try {
+      validateEnv(config);
+    } catch (error) {
+      return (error as Error).message;
+    }
+    return '';
+  };
+  const OTP_KEY = TEST_AUTH_ENV.OTP_HMAC_SECRET;
+
+  it('khoá cố định của test (TEST_AUTH_ENV) hợp lệ và được giữ nguyên', () => {
+    expect(validateEnv({ ...VALID }).OTP_HMAC_SECRET).toBe(OTP_KEY);
+  });
+
+  it.each([undefined, ''])(
+    'development được bỏ trống khoá (%j): API vẫn khởi động, OtpService dùng khoá ngẫu nhiên',
+    (blank) => {
+      const env = validateEnv({
+        ...VALID,
+        NODE_ENV: 'development',
+        OTP_HMAC_SECRET: blank,
+      });
+      expect(env.OTP_HMAC_SECRET).toBeUndefined();
+    },
+  );
+
+  it('NODE_ENV mặc định (không đặt) là development nên cũng được bỏ trống khoá', () => {
+    const { NODE_ENV: _bo, ...withoutNodeEnv } = { ...VALID, NODE_ENV: 'x' };
+    expect(() =>
+      validateEnv({ ...withoutNodeEnv, OTP_HMAC_SECRET: undefined }),
+    ).not.toThrow();
+  });
+
+  it.each(['staging', 'production'])(
+    'NODE_ENV=%s BẮT BUỘC có khoá: thiếu hoặc để trống thì API không khởi động, thông báo chỉ nêu tên biến',
+    (nodeEnv) => {
+      for (const blank of [undefined, '']) {
+        const message = messageOf({
+          ...VALID,
+          ...MAIL_OK,
+          NODE_ENV: nodeEnv,
+          OTP_HMAC_SECRET: blank,
+        });
+        expect(message, String(blank)).toContain(
+          `OTP_HMAC_SECRET: bắt buộc khi NODE_ENV=${nodeEnv}`,
+        );
+      }
+    },
+  );
+
+  it('NODE_ENV=test cũng bắt buộc (test dùng khoá cố định từ TEST_AUTH_ENV, không bao giờ khoá ngẫu nhiên)', () => {
+    expect(
+      messageOf({ ...VALID, NODE_ENV: 'test', OTP_HMAC_SECRET: undefined }),
+    ).toContain('OTP_HMAC_SECRET: bắt buộc khi NODE_ENV=test');
+    expect(() => validateEnv({ ...VALID, NODE_ENV: 'test' })).not.toThrow();
+  });
+
+  it.each(['staging', 'production'])(
+    'NODE_ENV=%s đủ khoá thì hợp lệ',
+    (nodeEnv) => {
+      expect(
+        validateEnv({ ...VALID, ...MAIL_OK, NODE_ENV: nodeEnv })
+          .OTP_HMAC_SECRET,
+      ).toBe(OTP_KEY);
+    },
+  );
+
+  it('khi đặt thì tối thiểu 32 ký tự (biên 31 / 32)', () => {
+    expect(() =>
+      validateEnv({ ...VALID, OTP_HMAC_SECRET: 'k'.repeat(31) }),
+    ).toThrow('OTP_HMAC_SECRET');
+    expect(
+      validateEnv({ ...VALID, OTP_HMAC_SECRET: 'k'.repeat(32) })
+        .OTP_HMAC_SECRET,
+    ).toHaveLength(32);
+  });
+
+  it('phải khác JWT_ACCESS_SECRET và JWT_REFRESH_SECRET (mỗi loại bí mật một khoá riêng)', () => {
+    for (const jwtName of [
+      'JWT_ACCESS_SECRET',
+      'JWT_REFRESH_SECRET',
+    ] as const) {
+      const config: Record<string, unknown> = {
+        ...VALID,
+        [jwtName]: 'z'.repeat(40),
+      };
+      // khoá còn lại vẫn khác nhau; chỉ OTP trùng một trong hai
+      const other =
+        jwtName === 'JWT_ACCESS_SECRET'
+          ? 'JWT_REFRESH_SECRET'
+          : 'JWT_ACCESS_SECRET';
+      config[other] = 'y'.repeat(40);
+      expect(
+        messageOf({ ...config, OTP_HMAC_SECRET: 'z'.repeat(40) }),
+        jwtName,
+      ).toContain(
+        'OTP_HMAC_SECRET: phải khác JWT_ACCESS_SECRET và JWT_REFRESH_SECRET',
+      );
+    }
+  });
+
+  it('thông báo lỗi không bao giờ in giá trị khoá', () => {
+    const tooShort = fakeSecretValue('otp-ngan').slice(0, 20);
+    const message = messageOf({ ...VALID, OTP_HMAC_SECRET: tooShort });
+    expect(message).toContain('OTP_HMAC_SECRET');
+    expect(message).not.toContain(tooShort);
+    const same = messageOf({
+      ...VALID,
+      JWT_ACCESS_SECRET: 'q'.repeat(40),
+      JWT_REFRESH_SECRET: 'r'.repeat(40),
+      OTP_HMAC_SECRET: 'q'.repeat(40),
+    });
+    expect(same).toContain('OTP_HMAC_SECRET');
+    expect(same).not.toContain('q'.repeat(40));
+  });
+});

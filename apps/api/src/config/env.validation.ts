@@ -94,6 +94,16 @@ export class EnvironmentVariables {
   @IsNotEmpty()
   WEB_ORIGIN!: string;
 
+  // --- Mã OTP (task A2, quyết định S3). Khoá HMAC của mã OTP, RIÊNG với khoá JWT (SE-06). Bắt buộc khi NODE_ENV khác development;
+  // ở development bỏ trống thì OtpService dùng khoá ngẫu nhiên cho từng lần khởi động (khởi động lại làm mã OTP đang chờ mất hiệu lực).
+  // Khi đặt: tối thiểu 32 ký tự và khác hai khoá JWT (kiểm ở crossFieldProblems). Tên biến khớp quy tắc của collectSecretValues (P5)
+  // nên giá trị bị che khỏi log.
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  @MinLength(32)
+  OTP_HMAC_SECRET?: string;
+
   // --- Gửi email (task P4). Dev/test: bỏ trống cả ba SMTP_HOST/SMTP_USER/SMTP_PASS thì MailService báo NOT_CONFIGURED khi gửi.
   // Staging/production: bắt buộc (kiểm ở crossFieldProblems), thiếu thì API không khởi động. Biến để trống ('') coi như không đặt.
   @Transform(emptyToUndefined)
@@ -203,7 +213,30 @@ function crossFieldProblems(env: EnvironmentVariables): string[] {
       'WEB_ORIGIN: phải là một origin dạng http(s)://host[:port], không có đường dẫn hay dấu / ở cuối',
     );
   }
+  problems.push(...otpProblems(env));
   problems.push(...mailProblems(env));
+  return problems;
+}
+
+// Khoá HMAC của OTP (task A2). Thông báo chỉ nêu TÊN biến, không bao giờ in giá trị.
+function otpProblems(env: EnvironmentVariables): string[] {
+  const problems: string[] = [];
+  const secret = env.OTP_HMAC_SECRET;
+  if (typeof secret !== 'string' || secret === '') {
+    // Chỉ development mới được bỏ trống (khi đó OtpService dùng khoá ngẫu nhiên theo từng lần khởi động).
+    // test dùng khoá cố định từ TEST_AUTH_ENV; staging/production bắt buộc đặt.
+    if (env.NODE_ENV !== 'development') {
+      problems.push(
+        `OTP_HMAC_SECRET: bắt buộc khi NODE_ENV=${env.NODE_ENV} (khoá HMAC của mã OTP)`,
+      );
+    }
+    return problems;
+  }
+  if (secret === env.JWT_ACCESS_SECRET || secret === env.JWT_REFRESH_SECRET) {
+    problems.push(
+      'OTP_HMAC_SECRET: phải khác JWT_ACCESS_SECRET và JWT_REFRESH_SECRET (mỗi loại bí mật một khoá riêng)',
+    );
+  }
   return problems;
 }
 

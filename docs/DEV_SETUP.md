@@ -110,6 +110,21 @@ API gửi email mã OTP (đăng ký, quên mật khẩu) bằng **Gmail SMTP** q
 > **Tuyệt đối không dán mật khẩu ứng dụng vào chat (kể cả khi trò chuyện với AI), issue, PR, commit hay bất kỳ file nào trong repo.** Repo này công khai. Nếu lỡ lộ: vào Tài khoản Google, thu hồi mật khẩu ứng dụng đó ngay và tạo cái mới.
 
 Giới hạn cần biết (H11): Gmail có hạn mức gửi hằng ngày; thư có thể vào hộp spam; Google có thể chặn đăng nhập từ IP máy chủ lạ. Việc gửi thật cả hai loại OTP (và đường gửi lỗi bằng cách đặt sai mật khẩu ứng dụng) được kiểm tay ở task X1.
+### 4.3 Khoá HMAC của mã OTP (từ task A2 của module `auth`)
+
+API lưu mã OTP dưới dạng **HMAC-SHA-256** với một khoá riêng, không lưu mã rõ. Khoá lấy từ biến `OTP_HMAC_SECRET`:
+
+| Môi trường (`NODE_ENV`) | Quy tắc |
+|---|---|
+| `development` (mặc định khi chạy cục bộ) | **Bỏ trống được.** API dùng một khoá ngẫu nhiên cho lần khởi động đó và ghi một cảnh báo (cảnh báo không in khoá) |
+| `test` | **Bắt buộc**, nhưng test tự động dùng khoá cố định trong mã test (`TEST_AUTH_ENV`), không đọc từ `.env` của bạn |
+| `staging`, `production` | **Bắt buộc.** Thiếu thì API **không khởi động**; thông báo lỗi chỉ nêu tên biến, không in giá trị |
+
+- Khi đặt: tối thiểu **32 ký tự** và **khác** `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (mỗi loại bí mật một khoá). Sinh chuỗi ngẫu nhiên bằng lệnh ở mục 4.1.
+- **Ở development, mỗi lần API khởi động lại (kể cả `start:dev` tự tải lại khi bạn lưu file) thì mọi mã OTP đang chờ mất hiệu lực**: nhập mã vừa nhận sẽ báo sai, bạn phải bấm "Gửi lại mã". Muốn mã OTP còn dùng được sau khi khởi động lại thì **đặt `OTP_HMAC_SECRET` trong `.env`**.
+- Đổi giá trị khoá cũng làm các mã OTP đang chờ (hiệu lực 10 phút) mất hiệu lực; không ảnh hưởng gì khác.
+- Giá trị khoá không bao giờ được ghi vào log: tên biến khớp quy tắc che log của P5 (`SECRET`). Đừng dán khoá vào chat, issue, PR hay repo.
+- `.env` cũ của bạn **không cần sửa** nếu bạn chạy ở development: API vẫn khởi động. Staging/production phải thêm biến này vào `.env` trên server (`docs/TECH_DEBT.md` dòng 19).
 ## 5. Chạy thử môi trường
 
 ```powershell
