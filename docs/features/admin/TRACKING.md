@@ -33,6 +33,8 @@ chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá s
 | 29/10/2026 | P7 follow-up: chuyển `ScheduleModule.forRoot()` từ `UploadModule` lên `AppModule` để A7 dùng chung scheduler mà không khởi tạo lần hai | SE-A7; E2E-J02 (A7, chưa có trên nhánh này) | VERIFIED local | Kiểm source chỉ còn một lời gọi `ScheduleModule.forRoot()` trong `AppModule`; API lint/build pass; test dọn ảnh 3/3 pass. Chưa chạy E2E-J02 vì test nằm ở PR A7 chưa có trên nhánh `feat/admin-c1`; không đổi schema hoặc job dọn ảnh. |
 
 
+| 29/10/2026 | C5 (#54): bốn CLI seed catalog/dev-accounts/first-admin/config-dev; manifest tạm đã duyệt; insert-only, transaction toàn lệnh, named lock cùng connection, reuse auth validator/Argon2id; đồng bộ D8 | SD-01/02/03/04/06 automated; SD-05 HTTP bổ sung, manual còn pending | VERIFIED local; chưa PR/merge | API unit1223/1223 (71 file), C5 unit30/30; MySQL C5 cuối16/16, HTTP login5/5 cho 4 vai trò và 2 scope; build/lint/typecheck/format/diff pass. CLI build smoke catalog/config-dev, CLI first-admin production trên DB test thành công rồi từ chối lần2, CLI dev-accounts pass. MySQL8.4 mới riêng33310; không DB dev/chia sẻ/schema/auth/frontend/dependency. Lượt đầu lỗi kiểu string GET_LOCK và fixture mutate manifest đã sửa, có regression. D8 tại .env.example/DEV_SETUP; chi tiết working-doc/C5/tracker.md; log tại TRUNG_AI_USAGE_LOG.md |
+
 ## 2. Kết quả test theo use case
 
 Cập nhật lần chạy mới nhất; chi tiết từng ca xem mục 1.

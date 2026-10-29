@@ -28,7 +28,7 @@ Updated: 2026-10-29
 |---|---|---|---|---|
 | Q1 | Duyệt plan và response `/admin/me`, tích hợp guard upload P7 | Trung | Bắt đầu T3 | done — duyệt plan trong chat 29/10 |
 | Q2 | Duyệt cách kiểm PQ bằng probe và ghi phần acceptance nghiệp vụ còn phụ thuộc; không tự giảm điều kiện đóng #52 | Trung | Phạm vi T6/bàn giao | done — duyệt plan trong chat 29/10 |
-| Q3 | AI_USAGE_LOG.md chỉ sửa khi được cho phép riêng theo AGENTS | Trung | Log tác động repo | done — người dùng yêu cầu ghi AI log trong chat; đã thêm dòng26 |
+| Q3 | TRUNG_AI_USAGE_LOG.md chỉ sửa khi được cho phép riêng theo AGENTS | Trung | Log tác động repo | done — người dùng yêu cầu ghi AI log trong chat; đã chuyển dòng26 sang TRUNG_AI_USAGE_LOG.md |
 | R1 | Docker/MySQL test riêng | Khi IMPLEMENT | Verification DB | Đã bật Docker Desktop; container mới clinix-c1-tests-20261029, cổng 33309, MySQL 8.4; mọi TEST_DB_* override tới DB test riêng, không dùng DB dev | 
 
 ## Verification log
@@ -55,12 +55,12 @@ Updated: 2026-10-29
 | Regression đúng email trùng | Harness tạm trong node_modules/.cache/c1-verification dựng DB mới riêng và seed nguoi.dung.2@example.com trước chạy suite P7. Sau fix8/8 pass. Đây là kiểm dữ liệu dư từ file trước; không chỉ rerun DB trống. Chưa rerun full29 file sau fix | 2026-10-29 |
 | Kiểm cuối sau sửa fixture | Prettier check, tsc --noEmit, lint và git diff --check pass. Build đã pass với source production hiện tại; thay đổi sau đó chỉ test/Markdown | 2026-10-29 |
 | Cleanup | Container mới clinix-c1-tests-20261029 đã dừng; không sửa/dừng container dev có sẵn. Ba thay đổi scheduler ban đầu giữ nguyên | 2026-10-29 |
-| AI usage log | Người dùng yêu cầu ghi AI log; đã thêm dòng26 trong bảng1, đúng người dùng/công cụ/scope và kết quả thực; giữ giới hạn full suite và chưa commit/PR | 2026-10-29 |
+| AI usage log | Người dùng yêu cầu ghi AI log; đã chuyển dòng26 sang bảng1 của TRUNG_AI_USAGE_LOG.md theo yêu cầu sửa nơi ghi log, đúng người dùng/công cụ/scope và kết quả thực; giữ giới hạn full suite và chưa commit/PR | 2026-10-29 |
 
 ## Handoff
 
 - Triển khai C1 local hoàn tất. API unit1071/1071, C1/auth HTTP48/48; MySQL C1/P7 sau sửa fixture12/12; regression seed email trùng8/8. Full suite đầu388/389; không tuyên bố đã chạy lại toàn bộ sau fix.
-- AI_USAGE_LOG.md đã thêm dòng26 theo yêu cầu riêng của người dùng ngày29/10/2026; chưa ghi người dùng đã tự review/sửa mã khi chưa có xác nhận.
+- TRUNG_AI_USAGE_LOG.md đã thêm dòng26 theo yêu cầu riêng của người dùng ngày29/10/2026; chưa ghi người dùng đã tự review/sửa mã khi chưa có xác nhận.
 - Issue #52 vẫn OPEN; không commit/push/PR. Chỉ dùng MySQL/container test mới riêng, không thao tác DB dev/chia sẻ.
 
 ### Coverage và cách dùng
