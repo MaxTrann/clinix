@@ -1,6 +1,5 @@
 import {
   CallHandler,
-  CanActivate,
   Controller,
   ExecutionContext,
   GatewayTimeoutException,
@@ -10,34 +9,19 @@ import {
   Post,
   ServiceUnavailableException,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Observable, catchError, finalize, throwError, timeout } from 'rxjs';
 import {
   CurrentUser,
-  currentUserOf,
-  type AuthenticatedRequest,
   type AuthenticatedUser,
 } from '../../auth/decorators/current-user.decorator.js';
 import { Roles } from '../../auth/decorators/roles.decorator.js';
+import { RequireAdminScope } from '../../rbac/decorators/require-admin-scope.decorator.js';
 import { AppException } from '../errors/app.exception.js';
 import { SPECIALTY_IMAGE_POLICY as P } from './upload-policy.js';
 import { UploadService } from './upload.service.js';
-
-// Guard scope thật đọc DB trước multipart/interceptor; không dùng stub C1.
-@Injectable()
-export class SpecialtyUploadGuard implements CanActivate {
-  constructor(@Inject(UploadService) private readonly uploads: UploadService) {}
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const user = currentUserOf(
-      context.switchToHttp().getRequest<AuthenticatedRequest>(),
-    );
-    await this.uploads.assertSystemAdmin(user.accountId);
-    return true;
-  }
-}
 
 @Injectable()
 export class UploadCapacityInterceptor implements NestInterceptor {
@@ -83,7 +67,7 @@ interface ImageFile {
 
 @Controller('admin/uploads')
 @Roles('QuanTriVien')
-@UseGuards(SpecialtyUploadGuard)
+@RequireAdminScope('ToanHeThong')
 export class UploadController {
   constructor(@Inject(UploadService) private readonly uploads: UploadService) {}
 

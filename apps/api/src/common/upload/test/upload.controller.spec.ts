@@ -1,8 +1,5 @@
 import 'reflect-metadata';
-import {
-  ForbiddenException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { ServiceUnavailableException } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -13,17 +10,18 @@ import { RolesGuard } from '../../../auth/guards/roles.guard.js';
 import { SessionService } from '../../../auth/session/session.service.js';
 import { TokenService } from '../../../auth/session/token.service.js';
 import {
-  SpecialtyUploadGuard,
   UploadCapacityInterceptor,
   UploadController,
 } from '../upload.controller.js';
 import { UploadService } from '../upload.service.js';
+import { AdminScopeService } from '../../../rbac/admin-scope.service.js';
+import { AdminScopeGuard } from '../../../rbac/guards/admin-scope.guard.js';
 import { SPECIALTY_IMAGE_POLICY as P } from '../upload-policy.js';
 
 describe('CK-11/SE-A7 — HTTP multipart với JwtAuthGuard/RolesGuard thật', () => {
   let app: NestExpressApplication;
   const upload = vi.fn();
-  const assertSystemAdmin = vi.fn();
+  const resolveScope = vi.fn();
   const sessions = { resolveActive: vi.fn() };
   const tokens = { verifyAccessToken: vi.fn() };
 
@@ -31,9 +29,10 @@ describe('CK-11/SE-A7 — HTTP multipart với JwtAuthGuard/RolesGuard thật', 
     const module = await Test.createTestingModule({
       controllers: [UploadController],
       providers: [
-        SpecialtyUploadGuard,
+        AdminScopeGuard,
         UploadCapacityInterceptor,
-        { provide: UploadService, useValue: { upload, assertSystemAdmin } },
+        { provide: UploadService, useValue: { upload } },
+        { provide: AdminScopeService, useValue: { resolve: resolveScope } },
         { provide: SessionService, useValue: sessions },
         { provide: TokenService, useValue: tokens },
         { provide: APP_GUARD, useClass: JwtAuthGuard },
@@ -55,7 +54,7 @@ describe('CK-11/SE-A7 — HTTP multipart với JwtAuthGuard/RolesGuard thật', 
       sessionId: 's',
       role: 'QuanTriVien',
     });
-    assertSystemAdmin.mockResolvedValue(undefined);
+    resolveScope.mockResolvedValue({ kind: 'ToanHeThong' });
     upload.mockResolvedValue({
       uploadId: 'id',
       url: 'https://example.test/anh',
@@ -77,12 +76,10 @@ describe('CK-11/SE-A7 — HTTP multipart với JwtAuthGuard/RolesGuard thật', 
       .attach('file', Buffer.from('anh'), 'anh.png')
       .expect(403);
     expect(upload).not.toHaveBeenCalled();
-    expect(assertSystemAdmin).not.toHaveBeenCalled();
+    expect(resolveScope).not.toHaveBeenCalled();
   });
   it('Admin Chi nhánh bị scope guard chặn trước khi xử lý file', async () => {
-    assertSystemAdmin.mockRejectedValue(
-      new ForbiddenException('KHONG_DU_QUYEN'),
-    );
+    resolveScope.mockResolvedValue({ kind: 'ChiNhanh', chiNhanhId: '2' });
     await authenticated()
       .attach('file', Buffer.from('anh'), 'anh.png')
       .expect(403);
