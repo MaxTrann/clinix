@@ -12,6 +12,7 @@ import { OriginGuard } from './guards/origin.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
 import { LoginController } from './login/login.controller.js';
 import { LoginService } from './login/login.service.js';
+import { LogoutController } from './logout/logout.controller.js';
 import { OtpService } from './otp/otp.service.js';
 import { PasswordHasher } from './password/password-hasher.service.js';
 import { RefreshController } from './refresh/refresh.controller.js';
@@ -33,7 +34,7 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 
 // Khung module auth: xuất 5 entity (task P3), PasswordHasher (A1), các dịch vụ token/phiên/cookie (A3) và OtpService (A2) để module khác
 // (admin…) import, không sao chép. Controller của từng use case đặt trong thư mục theo chức năng và được thêm ở các task A* sau
-// (A5, A6: register/; A8: login/; A9: refresh/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
+// (A5, A6: register/; A8: login/; A9: refresh/; A10: logout/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
 // UnverifiedPatientCleanupJob (A7, `.job.ts` = lớp chạy theo lịch) không import ScheduleModule ở đây: UploadModule đã đăng ký nó TOÀN CỤC và gọi
 // `ScheduleModule.forRoot()` thêm lần nữa làm mọi job chạy gấp đôi (TECH_DEBT dòng 33).
 //
@@ -42,7 +43,12 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 // khai báo dưới đây: JwtAuthGuard (gắn request.user) trước, RolesGuard (đọc request.user) sau; đừng đảo.
 @Module({
   imports: [TypeOrmModule.forFeature(AUTH_ENTITIES), MailModule],
-  controllers: [RegisterController, LoginController, RefreshController],
+  controllers: [
+    RegisterController,
+    LoginController,
+    RefreshController,
+    LogoutController,
+  ],
   providers: [
     TaiKhoanRepository,
     LoginService,
