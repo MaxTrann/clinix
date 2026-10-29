@@ -119,7 +119,7 @@ export class SessionService {
           // Token có chữ ký hợp lệ nhưng không phải token hiện tại của phiên: nghi bị đánh cắp hoặc phát lại
           await this.sessions.revokeIfActive(em, session.phienDangNhapId, now);
           this.logger.warn(
-            `Phát hiện dùng lại refresh token của phiên ${session.phienDangNhapId}; phiên đã bị thu hồi`,
+            `Phát hiện dùng lại refresh token của phiên ${session.phienDangNhapId} (tài khoản ${session.taiKhoanId}); phiên đã bị thu hồi`,
           );
           return { ok: false, reason: 'REUSE_DETECTED' };
         }
