@@ -435,6 +435,12 @@ Quy ước: controller chỉ nhận/trả; logic ở service; truy vấn ở rep
 - Danh sách lọc ở **truy vấn** (không lọc sau trong bộ nhớ); `total` chỉ đếm bản ghi trong phạm vi (PQ-12).
 - FE chỉ ẩn/vô hiệu theo `GET /admin/me` (`{ phamVi, chiNhanh: {id, ten}? }`) — không phải lớp bảo vệ.
 
+**Contract C1 được Trung duyệt ngày 29/10/2026:** `GET /admin/me` trả `{ phamVi: 'ToanHeThong' }` hoặc `{ phamVi: 'ChiNhanh', chiNhanh: { id: string, ten: string } }`; bỏ `chiNhanh` ở phạm vi Toàn hệ thống. ID bigint giữ dạng chuỗi, không có envelope mới. Path Nest là `/admin/me`, truy cập qua proxy `/api` hiện hữu. Thiết kế/verification chi tiết: `working-doc/C1/plan.md`, `tracker.md`.
+
+**Cách dùng C1:** module consumer import `RbacModule`; controller khai báo `@Roles('QuanTriVien')` và `@RequireAdminScope('Any' | 'ToanHeThong')` (decorator này gắn cả guard), nhận `@AdminScopeCtx() scope: AdminScope` rồi truyền scope vào service. Không khai báo lại global auth guard. `BranchAccessPolicy.branchFilter()` trả chi nhánh bắt buộc của Admin Chi nhánh, hoặc bộ lọc tùy chọn của Toàn hệ thống; caller chỉ thêm điều kiện SQL khi giá trị khác `undefined`, áp cùng điều kiện cho danh sách và `total`. `patientVisibilityFilter(scope, alias)` trả `{sql, parameters}` cho QueryBuilder, dùng EXISTS lịch hẹn tại chi nhánh; alias do code sở hữu. Kiểm tài nguyên sau khóa dòng trong transaction của mutation. Ngoài phạm vi dùng cùng `AppException(404, 'KHONG_TIM_THAY')` như không tồn tại.
+
+**Làm rõ mã test:** ca lọc danh sách và `total` là **PQ-08**; dẫn PQ-12 trong bullet phía trên là nhầm mã. PQ-12 giữ nghĩa tài khoản ngừng hoạt động/phiên bị thu hồi. Probe C1 chỉ chứng minh cơ chế dùng chung; endpoint nghiệp vụ B-task và audit C2 vẫn phải có acceptance riêng, không ghi pass thay bằng probe.
+
 ### 5.3 Endpoint đề xuất (tên chưa chốt; tiền tố `/api`; `TH` = chỉ Toàn hệ thống; `Any` = cả hai phạm vi, dữ liệu lọc theo phạm vi)
 
 | Endpoint | Use case | Phạm vi | Ghi chú |
@@ -653,7 +659,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 
 | ☐ | ID | Việc | Phụ thuộc | Bắt đầu | Truy vết | Thẻ |
 |---|---|---|---|---|---|---|
-| ☐ | C1 | **`rbac`** (mục 5.2): `AdminScopeService`, `@RequireAdminScope`, `AdminScopeGuard`, `BranchAccessPolicy`, decorator tham số, `GET /admin/me`, test duyệt toàn bộ route admin phải có decorator | auth A4, P2 (`quan_tri_vien`); Q40 | SOẠN TRƯỚC (policy thuần + unit test) · controller **SAU auth A4** (Q40: ngoài phạm vi ⇒ 404) | mọi UC (phạm vi); SOW 3.2.1 | `feat(rbac)` |
+| ☐ | C1 | **`rbac`** (mục 5.2): `AdminScopeService`, `@RequireAdminScope`, `AdminScopeGuard`, `BranchAccessPolicy`, decorator tham số, `GET /admin/me`, test duyệt toàn bộ route admin phải có decorator | auth A4, P2 (`quan_tri_vien`); Q40 | VERIFIED local (29/10); policy/guard/me và ghép upload đã có; acceptance B-task/C2 riêng, chưa PR/merge | mọi UC (phạm vi); SOW 3.2.1 | `feat(rbac)` |
 | ☐ | C2 | **`AuditService`** tối thiểu: `record(manager, entry)` chạy trong giao dịch của người gọi; kiểm cấu trúc `chi_tiet_thay_doi`; hỗ trợ các hành động mở rộng (5.10); từ chối mọi trường có dạng mật khẩu/token; không có màn xem | P3; Q39 | NGAY (sau P3) | CH, BS (đổi chi nhánh), TK, SOW 3.2.4 | `feat(audit)` |
 | ☐ | C3 | **`SystemConfigService`**: `get()` (null nếu chưa có), `getOrThrow()` ⇒ `HE_THONG_CHUA_CAU_HINH`; kiểm cảnh báo khởi động khi chưa có dòng (quy tắc 35); module xuất ra dùng chung | P3 | VERIFIED local 28/10; unit7/7, MySQL2/2; chờ review/merge (working-doc/C3/tracker.md) | CH A3; CN (số ngày báo trước) | `feat(admin)` |
 | ☐ | C4 | **`notification` tối thiểu**: `NotificationService` (tạo `thong_bao` + `email_thong_bao ChoGui` trong giao dịch của người gọi, idempotent theo UNIQUE), `email-outbox.worker` (nhận việc bằng `UPDATE` có điều kiện, `MailService`, thử lại), mẫu email 689:2 và 690:2 (dựng trên khung mẫu auth A14); **báo người đề xuất khi duyệt/từ chối/rút/hủy; ghi và hiển thị trạng thái gửi thất bại; dừng email còn chờ gửi khi yêu cầu bị hủy/dời hiệu lực (`BoQua`); cảnh báo quá hạn cho Toàn hệ thống** | P3, auth P4, auth A14, auth P5; Q9 | SAU auth P4 | CN b9, A2, A4 | `feat(notification)` |

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
+import { RbacModule } from '../../rbac/rbac.module.js';
 import { CloudinaryImageProvider } from './cloudinary-image.provider.js';
 import { ImageProvider } from './image-provider.js';
 import { ImageProcessor } from './image-processor.js';
@@ -10,20 +10,18 @@ import {
   UploadCapacityInterceptor,
   UploadController,
   UploadDeadlineInterceptor,
-  SpecialtyUploadGuard,
 } from './upload.controller.js';
 import { UploadRepository } from './upload.repository.js';
 import { UploadService } from './upload.service.js';
 
 @Module({
-  imports: [ScheduleModule.forRoot()],
+  imports: [RbacModule],
   controllers: [UploadController],
   providers: [
     ImageProcessor,
     UploadRepository,
     UploadService,
     UploadCleanupService,
-    SpecialtyUploadGuard,
     UploadCapacityInterceptor,
     UploadDeadlineInterceptor,
     {

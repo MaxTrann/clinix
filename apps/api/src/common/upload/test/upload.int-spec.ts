@@ -4,6 +4,7 @@ import type { DataSource } from 'typeorm';
 import {
   createTestDataSource,
   readTestDbSettings,
+  resetTables,
 } from '../../../database/testing/test-database.js';
 import { insertTaiKhoan } from '../../../auth/entities/testing/auth-fixtures.js';
 import { AdminFixtures } from '../../../admin/testing/admin-fixtures.js';
@@ -20,6 +21,9 @@ let images: UploadRepository;
 const now = new Date('2026-10-28T05:00:00Z');
 beforeAll(async () => {
   db = await createTestDataSource(readTestDbSettings());
+  // test:int dùng chung DB giữa các file, nhưng bộ đếm email fixture là riêng mỗi file.
+  // Dọn dữ liệu đầu suite để không đụng email mà suite trước để lại.
+  await resetTables(db);
   images = new UploadRepository(db);
 });
 afterAll(async () => {
