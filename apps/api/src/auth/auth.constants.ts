@@ -64,3 +64,24 @@ export const REGISTER_ERROR_CODES = {
   MAIL_FAILED: 'GUI_MAIL_LOI',
   ACCOUNT_SUSPENDED: 'TAI_KHOAN_NGUNG',
 } as const;
+
+// --- Đăng nhập (task A8; quy tắc nghiệp vụ 18 và 23 của docs/database, PLAN 5.3; quyết định Q5, N2, G1). Cố định theo quyết định nên là hằng số.
+export const LOGIN_MAX_FAILURES = 5; // ĐN A1/6d: đủ 5 lần sai liên tiếp thì khoá tạm
+export const LOGIN_LOCK_MS = 15 * 60 * 1000; // ĐN A1/6d: khoá 15 phút kể từ lần sai thứ 5 (nửa mở: đúng mốc là hết khoá)
+// Mã lỗi riêng của đăng nhập (PLAN 5.5). HTTP: quyết định A8-D (login/login-errors.ts). TAI_KHOAN_NGUNG dùng lại REGISTER_ERROR_CODES.ACCOUNT_SUSPENDED
+// (cùng mã và cùng trạng thái 403 với verify-otp/resend-otp, A6-D).
+export const LOGIN_ERROR_CODES = {
+  BAD_CREDENTIALS: 'DANG_NHAP_SAI',
+  LOCKED: 'TAI_KHOAN_BI_KHOA_TAM',
+  PENDING_ACTIVATION: 'TAI_KHOAN_CHUA_KICH_HOAT',
+  EMAIL_NOT_VERIFIED: 'EMAIL_CHUA_XAC_MINH',
+} as const;
+
+// --- Job dọn tài khoản Bệnh nhân chưa xác minh quá 24 giờ (task A7; ĐK b5 câu cuối, Q4, quyết định A7-A…). Cố định theo quyết định nên là hằng số.
+export const UNVERIFIED_CLEANUP_JOB_NAME = 'unverified-patient-cleanup';
+// Cron 6 trường (giây phút giờ ngày tháng thứ): mỗi giờ vào phút 15, lệch phút 0 của job dọn ảnh (P7) để hai job không dồn vào cùng giây. Việc dọn không
+// quyết định đúng/sai (xác minh và gửi lại đã từ chối tài khoản quá hạn, đăng ký lại xoá lười) nên trễ tối đa khoảng một giờ là chấp nhận được.
+export const UNVERIFIED_CLEANUP_CRON = '0 15 * * * *';
+// Quét ứng viên theo lô theo khoá chính tăng dần; mỗi lượt tối đa MAX_BATCHES lô (tối đa 1000 tài khoản), phần còn lại để lượt sau (TECH_DEBT dòng 35).
+export const UNVERIFIED_CLEANUP_BATCH_SIZE = 100;
+export const UNVERIFIED_CLEANUP_MAX_BATCHES = 10;

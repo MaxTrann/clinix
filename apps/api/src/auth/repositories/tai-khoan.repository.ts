@@ -3,7 +3,7 @@ import type { EntityManager } from 'typeorm';
 import { TaiKhoan } from '../entities/tai-khoan.entity.js';
 import type { RegistrationData } from '../otp/otp.types.js';
 
-// Truy vấn bảng `tai_khoan` cho đăng ký (task A5) và xác minh OTP đăng ký (A6); A8, A11–A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
+// Truy vấn bảng `tai_khoan` cho đăng ký (task A5), xác minh OTP đăng ký (A6), job dọn tài khoản chưa xác minh (A7) và đăng nhập (A8); A11–A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
 // (đăng ký mở, hết 24 giờ) nằm ở register/unverified-account-rules.ts. Mọi hàm nhận `em` để chạy trong GIAO DỊCH của người gọi.
 //
 // Quy ước khoá: hàng `tai_khoan` LUÔN được khoá TRƯỚC các hàng con (ma_xac_thuc, phien_dang_nhap), cùng thứ tự với A2 và A3.
@@ -17,6 +17,14 @@ const FACT_COLUMNS = [
   't.daXacMinhEmail',
   't.trangThai',
   't.thoiDiemTao',
+];
+
+// Các cột mà đăng nhập (task A8) cần: thêm băm mật khẩu, bộ đếm sai và khoá tạm vào các cột "sự kiện" ở trên
+const LOGIN_COLUMNS = [
+  ...FACT_COLUMNS,
+  't.matKhauBam',
+  't.soLanDangNhapSai',
+  't.khoaDangNhapDen',
 ];
 
 export interface NewPatientRow {
@@ -62,6 +70,62 @@ export class TaiKhoanRepository {
   }
 
   /**
+   * Đăng nhập (task A8), pha ĐỌC: đọc THƯỜNG (không khoá) theo email để chọn đường đi và lấy băm mật khẩu đem đi so. Quyết định thật đọc lại dưới
+   * khoá bằng `findForLoginForUpdate`. So sánh email bằng `=` của DB (utf8mb4_unicode_ci: không phân biệt hoa/thường, DN-04).
+   */
+  findForLogin(em: EntityManager, email: string): Promise<TaiKhoan | null> {
+    return em
+      .createQueryBuilder(TaiKhoan, 't')
+      .select(LOGIN_COLUMNS)
+      .where('t.email = :email', { email })
+      .getOne();
+  }
+
+  /** Đăng nhập (task A8), pha QUYẾT ĐỊNH: khoá MỘT hàng theo khoá chính (SELECT … FOR UPDATE; hàng đã có nên không có khoá khoảng) và đọc lại các cột đăng nhập. */
+  findForLoginForUpdate(
+    em: EntityManager,
+    id: string,
+  ): Promise<TaiKhoan | null> {
+    return em
+      .createQueryBuilder(TaiKhoan, 't')
+      .select(LOGIN_COLUMNS)
+      .setLock('pessimistic_write')
+      .where('t.taiKhoanId = :id', { id })
+      .getOne();
+  }
+
+  /**
+   * Ghi MỘT lần đăng nhập sai (bộ đếm mới và khoá tạm mới hoặc NULL). Người gọi đã khoá hàng và đã kiểm trạng thái; điều kiện `DangHoatDong` vẫn nằm
+   * trong CHÍNH câu UPDATE (cùng ý với activateRegistration) để dù tầng trên kiểm sai, tài khoản ngưng hoặc chờ kích hoạt không bị đếm. Trả true nếu ghi được.
+   */
+  async saveLoginFailure(
+    em: EntityManager,
+    id: string,
+    state: { failures: number; lockedUntil: Date | null },
+  ): Promise<boolean> {
+    const result = await em
+      .createQueryBuilder()
+      .update(TaiKhoan)
+      .set({
+        soLanDangNhapSai: state.failures,
+        khoaDangNhapDen: state.lockedUntil,
+      })
+      .where("tai_khoan_id = :id AND trang_thai = 'DangHoatDong'", { id })
+      .execute();
+    return (result.affected ?? 0) === 1;
+  }
+
+  /** Đăng nhập đúng: bộ đếm về 0 và bỏ khoá (kể cả khi chưa xác minh, DN-17). Người gọi đã khoá hàng. */
+  async resetLoginFailures(em: EntityManager, id: string): Promise<void> {
+    await em
+      .createQueryBuilder()
+      .update(TaiKhoan)
+      .set({ soLanDangNhapSai: 0, khoaDangNhapDen: null })
+      .where('tai_khoan_id = :id', { id })
+      .execute();
+  }
+
+  /**
    * Chèn tài khoản Bệnh nhân vừa đăng ký: DangHoatDong, CHƯA xác minh email. Trùng email thì MySQL ném 1062 (đúng chỗ cần: đó là cách
    * duy nhất không có khe hở để biết "người khác vừa tạo", xem RG-S2/S4). Trả mã tài khoản.
    */
@@ -78,6 +142,32 @@ export class TaiKhoanRepository {
       thoiDiemTao: row.createdAt,
     });
     return String(result.identifiers[0]?.taiKhoanId);
+  }
+
+  /**
+   * Mã các Bệnh nhân chưa xác minh đang hoạt động đã sống từ 24 giờ trở lên tính tới `cutoff` (= bây giờ − 24 giờ, đồng hồ ứng dụng), theo khoá chính TĂNG DẦN,
+   * chỉ lấy mã LỚN HƠN `afterId` (con trỏ của lô trước) và tối đa `limit` mã (task A7). Nửa mở như `isExpiredUnverifiedPatient`: `thoi_diem_tao <= cutoff` là
+   * `bây giờ >= thoi_diem_tao + 24 giờ`. Đọc THƯỜNG, không khoá: chỉ là danh sách ứng viên, quyết định thật do `UnverifiedPatientCleaner.purgeIfExpired`
+   * đọc lại dưới khoá. Mỗi điều kiện một dòng và có test khớp từng ca với hàm thuần (CJ-04).
+   */
+  async findExpiredUnverifiedPatientIds(
+    em: EntityManager,
+    cutoff: Date,
+    afterId: string,
+    limit: number,
+  ): Promise<string[]> {
+    const rows = await em
+      .createQueryBuilder(TaiKhoan, 't')
+      .select('t.taiKhoanId')
+      .where("t.loaiTaiKhoan = 'BenhNhan'")
+      .andWhere('t.daXacMinhEmail = 0')
+      .andWhere("t.trangThai = 'DangHoatDong'")
+      .andWhere('t.thoiDiemTao <= :cutoff', { cutoff })
+      .andWhere('t.taiKhoanId > :afterId', { afterId })
+      .orderBy('t.taiKhoanId', 'ASC')
+      .limit(limit)
+      .getMany();
+    return rows.map((row) => row.taiKhoanId);
   }
 
   /**
