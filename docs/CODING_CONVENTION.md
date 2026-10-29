@@ -25,7 +25,7 @@
   Sửa schema thì sửa **cả ba** file `docs/database/*` trước, rồi viết migration khớp từng dòng (test `schema-parity.int-spec.ts` kiểm điều này).
 - Cột `bigint`/`decimal` trả về **chuỗi** (không mất độ chính xác); quan hệ hai chiều giữa các entity dùng `import type` + `Relation<>` để không vòng import khi chạy ESM.
 - **Cấu trúc module `auth`** (`apps/api/src/auth/`): ở gốc chỉ có `auth.module.ts` và `auth.constants.ts`. Controller và service của MỘT use case nằm chung một thư mục con theo use case
-  (đã có `register/`: `register.controller.ts` chỉ nhận/trả, `register.service.ts` điều phối và giữ giao dịch, kèm luật thuần và lớp phụ của use case đó; A6 thêm vào cùng thư mục; use case khác đặt tương tự `[đề xuất]`).
+  (đã có `register/`: `register.controller.ts` chỉ nhận/trả, `register.service.ts` điều phối và giữ giao dịch, kèm luật thuần và lớp phụ của use case đó; A6 thêm vào cùng thư mục; hậu tố `.job.ts` là lớp chạy theo lịch `@nestjs/schedule`, ví dụ `unverified-patient-cleanup.job.ts` của A7, và không gọi `ScheduleModule.forRoot()` thêm lần nữa vì `UploadModule` đã đăng ký toàn cục, gọi lại làm mọi job chạy gấp đôi; use case khác đặt tương tự `[đề xuất]`).
   File dùng chung nằm trong thư mục theo nhóm: `password/` (băm Argon2id, chính sách mật khẩu và bộ vector dùng chung FE/BE), `validation/` (chuẩn hoá và kiểm email, SĐT, họ tên, mã lỗi đầu vào),
   `otp/` (cấp, gửi, xác minh mã OTP), `session/` (access token, phiên đăng nhập, cookie refresh), `guards/`, `decorators/`, `repositories/` (mỗi bảng một file, ví dụ `tai-khoan.repository.ts`),
   `dto/`, `entities/`, `testing/` (mã hỗ trợ test dùng chung). Chỉ tạo thư mục khi có file đầu tiên (không tạo thư mục rỗng); test đặt cạnh mã nó kiểm;

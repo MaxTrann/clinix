@@ -282,6 +282,8 @@ Thứ tự từ chối (A6-B): OtpService trước (`OTP_SAI`, `OTP_BI_THAY_THE`
 
 **Cài đặt (A6, 28/10/2026):** `RegisterVerificationService` (`auth/register/`), hàm gửi thư dùng chung `register-delivery.ts`, quy tắc tài khoản thuần `verification-rules.ts`. Quyết định, số đo và đột biến: TRACKING A6-A…A6-I.
 
+**Cài đặt (A7, 28/10/2026):** `UnverifiedPatientCleanupJob` (`auth/register/unverified-patient-cleanup.job.ts`, hậu tố `.job.ts` = lớp chạy theo lịch): mỗi giờ vào phút 15, quét theo lô 100 (tối đa 10 lô mỗi lượt) rồi xoá MỖI tài khoản trong một giao dịch READ COMMITTED riêng bằng `UnverifiedPatientCleaner.purgeIfExpired`; một tài khoản lỗi không dừng lượt; dùng chung `ScheduleModule` của `UploadModule`. Quyết định, số đo và đột biến: TRACKING A7-A…A7-H.
+
 **QMK trên tài khoản chưa xác minh (N3):** sau khi đổi mật khẩu, trong cùng giao dịch thu hồi mọi hàng `DangKy` chưa dùng **và đặt NULL ba cột dữ liệu đăng ký** của chúng; giao diện hướng dẫn đăng ký lại cùng email.
 Đăng ký lại đi theo bước 4 (tài khoản chưa xác minh còn hạn) và mang dữ liệu mới.
 
@@ -420,7 +422,7 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 | ☑ | A4 | `JwtAuthGuard` (chữ ký, `alg` cố định, phiên theo `sid` chưa thu hồi/chưa quá trần, `trang_thai = DangHoatDong`), `RolesGuard` + `@Roles()`, `@Public()`, `@CurrentUser()` | A3 | ĐMK/ĐX tiền điều kiện; SOW 3.2.1/3.2.2 | `feat(auth)` |
 | ☑ | A5 | **Đăng ký** (mục 5.2): kiểm dữ liệu → các nhánh 1–5; email đã dùng/nhân sự ⇒ `EMAIL_DA_DUNG`; quá 24 giờ ⇒ xoá rồi tạo mới; UNIQUE chạy đua ⇒ như A2; gửi lỗi không thay mã cũ | A1, A2, P4 | ĐK b3–b6, A1, A2, A5 | `[ĐỒNG BỘ TL]` D7 · `feat(auth)` |
 | ☑ | A6 | **Xác minh OTP đăng ký** + **Gửi lại mã** (mục 5.2): chỉ hàng đã gửi thành công, không bị thay thế; giao dịch {ghi dữ liệu từ hàng OTP vào `tai_khoan`, `da_xac_minh_email`, `benh_nhan`, `vi_noi_bo`, `da_dung_luc`, NULL dữ liệu đăng ký}; sai/hết hạn/hết lượt/bị thay thế/`CAN_DANG_KY_LAI`; xác minh lặp không tạo trùng; body thêm `email` (A6-A: chống duyệt id tuần tự) | A5 | ĐK b7–b10, A3, A4, A5/6b | `[ĐỒNG BỘ TL]` D4 · `feat(auth)` |
-| ☐ | A7 | **Dọn tài khoản** `BenhNhan` chưa xác minh quá 24 giờ kể từ `thoi_diem_tao`: job (`@nestjs/schedule`) + hàm dùng lại cho xoá lười ở A5; xoá `ma_xac_thuc` → `phien_dang_nhap` → `tai_khoan` trong một giao dịch; không đụng nhân sự (H1) và **bỏ qua Bệnh nhân `NgungHoatDong`** (A5-F; hàm `UnverifiedPatientCleaner.purgeIfExpired` đã có ở `auth/register/`) | A5 | ĐK b5 (câu cuối) | `[ĐỒNG BỘ TL]` D1 · `feat(auth)` |
+| ☑ | A7 | **Dọn tài khoản** `BenhNhan` chưa xác minh quá 24 giờ kể từ `thoi_diem_tao`: job (`@nestjs/schedule`) + hàm dùng lại cho xoá lười ở A5; xoá `ma_xac_thuc` → `phien_dang_nhap` → `tai_khoan` trong một giao dịch; không đụng nhân sự (H1) và **bỏ qua Bệnh nhân `NgungHoatDong`** (A5-F; hàm `UnverifiedPatientCleaner.purgeIfExpired` đã có ở `auth/register/`) | A5 | ĐK b5 (câu cuối) | `[ĐỒNG BỘ TL]` D1 · `feat(auth)` |
 | ☐ | A8 | **Đăng nhập** (mục 5.3): trạng thái trước mật khẩu; khoá tạm; so mật khẩu; đếm sai nguyên tử; chưa xác minh ⇒ `EMAIL_CHUA_XAC_MINH` + `maXacThucId` + `trangThaiMa`, **không phiên, không tự gửi mail** (N2); email không tồn tại ⇒ chung, không đếm, so giả; trả thời gian khoá còn lại để FE đếm ngược | A1, A3 | ĐN b3–b7, A1, A2, A3; Q5 | `[ĐỒNG BỘ TL]` D8 · `feat(auth)` |
 | ☐ | A9 | **Làm mới phiên**: kiểm `Origin`, chữ ký, băm, hạn, trần; xoay; dùng lại ⇒ thu hồi; tài khoản không còn `DangHoatDong` ⇒ từ chối. Ghi `TECH_DEBT` trường hợp mất phản hồi mạng (N4) | A3 | Q2 (bổ trợ) | `feat(auth)` |
 | ☐ | A10 | **Đăng xuất**: kiểm `Origin`; thu hồi **phiên hiện tại**; idempotent (phiên hết hạn/đã thu hồi vẫn thành công, không ghi đè `thu_hoi_luc` cũ); xoá cookie | A3, A4 | ĐX b2–b3, A1 | `feat(auth)` |
@@ -447,7 +449,7 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 
 | ID | Nội dung | Đi cùng | Từ |
 |---|---|---|---|
-| D1 | Điền "24 giờ" vào ghi chú `da_xac_minh_email` (dbml/sql) và quy tắc 15; bỏ "[15 phút]" trong 2.4 ĐK b5 | **P3** (phần `docs/database`, xong 26/10/2026); A7 (phần 2.4) | Q4 |
+| D1 | Điền "24 giờ" vào ghi chú `da_xac_minh_email` (dbml/sql) và quy tắc 15; bỏ "[15 phút]" trong 2.4 ĐK b5 | **P3** (phần `docs/database`, xong 26/10/2026); A7 (28/10/2026: chỉ sửa chữ ở dbml và quy tắc 15, 16 cho khớp xoá lười, job và ngoại lệ `NgungHoatDong`; COMMENT trong sql giữ nguyên, `TECH_DEBT` dòng 8); A7 (phần 2.4, việc của người dùng) | Q4 |
 | D2 | `ma_xac_thuc.thu_hoi_luc` và `da_gui_luc` dùng cho OTP (ghi chú dbml/sql); quy tắc 16–17: HMAC, gửi lỗi, **mã đã gửi thành công mới thay mã cũ**, giới hạn tính cả hàng lỗi | **P3** (toàn bộ, xong 26/10/2026) | S1, S3, N1 |
 | D3 | `phien_dang_nhap`: bỏ `[đề xuất]`; 15 phút/30 phút/8 giờ; xoay + phát hiện dùng lại; quy tắc 19; 2.4 ĐX A1 ("không hoạt động" = 30 phút) | **P3** (phần `docs/database`, xong 26/10/2026); A3 (phần 2.4) | Q2, Q10 |
 | D4 | Tạo `vi_noi_bo` ở ĐK b9: 2.4 (bước 9 + hậu điều kiện) + quy tắc 15 và 7 + ghi chú `benh_nhan`/`vi_noi_bo`; Class Diagram nếu cần | **P3** (phần `docs/database`, xong 26/10/2026); A6 (phần 2.4) | Q9 |
