@@ -26,7 +26,11 @@
     "migration:run": "nest build && node dist/database/migrate.js up",
     "migration:revert": "nest build && node dist/database/migrate.js down",
     "migration:status": "nest build && node dist/database/migrate.js status",
-    "test:p7": "vitest run --config ./vitest.config.p7.ts"
+    "test:p7": "vitest run --config ./vitest.config.p7.ts",
+    "seed:catalog": "nest build && node dist/database/seeds/seed.js catalog",
+    "seed:dev-accounts": "nest build && node dist/database/seeds/seed.js dev-accounts",
+    "seed:first-admin": "nest build && node dist/database/seeds/seed.js first-admin",
+    "seed:config-dev": "nest build && node dist/database/seeds/seed.js config-dev"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

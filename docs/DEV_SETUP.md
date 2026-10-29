@@ -236,3 +236,58 @@ winget install gitleaks
 9. Dependency mới pin sharp 0.35.5/cloudinary 2.11.0/@nestjs/schedule 12.0.2. Sharp có binary theo nền tảng: chạy npm ci ở đúng Windows hoặc Linux/Docker, không copy node_modules từ Windows sang container.
 
 Kiểm thủ công còn cần: credential thử nghiệm → upload thật → preview/lưu/thay/gỡ qua B1/F2 → xác minh cleanup. Không dùng ảnh bệnh nhân thật hoặc in file/token/credential vào log. Local test không thay cho acceptance UI hoặc 7 CI check của PR.
+
+## Seed catalog, tài khoản mẫu và Admin đầu tiên — C5
+
+Bốn script chạy trong `apps/api`; cần Node/dependencies hiện có, MySQL đã áp dụng các migration hiện hành. Script build rồi chạy CLI độc lập, không khởi động API/scheduler, không gửi email hay upload ảnh. CLI **không tự chạy migration**, không tự đọc file `.env`: truyền env của tiến trình hoặc chạy trong container API đã có env. Trong Docker cần build/recreate image chứa code C5 trước; chỉ thực hiện khi người phụ trách cho phép. API đang chạy không tự thêm các biến seed mới vào container.
+
+Thiết lập DB_HOST, DB_PORT, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD cho **DB đã được phép ghi**. DB_TIMEZONE chỉ nhận +07:00; TZ chỉ nhận Asia/Ho_Chi_Minh nếu đặt. NODE_ENV nhận development/test/staging/production, mặc định development giống API; không được bỏ/sửa NODE_ENV để lách chặn production. Chỉ dev/test/demo có chủ đích dùng dữ liệu mẫu; tên tham số production không phải cơ chế phân quyền DB.
+
+### Thứ tự và cách chạy
+
+Từ `apps/api`, sau khi thiết lập env cục bộ (không gửi mật khẩu lên chat hoặc lưu vào command/history):
+
+```powershell
+npm run seed:first-admin
+npm run seed:catalog
+npm run seed:config-dev
+npm run seed:dev-accounts
+```
+
+- `first-admin` là lựa chọn bootstrap, có thể chạy độc lập với catalog. Bắt buộc SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, SEED_ADMIN_FULL_NAME, SEED_ADMIN_PHONE; dùng validator auth và Argon2id. Tạo DangHoatDong/đã xác minh/ToanHeThong, chi_nhanh_id NULL. Được phép production; nếu đã có bất kỳ Admin ToanHeThong (kể cả ngừng hoạt động), từ chối. Không dùng lệnh này để reset hoặc tạo Admin thứ hai.
+- `catalog` và `config-dev` độc lập nhau; `dev-accounts` yêu cầu catalog đã có. Nếu cần dùng cả first-admin lẫn dev-accounts, bootstrap trước: dev-accounts cũng tạo một Admin ToanHeThong nên chạy nó trước sẽ làm first-admin từ chối.
+- `dev-accounts` bắt buộc SEED_DEV_PASSWORD từ env, đúng policy auth; không có mật khẩu fallback. Chỉ năm tài khoản demo dùng chung mật khẩu này. Mật khẩu 8–64 ký tự ASCII in được, có chữ số và ký tự đặc biệt; không tự trim.
+- Ba seed mẫu từ chối khi NODE_ENV=production, trước khi kết nối DB. Không đổi env production sang development để chạy mẫu.
+- Với container đã có đủ code/env, lệnh tương đương là `docker compose exec api npm run seed:catalog` (thay suffix cho ba lệnh còn lại). CLI đọc env của container; tên biến mới trong `.env` không tự xuất hiện trong container đã chạy.
+
+### Dữ liệu minh họa đã duyệt, chưa đối chiếu Figma
+
+Catalog: 8 chuyên khoa (Cơ Xương Khớp, Thần kinh, Tiêu hóa, Nội tổng quát, Y học gia đình, Tâm thần, Tim mạch, Tai Mũi Họng); 3 nhóm Khám chuyên khoa/Khám tổng quát/Khám từ xa và 3 dịch vụ mẫu tương ứng. Thời lượng lần lượt 30/60/30 phút, giá 200.000/500.000/150.000 đồng, cọc 0. Không seed phụ phí/mốc hoàn tiền hay ảnh.
+
+Bốn chi nhánh CLINIX Mẫu 1…4 dùng địa chỉ minh họa, tọa độ NULL. Mỗi chi nhánh đủ ISO 1–7: thứ Hai–thứ Bảy 08:00–12:00, 13:00–17:00; Chủ nhật nghỉ với cả bốn giờ NULL; cả ba dịch vụ có ở cả bốn chi nhánh. Thông tin phòng khám id=1 dùng thương hiệu CLINIX (minh họa), email clinic@example.invalid, hotline NULL. Không phải thông tin liên hệ thực.
+
+| Email demo | Vai trò/phạm vi | Hồ sơ |
+|---|---|---|
+| admin.system@example.invalid | QuanTriVien / ToanHeThong | Không gắn chi nhánh |
+| admin.branch@example.invalid | QuanTriVien / ChiNhanh | Chi nhánh mẫu 1 |
+| doctor@example.invalid | BacSi | Chi nhánh mẫu 1; Nội tổng quát; Khám chuyên khoa mẫu; BS/BS, 0 năm kinh nghiệm |
+| receptionist@example.invalid | LeTan | Chi nhánh mẫu 1 |
+| patient@example.invalid | BenhNhan | Hồ sơ và ví 0 đồng, không bệnh án |
+
+Tất cả tài khoản mới DangHoatDong/đã xác minh; tên và số điện thoại là dữ liệu giả đã duyệt, không dùng để liên lạc. Không gửi OTP/email và không tạo phiên trong seed. Đăng nhập qua ứng dụng/API auth hiện hữu sau khi chạy; cần kiểm manual từng vai trò cho SD-05, HTTP test tự động không thay thế manual acceptance.
+
+Config-dev chỉ tạo khi chưa có id=1: giữ chỗ 15 phút; nhắc [72,24,2] giờ; tối đa 3 lịch/hồ sơ; tự đổi lịch 2; check-in trước/sau 30/15 phút; phản hồi lời mời 60 phút; danh sách chờ 2; no-show 3; báo trước 3 ngày; w1/w2=0,60/0,40. **Đây là dữ liệu thử, không phải quyết định chính thức**. Cấu hình nghiệp vụ chính thức đi qua B5 khi có; seed không tạo audit actor giả.
+
+### Chạy lại, xung đột và phục hồi
+
+- Insert-only: không sửa/xóa dữ liệu đã có; singleton config/thông tin phòng khám được giữ nguyên. ID bigint lấy từ DB, không ép ID cố định.
+- Catalog lookup theo tên (dịch vụ theo nhóm+tên); chi nhánh theo tên+địa chỉ. Chi nhánh đã có phải đủ lịch 7 ngày và dịch vụ cần thiết; giữ nguyên lịch, không tự bổ sung/sửa. Nhiều chi nhánh cùng lookup thì từ chối, không chọn dòng đầu. Đổi tên/địa chỉ dữ liệu mẫu có thể khiến lần chạy sau tạo mẫu mới theo manifest; seed không có ID ownership riêng.
+- Account cùng email chỉ skip nếu role/trạng thái xác minh/hồ sơ và quan hệ phù hợp; không reset mật khẩu, mở khóa, chuyển role hay đổi số dư. Tài khoản đã tồn tại có thể dùng mật khẩu khác SEED_DEV_PASSWORD hiện tại. Xung đột thì rollback cả lệnh và đối chiếu thủ công, không tự chữa dữ liệu.
+- Mỗi lệnh một transaction. Lỗi trước commit rollback toàn phần ghi; không có auto-unseed sau commit. CLI in counts created/skipped và mã lỗi cố định, không in mật khẩu/hash/token/env/SQL.
+- Các CLI C5 cùng DB dùng một MySQL named lock, chờ tối đa 10 giây. Chỉ phối hợp writer C5; không chạy đồng thời với SQL/API khác tạo Admin hoặc sửa catalog. Không có UNIQUE mới trên chi_nhanh hay ràng buộc toàn hệ thống chỉ một Admin.
+- `SEED_MIGRATIONS_REQUIRED`: dùng hướng dẫn migration của dự án trên đúng môi trường được phép, rồi chạy lại. `SEED_LOCK_UNAVAILABLE`: chờ lệnh C5 trước kết thúc; không tự tắt kết nối của người khác.
+- `SEED_BRANCH_AMBIGUOUS`, `SEED_BRANCH_INCOMPLETE`, `SEED_BRANCH_SERVICE_MISSING`, `SEED_ACCOUNT_CONFLICT`, `SEED_PROFILE_CONFLICT`, `SEED_EMAIL_CONFLICT`: đối chiếu dữ liệu và manifest; seed không xóa/ghi đè để vượt xung đột. `SEED_CATALOG_REQUIRED`: kiểm catalog trước dev-accounts.
+- `SEED_ENV_INVALID`, `SEED_PASSWORD_INVALID`, `SEED_ADMIN_INVALID`: kiểm tên biến/định dạng cục bộ, không paste secret vào log/chat. `SEED_FAILED`: kiểm kết nối/quyền/schema bằng công cụ được phép; CLI cố ý không in raw lỗi driver.
+- Lỗi ở commit/đóng kết nối/nhả khóa có thể xảy ra sau khi DB đã commit: xác minh lại trạng thái trước khi kết luận chưa ghi gì. Không tự DELETE để chạy lại first-admin. Các mã `SEED_LOCK_RELEASE_FAILED`/`SEED_CLOSE_FAILED` cần kiểm lại kết nối và trạng thái DB, CLI trả lỗi.
+
+Không chạy seed DB dev/chia sẻ chỉ vì test xanh. Verification C5 dùng DB/container test riêng, không dùng credential hoặc dữ liệu bệnh nhân thật.
