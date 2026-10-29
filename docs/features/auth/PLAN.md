@@ -213,7 +213,7 @@ Ngoài phạm vi `auth` (không làm): 3 frame "Kích hoạt tài khoản" và 2
 **`apps/api/src/auth/`:** mỗi use case một thư mục con chứa controller (chỉ nhận/trả) và service (điều phối use case, giao dịch): đã chốt ở A5 với `register/register.controller.ts` và `register/register.service.ts` kèm luật thuần và lớp phụ của use case đó; A6 thêm vào cùng thư mục, use case khác đặt tương tự `[đề xuất]` → `repositories/` (`tai-khoan`, `ma-xac-thuc`,
 `phien-dang-nhap`, `benh-nhan`, `vi-noi-bo`) → entity TypeORM. Phụ: `password/` (`password-hasher.service.ts` Argon2id, `password-policy.ts`), `validation/` (`email-policy.ts`, `phone-policy.ts`, `full-name-policy.ts`, `validation-codes.ts`), `otp/otp.service.ts` (HMAC),
 `session/` (`token.service.ts`, `session.service.ts`, `refresh-cookie.service.ts`), `guards/` (`jwt-auth.guard.ts`, `roles.guard.ts`, `origin.guard.ts`), `decorators/` (`@Public()`, `@Roles()`, `@CurrentUser()`),
-`dto/`, `auth.constants.ts` (10 phút, 5 lần sai, 60 giây, 5 mã/giờ, 5 lần đăng nhập sai, 15 phút khoá, 24 giờ giữ tài khoản — mỗi hằng có comment trỏ điều khoản 2.4).
+`dto/`, `auth.constants.ts` (10 phút, 5 lần sai, 60 giây, 5 mã/giờ, 5 lần đăng nhập sai, 15 phút khoá, 24 giờ giữ tài khoản — mỗi hằng có comment trỏ điều khoản 2.4). *(Sửa 29/10/2026: bản nháp ghi hằng "5 lần đăng nhập sai, 15 phút khoá" như đã có, nhưng thực tế chưa có cho tới task A8; A8 thêm `LOGIN_MAX_FAILURES = 5` và `LOGIN_LOCK_MS = 15 phút`.)*
 `MailService` dùng chung ở `apps/api/src/mail/`.
 
 **Biến môi trường mới (`.env.example`, không giá trị thật):** `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (App Password), `MAIL_FROM_NAME` (= CLINIX),
@@ -233,7 +233,7 @@ Không cần CORS cho trình duyệt; `WEB_ORIGIN` dùng để so `Origin` ở `
 | `POST /auth/register` | ĐK b3–b6, A1, A2 | Body `{hoTen, email, soDienThoai, matKhau, xacNhan}`. 201 `{maXacThucId, hetHanLuc, coTheGuiLaiLuc}` (`coTheGuiLaiLuc` = lúc bấm được "Gửi lại mã"); **không bao giờ** trả OTP. Gửi thư lỗi: 503 `GUI_MAIL_LOI` kèm `chiTiet {maXacThucId, coTheGuiLaiLuc}` (tài khoản vẫn giữ) |
 | `POST /auth/register/verify-otp` | ĐK b7–b10, A3, A4 | Body `{email, maXacThucId, otp}` (A6-A: kèm `email` để một mình `maXacThucId` tuần tự không đủ làm chìa khoá, TECH_DEBT 23). 200 `{ "daXacMinh": true }`: **không** token, cookie hay phiên (đăng nhập là bước sau, ĐK b10). Lỗi: 400 `OTP_SAI` / `OTP_HET_HAN` / `OTP_HET_LUOT`, 409 `OTP_BI_THAY_THE` / `CAN_DANG_KY_LAI`, 403 `TAI_KHOAN_NGUNG` |
 | `POST /auth/register/resend-otp` | "Gửi lại mã" (A3/8d, A4/8b, A5/6b) | Body `{email, maXacThucId}`. 201 `{maXacThucId MỚI, hetHanLuc, coTheGuiLaiLuc}` như `POST /auth/register` (FE dùng id MỚI cho lần nhập kế tiếp); gửi thư lỗi: 503 `GUI_MAIL_LOI` kèm `chiTiet {maXacThucId của hàng lỗi, coTheGuiLaiLuc}`; 429 `GUI_LAI_QUA_SOM` kèm `chiTiet.soGiayCho`; 409 `OTP_BI_THAY_THE` / `CAN_DANG_KY_LAI`; 403 `TAI_KHOAN_NGUNG` |
-| `POST /auth/login` | ĐN | Thành công: access token + `Set-Cookie` refresh + vai trò. Chưa xác minh: lỗi `EMAIL_CHUA_XAC_MINH` + `maXacThucId`, **không** phiên |
+| `POST /auth/login` | ĐN | Body `{email, matKhau}`. Thành công **200** `{ accessToken, vaiTro }` + `Set-Cookie` refresh (A8-D; `Cache-Control: no-store`; refresh chỉ ở cookie). Lỗi: 401 `DANG_NHAP_SAI`; 429 `TAI_KHOAN_BI_KHOA_TAM` kèm `chiTiet {soGiayConLai, khoaDen}`; 403 `TAI_KHOAN_NGUNG`, `TAI_KHOAN_CHUA_KICH_HOAT`; 403 `EMAIL_CHUA_XAC_MINH` kèm `chiTiet {maXacThucId, trangThaiMa, hetHanLuc}` (`maXacThucId` và `hetHanLuc` là `null` khi `CanDangKyLai`), **không** phiên, không cookie |
 | `POST /auth/refresh` | bổ trợ | Kiểm `Origin`; xoay; phát hiện dùng lại |
 | `POST /auth/logout` | ĐX | Kiểm `Origin`; idempotent, luôn thành công |
 | `POST /auth/forgot-password` | QMK b3–b5, A1, A5, A6 | |
@@ -301,6 +301,8 @@ Thứ tự từ chối (A6-B): OtpService trước (`OTP_SAI`, `OTP_BI_THAY_THE`
 - Đăng xuất: đặt `thu_hoi_luc` của phiên hiện tại (idempotent, không ghi đè); xoá cookie. QMK thành công: thu hồi **mọi** phiên của tài khoản. ĐMK: thu hồi mọi phiên khác, xoay refresh token của phiên hiện tại.
 - Guard mỗi request: chữ ký + `alg` cố định → phiên theo `sid` chưa thu hồi, chưa quá trần 8 giờ → `trang_thai = DangHoatDong`.
 
+**Cài đặt đăng nhập (A8, 29/10/2026):** `LoginService` (`auth/login/`, luật thuần ở `login-rules.ts`, lỗi ở `login-errors.ts`). Hai pha: (1) đọc thường rồi so mật khẩu Argon2id **ngoài** giao dịch (email lạ thì so giả); (2) giao dịch ngắn READ COMMITTED khoá MỘT hàng `tai_khoan` theo khoá chính, **chạy lại** kiểm trạng thái, khoá tạm, mật khẩu và cờ xác minh bằng dữ liệu mới nhất dưới khoá, rồi mới đếm sai (hết khoá thì đếm lại từ 1), đặt về 0 hay tạo phiên. Giao dịch TRẢ kết quả và lỗi chỉ được ném sau commit, nên lần đếm sai không bị hoàn tác. Khoá tạm nửa mở (đúng mốc là hết khoá). Chưa xác minh ⇒ `trangThaiMa` từ `otp.latestStatus`, quá 24 giờ hoặc không có mã ⇒ `CanDangKyLai` (`maXacThucId` và `hetHanLuc` là `null`). Quyết định, số đo và đột biến: TRACKING A8-A…A8-L.
+
 ### 5.4 Giao dịch, lỗi, log, kiểm thử
 
 Mọi thao tác đa bảng nằm trong **một** giao dịch ở tầng service (ĐK xác minh, QMK đặt mật khẩu, dọn tài khoản). Mỗi nhánh nghiệp vụ trả **mã lỗi ổn định** (`EMAIL_DA_DUNG`, `EMAIL_CHUA_XAC_MINH`, `OTP_SAI`, `OTP_HET_HAN`, `OTP_HET_LUOT`, `OTP_BI_THAY_THE`, `TAI_KHOAN_BI_KHOA_TAM`…)
@@ -313,11 +315,11 @@ Các câu đã có trong Figma/2.4 giữ nguyên; các câu còn lại là **đ�
 
 | Mã lỗi | Thông báo | Nguồn |
 |---|---|---|
-| `DANG_NHAP_SAI` | Email hoặc mật khẩu không đúng. | 2.4, Figma (bỏ "Còn N lần") |
-| `TAI_KHOAN_BI_KHOA_TAM` | Tài khoản bị khóa tạm thời do nhập sai nhiều lần. Thử lại sau {mm:ss}. Quên mật khẩu? | Figma |
+| `DANG_NHAP_SAI` | Email hoặc mật khẩu không đúng. | 2.4, Figma (bỏ "Còn N lần"); A8: HTTP **401**, không `chiTiet`, thân GIỐNG HỆT cho email lạ và mật khẩu sai |
+| `TAI_KHOAN_BI_KHOA_TAM` | Tài khoản bị khóa tạm thời do nhập sai nhiều lần. Thử lại sau {mm:ss}. Quên mật khẩu? | Figma; A8: HTTP **429**, `chiTiet {soGiayConLai, khoaDen}` (`khoaDen` ISO UTC như `hetHanLuc` của A5, A6); FE tự định dạng {mm:ss} từ `soGiayConLai`, `thongBao` của API không chứa chỗ trống đó |
 | `TAI_KHOAN_NGUNG` | Tài khoản đã bị ngưng hoạt động. Vui lòng liên hệ quản trị viên. | Figma; A6: HTTP **403** (A6-D), A8 dùng CÙNG mã và trạng thái. A6 trả ở `verify-otp` / `resend-otp` khi Bệnh nhân chưa xác minh bị ngưng hoạt động |
-| `TAI_KHOAN_CHUA_KICH_HOAT` | Tài khoản nhân sự này chưa được kích hoạt. Hãy dùng link kích hoạt trong email để thiết lập mật khẩu. | Figma (ĐN); khung QMK có câu riêng |
-| `EMAIL_CHUA_XAC_MINH` | Email của bạn chưa được xác minh. Nhập mã OTP đã nhận hoặc bấm "Gửi lại mã". | đề xuất |
+| `TAI_KHOAN_CHUA_KICH_HOAT` | Tài khoản nhân sự này chưa được kích hoạt. Hãy dùng link kích hoạt trong email để thiết lập mật khẩu. | Figma (ĐN); khung QMK có câu riêng; A8: HTTP **403**, không `chiTiet` |
+| `EMAIL_CHUA_XAC_MINH` | Email của bạn chưa được xác minh. Nhập mã OTP đã nhận hoặc bấm "Gửi lại mã". | đề xuất; A8: HTTP **403**, `chiTiet {maXacThucId, trangThaiMa, hetHanLuc}` (ISO UTC). Khi `trangThaiMa = CanDangKyLai` (mã bị thu hồi do quên mật khẩu, quá 24 giờ, hoặc không có mã) thì `maXacThucId` và `hetHanLuc` là `null` và `thongBao` là "Yêu cầu xác minh email không còn hiệu lực. Vui lòng đăng ký lại bằng email này." |
 | `EMAIL_DA_DUNG` | Email này đã được sử dụng. Vui lòng đăng nhập. | đề xuất (2.4 ĐK A2/4b); A5: HTTP 409 |
 | `GUI_LAI_QUA_SOM` | Vui lòng thử lại sau. | 2.4 ĐK A2/4d |
 | `OTP_SAI` | Mã OTP không đúng. Vui lòng kiểm tra lại. | đề xuất |
@@ -423,7 +425,7 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 | ☑ | A5 | **Đăng ký** (mục 5.2): kiểm dữ liệu → các nhánh 1–5; email đã dùng/nhân sự ⇒ `EMAIL_DA_DUNG`; quá 24 giờ ⇒ xoá rồi tạo mới; UNIQUE chạy đua ⇒ như A2; gửi lỗi không thay mã cũ | A1, A2, P4 | ĐK b3–b6, A1, A2, A5 | `[ĐỒNG BỘ TL]` D7 · `feat(auth)` |
 | ☑ | A6 | **Xác minh OTP đăng ký** + **Gửi lại mã** (mục 5.2): chỉ hàng đã gửi thành công, không bị thay thế; giao dịch {ghi dữ liệu từ hàng OTP vào `tai_khoan`, `da_xac_minh_email`, `benh_nhan`, `vi_noi_bo`, `da_dung_luc`, NULL dữ liệu đăng ký}; sai/hết hạn/hết lượt/bị thay thế/`CAN_DANG_KY_LAI`; xác minh lặp không tạo trùng; body thêm `email` (A6-A: chống duyệt id tuần tự) | A5 | ĐK b7–b10, A3, A4, A5/6b | `[ĐỒNG BỘ TL]` D4 · `feat(auth)` |
 | ☑ | A7 | **Dọn tài khoản** `BenhNhan` chưa xác minh quá 24 giờ kể từ `thoi_diem_tao`: job (`@nestjs/schedule`) + hàm dùng lại cho xoá lười ở A5; xoá `ma_xac_thuc` → `phien_dang_nhap` → `tai_khoan` trong một giao dịch; không đụng nhân sự (H1) và **bỏ qua Bệnh nhân `NgungHoatDong`** (A5-F; hàm `UnverifiedPatientCleaner.purgeIfExpired` đã có ở `auth/register/`) | A5 | ĐK b5 (câu cuối) | `[ĐỒNG BỘ TL]` D1 · `feat(auth)` |
-| ☐ | A8 | **Đăng nhập** (mục 5.3): trạng thái trước mật khẩu; khoá tạm; so mật khẩu; đếm sai nguyên tử; chưa xác minh ⇒ `EMAIL_CHUA_XAC_MINH` + `maXacThucId` + `trangThaiMa`, **không phiên, không tự gửi mail** (N2); email không tồn tại ⇒ chung, không đếm, so giả; trả thời gian khoá còn lại để FE đếm ngược | A1, A3 | ĐN b3–b7, A1, A2, A3; Q5 | `[ĐỒNG BỘ TL]` D8 · `feat(auth)` |
+| ☑ | A8 | **Đăng nhập** (mục 5.3): trạng thái trước mật khẩu; khoá tạm; so mật khẩu; đếm sai nguyên tử; chưa xác minh ⇒ `EMAIL_CHUA_XAC_MINH` + `maXacThucId` + `trangThaiMa`, **không phiên, không tự gửi mail** (N2); email không tồn tại ⇒ chung, không đếm, so giả; trả thời gian khoá còn lại để FE đếm ngược | A1, A3 | ĐN b3–b7, A1, A2, A3; Q5 | `[ĐỒNG BỘ TL]` D8 · `feat(auth)` |
 | ☐ | A9 | **Làm mới phiên**: kiểm `Origin`, chữ ký, băm, hạn, trần; xoay; dùng lại ⇒ thu hồi; tài khoản không còn `DangHoatDong` ⇒ từ chối. Ghi `TECH_DEBT` trường hợp mất phản hồi mạng (N4) | A3 | Q2 (bổ trợ) | `feat(auth)` |
 | ☐ | A10 | **Đăng xuất**: kiểm `Origin`; thu hồi **phiên hiện tại**; idempotent (phiên hết hạn/đã thu hồi vẫn thành công, không ghi đè `thu_hoi_luc` cũ); xoá cookie | A3, A4 | ĐX b2–b3, A1 | `feat(auth)` |
 | ☐ | A11 | **Quên mật khẩu (1)**: email không tồn tại ⇒ "Email chưa đăng ký"; `ChoKichHoat` hoặc `mat_khau_bam IS NULL` ⇒ từ chối, không OTP (S4); tài khoản chưa xác minh **được phép** (Q6); cấp OTP `QuenMatKhau`; verify-otp ⇒ `resetToken` (`JWT_RESET_SECRET`, 10 phút, mang mục đích/tài khoản/`ma_xac_thuc_id`); gửi lại | A2, P4 | QMK b3–b8, A1, A2, A3, A5, A6 | `[ĐỒNG BỘ TL]` D6 · `feat(auth)` |
