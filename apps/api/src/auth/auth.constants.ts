@@ -64,3 +64,12 @@ export const REGISTER_ERROR_CODES = {
   MAIL_FAILED: 'GUI_MAIL_LOI',
   ACCOUNT_SUSPENDED: 'TAI_KHOAN_NGUNG',
 } as const;
+
+// --- Job dọn tài khoản Bệnh nhân chưa xác minh quá 24 giờ (task A7; ĐK b5 câu cuối, Q4, quyết định A7-A…). Cố định theo quyết định nên là hằng số.
+export const UNVERIFIED_CLEANUP_JOB_NAME = 'unverified-patient-cleanup';
+// Cron 6 trường (giây phút giờ ngày tháng thứ): mỗi giờ vào phút 15, lệch phút 0 của job dọn ảnh (P7) để hai job không dồn vào cùng giây. Việc dọn không
+// quyết định đúng/sai (xác minh và gửi lại đã từ chối tài khoản quá hạn, đăng ký lại xoá lười) nên trễ tối đa khoảng một giờ là chấp nhận được.
+export const UNVERIFIED_CLEANUP_CRON = '0 15 * * * *';
+// Quét ứng viên theo lô theo khoá chính tăng dần; mỗi lượt tối đa MAX_BATCHES lô (tối đa 1000 tài khoản), phần còn lại để lượt sau (TECH_DEBT dòng 35).
+export const UNVERIFIED_CLEANUP_BATCH_SIZE = 100;
+export const UNVERIFIED_CLEANUP_MAX_BATCHES = 10;

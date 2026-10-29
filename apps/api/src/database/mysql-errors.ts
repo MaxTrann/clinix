@@ -55,3 +55,8 @@ export function isForeignKeyError(error: unknown): boolean {
 export function isDeadlockError(error: unknown): boolean {
   return matches(error, [1213], ['ER_LOCK_DEADLOCK']);
 }
+
+/** 1205 ER_LOCK_WAIT_TIMEOUT: chờ khoá hàng quá `innodb_lock_wait_timeout`; chỉ câu lệnh đó bị huỷ, giao dịch của người gọi vẫn còn (task A7). */
+export function isLockWaitTimeoutError(error: unknown): boolean {
+  return matches(error, [1205], ['ER_LOCK_WAIT_TIMEOUT']);
+}

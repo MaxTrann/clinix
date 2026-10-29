@@ -3,7 +3,7 @@ import type { EntityManager } from 'typeorm';
 import { TaiKhoan } from '../entities/tai-khoan.entity.js';
 import type { RegistrationData } from '../otp/otp.types.js';
 
-// Truy vấn bảng `tai_khoan` cho đăng ký (task A5) và xác minh OTP đăng ký (A6); A8, A11–A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
+// Truy vấn bảng `tai_khoan` cho đăng ký (task A5), xác minh OTP đăng ký (A6) và job dọn tài khoản chưa xác minh (A7); A8, A11–A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
 // (đăng ký mở, hết 24 giờ) nằm ở register/unverified-account-rules.ts. Mọi hàm nhận `em` để chạy trong GIAO DỊCH của người gọi.
 //
 // Quy ước khoá: hàng `tai_khoan` LUÔN được khoá TRƯỚC các hàng con (ma_xac_thuc, phien_dang_nhap), cùng thứ tự với A2 và A3.
@@ -78,6 +78,32 @@ export class TaiKhoanRepository {
       thoiDiemTao: row.createdAt,
     });
     return String(result.identifiers[0]?.taiKhoanId);
+  }
+
+  /**
+   * Mã các Bệnh nhân chưa xác minh đang hoạt động đã sống từ 24 giờ trở lên tính tới `cutoff` (= bây giờ − 24 giờ, đồng hồ ứng dụng), theo khoá chính TĂNG DẦN,
+   * chỉ lấy mã LỚN HƠN `afterId` (con trỏ của lô trước) và tối đa `limit` mã (task A7). Nửa mở như `isExpiredUnverifiedPatient`: `thoi_diem_tao <= cutoff` là
+   * `bây giờ >= thoi_diem_tao + 24 giờ`. Đọc THƯỜNG, không khoá: chỉ là danh sách ứng viên, quyết định thật do `UnverifiedPatientCleaner.purgeIfExpired`
+   * đọc lại dưới khoá. Mỗi điều kiện một dòng và có test khớp từng ca với hàm thuần (CJ-04).
+   */
+  async findExpiredUnverifiedPatientIds(
+    em: EntityManager,
+    cutoff: Date,
+    afterId: string,
+    limit: number,
+  ): Promise<string[]> {
+    const rows = await em
+      .createQueryBuilder(TaiKhoan, 't')
+      .select('t.taiKhoanId')
+      .where("t.loaiTaiKhoan = 'BenhNhan'")
+      .andWhere('t.daXacMinhEmail = 0')
+      .andWhere("t.trangThai = 'DangHoatDong'")
+      .andWhere('t.thoiDiemTao <= :cutoff', { cutoff })
+      .andWhere('t.taiKhoanId > :afterId', { afterId })
+      .orderBy('t.taiKhoanId', 'ASC')
+      .limit(limit)
+      .getMany();
+    return rows.map((row) => row.taiKhoanId);
   }
 
   /**
