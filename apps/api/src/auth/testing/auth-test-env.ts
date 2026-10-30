@@ -6,6 +6,8 @@ export const TEST_AUTH_ENV = {
   JWT_REFRESH_SECRET: 'test-only-refresh-secret-not-real-0002-klmnopqrst',
   // Khoá HMAC của mã OTP (task A2): test luôn dùng khoá cố định này, không dùng khoá ngẫu nhiên của development
   OTP_HMAC_SECRET: 'test-only-otp-hmac-secret-not-real-0003-uvwxyzabcd',
+  // Khoá ký resetToken của quên mật khẩu (task A11): test luôn dùng khoá cố định này, không dùng khoá ngẫu nhiên của development
+  JWT_RESET_SECRET: 'test-only-reset-secret-not-real-0004-efghijklmn',
   WEB_ORIGIN: 'http://localhost:5173',
   COOKIE_SECURE: 'true',
 } as const;

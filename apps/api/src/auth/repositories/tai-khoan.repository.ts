@@ -27,6 +27,9 @@ const LOGIN_COLUMNS = [
   't.khoaDangNhapDen',
 ];
 
+// Các cột mà quên mật khẩu (task A11) cần: thêm họ tên (lời chào trong thư) và băm mật khẩu (chỉ để biết đã có mật khẩu hay chưa, S4) vào các cột "sự kiện"
+const PASSWORD_RESET_COLUMNS = [...FACT_COLUMNS, 't.hoTen', 't.matKhauBam'];
+
 export interface NewPatientRow {
   hoTen: string;
   email: string;
@@ -89,6 +92,34 @@ export class TaiKhoanRepository {
     return em
       .createQueryBuilder(TaiKhoan, 't')
       .select(LOGIN_COLUMNS)
+      .setLock('pessimistic_write')
+      .where('t.taiKhoanId = :id', { id })
+      .getOne();
+  }
+
+  /**
+   * Quên mật khẩu (task A11), pha ĐỌC: đọc THƯỜNG (không khoá) theo email để chọn đường đi. Quyết định thật đọc lại dưới khoá bằng
+   * `findForPasswordResetForUpdate`. So sánh email bằng `=` của DB (utf8mb4_unicode_ci: không phân biệt hoa/thường).
+   */
+  findForPasswordReset(
+    em: EntityManager,
+    email: string,
+  ): Promise<TaiKhoan | null> {
+    return em
+      .createQueryBuilder(TaiKhoan, 't')
+      .select(PASSWORD_RESET_COLUMNS)
+      .where('t.email = :email', { email })
+      .getOne();
+  }
+
+  /** Quên mật khẩu (task A11), pha QUYẾT ĐỊNH: khoá MỘT hàng theo khoá chính (hàng đã có nên không có khoá khoảng) và đọc lại các cột cần. */
+  findForPasswordResetForUpdate(
+    em: EntityManager,
+    id: string,
+  ): Promise<TaiKhoan | null> {
+    return em
+      .createQueryBuilder(TaiKhoan, 't')
+      .select(PASSWORD_RESET_COLUMNS)
       .setLock('pessimistic_write')
       .where('t.taiKhoanId = :id', { id })
       .getOne();

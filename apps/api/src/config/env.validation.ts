@@ -105,6 +105,16 @@ export class EnvironmentVariables {
   @MinLength(32)
   OTP_HMAC_SECRET?: string;
 
+  // --- Quên mật khẩu (task A11, quyết định S2). Khoá ký resetToken, RIÊNG với hai khoá JWT và khoá HMAC của OTP (SE-06). Cùng quy tắc OTP_HMAC_SECRET:
+  // bắt buộc khi NODE_ENV khác development; ở development bỏ trống thì ResetTokenService dùng khoá ngẫu nhiên cho từng lần khởi động (khởi động lại thì
+  // resetToken đang giữ mất hiệu lực, tối đa 10 phút). Khi đặt: tối thiểu 32 ký tự và khác ba khoá kia (kiểm ở crossFieldProblems). Tên biến khớp
+  // quy tắc của collectSecretValues (P5) nên giá trị bị che khỏi log.
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  @MinLength(32)
+  JWT_RESET_SECRET?: string;
+
   // --- Gửi email (task P4). Dev/test: bỏ trống cả ba SMTP_HOST/SMTP_USER/SMTP_PASS thì MailService báo NOT_CONFIGURED khi gửi.
   // Staging/production: bắt buộc (kiểm ở crossFieldProblems), thiếu thì API không khởi động. Biến để trống ('') coi như không đặt.
   @Transform(emptyToUndefined)
@@ -232,6 +242,7 @@ function crossFieldProblems(env: EnvironmentVariables): string[] {
     );
   }
   problems.push(...otpProblems(env));
+  problems.push(...resetProblems(env));
   problems.push(...mailProblems(env));
   return problems;
 }
@@ -256,6 +267,30 @@ function otpProblems(env: EnvironmentVariables): string[] {
     );
   }
   return problems;
+}
+
+// Khoá ký resetToken (task A11). Thông báo chỉ nêu TÊN biến, không bao giờ in giá trị. Thông báo của otpProblems giữ nguyên (không nhắc khoá reset),
+// nên ràng buộc "khác nhau" với ba khoá kia nằm hết ở đây.
+function resetProblems(env: EnvironmentVariables): string[] {
+  const secret = env.JWT_RESET_SECRET;
+  if (typeof secret !== 'string' || secret === '') {
+    // Chỉ development mới được bỏ trống (khi đó ResetTokenService dùng khoá ngẫu nhiên theo từng lần khởi động)
+    return env.NODE_ENV === 'development'
+      ? []
+      : [
+          `JWT_RESET_SECRET: bắt buộc khi NODE_ENV=${env.NODE_ENV} (khoá ký resetToken của quên mật khẩu)`,
+        ];
+  }
+  const others = [
+    env.JWT_ACCESS_SECRET,
+    env.JWT_REFRESH_SECRET,
+    env.OTP_HMAC_SECRET,
+  ];
+  return others.includes(secret)
+    ? [
+        'JWT_RESET_SECRET: phải khác JWT_ACCESS_SECRET, JWT_REFRESH_SECRET và OTP_HMAC_SECRET (mỗi loại bí mật một khoá riêng)',
+      ]
+    : [];
 }
 
 // Cấu hình gửi email (task P4). Thông báo chỉ nêu TÊN biến, không bao giờ in giá trị (SMTP_PASS là mật khẩu ứng dụng).
