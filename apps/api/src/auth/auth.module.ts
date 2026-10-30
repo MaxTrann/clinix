@@ -7,6 +7,9 @@ import { MaXacThuc } from './entities/ma-xac-thuc.entity.js';
 import { PhienDangNhap } from './entities/phien-dang-nhap.entity.js';
 import { TaiKhoan } from './entities/tai-khoan.entity.js';
 import { ViNoiBo } from './entities/vi-noi-bo.entity.js';
+import { ForgotPasswordController } from './forgot-password/forgot-password.controller.js';
+import { ForgotPasswordService } from './forgot-password/forgot-password.service.js';
+import { ResetTokenService } from './forgot-password/reset-token.service.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { OriginGuard } from './guards/origin.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
@@ -48,8 +51,11 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
     LoginController,
     RefreshController,
     LogoutController,
+    ForgotPasswordController,
   ],
   providers: [
+    ForgotPasswordService,
+    ResetTokenService,
     TaiKhoanRepository,
     LoginService,
     BenhNhanRepository,

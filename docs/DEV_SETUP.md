@@ -125,6 +125,23 @@ API lưu mã OTP dưới dạng **HMAC-SHA-256** với một khoá riêng, khôn
 - Đổi giá trị khoá cũng làm các mã OTP đang chờ (hiệu lực 10 phút) mất hiệu lực; không ảnh hưởng gì khác.
 - Giá trị khoá không bao giờ được ghi vào log: tên biến khớp quy tắc che log của P5 (`SECRET`). Đừng dán khoá vào chat, issue, PR hay repo.
 - `.env` cũ của bạn **không cần sửa** nếu bạn chạy ở development: API vẫn khởi động. Staging/production phải thêm biến này vào `.env` trên server (`docs/TECH_DEBT.md` dòng 19).
+
+### 4.4 Khoá ký resetToken của Quên mật khẩu (từ task A11 của module `auth`)
+
+Sau khi nhập đúng mã OTP quên mật khẩu, API cấp một `resetToken` (JWT, hiệu lực 10 phút kể từ lúc xác minh) cho bước đặt mật khẩu mới. Token ký bằng `JWT_RESET_SECRET`, một khoá **riêng** với hai khoá JWT và khoá HMAC của OTP:
+
+| Môi trường (`NODE_ENV`) | Quy tắc |
+|---|---|
+| `development` (mặc định khi chạy cục bộ) | **Bỏ trống được.** API dùng một khoá ngẫu nhiên cho lần khởi động đó và ghi một cảnh báo (cảnh báo không in khoá) |
+| `test` | **Bắt buộc**, nhưng test tự động dùng khoá cố định trong mã test (`TEST_AUTH_ENV`), không đọc từ `.env` của bạn |
+| `staging`, `production` | **Bắt buộc.** Thiếu thì API **không khởi động** (lệnh `migrate` trên server cũng dừng vì dùng chung bước kiểm tra cấu hình); thông báo lỗi chỉ nêu tên biến, không in giá trị |
+
+- Khi đặt: tối thiểu **32 ký tự** và **khác** `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `OTP_HMAC_SECRET` (mỗi loại bí mật một khoá). Sinh chuỗi ngẫu nhiên bằng lệnh ở mục 4.1.
+- **Ở development, mỗi lần API khởi động lại thì mọi `resetToken` đang giữ mất hiệu lực** (tối đa 10 phút): bạn phải nhập lại mã OTP. Muốn ổn định thì **đặt `JWT_RESET_SECRET` trong `.env`**.
+- Đổi giá trị khoá chỉ làm các `resetToken` đang giữ mất hiệu lực, không ảnh hưởng gì khác.
+- Giá trị khoá không bao giờ được ghi vào log: tên biến khớp quy tắc che log của P5 (`SECRET`). Đừng dán khoá vào chat, issue, PR hay repo.
+- `.env` cũ của bạn **không cần sửa** nếu bạn chạy ở development. Staging/production phải thêm biến này vào `.env` trên server (`docs/TECH_DEBT.md` dòng 19).
+
 ## 5. Chạy thử môi trường
 
 ```powershell
