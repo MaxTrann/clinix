@@ -3,7 +3,7 @@ import type { EntityManager } from 'typeorm';
 import { TaiKhoan } from '../entities/tai-khoan.entity.js';
 import type { RegistrationData } from '../otp/otp.types.js';
 
-// Truy vấn bảng `tai_khoan` cho đăng ký (task A5), xác minh OTP đăng ký (A6), job dọn tài khoản chưa xác minh (A7) và đăng nhập (A8); A11–A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
+// Truy vấn bảng `tai_khoan` cho đăng ký (task A5), xác minh OTP đăng ký (A6), job dọn tài khoản chưa xác minh (A7), đăng nhập (A8) và quên mật khẩu (A11, A12); A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
 // (đăng ký mở, hết 24 giờ) nằm ở register/unverified-account-rules.ts. Mọi hàm nhận `em` để chạy trong GIAO DỊCH của người gọi.
 //
 // Quy ước khoá: hàng `tai_khoan` LUÔN được khoá TRƯỚC các hàng con (ma_xac_thuc, phien_dang_nhap), cùng thứ tự với A2 và A3.
@@ -26,6 +26,9 @@ const LOGIN_COLUMNS = [
   't.soLanDangNhapSai',
   't.khoaDangNhapDen',
 ];
+
+// Các cột mà quên mật khẩu (task A11) cần: thêm họ tên (lời chào trong thư) và băm mật khẩu (chỉ để biết đã có mật khẩu hay chưa, S4) vào các cột "sự kiện"
+const PASSWORD_RESET_COLUMNS = [...FACT_COLUMNS, 't.hoTen', 't.matKhauBam'];
 
 export interface NewPatientRow {
   hoTen: string;
@@ -95,6 +98,34 @@ export class TaiKhoanRepository {
   }
 
   /**
+   * Quên mật khẩu (task A11), pha ĐỌC: đọc THƯỜNG (không khoá) theo email để chọn đường đi. Quyết định thật đọc lại dưới khoá bằng
+   * `findForPasswordResetForUpdate`. So sánh email bằng `=` của DB (utf8mb4_unicode_ci: không phân biệt hoa/thường).
+   */
+  findForPasswordReset(
+    em: EntityManager,
+    email: string,
+  ): Promise<TaiKhoan | null> {
+    return em
+      .createQueryBuilder(TaiKhoan, 't')
+      .select(PASSWORD_RESET_COLUMNS)
+      .where('t.email = :email', { email })
+      .getOne();
+  }
+
+  /** Quên mật khẩu (task A11), pha QUYẾT ĐỊNH: khoá MỘT hàng theo khoá chính (hàng đã có nên không có khoá khoảng) và đọc lại các cột cần. */
+  findForPasswordResetForUpdate(
+    em: EntityManager,
+    id: string,
+  ): Promise<TaiKhoan | null> {
+    return em
+      .createQueryBuilder(TaiKhoan, 't')
+      .select(PASSWORD_RESET_COLUMNS)
+      .setLock('pessimistic_write')
+      .where('t.taiKhoanId = :id', { id })
+      .getOne();
+  }
+
+  /**
    * Ghi MỘT lần đăng nhập sai (bộ đếm mới và khoá tạm mới hoặc NULL). Người gọi đã khoá hàng và đã kiểm trạng thái; điều kiện `DangHoatDong` vẫn nằm
    * trong CHÍNH câu UPDATE (cùng ý với activateRegistration) để dù tầng trên kiểm sai, tài khoản ngưng hoặc chờ kích hoạt không bị đếm. Trả true nếu ghi được.
    */
@@ -123,6 +154,26 @@ export class TaiKhoanRepository {
       .set({ soLanDangNhapSai: 0, khoaDangNhapDen: null })
       .where('tai_khoan_id = :id', { id })
       .execute();
+  }
+
+  /**
+   * Quên mật khẩu (task A12): ghi mật khẩu mới, bộ đếm sai về 0 và bỏ khoá tạm (S4, QM-15). Người gọi đã khoá hàng và đã kiểm tư cách; điều kiện
+   * "không phải ChoKichHoat" vẫn nằm trong CHÍNH câu UPDATE (cùng ý với activateRegistration) để dù tầng trên kiểm sai, nhân sự chưa kích hoạt không bị gán
+   * mật khẩu ngoài liên kết kích hoạt (và không đụng CHECK chk_tai_khoan_mat_khau). NgungHoatDong được ghi (S4: đặt lại được nhưng vẫn ngưng).
+   * KHÔNG đổi da_xac_minh_email (Q6). Trả true nếu đúng một hàng được cập nhật.
+   */
+  async setPasswordAfterReset(
+    em: EntityManager,
+    id: string,
+    matKhauBam: string,
+  ): Promise<boolean> {
+    const result = await em
+      .createQueryBuilder()
+      .update(TaiKhoan)
+      .set({ matKhauBam, soLanDangNhapSai: 0, khoaDangNhapDen: null })
+      .where("tai_khoan_id = :id AND trang_thai <> 'ChoKichHoat'", { id })
+      .execute();
+    return (result.affected ?? 0) === 1;
   }
 
   /**

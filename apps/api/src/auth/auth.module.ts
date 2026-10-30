@@ -7,11 +7,17 @@ import { MaXacThuc } from './entities/ma-xac-thuc.entity.js';
 import { PhienDangNhap } from './entities/phien-dang-nhap.entity.js';
 import { TaiKhoan } from './entities/tai-khoan.entity.js';
 import { ViNoiBo } from './entities/vi-noi-bo.entity.js';
+import { ForgotPasswordController } from './forgot-password/forgot-password.controller.js';
+import { ForgotPasswordService } from './forgot-password/forgot-password.service.js';
+import { ResetPasswordController } from './forgot-password/reset-password.controller.js';
+import { ResetPasswordService } from './forgot-password/reset-password.service.js';
+import { ResetTokenService } from './forgot-password/reset-token.service.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { OriginGuard } from './guards/origin.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
 import { LoginController } from './login/login.controller.js';
 import { LoginService } from './login/login.service.js';
+import { LogoutController } from './logout/logout.controller.js';
 import { OtpService } from './otp/otp.service.js';
 import { PasswordHasher } from './password/password-hasher.service.js';
 import { RefreshController } from './refresh/refresh.controller.js';
@@ -33,7 +39,7 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 
 // Khung module auth: xuất 5 entity (task P3), PasswordHasher (A1), các dịch vụ token/phiên/cookie (A3) và OtpService (A2) để module khác
 // (admin…) import, không sao chép. Controller của từng use case đặt trong thư mục theo chức năng và được thêm ở các task A* sau
-// (A5, A6: register/; A8: login/; A9: refresh/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
+// (A5, A6: register/; A8: login/; A9: refresh/; A10: logout/; A11, A12: forgot-password/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
 // UnverifiedPatientCleanupJob (A7, `.job.ts` = lớp chạy theo lịch) không import ScheduleModule ở đây: UploadModule đã đăng ký nó TOÀN CỤC và gọi
 // `ScheduleModule.forRoot()` thêm lần nữa làm mọi job chạy gấp đôi (TECH_DEBT dòng 33).
 //
@@ -42,8 +48,18 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 // khai báo dưới đây: JwtAuthGuard (gắn request.user) trước, RolesGuard (đọc request.user) sau; đừng đảo.
 @Module({
   imports: [TypeOrmModule.forFeature(AUTH_ENTITIES), MailModule],
-  controllers: [RegisterController, LoginController, RefreshController],
+  controllers: [
+    RegisterController,
+    LoginController,
+    RefreshController,
+    LogoutController,
+    ForgotPasswordController,
+    ResetPasswordController,
+  ],
   providers: [
+    ForgotPasswordService,
+    ResetPasswordService,
+    ResetTokenService,
     TaiKhoanRepository,
     LoginService,
     BenhNhanRepository,

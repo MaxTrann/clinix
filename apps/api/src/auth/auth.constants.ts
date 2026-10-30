@@ -77,6 +77,30 @@ export const LOGIN_ERROR_CODES = {
   EMAIL_NOT_VERIFIED: 'EMAIL_CHUA_XAC_MINH',
 } as const;
 
+// --- Quên mật khẩu (1) (task A11; quyết định S2, S4, Q6, N6; PLAN 5.1). resetToken: JWT HS256 ký bằng JWT_RESET_SECRET, KHÁC khoá access và refresh (SE-06).
+// Hạn 10 phút TÍNH TỪ LÚC XÁC MINH OTP (không từ lúc cấp OTP), nửa mở: đúng 10:00 là hết. Cố định theo quyết định nên là hằng số.
+export const RESET_TOKEN_TTL_MS = 10 * 60 * 1000;
+export const RESET_TOKEN_ALGORITHM = 'HS256'; // cố định; verify chỉ nhận đúng thuật toán này (chặn alg: none / đổi alg)
+export const RESET_TOKEN_ISSUER = 'clinix-api';
+// Mục đích của token nằm ở `aud`: access token (aud khác, khoá khác) không dùng làm resetToken được và ngược lại (QM-14)
+export const RESET_TOKEN_AUDIENCE = 'clinix-reset-password';
+// Mã lỗi riêng của quên mật khẩu (PLAN 5.5). EMAIL_CHUA_DANG_KY: HTTP 404 (email lạ, hoặc Bệnh nhân chưa xác minh đã quá 24 giờ, quyết định Q5 của A11);
+// TAI_KHOAN_CHUA_KICH_HOAT dùng lại LOGIN_ERROR_CODES.PENDING_ACTIVATION (403) và GUI_MAIL_LOI dùng lại REGISTER_ERROR_CODES.MAIL_FAILED (503).
+export const FORGOT_PASSWORD_ERROR_CODES = {
+  EMAIL_NOT_REGISTERED: 'EMAIL_CHUA_DANG_KY',
+} as const;
+
+// --- Quên mật khẩu (2), đặt mật khẩu mới (task A12; quyết định S2, N3, N6, N7, Q8; TRACKING A12-A…).
+// resetToken thật dài khoảng 250–300 ký tự (hai id BIGINT là trường hợp dài nhất); dài hơn mức này là rác, chặn ở DTO trước khi kiểm chữ ký (như cookie refresh 300).
+export const RESET_TOKEN_MAX_LENGTH = 512;
+// TOKEN_EXPIRED: HTTP 403 cho MỌI lý do token không còn dùng được (sai chữ ký, hết hạn, đã dùng, mã đã bị "Gửi lại mã" thay, tài khoản không còn). Không dùng 401
+// để lớp API client của FE không tưởng là access token hết hạn rồi đi làm mới (TRACKING mục 5 điểm 15). INVALID_TOKEN_FIELD: mã của TRƯỜNG `resetToken` trong `loi`
+// khi thân yêu cầu sai dạng (thiếu, không phải chuỗi, rỗng, quá dài). Cả hai [đề xuất].
+export const RESET_PASSWORD_ERROR_CODES = {
+  TOKEN_EXPIRED: 'RESET_TOKEN_HET_HIEU_LUC',
+  INVALID_TOKEN_FIELD: 'RESET_TOKEN_KHONG_HOP_LE',
+} as const;
+
 // --- Job dọn tài khoản Bệnh nhân chưa xác minh quá 24 giờ (task A7; ĐK b5 câu cuối, Q4, quyết định A7-A…). Cố định theo quyết định nên là hằng số.
 export const UNVERIFIED_CLEANUP_JOB_NAME = 'unverified-patient-cleanup';
 // Cron 6 trường (giây phút giờ ngày tháng thứ): mỗi giờ vào phút 15, lệch phút 0 của job dọn ảnh (P7) để hai job không dồn vào cùng giây. Việc dọn không
