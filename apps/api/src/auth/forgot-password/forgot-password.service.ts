@@ -31,13 +31,14 @@ export interface PasswordResetTokenResult {
 // không thêm một cách dò email nào (H7; email ở bước 1 đã bị lộ có chủ ý theo 2.4 QMK A1, TRACKING A11-F).
 const UNKNOWN_ACCOUNT: OtpFailure = { code: 'OTP_SAI', reason: 'NOT_FOUND' };
 
-const notRegistered = (): AppException =>
+// Hai lỗi từ chối theo tư cách tài khoản: A12 (đặt mật khẩu, kiểm lại dưới khoá) dùng lại ĐÚNG hai hàm này để cùng mã, cùng câu với bước 1
+export const notRegistered = (): AppException =>
   new AppException(404, FORGOT_PASSWORD_ERROR_CODES.EMAIL_NOT_REGISTERED, {
     thongBao: 'Email chưa đăng ký.',
   });
 
 // Câu của đăng nhập (A8). Khung QMK có câu riêng trong Figma: [cần điền] khi nhóm gửi câu chữ.
-const pendingActivation = (): AppException =>
+export const pendingActivation = (): AppException =>
   new AppException(403, LOGIN_ERROR_CODES.PENDING_ACTIVATION, {
     thongBao:
       'Tài khoản nhân sự này chưa được kích hoạt. Hãy dùng link kích hoạt trong email để thiết lập mật khẩu.',
