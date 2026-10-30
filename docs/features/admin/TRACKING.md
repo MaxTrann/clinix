@@ -35,6 +35,8 @@ chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá s
 
 | 29/10/2026 | C5 (#54): bốn CLI seed catalog/dev-accounts/first-admin/config-dev; manifest tạm đã duyệt; insert-only, transaction toàn lệnh, named lock cùng connection, reuse auth validator/Argon2id; đồng bộ D8 | SD-01/02/03/04/06 automated; SD-05 HTTP bổ sung, manual còn pending | VERIFIED local; chưa PR/merge | API unit1223/1223 (71 file), C5 unit30/30; MySQL C5 cuối16/16, HTTP login5/5 cho 4 vai trò và 2 scope; build/lint/typecheck/format/diff pass. CLI build smoke catalog/config-dev, CLI first-admin production trên DB test thành công rồi từ chối lần2, CLI dev-accounts pass. MySQL8.4 mới riêng33310; không DB dev/chia sẻ/schema/auth/frontend/dependency. Lượt đầu lỗi kiểu string GET_LOCK và fixture mutate manifest đã sửa, có regression. D8 tại .env.example/DEV_SETUP; chi tiết working-doc/C5/tracker.md; log tại TRUNG_AI_USAGE_LOG.md |
 
+| 30/10/2026 | C2 (#94): AuditModule/Service/Repository dùng manager transaction caller; union/whitelist11 action, copy JSON an toàn, bigint string, timestamp đến giây, key/pattern secret rejection, lỗi nội bộ mã cố định | C2-01…08 cơ chế; PQ-15 probe; CH/BS/NS/TK/CN acceptance consumer riêng | VERIFIED local; chưa PR/merge | Unit API1300/1300 (73 file), C2unit77/77; MySQL C2 cuối11/11; HTTP guard/actor/scope/rollback8/8; build/lint/typecheck/format/diff pass. MySQL8.4 mới riêng33311; không DB dev/schema/migration/auth/frontend/dependency. Lỗi coercion role đã sửa với red regression; fixture bigint tránh generatedMap TypeORM, ghi DEBT42. Cách dùng PLAN5.10/working-doc/C2; AI log tại TRUNG_AI_USAGE_LOG.md. Chưa full MySQL/e2e/CI/review/merge |
+
 ## 2. Kết quả test theo use case
 
 Cập nhật lần chạy mới nhất; chi tiết từng ca xem mục 1.
