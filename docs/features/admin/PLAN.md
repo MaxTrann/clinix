@@ -620,6 +620,31 @@ Thêm vào `hanh_dong_nhay_cam_enum` (đổi schema 3 file, migration ở P3): `
 
 Mọi dòng ghi **trong cùng giao dịch** với thao tác; ghi lỗi ⇒ rollback thao tác (kể cả `CapNhatCauHinh`). `tai_khoan_id` (người thực hiện) lấy từ **phiên**. Việc **áp dụng bởi job** không có người thực hiện (`tai_khoan_id` NOT NULL) nên **không** ghi audit; dấu vết là `ap_dung_luc` (ghi `TECH_DEBT` nếu nhóm muốn có người/hệ thống thực hiện).
 
+
+**C2 #94 — contract dùng lại (duyệt 30/10/2026):** consumer import `AuditModule` từ `apps/api/src/audit/audit.module.ts` và inject `AuditService`. Gọi `await audit.record(manager, entry)` bên trong callback transaction của nghiệp vụ; manager phải gắn QueryRunner còn active và chưa release, không dùng `dataSource.manager`. Không bắt lỗi audit rồi tiếp tục commit.
+
+Entry gồm `actorId`, `branchId` (string hoặc null tường minh), `action`, `targetType`, `targetId`, `result` (`ThanhCong`/`ThatBai`) và `changes`. ID là chuỗi signed BIGINT dương; JSON changes giữ tên cột tiếng Việt như matrix. Actor phải lấy từ `CurrentUser.accountId`, branch của tài nguyên lấy từ DB dưới khóa phù hợp; service audit không thay authorization ở caller. Ví dụ lời gọi khi đã có manager transaction và user server:
+
+```ts
+await audit.record(manager, {
+  actorId: user.accountId,
+  branchId: null,
+  action: 'CapNhatCauHinh',
+  targetType: 'cau_hinh_he_thong',
+  targetId: '1',
+  result: 'ThanhCong',
+  changes: {
+    truoc: { check_in_truoc_phut: 30 },
+    sau: { check_in_truoc_phut: 45 },
+    ly_do: 'Điều chỉnh cấu hình',
+  },
+});
+```
+
+C2 dùng whitelist đóng cho 11 action trong matrix; enum lịch sử chưa có contract payload bị từ chối `AUDIT_ACTION_UNSUPPORTED`, không xóa enum DB. Config tạo lần đầu dùng `truoc:{tham_so:null}`; chỉ tham số thực sự đổi, cùng tập khóa truoc/sau; giá trị config là số/array số, không decimal string. Timestamp do service tự tạo `toSecond(nowVN())`. Validation sao chụp JSON trước await, không chạy getter/toJSON; key nhạy cảm và chuỗi có pattern bí mật bị từ chối, không tự redact rồi lưu. Văn bản lý do không thể được scanner bảo đảm phát hiện mọi bí mật/PII: caller chỉ xây payload whitelist, không copy DTO/entity/body/error hoặc nội dung khám bệnh vào audit.
+
+Internal error chỉ có mã cố định `AUDIT_TRANSACTION_REQUIRED`, `AUDIT_ENTRY_INVALID`, `AUDIT_SENSITIVE_DATA`, `AUDIT_ACTION_UNSUPPORTED`, `AUDIT_WRITE_FAILED`; không có SQL/parameters/cause raw. Không thêm HTTP contract hoặc audit thất bại ở transaction khác. Một lần gọi = một insert; không tự dedupe/retry. Module không có controller hoặc import toàn cục vào AppModule; consumer tương lai phải import module. Probe chỉ trong test chứng minh cơ chế C2/PQ-15; không ghi CH/BS/NS/TK/CN acceptance passed thay consumer. Verification chi tiết: `working-doc/C2/tracker.md`.
+
 ## 6. Kế hoạch task
 
 ### 6.1 Sơ đồ phụ thuộc (cùng một hàng = làm song song được)
@@ -660,7 +685,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 | ☐ | ID | Việc | Phụ thuộc | Bắt đầu | Truy vết | Thẻ |
 |---|---|---|---|---|---|---|
 | ☐ | C1 | **`rbac`** (mục 5.2): `AdminScopeService`, `@RequireAdminScope`, `AdminScopeGuard`, `BranchAccessPolicy`, decorator tham số, `GET /admin/me`, test duyệt toàn bộ route admin phải có decorator | auth A4, P2 (`quan_tri_vien`); Q40 | VERIFIED local (29/10); policy/guard/me và ghép upload đã có; acceptance B-task/C2 riêng, chưa PR/merge | mọi UC (phạm vi); SOW 3.2.1 | `feat(rbac)` |
-| ☐ | C2 | **`AuditService`** tối thiểu: `record(manager, entry)` chạy trong giao dịch của người gọi; kiểm cấu trúc `chi_tiet_thay_doi`; hỗ trợ các hành động mở rộng (5.10); từ chối mọi trường có dạng mật khẩu/token; không có màn xem | P3; Q39 | NGAY (sau P3) | CH, BS (đổi chi nhánh), TK, SOW 3.2.4 | `feat(audit)` |
+| ☐ | C2 | **`AuditService`** tối thiểu: `record(manager, entry)` chạy trong giao dịch của người gọi; kiểm cấu trúc `chi_tiet_thay_doi`; hỗ trợ các hành động mở rộng (5.10); từ chối mọi trường có dạng mật khẩu/token; không có màn xem | P3; Q39 | VERIFIED local (30/10), issue #94; unit/MySQL/probe HTTP pass; acceptance consumer riêng, chưa PR/merge | CH, BS (đổi chi nhánh), TK, SOW 3.2.4 | `feat(audit)` |
 | ☐ | C3 | **`SystemConfigService`**: `get()` (null nếu chưa có), `getOrThrow()` ⇒ `HE_THONG_CHUA_CAU_HINH`; kiểm cảnh báo khởi động khi chưa có dòng (quy tắc 35); module xuất ra dùng chung | P3 | VERIFIED local 28/10; unit7/7, MySQL2/2; chờ review/merge (working-doc/C3/tracker.md) | CH A3; CN (số ngày báo trước) | `feat(admin)` |
 | ☐ | C4 | **`notification` tối thiểu**: `NotificationService` (tạo `thong_bao` + `email_thong_bao ChoGui` trong giao dịch của người gọi, idempotent theo UNIQUE), `email-outbox.worker` (nhận việc bằng `UPDATE` có điều kiện, `MailService`, thử lại), mẫu email 689:2 và 690:2 (dựng trên khung mẫu auth A14); **báo người đề xuất khi duyệt/từ chối/rút/hủy; ghi và hiển thị trạng thái gửi thất bại; dừng email còn chờ gửi khi yêu cầu bị hủy/dời hiệu lực (`BoQua`); cảnh báo quá hạn cho Toàn hệ thống** | P3, auth P4, auth A14, auth P5; Q9 | SAU auth P4 | CN b9, A2, A4 | `feat(notification)` |
 | ☐ | C5 | **Seed**: `seed:catalog` (chuyên khoa, nhóm, dịch vụ, chi nhánh + 7 thứ + dịch vụ khả dụng, `thong_tin_phong_kham`), `seed:dev-accounts`, `seed:first-admin`, `seed:config-dev`; idempotent; từ chối khi `NODE_ENV=production` (trừ `first-admin`); dữ liệu ghi rõ là minh hoạ; `.env.example`, `docs/DEV_SETUP.md` | P1–P3, auth A1; Q30, Q35, Q36, Q44 | VERIFIED local (29/10): CLI/transaction/lock và SD automated; SD-05 manual/review/merge còn pending; working-doc/C5/tracker.md | H18, CH A3/1c | `feat(db)` · `[ĐỒNG BỘ TL]` D8 |
