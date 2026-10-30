@@ -3,7 +3,7 @@ import type { EntityManager } from 'typeorm';
 import { TaiKhoan } from '../entities/tai-khoan.entity.js';
 import type { RegistrationData } from '../otp/otp.types.js';
 
-// Truy vấn bảng `tai_khoan` cho đăng ký (task A5), xác minh OTP đăng ký (A6), job dọn tài khoản chưa xác minh (A7) và đăng nhập (A8); A11–A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
+// Truy vấn bảng `tai_khoan` cho đăng ký (task A5), xác minh OTP đăng ký (A6), job dọn tài khoản chưa xác minh (A7), đăng nhập (A8) và quên mật khẩu (A11, A12); A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
 // (đăng ký mở, hết 24 giờ) nằm ở register/unverified-account-rules.ts. Mọi hàm nhận `em` để chạy trong GIAO DỊCH của người gọi.
 //
 // Quy ước khoá: hàng `tai_khoan` LUÔN được khoá TRƯỚC các hàng con (ma_xac_thuc, phien_dang_nhap), cùng thứ tự với A2 và A3.
@@ -154,6 +154,26 @@ export class TaiKhoanRepository {
       .set({ soLanDangNhapSai: 0, khoaDangNhapDen: null })
       .where('tai_khoan_id = :id', { id })
       .execute();
+  }
+
+  /**
+   * Quên mật khẩu (task A12): ghi mật khẩu mới, bộ đếm sai về 0 và bỏ khoá tạm (S4, QM-15). Người gọi đã khoá hàng và đã kiểm tư cách; điều kiện
+   * "không phải ChoKichHoat" vẫn nằm trong CHÍNH câu UPDATE (cùng ý với activateRegistration) để dù tầng trên kiểm sai, nhân sự chưa kích hoạt không bị gán
+   * mật khẩu ngoài liên kết kích hoạt (và không đụng CHECK chk_tai_khoan_mat_khau). NgungHoatDong được ghi (S4: đặt lại được nhưng vẫn ngưng).
+   * KHÔNG đổi da_xac_minh_email (Q6). Trả true nếu đúng một hàng được cập nhật.
+   */
+  async setPasswordAfterReset(
+    em: EntityManager,
+    id: string,
+    matKhauBam: string,
+  ): Promise<boolean> {
+    const result = await em
+      .createQueryBuilder()
+      .update(TaiKhoan)
+      .set({ matKhauBam, soLanDangNhapSai: 0, khoaDangNhapDen: null })
+      .where("tai_khoan_id = :id AND trang_thai <> 'ChoKichHoat'", { id })
+      .execute();
+    return (result.affected ?? 0) === 1;
   }
 
   /**
