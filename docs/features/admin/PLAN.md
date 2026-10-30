@@ -467,6 +467,16 @@ Quy ước: controller chỉ nhận/trả; logic ở service; truy vấn ở rep
 
 Mọi endpoint ghi chạy trong **một** giao dịch ở tầng service; DTO `whitelist + forbidNonWhitelisted` (H7).
 
+**Contract B1 đã triển khai local ngày 30/10/2026** (người dùng yêu cầu bắt đầu theo plan sau khi nhận đề xuất; chi tiết `working-doc/B1/plan.md`):
+
+- `GET /admin/specialties`: `page`, `pageSize` theo P6, `q?` tối đa 200 ký tự tìm tên/mô tả (escape `%`, `_`, `!`), `trangThaiHoatDong?`; mặc định tất cả trạng thái, sắp `ten ASC, chuyen_khoa_id ASC`; trả `{items,total,page,pageSize}`.
+- Chi tiết và các mutation trả `{chuyenKhoaId,ten,moTa,anhDaiDien,trangThaiHoatDong,soBacSi}`; bigint ID dạng chuỗi; `soBacSi` đếm mọi hồ sơ bác sĩ đang gán trên toàn hệ thống, cả hai scope thấy cùng số đếm, không lộ hồ sơ cá nhân. Ảnh JOIN URL P7, fallback URL legacy khi chưa chuyển.
+- POST nhận `{ten,moTa?,imageUploadId?}`, mặc định `DangHoatDong`, trả 201. PATCH nội dung nhận một hoặc nhiều trường `{ten?,moTa?,imageUploadId?}`, trả 200; tên chuẩn hóa 1–100 ký tự, mô tả plain text tối đa 5.000, null/chuỗi rỗng = xoá mô tả. Trường lạ/PATCH rỗng/tên null bị từ chối 400.
+- PATCH `/:id/status` chỉ nhận `{trangThaiHoatDong:'DangHoatDong'|'NgungHoatDong'}`, trả 200, lặp idempotent, không sửa quan hệ bác sĩ. GET Any; mọi mutation chỉ TH và service kiểm lại scope (Q11).
+- `GET /admin/options/specialties` nhận `page,pageSize,q?`, trả `{items:[{chuyenKhoaId,ten}],total,page,pageSize}`, luôn chỉ `DangHoatDong`; consumer phải tải tiếp trang nếu cần (Q19).
+- Ảnh: bỏ trường khi PATCH = giữ, null = gỡ, UUID = gắn/thay; tạo bỏ/null = không ảnh; dùng `UploadRepository.assignSpecialty` với cùng manager giao dịch, accountId từ phiên. Ảnh cũ chuyển ChoXoa trong giao dịch rồi scheduler P7 dọn sau commit; lỗi lưu rollback cả chuyên khoa/ledger. Không nhận URL/public_id từ client hoặc gọi provider giữa giao dịch.
+- Lỗi theo 5.9/P7: 400 validation/`ANH_TAI_LEN_KHONG_HOP_LE`, 401 auth, 403 `KHONG_DU_QUYEN`, 404 `KHONG_TIM_THAY`, 409 `TEN_CHUYEN_KHOA_TRUNG`; không thêm success envelope. Không thêm audit/DDL cho CRUD chuyên khoa ngoài scope B1.
+
 ### 5.4 Chi nhánh (CN): lịch hoạt động, ảnh hưởng, yêu cầu, áp dụng
 
 **Dữ liệu vào (`PATCH /admin/branches/:id`):** `{ten, diaChi, toaDoLat?, toaDoLng?, lichHoatDong:[7 phần tử {thuTrongTuan, hoatDong, sang?:{batDau,ketThuc}, chieu?:{batDau,ketThuc}}], dichVuKhamIds:[…]}` (form đầy đủ như Figma; server **diff** với dữ liệu hiện tại: tập thứ thay đổi, dịch vụ thêm/bỏ).
@@ -694,7 +704,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 
 | ☐ | ID | Việc | Phụ thuộc | Bắt đầu | Truy vết | Thẻ |
 |---|---|---|---|---|---|---|
-| ☐ | B1 | **Chuyên khoa**: list/get/create/update/đổi trạng thái; chuẩn hoá (trim + gộp khoảng trắng) + kiểm trùng tên (bắt thêm lỗi UNIQUE khi chạy đua); ngừng hoạt động **không** gỡ bác sĩ; ảnh qua P7: imageUploadId và FK bản ghi ảnh, gắn/thay/gỡ theo plan P7 mục 3; Chi nhánh chỉ GET | P1, P6, C1; Q11, Q12, Q13 | SOẠN TRƯỚC; controller sau C1 | CK b1–b5, A1, A2 | `feat(admin)` |
+| ☐ | B1 | **Chuyên khoa**: list/get/create/update/đổi trạng thái; chuẩn hoá (trim + gộp khoảng trắng) + kiểm trùng tên (bắt thêm lỗi UNIQUE khi chạy đua); ngừng hoạt động **không** gỡ bác sĩ; ảnh qua P7: imageUploadId và FK bản ghi ảnh, gắn/thay/gỡ theo plan P7 mục 3; Chi nhánh chỉ GET | P1, P6, C1, P7; Q11, Q12, Q13 | VERIFIED backend local; F2/D2 và PR/review/merge còn riêng; xem working-doc/B1 | CK b1–b5, A1, A2; CK-17 | `feat(admin)` |
 | ☐ | B2 | **Nhóm dịch vụ**: list/create/update/(delete); tên không trùng; `thu_tu_hien_thi` | P1, P6, C1; Q11, Q14, Q15 | SOẠN TRƯỚC; controller sau C1 | DV b1–b5, A1 | `feat(admin)` |
 | ☐ | B3 | **Dịch vụ khám**: list/create/update; kiểm nhóm tồn tại, tên không rỗng, giá > 0, thời lượng nguyên dương; không nhận `mucDatCoc`; kiểm sửa `thoi_luong` (Q16: chặn khi còn khung giờ tương lai/lịch hẹn hoạt động); tên không trùng trong nhóm (UNIQUE DB) | B2, P2 (kiểm khung giờ/lịch hẹn); Q16 | SOẠN TRƯỚC | DV b4–b5, A1 | `feat(admin)` |
 | ☐ | B4 | **Thông tin phòng khám**: `GET/PUT` (upsert `id=1`), kiểm email/hotline (Q33), chỉ Toàn hệ thống (cả `GET`) | P3, C1; Q33 | SOẠN TRƯỚC | PK b1–b5, A1, A2 | `feat(admin)` |
