@@ -37,13 +37,15 @@ chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá s
 
 | 30/10/2026 | C2 (#94): AuditModule/Service/Repository dùng manager transaction caller; union/whitelist11 action, copy JSON an toàn, bigint string, timestamp đến giây, key/pattern secret rejection, lỗi nội bộ mã cố định | C2-01…08 cơ chế; PQ-15 probe; CH/BS/NS/TK/CN acceptance consumer riêng | VERIFIED local; chưa PR/merge | Unit API1300/1300 (73 file), C2unit77/77; MySQL C2 cuối11/11; HTTP guard/actor/scope/rollback8/8; build/lint/typecheck/format/diff pass. MySQL8.4 mới riêng33311; không DB dev/schema/migration/auth/frontend/dependency. Lỗi coercion role đã sửa với red regression; fixture bigint tránh generatedMap TypeORM, ghi DEBT42. Cách dùng PLAN5.10/working-doc/C2; AI log tại TRUNG_AI_USAGE_LOG.md. Chưa full MySQL/e2e/CI/review/merge |
 
+| 30/10/2026 | B1 (#55): SpecialtyModule list/detail/create/update/status + dropdown; dùng C1/P6/P7; chuẩn hóa/UNIQUE tên, count bác sĩ toàn hệ thống, gắn ảnh trong transaction và scheduler P7 dọn sau commit; contract tại PLAN 5.3 | CK-01–10/12–14/16/17; CK-11 phần tích hợp ảnh; PQ-11/SE-A10 | VERIFIED backend local; F2/D2/PR còn riêng | Unit B1 21/21, toàn API1517/1517 (87 file); MySQL B1 14/14, HTTP B1+C1 21/21 (10+11); lint/build/typecheck/format/diff pass; Linux jscpd1,91%/249 file, Gitleaks source/test sạch. Container MySQL8.4 mới riêng33312 đã dừng, không DB dev/chia sẻ/Cloudinary thật/schema/frontend/dependency. HTTP đầu dừng validator vì mật khẩu test rỗng; tạo user giả trong container riêng rồi rerun pass. Giữ nguyên log AI dirty đầu phiên; xem working-doc/B1/tracker.md. Chưa full MySQL/e2e/CI/browser/review/merge; D2 Word do thành viên đồng bộ |
+
 ## 2. Kết quả test theo use case
 
 Cập nhật lần chạy mới nhất; chi tiết từng ca xem mục 1.
 
 | Nhóm test (PLAN.md mục 7) | Tổng số ca | Pass | Fail | Chưa chạy | Ngày chạy gần nhất |
 |---|---|---|---|---|---|
-| Quản lý chuyên khoa (`CK-*`) | 18 | 1 (CK-18) | 0 | 17 | 26/10/2026 |
+| Quản lý chuyên khoa (`CK-*`) | 18 | 16 (CK-01–10/12–14/16–18) | 0 | 2 chưa đủ nghiệm thu: CK-11 UI/preview (backend P7+B1 đã kiểm), CK-15 F2 | 30/10/2026 |
 | Quản lý loại dịch vụ khám (`DV-*`) | 21 | 1 (DV-21) | 0 | 20 | 26/10/2026 |
 | Quản lý hồ sơ bác sĩ (`BS-*`) | | | | | |
 | Tạo tài khoản nhân sự và kích hoạt (`NS-*`) | | | | | |
