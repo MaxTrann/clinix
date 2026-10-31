@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module.js';
 import { SystemConfigModule } from './admin/system-config/system-config.module.js';
 import { SpecialtyModule } from './admin/specialties/specialty.module.js';
+import { ServiceGroupModule } from './admin/service-groups/service-group.module.js';
 import { validateEnv } from './config/env.validation.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health/health.controller.js';
@@ -18,6 +19,7 @@ import { MailModule } from './mail/mail.module.js';
     DatabaseModule,
     SystemConfigModule,
     SpecialtyModule,
+    ServiceGroupModule,
     AuthModule,
     RbacModule,
     // Task P4: chưa có nơi nào dùng MailService (A2/A5/A11 và admin sẽ import MailModule); đưa vào đây để cấu hình SMTP sai

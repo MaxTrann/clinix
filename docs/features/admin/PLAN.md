@@ -477,6 +477,14 @@ Mọi endpoint ghi chạy trong **một** giao dịch ở tầng service; DTO `w
 - Ảnh: bỏ trường khi PATCH = giữ, null = gỡ, UUID = gắn/thay; tạo bỏ/null = không ảnh; dùng `UploadRepository.assignSpecialty` với cùng manager giao dịch, accountId từ phiên. Ảnh cũ chuyển ChoXoa trong giao dịch rồi scheduler P7 dọn sau commit; lỗi lưu rollback cả chuyên khoa/ledger. Không nhận URL/public_id từ client hoặc gọi provider giữa giao dịch.
 - Lỗi theo 5.9/P7: 400 validation/`ANH_TAI_LEN_KHONG_HOP_LE`, 401 auth, 403 `KHONG_DU_QUYEN`, 404 `KHONG_TIM_THAY`, 409 `TEN_CHUYEN_KHOA_TRUNG`; không thêm success envelope. Không thêm audit/DDL cho CRUD chuyên khoa ngoài scope B1.
 
+**Contract B2 đã triển khai local ngày 31/10/2026** (người dùng duyệt tại `working-doc/B2/plan.md`, issue #56):
+
+- `GET /admin/service-groups` cho hai phạm vi Admin: `page,pageSize` theo P6, `q?` trim tối đa 200 ký tự tìm tên với escape `%`, `_`, `!`; sắp `thu_tu_hien_thi ASC,ten ASC,nhom_dich_vu_id ASC`, items/total cùng snapshot; trả `{items,total,page,pageSize}`.
+- ServiceGroup chỉ gồm `{nhomDichVuId,ten,thuTuHienThi}`; ID bigint dạng chuỗi. POST nhận `{ten,thuTuHienThi?}`, mặc định thứ tự 0, trả 201 ServiceGroup. PATCH `/:id` nhận một hoặc nhiều trường `{ten?,thuTuHienThi?}`, trả 200 ServiceGroup. Bỏ trường khi PATCH giữ giá trị cũ.
+- Tên trim/gộp khoảng trắng, 1–100 ký tự; DB so trùng theo `utf8mb4_unicode_ci`. Thứ tự là JSON number nguyên 0…2147483647. Null/chuỗi số/PATCH rỗng/trường lạ bị 400 `DU_LIEU_KHONG_HOP_LE`.
+- POST/PATCH/DELETE chỉ Toàn hệ thống, kiểm lại scope tại service. DELETE nhóm rỗng trả 204 không body; PATCH/DELETE ID hợp lệ không tồn tại (kể cả xóa lặp) trả 404 `KHONG_TIM_THAY`; ID sai trả 400. Nhóm còn dịch vụ: 409 `NHOM_DICH_VU_CON_DICH_VU`; trùng tên: 409 `TEN_NHOM_DICH_VU_TRUNG`; auth 401/403 theo contract chung.
+- Ghi trong transaction; sửa/xóa khóa nhóm, UNIQUE chống race tên và FK chống dịch vụ mồ côi; không nhận trạng thái, không thêm audit action, schema hoặc endpoint detail ngoài scope B2. D2 Word và F3 còn nghiệm thu riêng.
+
 ### 5.4 Chi nhánh (CN): lịch hoạt động, ảnh hưởng, yêu cầu, áp dụng
 
 **Dữ liệu vào (`PATCH /admin/branches/:id`):** `{ten, diaChi, toaDoLat?, toaDoLng?, lichHoatDong:[7 phần tử {thuTrongTuan, hoatDong, sang?:{batDau,ketThuc}, chieu?:{batDau,ketThuc}}], dichVuKhamIds:[…]}` (form đầy đủ như Figma; server **diff** với dữ liệu hiện tại: tập thứ thay đổi, dịch vụ thêm/bỏ).
@@ -705,7 +713,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 | ☐ | ID | Việc | Phụ thuộc | Bắt đầu | Truy vết | Thẻ |
 |---|---|---|---|---|---|---|
 | ☐ | B1 | **Chuyên khoa**: list/get/create/update/đổi trạng thái; chuẩn hoá (trim + gộp khoảng trắng) + kiểm trùng tên (bắt thêm lỗi UNIQUE khi chạy đua); ngừng hoạt động **không** gỡ bác sĩ; ảnh qua P7: imageUploadId và FK bản ghi ảnh, gắn/thay/gỡ theo plan P7 mục 3; Chi nhánh chỉ GET | P1, P6, C1, P7; Q11, Q12, Q13 | VERIFIED backend local; F2/D2 và PR/review/merge còn riêng; xem working-doc/B1 | CK b1–b5, A1, A2; CK-17 | `feat(admin)` |
-| ☐ | B2 | **Nhóm dịch vụ**: list/create/update/(delete); tên không trùng; `thu_tu_hien_thi` | P1, P6, C1; Q11, Q14, Q15 | SOẠN TRƯỚC; controller sau C1 | DV b1–b5, A1 | `feat(admin)` |
+| ☐ | B2 | **Nhóm dịch vụ**: list/create/update/delete nhóm rỗng; tên không trùng; `thu_tu_hien_thi` nguyên không âm; contract mục 5.3 | P1, P6, C1; Q11, Q14, Q15 | VERIFIED backend local 31/10; DV-01…06 và DV-16 phần nhóm; F3/D2/CI/review/merge riêng; xem working-doc/B2 | DV b1–b5, A1 | `feat(admin)` |
 | ☐ | B3 | **Dịch vụ khám**: list/create/update; kiểm nhóm tồn tại, tên không rỗng, giá > 0, thời lượng nguyên dương; không nhận `mucDatCoc`; kiểm sửa `thoi_luong` (Q16: chặn khi còn khung giờ tương lai/lịch hẹn hoạt động); tên không trùng trong nhóm (UNIQUE DB) | B2, P2 (kiểm khung giờ/lịch hẹn); Q16 | SOẠN TRƯỚC | DV b4–b5, A1 | `feat(admin)` |
 | ☐ | B4 | **Thông tin phòng khám**: `GET/PUT` (upsert `id=1`), kiểm email/hotline (Q33), chỉ Toàn hệ thống (cả `GET`) | P3, C1; Q33 | SOẠN TRƯỚC | PK b1–b5, A1, A2 | `feat(admin)` |
 | ☐ | B5 | **Cập nhật cấu hình**: `GET/PUT`; miền giá trị (5.7); diff; `ly_do`; giao dịch + Audit; tạo lần đầu; cờ `chuaCauHinh` | P3, C1, C2, C3; Q34, Q35, Q36, Q38, Q39 | SAU C2 | CH b1–b5, A1–A4 | `feat(admin)` · `[ĐỒNG BỘ TL]` D5, D6 |
