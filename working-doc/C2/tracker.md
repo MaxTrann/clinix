@@ -20,7 +20,7 @@ Updated: 2026-10-30
 | T4 | Types/validator/unit | T3 | done | C2 unit77/77; có regression role array bị ép string, whitelist nested, copy JSON, timestamp/snapshot | 2026-10-30 |
 | T5 | Service/repository/module | T4 | done | Module export service, manager transaction caller, repository một insert, lỗi cố định không SQL/cause | 2026-10-30 |
 | T6 | MySQL/HTTP probe | T5 | done | MySQL cuối11/11, HTTP8/8; transaction/FK/CHECK/actor/scope/concurrency/timezone và bigint thật pass | 2026-10-30 |
-| T7 | Review/docs/tracker | T6 | done | Diff/format/security scan pass; Admin PLAN/TRACKING, log Trung dòng28, AI-BUG016 và TECH_DEBT42 cập nhật | 2026-10-30 |
+| T7 | Review/docs/tracker | T6 | done | Diff/format/security scan pass; Admin PLAN/TRACKING, log Trung dòng28, AI-BUG-023 và TECH_DEBT46 cập nhật | 2026-10-30 |
 
 ## Open questions and blockers
 
@@ -73,14 +73,14 @@ Updated: 2026-10-30
 | npm run build / npm run lint / tsc --noEmit | Pass; lint cuối không cảnh báo | 2026-10-30 |
 | Prettier --check scope audit source/test / git diff --check | Pass; reviewed tracked diff + source/test mới | 2026-10-30 |
 | Gitleaks v8.30.1 image local dir /scan --redact --no-banner | Read-only mount chỉ audit source/tests và HTTP test; no leaks found | 2026-10-30 |
-| Probe TypeORM bigint trong transaction rollback | insertId raw là string đúng; repo.save trả90071992547409930, DB lưu9007199254740993; owning MysqlDriver.js832 cộng chuỗi+entityIndex0. Ghi DEBT42, không sửa library/auth | 2026-10-30 |
+| Probe TypeORM bigint trong transaction rollback | insertId raw là string đúng; repo.save trả90071992547409930, DB lưu9007199254740993; owning MysqlDriver.js832 cộng chuỗi+entityIndex0. Ghi DEBT46, không sửa library/auth | 2026-10-30 |
 | Cleanup | Test users sinh ngẫu nhiên đã DROP sau run; container clinix-c2-tests-20261030 đã dừng; không stop/mutate DB dev3306 | 2026-10-30 |
 | Giới hạn | Không full MySQL/e2e, CI/browser/review/merge; không thay acceptance consumer B-task; không có route audit runtime mới | 2026-10-30 |
 
 ## Handoff cuối
 
 - C2/#94 VERIFIED local; source chính src/audit/, probe test/audit.e2e-spec.ts. Module sẵn để consumer import; không tự ghi audit cho các B-task chưa có.
-- Contract/cách dùng ở Admin PLAN5.10, plan C2. Log Trung dòng28; AI-BUG-016 là lỗi coercion đã sửa; DEBT42 là hạn chế generatedMap bigint hiện hữu ngoài scope.
+- Contract/cách dùng ở Admin PLAN5.10, plan C2. Log Trung dòng28; AI-BUG-023 là lỗi coercion đã sửa; DEBT46 là hạn chế generatedMap bigint hiện hữu ngoài scope.
 - Actor lấy từ phiên tại caller; branch lấy từ DB sau khóa; await record trong cùng callback transaction, không catch rồi commit tiếp. Không truyền DataSource.manager, không tự retry/dedupe.
 - Consumer UC vẫn cần test riêng; scanner pattern không bảo đảm phát hiện mọi bí mật trong văn bản tự do.
 - Gợi ý PR: feat(audit): thêm dịch vụ ghi nhật ký dùng chung; Closes #94 khi nhóm chuẩn bị PR. Chưa commit/push/PR/merge hoặc đổi trạng thái issue.
