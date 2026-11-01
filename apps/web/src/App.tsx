@@ -1,11 +1,11 @@
-// Khung ban đầu của apps/web (task P2). Router và lớp API client sẽ thêm ở task P6.
+import { createBrowserRouter } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
+import { createAppRoutes } from './router/routes';
+
+const router = createBrowserRouter(createAppRoutes());
+
 function App() {
-  return (
-    <main>
-      <h1>CLINIX</h1>
-      <p>Hệ thống đặt lịch khám bệnh</p>
-    </main>
-  );
+  return <RouterProvider router={router} />;
 }
 
 export default App;

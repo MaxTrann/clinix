@@ -11,7 +11,7 @@ Mọi thành viên làm việc với AI đều đọc file này trước. Trạn
 
 **Trạng thái hiện tại:** cả hai app đã khởi tạo. `apps/api`: NestJS (Vitest + oxlint + ESM) với `GET /health`, đã nối MySQL bằng TypeORM và có migration cho 5 bảng
 `tai_khoan`, `benh_nhan`, `vi_noi_bo`, `ma_xac_thuc`, `phien_dang_nhap` (task P3; hạ tầng DB dùng chung nằm ở `apps/api/src/database/`, entity ở `apps/api/src/auth/entities/`). `apps/web`: React + Vite + TypeScript `strict`
-(Vitest + happy-dom, ESLint, Prettier), mới có trang placeholder "CLINIX"; router, lớp API client và proxy `/api` thuộc task P6 của module `auth`.
+(Vitest + happy-dom, ESLint, Prettier), có khung router, lớp API client duy nhất (`src/shared/api/client.ts`) và proxy `/api` (task P6); trang thật do F1 trở đi thêm.
 
 ## 1. Quy tắc cứng (vi phạm là hỏng quy trình chấm điểm của đồ án)
 
@@ -99,7 +99,7 @@ Tiêu đề ≤ 100 ký tự. PR cần **người còn lại approve** và CI xa
 
 ## 8. Môi trường và lệnh
 
-Windows 11; PowerShell hoặc Git Bash; Node ≥ 20 (khuyến nghị 22); Docker Desktop. Đường dẫn có thể chứa dấu tiếng Việt — luôn bọc nháy kép. File văn bản mã hóa UTF-8;
+Windows 11; PowerShell hoặc Git Bash; Node ≥ 20 (khuyến nghị 22; `apps/web` cần ≥ 22.22); Docker Desktop. Đường dẫn có thể chứa dấu tiếng Việt — luôn bọc nháy kép. File văn bản mã hóa UTF-8;
 Git đang bật `core.autocrlf=true` — **không chuyển hàng loạt kiểu xuống dòng** của file có sẵn (làm diff phình toàn file).
 
 ```bash

@@ -24,8 +24,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "3000:3000"
+    # Không publish cổng: mọi truy cập đi qua nginx của `web`. Gọi thẳng API sẽ giả được X-Forwarded-For vì trust proxy = 1.
 
   web:
     image: ghcr.io/${GHCR_OWNER}/clinix-web:${TAG:-latest}

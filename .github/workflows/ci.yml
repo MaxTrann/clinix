@@ -171,6 +171,6 @@ jobs:
           context: apps/web
           target: prod
           push: false
-          build-args: VITE_API_URL=http://localhost:3000
+          build-args: VITE_API_URL=/api
           cache-from: type=gha
           cache-to: type=gha,mode=max

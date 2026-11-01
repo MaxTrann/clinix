@@ -47,7 +47,7 @@ Sau đó:
 | Variable | `STAGING_HOST` | IP/domain server staging (để trống = bỏ qua bước deploy) |
 | Variable | `STAGING_USER` | user SSH |
 | Variable | `STAGING_PATH` | thư mục chứa compose + `.env` trên server |
-| Variable | `STAGING_API_URL` | URL công khai của API, vd `https://api.staging.example.com` |
+| Variable | `STAGING_API_URL` | Chỉ dùng cho health check của CD: `https://<web-host>/api` (đi qua nginx). Web luôn build với `VITE_API_URL=/api` |
 | Secret | `STAGING_SSH_KEY` | private key dùng riêng cho deploy (không dùng key cá nhân) |
 
 Trên server: cài Docker + Compose plugin; tạo `STAGING_PATH/.env` từ `.env.example` (điền giá trị thật, **chỉ nằm trên server**).

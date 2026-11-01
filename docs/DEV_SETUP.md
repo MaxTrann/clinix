@@ -4,14 +4,14 @@ Dành cho thành viên đã được mời làm **Collaborator** trên GitHub, m
 Nếu bạn là người *tạo* repo lần đầu (tạo ruleset, tạo `apps/api`/`apps/web`...), xem [`REPO_SETUP.md`](REPO_SETUP.md) thay vì file này.
 
 > **Trạng thái hiện tại (26/10/2026):** `apps/api` (NestJS) và `apps/web` (React + Vite) đã được khởi tạo. API đã nối MySQL và có migration cho 5 bảng
-> của module `auth`; web mới có trang placeholder. Các lệnh bên dưới chạy được đủ.
+> của module `auth`; web có khung router, lớp API client và proxy `/api` (task P6). Các lệnh bên dưới chạy được đủ.
 
 ## 0. Cài đặt trước khi bắt đầu
 
 | Công cụ | Vì sao cần | Ghi chú |
 |---|---|---|
 | [Git](https://git-scm.com/) | Clone, commit, push | Trên Windows nên cài kèm Git Bash |
-| [Node.js 22](https://nodejs.org/) (LTS) | Chạy `npm install`, hook, lint sau này | Khuyến nghị cài qua `nvm-windows` để dễ đổi version |
+| [Node.js 22](https://nodejs.org/) (LTS), **từ 22.22 trở lên** để chạy `apps/web` (`react-router` 8 yêu cầu) | Chạy `npm install`, hook, lint sau này | Khuyến nghị cài qua `nvm-windows` để dễ đổi version |
 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Chạy `docker compose up` | Windows cần bật WSL2 |
 | VS Code (khuyến nghị) | Editor chung của nhóm | Cài thêm extension ESLint, Prettier |
 | Tài khoản GitHub | Đã **chấp nhận lời mời Collaborator** | Kiểm tra tại `github.com/notifications` hoặc mở thẳng `https://github.com/MaxTrann/clinix` |
@@ -150,6 +150,12 @@ docker compose up --build
 
 Chạy đủ 3 service: Web (http://localhost:5173), API (http://localhost:3000, thử `http://localhost:3000/health`) và MySQL (`localhost:3306`). Lần đầu mất vài phút vì build image và `npm ci`.
 Chỉ cần cơ sở dữ liệu (ví dụ để chạy test tích hợp trên máy): `docker compose up -d db`.
+
+**Web gọi API qua proxy cùng origin (task P6).** Trình duyệt chỉ thấy `/api/...`; proxy gỡ tiền tố `/api` vì API không có tiền tố này, nên `http://localhost:5173/api/health` tới `GET /health`.
+- `docker compose up`: `docker-compose.yml` tự đặt `VITE_API_URL=/api` và `API_PROXY_TARGET=http://api:3000` cho service `web`, đè giá trị trong `.env`.
+- `npm run dev` trong `apps/web` (API chạy bằng compose hoặc trên máy): proxy mặc định tới `http://localhost:3000`; đổi đích bằng biến `API_PROXY_TARGET` của tiến trình. `vite preview` kế thừa cùng proxy.
+- `.env` cũ còn `VITE_API_URL=http://localhost:3000` nên đổi thành `/api`. Không đặt địa chỉ tuyệt đối: API không bật CORS.
+- Gọi `/auth/refresh`, `/auth/logout` bằng curl phải tự thêm `Origin: <WEB_ORIGIN>`.
 
 ### 5.1 Cơ sở dữ liệu: migration và múi giờ
 
