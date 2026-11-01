@@ -66,7 +66,8 @@ jobs:
           context: apps/web
           target: prod
           push: true
-          build-args: VITE_API_URL=${{ vars.STAGING_API_URL }}
+          # Web gọi API cùng origin qua nginx nên giá trị cố định; STAGING_API_URL chỉ dùng cho health check bên dưới
+          build-args: VITE_API_URL=/api
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/clinix-web:${{ steps.meta.outputs.tag }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/clinix-web:latest

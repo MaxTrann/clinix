@@ -47,6 +47,9 @@
 - Component hàm + hooks; tách UI / logic gọi API / state.
 - Gọi API qua một lớp client duy nhất; không rải `fetch` khắp component.
 - Xử lý đủ trạng thái biên: loading, rỗng, lỗi, mất mạng, timeout.
+- **Cấu trúc `apps/web/src/` (task P6):** `router/` (route, cổng, layout gốc), `pages/` (trang chung), `shared/api`, `shared/ui`, `shared/hooks` (dùng chung), `features/<module>/` (mỗi module tạo khi cần, xuất mảng `RouteObject[]` để `router/routes.tsx` ghép; `features/` không import chéo nhau).
+- File kebab-case, dùng named export (trừ `App`). Chỉ `shared/api/client.ts` được gọi `fetch`; nơi khác gọi `request()` và phân biệt lỗi bằng `instanceof` (`ApiError`, `NetworkError`, `TimeoutError`, `UnexpectedResponseError`, `RequestAbortedError`).
+- Chọn câu thông báo theo `maLoi`, không theo mã HTTP hay `thongBao`. Test giao diện dựa vào vai trò và nội dung, không dựa vào tên class của CSS Modules.
 
 ## Git
 - Nhánh: `feat/…`, `fix/…`, `docs/…`, `chore/…`. Một PR một việc, nhỏ.
