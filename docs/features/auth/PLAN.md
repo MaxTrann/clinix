@@ -241,7 +241,7 @@ Không cần CORS cho trình duyệt; `WEB_ORIGIN` dùng để so `Origin` ở `
 | `POST /auth/forgot-password/resend-otp` | QMK "Gửi lại mã" | Body `{email}`. CÙNG một hàm với `POST /auth/forgot-password` (kết quả và lỗi y hệt, kể cả email lạ) |
 | `POST /auth/reset-password` | QMK b9–b11, A4 | Body `{resetToken, matKhauMoi, xacNhan}` (không `email`, `taiKhoanId`: tài khoản lấy từ token). **200** `{taiKhoanNgung, canDangKyLai}` (hai cờ cho khung "Hoàn tất": N7, N3), không cookie, không `no-store` (phản hồi không mang token). Lỗi: 400 `DU_LIEU_KHONG_HOP_LE` (mật khẩu mới không đạt Q11 / không khớp / `resetToken` sai dạng: token **không** bị tiêu thụ, nhập lại được); **403 `RESET_TOKEN_HET_HIEU_LUC`** (token sai, hết hạn, đã dùng, mã đã bị "Gửi lại mã" thay, tài khoản không còn); 404 `EMAIL_CHUA_DANG_KY` (Bệnh nhân chưa xác minh đã quá 24 giờ, kiểm lại dưới khoá); 403 `TAI_KHOAN_CHUA_KICH_HOAT` |
 | `POST /auth/change-password` | ĐMK | Cần đăng nhập; tài khoản và phiên lấy từ access token. Body `{matKhauCu, matKhauMoi, xacNhan}`. **200** `{daDoiMatKhau: true}` + `Set-Cookie` refresh token mới của phiên hiện tại, `no-store`; không cấp access token mới (cùng `sid`, token đang có vẫn dùng được). 400 `MAT_KHAU_CU_SAI`, 400 `DU_LIEU_KHONG_HOP_LE` kèm `loi`, 401 khi phiên hoặc tài khoản không còn hiệu lực |
-| `GET /auth/me` | bổ trợ | Vai trò, họ tên, `da_xac_minh_email` |
+| `GET /auth/me` | bổ trợ | Cần đăng nhập, mọi vai trò; tài khoản chỉ lấy từ access token. Thành công **200** `{ vaiTro, hoTen, daXacMinhEmail }` (đúng ba trường; A15-A), `Cache-Control: no-store`, không `Set-Cookie`, không ghi DB. Lỗi: 401 `CHUA_DANG_NHAP` (không token); 401 `TOKEN_KHONG_HOP_LE` (sai chữ ký, `alg: none`, hết hạn); 401 `PHIEN_HET_HIEU_LUC` (phiên thu hồi, tài khoản không còn hoạt động hoặc không còn hàng) |
 
 ### 5.2 Lần đăng ký (Q5 + Q7 + N1/N2/N3)
 
@@ -444,7 +444,7 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 | ☑ | A12 | **Quên mật khẩu (2)**: kiểm chữ ký/hạn `resetToken` + hàng OTP chưa dùng, chưa thu hồi (không kiểm lại hạn OTP — N6) + mật khẩu mới; giao dịch {cập nhật `mat_khau_bam`, `da_dung_luc`, xoá bộ đếm/khoá, thu hồi **mọi** phiên; **nếu tài khoản chưa xác minh: thu hồi mọi hàng `DangKy` chưa dùng và NULL dữ liệu đăng ký của chúng** (N3)}; sai định dạng ⇒ giữ token; trả cờ để FE báo `NgungHoatDong` còn ngưng (N7) hoặc cần đăng ký lại (N3) | A11, A1, A3 | QMK b9–b11, A4; Q6, Q8, S2, S4 | `[ĐỒNG BỘ TL]` D6, D8 · `feat(auth)` |
 | ☑ | A13 | **Đổi mật khẩu**: lấy tài khoản từ token; kiểm mật khẩu cũ, chính sách, khớp; cập nhật; thu hồi phiên khác; xoay refresh token của phiên hiện tại | A1, A4, A3 | ĐMK b3–b5, A1, A2; Q8 | `[ĐỒNG BỘ TL]` D8 · `feat(auth)` |
 | ☑ | A14 | Mẫu email OTP đăng ký và OTP quên mật khẩu theo hai frame "Admin - Email Preview": tiêu đề `[CLINIX] Mã xác minh OTP đăng ký tài khoản` / `[CLINIX] Mã OTP đặt lại mật khẩu`, chào theo `ho_ten`, mã 6 số, **10 phút** (G2), tên hiển thị CLINIX, email hỗ trợ từ cấu hình `MAIL_SUPPORT_ADDRESS` (N8), bỏ hotline/địa chỉ nếu chưa có (G4); mẫu QMK nêu email tài khoản và cảnh báo không chia sẻ mã; HTML + văn bản thô | P4 | ĐK b6; QMK b5 | `feat(auth)` |
-| ☐ | A15 | `GET /auth/me` | A4 | ĐN b8 (bổ trợ) | `feat(auth)` |
+| ☑ | A15 | `GET /auth/me` | A4 | ĐN b8 (bổ trợ) | `feat(auth)` |
 
 ### 6.4 Nhóm F — Frontend `auth` (chỉ làm đúng frame Figma; trạng thái chưa có frame: mục 4.4)
 
