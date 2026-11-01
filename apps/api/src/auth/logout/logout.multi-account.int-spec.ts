@@ -21,7 +21,7 @@ import { sleep } from '../testing/verification-int-helpers.js';
 
 // Task A10 — NHIỀU tài khoản KHÁC NHAU cùng lúc, mỗi tài khoản một thao tác riêng, trên MySQL 8.4 thật (bài học A5-C). Đăng xuất của N phiên (N tài khoản)
 // chạy ĐỒNG THỜI với làm mới, đăng nhập, đăng ký, verify-otp, resend-otp của tài khoản KHÁC và với việc admin khoá tài khoản (B18). `revokeByRefreshToken`
-// là MỘT câu UPDATE autocommit theo khoá chính; ca sid không tồn tại (khoá khoảng) và ca đua đăng xuất × làm mới CÙNG phiên được đo riêng (LM-03, LM-04,
+// là một giao dịch READ COMMITTED (đọc mã tài khoản, khoá S hàng tài khoản, UPDATE theo khoá chính); ca sid không tồn tại (khoá khoảng) và ca đua đăng xuất × làm mới CÙNG phiên được đo riêng (LM-03, LM-04,
 // LM-05). Đo bằng số lỗi MySQL THẬT: lỗi trả ra (1213, 1205) VÀ bộ đếm `lock_deadlocks` của máy chủ; khẳng định đều bằng 0 (`measureRounds`). Mã LM-nn
 // là [đề xuất]. Số vòng chỉnh bằng LOGOUT_MULTI_ROUNDS (mặc định 8; đo kỹ dùng 50 và chạy với --reporter=verbose để thấy các dòng "[LM]").
 const ROUNDS = Number(process.env['LOGOUT_MULTI_ROUNDS'] ?? 8);
@@ -277,7 +277,7 @@ describe('đăng xuất của nhiều tài khoản khác nhau cùng lúc', () =>
     );
   }, 600_000);
 
-  it(`LM-04 sid KHÔNG TỒN TẠI: ${String(ROUNDS)} vòng × 6 yêu cầu đăng xuất mang chữ ký đúng nhưng phiên không có hàng (3 nằm sau hàng lớn nhất, 3 nằm trong khe do hàng bị xoá) cùng 6 đăng nhập (chèn phiên mới) và 6 làm mới đúng của tài khoản khác: UPDATE theo khoá chính không có hàng, autocommit một câu, không gây 1213, 1205 hay deadlock`, async () => {
+  it(`LM-04 sid KHÔNG TỒN TẠI: ${String(ROUNDS)} vòng × 6 yêu cầu đăng xuất mang chữ ký đúng nhưng phiên không có hàng (3 nằm sau hàng lớn nhất, 3 nằm trong khe do hàng bị xoá) cùng 6 đăng nhập (chèn phiên mới) và 6 làm mới đúng của tài khoản khác: đọc thường không thấy hàng nên không khoá gì, không gây 1213, 1205 hay deadlock`, async () => {
     const waits: number[] = [];
     const tallies = await measureRounds(
       db,

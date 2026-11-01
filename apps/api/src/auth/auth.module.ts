@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MailModule } from '../mail/mail.module.js';
+import { ChangePasswordController } from './change-password/change-password.controller.js';
+import { ChangePasswordService } from './change-password/change-password.service.js';
 import { BenhNhan } from './entities/benh-nhan.entity.js';
 import { MaXacThuc } from './entities/ma-xac-thuc.entity.js';
 import { PhienDangNhap } from './entities/phien-dang-nhap.entity.js';
@@ -39,7 +41,7 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 
 // Khung module auth: xuất 5 entity (task P3), PasswordHasher (A1), các dịch vụ token/phiên/cookie (A3) và OtpService (A2) để module khác
 // (admin…) import, không sao chép. Controller của từng use case đặt trong thư mục theo chức năng và được thêm ở các task A* sau
-// (A5, A6: register/; A8: login/; A9: refresh/; A10: logout/; A11, A12: forgot-password/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
+// (A5, A6: register/; A8: login/; A9: refresh/; A10: logout/; A11, A12: forgot-password/; A13: change-password/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
 // UnverifiedPatientCleanupJob (A7, `.job.ts` = lớp chạy theo lịch) không import ScheduleModule ở đây: UploadModule đã đăng ký nó TOÀN CỤC và gọi
 // `ScheduleModule.forRoot()` thêm lần nữa làm mọi job chạy gấp đôi (TECH_DEBT dòng 33).
 //
@@ -55,8 +57,10 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
     LogoutController,
     ForgotPasswordController,
     ResetPasswordController,
+    ChangePasswordController,
   ],
   providers: [
+    ChangePasswordService,
     ForgotPasswordService,
     ResetPasswordService,
     ResetTokenService,

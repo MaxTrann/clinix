@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { DataSource, type EntityManager } from 'typeorm';
+import { DataSource, IsNull, type EntityManager } from 'typeorm';
 import { PhienDangNhap } from '../entities/phien-dang-nhap.entity.js';
 import { TaiKhoan } from '../entities/tai-khoan.entity.js';
 import type { LoaiTaiKhoan, TrangThaiTaiKhoan } from '../entities/enums.js';
@@ -22,6 +22,11 @@ export class PhienDangNhapRepository {
     work: (em: EntityManager) => Promise<T>,
   ): Promise<T> {
     return manager ? work(manager) : this.dataSource.transaction(work);
+  }
+
+  // Giao dịch READ COMMITTED riêng cho thu hồi một phiên: không khoá khoảng, đọc được dữ liệu vừa commit
+  inReadCommitted<T>(work: (em: EntityManager) => Promise<T>): Promise<T> {
+    return this.dataSource.transaction('READ COMMITTED', work);
   }
 
   async insert(
@@ -53,6 +58,30 @@ export class PhienDangNhapRepository {
       .setLock('pessimistic_write')
       .where('p.phienDangNhapId = :sessionId', { sessionId })
       .getOne();
+  }
+
+  // Đọc thường, không khoá: `tai_khoan_id` của một phiên không bao giờ đổi
+  async findAccountIdOf(
+    em: EntityManager,
+    sessionId: string,
+  ): Promise<string | null> {
+    const session = await em.findOne(PhienDangNhap, {
+      where: { phienDangNhapId: sessionId },
+      select: { taiKhoanId: true },
+    });
+    return session?.taiKhoanId ?? null;
+  }
+
+  // Khoá S hàng `tai_khoan` trước khi ghi `thu_hoi_luc` (xem đầu TaiKhoanRepository). Trả false nếu hàng không còn, không ném lỗi.
+  async lockAccountForShare(
+    em: EntityManager,
+    accountId: string,
+  ): Promise<boolean> {
+    const rows: unknown[] = await em.query(
+      'SELECT tai_khoan_id FROM tai_khoan WHERE tai_khoan_id = ? FOR SHARE',
+      [accountId],
+    );
+    return rows.length > 0;
   }
 
   async findAccountStatus(
@@ -113,25 +142,31 @@ export class PhienDangNhapRepository {
   }
 
   // Thu hồi mọi phiên chưa thu hồi của tài khoản, trừ `exceptSessionId` nếu có. Trả số phiên vừa bị thu hồi.
+  // Đọc thường mã phiên rồi UPDATE theo khoá chính, KHÔNG UPDATE theo chỉ mục `tai_khoan_id`: quét chỉ mục khoá lấn sang mục đầu của tài khoản kế tiếp trong chỉ mục, rồi chờ khoá
+  // chính phiên của tài khoản đó; tài khoản kia đang giữ khoá chính ấy (`rotate` của đổi mật khẩu) và quét tới chỉ mục thì thành 1213 giữa hai tài khoản khác nhau.
+  // Đọc thường chỉ an toàn khi giao dịch đã khoá hàng `tai_khoan` TRƯỚC lần đọc thường đầu tiên của nó: đăng nhập mới cũng cần khoá đó nên không chen vào được, và ảnh chụp của
+  // REPEATABLE READ được lập sau khi có khoá. Danh sách mã không chia lô, không sắp xếp: các giao dịch cùng tài khoản đã xếp hàng ở khoá `tai_khoan`.
   async revokeAllActive(
     em: EntityManager,
     accountId: string,
     at: Date,
     exceptSessionId?: string,
   ): Promise<number> {
-    const query = em
+    const rows = await em.find(PhienDangNhap, {
+      select: { phienDangNhapId: true },
+      where: { taiKhoanId: accountId, thuHoiLuc: IsNull() },
+    });
+    const ids = rows
+      .map((row) => row.phienDangNhapId)
+      .filter((id) => id !== exceptSessionId);
+    if (ids.length === 0) return 0;
+
+    const result = await em
       .createQueryBuilder()
       .update(PhienDangNhap)
       .set({ thuHoiLuc: at })
-      .where('tai_khoan_id = :accountId AND thu_hoi_luc IS NULL', {
-        accountId,
-      });
-    if (exceptSessionId !== undefined) {
-      query.andWhere('phien_dang_nhap_id <> :exceptSessionId', {
-        exceptSessionId,
-      });
-    }
-    const result = await query.execute();
+      .where('phien_dang_nhap_id IN (:...ids) AND thu_hoi_luc IS NULL', { ids })
+      .execute();
     return result.affected ?? 0;
   }
 

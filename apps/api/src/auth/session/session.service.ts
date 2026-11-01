@@ -31,6 +31,11 @@ export type RefreshResult =
   | { ok: true; accountId: string; tokens: IssuedSession }
   | { ok: false; reason: RefreshFailureReason };
 
+// Giá trị NỘI BỘ của giao dịch làm mới: phát hiện dùng lại, chưa thu hồi. Không bao giờ trả ra ngoài `refresh`.
+interface ReplayedToken {
+  replayed: { sessionId: string; accountId: string };
+}
+
 export interface ActiveSession {
   sessionId: string;
   accountId: string;
@@ -100,13 +105,19 @@ export class SessionService {
   //  - giao dịch của admin thu hồi phiên chờ hoặc được chờ, không để lọt token mới sau khi đã khoá tài khoản.
   // Thứ tự kiểm: không có → đã thu hồi → dùng lại → quá trần 8 giờ → quá hạn không hoạt động → tài khoản không còn DangHoatDong.
   // Hạn là nửa mở: đúng thời điểm hết hạn thì đã hết hạn (29:59 còn dùng được, 30:00 và 30:01 thì không).
+  //
+  // Dùng lại token: thu hồi SAU khi giao dịch này commit. Ghi `thu_hoi_luc` kéo khoá S lên hàng `tai_khoan`, mà trong giao dịch đang giữ hàng phiên nên sẽ ngược thứ tự
+  // `tai_khoan` → `phien_dang_nhap` của đổi và đặt lại mật khẩu (MySQL 1213). Vì thế có một khe vài ms giữa phát hiện và thu hồi:
+  //  - làm mới đúng token lọt khe thì nhận token mới, nhưng token và access đó chết ngay khi thu hồi xong;
+  //  - đổi mật khẩu trên chính phiên đó lọt khe thì thành công, rồi phiên bị thu hồi, người dùng đăng nhập lại bằng mật khẩu mới;
+  //  - lỗi ở lần thu hồi được ném tiếp (500); tiến trình sập giữa commit và thu hồi thì lần phát lại token sau sẽ phát hiện và thu hồi lại.
   async refresh(rawRefreshToken: string): Promise<RefreshResult> {
     const parsed = this.tokens.readRefreshToken(rawRefreshToken);
     if (!parsed) return { ok: false, reason: 'INVALID_TOKEN' };
 
-    return this.sessions.inTransaction(
+    const attempt = await this.sessions.inTransaction(
       undefined,
-      async (em): Promise<RefreshResult> => {
+      async (em): Promise<RefreshResult | ReplayedToken> => {
         const now = new Date();
         const session = await this.sessions.findByIdForUpdate(
           em,
@@ -117,11 +128,12 @@ export class SessionService {
 
         if (!sameHash(session.refreshTokenBam, parsed.hash)) {
           // Token có chữ ký hợp lệ nhưng không phải token hiện tại của phiên: nghi bị đánh cắp hoặc phát lại
-          await this.sessions.revokeIfActive(em, session.phienDangNhapId, now);
-          this.logger.warn(
-            `Phát hiện dùng lại refresh token của phiên ${session.phienDangNhapId} (tài khoản ${session.taiKhoanId}); phiên đã bị thu hồi`,
-          );
-          return { ok: false, reason: 'REUSE_DETECTED' };
+          return {
+            replayed: {
+              sessionId: session.phienDangNhapId,
+              accountId: session.taiKhoanId,
+            },
+          };
         }
 
         const absoluteLimit = absoluteLimitOf(session.taoLuc);
@@ -148,6 +160,14 @@ export class SessionService {
         return { ok: true, accountId: session.taiKhoanId, tokens };
       },
     );
+    if (!('replayed' in attempt)) return attempt;
+
+    const { sessionId, accountId } = attempt.replayed;
+    await this.revoke(sessionId);
+    this.logger.warn(
+      `Phát hiện dùng lại refresh token của phiên ${sessionId} (tài khoản ${accountId}); phiên đã bị thu hồi`,
+    );
+    return { ok: false, reason: 'REUSE_DETECTED' };
   }
 
   // ĐMK (A13): xoay refresh token của phiên HIỆN TẠI mà không cần client đưa token cũ. Trả null nếu phiên không còn dùng được.
@@ -212,12 +232,24 @@ export class SessionService {
 
   // Thu hồi một phiên (đăng xuất, A10). Idempotent: phiên đã thu hồi, đã hết hạn hay không tồn tại đều không lỗi và
   // không ghi đè mốc thu hồi cũ. Trả true nếu chính lần gọi này thu hồi phiên.
+  // Ghi `thu_hoi_luc` kéo khoá S lên hàng `tai_khoan` nên phải khoá `tai_khoan` TRƯỚC khi đụng hàng phiên (xem đầu TaiKhoanRepository). Truyền `manager` nghĩa là người gọi đã khoá.
+  // Tự mở giao dịch thì: đọc thường mã tài khoản, phiên không có hàng thì không khoá gì; khoá S vì các lần đăng xuất không cần cản nhau.
   revoke(sessionId: string, options: WriteOptions = {}): Promise<boolean> {
-    return this.sessions.revokeIfActive(
-      this.sessions.use(options.manager),
-      sessionId,
-      new Date(),
-    );
+    if (options.manager) {
+      return this.sessions.revokeIfActive(
+        options.manager,
+        sessionId,
+        new Date(),
+      );
+    }
+    return this.sessions.inReadCommitted(async (em) => {
+      const accountId = await this.sessions.findAccountIdOf(em, sessionId);
+      if (!accountId) return false;
+      // Tài khoản biến mất giữa hai câu (job dọn xoá phiên rồi xoá tài khoản): không còn gì để thu hồi
+      if (!(await this.sessions.lockAccountForShare(em, accountId)))
+        return false;
+      return this.sessions.revokeIfActive(em, sessionId, new Date());
+    });
   }
 
   // Đăng xuất khi chỉ còn cookie refresh (access token đã hết hạn). Chữ ký HMAC chứng minh token từng được server cấp cho
@@ -229,6 +261,7 @@ export class SessionService {
 
   // Thu hồi mọi phiên chưa thu hồi của tài khoản (QMK: tất cả; ĐMK: trừ phiên hiện tại; admin khoá tài khoản: tất cả).
   // Truyền `manager` để việc thu hồi cùng giao dịch với thao tác gọi (Q29). Trả số phiên vừa bị thu hồi.
+  // Mã sản phẩm phải truyền `manager` và đã khoá hàng `tai_khoan` trước lần đọc thường đầu tiên của giao dịch (xem PhienDangNhapRepository.revokeAllActive).
   revokeAll(
     accountId: string,
     options: WriteOptions & { exceptSessionId?: string } = {},

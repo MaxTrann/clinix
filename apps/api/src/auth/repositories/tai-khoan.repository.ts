@@ -3,10 +3,11 @@ import type { EntityManager } from 'typeorm';
 import { TaiKhoan } from '../entities/tai-khoan.entity.js';
 import type { RegistrationData } from '../otp/otp.types.js';
 
-// Truy vấn bảng `tai_khoan` cho đăng ký (task A5), xác minh OTP đăng ký (A6), job dọn tài khoản chưa xác minh (A7), đăng nhập (A8) và quên mật khẩu (A11, A12); A13 thêm hàm vào đây khi cần. Chỉ chứa câu lệnh; quy tắc nghiệp vụ
+// Truy vấn bảng `tai_khoan` cho đăng ký (task A5), xác minh OTP đăng ký (A6), job dọn tài khoản chưa xác minh (A7), đăng nhập (A8), quên mật khẩu (A11, A12) và đổi mật khẩu (A13). Chỉ chứa câu lệnh; quy tắc nghiệp vụ
 // (đăng ký mở, hết 24 giờ) nằm ở register/unverified-account-rules.ts. Mọi hàm nhận `em` để chạy trong GIAO DỊCH của người gọi.
 //
 // Quy ước khoá: hàng `tai_khoan` LUÔN được khoá TRƯỚC các hàng con (ma_xac_thuc, phien_dang_nhap), cùng thứ tự với A2 và A3.
+// Ghi vào cột nằm trong chỉ mục khoá ngoại (`phien_dang_nhap.thu_hoi_luc`) kéo khoá S lên hàng cha `tai_khoan`, nên mọi nơi ghi cột đó phải khoá `tai_khoan` TRƯỚC khi đụng hàng phiên (A13).
 // So sánh email dùng `=` của DB (utf8mb4_unicode_ci: không phân biệt hoa/thường) nên cùng là một tài khoản dù khác hoa/thường (DK-17).
 
 // Chỉ các cột mà quy tắc đăng ký cần: băm mật khẩu và dữ liệu cá nhân khác không bị kéo qua tầng dịch vụ một cách vô ích
@@ -172,6 +173,38 @@ export class TaiKhoanRepository {
       .update(TaiKhoan)
       .set({ matKhauBam, soLanDangNhapSai: 0, khoaDangNhapDen: null })
       .where("tai_khoan_id = :id AND trang_thai <> 'ChoKichHoat'", { id })
+      .execute();
+    return (result.affected ?? 0) === 1;
+  }
+
+  /**
+   * Đổi mật khẩu (task A13), pha ĐỌC: đọc THƯỜNG (không khoá) theo khoá chính để lấy băm đem đi so. Quyết định thật đọc lại dưới khoá bằng `findForLoginForUpdate`.
+   */
+  findForPasswordChange(
+    em: EntityManager,
+    id: string,
+  ): Promise<TaiKhoan | null> {
+    return em
+      .createQueryBuilder(TaiKhoan, 't')
+      .select(['t.taiKhoanId', 't.trangThai', 't.matKhauBam'])
+      .where('t.taiKhoanId = :id', { id })
+      .getOne();
+  }
+
+  /**
+   * Đổi mật khẩu (task A13): CHỈ ghi băm mới; bộ đếm sai và khoá tạm giữ nguyên vì đây không phải đăng nhập (khác `setPasswordAfterReset`). Người gọi đã khoá hàng
+   * và đã kiểm trạng thái; điều kiện `DangHoatDong` vẫn nằm trong CHÍNH câu UPDATE để dù tầng trên kiểm sai, tài khoản ngưng không bị đổi. Trả true nếu đúng một hàng được cập nhật.
+   */
+  async setPasswordAfterChange(
+    em: EntityManager,
+    id: string,
+    matKhauBam: string,
+  ): Promise<boolean> {
+    const result = await em
+      .createQueryBuilder()
+      .update(TaiKhoan)
+      .set({ matKhauBam })
+      .where("tai_khoan_id = :id AND trang_thai = 'DangHoatDong'", { id })
       .execute();
     return (result.affected ?? 0) === 1;
   }
