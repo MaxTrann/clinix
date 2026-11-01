@@ -3,7 +3,7 @@ import type { EntityManager } from 'typeorm';
 import { TaiKhoan } from '../entities/tai-khoan.entity.js';
 import type { RegistrationData } from '../otp/otp.types.js';
 
-// Truy vấn bảng `tai_khoan` cho đăng ký (task A5), xác minh OTP đăng ký (A6), job dọn tài khoản chưa xác minh (A7), đăng nhập (A8), quên mật khẩu (A11, A12) và đổi mật khẩu (A13). Chỉ chứa câu lệnh; quy tắc nghiệp vụ
+// Truy vấn bảng `tai_khoan` cho đăng ký (task A5), xác minh OTP đăng ký (A6), job dọn tài khoản chưa xác minh (A7), đăng nhập (A8), quên mật khẩu (A11, A12), đổi mật khẩu (A13) và `GET /auth/me` (A15). Chỉ chứa câu lệnh; quy tắc nghiệp vụ
 // (đăng ký mở, hết 24 giờ) nằm ở register/unverified-account-rules.ts. Mọi hàm nhận `em` để chạy trong GIAO DỊCH của người gọi.
 //
 // Quy ước khoá: hàng `tai_khoan` LUÔN được khoá TRƯỚC các hàng con (ma_xac_thuc, phien_dang_nhap), cùng thứ tự với A2 và A3.
@@ -187,6 +187,24 @@ export class TaiKhoanRepository {
     return em
       .createQueryBuilder(TaiKhoan, 't')
       .select(['t.taiKhoanId', 't.trangThai', 't.matKhauBam'])
+      .where('t.taiKhoanId = :id', { id })
+      .getOne();
+  }
+
+  /**
+   * Hồ sơ người đang đăng nhập (task A15): đọc THƯỜNG theo khoá chính, chỉ các cột `GET /auth/me` cần. Danh sách cột hẹp là lớp chặn đầu tiên của DN-23:
+   * băm mật khẩu và dữ liệu cá nhân khác không rời khỏi DB.
+   */
+  findProfile(em: EntityManager, id: string): Promise<TaiKhoan | null> {
+    return em
+      .createQueryBuilder(TaiKhoan, 't')
+      .select([
+        't.taiKhoanId',
+        't.hoTen',
+        't.daXacMinhEmail',
+        't.loaiTaiKhoan',
+        't.trangThai',
+      ])
       .where('t.taiKhoanId = :id', { id })
       .getOne();
   }

@@ -20,6 +20,8 @@ import { RolesGuard } from './guards/roles.guard.js';
 import { LoginController } from './login/login.controller.js';
 import { LoginService } from './login/login.service.js';
 import { LogoutController } from './logout/logout.controller.js';
+import { MeController } from './me/me.controller.js';
+import { MeService } from './me/me.service.js';
 import { OtpService } from './otp/otp.service.js';
 import { PasswordHasher } from './password/password-hasher.service.js';
 import { RefreshController } from './refresh/refresh.controller.js';
@@ -41,7 +43,7 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
 
 // Khung module auth: xuất 5 entity (task P3), PasswordHasher (A1), các dịch vụ token/phiên/cookie (A3) và OtpService (A2) để module khác
 // (admin…) import, không sao chép. Controller của từng use case đặt trong thư mục theo chức năng và được thêm ở các task A* sau
-// (A5, A6: register/; A8: login/; A9: refresh/; A10: logout/; A11, A12: forgot-password/; A13: change-password/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
+// (A5, A6: register/; A8: login/; A9: refresh/; A10: logout/; A11, A12: forgot-password/; A13: change-password/; A15: me/). UnverifiedPatientCleaner (A5) cũng được job dọn của A7 dùng lại nên chưa cần xuất ra ngoài module.
 // UnverifiedPatientCleanupJob (A7, `.job.ts` = lớp chạy theo lịch) không import ScheduleModule ở đây: UploadModule đã đăng ký nó TOÀN CỤC và gọi
 // `ScheduleModule.forRoot()` thêm lần nữa làm mọi job chạy gấp đôi (TECH_DEBT dòng 33).
 //
@@ -58,9 +60,11 @@ const AUTH_ENTITIES = [TaiKhoan, BenhNhan, ViNoiBo, MaXacThuc, PhienDangNhap];
     ForgotPasswordController,
     ResetPasswordController,
     ChangePasswordController,
+    MeController,
   ],
   providers: [
     ChangePasswordService,
+    MeService,
     ForgotPasswordService,
     ResetPasswordService,
     ResetTokenService,
