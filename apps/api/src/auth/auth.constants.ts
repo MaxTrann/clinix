@@ -101,6 +101,12 @@ export const RESET_PASSWORD_ERROR_CODES = {
   INVALID_TOKEN_FIELD: 'RESET_TOKEN_KHONG_HOP_LE',
 } as const;
 
+// --- Đổi mật khẩu (task A13; quyết định Q8, S7; TRACKING A13-A…). WRONG_CURRENT_PASSWORD: HTTP 400, không dùng 401 để lớp API client của FE không tưởng là access
+// token hết hạn rồi đi làm mới (TRACKING mục 5 điểm 15).
+export const CHANGE_PASSWORD_ERROR_CODES = {
+  WRONG_CURRENT_PASSWORD: 'MAT_KHAU_CU_SAI',
+} as const;
+
 // --- Job dọn tài khoản Bệnh nhân chưa xác minh quá 24 giờ (task A7; ĐK b5 câu cuối, Q4, quyết định A7-A…). Cố định theo quyết định nên là hằng số.
 export const UNVERIFIED_CLEANUP_JOB_NAME = 'unverified-patient-cleanup';
 // Cron 6 trường (giây phút giờ ngày tháng thứ): mỗi giờ vào phút 15, lệch phút 0 của job dọn ảnh (P7) để hai job không dồn vào cùng giây. Việc dọn không
