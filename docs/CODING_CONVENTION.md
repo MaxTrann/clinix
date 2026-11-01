@@ -51,6 +51,7 @@
 - File kebab-case, dùng named export (trừ `App`). Chỉ `shared/api/client.ts` được gọi `fetch`; nơi khác gọi `request()` và phân biệt lỗi bằng `instanceof` (`ApiError`, `NetworkError`, `TimeoutError`, `UnexpectedResponseError`, `RequestAbortedError`).
 - **Xác thực (task F1):** chỉ import từ `features/auth` (file `index.ts`). Access token chỉ ở bộ nhớ trong `auth-store.ts`; component đọc trạng thái bằng `useAuth()`. Route theo vai trò khai ở `router/role-routes.tsx`; cần đăng nhập thì bọc `RequireAuth`.
 - Chọn câu thông báo theo `maLoi`, không theo mã HTTP hay `thongBao`. Test giao diện dựa vào vai trò và nội dung, không dựa vào tên class của CSS Modules.
+- **Router (ADR 0002):** React Router Data Mode (`createBrowserRouter`), SPA; không dùng Framework Mode. Trang thật của module khai bằng `lazy: () => import(...)`; đường dẫn dùng hằng số đặt trong module, không rải chuỗi trong component; `errorElement` ở layout gốc và ở layout từng module khi cần [đề xuất]. Xem `docs/adr/0002-web-react-router-data-mode.md`.
 
 ## Git
 - Nhánh: `feat/…`, `fix/…`, `docs/…`, `chore/…`. Một PR một việc, nhỏ.
