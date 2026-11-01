@@ -40,6 +40,7 @@ chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá s
 | 30/10/2026 | B1 (#55): SpecialtyModule list/detail/create/update/status + dropdown; dùng C1/P6/P7; chuẩn hóa/UNIQUE tên, count bác sĩ toàn hệ thống, gắn ảnh trong transaction và scheduler P7 dọn sau commit; contract tại PLAN 5.3 | CK-01–10/12–14/16/17; CK-11 phần tích hợp ảnh; PQ-11/SE-A10 | VERIFIED backend local; F2/D2/PR còn riêng | Unit B1 21/21, toàn API1517/1517 (87 file); MySQL B1 14/14, HTTP B1+C1 21/21 (10+11); lint/build/typecheck/format/diff pass; Linux jscpd1,91%/249 file, Gitleaks source/test sạch. Container MySQL8.4 mới riêng33312 đã dừng, không DB dev/chia sẻ/Cloudinary thật/schema/frontend/dependency. HTTP đầu dừng validator vì mật khẩu test rỗng; tạo user giả trong container riêng rồi rerun pass. Giữ nguyên log AI dirty đầu phiên; xem working-doc/B1/tracker.md. Chưa full MySQL/e2e/CI/browser/review/merge; D2 Word do thành viên đồng bộ |
 
 | 31/10/2026 | B2 (#56): ServiceGroupModule list/create/update/delete nhóm rỗng; dùng C1/P6, chuẩn hóa/UNIQUE tên, thứ tự nguyên không âm, transaction/khóa nhóm và FK chống orphan; contract tại PLAN 5.3 | DV-01…06 backend; DV-16 phần nhóm; PQ regression C1 | VERIFIED backend local; F3/D2/PR còn riêng | B2 unit27/27; toàn API1544/1544 (89 file); MySQL B2 cuối11/11; HTTP B2+C1 19/19 (8+11); lint/build/typecheck/format pass; Linux jscpd1,93%/255 file; Gitleaks scope B2 source/test sạch. MySQL8.4 container mới riêng33313; không DB dev/chia sẻ/schema/frontend/dependency/auth. Lượt MySQL đầu10/11 vì assertion COUNT chuỗi so số, sửa kiểu/assertion rồi rerun11/11; không sửa nghiệp vụ vì lỗi fixture. D2 Word/F3/full MySQL/full HTTP/CI/review/merge chưa nghiệm thu; chi tiết working-doc/B2/tracker.md. Log AI do thành viên ghi theo AGENTS |
+| 01/11/2026 | B3 (#57): `ServiceModule` list/detail/create/update; dùng C1/P6, giữ bigint/decimal dạng chuỗi, chuẩn hoá tên, ánh xạ UNIQUE/FK, transaction và chặn đổi thời lượng khi có lịch/khung giờ phụ thuộc; không có DELETE | DV-07…16, DV-18…20 | VERIFIED backend local; DV-17/F3, D2, CI/PR/review/merge còn riêng | Unit27/27; MySQL integration9/9; HTTP6/6; lint/build/typecheck/Prettier pass. MySQL8.4 riêng33314; `clinix-db-1` dừng theo yêu cầu. HTTP ban đầu có hai assertion chưa khớp contract, đã sửa và chạy lại6/6. Không đổi schema/migration/frontend/dependency/AI log; D2 Word gốc ngoài checkout. Chi tiết `working-doc/B3/tracker.md`; log AI do thành viên ghi theo AGENTS |
 
 ## 2. Kết quả test theo use case
 
@@ -48,7 +49,7 @@ Cập nhật lần chạy mới nhất; chi tiết từng ca xem mục 1.
 | Nhóm test (PLAN.md mục 7) | Tổng số ca | Pass | Fail | Chưa chạy | Ngày chạy gần nhất |
 |---|---|---|---|---|---|
 | Quản lý chuyên khoa (`CK-*`) | 18 | 16 (CK-01–10/12–14/16–18) | 0 | 2 chưa đủ nghiệm thu: CK-11 UI/preview (backend P7+B1 đã kiểm), CK-15 F2 | 30/10/2026 |
-| Quản lý loại dịch vụ khám (`DV-*`) | 21 | 7 ở cấp backend (DV-01…06; DV-21 kế thừa P1) | 0 | 14; DV-16 phần nhóm đã kiểm, phần dịch vụ chờ B3; FE giữ dữ liệu DV-03/17 và F3/D2 riêng | 31/10/2026 |
+| Quản lý loại dịch vụ khám (`DV-*`) | 21 | 20 ở cấp backend (DV-01…16, DV-18…21) | 0 | 1: DV-17 FE/F3; D2 Word vẫn pending riêng | 01/11/2026 |
 | Quản lý hồ sơ bác sĩ (`BS-*`) | | | | | |
 | Tạo tài khoản nhân sự và kích hoạt (`NS-*`) | | | | | |
 | Quản lý tài khoản người dùng (`TK-*`) | | | | | |
