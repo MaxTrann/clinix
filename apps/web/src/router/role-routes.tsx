@@ -1,4 +1,7 @@
 import type { RouteObject } from 'react-router';
+import { ADMIN_ROUTES } from '../features/admin/admin-routes';
+import { AdminErrorBoundary } from '../features/admin/admin-error-boundary';
+import { AdminLayout } from '../features/admin/admin-layout';
 import {
   RequireAuth,
   ROLE_HOME_PATHS,
@@ -16,7 +19,9 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
   LeTan: { path: ROLE_HOME_PATHS.LeTan, element: <RolePlaceholderPage /> },
   QuanTriVien: {
     path: ROLE_HOME_PATHS.QuanTriVien,
-    element: <RolePlaceholderPage />,
+    element: <AdminLayout />,
+    children: ADMIN_ROUTES,
+    errorElement: <AdminErrorBoundary />,
   },
 };
 

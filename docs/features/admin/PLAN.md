@@ -1218,6 +1218,21 @@ Ma trận: **Khách → 401 · Bệnh nhân/Bác sĩ/Lễ tân → 403 · Quản
 | SD-05 | `seed:dev-accounts` ⇒ đăng nhập được từng vai trò (auth) | Đúng | `[Q44]` | M |
 | SD-06 | `seed:config-dev` tạo dòng cấu hình **dữ liệu thử** | Đúng; ghi rõ không phải quyết định | `[Q36]` | I |
 
+### 7.11 Khung Admin frontend (F1)
+
+| ID | Kịch bản | Mong đợi | Phủ | Loại |
+|---|---|---|---|---|
+| AF1-01 | Quản trị viên Toàn hệ thống vào `/admin`; GET `/admin/me` thành công | Hiện tên tài khoản, nhãn Toàn hệ thống và shell; không dựng KPI/biểu đồ khi chưa có API | F1, Figma 522:2 | C |
+| AF1-02 | Quản trị viên Chi nhánh vào `/admin`; GET `/admin/me` thành công | Hiện đúng tên chi nhánh từ response; không suy scope từ URL/token/client input | F1, C1 | C |
+| AF1-03 | GET `/admin/me` đang tải, lỗi mạng/5xx, hoặc trả 403 | Loading không lộ shell; lỗi dùng ErrorState an toàn và có Thử lại khi phù hợp; 403 hiện trang Không đủ quyền | F1, API client P6 | C |
+| AF1-04 | Admin Chi nhánh mở child route có policy `ToanHeThong` trực tiếp | Trang Không đủ quyền, không render nội dung con; Admin Toàn hệ thống được phép | F1, C1 | C |
+| AF1-05 | Người chưa đăng nhập hoặc vai trò khác mở `/admin`; các vai trò khác mở route riêng | Auth F1 chuyển/chặn theo contract; route placeholder các vai trò khác giữ nguyên | F1, auth F1 | C |
+| AF1-06 | Dùng menu F2–F9 và thông báo chưa triển khai | Mục menu hiện theo Figma nhưng không bấm được; không có badge/số liệu giả | F1, Figma 522:2/625:2 | C |
+| AF1-07 | Dùng bảng phân trang với dữ liệu, rỗng, trang đầu/cuối | Render đúng cột/dòng, tổng và trạng thái rỗng; nút lùi/tiến bị vô hiệu ở biên và phát đúng trang yêu cầu | F1, P6 | C |
+| AF1-08 | Nhập/tẩy nội dung ô tìm kiếm | Giá trị điều khiển được qua `onChange`; component không tự gọi API hoặc debounce | F1 | C |
+| AF1-09 | Mở hộp xác nhận; xác nhận, huỷ, Esc và bàn phím Tab | Chỉ gọi callback tương ứng; khi đang xử lý thì nút bị vô hiệu; focus giữ trong dialog và trả về phần tử trước khi đóng | F1 | C |
+| AF1-10 | Mở panel chi tiết; đóng bằng nút hoặc Esc | Nội dung con hiển thị; dialog có nhãn truy cập; focus giữ trong panel và trả về khi đóng | F1 | C |
+
 ## 8. Đề xuất chia việc và gom cụm (chỉ đề xuất — nhóm chốt)
 
 Nguyên tắc: **một người làm trọn module `admin` (backend + frontend)** theo các cụm dưới đây; người còn lại tiếp tục `auth` hoặc module khác (xem auth PLAN mục 8). Mỗi task ở mục 6 là **một PR**; cụm chỉ là thứ tự làm. Hai người vẫn phải giải thích được toàn bộ module khi vấn đáp.
