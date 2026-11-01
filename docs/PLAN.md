@@ -37,7 +37,7 @@ Phải xong trước khi viết nghiệp vụ, vì mọi module sau đều phụ
 Theo `docs/REPO_SETUP.md` mục 4. Rubric: TC2.1, TC2.4 (repo build được — G8), nền cho mọi phase sau.
 
 - [ ] `apps/api`: khởi tạo NestJS, thêm endpoint `GET /health` (CD và Docker `HEALTHCHECK` đã chờ sẵn endpoint này).
-- [ ] `apps/web`: khởi tạo React + Vite, cài Vitest.
+- [ ] `apps/web`: khởi tạo React + Vite, cài Vitest. Router: React Router 8 Data Mode (`createBrowserRouter`), SPA; xem `docs/adr/0002-web-react-router-data-mode.md`.
 - [ ] Kết nối MySQL qua ORM đã chọn ở Phase 0, chạy migration đầu tiên (bảng rỗng là đủ để xác nhận kết nối).
 - [ ] `docker compose up --build` chạy đủ 3 service (`db`, `api`, `web`).
 - [x] PR đầu tiên có code thật → bật `api`, `web`, `docker` vào required status checks của ruleset (đã bật ngày 27/10/2026, task P7 của auth; hiện có 7 check: `detect`, `pr-title`, `secrets`, `security`, `api`, `web`, `docker`).
