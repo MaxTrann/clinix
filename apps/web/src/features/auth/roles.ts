@@ -2,6 +2,10 @@
 export type VaiTro = 'BenhNhan' | 'BacSi' | 'LeTan' | 'QuanTriVien';
 
 export const LOGIN_PATH = '/dang-nhap';
+// Ba trang dưới do F2, F4 thêm; tới lúc đó liên kết của màn đăng nhập ra 404. VERIFY_EMAIL_PATH là [đề xuất], Make không có route riêng.
+export const REGISTER_PATH = '/dang-ky';
+export const FORGOT_PASSWORD_PATH = '/quen-mat-khau';
+export const VERIFY_EMAIL_PATH = '/dang-ky/xac-minh';
 
 export const ROLE_HOME_PATHS: Record<VaiTro, string> = {
   BenhNhan: '/benh-nhan',

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { restoreSession } from './features/auth';
+import './styles/index.css';
 
 // Trước khi render và ngoài effect: StrictMode chạy effect hai lần, mà làm mới phải chạy đúng một lần
 void restoreSession();

@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
+import { resetAuthForTest } from '../features/auth/auth-session';
+import { setAuthState } from '../features/auth/auth-store';
 import { AccessGate, type AccessDecision } from './access-gate';
 import { createAppRoutes } from './routes';
 
@@ -23,6 +25,20 @@ function gatedRoutes(decision: AccessDecision): RouteObject[] {
 }
 
 describe('routes', () => {
+  it('LP-60 (F3) mở thẳng route lazy: hiện loading, không màn trắng, không cảnh báo HydrateFallback', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    setAuthState({ status: 'unauthenticated' });
+    renderAt('/dang-nhap', createAppRoutes());
+
+    expect(screen.getByRole('status')).toHaveTextContent('Đang tải');
+    await screen.findByRole('heading', { name: 'Đăng nhập' });
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+
+    resetAuthForTest();
+    warn.mockRestore();
+  });
+
   it('WS-50 / hiện trang chủ CLINIX', () => {
     renderAt('/', createAppRoutes());
     expect(screen.getByRole('heading', { name: 'CLINIX' })).toBeInTheDocument();

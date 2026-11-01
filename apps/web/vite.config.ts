@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
@@ -6,7 +7,7 @@ import { defineConfig } from 'vitest/config';
 const apiProxyTarget = process.env.API_PROXY_TARGET ?? 'http://localhost:3000';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     proxy: {
       // API không có tiền tố /api nên phải gỡ. Khoá có dấu / cuối để không khớp nhầm /apifoo.

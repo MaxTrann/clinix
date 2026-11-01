@@ -1,6 +1,5 @@
 import { errorMessageFor } from '../api/error-message';
 import { RequestAbortedError } from '../api/errors';
-import styles from './status.module.css';
 
 interface ErrorStateProps {
   error: unknown;
@@ -12,10 +11,17 @@ export function ErrorState({ error, onRetry }: ErrorStateProps) {
   if (error instanceof RequestAbortedError) return null;
 
   return (
-    <div role="alert" className={styles.box}>
+    <div
+      role="alert"
+      className="my-2 rounded-xl border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger-strong"
+    >
       <p>{errorMessageFor(error)}</p>
       {onRetry && (
-        <button type="button" className={styles.retry} onClick={onRetry}>
+        <button
+          type="button"
+          className="mt-2 block font-medium underline"
+          onClick={onRetry}
+        >
           Thử lại
         </button>
       )}

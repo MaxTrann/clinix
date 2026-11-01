@@ -153,6 +153,7 @@ Chỉ cần cơ sở dữ liệu (ví dụ để chạy test tích hợp trên m
 
 **Web gọi API qua proxy cùng origin (task P6).** Trình duyệt chỉ thấy `/api/...`; proxy gỡ tiền tố `/api` vì API không có tiền tố này, nên `http://localhost:5173/api/health` tới `GET /health`.
 - `docker compose up`: `docker-compose.yml` tự đặt `VITE_API_URL=/api` và `API_PROXY_TARGET=http://api:3000` cho service `web`, đè giá trị trong `.env`.
+- Sau khi kéo F3 hoặc mỗi lần `apps/web/package.json` đổi: `docker compose up -d --build -V --no-deps web`. Phải có `-V` để làm mới volume `node_modules` ẩn danh; chỉ `--build` thì container `web` thoát với `ERR_MODULE_NOT_FOUND`.
 - `npm run dev` trong `apps/web` (API chạy bằng compose hoặc trên máy): proxy mặc định tới `http://localhost:3000`; đổi đích bằng biến `API_PROXY_TARGET` của tiến trình. `vite preview` kế thừa cùng proxy.
 - `.env` cũ còn `VITE_API_URL=http://localhost:3000` nên đổi thành `/api`. Không đặt địa chỉ tuyệt đối: API không bật CORS.
 - Gọi `/auth/refresh`, `/auth/logout` bằng curl phải tự thêm `Origin: <WEB_ORIGIN>`.
