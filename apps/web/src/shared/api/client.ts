@@ -27,6 +27,8 @@ export type RequestOptions = RequestBody & {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   timeoutMs?: number;
+  // Không gắn Authorization: login, refresh, logout không dùng access token
+  skipAuthToken?: boolean;
 };
 
 function buildUrl(path: string, query: RequestOptions['query']): string {
@@ -139,25 +141,40 @@ function waitForRecovery(
   });
 }
 
+function withSessionSignal(options: RequestOptions): RequestOptions {
+  const sessionSignal = getApiAuthHooks()?.getRequestSignal?.();
+  if (!sessionSignal) return options;
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, sessionSignal])
+    : sessionSignal;
+  return { ...options, signal };
+}
+
 export async function request<T = unknown>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
   const url = buildUrl(path, options.query);
-  const token = () => getApiAuthHooks()?.getAccessToken() ?? null;
+  const token = () =>
+    options.skipAuthToken
+      ? null
+      : (getApiAuthHooks()?.getAccessToken() ?? null);
+  const sendOptions = withSessionSignal(options);
+  const sentToken = token();
 
   try {
-    return await send<T>(url, options, token());
+    return await send<T>(url, sendOptions, sentToken);
   } catch (error) {
     const hooks = getApiAuthHooks();
     if (!(error instanceof ApiError) || error.status !== 401 || !hooks) {
       throw error;
     }
     const recovered = await waitForRecovery(
-      () => hooks.recoverFromUnauthorized({ path, error }),
-      options.signal,
+      () =>
+        hooks.recoverFromUnauthorized({ path, error, accessToken: sentToken }),
+      sendOptions.signal,
     );
     if (!recovered) throw error;
-    return send<T>(url, options, token());
+    return send<T>(url, sendOptions, token());
   }
 }

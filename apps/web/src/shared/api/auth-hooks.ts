@@ -7,10 +7,14 @@ export interface ApiAuthHooks {
   getAccessToken(): string | null;
   // Chỉ được gọi với 401 JSON chuẩn. true = thử lại MỘT lần; false hoặc ném lỗi = nơi gọi nhận ApiError 401 gốc.
   // Không bị tính vào timeout của từng lần gửi, để còn chờ được Web Locks (DN-32).
+  // `accessToken` là token mà lần gửi bị 401 đã mang (null nếu không có).
   recoverFromUnauthorized(context: {
     path: string;
     error: ApiError;
+    accessToken: string | null;
   }): Promise<boolean>;
+  // Tín hiệu của phiên, gộp với `signal` của nơi gọi: F1 huỷ mọi request đang bay khi đăng xuất.
+  getRequestSignal?(): AbortSignal;
 }
 
 let hooks: ApiAuthHooks | null = null;

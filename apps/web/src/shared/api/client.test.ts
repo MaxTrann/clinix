@@ -365,7 +365,96 @@ describe('điểm cắm setApiAuthHooks', () => {
     expect(hooks.recoverFromUnauthorized).toHaveBeenCalledWith({
       path: '/x',
       error: expect.any(ApiError),
+      accessToken: 'tok-cu',
     });
+  });
+
+  it('WS-44 (khoản h) skipAuthToken không gắn Authorization, kể cả lần thử lại', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(401, UNAUTHORIZED))
+      .mockResolvedValueOnce(jsonResponse(200, {}));
+    const hooks = hooksStub({ getAccessToken: vi.fn(() => 'tok') });
+    setApiAuthHooks(hooks);
+
+    await request('/x', { skipAuthToken: true });
+
+    const authorizations = fetchMock.mock.calls.map(([, init]) =>
+      new Headers(init!.headers).has('Authorization'),
+    );
+    expect(authorizations).toEqual([false, false]);
+    expect(hooks.getAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('WS-45 (khoản h) lời gọi thường vẫn gắn token khi skipAuthToken là false', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, {}));
+    setApiAuthHooks(hooksStub({ getAccessToken: () => 'tok' }));
+    await request('/x', { skipAuthToken: false });
+    expect(lastCall().headers.get('Authorization')).toBe('Bearer tok');
+  });
+
+  it('WS-46 (khoản i) abort bằng tín hiệu phiên ra RequestAbortedError, không NetworkError', async () => {
+    fetchMock.mockImplementation(hangUntilAborted);
+    const session = new AbortController();
+    setApiAuthHooks(hooksStub({ getRequestSignal: () => session.signal }));
+    const outcome = request('/x').catch((e: unknown) => e);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    session.abort();
+
+    expect(await outcome).toBeInstanceOf(RequestAbortedError);
+    expect(lastCall().init.signal!.aborted).toBe(true);
+  });
+
+  it('WS-47 (khoản i) gộp với signal của nơi gọi: bên nào huỷ cũng dừng', async () => {
+    fetchMock.mockImplementation(hangUntilAborted);
+    const session = new AbortController();
+    setApiAuthHooks(hooksStub({ getRequestSignal: () => session.signal }));
+    const caller = new AbortController();
+    const first = request('/x', { signal: caller.signal }).catch(
+      (e: unknown) => e,
+    );
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    caller.abort();
+    expect(await first).toBeInstanceOf(RequestAbortedError);
+    expect(session.signal.aborted).toBe(false);
+
+    const second = request('/y', {
+      signal: new AbortController().signal,
+    }).catch((e: unknown) => e);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    session.abort();
+    expect(await second).toBeInstanceOf(RequestAbortedError);
+  });
+
+  it('WS-48 (khoản i) tín hiệu phiên huỷ khi đang chờ hook thì không thử lại', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(401, UNAUTHORIZED));
+    const session = new AbortController();
+    const hooks = hooksStub({
+      getRequestSignal: () => session.signal,
+      recoverFromUnauthorized: vi.fn(() => new Promise<boolean>(() => {})),
+    });
+    setApiAuthHooks(hooks);
+    const outcome = request('/x').catch((e: unknown) => e);
+    await vi.waitFor(() =>
+      expect(hooks.recoverFromUnauthorized).toHaveBeenCalled(),
+    );
+
+    session.abort();
+
+    expect(await outcome).toBeInstanceOf(RequestAbortedError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('WS-49 (khoản j) ngữ cảnh hook có accessToken đã gửi; không có token thì null', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(401, UNAUTHORIZED));
+    const hooks = hooksStub({
+      recoverFromUnauthorized: vi.fn(async () => false),
+    });
+    setApiAuthHooks(hooks);
+    await request('/x').catch(() => undefined);
+    expect(hooks.recoverFromUnauthorized).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: null }),
+    );
   });
 
   it('WS-32 chỉ thử lại MỘT lần: 401 lần hai ném lỗi, không gọi hook nữa', async () => {
