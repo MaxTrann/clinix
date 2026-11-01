@@ -93,7 +93,7 @@ jobs:
       - run: npm test -- --coverage
       - run: npm run test:int -- --coverage
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: api-coverage
@@ -119,7 +119,7 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test -- --coverage --run
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: web-coverage
