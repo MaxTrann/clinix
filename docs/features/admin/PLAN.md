@@ -494,6 +494,15 @@ Mọi endpoint ghi chạy trong **một** giao dịch ở tầng service; DTO `w
 - Email dùng auth S5: trim khoảng trắng ASCII hai đầu, lowercase domain, chỉ ASCII và tối đa 255 ký tự; whitespace nội bộ không hợp lệ.
 - Upsert singleton là atomic; không thay schema, seed hoặc thêm audit. D5 Word còn đồng bộ riêng tại repo nguồn.
 
+**Contract B7 đã được người dùng duyệt ngày 01/11/2026** (issue #59):
+
+- `GET /admin/branches` và `GET /admin/branches/:id` dành cho cả hai phạm vi Admin; scope Chi nhánh chỉ thấy chi nhánh của mình, ID ngoài scope trả cùng 404 `KHONG_TIM_THAY` như ID không tồn tại.
+- Danh sách nhận `page`, `pageSize`, `q?`; `q` được trim, tối đa 200 ký tự, tìm tên và địa chỉ với LIKE escape; sắp tên rồi ID tăng dần; `{items,total,page,pageSize}` dùng cùng predicate scope/search.
+- List/detail trả `{chiNhanhId,ten,diaChi,toaDoLat,toaDoLng,lichHoatDong,dichVuKham,coYeuCauDangMo}`. ID/toạ độ là chuỗi; `lichHoatDong` luôn có 7 phần tử `{thuTrongTuan,hoatDong,sang,chieu}`, khoảng giờ lồng `{batDau,ketThuc}` hoặc `null`; dịch vụ `{dichVuKhamId,ten}`; cờ yêu cầu theo `dang_mo_chi_nhanh` (Q3). Hàng chi nhánh cũ thiếu ngày được biểu diễn `hoatDong:null`, không suy diễn ngày nghỉ.
+- POST chỉ Admin Toàn hệ thống, nhận `{ten,diaChi,toaDoLat?,toaDoLng?,lichHoatDong:[7 phần tử {thuTrongTuan,hoatDong,sang?:{batDau,ketThuc},chieu?:{batDau,ketThuc}}],dichVuKhamIds:[string]}` và trả `BranchView` HTTP 201. Giờ nhận `HH:mm`, đọc lại `HH:mm:ss`; tên trim/gộp khoảng trắng, địa chỉ trim; cho phép tên trùng, không thêm UNIQUE/schema.
+- Toạ độ chuỗi tùy chọn theo cặp, miền Q10, tối đa 7 số thập phân. Lịch sai trả 400 `LICH_HOAT_DONG_KHONG_HOP_LE` cùng mọi `{thu,maLoi}`; ID dịch vụ không tồn tại trả 404 `KHONG_TIM_THAY`; ID dịch vụ lặp được gộp, mảng rỗng được phép. Branch, đủ 7 lịch và liên kết dịch vụ ghi trong một transaction.
+- `maLoi` lịch ổn định: `DANH_SACH_KHONG_HOP_LE`, `THU_KHONG_HOP_LE`, `THU_BI_THIEU`, `THU_BI_TRUNG`, `TRANG_THAI_HOAT_DONG_KHONG_HOP_LE`, `NGAY_NGHI_CO_GIO`, `NGAY_HOAT_DONG_THIEU_KHOANG`, `KHOANG_GIO_KHONG_HOP_LE`, `KHOANG_GIO_CHUA_DAY_DU`, `GIO_KHONG_HOP_LE`, `KHOANG_GIO_KHONG_TANG`, `KHOANG_GIO_CHONG_NHAU`.
+
 ### 5.4 Chi nhánh (CN): lịch hoạt động, ảnh hưởng, yêu cầu, áp dụng
 
 **Dữ liệu vào (`PATCH /admin/branches/:id`):** `{ten, diaChi, toaDoLat?, toaDoLng?, lichHoatDong:[7 phần tử {thuTrongTuan, hoatDong, sang?:{batDau,ketThuc}, chieu?:{batDau,ketThuc}}], dichVuKhamIds:[…]}` (form đầy đủ như Figma; server **diff** với dữ liệu hiện tại: tập thứ thay đổi, dịch vụ thêm/bỏ).
@@ -727,7 +736,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 | ☐ | B4 | **Thông tin phòng khám**: `GET/PUT` (upsert `id=1`), kiểm email/hotline (Q33), chỉ Toàn hệ thống (cả `GET`) | P3, C1; Q33 | VERIFIED backend local 01/11/2026; PK-01…09; D5 Word/CI/PR/review/merge còn riêng; xem `working-doc/B4` | PK b1–b5, A1, A2 | `feat(admin)` |
 | ☐ | B5 | **Cập nhật cấu hình**: `GET/PUT`; miền giá trị (5.7); diff; `ly_do`; giao dịch + Audit; tạo lần đầu; cờ `chuaCauHinh` | P3, C1, C2, C3; Q34, Q35, Q36, Q38, Q39 | SAU C2 | CH b1–b5, A1–A4 | `feat(admin)` · `[ĐỒNG BỘ TL]` D5, D6 |
 | ☐ | B6 | **Lịch sử thay đổi cấu hình**: `GET …/history` đọc `nhat_ky_hanh_dong` loại `CapNhatCauHinh`, phân trang, chỉ Toàn hệ thống | B5, C2, P6; Q37, Q39 | SAU B5 | CH (Figma 578:2) | `feat(admin)` |
-| ☐ | B7 | **Chi nhánh — đọc + thêm mới**: list/get (kèm lịch 7 thứ, dịch vụ, cờ yêu cầu chờ; Chi nhánh chỉ chi nhánh mình); `POST` giao dịch {chi nhánh + 7 dòng + dịch vụ}, chỉ Toàn hệ thống; `validateWeeklySchedule` | P1, C1, P6; Q1, Q10 | SOẠN TRƯỚC (validator) | CN b1–b2, b4, A1, A3 | `feat(admin)` · `[ĐỒNG BỘ TL]` D1 |
+| ☐ | B7 | **Chi nhánh — đọc + thêm mới**: list/get (lịch 7 thứ, dịch vụ, cờ yêu cầu mở; scope Chi nhánh chỉ chi nhánh mình); `POST` transaction {chi nhánh + 7 dòng + dịch vụ}, chỉ Toàn hệ thống; `validateWeeklySchedule` | P1, C1, P6; Q1, Q10 | ĐANG TRIỂN KHAI (source + unit local; MySQL/HTTP chưa xác minh) | CN b1–b2, b4, A1, A3 | `feat(admin)` · `[ĐỒNG BỘ TL]` D1 |
 | ☐ | B8 | **Chi nhánh — sửa + phát hiện ảnh hưởng**: diff; `BranchImpactService` (lịch hẹn, ca, khung giờ, bỏ dịch vụ); nhánh áp dụng ngay (không lịch hẹn **và không ca** ảnh hưởng) / tạo yêu cầu `ChoDuyet`; `UnresolvedImpactGate` (Q7); kiểm Q3, Q8; Q2 cho phần tên/địa chỉ/toạ độ (nêu rõ phần đã lưu/đang chờ) | B7, P2, C3; Q1, Q2, Q3, Q7, Q8, Q41, Q46 | SOẠN TRƯỚC (impact thuần theo truy vấn mẫu); kiểm "yêu cầu đang mở" ở DB (Q47) | CN b3–b6, A3 | `feat(admin)` · `[ĐỒNG BỘ TL]` D1 |
 | ☐ | B9 | **Yêu cầu thay đổi — xem + từ chối**: list (lọc trạng thái, Chi nhánh chỉ chi nhánh mình), detail (tính lại ảnh hưởng — Q46), `reject` (lý do, thông báo người gửi); hiển thị trạng thái gửi email (`DaGui`/`ThatBai`) | B8, C1, C4; Q4, Q9, Q46 | SAU B8, C4 | CN b7, A2 | `feat(admin)` |
 | ☐ | B10 | **Yêu cầu thay đổi — duyệt**: giao dịch (chụp số ngày, kiểm `hieu_luc_tu`, ghi bảng ảnh hưởng, thông báo + email theo bệnh nhân, `DaDuyet`; **không chặn duyệt** khi còn lịch/ca ảnh hưởng — Q48 = B); hàm đọc `getPendingEffectiveChanges` cho `booking` (**`booking` chặn đặt và đổi lịch**, Q6; trả cả yêu cầu **quá hạn**) | B9, C3, C4; Q4, Q5, Q6, Q9, Q48 | SAU B9, C4 | CN b7–b9, A4 | `feat(admin)` |
@@ -1027,10 +1036,12 @@ Ca có `[Qn]` phụ thuộc điểm còn mở — mong đợi là đề xuất. 
 
 ### 7.8 Quản lý chi nhánh / cơ sở (CN)
 
-**Thêm mới và kiểm lịch**
+**Đọc, thêm mới và kiểm lịch**
 
 | ID | Kịch bản | Mong đợi | Phủ | Loại |
 |---|---|---|---|---|
+| CN-14 | Toàn hệ thống xem danh sách/phân trang/tìm kiếm và chi tiết | `BranchView` đúng dữ liệu, lịch đủ 7 thứ, dịch vụ và cờ yêu cầu đang mở; `total` theo filter | CN b1–b2 | I |
+| CN-15 | Admin Chi nhánh xem danh sách, chi tiết của mình, chi tiết ngoài scope/không tồn tại | List chỉ có chi nhánh mình; hai trường hợp detail trả cùng 404 `KHONG_TIM_THAY` | CN A1/1a–1b; Q40 | I |
 | CN-01 | Toàn hệ thống thêm chi nhánh đủ 7 thứ + dịch vụ | **Một giao dịch**: `chi_nhanh` + 7 dòng + dịch vụ; có hiệu lực ngay; thông báo thành công | CN b5; hậu điều kiện | I |
 | CN-02 | Quản trị viên Chi nhánh thêm mới (gọi trực tiếp API) | `KHONG_DU_QUYEN`, kết thúc; không tạo gì | CN A1/1a–1b | I |
 | CN-03 | Thiếu thứ (6 dòng); thứ trùng; thứ ngoài 1–7 | `LICH_HOAT_DONG_KHONG_HOP_LE` chỉ rõ thứ | CN A3/4a–4b | U |
