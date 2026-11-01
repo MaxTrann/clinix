@@ -94,6 +94,8 @@ export class SmtpMailService extends MailService implements OnModuleInit {
         to: message.to,
         subject: message.subject,
         text: message.text,
+        // Không truyền khoá html khi người gọi chỉ gửi văn bản thô: thư giữ nguyên dạng một phần
+        ...(message.html === undefined ? {} : { html: message.html }),
         // Phong bì SMTP (RCPT TO) lấy THẲNG từ giá trị đã kiểm, không qua bộ phân tích địa chỉ của thư viện
         envelope: { from: this.config.fromAddress, to: [message.to] },
       });
@@ -118,6 +120,9 @@ export class SmtpMailService extends MailService implements OnModuleInit {
     if (!isSafeHeaderText(message.subject, MAIL_SUBJECT_MAX_LENGTH))
       return 'subject';
     if (!isSafeBodyText(message.text)) return 'text';
+    if (message.html !== undefined && !isSafeBodyText(message.html)) {
+      return 'html';
+    }
     return undefined;
   }
 

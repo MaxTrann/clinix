@@ -1,5 +1,6 @@
 import type { DataSource } from 'typeorm';
 import { vi } from 'vitest';
+import { readOtpFromHtml } from '../testing/otp-test-helpers.js';
 import { UNVERIFIED_ACCOUNT_TTL_MS } from '../auth.constants.js';
 import { MaXacThuc } from '../entities/ma-xac-thuc.entity.js';
 import { TaiKhoan } from '../entities/tai-khoan.entity.js';
@@ -214,6 +215,10 @@ describe('kết quả cấp mã và nội dung thư (QM-01 phần A11)', () => {
     expect(mail?.text).toContain(`Xin chào ${account.hoTen},`);
     expect(code).toMatch(/^\d{6}$/);
     expect(mail?.text).toMatch(standalone(code));
+    // A14: bản HTML cùng mã, cùng email, cùng họ tên
+    expect(readOtpFromHtml(mail ?? {})).toBe(code);
+    expect(mail?.html).toContain(`<strong>${account.email}</strong>`);
+    expect(mail?.html).toContain(`Xin chào <strong>${account.hoTen}</strong>,`);
   });
 
   it('FP-11 QM-01 (đến khi có resetToken): cấp mã, nhập mã đúng ⇒ token mang đúng tài khoản và mã xác thực, hạn 10 phút kể từ lúc xác minh', async () => {

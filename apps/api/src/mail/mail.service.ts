@@ -1,11 +1,13 @@
 // Giao diện gửi email dùng chung (task P4 của module auth; admin dùng lại cho link kích hoạt nhân sự, B14).
-// Chỉ có ba trường: người gọi KHÔNG thể truyền bcc, header tuỳ ý hay tệp đính kèm.
+// Chỉ có các trường dưới đây: người gọi KHÔNG thể truyền bcc, header tuỳ ý hay tệp đính kèm.
 export interface MailMessage {
   /** Đúng MỘT địa chỉ email (đã chuẩn hoá bởi chính sách email của auth, A1). Bị kiểm lại ở mail/mail-safety.ts. */
   readonly to: string;
   readonly subject: string;
-  /** Văn bản thô. Mẫu HTML theo Figma thuộc task A14. */
+  /** Văn bản thô: luôn có, cho ứng dụng thư không hiện HTML. */
   readonly text: string;
+  /** Bản HTML (A14), tuỳ chọn: có thì thư gồm hai phần (multipart/alternative). Mọi dữ liệu người dùng phải được thoát sẵn (`escapeHtml`). */
+  readonly html?: string;
 }
 
 /**

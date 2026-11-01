@@ -4,6 +4,7 @@ import { createAppLogger } from '../common/logging/sanitizing.logger.js';
 import { fakeSecretValue } from '../common/testing/sample-secrets.js';
 import { readMailConfig } from './mail-config.js';
 import { SmtpMailService } from './smtp-mail.service.js';
+import { renderOtpMail } from './templates/otp-mail.js';
 
 // Task P4. Mật khẩu ứng dụng Gmail nằm ở SMTP_PASS và phải được logger của P5 che (collectSecretValues theo tên biến). Đây là lớp phòng thủ
 // THỨ HAI: lớp thứ nhất là mã mail không bao giờ ghi nó ra log (smtp-mail.service.spec.ts). Mã nội bộ MAIL-27… là [đề xuất].
@@ -82,6 +83,52 @@ describe('Che SMTP_PASS khỏi log (MAIL-27)', () => {
     const logs = output();
     expect(logs).toContain('kind=AUTH');
     for (const secret of [PASS, RECIPIENT, OTP]) {
+      expect(logs).not.toContain(secret);
+    }
+  });
+
+  it('MAIL-H09 thư có bản HTML: gửi lỗi hay thành công, log không chứa mã, địa chỉ, tiêu đề, nội dung', async () => {
+    const output = captureOutput();
+    const config = readMailConfig({
+      SMTP_HOST: 'smtp.example.test',
+      SMTP_PORT: 465,
+      SMTP_USER: 'clinix@example.test',
+      SMTP_PASS: PASS,
+      MAIL_FROM_NAME: 'CLINIX',
+      MAIL_FROM_ADDRESS: undefined,
+      MAIL_SUPPORT_ADDRESS: undefined,
+    });
+    const rendered = renderOtpMail({
+      kind: 'register',
+      otp: OTP,
+      expiresInMinutes: 10,
+      fullName: 'Nguyễn Văn An',
+    });
+    let fail = true;
+    const service = new SmtpMailService(
+      config,
+      {
+        sendMail: () =>
+          fail
+            ? Promise.reject(
+                Object.assign(new Error(rendered.html), {
+                  code: 'ECONNECTION',
+                }),
+              )
+            : Promise.resolve({}),
+      },
+      createAppLogger({ SMTP_PASS: PASS }),
+    );
+
+    await expect(
+      service.send({ to: RECIPIENT, ...rendered }),
+    ).rejects.toMatchObject({ kind: 'CONNECTION' });
+    fail = false;
+    await service.send({ to: RECIPIENT, ...rendered });
+
+    const logs = output();
+    expect(logs).toContain('kind=CONNECTION');
+    for (const secret of [OTP, RECIPIENT, rendered.subject, 'Nguyễn Văn An']) {
       expect(logs).not.toContain(secret);
     }
   });

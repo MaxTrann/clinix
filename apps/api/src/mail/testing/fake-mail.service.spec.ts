@@ -10,6 +10,16 @@ const MESSAGE: MailMessage = {
 };
 
 describe('FakeMailService (MAIL-22)', () => {
+  it('MAIL-H10 ghi nhận cả phần html, kể cả lần lỗi', async () => {
+    const fake = new FakeMailService();
+    const rich = { ...MESSAGE, html: '<p>x</p>' };
+    await fake.send(rich);
+    fake.failNextWith();
+    await expect(fake.send(rich)).rejects.toBeDefined();
+    expect(fake.sent[0]?.html).toBe('<p>x</p>');
+    expect(fake.attempts[1]?.html).toBe('<p>x</p>');
+  });
+
   it('ghi lại lần gửi thành công vào cả attempts và sent', async () => {
     const fake = new FakeMailService();
     await fake.send(MESSAGE);

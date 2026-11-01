@@ -12,7 +12,10 @@ import { TEST_AUTH_ENV } from './../src/auth/testing/auth-test-env.js';
 import { newResetAccount } from './../src/auth/testing/forgot-password-int-helpers.js';
 import { setFailureState } from './../src/auth/testing/login-int-helpers.js';
 import { T0, at, wrongCodeFor } from './../src/auth/testing/otp-int-helpers.js';
-import { readOtpFromMail } from './../src/auth/testing/otp-test-helpers.js';
+import {
+  readOtpFromHtml,
+  readOtpFromMail,
+} from './../src/auth/testing/otp-test-helpers.js';
 import { REGISTER_PASSWORD } from './../src/auth/testing/register-int-helpers.js';
 import { standalone } from './../src/auth/testing/secret-scan.js';
 import { expectErrorResponse } from './../src/common/testing/error-assertions.js';
@@ -102,6 +105,7 @@ describe.each(ROUTES)('cấp mã qua %s', (_name, path) => {
     expect(res.headers['set-cookie']).toBeUndefined();
     expect(mail.sent).toHaveLength(1);
     expect(mail.sent[0]?.to).toBe(account.email);
+    expect(readOtpFromHtml(mail.sent[0] ?? {})).toBe(codeFromMail()); // A14: cả hai bản, cùng một mã
     for (const secret of [codeFromMail(), account.email, '$argon2id$']) {
       expect(res.text).not.toContain(secret);
     }
