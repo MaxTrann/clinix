@@ -35,12 +35,11 @@ describe('routes', () => {
     ).toBeInTheDocument();
   });
 
+  // Đổi ở F1 (quyết định 12): cổng giờ đọc store nên chưa rõ phiên thì loading, chưa đăng nhập thì về /dang-nhap (AU-67), không còn 404.
   it('WS-52 createAppRoutes mặc định KHOÁ: không render con protected', () => {
     renderAt('/bi-mat', createAppRoutes([SECRET_ROUTE]));
     expect(screen.queryByText('Nội dung bí mật')).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Không tìm thấy trang' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('WS-53 lỗi khi render hiện trang lỗi chung, không lộ chi tiết kỹ thuật', () => {

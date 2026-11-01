@@ -450,7 +450,7 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 
 | ☐ | ID | Việc | Phụ thuộc | Truy vết | Thẻ |
 |---|---|---|---|---|---|
-| ☐ | F1 | Lõi xác thực FE: store người dùng, hàm gọi API auth qua client chung, access token **chỉ trong bộ nhớ**, tự làm mới khi 401 **tuần tự bằng Web Locks** (H12), route guard theo vai trò, "refresh thất bại ⇒ về đăng nhập" (ĐX A1); **trang giữ chỗ theo vai trò** (tên vai trò + nút Đăng xuất) khi trang thật chưa có, thay bằng trang thật khi module tương ứng xong | P6, hợp đồng A3 | ĐN b8; ĐX A1; Q2 | `feat(web)` |
+| ☑ | F1 | Lõi xác thực FE: store người dùng, hàm gọi API auth qua client chung, access token **chỉ trong bộ nhớ**, tự làm mới khi 401 **tuần tự bằng Web Locks** (H12), route guard theo vai trò, "refresh thất bại ⇒ về đăng nhập" (ĐX A1); **trang giữ chỗ theo vai trò** (tên vai trò + nút Đăng xuất) khi trang thật chưa có, thay bằng trang thật khi module tương ứng xong | P6, hợp đồng A3 | ĐN b8; ĐX A1; Q2 | `feat(web)` |
 | ☐ | F2 | Đăng ký + xác minh email: 4 frame (6 ô nhập mã, "Mã hết hạn sau 10:00", "Gửi lại sau 60s", "Quay lại đăng ký"), giữ dữ liệu khi lỗi (A1/4b), giữ `maXacThucId` giữa các bước, **vào thẳng màn OTP khi đăng nhập trả `EMAIL_CHUA_XAC_MINH`** và nói rõ khi mã đã hết hạn/bị thu hồi để bấm "Gửi lại mã" (N2); **bỏ banner demo (G3)**; câu chữ lỗi: mục 5.5 | F1, A5, A6, A8 | ĐK b2–b3, b6–b10, A1–A5; Q5 | `feat(web)` |
 | ☐ | F3 | Đăng nhập: 5 frame (khoá tạm có đếm ngược theo thời gian API trả, nút Đăng nhập vô hiệu, link Quên mật khẩu bấm được); **chỉ thông báo chung, không "Còn N lần" (G1)**; điều hướng theo vai trò (trang giữ chỗ nếu trang thật chưa có) | F1, A8, A15 | ĐN b2–b3, b8, A1–A3 | `feat(web)` |
 | ☐ | F4 | Quên mật khẩu: 5 frame với thanh 3 bước, giữ `resetToken` giữa các bước, "Đổi email"/"Quay lại nhập mã"; **bỏ banner demo (G3)**; A1–A6; khung "Hoàn tất" thêm dòng cảnh báo cho `NgungHoatDong` (N7) và dòng hướng dẫn đăng ký lại cho tài khoản chưa xác minh (N3) | F1, A11, A12 | QMK b2–b11, A1–A6; S4 | `feat(web)` |
@@ -576,7 +576,7 @@ Ca có `[Nn]` phụ thuộc điểm còn mở — mong đợi là đề xuất. 
 | DN-29 | Refresh token trong DB | Chỉ là băm SHA-256; định dạng `sid.ngẫu nhiên.chữ ký` | Q2 | I |
 | DN-30 | **Dùng lại** refresh token cũ (chữ ký hợp lệ, băm không khớp) | 401, phiên bị thu hồi (`thu_hoi_luc`); token mới của phiên đó cũng vô hiệu | Q2 | I |
 | DN-31 | Refresh token sai chữ ký / `sid` bị sửa | 401; **không** thu hồi phiên nào | Q2 | I |
-| DN-32 | FE: nhiều tab làm mới cùng lúc | Chỉ một yêu cầu `refresh` được gửi (Web Locks), phiên không bị thu hồi | Q2 (H12, N4) | C |
+| DN-32 | FE: nhiều tab làm mới cùng lúc | Cùng một tab đúng một yêu cầu `refresh`; nhiều tab xếp hàng bằng Web Locks, một yêu cầu tại một thời điểm (N tab thì N yêu cầu nối tiếp); phiên không bị thu hồi | Q2 (H12, N4) | C |
 | DN-33 | Cookie refresh | `HttpOnly`, `Secure` (luôn bật trừ `NODE_ENV=development` + `COOKIE_SECURE=false`), `SameSite=Lax`, `Path=/api/auth` | Q2; N5 | I |
 | DN-34 | `Origin` của `/auth/refresh` và `/auth/logout`: đúng / sai / vắng | Đúng qua; sai hoặc vắng 403 | Q2 | I |
 | DN-35 | Access token của phiên đã thu hồi; access token cấp lúc 7:59 dùng lúc 8:05 | 401 | Q2; ĐX | I |

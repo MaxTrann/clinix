@@ -1,12 +1,16 @@
 import type { RouteObject } from 'react-router';
+import {
+  LOGIN_PATH,
+  LoginPlaceholderPage,
+  RequireAuth,
+} from '../features/auth';
 import { HomePage } from '../pages/home-page';
 import { NotFoundPage } from '../pages/not-found-page';
 import { RouteErrorPage } from '../pages/route-error-page';
-import { AccessGate } from './access-gate';
+import { createRoleRoutes } from './role-routes';
 import { RootLayout } from './root-layout';
 
-// Route công khai của F1 thêm cạnh trang chủ. Cổng dưới đây KHOÁ CỨNG cho tới khi F1 thay bằng cổng đọc store,
-// nên route protected thêm vào trước đó vẫn không lộ nội dung (người dùng chỉ thấy 404).
+// `protectedChildren`: route cần đăng nhập, mọi vai trò. Route theo vai trò nằm ở role-routes.tsx.
 export function createAppRoutes(
   protectedChildren: RouteObject[] = [],
 ): RouteObject[] {
@@ -16,10 +20,9 @@ export function createAppRoutes(
       errorElement: <RouteErrorPage />,
       children: [
         { index: true, element: <HomePage /> },
-        {
-          element: <AccessGate decision="denied" denied={<NotFoundPage />} />,
-          children: protectedChildren,
-        },
+        { path: LOGIN_PATH, element: <LoginPlaceholderPage /> },
+        { element: <RequireAuth />, children: protectedChildren },
+        ...createRoleRoutes(),
         { path: '*', element: <NotFoundPage /> },
       ],
     },
