@@ -8,6 +8,7 @@ import { SystemConfigModule } from './admin/system-config/system-config.module.j
 import { SpecialtyModule } from './admin/specialties/specialty.module.js';
 import { ServiceGroupModule } from './admin/service-groups/service-group.module.js';
 import { ServiceModule } from './admin/services/service.module.js';
+import { ClinicInfoModule } from './admin/clinic-info/clinic-info.module.js';
 import { validateEnv } from './config/env.validation.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health/health.controller.js';
@@ -22,6 +23,7 @@ import { MailModule } from './mail/mail.module.js';
     SpecialtyModule,
     ServiceGroupModule,
     ServiceModule,
+    ClinicInfoModule,
     AuthModule,
     RbacModule,
     // Task P4: chưa có nơi nào dùng MailService (A2/A5/A11 và admin sẽ import MailModule); đưa vào đây để cấu hình SMTP sai

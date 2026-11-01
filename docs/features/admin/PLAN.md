@@ -485,6 +485,15 @@ Mọi endpoint ghi chạy trong **một** giao dịch ở tầng service; DTO `w
 - POST/PATCH/DELETE chỉ Toàn hệ thống, kiểm lại scope tại service. DELETE nhóm rỗng trả 204 không body; PATCH/DELETE ID hợp lệ không tồn tại (kể cả xóa lặp) trả 404 `KHONG_TIM_THAY`; ID sai trả 400. Nhóm còn dịch vụ: 409 `NHOM_DICH_VU_CON_DICH_VU`; trùng tên: 409 `TEN_NHOM_DICH_VU_TRUNG`; auth 401/403 theo contract chung.
 - Ghi trong transaction; sửa/xóa khóa nhóm, UNIQUE chống race tên và FK chống dịch vụ mồ côi; không nhận trạng thái, không thêm audit action, schema hoặc endpoint detail ngoài scope B2. D2 Word và F3 còn nghiệm thu riêng.
 
+**Contract B4 đã chốt với người dùng ngày 01/11/2026** (issue #58; chi tiết `working-doc/B4/plan.md`):
+
+- `GET/PUT /admin/clinic-info` chỉ Admin Toàn hệ thống. Public body/response có đúng bốn field `{tenThuongHieu,diaChiTruSo,duongDayNong,email}`; không nhận hoặc trả `id`.
+- GET khi chưa có row trả 200 với cả bốn field `null`. PUT nhận đủ bốn trường, trả 200 cùng shape; lần đầu ghi `id = 1`, lần sau upsert cùng row.
+- Tên thương hiệu/địa chỉ cắt khoảng trắng ASCII hai đầu; lần lượt 1–100 và 1–255 ký tự. Cả bốn trường bắt buộc.
+- Hotline bỏ whitespace/dấu chấm/gạch nối trước khi lưu; hợp lệ nếu là 10 chữ số bắt đầu 0 hoặc `1800`/`1900` + 4–6 chữ số.
+- Email dùng auth S5: trim khoảng trắng ASCII hai đầu, lowercase domain, chỉ ASCII và tối đa 255 ký tự; whitespace nội bộ không hợp lệ.
+- Upsert singleton là atomic; không thay schema, seed hoặc thêm audit. D5 Word còn đồng bộ riêng tại repo nguồn.
+
 ### 5.4 Chi nhánh (CN): lịch hoạt động, ảnh hưởng, yêu cầu, áp dụng
 
 **Dữ liệu vào (`PATCH /admin/branches/:id`):** `{ten, diaChi, toaDoLat?, toaDoLng?, lichHoatDong:[7 phần tử {thuTrongTuan, hoatDong, sang?:{batDau,ketThuc}, chieu?:{batDau,ketThuc}}], dichVuKhamIds:[…]}` (form đầy đủ như Figma; server **diff** với dữ liệu hiện tại: tập thứ thay đổi, dịch vụ thêm/bỏ).
@@ -715,7 +724,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 | ☐ | B1 | **Chuyên khoa**: list/get/create/update/đổi trạng thái; chuẩn hoá (trim + gộp khoảng trắng) + kiểm trùng tên (bắt thêm lỗi UNIQUE khi chạy đua); ngừng hoạt động **không** gỡ bác sĩ; ảnh qua P7: imageUploadId và FK bản ghi ảnh, gắn/thay/gỡ theo plan P7 mục 3; Chi nhánh chỉ GET | P1, P6, C1, P7; Q11, Q12, Q13 | VERIFIED backend local; F2/D2 và PR/review/merge còn riêng; xem working-doc/B1 | CK b1–b5, A1, A2; CK-17 | `feat(admin)` |
 | ☐ | B2 | **Nhóm dịch vụ**: list/create/update/delete nhóm rỗng; tên không trùng; `thu_tu_hien_thi` nguyên không âm; contract mục 5.3 | P1, P6, C1; Q11, Q14, Q15 | VERIFIED backend local 31/10; DV-01…06 và DV-16 phần nhóm; F3/D2/CI/review/merge riêng; xem working-doc/B2 | DV b1–b5, A1 | `feat(admin)` |
 | ☐ | B3 | **Dịch vụ khám**: list/create/update; kiểm nhóm tồn tại, tên không rỗng, giá > 0, thời lượng nguyên dương; không nhận `mucDatCoc`; kiểm sửa `thoi_luong` (Q16: chặn khi còn khung giờ tương lai/lịch hẹn hoạt động); tên không trùng trong nhóm (UNIQUE DB) | B2, P2 (kiểm khung giờ/lịch hẹn); Q16 | VERIFIED backend local 01/11; DV-07…16/18…20; D2/FE/CI/PR còn riêng; xem `working-doc/B3` | DV b4–b5, A1 | `feat(admin)` |
-| ☐ | B4 | **Thông tin phòng khám**: `GET/PUT` (upsert `id=1`), kiểm email/hotline (Q33), chỉ Toàn hệ thống (cả `GET`) | P3, C1; Q33 | SOẠN TRƯỚC | PK b1–b5, A1, A2 | `feat(admin)` |
+| ☐ | B4 | **Thông tin phòng khám**: `GET/PUT` (upsert `id=1`), kiểm email/hotline (Q33), chỉ Toàn hệ thống (cả `GET`) | P3, C1; Q33 | VERIFIED backend local 01/11/2026; PK-01…09; D5 Word/CI/PR/review/merge còn riêng; xem `working-doc/B4` | PK b1–b5, A1, A2 | `feat(admin)` |
 | ☐ | B5 | **Cập nhật cấu hình**: `GET/PUT`; miền giá trị (5.7); diff; `ly_do`; giao dịch + Audit; tạo lần đầu; cờ `chuaCauHinh` | P3, C1, C2, C3; Q34, Q35, Q36, Q38, Q39 | SAU C2 | CH b1–b5, A1–A4 | `feat(admin)` · `[ĐỒNG BỘ TL]` D5, D6 |
 | ☐ | B6 | **Lịch sử thay đổi cấu hình**: `GET …/history` đọc `nhat_ky_hanh_dong` loại `CapNhatCauHinh`, phân trang, chỉ Toàn hệ thống | B5, C2, P6; Q37, Q39 | SAU B5 | CH (Figma 578:2) | `feat(admin)` |
 | ☐ | B7 | **Chi nhánh — đọc + thêm mới**: list/get (kèm lịch 7 thứ, dịch vụ, cờ yêu cầu chờ; Chi nhánh chỉ chi nhánh mình); `POST` giao dịch {chi nhánh + 7 dòng + dịch vụ}, chỉ Toàn hệ thống; `validateWeeklySchedule` | P1, C1, P6; Q1, Q10 | SOẠN TRƯỚC (validator) | CN b1–b2, b4, A1, A3 | `feat(admin)` · `[ĐỒNG BỘ TL]` D1 |
@@ -980,7 +989,7 @@ Ca có `[Qn]` phụ thuộc điểm còn mở — mong đợi là đề xuất. 
 |---|---|---|---|---|
 | PK-01 | Toàn hệ thống lưu hợp lệ lần đầu (chưa có dòng) | Tạo `id = 1` với 4 trường | PK b3–b5 | I |
 | PK-02 | Cập nhật lần sau | Dòng duy nhất đổi; không có dòng thứ hai | PK b5 | I |
-| PK-03 | Email sai định dạng / có khoảng trắng / không ASCII / > 255 | `DU_LIEU_KHONG_HOP_LE`; giữ nguyên dữ liệu | PK A1 | U |
+| PK-03 | Email sai định dạng / có whitespace bên trong / không ASCII / > 255; whitespace ASCII hai đầu được chuẩn hóa theo auth S5 | `DU_LIEU_KHONG_HOP_LE`; giữ nguyên dữ liệu nếu không hợp lệ | PK A1; auth S5 | U |
 | PK-04 | Hotline: "1900 1234", "1800 1234", "0901234567", "090 123 4567", "12345", "0123", chữ, > 20 ký tự `[Q33]` | Hợp lệ được chuẩn hoá (bỏ khoảng trắng); sai ⇒ lỗi | PK A1; L11 | U |
 | PK-05 | Bỏ trống từng trường (Figma bắt buộc) `[Q33]` | `DU_LIEU_KHONG_HOP_LE` | PK b4 | U |
 | PK-06 | Biên độ dài tên 100 / 101, địa chỉ 255 / 256 | Đúng | PK b4 | U |

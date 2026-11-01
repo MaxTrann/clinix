@@ -41,6 +41,7 @@ chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá s
 
 | 31/10/2026 | B2 (#56): ServiceGroupModule list/create/update/delete nhóm rỗng; dùng C1/P6, chuẩn hóa/UNIQUE tên, thứ tự nguyên không âm, transaction/khóa nhóm và FK chống orphan; contract tại PLAN 5.3 | DV-01…06 backend; DV-16 phần nhóm; PQ regression C1 | VERIFIED backend local; F3/D2/PR còn riêng | B2 unit27/27; toàn API1544/1544 (89 file); MySQL B2 cuối11/11; HTTP B2+C1 19/19 (8+11); lint/build/typecheck/format pass; Linux jscpd1,93%/255 file; Gitleaks scope B2 source/test sạch. MySQL8.4 container mới riêng33313; không DB dev/chia sẻ/schema/frontend/dependency/auth. Lượt MySQL đầu10/11 vì assertion COUNT chuỗi so số, sửa kiểu/assertion rồi rerun11/11; không sửa nghiệp vụ vì lỗi fixture. D2 Word/F3/full MySQL/full HTTP/CI/review/merge chưa nghiệm thu; chi tiết working-doc/B2/tracker.md. Log AI do thành viên ghi theo AGENTS |
 | 01/11/2026 | B3 (#57): `ServiceModule` list/detail/create/update; dùng C1/P6, giữ bigint/decimal dạng chuỗi, chuẩn hoá tên, ánh xạ UNIQUE/FK, transaction và chặn đổi thời lượng khi có lịch/khung giờ phụ thuộc; không có DELETE | DV-07…16, DV-18…20 | VERIFIED backend local; DV-17/F3, D2, CI/PR/review/merge còn riêng | Unit27/27; MySQL integration9/9; HTTP6/6; lint/build/typecheck/Prettier pass. MySQL8.4 riêng33314; `clinix-db-1` dừng theo yêu cầu. HTTP ban đầu có hai assertion chưa khớp contract, đã sửa và chạy lại6/6. Không đổi schema/migration/frontend/dependency/AI log; D2 Word gốc ngoài checkout. Chi tiết `working-doc/B3/tracker.md`; log AI do thành viên ghi theo AGENTS |
+| 01/11/2026 | B4 (#58): `ClinicInfoModule` GET/PUT; singleton atomic upsert `id=1`, GET chưa cấu hình trả bốn field null, public shape không có id; Q33 hotline + email theo auth S5; chỉ Admin Toàn hệ thống | PK-01…09 | VERIFIED backend local; D5 Word, CI/PR/review/merge còn riêng | Unit7/7; MySQL integration2/2; HTTP3/3; lint/build/typecheck/Prettier pass. MySQL8.4 container riêng33315, DB `clinix_b4_test`, đã dừng/xóa; `clinix-db-1` vẫn stopped. Không đổi schema/migration/frontend/dependency/AI log; D5 Word gốc ngoài checkout. Chi tiết `working-doc/B4/tracker.md`; log AI do thành viên ghi theo AGENTS |
 
 ## 2. Kết quả test theo use case
 
@@ -53,7 +54,7 @@ Cập nhật lần chạy mới nhất; chi tiết từng ca xem mục 1.
 | Quản lý hồ sơ bác sĩ (`BS-*`) | | | | | |
 | Tạo tài khoản nhân sự và kích hoạt (`NS-*`) | | | | | |
 | Quản lý tài khoản người dùng (`TK-*`) | | | | | |
-| Cập nhật thông tin phòng khám (`PK-*`) | | | | | |
+| Cập nhật thông tin phòng khám (`PK-*`) | 9 | 9 (PK-01…09 backend) | 0 | D5 Word, CI/PR/review/merge còn riêng | 01/11/2026 |
 | Cập nhật cấu hình hệ thống (`CH-*`) | | | | | |
 | Quản lý chi nhánh / cơ sở (`CN-*`) | | | | | |
 | Phân quyền theo phạm vi chi nhánh (`PQ-*`) | | | | | |
