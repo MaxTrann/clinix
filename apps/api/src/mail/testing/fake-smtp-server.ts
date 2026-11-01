@@ -15,8 +15,10 @@ export interface FakeSmtpServerOptions {
 
 export interface FakeSmtpServer {
   readonly port: number;
-  /** Các lệnh khách đã gửi; dòng AUTH được che phần dữ liệu. Nội dung thư không được ghi. */
+  /** Các lệnh khách đã gửi; dòng AUTH được che phần dữ liệu. Nội dung thư không nằm ở đây. */
   readonly commands: string[];
+  /** Nguyên văn phần DATA của từng thư (đã bỏ dấu chấm đệm, chưa giải mã), để test đọc lại thư nhiều phần. */
+  readonly dataMessages: string[];
   /** Tên lệnh (EHLO, STARTTLS, AUTH, MAIL, RCPT, DATA…) theo thứ tự. */
   verbs(): string[];
   close(): Promise<void>;
@@ -31,6 +33,7 @@ export async function startFakeSmtpServer(
     rejectAuth = false,
   } = options;
   const commands: string[] = [];
+  const dataMessages: string[] = [];
   const sockets = new Set<net.Socket>();
 
   const server = net.createServer((socket) => {
@@ -42,6 +45,7 @@ export async function startFakeSmtpServer(
 
     let buffer = '';
     let inData = false;
+    let dataLines: string[] = [];
     socket.on('data', (chunk: string) => {
       buffer += chunk;
       for (;;) {
@@ -52,7 +56,11 @@ export async function startFakeSmtpServer(
         if (inData) {
           if (line === '.') {
             inData = false;
+            dataMessages.push(dataLines.join('\r\n'));
+            dataLines = [];
             socket.write('250 queued\r\n');
+          } else {
+            dataLines.push(line.startsWith('.') ? line.slice(1) : line);
           }
           continue;
         }
@@ -100,6 +108,7 @@ export async function startFakeSmtpServer(
   return {
     port: address.port,
     commands,
+    dataMessages,
     verbs: () =>
       commands.map((line) => line.split(' ')[0]?.toUpperCase() ?? ''),
     close: () =>

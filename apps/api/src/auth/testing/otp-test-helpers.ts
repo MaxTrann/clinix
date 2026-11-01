@@ -13,3 +13,25 @@ export function readOtpFromMail(message: { text: string }): string {
   }
   return found;
 }
+
+/** Chữ người đọc thấy trong bản HTML: bỏ phần head và mọi thẻ (kèm thuộc tính style, nơi có màu như #111827), giải thực thể về một ô trống. */
+export function visibleMailText(html: string): string {
+  return html
+    .replace(/<head>.*?<\/head>/s, '')
+    .replace(/<\/?strong>/g, '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&#?\w+;/g, ' ')
+    .replace(/ +/g, ' ');
+}
+
+/** Lấy mã OTP từ bản HTML của thư. Ném lỗi nếu không tìm đúng một chuỗi 6 số liền (không in nội dung thư). */
+export function readOtpFromHtml(message: { html?: string }): string {
+  const matches = visibleMailText(message.html ?? '').match(/\d{6}/g) ?? [];
+  const found = matches[0];
+  if (matches.length !== 1 || found === undefined) {
+    throw new Error(
+      `Mong đợi đúng một mã OTP trong bản HTML, thấy ${String(matches.length)}`,
+    );
+  }
+  return found;
+}

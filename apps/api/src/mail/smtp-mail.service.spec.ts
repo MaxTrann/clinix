@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { fakeSecretValue } from '../common/testing/sample-secrets.js';
 import { readMailConfig, type MailConfig } from './mail-config.js';
 import { MailSendError, type MailSendErrorKind } from './mail-send.error.js';
+import { MAIL_TEXT_MAX_LENGTH } from './mail-safety.js';
 import { SmtpMailService, type MailTransport } from './smtp-mail.service.js';
 import type { MailMessage } from './mail.service.js';
 
@@ -348,6 +349,90 @@ describe('SmtpMailService.send — chống chèn người nhận và header (MAI
       }),
     );
     expect(sendMail).not.toHaveBeenCalled();
+  });
+});
+
+describe('SmtpMailService — bản HTML (MAIL-H07, A14)', () => {
+  const HTML = `<p>Mã ${OTP}</p>`;
+
+  it('có html: chuyển nguyên cho thư viện, thư thành multipart/alternative, text trước html', async () => {
+    const stream = nodemailer.createTransport({
+      streamTransport: true,
+      buffer: true,
+      newline: 'unix',
+    });
+    const sendMail = vi.spyOn(stream, 'sendMail');
+    await new SmtpMailService(config(), stream).send({
+      ...MESSAGE,
+      html: HTML,
+    });
+
+    const info = (await sendMail.mock.results[0]?.value) as {
+      message: Buffer;
+    };
+    const raw = info.message.toString();
+    expect(raw).toContain('multipart/alternative');
+    const plain = raw.indexOf('Content-Type: text/plain');
+    const rich = raw.indexOf('Content-Type: text/html');
+    expect(plain).toBeGreaterThan(-1);
+    expect(rich).toBeGreaterThan(plain);
+  });
+
+  it('không có html: không truyền khoá html, thư giữ dạng một phần (mã của người gọi cũ không đổi)', async () => {
+    const { transport, sendMail } = stubTransport(() => Promise.resolve({}));
+    await new SmtpMailService(config(), transport).send(MESSAGE);
+    expect(Object.keys(sendMail.mock.calls[0]?.[0] ?? {})).not.toContain(
+      'html',
+    );
+  });
+
+  it.each([
+    ['rỗng', ''],
+    ['có NUL', `a${String.fromCharCode(0)}b`],
+    ['quá dài', 'a'.repeat(MAIL_TEXT_MAX_LENGTH + 1)],
+    ['không phải chuỗi', { path: '/etc/passwd' }],
+    ['null', null],
+  ])(
+    'html %s bị từ chối trước khi chạm transport, log chỉ có tên trường',
+    async (_label, html) => {
+      const { transport, sendMail } = stubTransport(() => Promise.resolve({}));
+      const { logger, lines } = capturingLogger();
+      const error = (await rejection(
+        new SmtpMailService(config(), transport, logger).send({
+          ...MESSAGE,
+          html,
+        } as unknown as MailMessage),
+      )) as MailSendError;
+
+      expect(error.kind).toBe('INVALID_MESSAGE');
+      expect(error.field).toBe('html');
+      expect(sendMail).not.toHaveBeenCalled();
+      expect(lines).toEqual([
+        'Email bị từ chối trước khi gửi: trường html không an toàn',
+      ]);
+    },
+  );
+
+  it('chữ giống header trong html không vào header và không tạo người nhận', async () => {
+    const stream = nodemailer.createTransport({
+      streamTransport: true,
+      buffer: true,
+      newline: 'unix',
+    });
+    const sendMail = vi.spyOn(stream, 'sendMail');
+    await new SmtpMailService(config(), stream).send({
+      ...MESSAGE,
+      html: `<p>x</p>\r\nBcc: evil@example.test\r\nSubject: gia`,
+    });
+
+    const info = (await sendMail.mock.results[0]?.value) as {
+      message: Buffer;
+      envelope: { to: string[] };
+    };
+    const names = parseHeaders(info.message.toString()).map((h) => h.name);
+    expect(names).not.toContain('Bcc');
+    expect(names.filter((name) => name === 'Subject')).toHaveLength(1);
+    expect(info.envelope.to).toEqual([RECIPIENT]);
   });
 });
 

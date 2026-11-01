@@ -155,6 +155,7 @@ describe('thay MailService bằng FakeMailService (MAIL-26, cách A2/A5/A11 và 
     );
     expect(fake.sent[0]?.text).toContain(OTP);
     expect(fake.sent[0]?.text).toContain('10 phút');
+    expect(fake.sent[0]?.html).toContain(`>${OTP}</div>`);
   });
 
   it('gửi lỗi: lỗi lọt tới bộ lọc P5 thành 500 chung, thân không mang loại lỗi hay thông điệp SMTP; lần sau thành công', async () => {

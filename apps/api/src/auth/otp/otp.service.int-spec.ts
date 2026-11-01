@@ -37,7 +37,10 @@ import {
   wrongCodeFor,
   type OtpFixture,
 } from '../testing/otp-int-helpers.js';
-import { readOtpFromMail } from '../testing/otp-test-helpers.js';
+import {
+  readOtpFromHtml,
+  readOtpFromMail,
+} from '../testing/otp-test-helpers.js';
 import { hashOtp } from './otp-code.js';
 import { OtpDeliveryError } from './otp-errors.js';
 import type { FakeMailService } from '../../mail/testing/fake-mail.service.js';
@@ -330,6 +333,13 @@ describe('deliver — pha 2: gửi thư rồi ghi kết quả (N1, S3, DK-12, DK
       `Mã có hiệu lực trong ${String(OTP_TTL_MINUTES)} phút.`,
     );
     expect(mail?.text).toContain('Xin chào Trần Thị B,');
+    // A14: nơi gọi gửi cả hai bản, cùng một mã và cùng số phút
+    expect(readOtpFromHtml(mail ?? {})).toBe(
+      readOtpFromMail(mail ?? ({} as never)),
+    );
+    expect(mail?.html).toContain(
+      `Mã có hiệu lực trong <strong>${String(OTP_TTL_MINUTES)} phút</strong>`,
+    );
     const row = await rowOf(db, issued.maXacThucId);
     expect(row.daGuiLuc).toEqual(at(3));
     expect(row.thuHoiLuc).toBeNull();
@@ -343,6 +353,11 @@ describe('deliver — pha 2: gửi thư rồi ghi kết quả (N1, S3, DK-12, DK
     expect(mail?.subject).toBe('[CLINIX] Mã OTP đặt lại mật khẩu');
     expect(mail?.text).toContain(account.email);
     expect(mail?.text).toContain('Không chia sẻ mã này với bất kỳ ai.');
+    expect(readOtpFromHtml(mail ?? {})).toBe(
+      readOtpFromMail(mail ?? ({} as never)),
+    );
+    expect(mail?.html).toContain(`<strong>${account.email}</strong>`);
+    expect(mail?.html).toContain('Không chia sẻ mã này với bất kỳ ai.');
   });
 
   it('OTP-D03 N1: ĐANG gửi thì mã cũ chưa bị đụng; chỉ khi send resolve mới đặt da_gui_luc rồi thu hồi mã cũ (DK-12)', async () => {

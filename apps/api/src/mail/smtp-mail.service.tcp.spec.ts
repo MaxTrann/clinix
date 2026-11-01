@@ -10,6 +10,7 @@ import {
 } from './mail-config.js';
 import type { MailSendError } from './mail-send.error.js';
 import { SmtpMailService } from './smtp-mail.service.js';
+import { renderOtpMail } from './templates/otp-mail.js';
 import type { MailMessage } from './mail.service.js';
 import {
   startFakeSmtpServer,
@@ -94,6 +95,30 @@ async function serviceFor(
   return { service, lines, fake: server };
 }
 
+// Giải mã một phần của thư nhiều phần: quoted-printable ngắt dòng ở cột 76 nên có thể cắt đôi mã OTP, không được tìm trên thư thô.
+function decodePart(raw: string): { type: string; body: string } {
+  const split = raw.indexOf('\r\n\r\n');
+  const head = raw.slice(0, split);
+  const body = raw.slice(split + 4);
+  const type = /Content-Type: ([\w/]+)/.exec(head)?.[1] ?? '';
+  if (!/quoted-printable/i.test(head)) return { type, body };
+  const decoded = body
+    .replace(/=\r\n/g, '')
+    .replace(/(?:=[0-9A-F]{2})+/g, (run) =>
+      Buffer.from(run.replaceAll('=', ''), 'hex').toString('utf8'),
+    );
+  return { type, body: decoded };
+}
+
+function partsOf(raw: string): { type: string; body: string }[] {
+  const boundary = /boundary="?([^"\r\n]+)"?/.exec(raw)?.[1];
+  if (!boundary) throw new Error('thư không có boundary');
+  return raw
+    .split(`--${boundary}`)
+    .slice(1, -1)
+    .map((part) => decodePart(part.replace(/^\r\n/, '').replace(/\r\n$/, '')));
+}
+
 async function failure(promise: Promise<unknown>): Promise<MailSendError> {
   try {
     await promise;
@@ -147,6 +172,41 @@ describe('TLS không bị hạ cấp (MAIL-19)', () => {
     for (const secret of [PASS, RECIPIENT, OTP, MESSAGE.subject]) {
       expect(logs).not.toContain(secret);
     }
+  });
+});
+
+describe('Thư nhiều phần qua nodemailer thật (MAIL-H08, A14)', () => {
+  it('máy chủ nhận đúng text trước html, giải mã ra đúng hai bản do mẫu dựng, cùng một mã', async () => {
+    const { service, fake } = await serviceFor({}, {}, true);
+    const rendered = renderOtpMail({
+      kind: 'forgot-password',
+      otp: OTP,
+      expiresInMinutes: 10,
+      fullName: 'Nguyễn Văn An',
+      accountEmail: RECIPIENT,
+      supportAddress: 'hotro@example.test',
+    });
+
+    await service.send({ to: RECIPIENT, ...rendered });
+
+    expect(fake.dataMessages).toHaveLength(1);
+    const raw = fake.dataMessages[0] ?? '';
+    expect(raw).toMatch(/^Content-Type: multipart\/alternative;/m);
+    const parts = partsOf(raw);
+    expect(parts.map((part) => part.type)).toEqual(['text/plain', 'text/html']);
+    expect(parts[0]?.body.replaceAll('\r\n', '\n').trimEnd()).toBe(
+      rendered.text.trimEnd(),
+    );
+    expect(parts[1]?.body).toBe(rendered.html);
+    expect(fake.commands.join('\n')).not.toContain(OTP);
+  });
+
+  it('không có html: thư một phần, text/plain, không có multipart', async () => {
+    const { service, fake } = await serviceFor({}, {}, true);
+    await service.send(MESSAGE);
+    const raw = fake.dataMessages[0] ?? '';
+    expect(raw).toMatch(/^Content-Type: text\/plain/m);
+    expect(raw).not.toContain('multipart');
   });
 });
 

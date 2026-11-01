@@ -1,7 +1,7 @@
 import { OTP_MAIL_SUBJECTS, renderOtpMail } from './otp-mail.js';
 
 // Task P4. Truy vết ĐK b6 (OTP đăng ký) và QMK b5 (OTP quên mật khẩu), G2 (hiệu lực 10 phút), G4 (tên CLINIX, bỏ thông tin chưa có).
-// Mã nội bộ MAIL-08… là [đề xuất]. Câu chữ thân thư là [đề xuất]; A14 làm mẫu theo Figma.
+// Mã nội bộ MAIL-08… là [đề xuất]. Câu chữ thân thư là [đề xuất]; bản HTML và chữ Figma của A14 ở otp-mail-html.spec.ts.
 const OTP = '482913';
 
 describe('renderOtpMail — OTP đăng ký (ĐK b6, MAIL-08)', () => {

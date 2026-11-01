@@ -12,7 +12,10 @@ import {
   insertTaiKhoan,
 } from './../src/auth/entities/testing/auth-fixtures.js';
 import { T0, at } from './../src/auth/testing/otp-int-helpers.js';
-import { readOtpFromMail } from './../src/auth/testing/otp-test-helpers.js';
+import {
+  readOtpFromHtml,
+  readOtpFromMail,
+} from './../src/auth/testing/otp-test-helpers.js';
 import { REGISTER_PASSWORD } from './../src/auth/testing/register-int-helpers.js';
 import { expectErrorResponse } from './../src/common/testing/error-assertions.js';
 import { resetTables } from './../src/database/testing/test-database.js';
@@ -100,6 +103,7 @@ describe('đăng ký thành công (DK-01, DK-40)', () => {
     if (!sent) throw new Error('chưa có thư');
     expect(sent.to).toBe('dang.ky@example.com');
     const code = readOtpFromMail(sent);
+    expect(readOtpFromHtml(sent)).toBe(code); // A14: thư gồm cả hai bản, cùng một mã
     const [account] = await accounts();
     // Đúng ba khoá ở trên đã loại trừ mã tài khoản (id nhỏ nên so chuỗi con với maXacThucId sẽ trùng chữ số); ở đây kiểm các bí mật còn lại
     for (const secret of [
