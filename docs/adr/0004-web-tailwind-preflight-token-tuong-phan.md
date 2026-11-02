@@ -1,17 +1,25 @@
-# ADR — Web Clinix dùng Tailwind CSS 4, lucide-react và Inter tự host
+# ADR — Tailwind cho `apps/web`: Preflight, token màu và tương phản (bổ sung ADR 0003)
 
 Status: Accepted  
-Date: 2026-11-01  
+Date: 2026-11-02  
 Scope: `apps/web`; áp dụng từ auth F3 (#37), gồm mọi màn của Admin  
 
-## Quyết định và căn cứ
+## Quan hệ với ADR 0003
 
-Đại và Trung thống nhất ngày 01/11/2026: `apps/web` dùng Tailwind CSS 4.3.3 (plugin `@tailwindcss/vite` 4.3.3), biểu tượng `lucide-react` 1.59.0, phông Inter tự host qua `@fontsource-variable/inter` 5.3.0. Cả bốn gói ghim đúng phiên bản. Quyết định này thay lựa chọn tạm "CSS Modules, không thêm gói" của P6, lúc chưa có màn thật.
+Gói, phiên bản và gốc 15px đã chốt ở `docs/adr/0003-frontend-styling-system.md`, không nhắc lại ở đây. ADR này THAY THẾ quyết định hoãn Preflight của ADR 0003, nguyên văn: "Không bật Tailwind preflight toàn app trước khi migration F1/F2". Preflight bật ngay, không đợi migration, vì hai lý do:
 
-- Mã Figma Make (nguồn giao diện) viết bằng Tailwind: 101 file `.tsx`, 6.522 chỗ `className`, 912 class khác nhau. Giữ Tailwind thì port gần như giữ nguyên `className`.
-- Số trong Figma chính là thang Tailwind trên gốc 15px: 13,125px = `text-sm`, 13,375px = `rounded-xl`. Đo trong Chrome: `cyan-600` ra `#0092b8`, `cyan-700` ra `#007595`, `red-700` ra `#c10007`, đúng mã màu trong frame.
-- lucide-react: Make dùng 107 biểu tượng ở các trang, tự viết SVG không đáng.
-- Inter tự host: Figma dùng Inter; không gọi Google Fonts để demo không phụ thuộc mạng ngoài.
+- Giữ cả hai file CSS làm Preflight đè mọi utility vì thứ tự lớp, đã đo (mục dưới).
+- Bật Preflight còn sửa lỗi `content-box` sẵn có ở hộp thoại Thêm chuyên khoa: ô tên cao 54px thành 36px, hết lệch ra ngoài hộp.
+
+ADR này cũng dùng một file CSS `src/styles/index.css` thay `src/styles.css`. Phần còn lại là quy tắc token, tương phản và control mà ADR 0003 chưa có.
+
+## Preflight bật, một file CSS
+
+`src/styles/index.css` là file CSS gốc duy nhất, `main.tsx` chỉ import file này. File mở đầu bằng khai báo `@layer theme, base, components, utilities;` rồi tới `@import 'tailwindcss'`, nên Preflight bật, nằm ở lớp `base` và utilities luôn thắng.
+
+Lý do, đo khi gộp PR #123 với #125: `src/styles.css` của #125 khai thứ tự `theme, utilities` trước. Giữ cả hai file thì lớp `base` của Preflight xếp sau `utilities` và đè mọi utility, trang `/admin/dich-vu-kham` mất nút xanh, khoảng cách và cỡ tiêu đề. Một file với `@import 'tailwindcss'` kèm token Admin thì trang đó hiện đúng.
+
+Không có Preflight thì nút và ô nhập Tailwind giữ kiểu mặc định của trình duyệt. Đo trên Chrome thật so với `origin/main`: ở `/admin/dich-vu-kham` bản không Preflight có viền `outset` 2px và nền xám ở nút, tab; bản có Preflight đúng thiết kế.
 
 ## Token màu
 
@@ -44,6 +52,24 @@ Bảng đổi khi port từ Make (bước thay thế cơ học):
 - Các sắc khác của cyan, red, amber, green và các họ còn lại giữ thang chuẩn.
 
 Màu trung tính (`gray`) dùng thang chuẩn, không tạo token, để port không phải dịch thêm. Token mới chỉ thêm khi có số đếm và nguồn Figma hoặc Make, cả hai người đồng ý.
+
+## Token Admin cũ giữ tạm
+
+Trang Admin của #125 dùng khoảng 30 chỗ token riêng của ADR 0003. Các token này nằm trong một khối `@theme` riêng ở `src/styles/index.css`, chỉ để trang Admin không vỡ. Mã mới không dùng; Admin chuyển dần sang 13 token chuẩn rồi xoá khối đó.
+
+| Token Admin | Giá trị | Chuyển sang |
+|---|---|---|
+| `brand-hover` | `var(--color-brand-strong)` | `brand-strong` |
+| `text-primary` | `#101828` | `gray-900` |
+| `text-secondary` | `#4a5565` | `gray-600` |
+| `text-muted` | `#99a1af` | `gray-500`; giá trị hiện tại chưa đạt AA (`docs/TECH_DEBT.md` dòng 53) |
+| `page` | `#f8fafc` | `slate-50` |
+| `surface-muted` | `#f9fafb` | `gray-50` |
+| `border` | `#e5e7eb` | `gray-200` |
+| `info-surface` | `#ecfeff` | `brand-soft` |
+| `success-surface` | `#dcfce7` | `green-100` |
+
+`--color-brand`, `--color-danger`, `--color-success` của #125 trùng giá trị với token chuẩn nên chỉ giữ một định nghĩa. Chữ trắng trên `bg-brand` và chữ `text-brand` ở trang Admin chỉ đạt 3,62:1, đúng là cách dùng mà bảng trên cấm; sửa khi Admin chuyển token (`docs/TECH_DEBT.md` dòng 53).
 
 ## Tương phản
 
@@ -84,7 +110,7 @@ Mặc định không dùng. Được dùng khi thang chuẩn không biểu diễ
 
 Preflight xoá kiểu mặc định, nên lớp `base` trong `src/styles/index.css` định nghĩa các control sau. Lớp `base` thua utility, nên `className` chép từ Make vẫn thắng.
 
-- Gốc: `html { font-size: 15px }`.
+- Gốc: `html { font-size: 15px }`; `body { min-width: 320px }`.
 - Nút: `cursor: pointer`; `:disabled` là `not-allowed`. Nút không có class (`button:not([class])`) có viền và đệm tối thiểu để trang giữ chỗ dùng được. Nút chính theo `635:58` (cao 45px, `rounded-xl`, `font-medium`, vô hiệu `opacity-50` theo `637:66`) nhưng nền `brand-strong`, hover cyan-800, viết bằng utility ở thành phần, không ở base.
 - Ô nhập (`input`, `textarea`, `select`): viền `gray-200`, `rounded-xl`, `text-sm`, placeholder `gray-500`, vô hiệu `opacity-60`, theo `635:37`, `637:45`. Viền `0.8px` của Figma là sản phẩm xuất khung nên dùng `1px` như Make.
 - Liên kết không có class (`a:not([class])`): màu `brand-strong`, gạch chân. Liên kết có class giữ nguyên.
@@ -92,16 +118,17 @@ Preflight xoá kiểu mặc định, nên lớp `base` trong `src/styles/index.c
 
 ## Chuyển CSS Modules đang có
 
-- Trong PR F3 đã chuyển cả bốn thành phần `LoadingState`, `ErrorState`, `EmptyState`, `OfflineBanner` sang Tailwind và xoá `status.module.css`. Màn đăng nhập dùng ba thành phần; thành phần thứ tư dùng chung file đó, để lại chỉ kéo dài tình trạng hai cách. Chưa có frame riêng (PLAN auth 4.4), nên dùng kiểu hộp lỗi `637:29`.
+- Trong PR F3 đã chuyển cả bốn thành phần `LoadingState`, `ErrorState`, `EmptyState`, `OfflineBanner` sang Tailwind và xoá `status.module.css`. Chưa có frame riêng (PLAN auth 4.4), nên dùng kiểu hộp lỗi `637:29`.
 - Mã mới không thêm CSS Modules. Không trộn hai cách trong MỘT thành phần.
+- Còn lại ba file ở Admin, chuyển sang Tailwind trong task của Admin: `features/admin/components/admin-components.module.css`, `features/admin/components/admin-layout.module.css`, `features/admin/specialties/specialty.module.css`.
 - `docs/CODING_CONVENTION.md`: đổi "không dựa vào tên class của CSS Modules" thành "không dựa vào tên class CSS".
-- Nhánh Admin F1 của Trung đang có CSS Modules phải chuyển sang Tailwind sau khi F3 merge.
 
 ## Đánh đổi
 
 - Cần trình duyệt hiện đại tối thiểu theo tài liệu Tailwind 4: Chrome 111, Safari 16.4, Firefox 128. Trình duyệt cũ hơn hiển thị sai, không có bản dự phòng.
 - Gốc 15px làm mọi `rem` nhỏ hơn mặc định; bỏ dòng đó thì mọi kích thước lệch Figma. Thư viện ngoài tính theo `rem` cũng co theo.
 - Preflight xoá kiểu mặc định; thành phần không có class trông trơn nếu không qua lớp base.
+- Preflight đặt `box-sizing: border-box` cho mọi phần tử, kể cả CSS Modules của Admin viết theo `content-box`. Đo so với `origin/main`: thẻ hồ sơ ở sidebar thấp đi, mục đang chọn không còn tràn sát mép sidebar (rộng 225px ⇒ 202px), ô tên trong hộp thoại chuyên khoa cao 54px ⇒ 36px và không còn lệch khỏi hộp thoại. Không chỗ nào vỡ; khác biệt ghi ở TRACKING auth F3-J.
 - Không dùng plugin sắp xếp class: giảm một gói, đổi lại thứ tự class không đồng nhất và do người giữ.
 - `className` dài, và mọi quy tắc trên do người giữ khi review, không có công cụ ép.
 - Giao diện đậm hơn Figma một bậc ở nút và liên kết cho tới khi Figma sửa theo.
@@ -113,13 +140,15 @@ Xem lại nếu phải hỗ trợ trình duyệt dưới mức tối thiểu; n�
 
 ## Tương thích và xác minh
 
-Đổi `package.json`, lockfile, `vite.config.ts`, `src/styles/index.css`, `main.tsx`. Không đổi `eslint.config.js`, Dockerfile, nginx. Sau khi kéo về phải dựng lại ảnh web và làm mới volume `node_modules` ẩn danh: `docker compose up -d --build -V --no-deps web`; chỉ `--build` thì container thoát vì không thấy gói mới (đo thật ở F3, `docs/DEV_SETUP.md`).
+Sau khi kéo về phải dựng lại ảnh web và làm mới volume `node_modules` ẩn danh: `docker compose up -d --build -V --no-deps web`; chỉ `--build` thì container thoát vì không thấy gói mới (đo thật ở F3, `docs/DEV_SETUP.md`).
 
-Đo ngày 01/11/2026 trên Node v22.23.4, Chrome thật:
+Đo ngày 02/11/2026 trên Node v22.23.4, Chrome thật, sau khi gộp `origin/main` có #125:
 
 - `docker build --no-cache --target prod --build-arg VITE_API_URL=/api`: `npm ci` thêm 243 gói trên alpine, build xong.
 - Lockfile có đủ 18 mục `libc` cho các gói nhị phân Linux (`oxide`, `lightningcss`, `rolldown`).
-- Cú pháp `var(--color-cyan-600)` trong `@theme` chạy đúng, 13 token ra đúng màu ở bảng trên.
+- Cú pháp `var(--color-cyan-600)` trong `@theme` chạy đúng; token ra đúng màu ở các bảng trên.
 - Gốc 15px, `h1` dùng `Inter Variable`; trình duyệt nạp `inter-latin`, `inter-latin-ext`, `inter-vietnamese`; không có yêu cầu nào tới máy chủ ngoài.
-- Bản build: CSS 17,39 kB (gzip 4,55 kB), chunk đăng nhập 15,07 kB (gzip 5,93 kB).
-- Không tràn ngang ở 1440px, 390px, 320px.
+- Bản build: CSS 40,78 kB (gzip 9,14 kB), chunk đăng nhập 12,08 kB (gzip 4,66 kB).
+- Màn đăng nhập, `/admin`, `/admin/chuyen-khoa` không tràn ngang ở 1440px, 390px, 320px.
+- `/admin/dich-vu-kham`: Preflight đổi độ rộng cột làm lộ lỗi thẻ `sr-only` thoát khung cuộn, `scrollWidth` 353px. Sau khi khung có `relative`: 320px ở bề rộng 320, 340px ở bề rộng 340, gồm tab 1, tab 2, form Thêm nhóm; 360px và 390px cũng không tràn.
+- `npm run test` của web: 298 test đạt.

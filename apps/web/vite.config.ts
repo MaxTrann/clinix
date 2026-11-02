@@ -1,5 +1,5 @@
-import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 
 // Đích proxy đọc từ biến môi trường của tiến trình (không có tiền tố VITE_ nên không lọt vào bundle).

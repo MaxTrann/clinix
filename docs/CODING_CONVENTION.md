@@ -52,8 +52,8 @@
 - **Xác thực (task F1):** chỉ import từ `features/auth` (file `index.ts`). Access token chỉ ở bộ nhớ trong `auth-store.ts`; component đọc trạng thái bằng `useAuth()`. Route theo vai trò khai ở `router/role-routes.tsx`; cần đăng nhập thì bọc `RequireAuth`.
 - Chọn câu thông báo theo `maLoi`, không theo mã HTTP hay `thongBao`. Test giao diện dựa vào vai trò và nội dung, không dựa vào tên class CSS.
 - **Router (ADR 0002):** React Router Data Mode (`createBrowserRouter`), SPA; không dùng Framework Mode. Trang thật của module khai bằng `lazy: () => import(...)`; đường dẫn dùng hằng số đặt trong module, không rải chuỗi trong component; `errorElement` ở layout gốc và ở layout từng module khi cần [đề xuất]. Xem `docs/adr/0002-web-react-router-data-mode.md`.
-- **Kiểu dáng (ADR 0003):** Tailwind CSS 4 trên gốc 15px, biểu tượng `lucide-react`, phông Inter tự host; mã mới không thêm CSS Modules. Chỉ dùng 13 token màu trong `src/styles/index.css` và thang chuẩn của Tailwind; `brand` chỉ cho nền trang trí và viền focus, chữ và nền nút có chữ trắng dùng `brand-strong`; `[...]` chỉ dùng khi có lý do ghi ngay cạnh.
-- **Tương phản (ADR 0003):** WCAG 2.2 AA là quy tắc cứng: chữ thường tối thiểu 4,5:1, viền focus và thành phần giao diện tối thiểu 3:1. Cặp màu mới phải tính từ màu đo thật trước khi dùng. Xem `docs/adr/0003-web-tailwind-lucide-inter.md`.
+- **Kiểu dáng (ADR 0003, ADR 0004):** Tailwind CSS 4 trên gốc 15px, biểu tượng `lucide-react`, phông Inter tự host; mã mới không thêm CSS Modules. Chỉ dùng 13 token màu trong `src/styles/index.css` và thang chuẩn của Tailwind (token Admin cũ trong khối riêng của file đó chỉ giữ tạm, mã mới không dùng); `brand` chỉ cho nền trang trí và viền focus, chữ và nền nút có chữ trắng dùng `brand-strong`; `[...]` chỉ dùng khi có lý do ghi ngay cạnh.
+- **Tương phản (ADR 0004):** WCAG 2.2 AA là quy tắc cứng: chữ thường tối thiểu 4,5:1, viền focus và thành phần giao diện tối thiểu 3:1. Cặp màu mới phải tính từ màu đo thật trước khi dùng. Xem `docs/adr/0004-web-tailwind-preflight-token-tuong-phan.md`.
 
 ## Git
 - Nhánh: `feat/…`, `fix/…`, `docs/…`, `chore/…`. Một PR một việc, nhỏ.

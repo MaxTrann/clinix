@@ -10,6 +10,7 @@ import { ROLE_HOME_PATHS, ROLE_LABELS, type VaiTro } from './roles';
 
 // Task F1. Mã ca AU-nn là [đề xuất]; ca nào phủ test case của PLAN thì ghi kèm mã đó.
 const ROLES = Object.keys(ROLE_HOME_PATHS) as VaiTro[];
+const PLACEHOLDER_ROLES = ROLES.filter((role) => role !== 'QuanTriVien');
 
 function userOf(vaiTro: VaiTro): AuthUser {
   return { vaiTro, hoTen: `Họ tên ${vaiTro}`, daXacMinhEmail: true };
@@ -55,7 +56,9 @@ describe('đường dẫn theo mã Figma Make', () => {
 });
 
 describe('trang giữ chỗ và cổng vai trò', () => {
-  it.each(ROLES)('AU-61 (DN-03) %s vào đúng trang giữ chỗ', (vaiTro) => {
+  it.each(PLACEHOLDER_ROLES)(
+    'AU-61 (DN-03) %s vào đúng trang giữ chỗ',
+    (vaiTro) => {
     signedInAs(vaiTro);
     renderAt(ROLE_HOME_PATHS[vaiTro]);
     expect(
@@ -65,7 +68,8 @@ describe('trang giữ chỗ và cổng vai trò', () => {
     expect(
       screen.getByRole('button', { name: 'Đăng xuất' }),
     ).toBeInTheDocument();
-  });
+    },
+  );
 
   it.each(
     ROLES.flatMap((a) => ROLES.filter((b) => a !== b).map((b) => [a, b])),

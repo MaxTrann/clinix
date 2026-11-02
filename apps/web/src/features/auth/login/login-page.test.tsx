@@ -51,6 +51,13 @@ const failLogin = (status: number, body: Record<string, unknown>) =>
       }),
   );
 
+// Quản trị viên vào khung Admin thật, ba vai trò còn lại vẫn là trang giữ chỗ
+function findRoleHome(vaiTro: VaiTro) {
+  return vaiTro === 'QuanTriVien'
+    ? screen.findByRole('complementary', { name: 'Điều hướng Admin' })
+    : screen.findByRole('heading', { name: ROLE_LABELS[vaiTro] });
+}
+
 async function renderLogin() {
   const router = createMemoryRouter(createAppRoutes(), {
     initialEntries: ['/dang-nhap'],
@@ -191,7 +198,7 @@ describe('DN-03 đăng nhập thành công', () => {
     useApi(vaiTro);
     const router = await renderLogin();
     await submit();
-    await screen.findByRole('heading', { name: ROLE_LABELS[vaiTro] });
+    await findRoleHome(vaiTro);
     expect(router.state.location.pathname).toBe(ROLE_HOME_PATHS[vaiTro]);
     expect(router.state.historyAction).toBe('REPLACE');
     expect(loginBodies).toHaveLength(1);

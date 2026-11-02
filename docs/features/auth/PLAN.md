@@ -187,7 +187,7 @@ Trang chủ sau đăng nhập là "Tổng quan" của từng vai trò (module kh
 
 **Cần sửa trong Figma:** bỏ "Còn N lần thử" (G1); email 10 phút (G2); bỏ banner OTP demo, dòng "Mật khẩu demo mặc định: demo123", chữ "Dữ liệu minh họa"
 (G3); bỏ hotline/địa chỉ chưa có, đổi "CLINIXClinic" thành "CLINIX" (G4); placeholder/thông báo mật khẩu "Tối thiểu 8 ký tự" ⇒ phản ánh quy tắc Q11 + N10 (8–64 ký tự, có chữ số và ký tự đặc biệt, chỉ ký tự ASCII).
-**Thêm từ F3 (ADR 0003, tương phản WCAG 2.2 AA):** nút chính và liên kết `#0092b8` ⇒ `#007595`, hover nút ⇒ `#005f78`; chữ trong hộp lỗi `#e7000b` ⇒ `#c10007`; viền focus `#0092b8`; placeholder ⇒ `#6a7282`. Khoảng trống đã biết: viền ô nhập `#e5e7eb` chỉ đạt 1,24:1 (cần 3:1), nhóm chọn màu mới.
+**Thêm từ F3 (ADR 0004, tương phản WCAG 2.2 AA):** nút chính và liên kết `#0092b8` ⇒ `#007595`, hover nút ⇒ `#005f78`; chữ trong hộp lỗi `#e7000b` ⇒ `#c10007`; viền focus `#0092b8`; placeholder ⇒ `#6a7282`. Khoảng trống đã biết: viền ô nhập `#e5e7eb` chỉ đạt 1,24:1 (cần 3:1), nhóm chọn màu mới.
 
 ### 4.4 Trạng thái chưa có frame Figma
 
