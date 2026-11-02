@@ -1,0 +1,215 @@
+.page {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  color: #101828;
+}
+
+.pageHeader h1 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 28px;
+}
+
+.pageHeader p {
+  margin: 1px 0 0;
+  color: #6a7282;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.tabs {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  margin-top: 22.5px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.activeTab,
+.inactiveTab {
+  box-sizing: border-box;
+  display: inline-flex;
+  height: 39.1px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7.5px;
+  padding: 9.375px 18.75px;
+  border: 0;
+  border-bottom: 1.6px solid transparent;
+  background: transparent;
+  color: #6a7282;
+  font-size: 13px;
+  line-height: 18.75px;
+  white-space: nowrap;
+}
+
+.activeTab {
+  border-bottom-color: #0092b8;
+  color: #007595;
+  font-weight: 500;
+}
+
+.inactiveTab {
+  cursor: default;
+}
+
+.activeTab img,
+.inactiveTab img {
+  display: block;
+}
+
+.content {
+  margin-top: 22.5px;
+}
+
+.content > [role='status'],
+.content > [role='alert'] {
+  max-width: 540px;
+}
+
+.formCard {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  max-width: 540px;
+  flex-direction: column;
+  padding: 22.5px;
+  border: 1px solid #f3f4f6;
+  border-radius: 13.375px;
+  background: #fff;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.label {
+  color: #364153;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18.75px;
+}
+
+.label span {
+  color: #fb2c36;
+}
+
+.inputWrap {
+  position: relative;
+  min-width: 0;
+  margin-top: 5.625px;
+}
+
+.inputIcon {
+  position: absolute;
+  top: 12px;
+  left: 11.25px;
+  display: block;
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 39.1px;
+  padding: 9.375px 11.25px 9.375px 33.75px;
+  border: 1px solid #e5e7eb;
+  border-radius: 13.375px;
+  outline: none;
+  background: #fff;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 18.75px;
+}
+
+.input:focus-visible {
+  border-color: #0092b8;
+  outline: 2px solid #0092b8;
+  outline-offset: 1px;
+}
+
+.input[aria-invalid='true'] {
+  border-color: #d92d20;
+}
+
+.input:disabled {
+  background: #f9fafb;
+  color: #6a7282;
+}
+
+.fieldError,
+.formError,
+.successMessage {
+  margin: 5px 0 0;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.fieldError,
+.formError {
+  color: #b42318;
+}
+
+.successMessage {
+  color: #008236;
+}
+
+.saveButton {
+  box-sizing: border-box;
+  display: inline-flex;
+  height: 37.5px;
+  min-height: 37.5px;
+  align-items: center;
+  justify-content: center;
+  gap: 7.5px;
+  margin-top: 15px;
+  padding: 9.375px 12px;
+  border: 0;
+  border-radius: 13.375px;
+  background: #0092b8;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18.75px;
+  cursor: pointer;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: #007f9f;
+}
+
+.saveButton:focus-visible {
+  outline: 2px solid #0092b8;
+  outline-offset: 2px;
+}
+
+.saveButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.saveButton img {
+  display: block;
+}
+
+@media (max-width: 600px) {
+  .activeTab,
+  .inactiveTab {
+    padding-right: 13px;
+    padding-left: 13px;
+  }
+
+  .formCard {
+    padding: 18px;
+  }
+}

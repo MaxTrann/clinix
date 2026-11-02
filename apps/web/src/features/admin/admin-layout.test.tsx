@@ -139,7 +139,7 @@ describe('Admin F1 shell', () => {
     expect(router.state.location.pathname).toBe('/dang-nhap');
   });
 
-  it('AF1-06 chỉ bật menu F2 đã triển khai, menu còn lại vẫn tắt và không có badge giả', async () => {
+  it('AF1-06 bật các menu F2-F4 đã triển khai và giữ menu còn lại tắt, không badge giả', async () => {
     await signIn();
     api.failNext('/admin/me', () => response({ phamVi: 'ToanHeThong' }));
     renderAdmin();
@@ -154,10 +154,59 @@ describe('Admin F1 shell', () => {
       'href',
       '/admin/chuyen-khoa',
     );
+    expect(screen.getByRole('link', { name: 'Loại dịch vụ khám' })).toHaveAttribute(
+      'href',
+      '/admin/dich-vu-kham',
+    );
+    expect(
+      screen.getByRole('link', { name: 'Thông tin phòng khám' }),
+    ).toHaveAttribute('href', '/admin/thong-tin-phong-kham');
     const disabledItems = navigation.querySelectorAll('button');
     expect(disabledItems.length).toBeGreaterThan(0);
     expect([...disabledItems].every((item) => item.disabled)).toBe(true);
     expect(navigation.querySelector('[data-badge]')).toBeNull();
+  });
+
+  it('AF4-01 mở route F4 từ menu và tải trang thông tin chung', async () => {
+    await signIn();
+    api.failNext('/admin/me', () => response({ phamVi: 'ToanHeThong' }));
+    api.failNext('/admin/clinic-info', () =>
+      response({
+        tenThuongHieu: 'CLINIX Clinic',
+        diaChiTruSo: '123 Nguyễn Thị Minh Khai',
+        duongDayNong: '1900 1234',
+        email: 'contact@clinix.vn',
+      }),
+    );
+
+    renderAdmin('/admin/thong-tin-phong-kham');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Thông tin phòng khám' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Thông tin phòng khám' }),
+    ).toHaveAttribute('href', '/admin/thong-tin-phong-kham');
+    expect(await screen.findByLabelText(/Tên thương hiệu/)).toHaveValue(
+      'CLINIX Clinic',
+    );
+  });
+
+  it('AF4-01 từ chối Admin Chi nhánh trước khi tải thông tin phòng khám', async () => {
+    await signIn();
+    api.failNext('/admin/me', () =>
+      response({
+        phamVi: 'ChiNhanh',
+        chiNhanh: { id: 'branch-1', ten: 'Phòng khám Quận 1' },
+      }),
+    );
+
+    renderAdmin('/admin/thong-tin-phong-kham');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Không đủ quyền truy cập' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Thông tin chung' })).toBeNull();
   });
 });
 
