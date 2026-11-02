@@ -187,6 +187,7 @@ Trang chủ sau đăng nhập là "Tổng quan" của từng vai trò (module kh
 
 **Cần sửa trong Figma:** bỏ "Còn N lần thử" (G1); email 10 phút (G2); bỏ banner OTP demo, dòng "Mật khẩu demo mặc định: demo123", chữ "Dữ liệu minh họa"
 (G3); bỏ hotline/địa chỉ chưa có, đổi "CLINIXClinic" thành "CLINIX" (G4); placeholder/thông báo mật khẩu "Tối thiểu 8 ký tự" ⇒ phản ánh quy tắc Q11 + N10 (8–64 ký tự, có chữ số và ký tự đặc biệt, chỉ ký tự ASCII).
+**Thêm từ F3 (ADR 0004, tương phản WCAG 2.2 AA):** nút chính và liên kết `#0092b8` ⇒ `#007595`, hover nút ⇒ `#005f78`; chữ trong hộp lỗi `#e7000b` ⇒ `#c10007`; viền focus `#0092b8`; placeholder ⇒ `#6a7282`. Khoảng trống đã biết: viền ô nhập `#e5e7eb` chỉ đạt 1,24:1 (cần 3:1), nhóm chọn màu mới.
 
 ### 4.4 Trạng thái chưa có frame Figma
 
@@ -452,7 +453,7 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 |---|---|---|---|---|---|
 | ☑ | F1 | Lõi xác thực FE: store người dùng, hàm gọi API auth qua client chung, access token **chỉ trong bộ nhớ**, tự làm mới khi 401 **tuần tự bằng Web Locks** (H12), route guard theo vai trò, "refresh thất bại ⇒ về đăng nhập" (ĐX A1); **trang giữ chỗ theo vai trò** (tên vai trò + nút Đăng xuất) khi trang thật chưa có, thay bằng trang thật khi module tương ứng xong | P6, hợp đồng A3 | ĐN b8; ĐX A1; Q2 | `feat(web)` |
 | ☐ | F2 | Đăng ký + xác minh email: 4 frame (6 ô nhập mã, "Mã hết hạn sau 10:00", "Gửi lại sau 60s", "Quay lại đăng ký"), giữ dữ liệu khi lỗi (A1/4b), giữ `maXacThucId` giữa các bước, **vào thẳng màn OTP khi đăng nhập trả `EMAIL_CHUA_XAC_MINH`** và nói rõ khi mã đã hết hạn/bị thu hồi để bấm "Gửi lại mã" (N2); **bỏ banner demo (G3)**; câu chữ lỗi: mục 5.5 | F1, A5, A6, A8 | ĐK b2–b3, b6–b10, A1–A5; Q5 | `feat(web)` |
-| ☐ | F3 | Đăng nhập: 5 frame (khoá tạm có đếm ngược theo thời gian API trả, nút Đăng nhập vô hiệu, link Quên mật khẩu bấm được); **chỉ thông báo chung, không "Còn N lần" (G1)**; điều hướng theo vai trò (trang giữ chỗ nếu trang thật chưa có) | F1, A8, A15 | ĐN b2–b3, b8, A1–A3 | `feat(web)` |
+| ☑ | F3 | Đăng nhập: 5 frame (khoá tạm có đếm ngược theo thời gian API trả, nút Đăng nhập vô hiệu, link Quên mật khẩu bấm được); **chỉ thông báo chung, không "Còn N lần" (G1)**; điều hướng theo vai trò (trang giữ chỗ nếu trang thật chưa có) | F1, A8, A15 | ĐN b2–b3, b8, A1–A3 | `feat(web)` |
 | ☐ | F4 | Quên mật khẩu: 5 frame với thanh 3 bước, giữ `resetToken` giữa các bước, "Đổi email"/"Quay lại nhập mã"; **bỏ banner demo (G3)**; A1–A6; khung "Hoàn tất" thêm dòng cảnh báo cho `NgungHoatDong` (N7) và dòng hướng dẫn đăng ký lại cho tài khoản chưa xác minh (N3) | F1, A11, A12 | QMK b2–b11, A1–A6; S4 | `feat(web)` |
 | ☐ | F5 | Thành phần dùng lại `ChangePasswordForm` (3 ô + "Cập nhật mật khẩu"/"Hủy", **bỏ dòng "mật khẩu demo"**) và nút Đăng xuất ở thanh bên + thanh trên của layout do F1/F5 dựng (P6 chỉ có `RootLayout`), đăng xuất ngay (G5). Gắn form vào 4 trang "Thông tin cá nhân" và "Hồ sơ người khám" khi các trang đó tồn tại (module khác) — trước đó chỉ cần thành phần + test | F1, A13, A10, P6 | ĐMK b1–b5, A1–A2; ĐX b1–b3 | `feat(web)` |
 

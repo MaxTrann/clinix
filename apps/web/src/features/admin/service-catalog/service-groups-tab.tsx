@@ -150,7 +150,7 @@ export function ServiceGroupsTab({ canEdit }: { canEdit: boolean }) {
           className="overflow-hidden rounded-xl border border-border bg-white shadow-sm"
           aria-label="Danh sách nhóm dịch vụ"
         >
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[700px] border-collapse text-left text-sm">
               <thead className="bg-surface-muted text-xs font-semibold uppercase tracking-wide text-text-secondary">
                 <tr>

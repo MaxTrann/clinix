@@ -1,12 +1,9 @@
 import type { RouteObject } from 'react-router';
-import {
-  LOGIN_PATH,
-  LoginPlaceholderPage,
-  RequireAuth,
-} from '../features/auth';
+import { AUTH_PAGE_ROUTES, RequireAuth } from '../features/auth';
 import { HomePage } from '../pages/home-page';
 import { NotFoundPage } from '../pages/not-found-page';
 import { RouteErrorPage } from '../pages/route-error-page';
+import { LoadingState } from '../shared/ui/loading-state';
 import { createRoleRoutes } from './role-routes';
 import { RootLayout } from './root-layout';
 
@@ -18,9 +15,11 @@ export function createAppRoutes(
     {
       element: <RootLayout />,
       errorElement: <RouteErrorPage />,
+      // Mở thẳng route `lazy`: router chờ chunk rồi mới render, thiếu dòng này thì màn hình trắng (đo thật ở F3)
+      hydrateFallbackElement: <LoadingState />,
       children: [
         { index: true, element: <HomePage /> },
-        { path: LOGIN_PATH, element: <LoginPlaceholderPage /> },
+        ...AUTH_PAGE_ROUTES,
         { element: <RequireAuth />, children: protectedChildren },
         ...createRoleRoutes(),
         { path: '*', element: <NotFoundPage /> },

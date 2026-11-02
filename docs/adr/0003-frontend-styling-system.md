@@ -1,5 +1,6 @@
 # ADR 0003: Styling system cho frontend Clinix
 
+Bổ sung: ADR 0004 (bật Preflight, một file CSS, token và tương phản)  
 Status: Accepted  
 Date: 2026-10-28  
 Updated: 2026-11-02  

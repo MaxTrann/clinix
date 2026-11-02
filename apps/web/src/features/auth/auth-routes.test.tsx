@@ -243,16 +243,17 @@ describe('trang công khai', () => {
     expect(router.state.historyAction).toBe('REPLACE');
   });
 
-  it('AU-75 /dang-nhap khi checking hiện loading', () => {
+  // AU-75, AU-76 đổi có duyệt ở F3 (D5): route đăng nhập là `lazy` nên phải chờ trang tải xong
+  it('AU-75 /dang-nhap khi checking hiện loading', async () => {
     renderAt('/dang-nhap');
-    expect(screen.getByRole('status')).toHaveTextContent('Đang tải');
+    expect(await screen.findByRole('status')).toHaveTextContent('Đang tải');
   });
 
-  it('AU-76 /dang-nhap không có cờ thì không có thông báo phiên', () => {
+  it('AU-76 /dang-nhap không có cờ thì không có thông báo phiên', async () => {
     setAuthState({ status: 'unauthenticated' });
     renderAt('/dang-nhap');
     expect(
-      screen.getByRole('heading', { name: 'Đăng nhập' }),
+      await screen.findByRole('heading', { name: 'Đăng nhập' }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('status')).toBeNull();
   });

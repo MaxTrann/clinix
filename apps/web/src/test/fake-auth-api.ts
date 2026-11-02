@@ -123,7 +123,9 @@ export function createFakeAuthApi(
       if (!validTokens.has(authorization.replace('Bearer ', ''))) {
         return apiError(401, 'TOKEN_KHONG_HOP_LE');
       }
-      return json(200, path === '/auth/me' ? account : { ok: true });
+      if (path === '/auth/me') return json(200, account);
+      if (path === '/admin/me') return json(200, { phamVi: 'ToanHeThong' });
+      return json(200, { ok: true });
     },
   };
   return api;

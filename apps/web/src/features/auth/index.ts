@@ -2,8 +2,16 @@
 export { login, logout, restoreSession, retrySession } from './auth-session';
 export { useAuth } from './auth-store';
 export type { AuthState, AuthStatus, AuthUser } from './auth-store';
-export { LoginPlaceholderPage } from './login-placeholder-page';
+export { AUTH_PAGE_ROUTES } from './auth-page-routes';
 export { RequireAuth } from './require-auth';
 export { RolePlaceholderPage } from './role-placeholder-page';
-export { LOGIN_PATH, ROLE_HOME_PATHS, ROLE_LABELS, homePathFor } from './roles';
+export {
+  FORGOT_PASSWORD_PATH,
+  LOGIN_PATH,
+  REGISTER_PATH,
+  ROLE_HOME_PATHS,
+  ROLE_LABELS,
+  VERIFY_EMAIL_PATH,
+  homePathFor,
+} from './roles';
 export type { VaiTro } from './roles';
