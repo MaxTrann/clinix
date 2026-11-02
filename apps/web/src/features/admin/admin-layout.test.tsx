@@ -139,7 +139,7 @@ describe('Admin F1 shell', () => {
     expect(router.state.location.pathname).toBe('/dang-nhap');
   });
 
-  it('AF1-06 menu F2–F9 hiện nhưng không bấm được hoặc có badge giả', async () => {
+  it('AF1-06 chỉ bật menu F2 đã triển khai, menu còn lại vẫn tắt và không có badge giả', async () => {
     await signIn();
     api.failNext('/admin/me', () => response({ phamVi: 'ToanHeThong' }));
     renderAdmin();
@@ -150,9 +150,10 @@ describe('Admin F1 shell', () => {
     expect(
       screen.getByRole('link', { name: 'Tổng quan' }),
     ).toHaveAttribute('href', '/admin');
-    expect(
-      screen.getByRole('button', { name: 'Chuyên khoa' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Chuyên khoa' })).toHaveAttribute(
+      'href',
+      '/admin/chuyen-khoa',
+    );
     const disabledItems = navigation.querySelectorAll('button');
     expect(disabledItems.length).toBeGreaterThan(0);
     expect([...disabledItems].every((item) => item.disabled)).toBe(true);

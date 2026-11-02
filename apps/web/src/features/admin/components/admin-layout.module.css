@@ -190,6 +190,26 @@
   cursor: default;
 }
 
+.menuItemLink {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.menuItemLink:hover {
+  background: #f8fafc;
+}
+
+.menuItemLink:focus-visible {
+  outline: 2px solid #0092b8;
+  outline-offset: 2px;
+}
+
+.activeLink.menuItemLink,
+.activeLink.menuItemLink:hover {
+  background: #0092b8;
+  color: #fff;
+}
+
 .menuItem:disabled {
   opacity: 1;
   color: #4a5565;
