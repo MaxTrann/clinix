@@ -1227,11 +1227,22 @@ Ma trận: **Khách → 401 · Bệnh nhân/Bác sĩ/Lễ tân → 403 · Quản
 | AF1-03 | GET `/admin/me` đang tải, lỗi mạng/5xx, hoặc trả 403 | Loading không lộ shell; lỗi dùng ErrorState an toàn và có Thử lại khi phù hợp; 403 hiện trang Không đủ quyền | F1, API client P6 | C |
 | AF1-04 | Admin Chi nhánh mở child route có policy `ToanHeThong` trực tiếp | Trang Không đủ quyền, không render nội dung con; Admin Toàn hệ thống được phép | F1, C1 | C |
 | AF1-05 | Người chưa đăng nhập hoặc vai trò khác mở `/admin`; các vai trò khác mở route riêng | Auth F1 chuyển/chặn theo contract; route placeholder các vai trò khác giữ nguyên | F1, auth F1 | C |
-| AF1-06 | Dùng menu F2–F9 và thông báo chưa triển khai | Mục menu hiện theo Figma nhưng không bấm được; không có badge/số liệu giả | F1, Figma 522:2/625:2 | C |
+| AF1-06 | Dùng menu F2–F9 và thông báo chưa triển khai | F2 đã có route; F3–F9 và thông báo còn disabled; không có badge/số liệu giả | F1, Figma 522:2/625:2 | C |
 | AF1-07 | Dùng bảng phân trang với dữ liệu, rỗng, trang đầu/cuối | Render đúng cột/dòng, tổng và trạng thái rỗng; nút lùi/tiến bị vô hiệu ở biên và phát đúng trang yêu cầu | F1, P6 | C |
 | AF1-08 | Nhập/tẩy nội dung ô tìm kiếm | Giá trị điều khiển được qua `onChange`; component không tự gọi API hoặc debounce | F1 | C |
 | AF1-09 | Mở hộp xác nhận; xác nhận, huỷ, Esc và bàn phím Tab | Chỉ gọi callback tương ứng; khi đang xử lý thì nút bị vô hiệu; focus giữ trong dialog và trả về phần tử trước khi đóng | F1 | C |
 | AF1-10 | Mở panel chi tiết; đóng bằng nút hoặc Esc | Nội dung con hiển thị; dialog có nhãn truy cập; focus giữ trong panel và trả về khi đóng | F1 | C |
+
+### 7.12 Quản lý chuyên khoa frontend (F2)
+
+| ID | Kịch bản | Mong đợi | Phủ | Loại |
+|---|---|---|---|---|
+| AF2-01 | Admin Chi nhánh mở `/admin/chuyen-khoa` | Xem được danh sách và banner; không có thao tác ghi | F2, CK-13 | C |
+| AF2-02 | Admin Toàn hệ thống mở form tạo | Checkbox hoạt động được checked/disabled; POST không gửi trạng thái; chuyên khoa mới theo B1 | F2, CK-01 | C |
+| AF2-03 | Đổi trạng thái ở danh sách | Gọi PATCH status đúng trạng thái mới; tải lại danh sách; lỗi không làm mất dữ liệu | F2, CK-08/09 | C |
+| AF2-04 | API trả 409 `TEN_CHUYEN_KHOA_TRUNG` ở form tạo/sửa | CK-15: lỗi hiện tại ô tên; form còn mở và giữ nguyên tên/mô tả/ảnh/trạng thái để sửa và gửi lại | F2, CK-15 | C |
+| AF2-05 | Chỉ đổi trạng thái trong form sửa | Gọi endpoint status riêng; không gửi PATCH detail rỗng | F2, CK-08/09 | C |
+| AF2-06 | Chọn ảnh hợp lệ, lỗi upload và gỡ ảnh | Preview dùng URL trả về; lưu chỉ gửi uploadId; `null` gỡ, bỏ trường giữ ảnh; không tự retry upload sau timeout | F2, P7, CK-11 | C |
 
 ## 8. Đề xuất chia việc và gom cụm (chỉ đề xuất — nhóm chốt)
 

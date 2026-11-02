@@ -51,6 +51,7 @@ const ICONS: Record<IconName, string> = {
 interface MenuItem {
   label: string;
   icon: IconName;
+  to?: string;
 }
 
 interface MenuGroup {
@@ -73,7 +74,11 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { label: 'Nhân sự & Tài khoản', icon: 'staff' },
       { label: 'Bác sĩ', icon: 'doctor' },
-      { label: 'Chuyên khoa', icon: 'specialty' },
+      {
+        label: 'Chuyên khoa',
+        icon: 'specialty',
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/chuyen-khoa`,
+      },
       { label: 'Thông tin phòng khám', icon: 'clinic' },
       { label: 'Loại dịch vụ khám', icon: 'list' },
     ],
@@ -167,16 +172,29 @@ export function AdminSidebar({
             <ul className={styles.menuList}>
               {group.items.map((item) => (
                 <li key={item.label}>
-                  <button
-                    type="button"
-                    className={styles.menuItem}
-                    disabled
-                    aria-disabled="true"
-                    title="Chưa được triển khai"
-                  >
-                    <SidebarIcon name={item.icon} />
-                    <span>{item.label}</span>
-                  </button>
+                  {item.to ? (
+                    <NavLink
+                      to={item.to}
+                      className={({ isActive }) =>
+                        `${styles.menuItem} ${styles.menuItemLink} ${isActive ? styles.activeLink : ''}`
+                      }
+                    >
+                      <SidebarIcon name={item.icon} />
+                      <span>{item.label}</span>
+                      <SidebarIcon name="chevron-right" />
+                    </NavLink>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.menuItem}
+                      disabled
+                      aria-disabled="true"
+                      title="Chưa được triển khai"
+                    >
+                      <SidebarIcon name={item.icon} />
+                      <span>{item.label}</span>
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
