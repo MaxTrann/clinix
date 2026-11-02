@@ -1,0 +1,36 @@
+@import '@fontsource-variable/inter/index.css';
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@theme {
+  --font-sans: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+  --color-brand: #0092b8;
+  --color-brand-hover: #007595;
+  --color-text-primary: #101828;
+  --color-text-secondary: #4a5565;
+  --color-text-muted: #99a1af;
+  --color-page: #f8fafc;
+  --color-surface-muted: #f9fafb;
+  --color-border: #e5e7eb;
+  --color-info-surface: #ecfeff;
+  --color-success-surface: #dcfce7;
+  --color-success: #008236;
+  --color-danger: #e7000b;
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
