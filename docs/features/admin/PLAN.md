@@ -1227,7 +1227,7 @@ Ma trận: **Khách → 401 · Bệnh nhân/Bác sĩ/Lễ tân → 403 · Quản
 | AF1-03 | GET `/admin/me` đang tải, lỗi mạng/5xx, hoặc trả 403 | Loading không lộ shell; lỗi dùng ErrorState an toàn và có Thử lại khi phù hợp; 403 hiện trang Không đủ quyền | F1, API client P6 | C |
 | AF1-04 | Admin Chi nhánh mở child route có policy `ToanHeThong` trực tiếp | Trang Không đủ quyền, không render nội dung con; Admin Toàn hệ thống được phép | F1, C1 | C |
 | AF1-05 | Người chưa đăng nhập hoặc vai trò khác mở `/admin`; các vai trò khác mở route riêng | Auth F1 chuyển/chặn theo contract; route placeholder các vai trò khác giữ nguyên | F1, auth F1 | C |
-| AF1-06 | Dùng menu F2–F9 và thông báo chưa triển khai | F2 đã có route; F3–F9 và thông báo còn disabled; không có badge/số liệu giả | F1, Figma 522:2/625:2 | C |
+| AF1-06 | Dùng menu F2–F9 và thông báo chưa triển khai | F2–F4 đã có route; F5–F9 và thông báo còn disabled; không có badge/số liệu giả | F1, Figma 522:2/625:2 | C |
 | AF1-07 | Dùng bảng phân trang với dữ liệu, rỗng, trang đầu/cuối | Render đúng cột/dòng, tổng và trạng thái rỗng; nút lùi/tiến bị vô hiệu ở biên và phát đúng trang yêu cầu | F1, P6 | C |
 | AF1-08 | Nhập/tẩy nội dung ô tìm kiếm | Giá trị điều khiển được qua `onChange`; component không tự gọi API hoặc debounce | F1 | C |
 | AF1-09 | Mở hộp xác nhận; xác nhận, huỷ, Esc và bàn phím Tab | Chỉ gọi callback tương ứng; khi đang xử lý thì nút bị vô hiệu; focus giữ trong dialog và trả về phần tử trước khi đóng | F1 | C |
@@ -1256,6 +1256,17 @@ Ma trận: **Khách → 401 · Bệnh nhân/Bác sĩ/Lễ tân → 403 · Quản
 | AF3-06 | Admin Chi nhánh mở trang và hai tab | Xem danh sách/banner; không có nút hoặc form ghi; backend C1 vẫn là chốt quyền | F3, DV-16 | C |
 | AF3-07 | Tab Dịch vụ dùng bộ lọc nhóm; tab Nhóm hiển thị số dịch vụ | Bộ lọc hiện lọc các dịch vụ đang tải; số lượng hiển thị `—` cho tới khi API cung cấp aggregate; không tự gửi query/field mới | F3; API enhancement pending | C |
 | AF3-08 | So giao diện với Figma 548:2, 560:2–565:2, 630:2 | Bám layout/tab/form/dialog, không hiện Cọc/Trạng thái/nút Tắt/trường đặt cọc ngoài contract B3; route `/admin/dich-vu-kham` | F3 | C |
+
+### 7.14 Thông tin phòng khám frontend (F4)
+
+| ID | Kịch bản | Mong đợi | Phủ | Loại |
+|---|---|---|---|---|
+| AF4-01 | Admin Toàn hệ thống mở `/admin/thong-tin-phong-kham`; Admin Chi nhánh mở cùng route | Toàn hệ thống vào được qua menu; Chi nhánh bị `AdminScopeGuard` từ chối; backend B4 tiếp tục kiểm quyền | F4, F1, B4 | C |
+| AF4-02 | GET trả đủ bốn trường hoặc các trường null | Hiển thị đúng `tenThuongHieu`, `diaChiTruSo`, `duongDayNong`, `email`; null thành ô trống, không có dữ liệu mẫu | F4, PK-01/02 | C |
+| AF4-03 | Nhập thiếu/sai định dạng; kiểm tra biên độ dài tên và địa chỉ, hotline, email | Báo lỗi tại trường tương ứng theo PK và auth S5; không gửi PUT khi invalid | F4, PK-03…06 | C |
+| AF4-04 | Lưu thông tin hợp lệ | PUT chỉ chứa đúng bốn field contract, không có `id`; hiển thị thông báo thành công | F4, PK-07 | C |
+| AF4-05 | API trả lỗi field; GET trả lỗi 503 rồi được thử lại; PUT mất kết nối | Giữ dữ liệu và gắn lỗi API vào đúng field; GET có thể thử lại; lỗi PUT không tự gửi lại | F4, PK-08/09 | C |
+| AF4-06 | So giao diện với Figma 541:2; kiểm tra nhãn form và gửi lặp | Bố cục/tab/form/icon khớp frame; tab Chi nhánh disabled, không badge giả; nhãn và lỗi gắn với input; nút lưu khóa khi đang gửi | F4 | C |
 ## 8. Đề xuất chia việc và gom cụm (chỉ đề xuất — nhóm chốt)
 
 Nguyên tắc: **một người làm trọn module `admin` (backend + frontend)** theo các cụm dưới đây; người còn lại tiếp tục `auth` hoặc module khác (xem auth PLAN mục 8). Mỗi task ở mục 6 là **một PR**; cụm chỉ là thứ tự làm. Hai người vẫn phải giải thích được toàn bộ module khi vấn đáp.
