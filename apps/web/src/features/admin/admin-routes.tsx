@@ -9,6 +9,13 @@ export const ADMIN_ROUTES: RouteObject[] = [
     children: [
       { index: true, element: <AdminOverviewPage /> },
       { path: 'chuyen-khoa', element: <SpecialtyPage /> },
+      {
+        path: 'dich-vu-kham',
+        lazy: () =>
+          import('./service-catalog/service-catalog-page').then((module) => ({
+            Component: module.ServiceCatalogPage,
+          })),
+      },
     ],
   },
 ];

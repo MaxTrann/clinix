@@ -1244,6 +1244,18 @@ Ma trận: **Khách → 401 · Bệnh nhân/Bác sĩ/Lễ tân → 403 · Quản
 | AF2-05 | Chỉ đổi trạng thái trong form sửa | Gọi endpoint status riêng; không gửi PATCH detail rỗng | F2, CK-08/09 | C |
 | AF2-06 | Chọn ảnh hợp lệ, lỗi upload và gỡ ảnh | Preview dùng URL trả về; lưu chỉ gửi uploadId; `null` gỡ, bỏ trường giữ ảnh; không tự retry upload sau timeout | F2, P7, CK-11 | C |
 
+### 7.13 Quản lý loại dịch vụ khám frontend (F3)
+
+| ID | Kịch bản | Mong đợi | Phủ | Loại |
+|---|---|---|---|---|
+| AF3-01 | Mở hai tab, tải danh sách, tìm kiếm, loading/rỗng/lỗi và phân trang | Gọi đúng B2/B3; retry được; tìm kiếm server-side theo `q`; không lẫn dữ liệu giữa tab | F3, DV-01…16 | C |
+| AF3-02 | Admin Toàn hệ thống thêm/sửa nhóm; tên trùng hoặc dữ liệu sai | Gọi POST/PATCH B2; báo đúng mã lỗi, giữ form; thứ tự là số nguyên không âm | F3, DV-01…04/17 | C |
+| AF3-03 | Xóa nhóm rỗng hoặc nhóm còn dịch vụ | Có hộp xác nhận; nhóm rỗng gọi DELETE; `NHOM_DICH_VU_CON_DICH_VU` giữ nguyên dữ liệu và báo rõ | F3, DV-05/06 | C |
+| AF3-04 | Admin Toàn hệ thống thêm/sửa dịch vụ | Chỉ gửi `nhomDichVuId`, `ten`, `thoiLuong`, `giaMacDinh`; giữ giá dạng chuỗi; lỗi giữ dữ liệu; không có DELETE | F3, DV-07…13/15/17…19 | C |
+| AF3-05 | Đổi thời lượng dịch vụ đang được lịch/khung giờ sử dụng | `THOI_LUONG_DANG_DUNG` hiện ở trường thời lượng; không coi là thành công, form giữ nguyên | F3, DV-14 | C |
+| AF3-06 | Admin Chi nhánh mở trang và hai tab | Xem danh sách/banner; không có nút hoặc form ghi; backend C1 vẫn là chốt quyền | F3, DV-16 | C |
+| AF3-07 | Tab Dịch vụ dùng bộ lọc nhóm; tab Nhóm hiển thị số dịch vụ | Bộ lọc hiện lọc các dịch vụ đang tải; số lượng hiển thị `—` cho tới khi API cung cấp aggregate; không tự gửi query/field mới | F3; API enhancement pending | C |
+| AF3-08 | So giao diện với Figma 548:2, 560:2–565:2, 630:2 | Bám layout/tab/form/dialog, không hiện Cọc/Trạng thái/nút Tắt/trường đặt cọc ngoài contract B3; route `/admin/dich-vu-kham` | F3 | C |
 ## 8. Đề xuất chia việc và gom cụm (chỉ đề xuất — nhóm chốt)
 
 Nguyên tắc: **một người làm trọn module `admin` (backend + frontend)** theo các cụm dưới đây; người còn lại tiếp tục `auth` hoặc module khác (xem auth PLAN mục 8). Mỗi task ở mục 6 là **một PR**; cụm chỉ là thứ tự làm. Hai người vẫn phải giải thích được toàn bộ module khi vấn đáp.

@@ -172,6 +172,11 @@
   color: #fff;
 }
 
+.dialogActions .dangerAction {
+  border-color: #e7000b;
+  background: #e7000b;
+}
+
 .panelOverlay {
   display: flex;
   justify-content: flex-end;

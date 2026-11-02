@@ -80,7 +80,11 @@ const MENU_GROUPS: MenuGroup[] = [
         to: `${ROLE_HOME_PATHS.QuanTriVien}/chuyen-khoa`,
       },
       { label: 'Thông tin phòng khám', icon: 'clinic' },
-      { label: 'Loại dịch vụ khám', icon: 'list' },
+      {
+        label: 'Loại dịch vụ khám',
+        icon: 'list',
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/dich-vu-kham`,
+      },
     ],
   },
   { label: 'Tài chính', items: [{ label: 'Yêu cầu rút tiền', icon: 'wallet' }] },

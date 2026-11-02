@@ -9,6 +9,7 @@ interface AdminConfirmationDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   pending?: boolean;
+  tone?: 'primary' | 'danger';
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -20,6 +21,7 @@ export function AdminConfirmationDialog({
   confirmLabel = 'Xác nhận',
   cancelLabel = 'Huỷ',
   pending = false,
+  tone = 'primary',
   onConfirm,
   onCancel,
 }: AdminConfirmationDialogProps) {
@@ -49,7 +51,7 @@ export function AdminConfirmationDialog({
           </button>
           <button
             type="button"
-            className={styles.primaryAction}
+            className={`${styles.primaryAction} ${tone === 'danger' ? styles.dangerAction : ''}`}
             onClick={onConfirm}
             disabled={pending}
           >

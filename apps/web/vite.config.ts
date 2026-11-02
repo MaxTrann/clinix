@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 
 // Đích proxy đọc từ biến môi trường của tiến trình (không có tiền tố VITE_ nên không lọt vào bundle).
@@ -6,7 +7,7 @@ import { defineConfig } from 'vitest/config';
 const apiProxyTarget = process.env.API_PROXY_TARGET ?? 'http://localhost:3000';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     proxy: {
       // API không có tiền tố /api nên phải gỡ. Khoá có dấu / cuối để không khớp nhầm /apifoo.
