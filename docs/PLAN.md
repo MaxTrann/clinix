@@ -30,16 +30,16 @@ Phải xong trước khi viết nghiệp vụ, vì mọi module sau đều phụ
 | 1 | ORM cho NestJS + MySQL (TypeORM / Prisma) | Entity, migration, mọi module đều dựa vào | **Chốt 25/10:** TypeORM, `synchronize: false`, migration SQL viết tay, đối chiếu từng dòng với `docs/database/clinix_mysql.sql` (Q1 của module auth, xem `docs/features/auth/TRACKING.md`) |
 | 2 | Cơ chế xác thực chính thức (JWT access/refresh — hiện chỉ là `[đề xuất]` trong `.env.example`) | Auth là nền cho phân quyền (RBAC) ở mọi module khác | **Chốt 17/10:** JWT access token ngắn hạn + refresh token lưu băm trong DB (đăng xuất = vô hiệu refresh token). **Chốt thêm 25/10 (Q2 của module auth):** access JWT 15 phút; phiên không hoạt động 30 phút, tối đa 8 giờ từ lúc đăng nhập; refresh token ngẫu nhiên 256 bit, lưu băm, xoay mỗi lần dùng (dùng lại token cũ thì thu hồi phiên); cookie `HttpOnly; Secure; SameSite=Lax`, access token chỉ giữ trong bộ nhớ; web và API cùng origin qua proxy |
 | 3 | Ngày bắt đầu / kết thúc kỳ đồ án thật | Quyết định mốc 50% của quy tắc chặn điểm G1 (rubric) — trễ hạn = không đủ điều kiện bảo vệ | `[cần điền]`, hỏi GVHD |
-| 4 | Server staging (VPS nào; GitHub Student Pack còn hiệu lực không) | TC2.2, TC2.6, TC2.7 đều cần staging công khai | `[cần điền]` (chọn VPS). **Yêu cầu đã chốt 25/10 (N5 của module auth):** staging có người truy cập qua mạng phải chạy **HTTPS** (domain + chứng chỉ) vì cookie `Secure`; chỉ tắt `Secure` ở phát triển cục bộ (`COOKIE_SECURE=false`; API từ chối khởi động nếu tắt ngoài `development`) |
+| 4 | Server staging (VPS nào; GitHub Student Pack còn hiệu lực không) | TC2.2, TC2.6, TC2.7 đều cần staging công khai | `[cần điền]` (chọn VPS). **Yêu cầu đã chốt 25/10 (N5 của module auth):** staging có người truy cập qua mạng phải chạy **HTTPS** (domain + chứng chỉ) vì cookie `Secure`; chỉ tắt `Secure` ở phát triển cục bộ (`COOKIE_SECURE=false`; API từ chối khởi động nếu tắt ngoài `development`). Việc cần kiểm khi có staging: checklist staging của module auth ở Phase 4 |
 
 ## Phase 1 — Khởi tạo `apps/api` và `apps/web`
 
 Theo `docs/REPO_SETUP.md` mục 4. Rubric: TC2.1, TC2.4 (repo build được — G8), nền cho mọi phase sau.
 
-- [ ] `apps/api`: khởi tạo NestJS, thêm endpoint `GET /health` (CD và Docker `HEALTHCHECK` đã chờ sẵn endpoint này).
-- [ ] `apps/web`: khởi tạo React + Vite, cài Vitest. Router: React Router 8 Data Mode (`createBrowserRouter`), SPA; xem `docs/adr/0002-web-react-router-data-mode.md`.
-- [ ] Kết nối MySQL qua ORM đã chọn ở Phase 0, chạy migration đầu tiên (bảng rỗng là đủ để xác nhận kết nối).
-- [ ] `docker compose up --build` chạy đủ 3 service (`db`, `api`, `web`).
+- [x] `apps/api`: khởi tạo NestJS, thêm endpoint `GET /health` (CD và Docker `HEALTHCHECK` đã chờ sẵn endpoint này).
+- [x] `apps/web`: khởi tạo React + Vite, cài Vitest. Router: React Router 8 Data Mode (`createBrowserRouter`), SPA; xem `docs/adr/0002-web-react-router-data-mode.md`.
+- [x] Kết nối MySQL qua ORM đã chọn ở Phase 0, chạy migration đầu tiên (bảng rỗng là đủ để xác nhận kết nối).
+- [x] `docker compose up --build` chạy đủ 3 service (`db`, `api`, `web`). Bằng chứng ngày 03/11/2026: `docs/features/auth/TRACKING.md` mục 6, X1-0a (3 service chạy, `GET /api/health` 200 qua proxy), X1-0b (5 migration đã chạy), web phục vụ trang qua container.
 - [x] PR đầu tiên có code thật → bật `api`, `web`, `docker` vào required status checks của ruleset (đã bật ngày 27/10/2026, task P7 của auth; hiện có 7 check: `detect`, `pr-title`, `secrets`, `security`, `api`, `web`, `docker`).
 
 ## Phase 2 — Nghiệp vụ lõi
@@ -47,7 +47,8 @@ Theo `docs/REPO_SETUP.md` mục 4. Rubric: TC2.1, TC2.4 (repo build được —
 Rubric: TC2.1 + TC2.2 = 20 điểm, nặng nhất trong toàn bộ rubric. Thứ tự theo SOW 5.1.1 (điều kiện
 nghiệm thu tối thiểu) và use case đã chốt (77 UC, xem repo `TLCN_CLINIX`).
 
-- [ ] Auth + RBAC (đăng ký, đăng nhập, OTP, quên mật khẩu, Role + Ownership + Scope theo SOW 3.2.1) — nền cho mọi phân quyền sau này. **Bắt đầu bằng [`docs/FEATURE_PLANNING_PROMPT.md`](FEATURE_PLANNING_PROMPT.md)** để có `docs/features/auth/PLAN.md` chia việc cụ thể.
+- [x] Auth (đăng ký, xác minh OTP, đăng nhập, quên mật khẩu, đổi mật khẩu, đăng xuất; guard Role theo SOW 3.2.1) — module `auth`, kế hoạch và kết quả ở `docs/features/auth/PLAN.md`, `TRACKING.md` (kiểm tay X1 ở mục 6). Còn X3 (giới hạn request theo IP), bắt buộc trước khi mở công khai, ngoài phạm vi TLCN.
+- [ ] RBAC: Ownership + Scope theo SOW 3.2.1 (module `rbac` và `admin`) — nền cho mọi phân quyền sau này. **Bắt đầu bằng [`docs/FEATURE_PLANNING_PROMPT.md`](FEATURE_PLANNING_PROMPT.md)** để có kế hoạch chia việc cụ thể.
 - [ ] Hồ sơ bệnh nhân.
 - [ ] Tra cứu chi nhánh / chuyên khoa / bác sĩ / lịch trống.
 - [ ] **Đặt lịch (booking) cốt lõi** — luồng quan trọng nhất theo SOW 5.1.2; cần giữ chỗ/transaction chống double-booking (rủi ro đã ghi ở SOW 7.1), kèm test case cho tình huống đặt đồng thời.
@@ -75,6 +76,12 @@ Nghiệp vụ đã chốt sẵn trong repo `TLCN_CLINIX`, chỉ còn implement �
 Làm **song song** từ khi có 1–2 tính năng chạy được, không chờ Phase 3 xong hẳn.
 
 - [ ] Thuê server staging, khai biến `STAGING_HOST/USER/PATH/API_URL` + secret `STAGING_SSH_KEY` trên GitHub. Staging cần domain và chứng chỉ HTTPS (cookie `Secure`, N5 của module auth).
+      **Checklist staging của module auth** (phần X1 chưa kiểm được, `docs/TECH_DEBT.md` dòng 59):
+  - [ ] Web chạy `https` (domain + chứng chỉ); `WEB_ORIGIN` là địa chỉ `https` thật; `COOKIE_SECURE` để mặc định `true`.
+  - [ ] `.env` trên server đủ biến: `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `OTP_HMAC_SECRET`, `JWT_RESET_SECRET` (sinh ngẫu nhiên, khác nhau, không phải giá trị mẫu `change_me…`), `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `MAIL_SUPPORT_ADDRESS`; `DB_MIGRATIONS_RUN=false` và chạy migration một lần trước khi khởi động API; `TZ` cho `db` (`TECH_DEBT` dòng 6, 14, 15, 19).
+  - [ ] Chạy lại các bước X1 về phiên qua mạng: cookie `refresh_token` có `Secure`, đăng nhập rồi tải lại trang vẫn giữ phiên, hai tab không bị đăng xuất nhầm (Web Locks, dòng 49), đăng xuất xoá cookie.
+  - [ ] Gửi thật một thư OTP từ IP của server (Google có thể chặn IP lạ, dòng 58); đo Argon2id trên server (dòng 10); theo dõi lỗi 1213 ở pha 2 của OTP (dòng 30).
+  - [ ] Ghi kết quả vào `docs/features/auth/TRACKING.md` mục 6.
 - [ ] Bắt đầu đếm deploy tự động — mục tiêu rubric ≥ 10 lần **trải đều**, bắt đầu càng sớm càng tốt, đừng dồn cuối kỳ.
 - [ ] Bật Secret scanning + Push protection trên GitHub (Settings → Code security).
 - [ ] Coverage test leo dần lên ≥ 70% ở module lõi.

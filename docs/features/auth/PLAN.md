@@ -486,9 +486,9 @@ X1 kiểm tra tay (Gmail thật; staging HTTPS) → X2 tổng kết → X3 (trư
 
 | ☐ | ID | Việc | Phụ thuộc |
 |---|---|---|---|
-| ☐ | X1 | Chạy tay toàn bộ kịch bản 5 UC trên `docker compose` với **Gmail SMTP thật** (cả đường gửi lỗi bằng cách đặt sai App Password); **staging truy cập qua mạng phải HTTPS + cookie Secure** (N5); điền kết quả vào `TRACKING.md`; kiểm độ phủ test của `auth` (mục tiêu ≥ 70% — `docs/PLAN.md` Phase 4) | A*, F* |
-| ☐ | X2 | Tổng kết: D9; kiểm mọi dòng `AI_USAGE_LOG.md`; chuẩn bị phần giải thích luồng cho vấn đáp | X1 |
-| ☐ | X3 | **Trước khi mở công khai cho người dùng thật** (không thuộc phạm vi TLCN hiện tại): giới hạn request cho API auth theo IP + cho nhập sai mật khẩu cũ, kiểm thử (S7, H3, H4) | X2 |
+| ☑ | X1 | Chạy tay toàn bộ kịch bản 5 UC trên `docker compose` với **Gmail SMTP thật** (cả đường gửi lỗi bằng cách đặt sai App Password); **staging truy cập qua mạng phải HTTPS + cookie Secure** (N5; chưa có staging nên X1 đóng bằng kiểm cục bộ, phần staging thành checklist ở `docs/PLAN.md` Phase 4); điền kết quả vào `TRACKING.md`; kiểm độ phủ test của `auth` (mục tiêu ≥ 70% — `docs/PLAN.md` Phase 4) | A*, F* |
+| ☑ | X2 | Tổng kết: D9; kiểm mọi dòng `AI_USAGE_LOG.md`; chuẩn bị phần giải thích luồng cho vấn đáp | X1 |
+| ☐ | X3 | **Trước khi mở công khai cho người dùng thật** (không thuộc phạm vi TLCN hiện tại): giới hạn request cho API auth theo IP + cho nhập sai mật khẩu cũ, kiểm thử (S7, H3, H4). Ngoài phạm vi TLCN, chưa làm (issue 42 giữ mở) | X2 |
 
 ## 7. Test case dự kiến
 

@@ -98,13 +98,13 @@ API gửi email mã OTP (đăng ký, quên mật khẩu) bằng **Gmail SMTP** q
 - **Staging và production** (`NODE_ENV=staging` hoặc `production`, ảnh `prod` mặc định là `production`) **bắt buộc** đủ ba biến; thiếu thì API dừng ngay lúc khởi động. File `.env` trên server staging phải được bổ sung bằng tay (xem `docs/TECH_DEBT.md` dòng 19).
 - **Cổng:** 465 là TLS ngay từ đầu (khuyến nghị); cổng khác (ví dụ 587) bắt buộc STARTTLS, nếu máy chủ không hỗ trợ thì gửi lỗi chứ **không** tự hạ xuống gửi dạng rõ. Không có chế độ không mã hoá, nên không dùng được SMTP cục bộ dạng rõ (Mailpit và tương tự), đúng quyết định Q3. Chứng chỉ của máy chủ luôn được kiểm.
 
-**Tạo Gmail riêng và mật khẩu ứng dụng** (việc của nhóm, N8; thao tác trên giao diện Google, các bước dưới viết theo cách Google mô tả **[cần kiểm khi tạo Gmail thật, N8]** — giao diện có thể khác, hãy sửa tài liệu này nếu lệch):
+**Tạo Gmail riêng và mật khẩu ứng dụng** (việc của nhóm, N8; thao tác trên giao diện Google, đã làm thật ở task X1 ngày 03/11/2026 — giao diện Google có thể đổi, hãy sửa tài liệu này nếu lệch):
 
-1. Tạo **một tài khoản Gmail riêng cho CLINIX**, không dùng Gmail cá nhân.
+1. Tạo **một tài khoản Gmail riêng cho CLINIX**, không dùng Gmail cá nhân. **Hiện tại** nhóm đang dùng Gmail có sẵn của một thành viên (quyết định 27/10/2026); phải chuyển sang hộp thư riêng trước khi mở công khai (`docs/TECH_DEBT.md` dòng 58).
 2. Bật **Xác minh 2 bước** cho tài khoản đó (Tài khoản Google → Bảo mật).
-3. Tạo **Mật khẩu ứng dụng** (App Password) trong mục Xác minh 2 bước. Google chỉ hiện giá trị này một lần.
+3. Tạo **Mật khẩu ứng dụng** (App Password): vào thẳng `https://myaccount.google.com/apppasswords`, đặt tên ứng dụng (ví dụ `CLINIX dev`), Google hiện mật khẩu 16 ký tự **một lần duy nhất**. Kết quả thật ở X1: với tài khoản dùng khoá truy cập (passkey), lời nhắc Google và số điện thoại làm bước thứ hai, mục "Mật khẩu ứng dụng" **không** nằm trong trang "Xác minh 2 bước" như Google mô tả, nên phải mở bằng đường dẫn trên.
 4. Mở `.env` của bạn (**không phải** `.env.example`) và điền: `SMTP_HOST=smtp.gmail.com`, `SMTP_USER=<địa chỉ Gmail>`, `SMTP_PASS=<mật khẩu ứng dụng>`.
-5. **Gõ mật khẩu ứng dụng liền 16 ký tự, không dấu cách** (Google hiển thị thành 4 nhóm cách nhau; bỏ các dấu cách) **[cần kiểm khi tạo Gmail thật, N8: Google có chấp nhận dạng có dấu cách hay không]**. Lý do thêm: bộ che log chỉ che đúng giá trị có trong `.env`.
+5. **Gõ mật khẩu ứng dụng liền 16 ký tự, không dấu cách** (Google hiển thị thành 4 nhóm cách nhau; bỏ các dấu cách). Kết quả thật ở X1 (03/11/2026): Google **cũng nhận** dạng 4 nhóm cách nhau một dấu cách (không dấu nháy) và thư vẫn gửi được, nhưng vẫn nên gõ liền vì bộ che log chỉ che đúng giá trị có trong `.env`: để dạng có dấu cách thì dạng gõ liền không được che (`docs/TECH_DEBT.md` dòng 22).
 6. Hai người dùng chung một hộp thư thì chia sẻ mật khẩu ứng dụng qua kênh riêng tư (tin nhắn trực tiếp hoặc trình quản lý mật khẩu).
 
 > **Tuyệt đối không dán mật khẩu ứng dụng vào chat (kể cả khi trò chuyện với AI), issue, PR, commit hay bất kỳ file nào trong repo.** Repo này công khai. Nếu lỡ lộ: vào Tài khoản Google, thu hồi mật khẩu ứng dụng đó ngay và tạo cái mới.
