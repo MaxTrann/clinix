@@ -1,5 +1,10 @@
 import type { RouteObject } from 'react-router';
-import { LOGIN_PATH, REGISTER_PATH, VERIFY_EMAIL_PATH } from './roles';
+import {
+  FORGOT_PASSWORD_PATH,
+  LOGIN_PATH,
+  REGISTER_PATH,
+  VERIFY_EMAIL_PATH,
+} from './roles';
 
 // Trang thật của auth (ADR 0002). `lazy` phải trả `Component`; `index.ts` KHÔNG export các trang này, nếu không chúng lọt vào chunk chính.
 export const AUTH_PAGE_ROUTES: RouteObject[] = [
@@ -20,6 +25,13 @@ export const AUTH_PAGE_ROUTES: RouteObject[] = [
     lazy: () =>
       import('./verify/verify-email-page').then((m) => ({
         Component: m.VerifyEmailPage,
+      })),
+  },
+  {
+    path: FORGOT_PASSWORD_PATH,
+    lazy: () =>
+      import('./forgot/forgot-password-page').then((m) => ({
+        Component: m.ForgotPasswordPage,
       })),
   },
 ];

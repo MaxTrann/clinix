@@ -17,6 +17,8 @@ import {
   verifyEmailHandoff,
   type LoginFailure,
 } from './login-errors';
+import { usePageActive } from '../use-page-active';
+import { trimAsciiWhitespace } from '../validation/account-policy';
 import { formatCountdown, useLockCountdown } from './use-lock-countdown';
 
 const FIELD_ICON =
@@ -38,6 +40,7 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
   const alertRef = useRef<HTMLDivElement>(null);
   // State chưa kịp render giữa hai lần gửi liên tiếp, nên chống gửi đúp bằng ref
   const submitting = useRef(false);
+  const active = usePageActive();
 
   // Điền sẵn khi đến từ màn "Xác minh thành công" hoặc "Email đã được sử dụng"
   const [email, setEmail] = useState(
@@ -50,6 +53,8 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
   const { remaining, expired, start: startLock } = useLockCountdown();
 
   const locked = remaining > 0;
+  // D12: Quên mật khẩu điền sẵn email đã gõ; state chỉ có email, không bao giờ có mật khẩu
+  const forgotState = { email: trimAsciiWhitespace(email) };
   const fieldErrors = failure?.kind === 'fields' ? failure.fields : {};
 
   useEffect(() => {
@@ -111,7 +116,8 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
       // Thành công thì `LoginPage` chuyển hướng theo vai trò, ở đây không làm gì thêm
       await login(email, matKhau);
     } catch (error) {
-      applyFailure(describeLoginError(error));
+      // Đã rời trang trong lúc chờ: không kéo người dùng sang màn nhập mã
+      if (active.current) applyFailure(describeLoginError(error));
     } finally {
       submitting.current = false;
       setPending(false);
@@ -135,7 +141,11 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
                     Tài khoản bị khóa tạm thời do nhập sai nhiều lần. Thử lại
                     sau <strong>{formatCountdown(remaining)}</strong>.{' '}
                   </span>
-                  <Link to={FORGOT_PASSWORD_PATH} className="underline">
+                  <Link
+                    to={FORGOT_PASSWORD_PATH}
+                    state={forgotState}
+                    className="underline"
+                  >
                     Quên mật khẩu?
                   </Link>
                 </span>
@@ -221,6 +231,7 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
               </label>
               <Link
                 to={FORGOT_PASSWORD_PATH}
+                state={forgotState}
                 className="text-xs text-brand-strong hover:underline"
               >
                 Quên mật khẩu?

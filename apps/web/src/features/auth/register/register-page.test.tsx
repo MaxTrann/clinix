@@ -454,3 +454,44 @@ describe('lỗi nghiệp vụ', () => {
     expect(screen.getByLabelText('Chữ số thứ 1 trong 6')).toBeDisabled();
   });
 });
+
+// Cho phản hồi đã trả và mọi `navigate` theo sau chạy hết (setTimeout thật, không bị đồng hồ giả chặn). Trang đích là route `lazy`:
+// nạp trước module của nó, nếu không lần nạp đầu chậm hơn vòng chờ và test xanh giả (đo ở RG-63)
+async function settle(router: { state: { navigation: { state: string } } }) {
+  await import('../verify/verify-email-page');
+  for (let i = 0; i < 10; i++) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+  await waitFor(() => expect(router.state.navigation.state).toBe('idle'));
+}
+
+// D13: rời trang khi đăng ký còn đang bay thì phản hồi về sau không được kéo người dùng sang màn nhập mã
+describe('rời trang khi đang gửi (D13)', () => {
+  it.each([
+    ['RG-63 201', 201, () => api.nextCode()],
+    [
+      'RG-64 503 GUI_MAIL_LOI',
+      503,
+      () => ({
+        maLoi: 'GUI_MAIL_LOI',
+        thongBao: 'CÂU CỦA API',
+        chiTiet: { maXacThucId: '7', coTheGuiLaiLuc: new Date().toISOString() },
+      }),
+    ],
+  ])(
+    '%s về sau khi đã sang Đăng nhập: vẫn ở Đăng nhập',
+    async (_name, status, body) => {
+      const respond = api.hold('/auth/register');
+      const router = await renderRegister();
+      submit();
+      await waitFor(() => expect(bodies).toHaveLength(1));
+      fireEvent.click(screen.getByRole('link', { name: 'Đăng nhập' }));
+      await screen.findByRole('heading', { name: 'Đăng nhập' });
+      respond(status, body());
+      await settle(router);
+      expect(router.state.location.pathname).toBe(LOGIN_PATH);
+    },
+  );
+});

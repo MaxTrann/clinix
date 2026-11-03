@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router';
 import { ALERT_BOX, FormAlert } from '../auth-form-parts';
 import { formatCountdown, useLockCountdown } from '../login/use-lock-countdown';
 import { LOGIN_PATH, VERIFY_EMAIL_PATH } from '../roles';
+import { usePageActive } from '../use-page-active';
 import { trimAsciiWhitespace } from '../validation/account-policy';
 import type { PendingVerification } from '../verify/verify-state';
 import {
@@ -49,6 +50,7 @@ export function RegisterForm({ prefill }: RegisterFormProps) {
   };
   // State chưa kịp render giữa hai lần gửi liên tiếp, nên chống gửi đúp bằng ref
   const submitting = useRef(false);
+  const active = usePageActive();
 
   // Mật khẩu chỉ ở đây, không vào `location.state`, lịch sử hay kho nào; rời trang là mất
   const [values, setValues] = useState<RegisterInput>({
@@ -138,6 +140,8 @@ export function RegisterForm({ prefill }: RegisterFormProps) {
     setFailure(null);
     try {
       const code = await registerAccount(values);
+      // Đã rời trang trong lúc chờ: không kéo người dùng sang màn nhập mã
+      if (!active.current) return;
       goToVerify({
         verifyId: code.maXacThucId,
         resendId: code.maXacThucId,
@@ -146,7 +150,7 @@ export function RegisterForm({ prefill }: RegisterFormProps) {
         notice: null,
       });
     } catch (error) {
-      applyFailure(describeRegisterError(error));
+      if (active.current) applyFailure(describeRegisterError(error));
     } finally {
       submitting.current = false;
       setPending(false);

@@ -367,6 +367,37 @@ describe('đếm ngược', () => {
     expect(resendButton()).toHaveAccessibleName('Gửi lại mã');
   });
 
+  it('OT-102 tải lại trước mốc Gửi lại: nút khoá theo coTheGuiLaiLuc', async () => {
+    fakeClock();
+    vi.setSystemTime(AT + 20_000);
+    await renderVerify(pending({ fresh: false }));
+    expect(resendButton()).toBeDisabled();
+    expect(resendButton()).toHaveTextContent('Gửi lại sau 40s');
+  });
+
+  it('OT-103 tải lại khi đồng hồ máy chậm 1 giờ: kẹp ở 10:00', async () => {
+    fakeClock();
+    vi.setSystemTime(AT - 3_600_000);
+    await renderVerify(pending({ fresh: false }));
+    expect(screen.getByText('10:00')).toBeInTheDocument();
+  });
+
+  it('OT-104 hết hạn: không còn dòng "Mã hết hạn sau"', async () => {
+    fakeClock();
+    await renderVerify();
+    await advance(600_500);
+    expect(screen.queryByText(/Mã hết hạn sau/)).toBeNull();
+  });
+
+  it('OT-105 chưa có mã (503 lúc đăng ký): không hiện dòng hạn mã', async () => {
+    fakeClock();
+    await renderVerify(
+      pending({ verifyId: null, resendId: '77', hetHanLuc: null }),
+    );
+    expect(screen.queryByText(/Mã hết hạn sau/)).toBeNull();
+    expect(screen.queryByText(/Mã có hiệu lực/)).toBeNull();
+  });
+
   it('OT-76 rời trang: dọn hết hẹn giờ', async () => {
     fakeClock();
     await renderVerify();
@@ -607,4 +638,85 @@ describe('quay lại', () => {
     );
     expect(screen.getByLabelText<HTMLInputElement>('Mật khẩu').value).toBe('');
   });
+});
+
+// Cho phản hồi đã trả và mọi `navigate` theo sau chạy hết (setTimeout thật, không bị đồng hồ giả chặn). Trang đích là route `lazy`:
+// nạp trước module của nó, nếu không lần nạp đầu chậm hơn vòng chờ và test xanh giả (đo ở RG-63)
+async function settle(router: { state: { navigation: { state: string } } }) {
+  await import('../verify/verify-email-page');
+  for (let i = 0; i < 10; i++) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+  await waitFor(() => expect(router.state.navigation.state).toBe('idle'));
+}
+
+// D13: rời trang khi xác minh hoặc gửi lại còn đang bay thì phản hồi về sau không được đổi trang hay state
+describe('rời trang khi đang gửi (D13)', () => {
+  const draft = { hoTen: 'Tên', email: 'a@b.vn', soDienThoai: '0901234567' };
+  const leave = async () => {
+    fireEvent.click(screen.getByRole('link', { name: '← Quay lại đăng ký' }));
+    await screen.findByRole('heading', { name: 'Tạo tài khoản' });
+  };
+
+  it('OT-97 xác minh 200 về sau khi đã sang Đăng ký: vẫn ở Đăng ký, state không đổi', async () => {
+    const respond = api.hold(VERIFY);
+    const router = await renderVerify();
+    typeCode();
+    fireEvent.click(verifyButton());
+    await waitFor(() => expect(verifyBodies).toHaveLength(1));
+    await leave();
+    respond(200, { daXacMinh: true });
+    await settle(router);
+    expect(router.state.location.pathname).toBe(REGISTER_PATH);
+    expect(router.state.location.state).toStrictEqual(draft);
+  });
+
+  it('OT-101 xác minh CAN_DANG_KY_LAI về sau khi đã sang Đăng ký: state không bị thay bằng câu thông báo', async () => {
+    const respond = api.hold(VERIFY);
+    const router = await renderVerify();
+    typeCode();
+    fireEvent.click(verifyButton());
+    await waitFor(() => expect(verifyBodies).toHaveLength(1));
+    await leave();
+    respond(409, { maLoi: 'CAN_DANG_KY_LAI', thongBao: 'CÂU CỦA API' });
+    await settle(router);
+    expect(router.state.location.state).toStrictEqual(draft);
+    expect(router.state.historyAction).toBe('PUSH');
+  });
+
+  it.each([
+    ['OT-98 201', 201, () => api.nextCode()],
+    [
+      'OT-99 503',
+      503,
+      () => ({
+        maLoi: 'GUI_MAIL_LOI',
+        thongBao: 'CÂU CỦA API',
+        chiTiet: { maXacThucId: '11', coTheGuiLaiLuc: iso(60) },
+      }),
+    ],
+    [
+      'OT-100 OTP_SAI',
+      400,
+      () => ({ maLoi: 'OTP_SAI', thongBao: 'CÂU CỦA API' }),
+    ],
+  ])(
+    '%s gửi lại về sau khi đã sang Đăng ký: vẫn ở Đăng ký, state không đổi',
+    async (_name, status, body) => {
+      fakeClock();
+      const respond = api.hold(RESEND);
+      const router = await renderVerify(
+        pending({ fresh: false, coTheGuiLaiLuc: iso(-1) }),
+      );
+      fireEvent.click(resendButton());
+      await waitFor(() => expect(resendBodies).toHaveLength(1));
+      await leave();
+      respond(status, body());
+      await settle(router);
+      expect(router.state.location.pathname).toBe(REGISTER_PATH);
+      expect(router.state.location.state).toStrictEqual(draft);
+    },
+  );
 });

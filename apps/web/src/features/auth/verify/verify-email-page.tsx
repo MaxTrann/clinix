@@ -1,7 +1,8 @@
-import { ArrowRight, CircleCheck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { AuthCard } from '../../../shared/ui/auth-card';
 import { LoadingState } from '../../../shared/ui/loading-state';
+import { PRIMARY_LINK, SuccessPanel } from '../auth-form-parts';
 import { useAuth } from '../auth-store';
 import { textFrom } from '../route-state';
 import { LOGIN_PATH, REGISTER_PATH, homePathFor } from '../roles';
@@ -15,26 +16,16 @@ function VerifySuccess({ email }: { email: string }) {
       title="Xác minh thành công"
       subtitle="Tài khoản của bạn đã sẵn sàng"
     >
-      <div className="py-4 text-center">
-        <span className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-green-100">
-          <CircleCheck className="size-8 text-success" aria-hidden="true" />
-        </span>
-        <p className="mb-2 font-medium text-gray-700">
-          Email đã được xác minh!
-        </p>
+      <SuccessPanel heading="Email đã được xác minh!">
         <p className="mb-6 text-sm text-gray-500">
           Email đã xác minh. Đăng nhập bằng email và mật khẩu đã chọn để đặt
           lịch.
         </p>
-        <Link
-          to={LOGIN_PATH}
-          state={{ email }}
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-strong px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-cyan-800"
-        >
+        <Link to={LOGIN_PATH} state={{ email }} className={PRIMARY_LINK}>
           Đăng nhập
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
-      </div>
+      </SuccessPanel>
     </AuthCard>
   );
 }

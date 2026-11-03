@@ -21,7 +21,12 @@ export function AuthCard({ title, subtitle, children }: AuthCardProps) {
             <span className="text-xl font-bold text-gray-900">CLINIX</span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-          {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
+          {/* `wrap-anywhere`: email dài không dấu cách trong phụ đề (màn nhập mã) làm trang cuộn ngang ở 320px, đo Chrome ở F4 (D14) */}
+          {subtitle && (
+            <p className="mt-1 text-sm text-gray-500 wrap-anywhere">
+              {subtitle}
+            </p>
+          )}
         </div>
         <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
           {children}
