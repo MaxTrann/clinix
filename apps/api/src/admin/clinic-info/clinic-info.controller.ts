@@ -7,19 +7,21 @@ import { UpdateClinicInfoDto } from './clinic-info.dto.js';
 import { ClinicInfoService } from './clinic-info.service.js';
 
 @Controller('admin/clinic-info')
+// Figma 629:2: Admin Chi nhánh được xem (chỉ đọc); chỉ Toàn hệ thống được sửa
 @Roles('QuanTriVien')
-@RequireAdminScope('ToanHeThong')
+@RequireAdminScope('Any')
 export class ClinicInfoController {
   constructor(
     @Inject(ClinicInfoService) private readonly clinicInfo: ClinicInfoService,
   ) {}
 
   @Get()
-  get(@AdminScopeCtx() scope: AdminScope) {
-    return this.clinicInfo.get(scope);
+  get() {
+    return this.clinicInfo.get();
   }
 
   @Put()
+  @RequireAdminScope('ToanHeThong')
   update(
     @AdminScopeCtx() scope: AdminScope,
     @Body() input: UpdateClinicInfoDto,

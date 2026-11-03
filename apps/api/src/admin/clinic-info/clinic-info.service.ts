@@ -38,8 +38,8 @@ export class ClinicInfoService {
     private readonly policy: BranchAccessPolicy,
   ) {}
 
-  async get(scope: AdminScope): Promise<ClinicInfoResponse> {
-    this.policy.assertToanHeThong(scope);
+  // Mọi Admin (cả phạm vi Chi nhánh) được đọc: đây là thông tin chung công khai của phòng khám
+  async get(): Promise<ClinicInfoResponse> {
     return toResponse(await this.clinicInfo.get());
   }
 
