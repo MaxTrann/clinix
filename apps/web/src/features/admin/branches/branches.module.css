@@ -19,22 +19,22 @@
 .searchBox {
   box-sizing: border-box;
   display: flex;
-  width: min(100%, 215px);
-  height: 30px;
-  flex: 0 1 215px;
+  width: min(100%, 300px);
+  height: 35.35px;
+  flex: 0 1 300px;
   align-items: center;
-  gap: 7px;
-  padding: 0 10px;
+  gap: 7.5px;
+  padding: 0 11.25px;
   border: 1px solid #e5e7eb;
-  border-radius: 9px;
+  border-radius: 13.375px;
   background: #fff;
   color: #6a7282;
 }
 
 .searchBox img {
   display: block;
-  width: 12px;
-  height: 12px;
+  width: 15px;
+  height: 15px;
   flex: 0 0 auto;
 }
 
@@ -47,7 +47,7 @@
   background: transparent;
   color: #101828;
   font: inherit;
-  font-size: 11px;
+  font-size: 13.125px;
 }
 
 .searchBox:focus-within {
@@ -57,7 +57,7 @@
 }
 
 .searchBox input::placeholder {
-  color: #99a1af;
+  color: rgb(15 23 42 / 50%);
 }
 
 .visuallyHidden {
@@ -74,18 +74,18 @@
 .submitButton {
   box-sizing: border-box;
   display: inline-flex;
-  min-height: 30px;
+  min-height: 33.75px;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 6px 11px;
+  gap: 7.5px;
+  padding: 7.5px 15px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 13.375px;
   background: #0092b8;
   color: #fff;
-  font-size: 11px;
+  font-size: 13.125px;
   font-weight: 500;
-  line-height: 15px;
+  line-height: 18.75px;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -118,18 +118,16 @@
   flex-direction: column;
   gap: 15px;
   margin-bottom: 15px;
-  padding: 20px;
-  border: 1px solid #e5e7eb;
-  border-radius: 13px;
-  background: #fff;
+  padding: 0;
+  border: 0;
 }
 
 .createForm h2 {
   margin: 0;
   color: #101828;
-  font-size: 15px;
+  font-size: 13.125px;
   font-weight: 600;
-  line-height: 21px;
+  line-height: 18.75px;
 }
 
 .formFields {
@@ -153,9 +151,9 @@
 .formLabel,
 .sectionLabel {
   color: #364153;
-  font-size: 11px;
+  font-size: 13.125px;
   font-weight: 500;
-  line-height: 16px;
+  line-height: 18.75px;
 }
 
 .formLabel span,
@@ -166,31 +164,31 @@
 .formField input {
   box-sizing: border-box;
   width: 100%;
-  height: 35px;
-  margin-top: 5px;
-  padding: 8px 10px;
+  height: 39.1px;
+  margin-top: 3.75px;
+  padding: 9.375px 11.25px;
   border: 1px solid #e5e7eb;
-  border-radius: 9px;
+  border-radius: 13.375px;
   outline: none;
   background: #fff;
   color: #0f172a;
   font: inherit;
-  font-size: 11px;
+  font-size: 13.125px;
 }
 
 .formFieldWide input {
   box-sizing: border-box;
   width: 100%;
-  height: 35px;
-  margin-top: 5px;
-  padding: 8px 10px;
+  height: 39.1px;
+  margin-top: 3.75px;
+  padding: 9.375px 11.25px;
   border: 1px solid #e5e7eb;
-  border-radius: 9px;
+  border-radius: 13.375px;
   outline: none;
   background: #fff;
   color: #0f172a;
   font: inherit;
-  font-size: 11px;
+  font-size: 13.125px;
 }
 
 .formField input:focus-visible,
@@ -264,9 +262,9 @@
   width: 48px;
   flex: 0 0 auto;
   color: #364153;
-  font-size: 11px;
+  font-size: 13.125px;
   font-weight: 500;
-  line-height: 16px;
+  line-height: 18.75px;
 }
 
 .openToggle,
@@ -282,13 +280,13 @@
 
 .openToggle {
   color: #007595;
-  font-size: 10px;
+  font-size: 11.25px;
   font-weight: 500;
 }
 
 .closedToggle {
   color: #99a1af;
-  font-size: 10px;
+  font-size: 11.25px;
 }
 
 .checkbox {
@@ -337,7 +335,7 @@
 
 .periodToggle {
   color: #4a5565;
-  font-size: 10px;
+  font-size: 11.25px;
   white-space: nowrap;
 }
 
@@ -358,7 +356,7 @@
 .timeRange input {
   box-sizing: border-box;
   width: 106px;
-  height: 27px;
+  height: 30px;
   min-width: 0;
   padding: 4px 7px;
   border: 1px solid #e5e7eb;
@@ -367,12 +365,12 @@
   background: #fff;
   color: #0f172a;
   font: inherit;
-  font-size: 10px;
+  font-size: 11.25px;
 }
 
 .noReception {
   color: #99a1af;
-  font-size: 10px;
+  font-size: 11.25px;
   font-style: italic;
 }
 
@@ -390,8 +388,8 @@
   padding: 4px 6px;
   border-radius: 8px;
   color: #364153;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 13.125px;
+  line-height: 18.75px;
 }
 
 .serviceOption:hover {
@@ -407,8 +405,8 @@
   margin: 0;
   padding: 10px;
   color: #6a7282;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 13.125px;
+  line-height: 18.75px;
 }
 
 .formActions {
@@ -420,14 +418,14 @@
 .cancelButton,
 .pagination button {
   box-sizing: border-box;
-  min-height: 30px;
-  padding: 6px 11px;
+  min-height: 33.75px;
+  padding: 7.5px 15px;
   border: 1px solid #e5e7eb;
-  border-radius: 9px;
+  border-radius: 13.375px;
   background: #fff;
   color: #364153;
   font: inherit;
-  font-size: 11px;
+  font-size: 13.125px;
   cursor: pointer;
 }
 
@@ -473,7 +471,7 @@
 .branchCards {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 15px;
 }
 
 .branchCard {
@@ -481,10 +479,32 @@
   display: flex;
   min-width: 0;
   align-items: center;
-  padding: 14px 16px;
+  gap: 15px;
+  padding: 18.75px;
   border: 1px solid #e5e7eb;
-  border-radius: 11px;
+  border-radius: 13.375px;
   background: #fff;
+}
+
+.editButton {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5.625px;
+  padding: 5.625px 11.25px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9.375px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 11.25px;
+  font-weight: 500;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+.editButton:disabled {
+  cursor: default;
 }
 
 .branchCardMain {
@@ -497,16 +517,16 @@
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 7.5px;
 }
 
 .branchTitleRow h3 {
   overflow: hidden;
   margin: 0;
   color: #101828;
-  font-size: 11px;
+  font-size: 13.125px;
   font-weight: 600;
-  line-height: 16px;
+  line-height: 18.75px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -514,47 +534,47 @@
 .serviceCount,
 .openRequestBadge {
   display: inline-flex;
-  min-height: 17px;
+  min-height: 20.35px;
   align-items: center;
-  padding: 1px 7px;
+  padding: 1.875px 7.5px;
   border: 1px solid #cefafe;
   border-radius: 999px;
   background: #ecfeff;
   color: #007595;
-  font-size: 9px;
-  line-height: 13px;
+  font-size: 11px;
+  line-height: 16.5px;
   white-space: nowrap;
 }
 
 .openRequestBadge {
-  border-color: #fedf89;
-  background: #fffaeb;
-  color: #b54708;
+  border-color: #fee685;
+  background: #fffbeb;
+  color: #bb4d00;
 }
 
 .branchDetails {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(130px, 0.8fr) minmax(220px, 2fr) auto;
+  grid-template-columns: max-content minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px 12px;
-  margin-top: 5px;
+  gap: 3.75px 15px;
+  margin-top: 5.625px;
 }
 
 .branchDetail {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 4px;
+  gap: 3.75px;
   color: #6a7282;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: 11.25px;
+  line-height: 15px;
 }
 
 .branchDetail img {
   display: block;
-  width: 11px;
-  height: 11px;
+  width: 11.25px;
+  height: 11.25px;
   flex: 0 0 auto;
 }
 
@@ -566,8 +586,8 @@
 
 .coordinates {
   color: #99a1af;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: 11.25px;
+  line-height: 15px;
   white-space: nowrap;
 }
 

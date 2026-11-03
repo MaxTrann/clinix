@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import type { AdminMe } from '../admin-me';
 import { AdminMeProvider } from '../admin-me-context';
 import { ClinicInfoPage } from './clinic-info-page';
 import type { ClinicInfo } from './clinic-info-types';
@@ -20,6 +21,14 @@ function clinicInfo(overrides: Partial<ClinicInfo> = {}): ClinicInfo {
   };
 }
 
+function renderPage(scope: AdminMe = { phamVi: 'ToanHeThong' }) {
+  return render(
+    <AdminMeProvider value={scope}>
+      <ClinicInfoPage />
+    </AdminMeProvider>,
+  );
+}
+
 const fetchMock = vi.fn<typeof fetch>();
 
 beforeEach(() => {
@@ -32,9 +41,29 @@ afterEach(() => {
 });
 
 describe('ClinicInfoPage (F4)', () => {
+  it('AF4-07 Admin Chi nhánh xem chỉ đọc: ô nhập khóa, không có nút lưu (Figma 629:2)', async () => {
+    fetchMock.mockResolvedValueOnce(response(clinicInfo()));
+    renderPage({
+      phamVi: 'ChiNhanh',
+      chiNhanh: { id: '1', ten: 'Chi nhánh Quận 3' },
+    });
+
+    const brand = await screen.findByLabelText(/Tên thương hiệu/);
+    expect(brand).toHaveValue('CLINIX Clinic');
+    expect(brand).toBeDisabled();
+    expect(screen.getByLabelText(/Email liên hệ chung/)).toBeDisabled();
+    expect(
+      screen.getByText(/chỉ Admin Toàn hệ thống có thể chỉnh sửa/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Lưu thông tin chung/ }),
+    ).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('AF4-02 tải bốn giá trị từ B4 và hiển thị các tab theo Figma', async () => {
     fetchMock.mockResolvedValueOnce(response(clinicInfo()));
-    render(<ClinicInfoPage />);
+    renderPage();
 
     expect(await screen.findByLabelText(/Tên thương hiệu/)).toHaveValue(
       'CLINIX Clinic',
@@ -88,7 +117,7 @@ describe('ClinicInfoPage (F4)', () => {
         email: null,
       }),
     );
-    render(<ClinicInfoPage />);
+    renderPage();
 
     expect(await screen.findByLabelText(/Tên thương hiệu/)).toHaveValue('');
     expect(screen.getByLabelText(/Địa chỉ trụ sở chính/)).toHaveValue('');
@@ -98,13 +127,15 @@ describe('ClinicInfoPage (F4)', () => {
 
   it('AF4-03 chặn hotline sai định dạng trước khi gửi PUT', async () => {
     fetchMock.mockResolvedValueOnce(response(clinicInfo()));
-    render(<ClinicInfoPage />);
+    renderPage();
     await screen.findByLabelText(/Tên thương hiệu/);
 
     fireEvent.change(screen.getByLabelText(/Đường dây nóng/), {
       target: { value: '12345' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thông tin chung' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Lưu thông tin chung' }),
+    );
 
     expect(
       await screen.findByText('Đường dây nóng không đúng định dạng.'),
@@ -117,13 +148,15 @@ describe('ClinicInfoPage (F4)', () => {
     fetchMock
       .mockResolvedValueOnce(response(current))
       .mockResolvedValueOnce(response({ ...current, tenThuongHieu: 'CLINIX' }));
-    render(<ClinicInfoPage />);
+    renderPage();
     await screen.findByDisplayValue('CLINIX Clinic');
 
     fireEvent.change(screen.getByLabelText(/Tên thương hiệu/), {
       target: { value: 'CLINIX' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thông tin chung' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Lưu thông tin chung' }),
+    );
 
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Đã lưu thông tin chung.',
@@ -141,27 +174,27 @@ describe('ClinicInfoPage (F4)', () => {
 
   it('AF4-05 gắn lỗi DTO vào đúng trường và giữ nguyên nội dung khi API từ chối', async () => {
     const current = clinicInfo();
-    fetchMock
-      .mockResolvedValueOnce(response(current))
-      .mockResolvedValueOnce(
-        response(
-          {
-            maLoi: 'DU_LIEU_KHONG_HOP_LE',
-            thongBao: 'Dữ liệu không hợp lệ.',
-            loi: [
-              {
-                truong: 'duongDayNong',
-                ma: 'DUONG_DAY_NONG_KHONG_HOP_LE',
-              },
-            ],
-          },
-          400,
-        ),
-      );
-    render(<ClinicInfoPage />);
+    fetchMock.mockResolvedValueOnce(response(current)).mockResolvedValueOnce(
+      response(
+        {
+          maLoi: 'DU_LIEU_KHONG_HOP_LE',
+          thongBao: 'Dữ liệu không hợp lệ.',
+          loi: [
+            {
+              truong: 'duongDayNong',
+              ma: 'DUONG_DAY_NONG_KHONG_HOP_LE',
+            },
+          ],
+        },
+        400,
+      ),
+    );
+    renderPage();
     await screen.findByDisplayValue('CLINIX Clinic');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thông tin chung' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Lưu thông tin chung' }),
+    );
 
     expect(
       await screen.findByText('Đường dây nóng không đúng định dạng.'),
@@ -175,27 +208,25 @@ describe('ClinicInfoPage (F4)', () => {
 
   it('AF4-05 gắn mã lỗi email từ B4 vào trường email', async () => {
     const current = clinicInfo();
-    fetchMock
-      .mockResolvedValueOnce(response(current))
-      .mockResolvedValueOnce(
-        response(
-          {
-            maLoi: 'DU_LIEU_KHONG_HOP_LE',
-            thongBao: 'Dữ liệu không hợp lệ.',
-            loi: [{ truong: 'email', ma: 'EMAIL_KHONG_HOP_LE' }],
-          },
-          400,
-        ),
-      );
-    render(<ClinicInfoPage />);
+    fetchMock.mockResolvedValueOnce(response(current)).mockResolvedValueOnce(
+      response(
+        {
+          maLoi: 'DU_LIEU_KHONG_HOP_LE',
+          thongBao: 'Dữ liệu không hợp lệ.',
+          loi: [{ truong: 'email', ma: 'EMAIL_KHONG_HOP_LE' }],
+        },
+        400,
+      ),
+    );
+    renderPage();
     await screen.findByDisplayValue('CLINIX Clinic');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thông tin chung' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Lưu thông tin chung' }),
+    );
 
     expect(
-      await screen.findByText(
-        'Email liên hệ chung không đúng định dạng.',
-      ),
+      await screen.findByText('Email liên hệ chung không đúng định dạng.'),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/Email liên hệ chung/)).toHaveValue(
       current.email,
@@ -208,12 +239,16 @@ describe('ClinicInfoPage (F4)', () => {
         response({ maLoi: 'LOI_HE_THONG', thongBao: 'Lỗi máy chủ.' }, 503),
       )
       .mockResolvedValueOnce(response(clinicInfo()));
-    render(<ClinicInfoPage />);
+    renderPage();
 
-    expect(await screen.findByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Thử lại' }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 
-    expect(await screen.findByDisplayValue('CLINIX Clinic')).toBeInTheDocument();
+    expect(
+      await screen.findByDisplayValue('CLINIX Clinic'),
+    ).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -221,10 +256,12 @@ describe('ClinicInfoPage (F4)', () => {
     fetchMock
       .mockResolvedValueOnce(response(clinicInfo()))
       .mockRejectedValueOnce(new Error('connection lost'));
-    render(<ClinicInfoPage />);
+    renderPage();
     await screen.findByDisplayValue('CLINIX Clinic');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thông tin chung' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Lưu thông tin chung' }),
+    );
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Không có kết nối mạng. Vui lòng kiểm tra và thử lại.',
@@ -235,15 +272,13 @@ describe('ClinicInfoPage (F4)', () => {
   it('AF4-06 khóa nút trong lúc PUT đang chờ và không gửi lần hai', async () => {
     const current = clinicInfo();
     let finishSave!: (value: Response) => void;
-    fetchMock
-      .mockResolvedValueOnce(response(current))
-      .mockImplementationOnce(
-        () =>
-          new Promise<Response>((resolve) => {
-            finishSave = resolve;
-          }),
-      );
-    render(<ClinicInfoPage />);
+    fetchMock.mockResolvedValueOnce(response(current)).mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    renderPage();
     await screen.findByDisplayValue('CLINIX Clinic');
 
     const saveButton = screen.getByRole('button', {

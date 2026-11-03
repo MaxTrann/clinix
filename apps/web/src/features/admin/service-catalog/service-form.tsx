@@ -1,5 +1,4 @@
 import { useId, useState, type FormEvent } from 'react';
-import { Check, X } from 'lucide-react';
 import type { FormFeedback } from './catalog-errors';
 import type {
   ServiceCatalogItem,
@@ -32,7 +31,7 @@ export function ServiceForm({
   );
   const [price, setPrice] = useState(service?.giaMacDinh ?? '');
   const fieldClass =
-    'mt-1.5 block w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:bg-surface-muted';
+    'mt-[3.75px] block min-h-[39.1px] w-full rounded-[13.375px] border border-[#e5e7eb] bg-white px-[11.25px] py-[9.375px] text-[13.125px] font-normal text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:bg-surface-muted';
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,33 +55,23 @@ export function ServiceForm({
 
   return (
     <form
-      className="rounded-xl border border-border bg-white p-5 shadow-sm"
+      className={
+        service
+          ? 'bg-white px-[15px] pb-[15px]' // Figma 565:2: form sửa nằm phẳng trong hàng bảng
+          : 'rounded-[13.375px] border border-[#e5e7eb] bg-white p-[18.75px]'
+      }
       onSubmit={submit}
       aria-label={service ? 'Chỉnh sửa dịch vụ khám' : 'Thêm dịch vụ khám'}
       data-testid="AF3-service-form"
     >
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-base font-semibold text-text-primary">
-            {service ? 'Chỉnh sửa dịch vụ khám' : 'Thêm dịch vụ khám mới'}
-          </h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            Nhập các thông tin theo danh mục dịch vụ hiện có.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="rounded-md p-1.5 text-text-muted hover:bg-surface-muted hover:text-text-primary focus-visible:outline-2 focus-visible:outline-brand"
-          aria-label="Đóng biểu mẫu"
-          onClick={onCancel}
-          disabled={pending}
-        >
-          <X size={18} aria-hidden="true" />
-        </button>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      {!service && (
+        <h2 className="mb-[15px] text-[13.125px] font-semibold text-text-primary">
+          Thêm dịch vụ khám mới
+        </h2>
+      )}
+      <div className="grid gap-[15px] sm:grid-cols-2">
         <label
-          className="text-sm font-medium text-text-primary sm:col-span-2"
+          className="text-[11.25px] font-medium text-[#364153] sm:col-span-2"
           htmlFor={`${id}-name`}
         >
           Tên dịch vụ{' '}
@@ -106,14 +95,14 @@ export function ServiceForm({
           {feedback?.fields.ten && (
             <span
               id={`${id}-name-error`}
-              className="mt-1 block text-xs font-normal text-danger"
+              className="mt-1 block text-[11.25px] font-normal text-danger"
             >
               {feedback.fields.ten}
             </span>
           )}
         </label>
         <label
-          className="text-sm font-medium text-text-primary"
+          className="text-[11.25px] font-medium text-[#364153]"
           htmlFor={`${id}-group`}
         >
           Nhóm dịch vụ{' '}
@@ -142,21 +131,21 @@ export function ServiceForm({
             ))}
           </select>
           {groups.length === 0 && !feedback?.fields.nhomDichVuId && (
-            <span className="mt-1 block text-xs font-normal text-text-muted">
+            <span className="mt-1 block text-[11.25px] font-normal text-[#99a1af]">
               Chưa có nhóm dịch vụ để chọn.
             </span>
           )}
           {feedback?.fields.nhomDichVuId && (
             <span
               id={`${id}-group-error`}
-              className="mt-1 block text-xs font-normal text-danger"
+              className="mt-1 block text-[11.25px] font-normal text-danger"
             >
               {feedback.fields.nhomDichVuId}
             </span>
           )}
         </label>
         <label
-          className="text-sm font-medium text-text-primary"
+          className="text-[11.25px] font-medium text-[#364153]"
           htmlFor={`${id}-duration`}
         >
           Thời lượng (phút){' '}
@@ -182,14 +171,14 @@ export function ServiceForm({
           {feedback?.fields.thoiLuong && (
             <span
               id={`${id}-duration-error`}
-              className="mt-1 block text-xs font-normal text-danger"
+              className="mt-1 block text-[11.25px] font-normal text-danger"
             >
               {feedback.fields.thoiLuong}
             </span>
           )}
         </label>
         <label
-          className="text-sm font-medium text-text-primary sm:col-span-2"
+          className="text-[11.25px] font-medium text-[#364153]"
           htmlFor={`${id}-price`}
         >
           Giá mặc định (VND){' '}
@@ -215,14 +204,14 @@ export function ServiceForm({
           {feedback?.fields.giaMacDinh ? (
             <span
               id={`${id}-price-error`}
-              className="mt-1 block text-xs font-normal text-danger"
+              className="mt-1 block text-[11.25px] font-normal text-danger"
             >
               {feedback.fields.giaMacDinh}
             </span>
           ) : (
             <span
               id={`${id}-price-help`}
-              className="mt-1 block text-xs font-normal text-text-muted"
+              className="mt-1 block text-[11.25px] font-normal text-[#99a1af]"
             >
               Dùng dấu chấm cho phần thập phân, ví dụ 100000.00.
             </span>
@@ -237,10 +226,10 @@ export function ServiceForm({
           {feedback.message}
         </p>
       )}
-      <div className="mt-5 flex flex-wrap justify-end gap-2">
+      <div className="mt-[18.75px] flex flex-wrap justify-end gap-[11.25px]">
         <button
           type="button"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-60"
+          className="rounded-[13.375px] border border-[#e5e7eb] px-[15px] py-[7.5px] text-[13.125px] font-medium text-[#4a5565] hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-60"
           onClick={onCancel}
           disabled={pending}
         >
@@ -248,10 +237,15 @@ export function ServiceForm({
         </button>
         <button
           type="submit"
-          className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60"
+          className="inline-flex items-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60"
           disabled={pending || groups.length === 0 || !name.trim()}
         >
-          <Check size={16} aria-hidden="true" />
+          <img
+            src="/assets/admin/branches/save.svg"
+            alt=""
+            width={15}
+            height={15}
+          />
           {pending ? 'Đang lưu…' : 'Lưu dịch vụ'}
         </button>
       </div>

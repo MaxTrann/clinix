@@ -16,7 +16,7 @@ export function AdminHeader({ onLogout, logoutPending }: AdminHeaderProps) {
         aria-label="Thông báo"
         title="Thông báo"
       >
-        <img src="/assets/admin/notification.svg" alt="" />
+        <img src="/assets/admin/header-notification.svg" alt="" />
       </button>
       <button
         className={styles.headerLogout}
@@ -24,7 +24,7 @@ export function AdminHeader({ onLogout, logoutPending }: AdminHeaderProps) {
         disabled={logoutPending}
         onClick={onLogout}
       >
-        <img src="/assets/admin/logout.svg" alt="" />
+        <img src="/assets/admin/header-logout.svg" alt="" />
         <span>Đăng xuất</span>
       </button>
     </header>

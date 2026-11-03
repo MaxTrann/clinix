@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, cleanup } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { AdminMeProvider } from './admin-me-context';
@@ -58,8 +58,12 @@ describe('Admin F1 shell', () => {
 
     expect(await screen.findByText('Trung VQ')).toBeInTheDocument();
     expect(screen.getByText('Quản trị viên')).toBeInTheDocument();
-    expect(screen.getByRole('main', { name: 'Khu vực Admin' })).toBeInTheDocument();
-    expect(screen.queryByText(/lịch hẹn hôm nay|doanh thu|tổng bệnh nhân/i)).toBeNull();
+    expect(
+      screen.getByRole('main', { name: 'Khu vực Admin' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/lịch hẹn hôm nay|doanh thu|tổng bệnh nhân/i),
+    ).toBeNull();
   });
 
   it('AF1-02 lấy nhãn chi nhánh từ GET /admin/me', async () => {
@@ -79,6 +83,37 @@ describe('Admin F1 shell', () => {
     expect(screen.queryByText(/forged/)).toBeNull();
   });
 
+  it('AF1-02 menu ẩn mục chỉ dành cho Toàn hệ thống với Admin Chi nhánh (Figma 628:2)', async () => {
+    const systemOnlyItems = [
+      'Đặt cọc & Hoàn tiền',
+      'Email Preview',
+      'Phụ phí bác sĩ',
+      'Cài đặt hệ thống',
+    ];
+    await signIn();
+    api.failNext('/admin/me', () =>
+      response({
+        phamVi: 'ChiNhanh',
+        chiNhanh: { id: 'branch-1', ten: 'Phòng khám Quận 1' },
+      }),
+    );
+
+    renderAdmin();
+    expect(await screen.findByText('Bác sĩ')).toBeInTheDocument();
+    for (const label of systemOnlyItems) {
+      expect(screen.queryByText(label)).toBeNull();
+    }
+    expect(screen.getByText('Nhật ký hành động')).toBeInTheDocument();
+    cleanup();
+
+    api.failNext('/admin/me', () => response({ phamVi: 'ToanHeThong' }));
+    renderAdmin();
+    expect(await screen.findByText('Cài đặt hệ thống')).toBeInTheDocument();
+    for (const label of systemOnlyItems) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+  });
+
   it('AF1-03 loading che shell; 403 hiện trang Không đủ quyền', async () => {
     await signIn();
     let finishRequest!: (value: Response) => void;
@@ -89,7 +124,9 @@ describe('Admin F1 shell', () => {
     renderAdmin();
 
     expect(screen.getByRole('status')).toHaveTextContent('Đang tải phạm vi');
-    expect(screen.queryByRole('navigation', { name: 'Điều hướng Admin' })).toBeNull();
+    expect(
+      screen.queryByRole('navigation', { name: 'Điều hướng Admin' }),
+    ).toBeNull();
 
     finishRequest(apiError(403, 'KHONG_DU_QUYEN'));
     expect(
@@ -108,7 +145,9 @@ describe('Admin F1 shell', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
 
-    expect(await screen.findByRole('navigation', { name: 'Điều hướng Admin' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('navigation', { name: 'Điều hướng Admin' }),
+    ).toBeInTheDocument();
   });
 
   it('AF1-05 giữ auth gate và placeholder của vai trò khác', async () => {
@@ -126,7 +165,9 @@ describe('Admin F1 shell', () => {
     expect(
       await screen.findByRole('heading', { name: 'Không tìm thấy trang' }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Điều hướng Admin' })).toBeNull();
+    expect(
+      screen.queryByRole('navigation', { name: 'Điều hướng Admin' }),
+    ).toBeNull();
   });
 
   it('AF1-05 khách mở /admin được chuyển về đăng nhập', async () => {
@@ -147,17 +188,17 @@ describe('Admin F1 shell', () => {
     const navigation = await screen.findByRole('navigation', {
       name: 'Điều hướng Admin',
     });
-    expect(
-      screen.getByRole('link', { name: 'Tổng quan' }),
-    ).toHaveAttribute('href', '/admin');
+    expect(screen.getByRole('link', { name: 'Tổng quan' })).toHaveAttribute(
+      'href',
+      '/admin',
+    );
     expect(screen.getByRole('link', { name: 'Chuyên khoa' })).toHaveAttribute(
       'href',
       '/admin/chuyen-khoa',
     );
-    expect(screen.getByRole('link', { name: 'Loại dịch vụ khám' })).toHaveAttribute(
-      'href',
-      '/admin/dich-vu-kham',
-    );
+    expect(
+      screen.getByRole('link', { name: 'Loại dịch vụ khám' }),
+    ).toHaveAttribute('href', '/admin/dich-vu-kham');
     expect(
       screen.getByRole('link', { name: 'Thông tin phòng khám' }),
     ).toHaveAttribute('href', '/admin/thong-tin-phong-kham');
@@ -192,7 +233,7 @@ describe('Admin F1 shell', () => {
     );
   });
 
-  it('AF4-01 từ chối Admin Chi nhánh trước khi tải thông tin phòng khám', async () => {
+  it('AF4-01 Admin Chi nhánh vào được route F4 và xem chỉ đọc', async () => {
     await signIn();
     api.failNext('/admin/me', () =>
       response({
@@ -200,13 +241,21 @@ describe('Admin F1 shell', () => {
         chiNhanh: { id: 'branch-1', ten: 'Phòng khám Quận 1' },
       }),
     );
+    api.failNext('/admin/clinic-info', () =>
+      response({
+        tenThuongHieu: 'CLINIX Clinic',
+        diaChiTruSo: '123 Nguyễn Thị Minh Khai',
+        duongDayNong: '1900 1234',
+        email: 'contact@clinix.vn',
+      }),
+    );
 
     renderAdmin('/admin/thong-tin-phong-kham');
 
+    expect(await screen.findByLabelText(/Tên thương hiệu/)).toBeDisabled();
     expect(
-      await screen.findByRole('heading', { name: 'Không đủ quyền truy cập' }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('form', { name: 'Thông tin chung' })).toBeNull();
+      screen.queryByRole('heading', { name: 'Không đủ quyền truy cập' }),
+    ).toBeNull();
   });
 });
 

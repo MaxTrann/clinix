@@ -1,5 +1,4 @@
 import { useId, useState, type FormEvent } from 'react';
-import { Check, X } from 'lucide-react';
 import type { FormFeedback } from './catalog-errors';
 import type { ServiceGroup, ServiceGroupInput } from './service-catalog-types';
 
@@ -31,37 +30,27 @@ export function ServiceGroupForm({
   }
 
   const fieldClass =
-    'mt-1.5 block w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:bg-surface-muted';
+    'mt-[3.75px] block min-h-[39.1px] w-full rounded-[13.375px] border border-[#e5e7eb] bg-white px-[11.25px] py-[9.375px] text-[13.125px] font-normal text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:bg-surface-muted';
 
   return (
     <form
-      className="rounded-xl border border-border bg-white p-5 shadow-sm"
+      className={
+        group
+          ? 'bg-white px-[15px] pb-[15px]' // Figma 562:2: form sửa nằm phẳng trong hàng bảng
+          : 'rounded-[13.375px] border border-[#e5e7eb] bg-white p-[18.75px]'
+      }
       onSubmit={submit}
       aria-label={group ? 'Chỉnh sửa nhóm dịch vụ' : 'Thêm nhóm dịch vụ'}
       data-testid="AF3-group-form"
     >
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-base font-semibold text-text-primary">
-            {group ? 'Chỉnh sửa nhóm dịch vụ' : 'Thêm nhóm dịch vụ mới'}
-          </h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            Nhóm dịch vụ dùng chung toàn hệ thống.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="rounded-md p-1.5 text-text-muted hover:bg-surface-muted hover:text-text-primary focus-visible:outline-2 focus-visible:outline-brand"
-          aria-label="Đóng biểu mẫu"
-          onClick={onCancel}
-          disabled={pending}
-        >
-          <X size={18} aria-hidden="true" />
-        </button>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(140px,1fr)]">
+      {!group && (
+        <h2 className="mb-[15px] text-[13.125px] font-semibold text-text-primary">
+          Thêm nhóm dịch vụ mới
+        </h2>
+      )}
+      <div className="grid gap-[15px]">
         <label
-          className="text-sm font-medium text-text-primary"
+          className="text-[11.25px] font-medium text-[#364153]"
           htmlFor={`${id}-name`}
         >
           Tên nhóm{' '}
@@ -85,14 +74,14 @@ export function ServiceGroupForm({
           {feedback?.fields.ten && (
             <span
               id={`${id}-name-error`}
-              className="mt-1 block text-xs font-normal text-danger"
+              className="mt-1 block text-[11.25px] font-normal text-danger"
             >
               {feedback.fields.ten}
             </span>
           )}
         </label>
         <label
-          className="text-sm font-medium text-text-primary"
+          className="max-w-[395px] text-[11.25px] font-medium text-[#364153]"
           htmlFor={`${id}-order`}
         >
           Thứ tự hiển thị
@@ -108,11 +97,11 @@ export function ServiceGroupForm({
             required
             aria-invalid={Boolean(feedback?.fields.thuTuHienThi)}
           />
-          <span className="mt-1 block text-xs font-normal text-text-muted">
+          <span className="mt-1 block text-[11.25px] font-normal text-[#99a1af]">
             Số nhỏ hơn hiển thị trước.
           </span>
           {feedback?.fields.thuTuHienThi && (
-            <span className="mt-1 block text-xs font-normal text-danger">
+            <span className="mt-1 block text-[11.25px] font-normal text-danger">
               {feedback.fields.thuTuHienThi}
             </span>
           )}
@@ -126,10 +115,10 @@ export function ServiceGroupForm({
           {feedback.message}
         </p>
       )}
-      <div className="mt-5 flex flex-wrap justify-end gap-2">
+      <div className="mt-[18.75px] flex flex-wrap justify-end gap-[11.25px]">
         <button
           type="button"
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-60"
+          className="rounded-[13.375px] border border-[#e5e7eb] px-[15px] py-[7.5px] text-[13.125px] font-medium text-[#4a5565] hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-60"
           onClick={onCancel}
           disabled={pending}
         >
@@ -137,10 +126,15 @@ export function ServiceGroupForm({
         </button>
         <button
           type="submit"
-          className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60"
+          className="inline-flex items-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60"
           disabled={pending || !name.trim()}
         >
-          <Check size={16} aria-hidden="true" />
+          <img
+            src="/assets/admin/branches/save.svg"
+            alt=""
+            width={15}
+            height={15}
+          />
           {pending ? 'Đang lưu…' : 'Lưu nhóm'}
         </button>
       </div>
