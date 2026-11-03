@@ -13,6 +13,8 @@ interface RegisterFieldInputProps extends InputHTMLAttributes<HTMLInputElement> 
   inputRef: RefObject<HTMLInputElement | null>;
   // Ô mật khẩu có nút hiện hoặc ẩn
   secret?: boolean;
+  // Cỡ nhỏ của khối "Đổi mật khẩu" trong trang hồ sơ (frame `416:366`, F5): nhãn 11,25px, ô cao 39,5px, biểu tượng 13,125px
+  compact?: boolean;
 }
 
 export function RegisterFieldInput({
@@ -22,9 +24,11 @@ export function RegisterFieldInput({
   hint,
   inputRef,
   secret,
+  compact,
   ...inputProps
 }: RegisterFieldInputProps) {
   const id = useId();
+  const iconSize = compact ? 'size-3.5' : 'size-4';
   const [shown, setShown] = useState(false);
   const noteId = error || hint ? `${id}-note` : undefined;
 
@@ -32,13 +36,15 @@ export function RegisterFieldInput({
     <div>
       <label
         htmlFor={id}
-        className="mb-1.5 block text-sm font-medium text-gray-600"
+        className={`block font-medium text-gray-600 ${
+          compact ? 'mb-1 text-xs' : 'mb-1.5 text-sm'
+        }`}
       >
         {label}
       </label>
       <div className="relative">
         <Icon
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400"
+          className={`pointer-events-none absolute top-1/2 left-3 ${iconSize} -translate-y-1/2 text-gray-400`}
           aria-hidden="true"
         />
         <input
@@ -49,9 +55,9 @@ export function RegisterFieldInput({
           required
           aria-invalid={error ? true : undefined}
           aria-describedby={noteId}
-          className={`w-full py-3 pl-10 ${secret ? 'pr-10' : 'pr-4'} ${
-            error ? 'border-danger' : ''
-          }`}
+          className={`w-full ${compact ? 'py-2.5 pl-9' : 'py-3 pl-10'} ${
+            secret ? (compact ? 'pr-9' : 'pr-10') : 'pr-4'
+          } ${error ? 'border-danger' : ''}`}
         />
         {secret && (
           <button
@@ -62,9 +68,9 @@ export function RegisterFieldInput({
             className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-500"
           >
             {shown ? (
-              <EyeOff className="size-4" aria-hidden="true" />
+              <EyeOff className={iconSize} aria-hidden="true" />
             ) : (
-              <Eye className="size-4" aria-hidden="true" />
+              <Eye className={iconSize} aria-hidden="true" />
             )}
           </button>
         )}
