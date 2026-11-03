@@ -3,17 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { FormAlert } from '../auth-form-parts';
 import { RegisterFieldInput } from '../register/register-field';
-import {
-  FIELD_MESSAGES,
-  PASSWORD_RULE_MESSAGE,
-} from '../register/register-errors';
+import { PASSWORD_RULE_MESSAGE } from '../register/register-errors';
 import { usePageActive } from '../use-page-active';
-import { checkPassword } from '../validation/password-policy';
-import {
-  describeResetError,
-  type PasswordFieldErrors,
-  type ResetFailure,
-} from './forgot-errors';
+import { validateNewPassword } from '../validation/new-password';
+import { describeResetError, type ResetFailure } from './forgot-errors';
 import { resetPassword, type ResetResult } from './forgot-service';
 
 interface PasswordStepProps {
@@ -22,17 +15,6 @@ interface PasswordStepProps {
   onDone: (result: ResetResult) => void;
   onBackToEmail: (notice: string) => void;
   onBackToCode: () => void;
-}
-
-// Kiểm ở biên bằng đúng quy tắc của API (Q11, N10); KHÔNG trim mật khẩu
-function validate(matKhauMoi: string, xacNhan: string): PasswordFieldErrors {
-  const errors: PasswordFieldErrors = {};
-  const issue = checkPassword(matKhauMoi);
-  if (issue) errors.matKhauMoi = FIELD_MESSAGES[issue];
-  if (xacNhan !== matKhauMoi) {
-    errors.xacNhan = FIELD_MESSAGES.XAC_NHAN_KHONG_KHOP;
-  }
-  return errors;
 }
 
 // Bước 3 (frame `651:2`): placeholder và câu quy tắc như F2 (Q11, N10), nút mắt cho cả hai ô
@@ -72,7 +54,8 @@ export function PasswordStep({
     event.preventDefault();
     if (submitting.current) return;
 
-    const errors = validate(matKhauMoi, xacNhan);
+    // Kiểm ở biên bằng đúng quy tắc của API (Q11, N10); KHÔNG trim mật khẩu. Hàm dùng chung với đổi mật khẩu (F5)
+    const errors = validateNewPassword(matKhauMoi, xacNhan);
     if (Object.keys(errors).length > 0) {
       setFailure({ kind: 'fields', fields: errors });
       return;

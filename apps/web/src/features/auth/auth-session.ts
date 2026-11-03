@@ -3,7 +3,11 @@ import {
   type ApiAuthHooks,
 } from '../../shared/api/auth-hooks';
 import { request } from '../../shared/api/client';
-import { ApiError } from '../../shared/api/errors';
+import {
+  ApiError,
+  RequestAbortedError,
+  TimeoutError,
+} from '../../shared/api/errors';
 import {
   getAccessToken,
   getAuthState,
@@ -20,11 +24,16 @@ const REFRESH_TIMEOUT_MS = 15_000;
 const SESSION_ENDED = 'PHIEN_HET_HIEU_LUC';
 const REFRESHABLE_CODES = new Set(['TOKEN_KHONG_HOP_LE', 'CHUA_DANG_NHAP']);
 const ORIGIN_REJECTED = 'ORIGIN_KHONG_HOP_LE';
-// 401 của các đường này không phải dấu hiệu access token hết hạn (TRACKING auth mục 5 điểm 14, 15, 16)
+const CHANGE_PASSWORD_PATH = '/auth/change-password';
+// Hook làm mới bỏ qua 401 của các đường này:
+// - login, refresh, logout: 401 của chúng không phải dấu hiệu access token hết hạn (TRACKING auth mục 5 điểm 14, 15, 16);
+// - change-password: chạy TRONG khoá refresh, mà hook làm mới lại xin chính khoá đó (Web Locks không vào lại được) nên sẽ kẹt
+//   tới hạn chờ khoá 30 giây. `changePassword()` tự phục hồi SAU KHI nhả khoá (TRACKING auth F5-B).
 const EXCLUDED_PATHS = new Set([
   '/auth/login',
   '/auth/refresh',
   '/auth/logout',
+  CHANGE_PASSWORD_PATH,
 ]);
 
 let refreshPromise: Promise<void> | null = null;
@@ -176,33 +185,107 @@ export function logout(): Promise<void> {
   return logoutPromise;
 }
 
+// Một 401 của request mang `sentToken`: true = đã có token mới, gửi lại được. Dùng chung cho hook của client và `changePassword()`.
+async function recoverSession(
+  error: ApiError,
+  sentToken: string | null,
+): Promise<boolean> {
+  // Token đã đổi so với lúc gửi: đã có lần làm mới hoặc đăng nhập xong, lỗi này thuộc token cũ
+  const current = getAccessToken();
+  if (current !== null && current !== sentToken) return true;
+
+  if (error.maLoi === SESSION_ENDED) {
+    clearSession(true);
+    return false;
+  }
+  if (!REFRESHABLE_CODES.has(error.maLoi)) return false;
+
+  try {
+    await refreshSession();
+    return true;
+  } catch (refreshError) {
+    // Mất mạng, timeout, 5xx, 403: không biết phiên ra sao nên giữ nguyên người dùng
+    if (refreshError instanceof ApiError && refreshError.status === 401) {
+      clearSession(true);
+    }
+    return false;
+  }
+}
+
+export interface ChangePasswordInput {
+  matKhauCu: string;
+  matKhauMoi: string;
+  xacNhan: string;
+}
+
+// Chờ khoá quá hạn: request CHƯA được gửi nên chắc chắn mật khẩu chưa đổi (khác TimeoutError của chính request: không rõ kết quả)
+export class ChangePasswordNotSentError extends Error {
+  constructor() {
+    super('Chưa gửi được yêu cầu đổi mật khẩu');
+    this.name = 'ChangePasswordNotSentError';
+  }
+}
+
+// Gửi MỘT lần dưới khoá refresh: refresh mang cookie cũ đang bay lúc đổi mật khẩu commit sẽ làm phiên bị thu hồi (TECH_DEBT dòng 48).
+// `onSend` nhận token mà lần gửi này mang, để phục hồi đúng như hook.
+async function sendChangePassword(
+  input: ChangePasswordInput,
+  started: number,
+  onSend?: (token: string | null) => void,
+): Promise<void> {
+  // Chỉ ba trường: tài khoản lấy từ access token, trường lạ bị API từ chối
+  const { matKhauCu, matKhauMoi, xacNhan } = input;
+  let sent = false;
+  try {
+    await withAuthLock(async () => {
+      // Đăng xuất đã bắt đầu hoặc phiên đã đổi trong lúc chờ khoá: không gửi mật khẩu nữa. Phải kiểm cả `logoutPromise`:
+      // logout nhả khoá TRƯỚC khi tăng `epoch`, nên request đang xếp hàng sau nó được cấp khoá khi `epoch` chưa đổi (CS-12).
+      if (started !== epoch || logoutPromise !== null) {
+        throw new RequestAbortedError();
+      }
+      sent = true;
+      onSend?.(getAccessToken());
+      await request(CHANGE_PASSWORD_PATH, {
+        method: 'POST',
+        json: { matKhauCu, matKhauMoi, xacNhan },
+      });
+    });
+  } catch (error) {
+    if (!sent && error instanceof TimeoutError) {
+      throw new ChangePasswordNotSentError();
+    }
+    throw error;
+  }
+}
+
+// Đổi mật khẩu (A13). Thành công: cookie refresh đã xoay, access token đang giữ vẫn dùng được, người dùng vẫn đăng nhập.
+// KHÔNG tự thử lại khi mất mạng hay hết hạn chờ (không biết mật khẩu đã đổi chưa). Chỉ 401 mới được gửi lại, đúng một lần:
+// 401 do guard trả trước khi máy chủ xử lý gì. Không nhận `signal`: huỷ request đang bay có thể làm mất Set-Cookie của lần xoay.
+export async function changePassword(
+  input: ChangePasswordInput,
+): Promise<void> {
+  const started = epoch;
+  let sentToken: string | null = null;
+  try {
+    await sendChangePassword(input, started, (token) => {
+      sentToken = token;
+    });
+    return;
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    // Phục hồi NGOÀI khoá: làm mới cần chính khoá này (F5-B)
+    if (!(await recoverSession(error, sentToken))) throw error;
+  }
+  await sendChangePassword(input, started);
+}
+
 const authHooks: ApiAuthHooks = {
   getAccessToken,
   getRequestSignal: () => sessionRequests.signal,
 
-  async recoverFromUnauthorized({ path, error, accessToken }) {
-    if (EXCLUDED_PATHS.has(normalizePath(path))) return false;
-
-    // Token đã đổi so với lúc gửi: đã có lần làm mới hoặc đăng nhập xong, lỗi này thuộc token cũ
-    const current = getAccessToken();
-    if (current !== null && current !== accessToken) return true;
-
-    if (error.maLoi === SESSION_ENDED) {
-      clearSession(true);
-      return false;
-    }
-    if (!REFRESHABLE_CODES.has(error.maLoi)) return false;
-
-    try {
-      await refreshSession();
-      return true;
-    } catch (refreshError) {
-      // Mất mạng, timeout, 5xx, 403: không biết phiên ra sao nên giữ nguyên người dùng
-      if (refreshError instanceof ApiError && refreshError.status === 401) {
-        clearSession(true);
-      }
-      return false;
-    }
+  recoverFromUnauthorized({ path, error, accessToken }) {
+    if (EXCLUDED_PATHS.has(normalizePath(path))) return Promise.resolve(false);
+    return recoverSession(error, accessToken);
   },
 };
 

@@ -183,6 +183,11 @@ export function createFakeAuthApi(
       }
       if (path === '/auth/me') return json(200, account);
       if (path === '/admin/me') return json(200, { phamVi: 'ToanHeThong' });
+      // Đổi mật khẩu (A13): xoay cookie của phiên hiện tại, access token giữ nguyên. Refresh mang cookie cũ về sau thì bị coi là dùng lại.
+      if (path === '/auth/change-password') {
+        api.cookie = (api.cookie ?? 0) + 1;
+        return json(200, { daDoiMatKhau: true });
+      }
       return json(200, { ok: true });
     },
   };
