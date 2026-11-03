@@ -15,6 +15,7 @@ import type {
   ClinicInfoInput,
 } from './clinic-info-types';
 import { useClinicInfo } from './use-clinic-info';
+import { BranchPage } from '../branches/branch-page';
 import styles from './clinic-info.module.css';
 
 function toInput(info: ClinicInfo): ClinicInfoInput {
@@ -276,8 +277,25 @@ function ClinicInfoForm({ info }: { info: ClinicInfo }) {
   );
 }
 
-export function ClinicInfoPage() {
+function GeneralInfoPanel() {
   const { state, retry } = useClinicInfo();
+
+  return (
+    <>
+      {state.status === 'loading' && (
+        <LoadingState message="Đang tải thông tin phòng khám…" />
+      )}
+      {state.status === 'error' && (
+        <ErrorState error={state.error} onRetry={retry} />
+      )}
+      {state.status === 'success' && <ClinicInfoForm info={state.data} />}
+    </>
+  );
+}
+
+export function ClinicInfoPage() {
+  const [activeTab, setActiveTab] = useState<'general' | 'branches'>('general');
+  const [branchesVisited, setBranchesVisited] = useState(false);
 
   return (
     <section className={styles.page} aria-labelledby="clinic-info-title">
@@ -286,12 +304,21 @@ export function ClinicInfoPage() {
         <p>Quản lý thông tin hệ thống và các chi nhánh CLINIX.</p>
       </header>
 
-      <div className={styles.tabs} role="tablist" aria-label="Thông tin phòng khám">
+      <div
+        className={styles.tabs}
+        role="tablist"
+        aria-label="Thông tin phòng khám"
+      >
         <button
           type="button"
-          className={styles.activeTab}
+          className={
+            activeTab === 'general' ? styles.activeTab : styles.inactiveTab
+          }
+          id="clinic-general-tab"
           role="tab"
-          aria-selected="true"
+          aria-selected={activeTab === 'general'}
+          aria-controls="clinic-general-panel"
+          onClick={() => setActiveTab('general')}
         >
           <img
             src="/assets/admin/clinic-info/tab-general.svg"
@@ -302,12 +329,17 @@ export function ClinicInfoPage() {
         </button>
         <button
           type="button"
-          className={styles.inactiveTab}
+          className={
+            activeTab === 'branches' ? styles.activeTab : styles.inactiveTab
+          }
+          id="clinic-branches-tab"
           role="tab"
-          aria-selected="false"
-          aria-disabled="true"
-          disabled
-          title="Chức năng đang được triển khai"
+          aria-selected={activeTab === 'branches'}
+          aria-controls="clinic-branches-panel"
+          onClick={() => {
+            setActiveTab('branches');
+            setBranchesVisited(true);
+          }}
         >
           <img
             src="/assets/admin/clinic-info/tab-branches.svg"
@@ -319,13 +351,22 @@ export function ClinicInfoPage() {
       </div>
 
       <div className={styles.content}>
-        {state.status === 'loading' && (
-          <LoadingState message="Đang tải thông tin phòng khám…" />
-        )}
-        {state.status === 'error' && (
-          <ErrorState error={state.error} onRetry={retry} />
-        )}
-        {state.status === 'success' && <ClinicInfoForm info={state.data} />}
+        <div
+          id="clinic-general-panel"
+          role="tabpanel"
+          aria-labelledby="clinic-general-tab"
+          hidden={activeTab !== 'general'}
+        >
+          <GeneralInfoPanel />
+        </div>
+        <div
+          id="clinic-branches-panel"
+          role="tabpanel"
+          aria-labelledby="clinic-branches-tab"
+          hidden={activeTab !== 'branches'}
+        >
+          {branchesVisited && <BranchPage />}
+        </div>
       </div>
     </section>
   );
