@@ -29,3 +29,7 @@ Chỉ ghi khi đã **merge vào main** — việc còn nằm trong nhánh hoặc
 - **PR #8 — thêm `docs/DEV_SETUP.md`** (`d0f0bef`). Hướng dẫn clone và chạy repo cho thành viên mới (dành cho Trung, khác với `docs/REPO_SETUP.md` dành cho người tạo repo lần đầu).
 - Cài gitleaks cục bộ trên máy Trần Lê Quốc Đại (`winget install --id Gitleaks.Gitleaks`, bản 8.30.1) — thêm lớp quét secret ở máy, ngoài lớp quét ở CI.
 - Tạo `docs/PLAN.md` và file này — tách kế hoạch/nhật ký riêng cho mã nguồn khỏi `TRACKING.md` chung của repo tài liệu.
+
+## 04/11/2026
+
+- **Module `auth` hoàn tất** (PR [điền khi mở PR], task X1 và X2; issue 11 là Epic): đăng ký và xác minh OTP qua email, đăng nhập (khoá tạm sau 5 lần sai), làm mới phiên có xoay refresh token, đăng xuất, quên mật khẩu, đổi mật khẩu; backend A1–A15, frontend F1–F5, tiền đề P0–P7. Kiểm tay với Gmail SMTP thật, độ phủ test và danh sách việc còn lại (X3 giới hạn request theo IP, checklist staging HTTPS) ở [`features/auth/TRACKING.md`](features/auth/TRACKING.md) mục 6; giải thích luồng cho vấn đáp ở [`features/auth/GIAI_THICH_LUONG.md`](features/auth/GIAI_THICH_LUONG.md).
