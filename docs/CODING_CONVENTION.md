@@ -54,6 +54,7 @@
 - **Router (ADR 0002):** React Router Data Mode (`createBrowserRouter`), SPA; không dùng Framework Mode. Trang thật của module khai bằng `lazy: () => import(...)`; đường dẫn dùng hằng số đặt trong module, không rải chuỗi trong component; `errorElement` ở layout gốc và ở layout từng module khi cần [đề xuất]. Xem `docs/adr/0002-web-react-router-data-mode.md`.
 - **Kiểu dáng (ADR 0003, ADR 0004):** Tailwind CSS 4 trên gốc 15px, biểu tượng `lucide-react`, phông Inter tự host; mã mới không thêm CSS Modules. Chỉ dùng 13 token màu trong `src/styles/index.css` và thang chuẩn của Tailwind (token Admin cũ trong khối riêng của file đó chỉ giữ tạm, mã mới không dùng); `brand` chỉ cho nền trang trí và viền focus, chữ và nền nút có chữ trắng dùng `brand-strong`; `[...]` chỉ dùng khi có lý do ghi ngay cạnh.
 - **Tương phản (ADR 0004):** WCAG 2.2 AA là quy tắc cứng: chữ thường tối thiểu 4,5:1, viền focus và thành phần giao diện tối thiểu 3:1. Cặp màu mới phải tính từ màu đo thật trước khi dùng. Xem `docs/adr/0004-web-tailwind-preflight-token-tuong-phan.md`.
+- **Test có `findBy`, `waitFor`:** `src/test/setup.ts` đã xả passive effect sau mỗi lần chờ, nên đọc focus và hẹn giờ ngay sau đó là đúng, không tự thêm `setTimeout`.
 
 ## Git
 - Nhánh: `feat/…`, `fix/…`, `docs/…`, `chore/…`. Một PR một việc, nhỏ.

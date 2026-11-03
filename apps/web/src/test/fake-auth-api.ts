@@ -25,6 +25,7 @@ export function createFakeAuthApi(
   },
 ) {
   let tokenCounter = 0;
+  let codeCounter = 100;
   const validTokens = new Set<string>();
   const overrides = new Map<string, Override[]>();
 
@@ -48,6 +49,15 @@ export function createFakeAuthApi(
     startSession() {
       api.cookie = 1;
       api.revoked = false;
+    },
+    // Mỗi lần gửi mã: id đổi, mã sống 10 phút, 60 giây sau mới được gửi lại
+    nextCode() {
+      const now = Date.now();
+      return {
+        maXacThucId: String(++codeCounter),
+        hetHanLuc: new Date(now + 600_000).toISOString(),
+        coTheGuiLaiLuc: new Date(now + 60_000).toISOString(),
+      };
     },
     expireTokens() {
       validTokens.clear();
@@ -77,6 +87,13 @@ export function createFakeAuthApi(
           accessToken: api.issueToken(),
           vaiTro: account.vaiTro,
         });
+      }
+      if (path === '/auth/register') return json(201, api.nextCode());
+      if (path === '/auth/register/resend-otp') {
+        return json(201, api.nextCode());
+      }
+      if (path === '/auth/register/verify-otp') {
+        return json(200, { daXacMinh: true });
       }
       if (path === '/auth/refresh') return api.handleRefresh();
       if (path === '/auth/logout') {

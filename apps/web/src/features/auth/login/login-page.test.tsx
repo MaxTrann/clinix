@@ -312,6 +312,8 @@ describe('DN-24 khoá tạm', () => {
     });
     await submit();
     await screen.findByRole('alert');
+    // Hẹn giờ phải có trước khi tua, nếu không `advance` tua trượt mà không báo gì
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
   }
 
   function advance(ms: number) {
@@ -400,7 +402,7 @@ describe('DN-24 khoá tạm', () => {
     expect(vi.getTimerCount()).toBeGreaterThan(0);
     fireEvent.click(screen.getAllByRole('link', { name: 'Đăng ký ngay' })[0]);
     // Chờ bằng findBy rồi mới đếm: `waitFor` cũng dùng setInterval, mà setInterval đang bị giả
-    await screen.findByRole('heading', { name: 'Không tìm thấy trang' });
+    await screen.findByRole('heading', { name: 'Tạo tài khoản' });
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -422,7 +424,7 @@ describe('EMAIL_CHUA_XAC_MINH (N2)', () => {
     'Email của bạn chưa được xác minh. Nhập mã OTP đã nhận hoặc bấm "Gửi lại mã".';
 
   it.each(['ConHan', 'HetHan', 'DaThuHoi', 'ChuaGui'])(
-    'LP-100 %s: có câu và liên kết, không tự chuyển trang, không gọi verify-otp',
+    'LP-100 %s: chuyển ngay tới màn nhập mã, state y nguyên, không gọi verify-otp',
     async (trangThaiMa) => {
       const chiTiet = {
         maXacThucId: '42',
@@ -432,13 +434,6 @@ describe('EMAIL_CHUA_XAC_MINH (N2)', () => {
       failLogin(403, { maLoi: 'EMAIL_CHUA_XAC_MINH', chiTiet });
       const router = await renderLogin();
       await submit();
-      expect(await screen.findByRole('alert')).toHaveTextContent(UNVERIFIED);
-      expect(router.state.location.pathname).toBe('/dang-nhap');
-      expect(
-        api.requests.filter(({ path }) => path.includes('verify-otp')),
-      ).toHaveLength(0);
-
-      fireEvent.click(screen.getByRole('link', { name: 'Nhập mã xác minh' }));
       await waitFor(() =>
         expect(router.state.location.pathname).toBe(VERIFY_EMAIL_PATH),
       );
@@ -446,8 +441,28 @@ describe('EMAIL_CHUA_XAC_MINH (N2)', () => {
         email: 'a@b.vn',
         chiTiet,
       });
+      expect(
+        api.requests.filter(({ path }) => path.includes('verify-otp')),
+      ).toHaveLength(0);
     },
   );
+
+  it('LP-112 D11 bàn giao đẩy lịch sử để Back về đăng nhập', async () => {
+    failLogin(403, {
+      maLoi: 'EMAIL_CHUA_XAC_MINH',
+      chiTiet: {
+        maXacThucId: '42',
+        trangThaiMa: 'HetHan',
+        hetHanLuc: null,
+      },
+    });
+    const router = await renderLogin();
+    await submit();
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(VERIFY_EMAIL_PATH),
+    );
+    expect(router.state.historyAction).toBe('PUSH');
+  });
 
   it('LP-101 CanDangKyLai với hai trường null: chỉ có đường đăng ký lại, kèm email', async () => {
     failLogin(403, {
@@ -484,6 +499,31 @@ describe('EMAIL_CHUA_XAC_MINH (N2)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(UNVERIFIED);
     expect(screen.queryByRole('link', { name: 'Nhập mã xác minh' })).toBeNull();
   });
+});
+
+describe('F2 điền sẵn email', () => {
+  async function renderWithState(state: unknown) {
+    const router = createMemoryRouter(createAppRoutes(), {
+      initialEntries: [{ pathname: '/dang-nhap', state }],
+    });
+    render(<RouterProvider router={router} />);
+    await screen.findByLabelText('Email');
+  }
+
+  it('LP-110 có email trong state: điền sẵn, không thêm dòng thông báo', async () => {
+    await renderWithState({ email: 'a@b.vn' });
+    expect(emailInput().value).toBe('a@b.vn');
+    expect(passwordInput().value).toBe('');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it.each([[null], [{ email: 123 }], [{ email: '' }], ['a@b.vn']])(
+    'LP-111 state %j: ô email trống',
+    async (state) => {
+      await renderWithState(state);
+      expect(emailInput().value).toBe('');
+    },
+  );
 });
 
 describe('giữ hành vi của F1', () => {
