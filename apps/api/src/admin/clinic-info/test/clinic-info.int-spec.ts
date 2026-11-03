@@ -33,7 +33,7 @@ describe('B4 ClinicInfo — MySQL thật', () => {
   afterAll(async () => db?.destroy());
 
   it('PK-01/02: lần PUT đầu upsert id=1, lần sau cập nhật cùng một row', async () => {
-    await expect(service.get(system)).resolves.toEqual({
+    await expect(service.get()).resolves.toEqual({
       tenThuongHieu: null,
       diaChiTruSo: null,
       duongDayNong: null,
@@ -59,7 +59,7 @@ describe('B4 ClinicInfo — MySQL thật', () => {
     await Promise.all(inputs.map((input) => service.update(system, input)));
 
     expect(await db.getRepository(ThongTinPhongKham).count()).toBe(1);
-    const final = await service.get(system);
+    const final = await service.get();
     expect(inputs).toContainEqual(final);
   });
 });

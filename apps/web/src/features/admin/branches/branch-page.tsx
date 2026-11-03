@@ -146,16 +146,39 @@ function formatPeriod(period: { batDau: string; ketThuc: string }): string {
   return `${period.batDau.slice(0, 5)}–${period.ketThuc.slice(0, 5)}`;
 }
 
+// Gộp các ngày liền nhau có cùng giờ thành một đoạn, ví dụ "Thứ 4–Thứ 6: S: 08:00–11:30" (như Figma)
 function formatSchedule(branch: Branch): string {
-  const parts = branch.lichHoatDong.flatMap((day) => {
-    if (day.hoatDong !== true) return [];
+  const groups: { first: number; last: number; periods: string }[] = [];
+  const days = [...branch.lichHoatDong].sort(
+    (a, b) => a.thuTrongTuan - b.thuTrongTuan,
+  );
+  for (const day of days) {
+    if (day.hoatDong !== true) continue;
     const periods: string[] = [];
     if (day.sang) periods.push(`S: ${formatPeriod(day.sang)}`);
     if (day.chieu) periods.push(`C: ${formatPeriod(day.chieu)}`);
-    return periods.length > 0
-      ? [`${dayLabel(day.thuTrongTuan)}: ${periods.join(', ')}`]
-      : [];
-  });
+    if (periods.length === 0) continue;
+    const text = periods.join(', ');
+    const previous = groups[groups.length - 1];
+    if (
+      previous &&
+      previous.periods === text &&
+      previous.last === day.thuTrongTuan - 1
+    ) {
+      previous.last = day.thuTrongTuan;
+    } else {
+      groups.push({
+        first: day.thuTrongTuan,
+        last: day.thuTrongTuan,
+        periods: text,
+      });
+    }
+  }
+  const parts = groups.map((group) =>
+    group.first === group.last
+      ? `${dayLabel(group.first)}: ${group.periods}`
+      : `${dayLabel(group.first)}–${dayLabel(group.last)}: ${group.periods}`,
+  );
   return parts.length > 0 ? parts.join(' | ') : 'Chưa khai báo giờ nhận khám';
 }
 
@@ -190,6 +213,16 @@ function BranchCard({ branch }: { branch: Branch }) {
           )}
         </div>
       </div>
+      {/* Figma có nút này; API sửa lịch/dịch vụ (F6b) chưa có nên để vô hiệu */}
+      <button
+        type="button"
+        className={styles.editButton}
+        disabled
+        title="Chưa được triển khai"
+      >
+        <img src="/assets/admin/branches/edit.svg" alt="" />
+        Sửa lịch / dịch vụ
+      </button>
     </article>
   );
 }

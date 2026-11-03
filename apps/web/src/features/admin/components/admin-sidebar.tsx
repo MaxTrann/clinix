@@ -52,6 +52,8 @@ interface MenuItem {
   label: string;
   icon: IconName;
   to?: string;
+  // Chỉ Admin Toàn hệ thống thấy mục này (Figma ẩn với Admin Chi nhánh)
+  systemOnly?: boolean;
 }
 
 interface MenuGroup {
@@ -91,22 +93,25 @@ const MENU_GROUPS: MenuGroup[] = [
       },
     ],
   },
-  { label: 'Tài chính', items: [{ label: 'Yêu cầu rút tiền', icon: 'wallet' }] },
+  {
+    label: 'Tài chính',
+    items: [{ label: 'Yêu cầu rút tiền', icon: 'wallet' }],
+  },
   {
     label: 'Nội dung',
     items: [
       { label: 'Bài viết', icon: 'posts' },
       { label: 'Kiểm duyệt đánh giá', icon: 'reviews' },
-      { label: 'Đặt cọc & Hoàn tiền', icon: 'deposit' },
-      { label: 'Email Preview', icon: 'email' },
+      { label: 'Đặt cọc & Hoàn tiền', icon: 'deposit', systemOnly: true },
+      { label: 'Email Preview', icon: 'email', systemOnly: true },
     ],
   },
   {
     label: 'Hệ thống',
     items: [
       { label: 'Nhật ký hành động', icon: 'audit' },
-      { label: 'Phụ phí bác sĩ', icon: 'surcharge' },
-      { label: 'Cài đặt hệ thống', icon: 'settings' },
+      { label: 'Phụ phí bác sĩ', icon: 'surcharge', systemOnly: true },
+      { label: 'Cài đặt hệ thống', icon: 'settings', systemOnly: true },
     ],
   },
   {
@@ -140,6 +145,12 @@ export function AdminSidebar({
     adminMe.phamVi === 'ToanHeThong'
       ? 'Quản trị viên'
       : `Quản trị viên · ${adminMe.chiNhanh.ten}`;
+  const visibleGroups = MENU_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) => !item.systemOnly || adminMe.phamVi === 'ToanHeThong',
+    ),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <aside className={styles.sidebar} aria-label="Điều hướng Admin">
@@ -150,14 +161,16 @@ export function AdminSidebar({
         <span className={styles.brandName}>CLINIX</span>
       </div>
 
-      <div className={styles.profileCard}>
-        <span className={styles.profileMark}>
-          <img src="/assets/admin/profile-avatar.svg" alt="" />
-        </span>
-        <span className={styles.profileText}>
-          <strong>{user?.hoTen ?? 'Quản trị viên'}</strong>
-          <span title={subtitle}>{subtitle}</span>
-        </span>
+      <div className={styles.profileSection}>
+        <div className={styles.profileCard}>
+          <span className={styles.profileMark}>
+            <img src="/assets/admin/profile-avatar.svg" alt="" />
+          </span>
+          <span className={styles.profileText}>
+            <strong>{user?.hoTen ?? 'Quản trị viên'}</strong>
+            <span title={subtitle}>{subtitle}</span>
+          </span>
+        </div>
       </div>
 
       <nav className={styles.navigation} aria-label="Điều hướng Admin">
@@ -174,7 +187,7 @@ export function AdminSidebar({
           <SidebarIcon name="chevron-right" />
         </NavLink>
 
-        {MENU_GROUPS.map((group) => (
+        {visibleGroups.map((group) => (
           <section className={styles.menuGroup} key={group.label}>
             <h2 className={styles.groupLabel}>{group.label}</h2>
             <ul className={styles.menuList}>

@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
+import { Info } from 'lucide-react';
 import { ApiError } from '../../../shared/api/errors';
 import { errorMessageFor } from '../../../shared/api/error-message';
 import { ErrorState } from '../../../shared/ui/error-state';
@@ -16,6 +17,7 @@ import type {
 } from './clinic-info-types';
 import { useClinicInfo } from './use-clinic-info';
 import { BranchPage } from '../branches/branch-page';
+import { useAdminScope } from '../use-admin-scope';
 import styles from './clinic-info.module.css';
 
 function toInput(info: ClinicInfo): ClinicInfoInput {
@@ -39,7 +41,13 @@ function fieldFromApiName(name: string): ClinicInfoField | undefined {
   return undefined;
 }
 
-function ClinicInfoForm({ info }: { info: ClinicInfo }) {
+function ClinicInfoForm({
+  info,
+  readOnly,
+}: {
+  info: ClinicInfo;
+  readOnly: boolean;
+}) {
   const [values, setValues] = useState<ClinicInfoInput>(() => toInput(info));
   const [fieldErrors, setFieldErrors] = useState<ClinicInfoFieldErrors>({});
   const [formError, setFormError] = useState('');
@@ -60,6 +68,7 @@ function ClinicInfoForm({ info }: { info: ClinicInfo }) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (readOnly) return;
     setFormError('');
     setSaved(false);
     const errors = validateClinicInfo(
@@ -125,7 +134,7 @@ function ClinicInfoForm({ info }: { info: ClinicInfo }) {
               type="text"
               autoComplete="organization"
               required
-              disabled={saving}
+              disabled={saving || readOnly}
               value={values.tenThuongHieu}
               aria-invalid={Boolean(fieldErrors.tenThuongHieu)}
               aria-describedby={
@@ -161,7 +170,7 @@ function ClinicInfoForm({ info }: { info: ClinicInfo }) {
               type="text"
               autoComplete="street-address"
               required
-              disabled={saving}
+              disabled={saving || readOnly}
               value={values.diaChiTruSo}
               aria-invalid={Boolean(fieldErrors.diaChiTruSo)}
               aria-describedby={
@@ -198,7 +207,7 @@ function ClinicInfoForm({ info }: { info: ClinicInfo }) {
               autoComplete="tel"
               inputMode="tel"
               required
-              disabled={saving}
+              disabled={saving || readOnly}
               value={values.duongDayNong}
               aria-invalid={Boolean(fieldErrors.duongDayNong)}
               aria-describedby={
@@ -235,7 +244,7 @@ function ClinicInfoForm({ info }: { info: ClinicInfo }) {
               type="email"
               autoComplete="email"
               required
-              disabled={saving}
+              disabled={saving || readOnly}
               value={values.email}
               aria-invalid={Boolean(fieldErrors.email)}
               aria-describedby={
@@ -265,30 +274,43 @@ function ClinicInfoForm({ info }: { info: ClinicInfo }) {
         </p>
       )}
 
-      <button className={styles.saveButton} type="submit" disabled={saving}>
-        <img
-          src="/assets/admin/clinic-info/save.svg"
-          alt=""
-          aria-hidden="true"
-        />
-        {saving ? 'Đang lưu…' : 'Lưu thông tin chung'}
-      </button>
+      {!readOnly && (
+        <button className={styles.saveButton} type="submit" disabled={saving}>
+          <img
+            src="/assets/admin/clinic-info/save.svg"
+            alt=""
+            aria-hidden="true"
+          />
+          {saving ? 'Đang lưu…' : 'Lưu thông tin chung'}
+        </button>
+      )}
     </form>
   );
 }
 
 function GeneralInfoPanel() {
   const { state, retry } = useClinicInfo();
+  // Figma 629:2: Admin Chi nhánh xem được nhưng không sửa (PUT chỉ Toàn hệ thống)
+  const readOnly = useAdminScope().phamVi !== 'ToanHeThong';
 
   return (
     <>
+      {readOnly && (
+        <p className={styles.readOnlyBanner} role="note">
+          <Info size={13} aria-hidden="true" />
+          Thông tin chung toàn hệ thống — chỉ Admin Toàn hệ thống có thể chỉnh
+          sửa. Bạn đang xem ở chế độ chỉ đọc.
+        </p>
+      )}
       {state.status === 'loading' && (
         <LoadingState message="Đang tải thông tin phòng khám…" />
       )}
       {state.status === 'error' && (
         <ErrorState error={state.error} onRetry={retry} />
       )}
-      {state.status === 'success' && <ClinicInfoForm info={state.data} />}
+      {state.status === 'success' && (
+        <ClinicInfoForm info={state.data} readOnly={readOnly} />
+      )}
     </>
   );
 }

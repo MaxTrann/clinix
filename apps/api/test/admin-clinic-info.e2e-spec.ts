@@ -93,15 +93,19 @@ describe('B4 PK — HTTP AppModule/auth/C1/MySQL thật', () => {
     expect(await db.getRepository(ThongTinPhongKham).count()).toBe(1);
   });
 
-  it('PK-07/08: chỉ Admin Toàn hệ thống được GET và PUT', async () => {
+  it('PK-07/08: Admin Chi nhánh chỉ được GET; chỉ Toàn hệ thống được PUT', async () => {
     expectErrorResponse(await get(), 401, 'CHUA_DANG_NHAP');
     expectErrorResponse(await put(body), 401, 'CHUA_DANG_NHAP');
-    for (const token of [
-      branchToken,
-      doctorToken,
-      receptionistToken,
-      patientToken,
-    ]) {
+    const branchRead = await get(branchToken);
+    expect(branchRead.status).toBe(200);
+    expect(Object.keys(branchRead.body as object).sort()).toEqual([
+      'diaChiTruSo',
+      'duongDayNong',
+      'email',
+      'tenThuongHieu',
+    ]);
+    expectErrorResponse(await put(body, branchToken), 403, 'KHONG_DU_QUYEN');
+    for (const token of [doctorToken, receptionistToken, patientToken]) {
       expectErrorResponse(await get(token), 403, 'KHONG_DU_QUYEN');
       expectErrorResponse(await put(body, token), 403, 'KHONG_DU_QUYEN');
     }

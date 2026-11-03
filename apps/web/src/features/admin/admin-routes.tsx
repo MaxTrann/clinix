@@ -20,7 +20,7 @@ export const ADMIN_ROUTES: RouteObject[] = [
     ],
   },
   {
-    element: <AdminScopeGuard policy="ToanHeThong" />,
+    element: <AdminScopeGuard policy="Any" />,
     children: [
       {
         path: 'thong-tin-phong-kham',

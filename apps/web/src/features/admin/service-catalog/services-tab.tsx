@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { Pencil, Plus, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { feedbackFor, type FormFeedback } from './catalog-errors';
@@ -106,58 +106,60 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
           />
         ))}
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <label className="relative block w-full lg:max-w-sm">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-            size={17}
-            aria-hidden="true"
-          />
-          <input
-            className={`${inputClass} pl-10`}
-            type="search"
-            value={searchInput}
-            onChange={(event) => {
-              setSearchInput(event.currentTarget.value);
-              setPage(1);
-            }}
-            aria-label="Tìm dịch vụ khám"
-            placeholder="Tìm dịch vụ khám…"
-          />
-        </label>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <label className="block min-w-52">
-            <span className="sr-only">Lọc theo nhóm</span>
-            <select
-              className={inputClass}
-              value={selectedGroupId}
-              onChange={(event) =>
-                setSelectedGroupId(event.currentTarget.value)
-              }
-              aria-label="Lọc theo nhóm dịch vụ"
-              disabled={groupsState.status !== 'success'}
-            >
-              <option value="">Tất cả nhóm</option>
-              {groups.map((group) => (
-                <option key={group.nhomDichVuId} value={group.nhomDichVuId}>
-                  {group.ten}
-                </option>
-              ))}
-            </select>
+      {!createOpen && (
+        <div className="flex flex-col gap-[11.25px] lg:flex-row lg:items-center">
+          <label className="relative block w-full lg:max-w-[300px]">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+              size={17}
+              aria-hidden="true"
+            />
+            <input
+              className={`${inputClass} pl-10`}
+              type="search"
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.currentTarget.value);
+                setPage(1);
+              }}
+              aria-label="Tìm dịch vụ khám"
+              placeholder="Tìm dịch vụ khám…"
+            />
           </label>
-          {canEdit && (
-            <button
-              type="button"
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              onClick={openCreate}
-              data-testid="AF3-add-service"
-            >
-              <Plus size={17} aria-hidden="true" />
-              Thêm dịch vụ
-            </button>
-          )}
+          <div className="flex flex-col gap-[11.25px] sm:flex-row">
+            <label className="block min-w-52">
+              <span className="sr-only">Lọc theo nhóm</span>
+              <select
+                className={inputClass}
+                value={selectedGroupId}
+                onChange={(event) =>
+                  setSelectedGroupId(event.currentTarget.value)
+                }
+                aria-label="Lọc theo nhóm dịch vụ"
+                disabled={groupsState.status !== 'success'}
+              >
+                <option value="">Tất cả nhóm</option>
+                {groups.map((group) => (
+                  <option key={group.nhomDichVuId} value={group.nhomDichVuId}>
+                    {group.ten}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {canEdit && (
+              <button
+                type="button"
+                className="inline-flex min-h-[33.75px] items-center justify-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                onClick={openCreate}
+                data-testid="AF3-add-service"
+              >
+                <Plus size={17} aria-hidden="true" />
+                Thêm dịch vụ
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {selectedGroupId && (
         <p className="text-xs text-text-muted" role="note">
@@ -177,30 +179,36 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
       )}
       {state.status === 'success' && (
         <section
-          className="overflow-hidden rounded-xl border border-border bg-white shadow-sm"
+          className="overflow-hidden rounded-[13.375px] border border-[#f3f4f6] bg-white"
           aria-label="Danh sách dịch vụ khám"
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-              <thead className="bg-surface-muted text-xs font-semibold uppercase tracking-wide text-text-secondary">
+              <thead className="bg-[#f9fafb] text-[11.25px] font-medium text-[#6a7282]">
                 <tr>
-                  <th className="px-5 py-3.5" scope="col">
+                  <th className="px-[15px] py-[11.25px]" scope="col">
                     Dịch vụ
                   </th>
-                  <th className="px-5 py-3.5" scope="col">
+                  <th className="px-[15px] py-[11.25px]" scope="col">
                     Nhóm
                   </th>
-                  <th className="w-36 px-5 py-3.5" scope="col">
+                  <th
+                    className="w-36 px-[15px] py-[11.25px] text-right"
+                    scope="col"
+                  >
                     Giá
                   </th>
                   {canEdit && (
-                    <th className="w-32 px-5 py-3.5 text-right" scope="col">
+                    <th
+                      className="w-32 px-[15px] py-[11.25px] text-right"
+                      scope="col"
+                    >
                       Thao tác
                     </th>
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border text-text-primary">
+              <tbody className="divide-y divide-[#f9fafb] text-text-primary">
                 {visibleServices.length === 0 ? (
                   <tr>
                     <td
@@ -218,7 +226,7 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
                   visibleServices.map((service) => (
                     <Fragment key={service.dichVuKhamId}>
                       <tr className="hover:bg-page/70">
-                        <td className="px-5 py-4">
+                        <td className="px-[15px] py-[11.25px] text-[13.125px]">
                           <div className="font-medium text-text-primary">
                             {service.ten}
                           </div>
@@ -226,22 +234,21 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
                             {service.thoiLuong} phút
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-text-secondary">
+                        <td className="px-[15px] py-[11.25px] text-[13.125px] text-text-secondary">
                           {service.tenNhom}
                         </td>
-                        <td className="px-5 py-4 font-medium tabular-nums">
+                        <td className="px-[15px] py-[11.25px] text-right text-[13.125px] font-semibold tabular-nums text-[#101828]">
                           {formatVnd(service.giaMacDinh)}
                         </td>
                         {canEdit && (
                           <td className="px-5 py-3 text-right">
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-text-secondary hover:bg-info-surface hover:text-brand focus-visible:outline-2 focus-visible:outline-brand"
+                              className="inline-flex items-center rounded-md px-2 py-1 text-[11.25px] font-medium text-[#0092b8] hover:bg-info-surface focus-visible:outline-2 focus-visible:outline-brand"
                               aria-label={`Sửa ${service.ten}`}
                               title="Sửa"
                               onClick={() => openEdit(service)}
                             >
-                              <Pencil size={15} aria-hidden="true" />
                               Sửa
                             </button>
                           </td>
@@ -287,5 +294,5 @@ function formatVnd(value: string): string {
   const [integerPart = '0', fractionalPart = ''] = value.split('.');
   const integer = new Intl.NumberFormat('vi-VN').format(BigInt(integerPart));
   const fraction = fractionalPart.replace(/0+$/u, '');
-  return `${integer}${fraction ? `,${fraction}` : ''} ₫`;
+  return `${integer}${fraction ? `,${fraction}` : ''}đ`;
 }

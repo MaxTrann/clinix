@@ -733,7 +733,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 | ☐ | B1 | **Chuyên khoa**: list/get/create/update/đổi trạng thái; chuẩn hoá (trim + gộp khoảng trắng) + kiểm trùng tên (bắt thêm lỗi UNIQUE khi chạy đua); ngừng hoạt động **không** gỡ bác sĩ; ảnh qua P7: imageUploadId và FK bản ghi ảnh, gắn/thay/gỡ theo plan P7 mục 3; Chi nhánh chỉ GET | P1, P6, C1, P7; Q11, Q12, Q13 | VERIFIED backend local; F2/D2 và PR/review/merge còn riêng; xem working-doc/B1 | CK b1–b5, A1, A2; CK-17 | `feat(admin)` |
 | ☐ | B2 | **Nhóm dịch vụ**: list/create/update/delete nhóm rỗng; tên không trùng; `thu_tu_hien_thi` nguyên không âm; contract mục 5.3 | P1, P6, C1; Q11, Q14, Q15 | VERIFIED backend local 31/10; DV-01…06 và DV-16 phần nhóm; F3/D2/CI/review/merge riêng; xem working-doc/B2 | DV b1–b5, A1 | `feat(admin)` |
 | ☐ | B3 | **Dịch vụ khám**: list/create/update; kiểm nhóm tồn tại, tên không rỗng, giá > 0, thời lượng nguyên dương; không nhận `mucDatCoc`; kiểm sửa `thoi_luong` (Q16: chặn khi còn khung giờ tương lai/lịch hẹn hoạt động); tên không trùng trong nhóm (UNIQUE DB) | B2, P2 (kiểm khung giờ/lịch hẹn); Q16 | VERIFIED backend local 01/11; DV-07…16/18…20; D2/FE/CI/PR còn riêng; xem `working-doc/B3` | DV b4–b5, A1 | `feat(admin)` |
-| ☐ | B4 | **Thông tin phòng khám**: `GET/PUT` (upsert `id=1`), kiểm email/hotline (Q33), chỉ Toàn hệ thống (cả `GET`) | P3, C1; Q33 | VERIFIED backend local 01/11/2026; PK-01…09; D5 Word/CI/PR/review/merge còn riêng; xem `working-doc/B4` | PK b1–b5, A1, A2 | `feat(admin)` |
+| ☐ | B4 | **Thông tin phòng khám**: `GET/PUT` (upsert `id=1`), kiểm email/hotline (Q33); `GET` cho mọi Admin (Chi nhánh xem chỉ đọc, theo Figma 629:2, quyết định người dùng 03/11/2026), `PUT` chỉ Toàn hệ thống | P3, C1; Q33 | VERIFIED backend local 01/11/2026; PK-01…09; D5 Word/CI/PR/review/merge còn riêng; xem `working-doc/B4` | PK b1–b5, A1, A2 | `feat(admin)` |
 | ☐ | B5 | **Cập nhật cấu hình**: `GET/PUT`; miền giá trị (5.7); diff; `ly_do`; giao dịch + Audit; tạo lần đầu; cờ `chuaCauHinh` | P3, C1, C2, C3; Q34, Q35, Q36, Q38, Q39 | SAU C2 | CH b1–b5, A1–A4 | `feat(admin)` · `[ĐỒNG BỘ TL]` D5, D6 |
 | ☐ | B6 | **Lịch sử thay đổi cấu hình**: `GET …/history` đọc `nhat_ky_hanh_dong` loại `CapNhatCauHinh`, phân trang, chỉ Toàn hệ thống | B5, C2, P6; Q37, Q39 | SAU B5 | CH (Figma 578:2) | `feat(admin)` |
 | ☐ | B7 | **Chi nhánh — đọc + thêm mới**: list/get (lịch 7 thứ, dịch vụ, cờ yêu cầu mở; scope Chi nhánh chỉ chi nhánh mình); `POST` transaction {chi nhánh + 7 dòng + dịch vụ}, chỉ Toàn hệ thống; `validateWeeklySchedule` | P1, C1, P6; Q1, Q10 | ĐANG TRIỂN KHAI (source + unit local; MySQL/HTTP chưa xác minh) | CN b1–b2, b4, A1, A3 | `feat(admin)` · `[ĐỒNG BỘ TL]` D1 |
@@ -760,7 +760,7 @@ D*: đi cùng PR task code ; X1 kiểm tay → X2 tổng kết → X3 (trước 
 | ☐ | F1 | **Khung Admin**: layout thanh bên theo phạm vi (`GET /admin/me`), route guard theo vai trò + phạm vi, thay trang giữ chỗ Quản trị viên của auth F1, thành phần dùng chung (bảng phân trang, ô tìm kiếm, hộp xác nhận, panel chi tiết, thông báo lỗi sẵn có), trang "không đủ quyền" | auth F1, auth P6(web), C1, P6 | mọi UC | `feat(web)` |
 | ☐ | F2 | **Chuyên khoa**: danh sách, Thêm/Chỉnh sửa, đổi trạng thái, lỗi trùng tên giữ dữ liệu; Chi nhánh chỉ xem (banner) | F1, B1 | CK b1–b5, A1, A2 | `feat(web)` |
 | ☐ | F3 | **Loại dịch vụ khám**: tab Nhóm/Dịch vụ, Thêm/Sửa, xác nhận xoá nhóm; Chi nhánh chỉ xem | F1, B2, B3 | DV b1–b5, A1 | `feat(web)` |
-| ☐ | F4 | **Thông tin phòng khám — tab "Thông tin chung"**: form 4 trường, lỗi định dạng; Chi nhánh bị từ chối | F1, B4 | PK b1–b5, A1, A2 | `feat(web)` |
+| ☐ | F4 | **Thông tin phòng khám — tab "Thông tin chung"**: form 4 trường, lỗi định dạng; Chi nhánh xem chỉ đọc (ô khóa, không nút lưu, banner vàng) | F1, B4 | PK b1–b5, A1, A2 | `feat(web)` |
 | ☐ | F5 | **Cài đặt hệ thống**: các nhóm/tab, nhập lý do, "Xác nhận lưu thay đổi", "Đã lưu", lỗi từng ô, trạng thái "chưa có cấu hình", tab "Lịch sử thay đổi" | F1, B5, B6 | CH b1–b5, A1–A4 | `feat(web)` |
 | ☐ | F6a | **Chi nhánh — danh sách + Thêm mới**: tab "Chi nhánh", form 7 thứ (hai khoảng), dịch vụ khả dụng, lỗi lịch theo thứ | F1, B7 | CN b1–b4, A1, A3 | `feat(web)` |
 | ☐ | F6b | **Chi nhánh — Sửa lịch/dịch vụ + yêu cầu thay đổi (gồm nhánh quá hạn)**: kết quả "đã lưu ngay" / "đã gửi chờ duyệt", danh sách yêu cầu (Chờ duyệt/Đã duyệt/Từ chối), chi tiết + lịch hẹn ảnh hưởng, Duyệt (chọn thời điểm), Từ chối (lý do), Rút (người gửi), Hủy (Toàn hệ thống, có lý do), trạng thái **"Quá hạn – chờ xử lý"** (danh sách lịch/ca cần xử lý, banner cảnh báo) + nút **Dời hiệu lực** (chọn thời điểm mới) / **Hủy**, nhãn `hieu_luc_tu` = **"dự kiến có hiệu lực"** và `ap_dung_luc` = **"đã áp dụng lúc"**, hiển thị trạng thái gửi email thất bại, nêu rõ phần đã lưu/đang chờ (Q2), banner "chưa cấu hình số ngày báo trước" | F6a, B8–B10, B21, B22 | CN b3–b10, A2 | `feat(web)` |
@@ -1002,7 +1002,7 @@ Ca có `[Qn]` phụ thuộc điểm còn mở — mong đợi là đề xuất. 
 | PK-04 | Hotline: "1900 1234", "1800 1234", "0901234567", "090 123 4567", "12345", "0123", chữ, > 20 ký tự `[Q33]` | Hợp lệ được chuẩn hoá (bỏ khoảng trắng); sai ⇒ lỗi | PK A1; L11 | U |
 | PK-05 | Bỏ trống từng trường (Figma bắt buộc) `[Q33]` | `DU_LIEU_KHONG_HOP_LE` | PK b4 | U |
 | PK-06 | Biên độ dài tên 100 / 101, địa chỉ 255 / 256 | Đúng | PK b4 | U |
-| PK-07 | Quản trị viên Chi nhánh `GET` và `PUT` | `KHONG_DU_QUYEN` cả hai (kết thúc) | PK A2/1a–1b | I |
+| PK-07 | Quản trị viên Chi nhánh `GET` rồi `PUT` | `GET` thành công trả bốn trường (chỉ đọc); `PUT` ⇒ `KHONG_DU_QUYEN` (kết thúc) | PK A2/1a–1b | I |
 | PK-08 | Bác sĩ/Lễ tân/Bệnh nhân; khách | 403 / 401 | PK tiền điều kiện | I |
 | PK-09 | Hai `PUT` đồng thời | Một dòng cuối cùng nhất quán; không lỗi trùng khoá | PK b5 | I |
 | PK-10 | FE: lỗi định dạng giữ nguyên dữ liệu; Chi nhánh thấy thông báo không đủ quyền | Đúng | PK A1/4b–4c, A2 | C |
@@ -1261,7 +1261,7 @@ Ma trận: **Khách → 401 · Bệnh nhân/Bác sĩ/Lễ tân → 403 · Quản
 
 | ID | Kịch bản | Mong đợi | Phủ | Loại |
 |---|---|---|---|---|
-| AF4-01 | Admin Toàn hệ thống mở `/admin/thong-tin-phong-kham`; Admin Chi nhánh mở cùng route | Toàn hệ thống vào được qua menu; Chi nhánh bị `AdminScopeGuard` từ chối; backend B4 tiếp tục kiểm quyền | F4, F1, B4 | C |
+| AF4-01 | Admin Toàn hệ thống mở `/admin/thong-tin-phong-kham`; Admin Chi nhánh mở cùng route | Cả hai vào được qua menu; Chi nhánh thấy form ở chế độ chỉ đọc; backend B4 vẫn chặn `PUT` của Chi nhánh | F4, F1, B4 | C |
 | AF4-02 | GET trả đủ bốn trường hoặc các trường null | Hiển thị đúng `tenThuongHieu`, `diaChiTruSo`, `duongDayNong`, `email`; null thành ô trống, không có dữ liệu mẫu | F4, PK-01/02 | C |
 | AF4-03 | Nhập thiếu/sai định dạng; kiểm tra biên độ dài tên và địa chỉ, hotline, email | Báo lỗi tại trường tương ứng theo PK và auth S5; không gửi PUT khi invalid | F4, PK-03…06 | C |
 | AF4-04 | Lưu thông tin hợp lệ | PUT chỉ chứa đúng bốn field contract, không có `id`; hiển thị thông báo thành công | F4, PK-07 | C |

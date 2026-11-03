@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Info } from 'lucide-react';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { ApiError } from '../../../shared/api/errors';
@@ -19,7 +20,9 @@ export function SpecialtyPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [page, setPage] = useState(1);
-  const [dialogSpecialty, setDialogSpecialty] = useState<Specialty | null>(null);
+  const [dialogSpecialty, setDialogSpecialty] = useState<Specialty | null>(
+    null,
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingStatusId, setPendingStatusId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
@@ -64,6 +67,7 @@ export function SpecialtyPage() {
     {
       id: 'name',
       header: 'Tên chuyên khoa',
+      width: '22.3%',
       cell: (specialty) => (
         <div className={styles.specialtyName}>
           {specialty.anhDaiDien ? (
@@ -84,15 +88,15 @@ export function SpecialtyPage() {
     {
       id: 'description',
       header: 'Mô tả',
+      width: '27%',
       cell: (specialty) => (
-        <span className={styles.description}>
-          {specialty.moTa || '—'}
-        </span>
+        <span className={styles.description}>{specialty.moTa || '—'}</span>
       ),
     },
     {
       id: 'doctors',
       header: 'Số bác sĩ',
+      width: '10.2%',
       cell: (specialty) => (
         <span className={styles.doctorCount}>
           <img src="/assets/admin/specialties/doctors.svg" alt="" />
@@ -103,6 +107,7 @@ export function SpecialtyPage() {
     {
       id: 'status',
       header: 'Trạng thái',
+      width: '12.9%',
       cell: (specialty) => (
         <span
           className={
@@ -120,6 +125,7 @@ export function SpecialtyPage() {
     {
       id: 'actions',
       header: 'Thao tác',
+      width: '11.3%',
       cell: (specialty) =>
         isSystemAdmin ? (
           <div className={styles.rowActions}>
@@ -193,6 +199,7 @@ export function SpecialtyPage() {
 
       {!isSystemAdmin && (
         <div className={styles.readOnlyBanner} role="note">
+          <Info size={13} aria-hidden="true" />
           Quản lý chuyên khoa chỉ dành cho Admin toàn hệ thống. Bạn có thể xem
           danh sách nhưng không thể thêm hoặc sửa.
         </div>

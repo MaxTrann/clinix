@@ -64,8 +64,11 @@ describe('BranchPage (F6a)', () => {
       await screen.findByRole('article', { name: 'CLINIX Chi nhánh Quận 3' }),
     ).toBeInTheDocument();
     expect(screen.getByText('1 dịch vụ')).toBeInTheDocument();
+    // CN b1: các ngày liền nhau cùng giờ được gộp thành một đoạn như Figma
     expect(
-      screen.getByText(/Thứ 2: S: 08:00–11:30, C: 13:30–17:00/),
+      screen.getByText(
+        'Thứ 2–Thứ 6: S: 08:00–11:30, C: 13:30–17:00 | Thứ 7: S: 08:00–11:30',
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText('10.7769, 106.6920')).toBeInTheDocument();
 
