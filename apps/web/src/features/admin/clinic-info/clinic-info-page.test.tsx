@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { AdminMeProvider } from '../admin-me-context';
 import { ClinicInfoPage } from './clinic-info-page';
 import type { ClinicInfo } from './clinic-info-types';
 
@@ -48,7 +49,34 @@ describe('ClinicInfoPage (F4)', () => {
     expect(
       screen.getByRole('tab', { name: 'Thông tin chung' }),
     ).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'Chi nhánh' })).toBeDisabled();
+    expect(screen.getByRole('tab', { name: 'Chi nhánh' })).toBeEnabled();
+  });
+
+  it('AF6a bật tab Chi nhánh và tải danh sách B7 khi được chọn', async () => {
+    fetchMock
+      .mockResolvedValueOnce(response(clinicInfo()))
+      .mockResolvedValueOnce(
+        response({ items: [], total: 0, page: 1, pageSize: 20 }),
+      );
+    render(
+      <AdminMeProvider value={{ phamVi: 'ToanHeThong' }}>
+        <ClinicInfoPage />
+      </AdminMeProvider>,
+    );
+    await screen.findByDisplayValue('CLINIX Clinic');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Chi nhánh' }));
+
+    expect(
+      await screen.findByText('Chưa có chi nhánh nào.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Chi nhánh' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      '/api/admin/branches?page=1&pageSize=20',
+    );
   });
 
   it('AF4-02 GET chưa cấu hình để bốn input trống, không điền dữ liệu mẫu', async () => {
