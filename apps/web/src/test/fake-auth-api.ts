@@ -26,6 +26,7 @@ export function createFakeAuthApi(
 ) {
   let tokenCounter = 0;
   let codeCounter = 100;
+  let resetCounter = 0;
   const validTokens = new Set<string>();
   const overrides = new Map<string, Override[]>();
 
@@ -40,6 +41,8 @@ export function createFakeAuthApi(
     // Đặt thành một promise để giữ làm mới ở trạng thái đang bay
     refreshGate: null as Promise<void> | null,
     requests: [] as { path: string; method: string; headers: Headers }[],
+    // Thân JSON của từng lần gọi (để kiểm đúng các trường gửi đi); KHÔNG gộp vào `requests` để test cũ giữ nguyên
+    bodies: [] as { path: string; body: unknown }[],
 
     issueToken() {
       const token = `tok-${++tokenCounter}`;
@@ -59,12 +62,32 @@ export function createFakeAuthApi(
         coTheGuiLaiLuc: new Date(now + 60_000).toISOString(),
       };
     },
+    // Quên mật khẩu (A11): như `nextCode` nhưng KHÔNG có mã lần gửi
+    nextForgotCode() {
+      const { hetHanLuc, coTheGuiLaiLuc } = api.nextCode();
+      return { hetHanLuc, coTheGuiLaiLuc };
+    },
     expireTokens() {
       validTokens.clear();
     },
     // Lần gọi kế tiếp tới `path` dùng phản hồi này thay vì xử lý bình thường
     failNext(path: string, override: Override) {
       overrides.set(path, [...(overrides.get(path) ?? []), override]);
+    },
+    // Giữ lần gọi kế tiếp tới `path` cho tới khi test tự trả phản hồi: để rời trang lúc yêu cầu còn đang bay
+    hold(path: string) {
+      let release: ((response: Response) => void) | undefined;
+      api.failNext(
+        path,
+        () =>
+          new Promise<Response>((resolve) => {
+            release = resolve;
+          }),
+      );
+      return (status: number, body: unknown) => {
+        if (!release) throw new Error(`Chưa có lần gọi nào tới ${path}`);
+        release(json(status, body));
+      };
     },
 
     fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -74,6 +97,9 @@ export function createFakeAuthApi(
       const method = init?.method ?? 'GET';
       const headers = new Headers(init?.headers);
       api.requests.push({ path, method, headers });
+      if (typeof init?.body === 'string') {
+        api.bodies.push({ path, body: JSON.parse(init.body) as unknown });
+      }
       if (path === '/auth/refresh') api.refreshCalls += 1;
       if (path === '/auth/me') api.meCalls += 1;
       if (path === '/auth/logout') api.logoutCalls += 1;
@@ -94,6 +120,21 @@ export function createFakeAuthApi(
       }
       if (path === '/auth/register/verify-otp') {
         return json(200, { daXacMinh: true });
+      }
+      if (
+        path === '/auth/forgot-password' ||
+        path === '/auth/forgot-password/resend-otp'
+      ) {
+        return json(201, api.nextForgotCode());
+      }
+      if (path === '/auth/forgot-password/verify-otp') {
+        return json(200, {
+          resetToken: `reset-${++resetCounter}`,
+          hetHanLuc: new Date(Date.now() + 600_000).toISOString(),
+        });
+      }
+      if (path === '/auth/reset-password') {
+        return json(200, { taiKhoanNgung: false, canDangKyLai: false });
       }
       if (path === '/auth/refresh') return api.handleRefresh();
       if (path === '/auth/logout') {

@@ -11,15 +11,15 @@ import type { RegisterInput } from './register-service';
 // Câu chữ theo PLAN auth mục 5.5, chọn theo `maLoi` và `loi[].ma`; KHÔNG dùng `thongBao` của API.
 export const PASSWORD_RULE_MESSAGE =
   'Mật khẩu từ 8 đến 64 ký tự, gồm ít nhất một chữ số và một ký tự đặc biệt (ví dụ ! @ # $ % .).';
-const INVALID_DATA_MESSAGE = 'Dữ liệu không hợp lệ.';
-const SYSTEM_MESSAGE = 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.';
+export const INVALID_DATA_MESSAGE = 'Dữ liệu không hợp lệ.';
+export const SYSTEM_MESSAGE = 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau.';
 const ORIGIN_MESSAGE = 'Yêu cầu không đến từ trang web được phép.';
 export const TOO_SOON_MESSAGE = 'Vui lòng thử lại sau.';
 export const MAIL_FAILED_MESSAGE =
   'Không gửi được email. Vui lòng thử lại sau ít phút.';
 const EMAIL_TAKEN_MESSAGE = 'Email này đã được sử dụng. Vui lòng đăng nhập.';
 
-const FIELD_MESSAGES: Record<string, string> = {
+export const FIELD_MESSAGES: Record<string, string> = {
   HO_TEN_KHONG_HOP_LE:
     'Họ tên phải có ít nhất một chữ cái, tối đa 100 ký tự và không chứa ký tự điều khiển.',
   EMAIL_KHONG_HOP_LE: 'Email không hợp lệ.',
@@ -87,14 +87,19 @@ export type DeliveryFailure =
   | { kind: 'mailFailed'; maXacThucId: string; coTheGuiLaiLuc: string }
   | { kind: 'message'; message: string };
 
+// 429 GUI_LAI_QUA_SOM: đếm theo `soGiayCho`; thiếu số thì chỉ còn câu. Dùng chung cho đăng ký (F2) và quên mật khẩu (F4).
+export function describeTooSoon(
+  error: ApiError,
+): { kind: 'tooSoon'; seconds: number } | { kind: 'message'; message: string } {
+  const seconds = waitSeconds(error.chiTiet);
+  return seconds === null
+    ? { kind: 'message', message: TOO_SOON_MESSAGE }
+    : { kind: 'tooSoon', seconds };
+}
+
 // Dùng chung cho `POST /auth/register` và `/resend-otp`: hai mã có cùng dạng `chiTiet`
 export function describeDelivery(error: ApiError): DeliveryFailure {
-  if (error.maLoi === 'GUI_LAI_QUA_SOM') {
-    const seconds = waitSeconds(error.chiTiet);
-    return seconds === null
-      ? { kind: 'message', message: TOO_SOON_MESSAGE }
-      : { kind: 'tooSoon', seconds };
-  }
+  if (error.maLoi === 'GUI_LAI_QUA_SOM') return describeTooSoon(error);
   const detail = mailFailureDetail(error.chiTiet);
   return detail
     ? { kind: 'mailFailed', ...detail }

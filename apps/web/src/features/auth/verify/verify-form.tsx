@@ -2,22 +2,25 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { FormAlert } from '../auth-form-parts';
-import { formatCountdown, useLockCountdown } from '../login/use-lock-countdown';
 import {
-  OTP_TTL_SECONDS,
   RESEND_INTERVAL_SECONDS,
-  secondsByClock,
   secondsFromFreshCode,
 } from '../otp/code-deadlines';
+import {
+  CodeAnnouncements,
+  CodeExpiryNote,
+  ResendRow,
+} from '../otp/code-timers';
 import { isCompleteOtp } from '../otp/otp-code';
 import { OtpInput } from '../otp/otp-input';
-import { ResendButton } from '../otp/resend-button';
+import { useCodeTimers } from '../otp/use-code-timers';
 import { MAIL_FAILED_MESSAGE } from '../register/register-errors';
 import {
   resendRegisterOtp,
   verifyRegisterOtp,
 } from '../register/register-service';
 import { REGISTER_PATH, VERIFY_EMAIL_PATH } from '../roles';
+import { usePageActive } from '../use-page-active';
 import {
   describeResendError,
   describeVerifyError,
@@ -43,6 +46,7 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
   // State chưa kịp render giữa hai lần bấm liên tiếp, nên chống gửi đúp bằng ref
   const busy = useRef(false);
   const started = useRef(false);
+  const active = usePageActive();
 
   const { email, draft } = initial;
   const [verifyId, setVerifyId] = useState(initial.verifyId);
@@ -55,38 +59,22 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
   const [pending, setPending] = useState(false);
   const [resent, setResent] = useState(false);
   const [failure, setFailure] = useState<VerifyFailure | null>(null);
-  const expiry = useLockCountdown();
-  const cooldown = useLockCountdown();
+  const { expiry, cooldown } = useCodeTimers(initial, initial.fresh);
   const { start: startExpiry } = expiry;
   const { start: startCooldown } = cooldown;
 
-  // Trước khi vẽ: effect thường để lộ một khung hình "00:00" và nút Gửi lại mã bấm được
+  // Chạy sau khi hai bộ đếm đã khởi động (cùng lượt vẽ, trước khi vẽ)
   useLayoutEffect(() => {
     if (started.current) return;
     started.current = true;
-
-    const now = Date.now();
-    const { hetHanLuc, coTheGuiLaiLuc, fresh } = initial;
-    if (hetHanLuc !== null) {
-      startExpiry(
-        fresh && coTheGuiLaiLuc !== null
-          ? secondsFromFreshCode(hetHanLuc, coTheGuiLaiLuc, now)
-          : secondsByClock(hetHanLuc, OTP_TTL_SECONDS, now),
-      );
-    }
-    if (fresh) {
-      startCooldown(RESEND_INTERVAL_SECONDS);
+    if (initial.fresh) {
       // Từ đây tải lại trang là theo đồng hồ máy
       navigate(VERIFY_EMAIL_PATH, {
         replace: true,
         state: { ...initial, fresh: false },
       });
-    } else if (coTheGuiLaiLuc !== null) {
-      startCooldown(
-        secondsByClock(coTheGuiLaiLuc, RESEND_INTERVAL_SECONDS, now),
-      );
     }
-  }, [initial, navigate, startCooldown, startExpiry]);
+  }, [initial, navigate]);
 
   const canType = verifyId !== null && !codeDead && !suspended;
   const message = failureText(failure);
@@ -146,12 +134,14 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
     setResent(false);
     try {
       await verifyRegisterOtp(email, verifyId, otp);
+      // Đã rời trang trong lúc chờ: không đổi trang hay state của lịch sử
+      if (!active.current) return;
       navigate(VERIFY_EMAIL_PATH, {
         replace: true,
         state: { verified: true, email },
       });
     } catch (error) {
-      applyFailure(describeVerifyError(error));
+      if (active.current) applyFailure(describeVerifyError(error));
     } finally {
       busy.current = false;
       setPending(false);
@@ -167,6 +157,7 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
     setResent(false);
     try {
       const code = await resendRegisterOtp(email, resendId);
+      if (!active.current) return;
       // `maXacThucId` đổi mỗi lần gửi, mã cũ đã bị thay thế
       setVerifyId(code.maXacThucId);
       setResendId(code.maXacThucId);
@@ -186,7 +177,7 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
         coTheGuiLaiLuc: code.coTheGuiLaiLuc,
       });
     } catch (error) {
-      applyFailure(describeResendError(error));
+      if (active.current) applyFailure(describeResendError(error));
     } finally {
       busy.current = false;
       setPending(false);
@@ -213,22 +204,12 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
         </div>
       )}
 
-      {/* Câu tĩnh đọc một lần; số đếm nằm ngoài vùng live để không bị đọc lại mỗi giây */}
-      {resent && (
-        <p role="status" className="sr-only">
-          Đã gửi mã mới đến email của bạn.
-        </p>
-      )}
-      {cooldown.expired && (
-        <p role="status" className="sr-only">
-          Bạn có thể gửi lại mã.
-        </p>
-      )}
-      {expiry.expired && showExpiry && (
-        <p role="status" className="sr-only">
-          Mã đã hết hạn.
-        </p>
-      )}
+      <CodeAnnouncements
+        resent={resent}
+        cooldown={cooldown}
+        expiry={expiry}
+        showExpiry={showExpiry}
+      />
 
       <form onSubmit={(event) => void handleSubmit(event)} noValidate>
         <OtpInput
@@ -243,24 +224,7 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
           describedBy={message ? alertId : undefined}
         />
 
-        {showExpiry && (
-          <p className="sr-only">Mã có hiệu lực 10 phút kể từ lúc gửi.</p>
-        )}
-        <div aria-hidden="true" className="py-5 text-center text-xs">
-          {showExpiry && !expiry.expired && (
-            <p className="text-gray-500">
-              Mã hết hạn sau{' '}
-              <span className="font-semibold text-gray-700">
-                {formatCountdown(expiry.remaining)}
-              </span>
-            </p>
-          )}
-          {showExpiry && expiry.expired && (
-            <p className="font-medium text-danger">
-              Mã đã hết hạn. Vui lòng gửi lại.
-            </p>
-          )}
-        </div>
+        <CodeExpiryNote expiry={expiry} show={showExpiry} />
 
         <button
           type="submit"
@@ -271,14 +235,11 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
         </button>
       </form>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-1 text-sm">
-        <span className="text-gray-500">Không nhận được mã?</span>
-        <ResendButton
-          remaining={cooldown.remaining}
-          disabled={pending || suspended}
-          onClick={() => void handleResend()}
-        />
-      </div>
+      <ResendRow
+        cooldown={cooldown}
+        disabled={pending || suspended}
+        onResend={() => void handleResend()}
+      />
 
       <div className="mt-3 text-center">
         <Link

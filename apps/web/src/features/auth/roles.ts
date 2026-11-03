@@ -2,7 +2,7 @@
 export type VaiTro = 'BenhNhan' | 'BacSi' | 'LeTan' | 'QuanTriVien';
 
 export const LOGIN_PATH = '/dang-nhap';
-// FORGOT_PASSWORD_PATH do F4 thêm; tới lúc đó liên kết của màn đăng nhập ra 404. VERIFY_EMAIL_PATH là [đề xuất], Make không có route riêng.
+// VERIFY_EMAIL_PATH là [đề xuất], Make không có route riêng.
 export const REGISTER_PATH = '/dang-ky';
 export const FORGOT_PASSWORD_PATH = '/quen-mat-khau';
 export const VERIFY_EMAIL_PATH = '/dang-ky/xac-minh';

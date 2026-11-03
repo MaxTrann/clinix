@@ -598,3 +598,68 @@ describe('giữ hành vi của F1', () => {
     expect(getAuthState().status).toBe('unauthenticated');
   });
 });
+
+// Cho phản hồi đã trả và mọi `navigate` theo sau chạy hết (setTimeout thật, không bị đồng hồ giả chặn). Trang đích là route `lazy`:
+// nạp trước module của nó, nếu không lần nạp đầu chậm hơn vòng chờ và test xanh giả (đo ở RG-63)
+async function settle(router: { state: { navigation: { state: string } } }) {
+  await import('../verify/verify-email-page');
+  for (let i = 0; i < 10; i++) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+  await waitFor(() => expect(router.state.navigation.state).toBe('idle'));
+}
+
+// D13: rời trang khi đăng nhập còn đang bay thì EMAIL_CHUA_XAC_MINH về sau không được kéo sang màn nhập mã
+describe('rời trang khi đang gửi (D13)', () => {
+  it('LP-113 EMAIL_CHUA_XAC_MINH về sau khi đã sang Đăng ký: vẫn ở Đăng ký', async () => {
+    const respond = api.hold('/auth/login');
+    const router = await renderLogin();
+    await submit();
+    await waitFor(() => expect(loginBodies).toHaveLength(1));
+    fireEvent.click(screen.getByRole('link', { name: 'Đăng ký ngay' }));
+    await screen.findByRole('heading', { name: 'Tạo tài khoản' });
+    respond(403, {
+      maLoi: 'EMAIL_CHUA_XAC_MINH',
+      thongBao: 'CÂU CỦA API',
+      chiTiet: {
+        maXacThucId: '42',
+        trangThaiMa: 'ConHan',
+        hetHanLuc: '2026-11-01T10:00:00.000Z',
+      },
+    });
+    await settle(router);
+    expect(router.state.location.pathname).toBe(REGISTER_PATH);
+  });
+});
+
+// D12 (task F4): liên kết Quên mật khẩu mang email đã gõ, không mang mật khẩu
+describe('liên kết Quên mật khẩu (D12)', () => {
+  it('LP-114 liên kết dưới ô mật khẩu: sang quên mật khẩu với email đã cắt khoảng trắng', async () => {
+    const router = await renderLogin();
+    fill('  a@b.vn  ', 'Matkhau@1');
+    fireEvent.click(screen.getByRole('link', { name: 'Quên mật khẩu?' }));
+    await screen.findByRole('heading', { name: 'Quên mật khẩu' });
+    expect(router.state.location.pathname).toBe(FORGOT_PASSWORD_PATH);
+    expect(router.state.location.state).toStrictEqual({ email: 'a@b.vn' });
+    expect(screen.getByLabelText<HTMLInputElement>('Email đăng ký').value).toBe(
+      'a@b.vn',
+    );
+  });
+
+  it('LP-115 liên kết trong hộp khoá tạm: cũng mang email', async () => {
+    failLogin(429, {
+      maLoi: 'TAI_KHOAN_BI_KHOA_TAM',
+      chiTiet: { soGiayConLai: 900, khoaDen: '2026-11-03T10:15:00.000Z' },
+    });
+    const router = await renderLogin();
+    await submit('x@y.vn', 'Matkhau@1');
+    await screen.findByText('15:00');
+    const [lockLink] = screen.getAllByRole('link', { name: 'Quên mật khẩu?' });
+    expect(lockLink.closest('[tabindex="-1"]')).not.toBeNull();
+    fireEvent.click(lockLink);
+    await screen.findByRole('heading', { name: 'Quên mật khẩu' });
+    expect(router.state.location.state).toStrictEqual({ email: 'x@y.vn' });
+  });
+});
