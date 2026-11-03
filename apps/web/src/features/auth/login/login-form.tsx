@@ -1,16 +1,10 @@
-import {
-  ArrowRight,
-  CircleAlert,
-  Clock,
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-} from 'lucide-react';
+import { ArrowRight, Clock, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { ALERT_BOX, FieldError, FormAlert } from '../auth-form-parts';
 import { login } from '../auth-session';
+import { textFrom } from '../route-state';
 import {
   FORGOT_PASSWORD_PATH,
   REGISTER_PATH,
@@ -25,8 +19,6 @@ import {
 } from './login-errors';
 import { formatCountdown, useLockCountdown } from './use-lock-countdown';
 
-const ALERT_BOX =
-  'flex items-start gap-2 rounded-xl border border-danger-line bg-danger-soft p-3 text-sm text-danger-strong';
 const FIELD_ICON =
   'pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400';
 const FIELD_INPUT = 'w-full py-3 pl-10';
@@ -37,6 +29,8 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ sessionEnded }: LoginFormProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const emailId = useId();
   const passwordId = useId();
   const emailRef = useRef<HTMLInputElement>(null);
@@ -45,7 +39,10 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
   // State chưa kịp render giữa hai lần gửi liên tiếp, nên chống gửi đúp bằng ref
   const submitting = useRef(false);
 
-  const [email, setEmail] = useState('');
+  // Điền sẵn khi đến từ màn "Xác minh thành công" hoặc "Email đã được sử dụng"
+  const [email, setEmail] = useState(
+    () => textFrom(location.state, 'email') ?? '',
+  );
   const [matKhau, setMatKhau] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState(false);
@@ -80,6 +77,13 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
 
   function applyFailure(next: LoginFailure) {
     if (next.kind === 'ignored') return;
+    if (next.kind === 'unverified') {
+      // Vào thẳng màn nhập mã (N2); không tự gửi thư. Đẩy lịch sử để Back quay lại đăng nhập.
+      navigate(VERIFY_EMAIL_PATH, {
+        state: verifyEmailHandoff(email, next.chiTiet),
+      });
+      return;
+    }
     if (next.kind === 'locked') startLock(next.seconds);
     if (
       next.kind === 'locked' ||
@@ -141,19 +145,6 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
 
           {failure?.kind === 'message' && (
             <FormAlert alertRef={alertRef}>{failure.message}</FormAlert>
-          )}
-
-          {failure?.kind === 'unverified' && (
-            <FormAlert alertRef={alertRef}>
-              {failure.message}{' '}
-              <Link
-                to={VERIFY_EMAIL_PATH}
-                state={verifyEmailHandoff(email, failure.chiTiet)}
-                className="font-medium underline"
-              >
-                Nhập mã xác minh
-              </Link>
-            </FormAlert>
           )}
 
           {failure?.kind === 'reregister' && (
@@ -299,34 +290,5 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
         </Link>
       </p>
     </>
-  );
-}
-
-function FormAlert({
-  alertRef,
-  children,
-}: {
-  alertRef: React.RefObject<HTMLDivElement | null>;
-  children: React.ReactNode;
-}) {
-  return (
-    <div ref={alertRef} role="alert" tabIndex={-1} className={ALERT_BOX}>
-      <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      <span>{children}</span>
-    </div>
-  );
-}
-
-function FieldError({
-  id,
-  children,
-}: {
-  id: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <p id={id} className="mt-1 text-xs text-danger">
-      {children}
-    </p>
   );
 }
