@@ -11,10 +11,9 @@ import { ROLE_HOME_PATHS, ROLE_LABELS, type VaiTro } from './roles';
 
 // Task F1. Mã ca AU-nn là [đề xuất]; ca nào phủ test case của PLAN thì ghi kèm mã đó.
 const ROLES = Object.keys(ROLE_HOME_PATHS) as VaiTro[];
-// Đổi có duyệt ở patient F1: Bệnh nhân có khung thật (ca tương ứng: router/role-routes.test.tsx PL-01)
-const PLACEHOLDER_ROLES = ROLES.filter(
-  (role) => role !== 'QuanTriVien' && role !== 'BenhNhan',
-);
+// Đổi có duyệt ở patient F1 rồi patient F2: Bệnh nhân (F1) và Lễ tân (F2) có khung thật, chỉ Bác sĩ còn là trang giữ chỗ
+// (ca tương ứng: router/role-routes.test.tsx PL-01 cho Bệnh nhân, PL-09 cho Lễ tân)
+const PLACEHOLDER_ROLES: VaiTro[] = ['BacSi'];
 const patientShell = () =>
   screen.findByRole('complementary', { name: 'Điều hướng Bệnh nhân' });
 

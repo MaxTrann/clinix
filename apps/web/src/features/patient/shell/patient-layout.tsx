@@ -1,11 +1,5 @@
-import { Outlet } from 'react-router';
-import { RoleShell, type RoleNavItem } from '../../../shared/ui/role-shell';
-import {
-  LOGOUT_FAILED_MESSAGE,
-  ROLE_LABELS,
-  useAuth,
-  useLogout,
-} from '../../auth';
+import type { RoleNavItem } from '../../../shared/ui/role-shell';
+import { RoleLayout } from './role-layout';
 
 export interface PatientLayoutProps {
   // Cấu hình menu do lớp router giữ (router/role-nav.ts, Q21d): module khác thêm `to` ở đó, không sửa file này
@@ -13,29 +7,14 @@ export interface PatientLayoutProps {
   footerItems?: RoleNavItem[];
 }
 
+// Khung Bệnh nhân (patient F1). Phần nối người dùng và đăng xuất nằm ở RoleLayout, dùng chung với khung Lễ tân (F2).
 export function PatientLayout({ items, footerItems }: PatientLayoutProps) {
-  const { user } = useAuth();
-  // MỘT hook cho cả hai nút Đăng xuất: dùng chung `pending`/`failed`, bấm cả hai vẫn một request
-  const { run, pending, failed } = useLogout();
-
-  // Cổng RequireAuth chỉ render khung khi đã đăng nhập; dòng này chỉ để kiểu không còn null
-  if (!user) return null;
-
   return (
-    <RoleShell
+    <RoleLayout
+      vaiTro="BenhNhan"
       navLabel="Điều hướng Bệnh nhân"
-      userName={user.hoTen}
-      userSubtitle={ROLE_LABELS.BenhNhan}
       items={items}
       footerItems={footerItems}
-      logout={{
-        onLogout: () => void run(),
-        pending,
-        failed,
-        failedMessage: LOGOUT_FAILED_MESSAGE,
-      }}
-    >
-      <Outlet />
-    </RoleShell>
+    />
   );
 }

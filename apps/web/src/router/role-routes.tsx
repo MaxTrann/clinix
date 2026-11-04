@@ -12,9 +12,12 @@ import {
   PATIENT_PATHS,
   PATIENT_ROUTES,
   PatientLayout,
+  RECEPTION_PATHS,
+  RECEPTION_ROUTES,
+  ReceptionLayout,
 } from '../features/patient';
 import { ShellContentError } from '../shared/ui/shell-content-error';
-import { PATIENT_NAV } from './role-nav';
+import { PATIENT_NAV, RECEPTION_NAV } from './role-nav';
 
 // Bảng "vai trò ⇒ route". Khi trang thật xong, chỉ thay ĐÚNG mục của vai trò đó (ví dụ admin F1 thay QuanTriVien); cổng theo vai trò do hàm dưới gắn.
 const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
@@ -39,7 +42,24 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
     ],
   },
   BacSi: { path: ROLE_HOME_PATHS.BacSi, element: <RolePlaceholderPage /> },
-  LeTan: { path: ROLE_HOME_PATHS.LeTan, element: <RolePlaceholderPage /> },
+  // patient F2: khung Lễ tân, cùng khuôn với BenhNhan. Module khác cắm trang cạnh RECEPTION_ROUTES (TRACKING F2-D)
+  LeTan: {
+    path: ROLE_HOME_PATHS.LeTan,
+    element: <ReceptionLayout {...RECEPTION_NAV} />,
+    children: [
+      {
+        errorElement: <ShellContentError />,
+        children: [
+          // Chưa có "Tổng quan": chuyển tới Tra cứu bệnh nhân (Q21e)
+          {
+            index: true,
+            element: <Navigate to={RECEPTION_PATHS.lookup} replace />,
+          },
+          ...RECEPTION_ROUTES,
+        ],
+      },
+    ],
+  },
   QuanTriVien: {
     path: ROLE_HOME_PATHS.QuanTriVien,
     element: <AdminLayout />,
