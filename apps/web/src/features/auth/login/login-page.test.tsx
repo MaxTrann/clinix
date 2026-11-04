@@ -9,7 +9,7 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../../router/routes';
 import { apiError, createFakeAuthApi } from '../../../test/fake-auth-api';
-import { PATIENT_PATHS } from '../../patient';
+import { PATIENT_PATHS, RECEPTION_PATHS } from '../../patient';
 import { resetAuthForTest } from '../auth-session';
 import { getAuthState, setAuthState } from '../auth-store';
 import {
@@ -52,24 +52,30 @@ const failLogin = (status: number, body: Record<string, unknown>) =>
       }),
   );
 
-// Quản trị viên vào khung Admin thật, Bệnh nhân vào khung Bệnh nhân (đổi có duyệt ở patient F1), hai vai trò còn lại vẫn là trang giữ chỗ
+// Tên thanh bên của khung thật theo vai trò; vai trò không có ở đây vẫn là trang giữ chỗ (chỉ còn Bác sĩ).
+// Đổi có duyệt ở patient F1 (Bệnh nhân) và patient F2 (Lễ tân): viết thành bảng tra thay cho chuỗi if.
+const ROLE_SHELL_LABELS: Partial<Record<VaiTro, string>> = {
+  QuanTriVien: 'Điều hướng Admin',
+  BenhNhan: 'Điều hướng Bệnh nhân',
+  LeTan: 'Điều hướng Lễ tân',
+};
+
 function findRoleHome(vaiTro: VaiTro) {
-  if (vaiTro === 'QuanTriVien') {
-    return screen.findByRole('complementary', { name: 'Điều hướng Admin' });
-  }
-  if (vaiTro === 'BenhNhan') {
-    return screen.findByRole('complementary', {
-      name: 'Điều hướng Bệnh nhân',
-    });
-  }
-  return screen.findByRole('heading', { name: ROLE_LABELS[vaiTro] });
+  const shellLabel = ROLE_SHELL_LABELS[vaiTro];
+  return shellLabel
+    ? screen.findByRole('complementary', { name: shellLabel })
+    : screen.findByRole('heading', { name: ROLE_LABELS[vaiTro] });
 }
 
-// Bệnh nhân vào `/benh-nhan` rồi được chuyển ngay tới trang mặc định của khung (Q21e của patient)
+// Bệnh nhân vào `/benh-nhan`, Lễ tân vào `/le-tan` rồi được chuyển ngay tới trang mặc định của khung (Q21e của patient).
+// Đổi có duyệt ở patient F1 (Bệnh nhân) và patient F2 (Lễ tân).
+const LANDING_PATHS: Partial<Record<VaiTro, string>> = {
+  BenhNhan: PATIENT_PATHS.profile,
+  LeTan: RECEPTION_PATHS.lookup,
+};
+
 function landingPathFor(vaiTro: VaiTro) {
-  return vaiTro === 'BenhNhan'
-    ? PATIENT_PATHS.profile
-    : ROLE_HOME_PATHS[vaiTro];
+  return LANDING_PATHS[vaiTro] ?? ROLE_HOME_PATHS[vaiTro];
 }
 
 async function renderLogin() {
@@ -213,7 +219,7 @@ describe('DN-03 đăng nhập thành công', () => {
     const router = await renderLogin();
     await submit();
     await findRoleHome(vaiTro);
-    // Đổi có duyệt ở patient F1: đường dẫn cuối của Bệnh nhân là trang mặc định của khung
+    // Đổi có duyệt ở patient F1 và patient F2: đường dẫn cuối của Bệnh nhân, Lễ tân là trang mặc định của khung
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(landingPathFor(vaiTro)),
     );

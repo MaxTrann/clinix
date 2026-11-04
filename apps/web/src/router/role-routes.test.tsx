@@ -12,7 +12,7 @@ import {
   restoreSession,
 } from '../features/auth/auth-session';
 import { getAuthState, setAuthState } from '../features/auth/auth-store';
-import { PATIENT_PATHS } from '../features/patient';
+import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
 import { apiError, createFakeAuthApi } from '../test/fake-auth-api';
 import { createAppRoutes } from './routes';
 
@@ -212,7 +212,8 @@ describe('khung Bệnh nhân', () => {
     expect(api.logoutCalls).toBe(2);
   });
 
-  it('PL-05 KG-07 BacSi, LeTan vẫn là trang giữ chỗ; QuanTriVien vẫn là khung Admin', async () => {
+  // Đổi có duyệt ở patient F2: tên ca bỏ "LeTan" (Lễ tân có khung ở F2, xem PL-09); thân ca, mã ca và mã KG giữ nguyên
+  it('PL-05 KG-07 BacSi vẫn là trang giữ chỗ; QuanTriVien vẫn là khung Admin', async () => {
     signedInAs('BacSi');
     renderAt(ROLE_HOME_PATHS.BacSi);
     expect(screen.getByRole('heading', { name: 'Bác sĩ' })).toBeInTheDocument();
@@ -222,12 +223,7 @@ describe('khung Bệnh nhân', () => {
     expect(screen.queryByRole('complementary')).toBeNull();
   });
 
-  it('PL-05b KG-07 LeTan vẫn là trang giữ chỗ', () => {
-    signedInAs('LeTan');
-    renderAt(ROLE_HOME_PATHS.LeTan);
-    expect(screen.getByRole('heading', { name: 'Lễ tân' })).toBeInTheDocument();
-    expect(screen.queryByRole('complementary')).toBeNull();
-  });
+  // PL-05b ("LeTan vẫn là trang giữ chỗ") bỏ, đổi có duyệt ở patient F2: Lễ tân có khung thật, ca kiểm ngược lại là PL-09
 
   it('PL-05c KG-07 QuanTriVien vẫn vào khung Admin', async () => {
     signedInAs('QuanTriVien');
@@ -281,5 +277,253 @@ describe('khung Bệnh nhân', () => {
     expect(
       await screen.findByRole('heading', { name: 'Không tìm thấy trang' }),
     ).toBeInTheDocument();
+  });
+});
+
+// patient F2 (TRACKING F2-E): khung Lễ tân ghép vào router thật, dùng lại trợ giúp ở trên. Mã ca PL-nn tiếp nối F1 là [đề xuất].
+const RECEPTION_MENU = [
+  'Tổng quan',
+  'Quản lý lịch hẹn',
+  'Tra cứu bệnh nhân',
+  'Lịch làm việc bác sĩ',
+  'Yêu cầu đổi lịch',
+  'Danh sách chờ',
+  'Tin nhắn',
+  'Thông báo',
+  'Thông tin cá nhân',
+];
+
+const receptionShell = () =>
+  screen.findByRole('complementary', { name: 'Điều hướng Lễ tân' });
+
+describe('khung Lễ tân', () => {
+  beforeEach(() => {
+    // Phiên thật qua API giả cho các ca đăng xuất: tài khoản là Lễ tân
+    api = createFakeAuthApi({
+      vaiTro: 'LeTan',
+      hoTen: 'Lễ tân mẫu',
+      daXacMinhEmail: true,
+    });
+    vi.stubGlobal('fetch', vi.fn(api.fetch));
+  });
+
+  it('PL-09 KG-02 KG-04 KG-06 Q21e LT vào /le-tan: chuyển tới Tra cứu bệnh nhân bằng replace, 9 mục đúng thứ tự Figma, họ tên + "Lễ tân", không có "Về trang chủ"', async () => {
+    signedInAs('LeTan');
+    const router = renderAt(ROLE_HOME_PATHS.LeTan);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Tra cứu bệnh nhân' }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(RECEPTION_PATHS.lookup);
+    expect(router.state.historyAction).toBe('REPLACE');
+
+    const aside = await receptionShell();
+    expect(within(aside).getByText('Họ tên LeTan')).toBeInTheDocument();
+    expect(within(aside).getByText(ROLE_LABELS.LeTan)).toBeInTheDocument();
+    const menu = within(aside).getByRole('navigation', { name: 'Menu chính' });
+    const labels = within(menu)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent?.replace(' (chưa được triển khai)', ''));
+    expect(labels).toEqual(RECEPTION_MENU);
+    const lookup = within(menu).getByRole('link', {
+      name: 'Tra cứu bệnh nhân',
+    });
+    expect(lookup).toHaveAttribute('aria-current', 'page');
+    expect(lookup).toHaveAttribute('href', RECEPTION_PATHS.lookup);
+    // Chỉ "Tra cứu bệnh nhân" có trang ở F2; tám mục còn lại vô hiệu, kể cả "Thông tin cá nhân" (chờ F4) (KG-04)
+    expect(within(menu).getAllByRole('link')).toHaveLength(1);
+    const disabled = within(menu).getAllByRole('button');
+    expect(disabled).toHaveLength(8);
+    for (const button of disabled) expect(button).toBeDisabled();
+    expect(
+      within(menu).getByRole('button', { name: /^Thông tin cá nhân/ }),
+    ).toBeDisabled();
+    // Figma `483:2`: cuối thanh bên chỉ có nút Đăng xuất
+    expect(screen.queryByRole('link', { name: 'Về trang chủ' })).toBeNull();
+    expect(logoutButtons()).toHaveLength(2);
+    // Q21b: không chuông (thanh trên chỉ có nút Đăng xuất), không số đếm nào trong khung
+    expect(
+      within(screen.getByRole('banner')).getAllByRole('button'),
+    ).toHaveLength(1);
+    expect(within(aside).queryByText(/\d/)).toBeNull();
+
+    // replace: Back về trang trước (`/`), không quay lại /le-tan để bị chuyển tiếp lần nữa
+    await act(() => router.navigate(-1));
+    expect(router.state.location.pathname).toBe('/');
+  });
+
+  it('PL-09b KG-02 mở thẳng /le-tan/tra-cuu-benh-nhan không bị chuyển hướng, có trang giữ chỗ', async () => {
+    // Đường dẫn đã chốt ở Q21g; các ca khác dùng hằng nên không bắt được hằng sai (đột biến M19 của F2)
+    expect(RECEPTION_PATHS.lookup).toBe('/le-tan/tra-cuu-benh-nhan');
+    signedInAs('LeTan');
+    const router = renderAt(RECEPTION_PATHS.lookup);
+    await screen.findByRole('heading', { name: 'Tra cứu bệnh nhân' });
+    expect(router.state.historyAction).toBe('POP');
+    expect(router.state.location.pathname).toBe(RECEPTION_PATHS.lookup);
+    expect(screen.getByRole('main')).toHaveTextContent('Chưa được triển khai.');
+    expect(await receptionShell()).toBeInTheDocument();
+  });
+
+  it('PL-09c KG-06 trang con dưới "Tra cứu bệnh nhân" (chỗ của F8) vẫn làm sáng mục này: mục không đặt `end`', async () => {
+    signedInAs('LeTan');
+    const routes = createAppRoutes();
+    // Gắn thử một trang con như F8 sẽ làm (mảng con của route bọc lỗi), gỡ khi xong
+    const receptionRoute = routes[0].children
+      ?.flatMap((route) => route.children ?? [])
+      .find((route) => route.path === ROLE_HOME_PATHS.LeTan);
+    const pages = receptionRoute?.children?.[0].children;
+    pages?.push({
+      path: 'tra-cuu-benh-nhan/chi-tiet',
+      element: <h1>Chi tiết thử</h1>,
+    });
+    onTestFinished(() => void pages?.pop());
+    renderAt(`${RECEPTION_PATHS.lookup}/chi-tiet`, routes);
+
+    await screen.findByRole('heading', { name: 'Chi tiết thử' });
+    const menu = within(await receptionShell()).getByRole('navigation', {
+      name: 'Menu chính',
+    });
+    expect(
+      within(menu).getByRole('link', { name: 'Tra cứu bệnh nhân' }),
+    ).toHaveAttribute('aria-current', 'page');
+  });
+
+  it.each(['BenhNhan', 'BacSi', 'QuanTriVien'] as const)(
+    'PL-10 KG-03 %s mở /le-tan/tra-cuu-benh-nhan: 404, không thấy khung Lễ tân',
+    async (vaiTro) => {
+      signedInAs(vaiTro);
+      const router = renderAt(RECEPTION_PATHS.lookup);
+      expect(
+        await screen.findByRole('heading', { name: 'Không tìm thấy trang' }),
+      ).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe(RECEPTION_PATHS.lookup);
+      expect(
+        screen.queryByRole('complementary', { name: 'Điều hướng Lễ tân' }),
+      ).toBeNull();
+      expect(
+        screen.queryByRole('heading', { name: 'Tra cứu bệnh nhân' }),
+      ).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Đăng xuất' })).toBeNull();
+    },
+  );
+
+  it('PL-10b KG-03 khách mở /le-tan/tra-cuu-benh-nhan: về /dang-nhap bằng replace, không lộ khung', async () => {
+    setAuthState({ status: 'unauthenticated' });
+    const router = renderAt(RECEPTION_PATHS.lookup);
+    await vi.waitFor(() =>
+      expect(router.state.location.pathname).toBe('/dang-nhap'),
+    );
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(
+      screen.queryByRole('complementary', { name: 'Điều hướng Lễ tân' }),
+    ).toBeNull();
+  });
+
+  it('PL-11 KG-05 G5 bấm Đăng xuất ở thanh bên rồi thanh trên: một request, không hộp xác nhận, về /dang-nhap', async () => {
+    api.startSession();
+    await restoreSession();
+    expect(getAuthState().user?.vaiTro).toBe('LeTan');
+    const confirmSpy = vi.fn(() => true);
+    vi.stubGlobal('confirm', confirmSpy);
+    const release = api.hold('/auth/logout');
+    const router = renderAt(RECEPTION_PATHS.lookup);
+    const aside = await receptionShell();
+    expect(within(aside).getByText('Lễ tân mẫu')).toBeInTheDocument();
+
+    const [sidebar, topbar] = logoutButtons();
+    fireEvent.click(sidebar);
+    expect(topbar).toBeDisabled();
+    expect(sidebar).toBeDisabled();
+    fireEvent.click(topbar);
+    await vi.waitFor(() => expect(api.logoutCalls).toBe(1));
+    await act(async () => {
+      release(204, null);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await vi.waitFor(() =>
+      expect(router.state.location.pathname).toBe('/dang-nhap'),
+    );
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(api.logoutCalls).toBe(1);
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(getAuthState().status).toBe('unauthenticated');
+  });
+
+  it('PL-12 KG-05 /auth/logout 500: câu lỗi + "Thử lại", vẫn ở khung Lễ tân; Thử lại gửi request thứ hai và về đăng nhập', async () => {
+    api.startSession();
+    await restoreSession();
+    expect(getAuthState().user?.vaiTro).toBe('LeTan');
+    api.failNext('/auth/logout', () => apiError(500, 'LOI_HE_THONG'));
+    const router = renderAt(RECEPTION_PATHS.lookup);
+    const aside = await receptionShell();
+
+    fireEvent.click(logoutButtons()[0]);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Không đăng xuất được, vui lòng thử lại');
+    expect(aside).toContainElement(alert);
+    expect(router.state.location.pathname).toBe(RECEPTION_PATHS.lookup);
+    for (const button of logoutButtons()) expect(button).toBeEnabled();
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Thử lại' }));
+    await vi.waitFor(() =>
+      expect(router.state.location.pathname).toBe('/dang-nhap'),
+    );
+    expect(api.logoutCalls).toBe(2);
+  });
+
+  it('PL-13 F1-F trang con của khung Lễ tân ném lỗi: khung và nút Đăng xuất còn, lỗi trong vùng nội dung', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    signedInAs('LeTan');
+    function Broken(): never {
+      throw new Error('chi tiết nội bộ');
+    }
+    const routes = createAppRoutes();
+    // Gắn trang hỏng vào đúng chỗ module khác sẽ cắm trang Lễ tân (mảng con của route bọc lỗi, cạnh RECEPTION_ROUTES)
+    const receptionRoute = routes[0].children
+      ?.flatMap((route) => route.children ?? [])
+      .find((route) => route.path === ROLE_HOME_PATHS.LeTan);
+    const pages = receptionRoute?.children?.[0].children;
+    pages?.push({ path: 'hong', element: <Broken /> });
+    onTestFinished(() => void pages?.pop());
+    renderAt(`${ROLE_HOME_PATHS.LeTan}/hong`, routes);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Đã có lỗi xảy ra');
+    expect(screen.queryByText(/chi tiết nội bộ/)).toBeNull();
+    const aside = await receptionShell();
+    expect(screen.getByRole('main')).toContainElement(alert);
+    expect(aside).not.toContainElement(alert);
+    expect(logoutButtons()).toHaveLength(2);
+  });
+
+  it('PL-14 đường lạ trong khu Lễ tân: trang 404 của gốc, không có khung', async () => {
+    signedInAs('LeTan');
+    renderAt(`${ROLE_HOME_PATHS.LeTan}/duong-la`);
+    expect(
+      await screen.findByRole('heading', { name: 'Không tìm thấy trang' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('complementary', { name: 'Điều hướng Lễ tân' }),
+    ).toBeNull();
+  });
+
+  it('PL-15 KG-09 thứ tự phần tử nhận focus của khung Lễ tân theo Figma; mọi nút có tên', async () => {
+    signedInAs('LeTan');
+    renderAt(RECEPTION_PATHS.lookup);
+    await screen.findByRole('heading', { name: 'Tra cứu bệnh nhân' });
+    const focusable = Array.from(
+      document.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
+    ).map((element) => element.textContent?.trim());
+    expect(focusable).toEqual([
+      'CLINIX',
+      'Tra cứu bệnh nhân',
+      'Đăng xuất',
+      'Đăng xuất',
+    ]);
+    for (const button of screen.getAllByRole('button')) {
+      expect(button).toHaveAccessibleName();
+    }
   });
 });
