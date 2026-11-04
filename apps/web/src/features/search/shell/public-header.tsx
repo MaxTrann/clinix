@@ -1,4 +1,5 @@
 import { CalendarDays, Stethoscope } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
 import type { RoleShellLogout } from '../../../shared/ui/role-shell';
 import { AccountMenu } from './account-menu';
@@ -18,6 +19,8 @@ export interface PublicHeaderProps {
   // null = Khách vãng lai ("Đăng nhập"); có giá trị = nút họ tên + menu tài khoản
   user: PublicHeaderUser | null;
   serviceGroups?: ServiceGroupLink[];
+  // Bộ chọn chi nhánh, đặt bên trái nút "Đặt lịch khám" (Q19a)
+  branchPicker?: ReactNode;
 }
 
 // Số đo theo Figma `257:6` (gốc 15px): cao 60px, chữ 13,125px, mục py 7,5px px 11,25px, bo 7,375px.
@@ -79,6 +82,7 @@ export function PublicHeader({
   loginPath,
   user,
   serviceGroups,
+  branchPicker,
 }: PublicHeaderProps) {
   return (
     <header className="border-b border-gray-100 bg-white shadow-sm">
@@ -101,6 +105,7 @@ export function PublicHeader({
         </nav>
 
         <div className="flex items-center gap-4">
+          {branchPicker}
           {bookingItem.to ? (
             <Link
               to={bookingItem.to}

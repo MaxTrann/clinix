@@ -65,6 +65,9 @@ function renderAt(path: string) {
   return router;
 }
 
+const clinicInfoCalls = () =>
+  publicCalls.filter((call) => call.url.includes('/public/clinic-info'));
+
 const mainNav = () =>
   screen.getByRole('navigation', { name: 'Điều hướng chính' });
 
@@ -149,8 +152,11 @@ describe('PublicFooter', () => {
     expect(screen.getByText('19001234')).toBeInTheDocument();
     expect(screen.getByText('support@example.com')).toBeInTheDocument();
     // CC-08: đang đăng nhập mà lời gọi công khai không gắn token
-    expect(publicCalls).toHaveLength(1);
-    expect(publicCalls[0]?.headers.get('Authorization')).toBeNull();
+    // Từ search F2 khung còn gọi danh sách chi nhánh; mọi lời gọi công khai đều không gắn token
+    expect(clinicInfoCalls()).toHaveLength(1);
+    for (const call of publicCalls) {
+      expect(call.headers.get('Authorization')).toBeNull();
+    }
   });
 
   it('KC-05 trường null ẩn dòng; cả bốn null ⇒ không có khối liên hệ', async () => {
@@ -178,7 +184,7 @@ describe('PublicFooter', () => {
     expect(
       await screen.findByText('© 2026 CLINIX Clinic. Bảo lưu mọi quyền.'),
     ).toBeInTheDocument();
-    await vi.waitFor(() => expect(publicCalls).toHaveLength(1));
+    await vi.waitFor(() => expect(clinicInfoCalls()).toHaveLength(1));
     expect(
       screen.queryByRole('heading', { name: 'Thông tin liên hệ' }),
     ).toBeNull();
