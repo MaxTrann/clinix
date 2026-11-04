@@ -343,7 +343,7 @@ ghi ở bảng 2. Dòng nhật ký ở mục 1 nên trỏ tới số thứ tự 
 | 31/10/2026 | dòng 33; AI-BUG-026, AI-BUG-027 | A13 |
 | 01/11/2026 | dòng 34, 35, 36, 37, 38 | A14, A15, P6, F1, ADR 0002 |
 | 02–03/11/2026 | dòng 39, 40, 41, 44; AI-BUG-037 | F3, F2, F4, F5 (dòng 44 ghi ở PR X1, X2) |
-| 03/11/2026 | dòng tiếp theo (ghi ở PR kế tiếp) | X1, X2 |
+| 03/11/2026 | dòng 45; AI-BUG-042 | X1, X2 |
 
 Đánh số: `AI_USAGE_LOG.md` (Đại) và `TRUNG_AI_USAGE_LOG.md` (Trung) đánh số dòng riêng, nên số 23 nằm ở file của Trung; mã `AI-BUG-nnn` dùng chung một dãy cho cả hai file.
 Dòng 12, 13 của `AI_USAGE_LOG.md` là của Trung (P1, P2 của admin), cột PR còn ghi "Chưa mở PR": để Trung sửa. `AI-BUG-006` (test schema parity, admin) có mặt ở cả hai file,

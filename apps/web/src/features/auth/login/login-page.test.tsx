@@ -9,6 +9,7 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../../router/routes';
 import { apiError, createFakeAuthApi } from '../../../test/fake-auth-api';
+import { PATIENT_PATHS } from '../../patient';
 import { resetAuthForTest } from '../auth-session';
 import { getAuthState, setAuthState } from '../auth-store';
 import {
@@ -51,11 +52,24 @@ const failLogin = (status: number, body: Record<string, unknown>) =>
       }),
   );
 
-// Quản trị viên vào khung Admin thật, ba vai trò còn lại vẫn là trang giữ chỗ
+// Quản trị viên vào khung Admin thật, Bệnh nhân vào khung Bệnh nhân (đổi có duyệt ở patient F1), hai vai trò còn lại vẫn là trang giữ chỗ
 function findRoleHome(vaiTro: VaiTro) {
-  return vaiTro === 'QuanTriVien'
-    ? screen.findByRole('complementary', { name: 'Điều hướng Admin' })
-    : screen.findByRole('heading', { name: ROLE_LABELS[vaiTro] });
+  if (vaiTro === 'QuanTriVien') {
+    return screen.findByRole('complementary', { name: 'Điều hướng Admin' });
+  }
+  if (vaiTro === 'BenhNhan') {
+    return screen.findByRole('complementary', {
+      name: 'Điều hướng Bệnh nhân',
+    });
+  }
+  return screen.findByRole('heading', { name: ROLE_LABELS[vaiTro] });
+}
+
+// Bệnh nhân vào `/benh-nhan` rồi được chuyển ngay tới trang mặc định của khung (Q21e của patient)
+function landingPathFor(vaiTro: VaiTro) {
+  return vaiTro === 'BenhNhan'
+    ? PATIENT_PATHS.profile
+    : ROLE_HOME_PATHS[vaiTro];
 }
 
 async function renderLogin() {
@@ -199,7 +213,10 @@ describe('DN-03 đăng nhập thành công', () => {
     const router = await renderLogin();
     await submit();
     await findRoleHome(vaiTro);
-    expect(router.state.location.pathname).toBe(ROLE_HOME_PATHS[vaiTro]);
+    // Đổi có duyệt ở patient F1: đường dẫn cuối của Bệnh nhân là trang mặc định của khung
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(landingPathFor(vaiTro)),
+    );
     expect(router.state.historyAction).toBe('REPLACE');
     expect(loginBodies).toHaveLength(1);
   });
@@ -570,8 +587,11 @@ describe('giữ hành vi của F1', () => {
     expect(getAuthState().status).toBe('error');
 
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    await screen.findByRole('heading', { name: 'Bệnh nhân' });
-    expect(router.state.location.pathname).toBe('/benh-nhan');
+    // Đổi có duyệt ở patient F1: khung Bệnh nhân và trang mặc định thay cho trang giữ chỗ
+    await findRoleHome('BenhNhan');
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(PATIENT_PATHS.profile),
+    );
     expect(loginBodies).toHaveLength(1);
     expect(api.refreshCalls).toBe(0);
     expect(api.meCalls).toBe(2);
