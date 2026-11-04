@@ -288,6 +288,10 @@ Bác sĩ `475:2` (+ `476:2`: Q1 = Có — dùng API `/profile` của module này
 - HSNT: danh sách rỗng (chưa có người thân); lỗi từng trường; hộp xác nhận ngừng sử dụng; ngừng bị chặn (lý do + danh sách lịch hẹn + gợi ý huỷ); thẻ hồ sơ đã ngừng.
 - TCBN: đang tìm; lỗi mạng/timeout; từ khoá quá ngắn; phân trang (danh sách trái chỉ có "1 kết quả"); đang tải chi tiết; Bệnh nhân không có người thân; tài khoản ngừng hoạt động.
 - Khung: mục menu chưa triển khai; màn hẹp; Lễ tân/Bệnh nhân không có "Tổng quan".
+  **Màn hẹp (F11, 04/11/2026):** file Figma Design chưa có frame (252 frame đều 1440) nhưng **mã Make đã có** (`DashboardLayout.tsx` dòng 351–412: ngăn kéo `w-64`,
+  nền `bg-black/50`, nút Menu bên trái thanh trên, `main` `p-4 md:p-6`); F11 bám Make. Lệch có chủ ý (TRACKING F11-I): ngưỡng 1024 px theo Q21c (Make `md` = 768 px);
+  thêm nút "Đóng menu"; giữ chữ "Đăng xuất" ở thanh trên (Make ẩn chữ dưới 640 px, nút mất tên truy cập); hiệu ứng trượt vào (Make không có); chuông và số đếm ẩn (Q21b).
+  Thanh trên luôn hiện khi hẹp như Make, nhưng bằng `sticky` (ở đây cả trang cuộn, Make cho `main` tự cuộn), kèm dải lỗi đăng xuất `sticky` ngay dưới: không phải lệch.
 
 ### 4.6 Việc của nhóm (ngoài repo)
 
@@ -319,7 +323,7 @@ apps/api/src/appointments/   # Q13 = B: active-appointment-states.ts + active-ap
 ```
 features/patient/
   index.ts                   # bề mặt công khai: route của BN/LT/QTV, layout, kiểu cấu hình menu
-  shell/                     # role-layout.tsx (F2, nội bộ: nối useAuth + useLogout vào RoleShell), patient-layout.tsx (F1), reception-layout.tsx (F2): hai lớp mỏng; mobile-nav-drawer.tsx (F11)
+  shell/                     # role-layout.tsx (F2, nội bộ: nối useAuth + useLogout vào RoleShell), patient-layout.tsx (F1), reception-layout.tsx (F2): hai lớp mỏng (ngăn kéo màn hẹp F11 KHÔNG đặt ở đây mà ở shared/, xem dưới)
   patient-routes.tsx         # PATIENT_ROUTES (route con của khung BN; F1 chỉ có trang giữ chỗ "Hồ sơ người khám", F3 thay), RECEPTION_ROUTES (khung LT; F2 chỉ có trang giữ chỗ "Tra cứu bệnh nhân", F8 thay)
   profile/                   # profile-service.ts, profile-types.ts, use-profile.ts, profile-view.tsx, profile-form.tsx (dùng chung 3 vai trò), profile-errors.ts
   relatives/                 # relatives-service.ts, relatives-types.ts, use-relatives.ts, relative-card.tsx, relative-form.tsx, deactivate-relative-dialog.tsx
@@ -329,7 +333,14 @@ features/patient/
 router/role-nav.ts           # (Q21d) cấu hình mục menu của BN/LT — lớp router sở hữu để module sau chỉ sửa ở đây
 shared/ui/role-shell.tsx     # [F1, duyệt 04/11/2026 — TRACKING F1-B] RoleShell thuần hiển thị + kiểu RoleNavItem; ở shared/ để khung Bác sĩ (doctor) dùng lại
 shared/ui/shell-content-error.tsx  # [F1, duyệt 04/11/2026 — TRACKING F1-F] errorElement của vùng nội dung trong khung (khung vẫn còn khi trang con lỗi)
+shared/ui/role-shell-sidebar.tsx   # [F11, duyệt 04/11/2026, đã làm — TRACKING F11-D] thân thanh bên (logo, thẻ, menu, mục cuối, Đăng xuất, hộp lỗi) tách khỏi role-shell.tsx; dùng cho cả thanh bên (rộng) và ngăn kéo (hẹp)
+shared/hooks/use-media-query.ts    # [F11, duyệt 04/11/2026, đã làm — TRACKING F11-C] useMediaQuery(query) qua useSyncExternalStore (JS quyết định hẹp/rộng vì Vitest chạy css: false)
+shared/hooks/use-modal-dialog.ts   # [F11, duyệt 04/11/2026, đã làm — TRACKING F11-C] focus vào trong, bẫy Tab/Shift+Tab, Esc, trả focus, khoá cuộn nền
+src/test/fake-match-media.ts       # [F11, duyệt 04/11/2026, đã làm — TRACKING F11-D] matchMedia giả cho test màn hẹp (happy-dom 21 không bắn `change` ở lần thu hẹp đầu, TECH_DEBT dòng 64)
 ```
+
+Ghi chú F11 (duyệt và làm 04/11/2026): PLAN cũ ghi `features/patient/shell/mobile-nav-drawer.tsx`, nhưng `RoleShell` ở `shared/ui/` từ F1 và `shared/` không import từ `features/`;
+khung Bác sĩ của `doctor` cũng dùng `RoleShell` ⇒ ngăn kéo nằm trong `RoleShell` (và các file `shared/` ở trên), khung Bác sĩ có sẵn ngăn kéo mà không phải làm gì thêm.
 
 Ghi chú F1 (duyệt 04/11/2026): `RoleShell` chuyển từ `features/patient/shell/` sang `shared/ui/` vì `features/` không import chéo, nên khung Bác sĩ (module `doctor`)
 không dùng được bản đặt trong `features/patient/`. `RoleShell` không gọi `useAuth`/`useLogout`; `RoleLayout` (nội bộ, F2) nối chúng vào; `PatientLayout`, `ReceptionLayout` chỉ truyền vai trò, tên thanh bên và menu.
@@ -406,6 +417,11 @@ không dùng được bản đặt trong `features/patient/`. `RoleShell` không
   "Tra cứu bệnh nhân" có `to` (không `end`), "Thông tin cá nhân" là nút vô hiệu tới F4. Dòng phụ thẻ người dùng là `ROLE_LABELS.LeTan` (thẻ ở thanh bên `483:2` chỉ ghi "Lễ tân";
   chi nhánh chỉ có ở thẻ đầu trang `503:2`, thuộc F4).
 - Màn hẹp (Q21c): dưới 1024 px thanh bên thu thành nút menu mở ngăn kéo — **task F11 riêng, cuối cụm 1**; F1, F2 merge được trước (khi đó thanh bên chỉ có bố cục màn rộng).
+  **F11 đã làm (04/11/2026, TRACKING F11-A…F11-K):** trong `RoleShell`, không ở `features/patient/`; một DOM duy nhất, JS quyết định hẹp/rộng bằng `matchMedia('(min-width: 1024px)')`
+  qua `useSyncExternalStore`. Rộng: DOM và số đo **y hệt F1, F2**. Hẹp: thanh trên có nút "Mở menu" (`aria-expanded`, `aria-controls`); thân thanh bên nằm trong một
+  phần tử `role="dialog"` `aria-modal="true"` tên theo `navLabel`, đóng thì có thuộc tính `hidden`; mở thì vùng nội dung `inert`, focus vào ngăn kéo, bẫy Tab, Esc / nền mờ / "Đóng menu" /
+  chọn mục / đổi đường dẫn / chuyển sang rộng đều đóng (khoá mở xoá ngay khi đổi đường dẫn, nên Back về trang cũ không mở lại), trả focus về nút mở, khoá cuộn nền;
+  thanh trên và dải lỗi đăng xuất `sticky` khi hẹp (TRACKING F11-K mục 10, 11). Chữ ký props giữ nguyên, kiểu `RoleShellLogout` giữ nguyên chỗ (search F1 import).
 - Cách module khác cắm trang (Q21d): module mới xuất `RouteObject[]`; lớp `router/` ghép vào `children` của khung và đặt `to` cho mục menu trong `router/role-nav.ts` — không sửa file trong `features/patient/`,
   không import chéo `features/`.
 - Đăng xuất: gọi `logout()` của auth, không hộp xác nhận (G5); đây là phần "nút Đăng xuất ở layout" mà auth F5 từng nhận (Q21f).
@@ -519,7 +535,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge, ⏸ = hoãn theo quyế
 |---|---|---|---|---|---|
 | ☑ | F1 | `RoleShell` dùng chung + `PatientLayout` (thanh bên + thanh trên theo `416:2`, thẻ người dùng từ `useAuth()`, mục chưa có trang là nút vô hiệu "Chưa được triển khai", ẩn chuông và số đếm, nút Đăng xuất gọi `useLogout()` một lần cho hai nút), thay mục `BenhNhan` trong `router/role-routes.tsx`; cấu hình menu ở `router/role-nav.ts`; trang mặc định chuyển tới "Hồ sơ người khám" (Q21). **Kế hoạch chi tiết (duyệt 04/11/2026): TRACKING F1-A…F1-K** — `RoleShell` đặt ở `shared/ui/` (F1-B); phải sửa test của `features/auth` đang khẳng định "Bệnh nhân là trang giữ chỗ" (F1-G) | auth F1, F5 (đã có) | Khung (nhóm chốt 03/11/2026); HSNT b1 (điểm vào "Hồ sơ người khám") | `feat(web)` · KG-01, KG-03…KG-07, KG-09 (phần tự động) |
 | ☑ | F2 | `ReceptionLayout` (theo `483:2`/`503:2`), thay mục `LeTan`; trang mặc định chuyển tới "Tra cứu bệnh nhân". **Kế hoạch chi tiết (duyệt 04/11/2026): TRACKING F2-A…F2-J, kiểm chứng F2-K** — không sửa `RoleShell` (thanh bên `483:2` trùng `416:2`, F2-B); `RoleLayout` nội bộ cho cả hai khung (F2-C); sửa 3 ca test có sẵn còn khẳng định "Lễ tân là trang giữ chỗ" (F2-F, F2-K) | F1 | Khung; TCBN b1, HSCN b1 (Lễ tân) | `feat(web)` · KG-02, KG-03…KG-07 (phần Lễ tân), KG-09 (phần tự động) |
-| ☐ | F11 | Ngăn kéo màn hẹp (Q21c): dưới 1024 px thanh bên thu thành nút menu mở ngăn kéo, cho cả hai khung; **task cuối cụm 1**, không chặn merge F1/F2 | F1, F2 | Khung | `feat(web)` |
+| ☑ | F11 | Ngăn kéo màn hẹp (Q21c): dưới 1024 px thanh bên thu thành nút menu mở ngăn kéo, cho cả hai khung; **task cuối cụm 1**, không chặn merge F1/F2. **Kế hoạch chi tiết (duyệt 04/11/2026): TRACKING F11-A…F11-J, kiểm chứng F11-K** — ngăn kéo nằm trong `shared/ui/role-shell.tsx` (sửa) + `shared/ui/role-shell-sidebar.tsx`, `shared/hooks/use-media-query.ts`, `shared/hooks/use-modal-dialog.ts` (mới), không ở `features/patient/shell/` (F11-D); một DOM, JS quyết định hẹp/rộng (F11-C); màn rộng không đổi DOM và số đo; 0 ca test có sẵn đỏ thật, không sửa test cũ nào (F11-K); bố cục bám mã Make, lệch có chủ ý ở F11-I | F1, F2 | Khung | `feat(web)` · KG-08, KG-09 (phần màn hẹp) |
 | ☐ | F3 | Trang "Hồ sơ người khám" phần **Bản thân**: xem (`416:2`) + sửa tại chỗ (`432:2`), `ProfileForm` dùng chung (có giới tính — Q2; ngày `dd/mm/yyyy` — Q7), email chỉ đọc, lỗi theo trường giữ dữ liệu, làm mới tên trên khung; chừa vùng "Bảo mật tài khoản" cho auth F5 | F1, B1, B2, P2 | HSCN b1–b5, A1/4a–4c | `feat(web)` |
 | ☐ | F4 | Lễ tân "Thông tin cá nhân" (`503:2`, `504:2`): dùng `ProfileForm`, chi nhánh chỉ đọc | F2, F3 | HSCN (tác nhân Lễ tân) | `feat(web)` |
 | ☐ | F5 | QTV "Thông tin cá nhân" (`510:2`, `620:2`) với bố cục xem/sửa như Lễ tân + "Phạm vi quản trị" chỉ đọc (Q6): ghép route vào khung Admin ở `router/role-routes.tsx`, đặt `to` cho mục "Thông tin cá nhân" trong `admin-sidebar.tsx` | F3 | HSCN (tác nhân Quản trị viên) | `[ĐỤNG admin]` — báo Trung · `feat(web)` |

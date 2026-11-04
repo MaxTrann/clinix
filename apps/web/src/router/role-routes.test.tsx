@@ -14,6 +14,7 @@ import {
 import { getAuthState, setAuthState } from '../features/auth/auth-store';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
 import { apiError, createFakeAuthApi } from '../test/fake-auth-api';
+import { fakeMatchMedia } from '../test/fake-match-media';
 import { createAppRoutes } from './routes';
 
 // patient F1 (TRACKING F1-H): khung Bệnh nhân ghép vào router thật. Mã ca PL-nn là [đề xuất]; mỗi ca ghi mã KG của PLAN mục 7.5.
@@ -525,5 +526,131 @@ describe('khung Lễ tân', () => {
     for (const button of screen.getAllByRole('button')) {
       expect(button).toHaveAccessibleName();
     }
+  });
+});
+
+// patient F11 (TRACKING F11-G): ngăn kéo màn hẹp của hai khung qua router thật. Các ca trên chạy ở màn rộng (happy-dom 1024px);
+// ca dưới giả `matchMedia` ở 390px (afterEach ở đầu file đã gỡ). Mã ca PL-nn tiếp nối là [đề xuất].
+describe('màn hẹp của hai khung', () => {
+  const openDrawer = async (label: string) => {
+    fireEvent.click(screen.getByRole('button', { name: 'Mở menu' }));
+    return screen.findByRole('dialog', { name: label });
+  };
+  const menuLabels = (dialog: HTMLElement) =>
+    within(within(dialog).getByRole('navigation', { name: 'Menu chính' }))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent?.replace(' (chưa được triển khai)', ''));
+
+  it('PL-16 KG-08 Bệnh nhân 390px: không có thanh bên, "Mở menu" mở ngăn kéo "Điều hướng Bệnh nhân" đủ 8 mục; chọn mục thì đóng', async () => {
+    fakeMatchMedia(390);
+    signedInAs('BenhNhan');
+    const router = renderAt(PATIENT_PATHS.profile);
+    await screen.findByRole('heading', { name: 'Hồ sơ người khám' });
+    expect(screen.queryByRole('complementary')).toBeNull();
+
+    const dialog = await openDrawer('Điều hướng Bệnh nhân');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(within(dialog).getByText('Họ tên BenhNhan')).toBeInTheDocument();
+    expect(menuLabels(dialog)).toEqual(PATIENT_MENU);
+    expect(
+      within(dialog).getByRole('link', { name: 'Về trang chủ' }),
+    ).toHaveAttribute('href', '/');
+
+    fireEvent.click(
+      within(dialog).getByRole('link', { name: 'Hồ sơ người khám' }),
+    );
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(router.state.location.pathname).toBe(PATIENT_PATHS.profile);
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Mở menu' }),
+    );
+  });
+
+  it('PL-17 KG-08 Lễ tân 390px: ngăn kéo "Điều hướng Lễ tân" đủ 9 mục, không có "Về trang chủ"; Esc đóng', async () => {
+    fakeMatchMedia(390);
+    signedInAs('LeTan');
+    renderAt(RECEPTION_PATHS.lookup);
+    await screen.findByRole('heading', { name: 'Tra cứu bệnh nhân' });
+    expect(screen.queryByRole('complementary')).toBeNull();
+
+    const dialog = await openDrawer('Điều hướng Lễ tân');
+    expect(within(dialog).getByText('Họ tên LeTan')).toBeInTheDocument();
+    expect(within(dialog).getByText(ROLE_LABELS.LeTan)).toBeInTheDocument();
+    expect(menuLabels(dialog)).toEqual(RECEPTION_MENU);
+    expect(
+      within(dialog).queryByRole('link', { name: 'Về trang chủ' }),
+    ).toBeNull();
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: 'Escape',
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('PL-18 KG-05 Bệnh nhân 390px: Đăng xuất trong ngăn kéo bị 500 ⇒ câu lỗi + "Thử lại" trong ngăn kéo; Thử lại về đăng nhập', async () => {
+    api.startSession();
+    await restoreSession();
+    api.failNext('/auth/logout', () => apiError(500, 'LOI_HE_THONG'));
+    fakeMatchMedia(390);
+    const router = renderAt(PATIENT_PATHS.profile);
+    await screen.findByRole('heading', { name: 'Hồ sơ người khám' });
+
+    const dialog = await openDrawer('Điều hướng Bệnh nhân');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đăng xuất' }));
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent('Không đăng xuất được, vui lòng thử lại');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(router.state.location.pathname).toBe(PATIENT_PATHS.profile);
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Thử lại' }));
+    await vi.waitFor(() =>
+      expect(router.state.location.pathname).toBe('/dang-nhap'),
+    );
+    expect(api.logoutCalls).toBe(2);
+    // Khung bị gỡ khi ngăn kéo còn mở: khoá cuộn đã nhả
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('PL-19 KG-05 Lễ tân 390px: Đăng xuất ở thanh trên khi ngăn kéo đóng bị 500 ⇒ dải lỗi nhìn thấy; bấm thanh trên rồi nút trong ngăn kéo ⇒ một request', async () => {
+    api = createFakeAuthApi({
+      vaiTro: 'LeTan',
+      hoTen: 'Lễ tân mẫu',
+      daXacMinhEmail: true,
+    });
+    vi.stubGlobal('fetch', vi.fn(api.fetch));
+    api.startSession();
+    await restoreSession();
+    expect(getAuthState().user?.vaiTro).toBe('LeTan');
+    const confirmSpy = vi.fn(() => true);
+    vi.stubGlobal('confirm', confirmSpy);
+    api.failNext('/auth/logout', () => apiError(500, 'LOI_HE_THONG'));
+    fakeMatchMedia(390);
+    const router = renderAt(RECEPTION_PATHS.lookup);
+    await screen.findByRole('heading', { name: 'Tra cứu bệnh nhân' });
+
+    // Ngăn kéo đóng: chỉ còn nút Đăng xuất ở thanh trên
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Không đăng xuất được, vui lòng thử lại');
+    expect(alert.closest('[hidden]')).toBeNull();
+    expect(screen.getByRole('banner').parentElement).toContainElement(alert);
+    expect(api.logoutCalls).toBe(1);
+
+    const release = api.hold('/auth/logout');
+    fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
+    const dialog = await openDrawer('Điều hướng Lễ tân');
+    const inDrawer = within(dialog).getByRole('button', { name: 'Đăng xuất' });
+    expect(inDrawer).toBeDisabled();
+    fireEvent.click(inDrawer);
+    await vi.waitFor(() => expect(api.logoutCalls).toBe(2));
+    await act(async () => {
+      release(204, null);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await vi.waitFor(() =>
+      expect(router.state.location.pathname).toBe('/dang-nhap'),
+    );
+    expect(api.logoutCalls).toBe(2);
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(document.body.style.overflow).toBe('');
   });
 });
