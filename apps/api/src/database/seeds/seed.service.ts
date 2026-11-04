@@ -6,6 +6,8 @@ import { isValidFullName } from '../../auth/validation/full-name-policy.js';
 import { normalizePhone } from '../../auth/validation/phone-policy.js';
 import { CONFIG_DEMO } from './catalog-data.js';
 import { DEV_ACCOUNTS } from './dev-account-data.js';
+import { DEMO_DOCTORS } from './search-demo-data.js';
+import { SearchDemoRepository } from './search-demo.repository.js';
 import type { SeedConfig } from './seed-config.js';
 import { SeedError } from './seed-error.js';
 import { SeedRepository, type SeedCounts } from './seed.repository.js';
@@ -50,11 +52,19 @@ export async function runSeed(
   config: SeedConfig,
 ): Promise<SeedCounts> {
   let hash: string | undefined;
-  if (config.command === 'first-admin' || config.command === 'dev-accounts') {
+  if (
+    config.command === 'first-admin' ||
+    config.command === 'dev-accounts' ||
+    config.command === 'search-demo'
+  ) {
     if (!config.password || checkPassword(config.password))
       throw new SeedError('SEED_PASSWORD_INVALID');
     const profiles =
-      config.command === 'first-admin' ? [config.admin] : DEV_ACCOUNTS;
+      config.command === 'first-admin'
+        ? [config.admin]
+        : config.command === 'search-demo'
+          ? DEMO_DOCTORS
+          : DEV_ACCOUNTS;
     for (const input of profiles) {
       if (
         !input ||
@@ -69,6 +79,11 @@ export async function runSeed(
   }
   if (config.command === 'config-dev') validateDemoConfig();
   return seedTransaction(db, async (manager) => {
+    if (config.command === 'search-demo') {
+      const demo = new SearchDemoRepository(manager);
+      await demo.run(hash!);
+      return demo.counts;
+    }
     const repository = new SeedRepository(manager);
     if (config.command === 'catalog') await repository.catalog();
     else if (config.command === 'config-dev') await repository.config();
