@@ -101,6 +101,17 @@ export class SearchFixtures {
     return doctor;
   }
 
+  /**
+   * AdminFixtures.doctor() luôn tự tạo thêm một chuyên khoa "Chuyên khoa mẫu …" đang hoạt động, kể cả khi test đã chỉ định
+   * `chuyenKhoaId`. Xoá các chuyên khoa fixture không còn bác sĩ nào để test đếm/liệt kê chuyên khoa không bị nhiễu.
+   */
+  async pruneUnusedFixtureSpecialties() {
+    await this.db.query(
+      `DELETE FROM chuyen_khoa WHERE ten LIKE 'Chuyên khoa mẫu %'
+       AND NOT EXISTS (SELECT 1 FROM bac_si b WHERE b.chuyen_khoa_id = chuyen_khoa.chuyen_khoa_id)`,
+    );
+  }
+
   /** Một quy tắc phụ phí (bảng `phu_phi_bac_si`); `apDung = false` là mốc đã tắt. */
   surchargeRule(
     chucDanh: ChucDanhBacSi,

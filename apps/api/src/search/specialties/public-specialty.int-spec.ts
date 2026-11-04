@@ -34,8 +34,14 @@ async function specialty(
   return repo.save(repo.create({ ten, ...overrides }));
 }
 
-const all = (branchId: string | null = null, like: string | null = null) =>
-  repository.findPage(like, branchId, 20, 0);
+// Dọn chuyên khoa thừa do AdminFixtures.doctor() tự tạo trước khi truy vấn (xem pruneUnusedFixtureSpecialties).
+const all = async (
+  branchId: string | null = null,
+  like: string | null = null,
+) => {
+  await fixtures.pruneUnusedFixtureSpecialties();
+  return repository.findPage(like, branchId, 20, 0);
+};
 
 describe('B2 — PublicSpecialtyRepository.findPage', () => {
   it('TCK-01: chỉ chuyên khoa đang hoạt động, đúng tập khoá danh sách trắng', async () => {
@@ -59,8 +65,8 @@ describe('B2 — PublicSpecialtyRepository.findPage', () => {
     const owner = (await fixtures.admin.patient()).account.taiKhoanId;
     const imageId = randomUUID();
     await db.query(
-      `INSERT INTO anh_tai_len (anh_tai_len_id, public_id, secure_url, nguoi_tai_len_id, trang_thai, tao_luc, het_han_gan_luc)
-       VALUES (?, ?, ?, ?, 'DaGan', NOW(), NOW())`,
+      `INSERT INTO anh_tai_len (anh_tai_len_id, public_id, secure_url, nguoi_tai_len_id, trang_thai, tao_luc, het_han_gan_luc, upload_xac_nhan_luc)
+       VALUES (?, ?, ?, ?, 'DaGan', NOW(), NOW(), NOW())`,
       [imageId, `pid-${imageId}`, 'https://anh.example/moi.jpg', owner],
     );
     await specialty('A có ảnh mới', {

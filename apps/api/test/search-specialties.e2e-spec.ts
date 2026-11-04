@@ -45,6 +45,8 @@ describe('B2 — GET /public/specialties (HTTP, AppModule, MySQL thật)', () =>
     const branch = await fixtures.branchWithCoordinates();
     branchId = branch.chiNhanhId;
     await fixtures.publicDoctor(branch, { chuyenKhoaId: activeId });
+    // AdminFixtures.doctor() tự tạo thêm một chuyên khoa mẫu; xoá để danh sách chỉ còn dữ liệu của test.
+    await fixtures.pruneUnusedFixtureSpecialties();
     const patient = await fixtures.admin.patient();
     patientToken = (
       await app.get(SessionService).create(patient.account.taiKhoanId)
