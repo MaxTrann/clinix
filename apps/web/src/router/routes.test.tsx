@@ -24,7 +24,17 @@ function gatedRoutes(decision: AccessDecision): RouteObject[] {
   ];
 }
 
+// Khung công khai (search F1) gọi /public/clinic-info khi gắn: giả API lỗi để test không đi ra mạng thật (chân trang chịu được lỗi, KC-05)
+function stubPublicApi() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.resolve(new Response('{}', { status: 500 }))),
+  );
+}
+
 describe('routes', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it('LP-60 (F3) mở thẳng route lazy: hiện loading, không màn trắng, không cảnh báo HydrateFallback', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     setAuthState({ status: 'unauthenticated' });
@@ -40,11 +50,13 @@ describe('routes', () => {
   });
 
   it('WS-50 / hiện trang chủ CLINIX', () => {
+    stubPublicApi();
     renderAt('/', createAppRoutes());
     expect(screen.getByRole('heading', { name: 'CLINIX' })).toBeInTheDocument();
   });
 
   it('WS-51 đường lạ hiện trang 404', () => {
+    stubPublicApi();
     renderAt('/duong-bat-ky', createAppRoutes());
     expect(
       screen.getByRole('heading', { name: 'Không tìm thấy trang' }),

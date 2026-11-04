@@ -65,15 +65,15 @@ describe('trang giữ chỗ và cổng vai trò', () => {
   it.each(PLACEHOLDER_ROLES)(
     'AU-61 (DN-03) %s vào đúng trang giữ chỗ',
     (vaiTro) => {
-    signedInAs(vaiTro);
-    renderAt(ROLE_HOME_PATHS[vaiTro]);
-    expect(
-      screen.getByRole('heading', { name: ROLE_LABELS[vaiTro] }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(`Họ tên ${vaiTro}`)).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Đăng xuất' }),
-    ).toBeInTheDocument();
+      signedInAs(vaiTro);
+      renderAt(ROLE_HOME_PATHS[vaiTro]);
+      expect(
+        screen.getByRole('heading', { name: ROLE_LABELS[vaiTro] }),
+      ).toBeInTheDocument();
+      expect(screen.getByText(`Họ tên ${vaiTro}`)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Đăng xuất' }),
+      ).toBeInTheDocument();
     },
   );
 
@@ -238,14 +238,22 @@ describe('trang công khai', () => {
   });
 
   it.each(['checking', 'unauthenticated', 'error'] as const)(
-    'AU-73 %s: / là trang công khai, không có liên kết',
+    'AU-73 %s: / là trang công khai, không có liên kết về trang vai trò',
     (status) => {
+      // Khung công khai (search F1) gọi /public/clinic-info: giả API lỗi để không đi ra mạng thật
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve(new Response('{}', { status: 500 }))),
+      );
       setAuthState({ status });
       renderAt('/');
       expect(
         screen.getByRole('heading', { name: 'CLINIX' }),
       ).toBeInTheDocument();
-      expect(screen.queryByRole('link')).toBeNull();
+      // Đổi ở search F1: header công khai có liên kết (Đăng nhập…); điều cần giữ là không có lối vào trang vai trò
+      expect(
+        screen.queryByRole('link', { name: 'Về trang của bạn' }),
+      ).toBeNull();
     },
   );
 
