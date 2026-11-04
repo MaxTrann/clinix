@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../router/routes';
+import { PATIENT_PATHS } from '../patient';
 import { apiError, createFakeAuthApi } from '../../test/fake-auth-api';
 import { resetAuthForTest, restoreSession } from './auth-session';
 import { getAuthState, setAuthState, type AuthUser } from './auth-store';
@@ -10,7 +11,12 @@ import { ROLE_HOME_PATHS, ROLE_LABELS, type VaiTro } from './roles';
 
 // Task F1. Mã ca AU-nn là [đề xuất]; ca nào phủ test case của PLAN thì ghi kèm mã đó.
 const ROLES = Object.keys(ROLE_HOME_PATHS) as VaiTro[];
-const PLACEHOLDER_ROLES = ROLES.filter((role) => role !== 'QuanTriVien');
+// Đổi có duyệt ở patient F1: Bệnh nhân có khung thật (ca tương ứng: router/role-routes.test.tsx PL-01)
+const PLACEHOLDER_ROLES = ROLES.filter(
+  (role) => role !== 'QuanTriVien' && role !== 'BenhNhan',
+);
+const patientShell = () =>
+  screen.findByRole('complementary', { name: 'Điều hướng Bệnh nhân' });
 
 function userOf(vaiTro: VaiTro): AuthUser {
   return { vaiTro, hoTen: `Họ tên ${vaiTro}`, daXacMinhEmail: true };
@@ -117,7 +123,11 @@ describe('trang giữ chỗ và cổng vai trò', () => {
     expect(router.state.location.pathname).toBe('/benh-nhan');
 
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    await screen.findByRole('heading', { name: 'Bệnh nhân' });
+    // Đổi có duyệt ở patient F1: thử lại thành công thì vào khung Bệnh nhân và trang mặc định
+    await patientShell();
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(PATIENT_PATHS.profile),
+    );
     expect(api.refreshCalls).toBe(1);
   });
 
@@ -164,10 +174,11 @@ describe('trang giữ chỗ và cổng vai trò', () => {
   });
 });
 
+// Đổi có duyệt ở patient F1: hai ca dưới chuyển từ Bệnh nhân sang Bác sĩ (vẫn là trang giữ chỗ); đăng xuất ở khung Bệnh nhân: PL-03, PL-04
 describe('đăng xuất trên trang giữ chỗ', () => {
   async function signInThroughApi() {
     await restoreSession();
-    signedInAs('BenhNhan');
+    signedInAs('BacSi');
   }
 
   it('AU-70 (DX-08) 204: về đăng nhập bằng replace, Back không hiện trang cần đăng nhập', async () => {
@@ -175,10 +186,11 @@ describe('đăng xuất trên trang giữ chỗ', () => {
     const confirmSpy = vi.fn();
     vi.stubGlobal('confirm', confirmSpy);
     const router = createMemoryRouter(createAppRoutes(), {
-      initialEntries: ['/', '/benh-nhan'],
+      initialEntries: ['/', '/bac-si-portal'],
       initialIndex: 1,
     });
     render(<RouterProvider router={router} />);
+    expect(screen.getByRole('heading', { name: 'Bác sĩ' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
 
@@ -187,7 +199,7 @@ describe('đăng xuất trên trang giữ chỗ', () => {
     );
     expect(router.state.historyAction).toBe('REPLACE');
     expect(confirmSpy).not.toHaveBeenCalled();
-    await router.navigate('/benh-nhan');
+    await router.navigate('/bac-si-portal');
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/dang-nhap'),
     );
@@ -196,14 +208,15 @@ describe('đăng xuất trên trang giữ chỗ', () => {
   it('AU-71 lỗi: giữ trang, báo câu đã chốt, Thử lại gửi lại', async () => {
     await signInThroughApi();
     api.failNext('/auth/logout', () => apiError(500, 'LOI_HE_THONG'));
-    const router = renderAt('/benh-nhan');
+    const router = renderAt('/bac-si-portal');
+    expect(screen.getByRole('heading', { name: 'Bác sĩ' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Không đăng xuất được, vui lòng thử lại',
     );
-    expect(router.state.location.pathname).toBe('/benh-nhan');
+    expect(router.state.location.pathname).toBe('/bac-si-portal');
 
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     await waitFor(() =>
@@ -269,7 +282,11 @@ describe('trang công khai', () => {
         <RouterProvider router={router} />
       </StrictMode>,
     );
-    await screen.findByRole('heading', { name: 'Bệnh nhân' });
+    // Đổi có duyệt ở patient F1: vào khung Bệnh nhân thay cho heading của trang giữ chỗ
+    await patientShell();
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(PATIENT_PATHS.profile),
+    );
     expect(api.refreshCalls).toBe(1);
     expect(getAuthState().status).toBe('authenticated');
   });

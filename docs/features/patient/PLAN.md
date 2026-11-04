@@ -319,14 +319,20 @@ apps/api/src/appointments/   # Q13 = B: active-appointment-states.ts + active-ap
 ```
 features/patient/
   index.ts                   # bề mặt công khai: route của BN/LT/QTV, layout, kiểu cấu hình menu
-  shell/                     # role-shell.tsx (thanh bên + đầu trang + Đăng xuất), patient-layout.tsx, reception-layout.tsx, nav-item.ts (kiểu dữ liệu mục menu), mobile-nav-drawer.tsx (F11)
+  shell/                     # patient-layout.tsx (F1), reception-layout.tsx (F2): nối useAuth + useLogout vào RoleShell; mobile-nav-drawer.tsx (F11)
+  patient-routes.tsx         # PATIENT_ROUTES (route con của khung BN; F1 chỉ có trang giữ chỗ "Hồ sơ người khám", F3 thay)
   profile/                   # profile-service.ts, profile-types.ts, use-profile.ts, profile-view.tsx, profile-form.tsx (dùng chung 3 vai trò), profile-errors.ts
   relatives/                 # relatives-service.ts, relatives-types.ts, use-relatives.ts, relative-card.tsx, relative-form.tsx, deactivate-relative-dialog.tsx
   patient-lookup/            # patient-lookup-service.ts, use-patient-search.ts, patient-lookup-page.tsx, patient-result-list.tsx, patient-detail.tsx
   pages/                     # patient-profile-page.tsx (Hồ sơ người khám), reception-profile-page.tsx, admin-profile-page.tsx
   patient-paths.ts           # hằng đường dẫn (Q21g)
-router/role-nav.ts           # [đề xuất Q21d] cấu hình mục menu của BN/LT — lớp router sở hữu để module sau chỉ sửa ở đây
+router/role-nav.ts           # (Q21d) cấu hình mục menu của BN/LT — lớp router sở hữu để module sau chỉ sửa ở đây
+shared/ui/role-shell.tsx     # [F1, duyệt 04/11/2026 — TRACKING F1-B] RoleShell thuần hiển thị + kiểu RoleNavItem; ở shared/ để khung Bác sĩ (doctor) dùng lại
+shared/ui/shell-content-error.tsx  # [F1, duyệt 04/11/2026 — TRACKING F1-F] errorElement của vùng nội dung trong khung (khung vẫn còn khi trang con lỗi)
 ```
+
+Ghi chú F1 (duyệt 04/11/2026): `RoleShell` chuyển từ `features/patient/shell/` sang `shared/ui/` vì `features/` không import chéo, nên khung Bác sĩ (module `doctor`)
+không dùng được bản đặt trong `features/patient/`. `RoleShell` không gọi `useAuth`/`useLogout`; `PatientLayout` (và `ReceptionLayout` của F2) nối chúng vào.
 
 ### 5.2 Hồ sơ cá nhân (HSCN): **một API dùng chung cho bốn vai trò** — vì sao
 
@@ -387,10 +393,14 @@ router/role-nav.ts           # [đề xuất Q21d] cấu hình mục menu của 
 
 ### 5.6 Khung giao diện Bệnh nhân và Lễ tân
 
-- `RoleShell` dùng chung: thanh bên (logo, thẻ người dùng lấy `hoTen` + nhãn vai trò từ `useAuth()`, nhóm mục menu, mục cuối), thanh trên (nút "Đăng xuất"; chuông ẩn — Q21b), `<Outlet />`,
-  `errorElement` riêng của khung `[đề xuất]` (như `AdminErrorBoundary`). Mục menu là dữ liệu `{ label, icon, to? }`: có `to` ⇒ `NavLink` (đánh dấu mục đang mở bằng `aria-current`);
-  không có ⇒ nút vô hiệu "Chưa được triển khai" (Q21a). Biểu tượng `lucide-react` (ADR 0003).
+- `RoleShell` dùng chung (`shared/ui/role-shell.tsx` — F1, duyệt 04/11/2026): thanh bên (logo, thẻ người dùng, danh sách mục menu, mục cuối + "Đăng xuất"), thanh trên (nút "Đăng xuất";
+  chuông ẩn — Q21b), vùng nội dung nhận `children` (nơi gọi truyền `<Outlet />`). **Thuần hiển thị:** họ tên, dòng phụ, mục menu, trạng thái đăng xuất đều đến qua props;
+  `PatientLayout` lấy `hoTen` + `ROLE_LABELS` từ `useAuth()` và gọi `useLogout()` **một lần** cho cả hai nút. `errorElement` đặt ở một route không đường dẫn bọc các trang con
+  (`ShellContentError`), nên trang con lỗi thì khung vẫn còn (TRACKING F1-F). Mục menu là dữ liệu `{ label, icon, to? }`: có `to` ⇒ `NavLink` (đánh dấu mục đang mở bằng `aria-current`);
+  không có ⇒ nút vô hiệu "Chưa được triển khai" (Q21a). Biểu tượng `lucide-react` (ADR 0003). Số đo Figma và token: TRACKING F1-C.
 - `PatientLayout`, `ReceptionLayout` = `RoleShell` + cấu hình menu của vai trò; `router/role-routes.tsx` thay **đúng** hai mục `BenhNhan`, `LeTan` (giữ nguyên `BacSi`, `QuanTriVien` — KG-07).
+  F2 chỉ thêm: `RECEPTION_NAV` trong `role-nav.ts` (9 mục, không có "Về trang chủ"), `reception-layout.tsx`, mục `LeTan` và route mặc định trong `role-routes.tsx`.
+  Lưu ý đo 04/11/2026: thẻ người dùng ở thanh bên `483:2` chỉ ghi "Lễ tân" (chi nhánh chỉ có ở thẻ đầu trang `503:2`), nên dòng phụ là prop tự do để F2 tự quyết.
 - Màn hẹp (Q21c): dưới 1024 px thanh bên thu thành nút menu mở ngăn kéo — **task F11 riêng, cuối cụm 1**; F1, F2 merge được trước (khi đó thanh bên chỉ có bố cục màn rộng).
 - Cách module khác cắm trang (Q21d): module mới xuất `RouteObject[]`; lớp `router/` ghép vào `children` của khung và đặt `to` cho mục menu trong `router/role-nav.ts` — không sửa file trong `features/patient/`,
   không import chéo `features/`.
@@ -476,7 +486,7 @@ HOÃN / KHÔNG LÀM:     B8, F10 ảnh đại diện (Q4 = A — hoãn) · B9, D
 HOÀN TẤT:             X1 chạy tay ─ X2 tổng kết ;  X3 sau khi booking có đặt lịch thật VÀ PLAN booking đã xác nhận hợp đồng khoá
 ```
 
-Cột trạng thái: ☐ = chưa làm, ☑ = đã merge, ⏸ = hoãn theo quyết định, ✕ = không làm theo quyết định. Rà lại 03/11/2026: **chưa task nào merge**.
+Cột trạng thái: ☐ = chưa làm, ☑ = đã merge, ⏸ = hoãn theo quyết định, ✕ = không làm theo quyết định. Rà lại 03/11/2026: **chưa task nào merge**. 04/11/2026: F1 tick trong PR của chính nó (như nếp của auth), có hiệu lực khi PR đó merge.
 
 ### 6.2 Nhóm P — Tiền đề của module
 
@@ -503,7 +513,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge, ⏸ = hoãn theo quyế
 
 | ☐ | ID | Việc | Phụ thuộc | Truy vết | Thẻ |
 |---|---|---|---|---|---|
-| ☐ | F1 | `RoleShell` dùng chung + `PatientLayout` (thanh bên + thanh trên theo `416:2`, thẻ người dùng từ `useAuth()`, mục chưa có trang là nút vô hiệu "Chưa được triển khai", ẩn chuông, nút Đăng xuất gọi `logout()`), thay mục `BenhNhan` trong `router/role-routes.tsx`; cấu hình menu ở `router/role-nav.ts`; trang mặc định chuyển tới "Hồ sơ người khám" (Q21) | auth F1 (đã có) | Khung (nhóm chốt 03/11/2026); HSNT b1 (điểm vào "Hồ sơ người khám") | `feat(web)` |
+| ☑ | F1 | `RoleShell` dùng chung + `PatientLayout` (thanh bên + thanh trên theo `416:2`, thẻ người dùng từ `useAuth()`, mục chưa có trang là nút vô hiệu "Chưa được triển khai", ẩn chuông và số đếm, nút Đăng xuất gọi `useLogout()` một lần cho hai nút), thay mục `BenhNhan` trong `router/role-routes.tsx`; cấu hình menu ở `router/role-nav.ts`; trang mặc định chuyển tới "Hồ sơ người khám" (Q21). **Kế hoạch chi tiết (duyệt 04/11/2026): TRACKING F1-A…F1-K** — `RoleShell` đặt ở `shared/ui/` (F1-B); phải sửa test của `features/auth` đang khẳng định "Bệnh nhân là trang giữ chỗ" (F1-G) | auth F1, F5 (đã có) | Khung (nhóm chốt 03/11/2026); HSNT b1 (điểm vào "Hồ sơ người khám") | `feat(web)` · KG-01, KG-03…KG-07, KG-09 (phần tự động) |
 | ☐ | F2 | `ReceptionLayout` (theo `483:2`/`503:2`), thay mục `LeTan`; trang mặc định chuyển tới "Tra cứu bệnh nhân" | F1 | Khung; TCBN b1, HSCN b1 (Lễ tân) | `feat(web)` |
 | ☐ | F11 | Ngăn kéo màn hẹp (Q21c): dưới 1024 px thanh bên thu thành nút menu mở ngăn kéo, cho cả hai khung; **task cuối cụm 1**, không chặn merge F1/F2 | F1, F2 | Khung | `feat(web)` |
 | ☐ | F3 | Trang "Hồ sơ người khám" phần **Bản thân**: xem (`416:2`) + sửa tại chỗ (`432:2`), `ProfileForm` dùng chung (có giới tính — Q2; ngày `dd/mm/yyyy` — Q7), email chỉ đọc, lỗi theo trường giữ dữ liệu, làm mới tên trên khung; chừa vùng "Bảo mật tài khoản" cho auth F5 | F1, B1, B2, P2 | HSCN b1–b5, A1/4a–4c | `feat(web)` |
