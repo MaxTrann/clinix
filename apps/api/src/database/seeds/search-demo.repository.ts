@@ -141,7 +141,8 @@ export class SearchDemoRepository {
           .existsBy({ taiKhoanId: existing.taiKhoanId }))
       )
         throw new SeedError('SEED_ACCOUNT_CONFLICT');
-      this.counts.skipped++;
+      // Đếm đối xứng với lúc tạo (tài khoản + hồ sơ bác sĩ = 2 dòng).
+      this.counts.skipped += 2;
       return;
     }
     const specialty = await this.manager
