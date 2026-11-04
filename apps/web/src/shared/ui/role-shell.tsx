@@ -1,11 +1,15 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, LogOut, Stethoscope, User } from 'lucide-react';
-import type { ReactNode } from 'react';
-import { Link, NavLink } from 'react-router';
+import { LogOut, Menu, X } from 'lucide-react';
+import { useCallback, useId, useRef, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router';
+import { useMediaQuery } from '../hooks/use-media-query';
+import { useModalDialog } from '../hooks/use-modal-dialog';
+import { LogoutAlert, RoleShellSidebar } from './role-shell-sidebar';
 
 // Khung dùng chung của Bệnh nhân, Lễ tân (patient F1, F2) và Bác sĩ (module doctor), theo Figma `416:2`, `483:2`.
 // Thuần hiển thị: không đọc phiên, không gọi API. Nơi dùng (PatientLayout…) nối `useAuth()` và `useLogout()` rồi truyền vào.
-// Số đo và token: docs/features/patient/TRACKING.md F1-C. Mọi giá trị `[...]` dưới đây là chỗ thang Tailwind trên gốc 15px không khớp Figma.
+// Màn hẹp (patient F11, Q21c): dưới 1024px thanh bên thành ngăn kéo mở bằng nút "Mở menu", bố cục bám mã Make `DashboardLayout.tsx`
+// (TRACKING F11-B, lệch có chủ ý ở F11-I). Thân thanh bên ở `role-shell-sidebar.tsx`.
 
 export interface RoleNavItem {
   label: string;
@@ -35,69 +39,8 @@ export interface RoleShellProps {
   children: ReactNode;
 }
 
-const NOT_IMPLEMENTED_TITLE = 'Chưa được triển khai';
-
-// [...]: bo 9,375px của Figma nằm giữa rounded-lg (7,5px) và rounded-xl (11,25px)
-const ITEM_BASE =
-  'flex h-10 w-full items-center gap-3 rounded-[0.625rem] px-3 text-left text-sm';
-
-function NavItemLink({ item }: { item: RoleNavItem }) {
-  const Icon = item.icon;
-  if (!item.to) {
-    // `disabled` như AdminSidebar: không vào được bằng Tab nên chữ ẩn đọc cho trình đọc màn hình
-    return (
-      <button
-        type="button"
-        disabled
-        title={NOT_IMPLEMENTED_TITLE}
-        className={`${ITEM_BASE} text-gray-500`}
-      >
-        <Icon className="size-4 shrink-0" aria-hidden="true" />
-        <span>{item.label}</span>
-        <span className="sr-only"> (chưa được triển khai)</span>
-      </button>
-    );
-  }
-  return (
-    <NavLink
-      to={item.to}
-      end={item.end}
-      className={({ isActive }) =>
-        `${ITEM_BASE} ${
-          // Figma `#0092b8` chữ trắng chỉ 3,62:1, dùng brand-strong 5,28:1 (ADR 0004)
-          isActive
-            ? 'bg-brand-strong text-white'
-            : 'text-gray-600 hover:bg-gray-50'
-        }`
-      }
-    >
-      {({ isActive }) => (
-        <>
-          <Icon className="size-4 shrink-0" aria-hidden="true" />
-          <span className="min-w-0 truncate">{item.label}</span>
-          {isActive && (
-            <ChevronRight
-              className="ml-auto size-3 shrink-0"
-              aria-hidden="true"
-            />
-          )}
-        </>
-      )}
-    </NavLink>
-  );
-}
-
-function NavItemList({ items }: { items: RoleNavItem[] }) {
-  return (
-    <ul className="flex flex-col gap-0.5">
-      {items.map((item) => (
-        <li key={item.label}>
-          <NavItemLink item={item} />
-        </li>
-      ))}
-    </ul>
-  );
-}
+// Ngưỡng của Q21c. Chỉ JS quyết định (không dùng `lg:`): một nguồn đúng cho cả trình duyệt và test (`css: false`)
+const WIDE_QUERY = '(min-width: 1024px)';
 
 export function RoleShell({
   navLabel,
@@ -108,85 +51,112 @@ export function RoleShell({
   logout,
   children,
 }: RoleShellProps) {
+  const wide = useMediaQuery(WIDE_QUERY);
+  const location = useLocation();
+  // Ngăn kéo mở gắn với khoá của đường dẫn lúc mở: đổi đường dẫn (chọn mục, bấm logo, Back) là tự đóng, không cần effect
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  // Xoá khoá ngay khi render (chỉnh state lúc render) khi chuyển sang màn rộng hoặc đường dẫn đã đổi:
+  // giữ khoá cũ thì thu hẹp lại ở cùng trang, hoặc Back về đúng trang lúc mở, sẽ tự mở lại (TRACKING F11-C, F11-K mục 11)
+  if (openKey !== null && (wide || openKey !== location.key)) setOpenKey(null);
+  const open = !wide && openKey === location.key;
+  const close = useCallback(() => setOpenKey(null), []);
+
+  const drawerId = useId();
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  useModalDialog({
+    open,
+    dialogRef: drawerRef,
+    initialFocusRef: closeButtonRef,
+    returnFocusRef: menuButtonRef,
+    onClose: close,
+  });
+
+  // Hộp lỗi đăng xuất ở thanh bên khi thanh bên nhìn thấy được; màn hẹp mà ngăn kéo đóng thì ở dải dưới thanh trên.
+  // Luôn chỉ một hộp, tính khi render (TRACKING F11-E, phương án B)
+  const alertInSidebar = wide || open;
+  const sidebarProps = {
+    userName,
+    userSubtitle,
+    items,
+    footerItems,
+    logout,
+    showLogoutAlert: alertInSidebar,
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* [...]: Figma rộng 224px + viền 1px; w-56 trên gốc 15px chỉ 210px */}
-      <aside
-        aria-label={navLabel}
-        className="sticky top-0 flex h-screen w-[225px] shrink-0 flex-col border-r border-gray-100 bg-white"
-      >
-        <div className="border-b border-gray-100 p-4">
-          <Link
-            to="/"
-            aria-label="CLINIX – Trang chủ"
-            className="flex w-fit items-center gap-2 rounded-[0.625rem]"
-          >
-            <span className="flex size-7 items-center justify-center rounded-[0.625rem] bg-brand">
-              <Stethoscope className="size-4 text-white" aria-hidden="true" />
-            </span>
-            <span className="text-base font-semibold text-gray-900">
-              CLINIX
-            </span>
-          </Link>
-        </div>
-
-        <div className="border-b border-gray-100 p-3">
-          <div className="flex items-center gap-3 rounded-[0.625rem] bg-brand-soft p-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand">
-              <User className="size-4 text-white" aria-hidden="true" />
-            </span>
-            <span className="flex min-w-0 flex-col">
-              <span
-                className="truncate text-sm font-medium text-gray-900"
-                title={userName}
-              >
-                {userName}
-              </span>
-              {/* Figma `#0092b8` trên brand-soft chỉ 3,48:1, dùng brand-strong 5,07:1 */}
-              <span className="truncate text-xs text-brand-strong">
-                {userSubtitle}
-              </span>
-            </span>
-          </div>
-        </div>
-
-        <nav aria-label="Menu chính" className="flex-1 overflow-y-auto p-3">
-          <NavItemList items={items} />
-        </nav>
-
-        <div className="flex flex-col gap-1 border-t border-gray-100 p-3">
-          {footerItems.length > 0 && <NavItemList items={footerItems} />}
-          {logout.failed && (
+      {wide ? (
+        // [...]: Figma rộng 224px + viền 1px; w-56 trên gốc 15px chỉ 210px
+        <aside
+          aria-label={navLabel}
+          className="sticky top-0 flex h-screen w-[225px] shrink-0 flex-col border-r border-gray-100 bg-white"
+        >
+          <RoleShellSidebar {...sidebarProps} />
+        </aside>
+      ) : (
+        <>
+          {/* Nền mờ như Make (`bg-black/50`); không nhận focus, bàn phím đóng bằng Esc hoặc "Đóng menu" */}
+          {open && (
             <div
-              role="alert"
-              className="rounded-xl border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger-strong"
-            >
-              <p>{logout.failedMessage}</p>
-              <button
-                type="button"
-                disabled={logout.pending}
-                onClick={logout.onLogout}
-                className="mt-1 py-1 font-medium underline"
-              >
-                Thử lại
-              </button>
-            </div>
+              aria-hidden="true"
+              onClick={close}
+              className="fixed inset-0 z-40 bg-black/50"
+            />
           )}
-          <button
-            type="button"
-            disabled={logout.pending}
-            onClick={logout.onLogout}
-            className={`${ITEM_BASE} font-medium text-danger hover:bg-danger-soft disabled:opacity-50`}
+          {/* Make: panel `w-64` (240px trên gốc 15px); [...]: 85vw để ở 320px vẫn còn nền mờ để bấm.
+              Trượt vào chỉ bằng CSS (`starting:`), đóng thì tắt ngay; tắt khi người dùng giảm chuyển động */}
+          <div
+            ref={drawerRef}
+            id={drawerId}
+            role="dialog"
+            aria-modal="true"
+            aria-label={navLabel}
+            hidden={!open}
+            className="fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] flex-col bg-white motion-safe:transition-transform motion-safe:duration-150 motion-safe:starting:-translate-x-full"
           >
-            <LogOut className="size-4 shrink-0" aria-hidden="true" />
-            <span>Đăng xuất</span>
-          </button>
-        </div>
-      </aside>
+            <RoleShellSidebar
+              {...sidebarProps}
+              closeButton={
+                // size-7 (26,25px) bằng ô logo nên khối logo giữ cao như màn rộng; vùng bấm vẫn ≥ 24px (WCAG 2.5.8)
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  aria-label="Đóng menu"
+                  onClick={close}
+                  className="flex size-7 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </button>
+              }
+            />
+          </div>
+        </>
+      )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Chuông và số đếm ẩn tới khi module notification có (Q21b) */}
-        <header className="flex h-14 shrink-0 items-center justify-end gap-4 border-b border-gray-100 bg-white px-4">
+      {/* Ngăn kéo mở thì phần còn lại không nhận focus, không bấm được */}
+      <div className="flex min-w-0 flex-1 flex-col" inert={open}>
+        {/* Chuông và số đếm ẩn tới khi module notification có (Q21b).
+            Màn hẹp: thanh trên dính đỉnh để nút "Mở menu" luôn thấy và đóng ngăn kéo không kéo trang về đầu (F11-K mục 10).
+            Lớp z: thanh trên 30 < nền mờ 40 < ngăn kéo 50. Màn rộng giữ như F1, F2 */}
+        <header
+          className={`flex h-14 shrink-0 items-center ${wide ? 'justify-end' : 'sticky top-0 z-30 justify-between'} gap-4 border-b border-gray-100 bg-white px-4`}
+        >
+          {!wide && (
+            // Make: `p-1.5` + biểu tượng 20 ⇒ size-8 (30px) + size-5 (18,75px) trên gốc 15px
+            <button
+              ref={menuButtonRef}
+              type="button"
+              aria-label="Mở menu"
+              aria-expanded={open}
+              aria-controls={drawerId}
+              onClick={() => setOpenKey(location.key)}
+              className="flex size-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50"
+            >
+              <Menu className="size-5" aria-hidden="true" />
+            </button>
+          )}
           <button
             type="button"
             disabled={logout.pending}
@@ -198,7 +168,17 @@ export function RoleShell({
             <span>Đăng xuất</span>
           </button>
         </header>
-        <main className="min-w-0 flex-1 p-6">{children}</main>
+        {/* Dải lỗi dính ngay dưới thanh trên (`top-14` = `h-14`): đang cuộn mà bấm Đăng xuất lỗi vẫn thấy câu lỗi */}
+        {logout.failed && !alertInSidebar && (
+          <LogoutAlert
+            logout={logout}
+            className="sticky top-14 z-30 mx-4 mt-4"
+          />
+        )}
+        {/* Make: `p-4 md:p-6`; ở đây đổi theo cùng ngưỡng 1024px */}
+        <main className={`min-w-0 flex-1 ${wide ? 'p-6' : 'p-4'}`}>
+          {children}
+        </main>
       </div>
     </div>
   );
