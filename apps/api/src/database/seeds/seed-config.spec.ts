@@ -17,8 +17,23 @@ const environment = (): SeedEnv => ({
   SEED_DEV_PASSWORD: password(),
 });
 
+describe('search P2 — cấu hình lệnh search-demo', () => {
+  it('P2-07 search-demo đọc SEED_DEV_PASSWORD; thiếu hoặc yếu thì SEED_PASSWORD_INVALID/SEED_ENV_INVALID', () => {
+    const env = environment();
+    expect(readSeedConfig('search-demo', env).password).toBe(
+      env.SEED_DEV_PASSWORD,
+    );
+    expect(() =>
+      readSeedConfig('search-demo', { ...env, SEED_DEV_PASSWORD: undefined }),
+    ).toThrow(expect.objectContaining({ code: 'SEED_ENV_INVALID' }));
+    expect(() =>
+      readSeedConfig('search-demo', { ...env, SEED_DEV_PASSWORD: 'abc' }),
+    ).toThrow(expect.objectContaining({ code: 'SEED_PASSWORD_INVALID' }));
+  });
+});
+
 describe('C5 SD-03/04 — validation và lỗi CLI trước khi kết nối', () => {
-  it.each(['catalog', 'dev-accounts', 'config-dev'])(
+  it.each(['catalog', 'dev-accounts', 'config-dev', 'search-demo'])(
     'SD-03 chặn production %s ngay cả khi chưa có cấu hình DB',
     async (command) => {
       const output = { log: vi.fn(), error: vi.fn() };

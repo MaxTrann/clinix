@@ -16,6 +16,7 @@ export const SEED_COMMANDS = [
   'dev-accounts',
   'first-admin',
   'config-dev',
+  'search-demo',
 ] as const;
 export type SeedCommand = (typeof SEED_COMMANDS)[number];
 export type SeedEnv = Record<string, string | undefined>;
@@ -69,7 +70,11 @@ export function readSeedConfig(
       timezone: '+07:00',
     },
   };
-  if (selected === 'dev-accounts' || selected === 'first-admin') {
+  if (
+    selected === 'dev-accounts' ||
+    selected === 'first-admin' ||
+    selected === 'search-demo'
+  ) {
     config.password = required(
       env,
       selected === 'first-admin' ? 'SEED_ADMIN_PASSWORD' : 'SEED_DEV_PASSWORD',
