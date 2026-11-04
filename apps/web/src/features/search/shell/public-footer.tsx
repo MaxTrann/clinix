@@ -1,6 +1,7 @@
 import { Mail, MapPin, Phone, Stethoscope } from 'lucide-react';
 import { Link } from 'react-router';
 import type { ClinicInfo } from '../api/search-types';
+import type { HoursGroup } from '../format/weekly-hours';
 import { NOT_IMPLEMENTED_TITLE, type PublicNavItem } from './public-nav-types';
 
 export interface PublicFooterProps {
@@ -8,6 +9,8 @@ export interface PublicFooterProps {
   legalLinks: PublicNavItem[];
   // null = chưa có (đang tải hoặc API lỗi): chân trang vẫn hiện phần tĩnh, ẩn khối liên hệ (KC-05)
   clinicInfo: ClinicInfo | null;
+  // Giờ nhận khám của chi nhánh đang chọn (Q19e); null = "Toàn quốc" hoặc chưa tải được ⇒ ẩn khối giờ
+  hours?: { branchName: string; groups: HoursGroup[] } | null;
 }
 
 // Chữ xám nhạt của Figma (#6a7282 / #99a1af) trên nền #101828 vẫn đạt 4,5:1 trở lên nên giữ nguyên; liên kết dùng gray-300.
@@ -48,6 +51,7 @@ export function PublicFooter({
   links,
   legalLinks,
   clinicInfo,
+  hours = null,
 }: PublicFooterProps) {
   const rows = contactRows(clinicInfo);
   const brandName = clinicInfo?.tenThuongHieu || 'CLINIX';
@@ -82,23 +86,48 @@ export function PublicFooter({
             </ul>
           </nav>
 
-          {rows.length > 0 && (
-            <section aria-labelledby="footer-contact">
-              <h2 id="footer-contact" className="text-base font-medium">
-                Thông tin liên hệ
-              </h2>
-              <ul className="space-y-3 pt-4">
-                {rows.map(({ icon: Icon, text }) => (
-                  <li key={text} className="flex items-start gap-3">
-                    <Icon
-                      className="mt-0.5 size-4 shrink-0 text-cyan-400"
-                      aria-hidden="true"
-                    />
-                    <span className="text-sm text-gray-300">{text}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {(rows.length > 0 || hours) && (
+            <div className="space-y-6">
+              {rows.length > 0 && (
+                <section aria-labelledby="footer-contact">
+                  <h2 id="footer-contact" className="text-base font-medium">
+                    Thông tin liên hệ
+                  </h2>
+                  <ul className="space-y-3 pt-4">
+                    {rows.map(({ icon: Icon, text }) => (
+                      <li key={text} className="flex items-start gap-3">
+                        <Icon
+                          className="mt-0.5 size-4 shrink-0 text-cyan-400"
+                          aria-hidden="true"
+                        />
+                        <span className="text-sm text-gray-300">{text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {hours && (
+                <section aria-labelledby="footer-hours">
+                  <h2 id="footer-hours" className="text-base font-medium">
+                    Giờ nhận khám
+                  </h2>
+                  <p className="pt-1 text-xs text-gray-400">
+                    {hours.branchName}
+                  </p>
+                  <ul className="space-y-2 pt-3">
+                    {hours.groups.map((group) => (
+                      <li
+                        key={group.label}
+                        className="flex justify-between gap-4 text-sm text-gray-300"
+                      >
+                        <span>{group.label}</span>
+                        <span>{group.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
           )}
         </div>
 
