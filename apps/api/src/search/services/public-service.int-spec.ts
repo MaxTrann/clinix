@@ -186,6 +186,7 @@ describe('B3 — PublicServiceRepository.findServices', () => {
     await fixtures.pendingDoctor(a, dv);
     await fixtures.suspendedDoctor(a, dv);
     await fixtures.doctorOfInactiveSpecialty(a, dv);
+    await fixtures.pruneUnusedFixtureServices();
 
     const everywhere = await repository.findServices(null, null);
     expect(everywhere[0]?.soBacSi).toBe(3);

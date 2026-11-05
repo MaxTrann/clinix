@@ -61,6 +61,8 @@ describe('B3 — GET /public/service-groups, /public/services (HTTP, AppModule, 
       links.create({ chiNhanhId: branchId, dichVuKhamId: serviceId }),
     );
     await fixtures.publicDoctor(branch, { dichVuKhamId: serviceId });
+    // AdminFixtures.doctor() tự tạo thêm nhóm/dịch vụ mẫu; xoá để danh sách chỉ còn dữ liệu của test.
+    await fixtures.pruneUnusedFixtureServices();
     const patient = await fixtures.admin.patient();
     patientToken = (
       await app.get(SessionService).create(patient.account.taiKhoanId)
