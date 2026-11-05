@@ -112,6 +112,27 @@ export class SearchFixtures {
     );
   }
 
+  /**
+   * AdminFixtures.doctor() luôn tự tạo thêm một nhóm "Nhóm mẫu …" và một dịch vụ "Dịch vụ mẫu …" đã gắn vào chi nhánh, kể cả khi test
+   * đã chỉ định `dichVuKhamId`. Xoá dịch vụ fixture không còn bác sĩ nào dùng (cùng các liên kết chi nhánh của nó) rồi các nhóm fixture
+   * không còn dịch vụ, để test liệt kê nhóm/dịch vụ không bị nhiễu.
+   */
+  async pruneUnusedFixtureServices() {
+    await this.db.query(
+      `DELETE FROM chi_nhanh_dich_vu_kham WHERE dich_vu_kham_id IN (
+         SELECT dich_vu_kham_id FROM dich_vu_kham WHERE ten LIKE 'Dịch vụ mẫu %'
+           AND NOT EXISTS (SELECT 1 FROM bac_si b WHERE b.dich_vu_kham_id = dich_vu_kham.dich_vu_kham_id))`,
+    );
+    await this.db.query(
+      `DELETE FROM dich_vu_kham WHERE ten LIKE 'Dịch vụ mẫu %'
+       AND NOT EXISTS (SELECT 1 FROM bac_si b WHERE b.dich_vu_kham_id = dich_vu_kham.dich_vu_kham_id)`,
+    );
+    await this.db.query(
+      `DELETE FROM nhom_dich_vu WHERE ten LIKE 'Nhóm mẫu %'
+       AND NOT EXISTS (SELECT 1 FROM dich_vu_kham d WHERE d.nhom_dich_vu_id = nhom_dich_vu.nhom_dich_vu_id)`,
+    );
+  }
+
   /** Một quy tắc phụ phí (bảng `phu_phi_bac_si`); `apDung = false` là mốc đã tắt. */
   surchargeRule(
     chucDanh: ChucDanhBacSi,
