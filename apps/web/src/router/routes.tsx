@@ -1,6 +1,8 @@
 import type { RouteObject } from 'react-router';
 import { AUTH_PAGE_ROUTES, RequireAuth } from '../features/auth';
 import {
+  BranchDetailPage,
+  BranchListPage,
   PublicLayout,
   SpecialtyDetailPage,
   SpecialtyListPage,
@@ -29,6 +31,8 @@ export function createAppRoutes(
           element: <PublicLayout nav={PUBLIC_NAV} />,
           children: [
             { index: true, element: <HomePage /> },
+            { path: 'chi-nhanh', element: <BranchListPage /> },
+            { path: 'chi-nhanh/:id', element: <BranchDetailPage /> },
             { path: 'chuyen-khoa', element: <SpecialtyListPage /> },
             { path: 'chuyen-khoa/:id', element: <SpecialtyDetailPage /> },
             { path: '*', element: <NotFoundPage /> },

@@ -375,7 +375,7 @@ describe('Bộ chọn trên header', () => {
     expect(stored()).toEqual({ chiNhanhId: '1', nguon: 'NguoiDung' });
   });
 
-  it('không có trang chi nhánh (F3) thì không hiện liên kết "Xem tất cả chi nhánh"', async () => {
+  it('F3: bộ chọn có liên kết "Xem tất cả chi nhánh" tới /chi-nhanh', async () => {
     renderHome();
     await vi.waitFor(() =>
       expect(picker()).toHaveAccessibleName(
@@ -383,7 +383,9 @@ describe('Bộ chọn trên header', () => {
       ),
     );
     fireEvent.click(picker());
-    expect(screen.queryByText('Xem tất cả chi nhánh')).toBeNull();
+    expect(
+      screen.getByText('Xem tất cả chi nhánh').closest('a'),
+    ).toHaveAttribute('href', '/chi-nhanh');
   });
 });
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RequestAbortedError } from '../../../shared/api/errors';
+import { RequestAbortedError } from '../../shared/api/errors';
 
 export type RemoteState<T> =
   | { status: 'loading' }

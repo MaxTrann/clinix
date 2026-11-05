@@ -13,9 +13,11 @@ export const PUBLIC_NAV: PublicNavConfig = {
   ],
   // Q19d: mở luồng chọn nhóm dịch vụ (TCBS b1) khi có trang
   bookingItem: { label: 'Đặt lịch khám' },
+  allBranchesTo: '/chi-nhanh',
   footerLinks: [
     { label: 'Trang chủ', to: '/', end: true },
     { label: 'Chuyên khoa', to: '/chuyen-khoa' },
+    { label: 'Chi nhánh', to: '/chi-nhanh' },
     { label: 'Đội ngũ bác sĩ' },
     { label: 'Cẩm nang sức khỏe' },
     { label: 'Về chúng tôi' },
