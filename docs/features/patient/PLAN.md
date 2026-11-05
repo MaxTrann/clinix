@@ -308,15 +308,17 @@ Bác sĩ `475:2` (+ `476:2`: Q1 = Có — dùng API `/profile` của module này
 
 ```
 patient/
-  patient.module.ts          # import AuthModule (TypeOrmModule của tai_khoan/benh_nhan), TypeOrmModule.forFeature([HoSoNguoiThan, LichHen, LeTan, QuanTriVien, BacSi, ChiNhanh])
-  patient.constants.ts       # mã lỗi của module (mục 5.9)
-  validation/                # birth-date-policy.ts, gender-policy.ts, address-policy.ts, relationship.ts (nhãn + giá trị), decorator DTO
+  patient.module.ts          # [P1, đã làm: @Module({}) rỗng] task sau thêm: import AuthModule (TypeOrmModule của tai_khoan/benh_nhan), TypeOrmModule.forFeature([HoSoNguoiThan, LichHen, LeTan, QuanTriVien, BacSi, ChiNhanh])
+  patient.constants.ts       # [P1, đã làm] mã lỗi của module (mục 5.9), KEYWORD_MIN_LENGTH/MAX_LENGTH
+  validation/                # birth-date-policy.ts, gender-policy.ts, address-policy.ts, relationship.ts (chỉ giá trị, nhãn ở web), patient-field.decorators.ts [P1, đã làm]
   profile/                   # profile.controller.ts, profile.service.ts, profile.dto.ts, profile.repository.ts  (HSCN — mọi vai trò được phép)
   relatives/                 # relatives.controller.ts, relatives.service.ts, relatives.dto.ts, relatives.repository.ts  (HSNT)
   reception-lookup/          # patient-lookup.controller.ts, patient-lookup.service.ts, patient-lookup.dto.ts, patient-lookup.repository.ts  (TCBN)
   testing/                   # fixture/hàm hỗ trợ test dùng chung của module
 apps/api/src/appointments/   # Q13 = B: active-appointment-states.ts + active-appointment.query.ts (đọc lich_hen), không controller; booking tiếp quản sau
 ```
+
+Ghi chú P1 (duyệt 04/11/2026, TRACKING P1-B): đề xuất `patient.module.ts` lúc P1 là `@Module({})` rỗng; `AuthModule` và `TypeOrmModule.forFeature` do từng task (B1, B3…) thêm khi có provider dùng tới, nên danh sách entity ở dòng trên là của cả module, không phải của P1. Decorator DTO đặt ở `validation/patient-field.decorators.ts`; mã giới tính ở `validation/gender-policy.ts`.
 
 **Web — `apps/web/src/features/patient/`** (một module = một thư mục `features/`; xuất mảng `RouteObject[]` cho `router/` ghép):
 
@@ -512,7 +514,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge, ⏸ = hoãn theo quyế
 
 | ☐ | ID | Việc | Phụ thuộc | Truy vết | Thẻ / PR gợi ý |
 |---|---|---|---|---|---|
-| ☐ | P1 | Khung `PatientModule` (`apps/api/src/patient/`, đăng ký `AppModule`, import `AuthModule` + `TypeOrmModule.forFeature` các entity cần); `patient.constants.ts` (mã lỗi 5.9); `validation/`: luật ngày sinh (`todayVN`, 1900-01-01…hôm nay — Q7), giới tính (`Nam`/`Nu`/`Khac` — Q3), địa chỉ (≤ 255 — Q8), mối quan hệ (8 giá trị — Q15) + decorator DTO; unit test | auth A1 (decorator họ tên/SĐT), admin P2 (entity) — đã có | HSCN b4, A1/4a; HSNT b4, A1/4a | `[TIỀN ĐỀ]` · `feat(patient)` |
+| ☑ | P1 | Khung `PatientModule` (`apps/api/src/patient/`, đăng ký `AppModule`, import `AuthModule` + `TypeOrmModule.forFeature` các entity cần); `patient.constants.ts` (mã lỗi 5.9); `validation/`: luật ngày sinh (`todayVN`, 1900-01-01…hôm nay — Q7), giới tính (`Nam`/`Nu`/`Khac` — Q3), địa chỉ (≤ 255 — Q8), mối quan hệ (8 giá trị — Q15) + decorator DTO; unit test. **Kế hoạch chi tiết (duyệt 04/11/2026): TRACKING P1-A…P1-H** | auth A1 (decorator họ tên/SĐT), admin P2 (entity) — đã có | HSCN b4, A1/4a; HSNT b4, A1/4a | `[TIỀN ĐỀ]` · `feat(patient)` |
 | ☐ | P2 | FE: export qua `features/auth/index.ts` các hàm kiểm họ tên/SĐT có sẵn ở `validation/account-policy.ts`, và một hàm làm mới người dùng hiện tại (gọi lại `/auth/me`, cập nhật `hoTen` trong store); test | auth F1 (đã có) | HSCN b5 (tên mới hiện ngay); H8 | `[ĐỤNG auth]` · `feat(web)` — **báo chủ module auth** |
 
 ### 6.3 Nhóm B — Backend
