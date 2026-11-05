@@ -1,6 +1,10 @@
 import type { RouteObject } from 'react-router';
 import { AUTH_PAGE_ROUTES, RequireAuth } from '../features/auth';
-import { PublicLayout } from '../features/search';
+import {
+  PublicLayout,
+  SpecialtyDetailPage,
+  SpecialtyListPage,
+} from '../features/search';
 import { HomePage } from '../pages/home-page';
 import { NotFoundPage } from '../pages/not-found-page';
 import { RouteErrorPage } from '../pages/route-error-page';
@@ -25,6 +29,8 @@ export function createAppRoutes(
           element: <PublicLayout nav={PUBLIC_NAV} />,
           children: [
             { index: true, element: <HomePage /> },
+            { path: 'chuyen-khoa', element: <SpecialtyListPage /> },
+            { path: 'chuyen-khoa/:id', element: <SpecialtyDetailPage /> },
             { path: '*', element: <NotFoundPage /> },
           ],
         },

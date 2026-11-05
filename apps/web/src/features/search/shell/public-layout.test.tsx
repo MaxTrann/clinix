@@ -90,11 +90,16 @@ describe('PublicHeader', () => {
         'Liên hệ',
       ]),
     );
+    // F4: Chuyên khoa đã có trang nên là liên kết thật
+    expect(nav.getByRole('link', { name: 'Chuyên khoa' })).toHaveAttribute(
+      'href',
+      '/chuyen-khoa',
+    );
     expect(nav.getByRole('link', { name: 'Trang chủ' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    for (const name of ['Chuyên khoa', 'Bác sĩ', 'Cẩm nang', 'Liên hệ']) {
+    for (const name of ['Bác sĩ', 'Cẩm nang', 'Liên hệ']) {
       expect(
         nav.getByRole('button', { name: new RegExp(name) }),
       ).toBeDisabled();

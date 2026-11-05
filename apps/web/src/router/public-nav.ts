@@ -6,7 +6,7 @@ export const PUBLIC_NAV: PublicNavConfig = {
   navItems: [
     { label: 'Trang chủ', to: '/', end: true },
     { label: 'Dịch vụ khám', hasMenu: true },
-    { label: 'Chuyên khoa' },
+    { label: 'Chuyên khoa', to: '/chuyen-khoa' },
     { label: 'Bác sĩ' },
     { label: 'Cẩm nang' },
     { label: 'Liên hệ' },
@@ -15,7 +15,7 @@ export const PUBLIC_NAV: PublicNavConfig = {
   bookingItem: { label: 'Đặt lịch khám' },
   footerLinks: [
     { label: 'Trang chủ', to: '/', end: true },
-    { label: 'Chuyên khoa' },
+    { label: 'Chuyên khoa', to: '/chuyen-khoa' },
     { label: 'Đội ngũ bác sĩ' },
     { label: 'Cẩm nang sức khỏe' },
     { label: 'Về chúng tôi' },

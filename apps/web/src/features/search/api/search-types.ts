@@ -42,3 +42,22 @@ export interface BranchDetail extends BranchSummary {
   dichVuKham: { dichVuKhamId: string; ten: string }[];
   soBacSi: number;
 }
+
+/** Một chuyên khoa ở `GET /public/specialties`; `soBacSi` đếm bác sĩ công khai (theo chi nhánh nếu có lọc). */
+export interface SpecialtySummary {
+  chuyenKhoaId: string;
+  ten: string;
+  moTa: string | null;
+  anhDaiDien: string | null;
+  soBacSi: number;
+}
+
+/** `soCoBacSi`: số chuyên khoa (theo cùng bộ lọc) đã có ít nhất một bác sĩ công khai. */
+export interface SpecialtyPage extends Paged<SpecialtySummary> {
+  soCoBacSi: number;
+}
+
+/** `GET /public/specialties/:id`. `giaKhamTu` thêm khi API có B4 (Q9): trường tuỳ chọn để FE chạy được cả hai bản. */
+export interface SpecialtyDetail extends SpecialtySummary {
+  giaKhamTu?: { giaKham: number; mucDatCoc: number } | null;
+}
