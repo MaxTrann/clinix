@@ -4,6 +4,8 @@ import type {
   BranchSummary,
   ClinicInfo,
   Paged,
+  SpecialtyDetail,
+  SpecialtyPage,
 } from './search-types';
 
 // Mọi lời gọi của module search đi qua đây và dùng `skipAuthToken`: route công khai không đọc token, nên không gắn
@@ -38,4 +40,37 @@ export function getBranchDetail(
     ...PUBLIC_OPTIONS,
     signal,
   });
+}
+
+// Danh sách chuyên khoa: pageSize lớn vì trang không phân trang (Figma 217:2 là một lưới); quá 100 thì ghi TECH_DEBT.
+export const SPECIALTY_PAGE_SIZE = 100;
+
+export function getSpecialties(
+  params: { q?: string; chiNhanhId?: string | null },
+  signal?: AbortSignal,
+): Promise<SpecialtyPage> {
+  return request<SpecialtyPage>('public/specialties', {
+    ...PUBLIC_OPTIONS,
+    query: {
+      q: params.q || undefined,
+      chiNhanhId: params.chiNhanhId ?? undefined,
+      pageSize: SPECIALTY_PAGE_SIZE,
+    },
+    signal,
+  });
+}
+
+export function getSpecialtyDetail(
+  id: string,
+  chiNhanhId: string | null,
+  signal?: AbortSignal,
+): Promise<SpecialtyDetail> {
+  return request<SpecialtyDetail>(
+    `public/specialties/${encodeURIComponent(id)}`,
+    {
+      ...PUBLIC_OPTIONS,
+      query: { chiNhanhId: chiNhanhId ?? undefined },
+      signal,
+    },
+  );
 }
