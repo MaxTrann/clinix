@@ -515,7 +515,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge, ⏸ = hoãn theo quyế
 | ☐ | ID | Việc | Phụ thuộc | Truy vết | Thẻ / PR gợi ý |
 |---|---|---|---|---|---|
 | ☑ | P1 | Khung `PatientModule` (`apps/api/src/patient/`, đăng ký `AppModule`, import `AuthModule` + `TypeOrmModule.forFeature` các entity cần); `patient.constants.ts` (mã lỗi 5.9); `validation/`: luật ngày sinh (`todayVN`, 1900-01-01…hôm nay — Q7), giới tính (`Nam`/`Nu`/`Khac` — Q3), địa chỉ (≤ 255 — Q8), mối quan hệ (8 giá trị — Q15) + decorator DTO; unit test. **Kế hoạch chi tiết (duyệt 04/11/2026): TRACKING P1-A…P1-H** | auth A1 (decorator họ tên/SĐT), admin P2 (entity) — đã có | HSCN b4, A1/4a; HSNT b4, A1/4a | `[TIỀN ĐỀ]` · `feat(patient)` |
-| ☐ | P2 | FE: export qua `features/auth/index.ts` các hàm kiểm họ tên/SĐT có sẵn ở `validation/account-policy.ts`, và một hàm làm mới người dùng hiện tại (gọi lại `/auth/me`, cập nhật `hoTen` trong store); test | auth F1 (đã có) | HSCN b5 (tên mới hiện ngay); H8 | `[ĐỤNG auth]` · `feat(web)` — **báo chủ module auth** |
+| ☑ | P2 | FE: export qua `features/auth/index.ts` các hàm kiểm họ tên/SĐT có sẵn ở `validation/account-policy.ts`, và một hàm làm mới người dùng hiện tại (gọi lại `/auth/me`, cập nhật `hoTen` trong store); test. **Kế hoạch chi tiết (duyệt 05/11/2026): TRACKING P2-A…P2-H** | auth F1 (đã có) | HSCN b5 (tên mới hiện ngay); H8 | `[ĐỤNG auth]` · `feat(web)` — **báo chủ module auth** |
 
 ### 6.3 Nhóm B — Backend
 
