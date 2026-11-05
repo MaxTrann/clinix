@@ -308,15 +308,17 @@ Bác sĩ `475:2` (+ `476:2`: Q1 = Có — dùng API `/profile` của module này
 
 ```
 patient/
-  patient.module.ts          # [P1, đã làm: @Module({}) rỗng] task sau thêm: import AuthModule (TypeOrmModule của tai_khoan/benh_nhan), TypeOrmModule.forFeature([HoSoNguoiThan, LichHen, LeTan, QuanTriVien, BacSi, ChiNhanh])
+  patient.module.ts          # [P1: @Module({}) rỗng; B1, đã làm: controllers + providers của profile/, KHÔNG imports (DataSource toàn cục, SQL thô, guard toàn cục)] task sau thêm imports / TypeOrmModule.forFeature chỉ khi có provider cần tới
   patient.constants.ts       # [P1, đã làm] mã lỗi của module (mục 5.9), KEYWORD_MIN_LENGTH/MAX_LENGTH
   validation/                # birth-date-policy.ts, gender-policy.ts, address-policy.ts, relationship.ts (chỉ giá trị, nhãn ở web), patient-field.decorators.ts [P1, đã làm]
-  profile/                   # profile.controller.ts, profile.service.ts, profile.dto.ts, profile.repository.ts  (HSCN — mọi vai trò được phép)
+  profile/                   # profile.controller.ts, profile.service.ts, profile.dto.ts, profile.repository.ts  (HSCN — mọi vai trò được phép) [B1, đã làm: GET; dto chỉ có kiểu ProfileResponse, B2 thêm DTO đầu vào]
   relatives/                 # relatives.controller.ts, relatives.service.ts, relatives.dto.ts, relatives.repository.ts  (HSNT)
   reception-lookup/          # patient-lookup.controller.ts, patient-lookup.service.ts, patient-lookup.dto.ts, patient-lookup.repository.ts  (TCBN)
-  testing/                   # fixture/hàm hỗ trợ test dùng chung của module
+  testing/                   # fixture/hàm hỗ trợ test dùng chung của module; patient-route-audit.ts [B1, đã làm: QP-08, mọi route có @Roles]
 apps/api/src/appointments/   # Q13 = B: active-appointment-states.ts + active-appointment.query.ts (đọc lich_hen), không controller; booking tiếp quản sau
 ```
+
+Ghi chú B1 (duyệt 05/11/2026, TRACKING B1-B, B1-H): B1 là task đầu tiên thêm controller cho `PatientModule` và **không** thêm `imports` nào: `DataSource` có sẵn toàn cục từ `DatabaseModule` (như `SearchModule`), `ProfileRepository` dùng `EntityManager` với câu SQL thô nên không cần `TypeOrmModule.forFeature`, và guard `JwtAuthGuard`/`RolesGuard` đã là guard toàn cục nên không cần `AuthModule`. `profile/` ở B1 gồm `profile.controller.ts`, `profile.service.ts`, `profile.repository.ts`, `profile.dto.ts` (chỉ kiểu phản hồi `ProfileResponse`; B2 thêm DTO đầu vào cùng file). `testing/` có `patient-route-audit.ts` (QP-08: mọi route của module có `@Roles`; B2, B3, B6 dùng lại). Ba dòng `patient.module.ts`, `profile/`, `testing/` ở trên đã sửa chữ theo B1 (05/11/2026).
 
 Ghi chú P1 (duyệt 04/11/2026, TRACKING P1-B): đề xuất `patient.module.ts` lúc P1 là `@Module({})` rỗng; `AuthModule` và `TypeOrmModule.forFeature` do từng task (B1, B3…) thêm khi có provider dùng tới, nên danh sách entity ở dòng trên là của cả module, không phải của P1. Decorator DTO đặt ở `validation/patient-field.decorators.ts`; mã giới tính ở `validation/gender-policy.ts`.
 
@@ -482,6 +484,7 @@ không dùng được bản đặt trong `features/patient/`. `RoleShell` không
 - Log: `Logger` của Nest; **không** ghi họ tên, SĐT, email, ngày sinh, địa chỉ, `q`, chuỗi QR `[đề xuất — SOW chỉ bắt buộc mật khẩu/token/OTP, đây là mức chặt hơn cho dữ liệu cá nhân]`.
 - Kiểm thử: unit cho luật thuần (ngày sinh có đồng hồ giả biên 23:59/00:00 giờ VN), DTO; **tích hợp MySQL thật** (`*.int-spec.ts`) cho sở hữu, ngừng sử dụng + chạy đua, truy vấn tra cứu, collation;
   **e2e** qua `configureApp(app)` cho phân quyền và hình dạng lỗi (`expectErrorResponse`); FE Vitest + happy-dom, dựa vào vai trò và nội dung (không tên class), giả API qua lớp client.
+- SQL thô (`manager.query`, `getRawOne`): cột `DATE` ra `Date` lệch múi giờ (ngày `1990-05-15` ra `1990-05-14T17:00:00.000Z` ở `+07:00`), nên mọi SQL thô chọn cột `DATE` phải dùng `DATE_FORMAT(cột, '%Y-%m-%d')` ngay trong SQL; `bigint` ra chuỗi. B3 và B6 áp dụng (đã thử thật trên MySQL ở B1, TRACKING B1-D).
 
 ## 6. Kế hoạch task
 
@@ -521,7 +524,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge, ⏸ = hoãn theo quyế
 
 | ☐ | ID | Việc | Phụ thuộc | Truy vết | Thẻ |
 |---|---|---|---|---|---|
-| ☐ | B1 | `GET /profile` cho **BN, BS, LT, QTV** (Q1): đọc `tai_khoan` + phần chỉ đọc theo vai trò (BS: chi nhánh công tác từ `bac_si`, chỉ đọc; LT: chi nhánh; QTV: phạm vi, chi nhánh); `anhDaiDien` luôn `null` (Q4); danh sách trắng trường; `no-store`; 401 nếu tài khoản không còn hoạt động | auth A4 (đã có) | HSCN b1–b2 | `feat(patient)` — làm ngay |
+| ☑ | B1 | `GET /profile` cho **BN, BS, LT, QTV** (Q1): đọc `tai_khoan` + phần chỉ đọc theo vai trò (BS: chi nhánh công tác từ `bac_si`, chỉ đọc; LT: chi nhánh; QTV: phạm vi, chi nhánh); `anhDaiDien` luôn `null` (Q4); danh sách trắng trường; `no-store`; 401 nếu tài khoản không còn hoạt động. **Kế hoạch chi tiết (duyệt 05/11/2026): TRACKING B1-A…B1-K** — một câu `SELECT` có `LEFT JOIN` rồi rẽ nhánh theo `loai_tai_khoan` ở service; không `imports`, không `forFeature`; quét route QP-08 làm ngay ở B1 | auth A4, P1 (đã có; B1 không phụ thuộc P2) | HSCN b1–b2 | `feat(patient)` — làm ngay · HS-01, HS-02, HS-03, HS-16 (phần GET), HS-24 (phần GET), QP-01, QP-02, QP-05, QP-07 (phần GET), QP-08, BM-01, BM-02 |
 | ☐ | B2 | `PUT /profile` cho BN, BS, LT, QTV: DTO (email, ảnh, CCCD và trường lạ bị từ chối), chuẩn hoá, `UPDATE` 5 cột có điều kiện `DangHoatDong`, trả hồ sơ mới; không đụng `benh_nhan`/`bac_si`/`le_tan`/`quan_tri_vien` (H14) | P1, B1 | HSCN b3–b5, A1/4a–4b; HĐK thành công/thất bại | `[ĐỒNG BỘ TL]` D1 · `feat(patient)` |
 | ☐ | B3 | `GET` + `POST /patient/relatives`: sở hữu theo `benh_nhan_id`, tạo ở trạng thái hiệu lực, không giới hạn số lượng, không chặn trùng (Q14), `dia_chi` luôn `NULL` (Q8); repository đọc người thân dùng chung với B7 | P1 | HSNT b1–b5, A1; HĐK tạo | `[ĐỒNG BỘ TL]` D2 · `feat(patient)` |
 | ☐ | B4 | `PUT /patient/relatives/:id`: chỉ hồ sơ của mình và đang hiệu lực; được sửa khi có lịch hẹn; 404 (cả id sai dạng — Q27) / 409 `HO_SO_NGUOI_THAN_DA_NGUNG` (Q9) | B3 | HSNT MT "sửa", HĐK sửa, A1 | `[ĐỒNG BỘ TL]` D4 · `feat(patient)` |
