@@ -45,6 +45,10 @@ let epoch = 0;
 let refreshWait = new AbortController();
 // Huỷ mọi request đang bay của phiên khi đăng xuất
 let sessionRequests = new AbortController();
+// Số thứ tự các lần làm mới tên (refreshCurrentUser) và số của lần đã áp dụng gần nhất:
+// lần cũ hơn về muộn thì bị bỏ, để tên của lần lưu sau luôn thắng
+let userRefreshCalls = 0;
+let userRefreshApplied = 0;
 
 // `path` là nguyên văn nơi gọi truyền: có thể thiếu hoặc thừa dấu /, có query
 function normalizePath(path: string): string {
@@ -153,6 +157,42 @@ export async function login(email: string, matKhau: string): Promise<void> {
     applyFailure(error);
     throw error;
   }
+}
+
+function authenticatedUser(): AuthUser | null {
+  const { status, user } = getAuthState();
+  return status === 'authenticated' ? user : null;
+}
+
+// Đọc lại /auth/me để thanh bên đổi tên ngay sau khi lưu hồ sơ (patient P2, H8). KHÔNG BAO GIỜ ném lỗi: true = đã áp dụng
+// tên đọc được, false = mọi trường hợp còn lại, nơi gọi chỉ cần biết thanh bên đã đổi tên hay chưa.
+// Khác restoreSession: lỗi ở đây không được biến cả ứng dụng thành màn lỗi, nên chỉ ghi `hoTen` và không đụng `status`,
+// `error`, `canRetry` (vai trò đổi giữa phiên sẽ do lần khôi phục sau xử lý, không đẩy người dùng đi khi đang sửa form).
+// /auth/me chạy ngoài khoá như AU-39. 401 do hook của client xử lý như mọi request khác, hàm không làm lại.
+export async function refreshCurrentUser(): Promise<boolean> {
+  if (authenticatedUser() === null) return false;
+  const started = epoch;
+  const call = ++userRefreshCalls;
+
+  let profile: AuthUser;
+  try {
+    profile = await fetchProfile();
+  } catch {
+    // Mất mạng, timeout, 4xx/5xx, bị huỷ lúc đăng xuất, 401 mà hook không cứu được: giữ nguyên, không thử lại
+    return false;
+  }
+
+  // Kiểm lại SAU khi chờ: phiên có thể đã bị xoá mà `epoch` không đổi (clearSession), hoặc đã đổi chủ (epoch tăng)
+  const user = authenticatedUser();
+  if (user === null || started !== epoch || call < userRefreshApplied) {
+    return false;
+  }
+  userRefreshApplied = call;
+  // Tên không đổi thì giữ nguyên tham chiếu `user`, không báo cho người nghe
+  if (profile.hoTen !== user.hoTen) {
+    setAuthState({ user: { ...user, hoTen: profile.hoTen } });
+  }
+  return true;
 }
 
 async function runLogout(): Promise<void> {
@@ -300,5 +340,7 @@ export function resetAuthForTest(): void {
   epoch = 0;
   refreshWait = new AbortController();
   sessionRequests = new AbortController();
+  userRefreshCalls = 0;
+  userRefreshApplied = 0;
   setApiAuthHooks(authHooks);
 }
