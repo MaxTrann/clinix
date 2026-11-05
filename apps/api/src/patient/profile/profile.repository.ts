@@ -5,6 +5,7 @@ import type {
   LoaiTaiKhoan,
   TrangThaiTaiKhoan,
 } from '../../auth/entities/enums.js';
+import { TaiKhoan } from '../../auth/entities/tai-khoan.entity.js';
 
 /**
  * Hàng kết quả của câu đọc hồ sơ: ĐÚNG các cột này (danh sách trắng, TRACKING B1-D). Không có `mat_khau_bam`, `so_lan_dang_nhap_sai`,
@@ -46,6 +47,15 @@ LEFT JOIN chi_nhanh cn ON cn.chi_nhanh_id = CASE t.loai_tai_khoan
 END
 WHERE t.tai_khoan_id = ?`;
 
+/**
+ * Năm cột hồ sơ mà `PUT /profile` được ghi (task B2). Bắt buộc ĐỦ 5 khoá, dùng `null` chứ không `undefined`: TypeORM bỏ qua khoá `undefined`
+ * trong `.set()`, nên một khoá thiếu sẽ lặng lẽ không được ghi (TRACKING B2-D). Không có `email`, `anhDaiDien`, mật khẩu, trạng thái.
+ */
+export type ProfileChanges = Pick<
+  TaiKhoan,
+  'hoTen' | 'soDienThoai' | 'gioiTinh' | 'ngaySinh' | 'diaChi'
+>;
+
 @Injectable()
 export class ProfileRepository {
   /** Đọc hồ sơ của một tài khoản; `null` nếu không có hàng. Nhận `em` để B2 đọc lại trong giao dịch của nó. */
@@ -55,5 +65,34 @@ export class ProfileRepository {
   ): Promise<ProfileRow | null> {
     const rows = await em.query<ProfileRow[]>(PROFILE_SQL, [accountId]);
     return rows[0] ?? null;
+  }
+
+  /**
+   * Ghi đúng 5 cột hồ sơ của MỘT tài khoản đang hoạt động (task B2; TRACKING B2-C, B2-D). Trả số hàng KHỚP điều kiện.
+   *  - Điều kiện `trang_thai = 'DangHoatDong'` nằm trong CHÍNH câu UPDATE: dù guard đã kiểm, tài khoản có thể bị khoá ngay sau đó (H9) ⇒ 0 hàng.
+   *  - PHỤ THUỘC cờ kết nối `FOUND_ROWS` mà `mysql2` bật mặc định: `affected` là số hàng KHỚP chứ không phải số hàng ĐỔI, nên PUT giống hệt dữ liệu
+   *    cũ vẫn báo 1 hàng (đã thử thật). Nếu ai đó tắt cờ này, PUT giống hệt sẽ báo 0 ⇒ 401 oan: ca PUI-06 và PUI-13 canh điều đó.
+   *  - `null` ghi thành NULL; `ngaySinh` là chuỗi `YYYY-MM-DD` đi thẳng vào cột DATE (không qua `Date`, không lệch múi giờ).
+   * Gọi trong giao dịch của service để đọc lại cùng giao dịch (khoá hàng giữ tới commit).
+   */
+  async updateProfile(
+    em: EntityManager,
+    accountId: string,
+    changes: ProfileChanges,
+  ): Promise<number> {
+    const result = await em
+      .createQueryBuilder()
+      .update(TaiKhoan)
+      .set({
+        hoTen: changes.hoTen,
+        soDienThoai: changes.soDienThoai,
+        gioiTinh: changes.gioiTinh,
+        ngaySinh: changes.ngaySinh,
+        diaChi: changes.diaChi,
+      })
+      .where('taiKhoanId = :accountId', { accountId })
+      .andWhere('trangThai = :active', { active: 'DangHoatDong' })
+      .execute();
+    return result.affected ?? 0;
   }
 }
