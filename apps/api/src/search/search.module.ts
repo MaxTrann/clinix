@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { PublicBranchController } from './branches/public-branch.controller.js';
 import { PublicBranchRepository } from './branches/public-branch.repository.js';
 import { PublicBranchService } from './branches/public-branch.service.js';
+import { PublicServiceController } from './services/public-service.controller.js';
+import { PublicServiceRepository } from './services/public-service.repository.js';
+import { PublicServiceService } from './services/public-service.service.js';
 import { PublicSpecialtyController } from './specialties/public-specialty.controller.js';
 import { PublicSpecialtyRepository } from './specialties/public-specialty.repository.js';
 import { PublicSpecialtyService } from './specialties/public-specialty.service.js';
@@ -16,6 +19,7 @@ import { PublicSiteController } from './site/public-site.controller.js';
     PublicSiteController,
     PublicBranchController,
     PublicSpecialtyController,
+    PublicServiceController,
   ],
   providers: [
     PublicClinicInfoService,
@@ -24,6 +28,8 @@ import { PublicSiteController } from './site/public-site.controller.js';
     PublicBranchRepository,
     PublicSpecialtyService,
     PublicSpecialtyRepository,
+    PublicServiceService,
+    PublicServiceRepository,
   ],
 })
 export class SearchModule {}
