@@ -51,3 +51,11 @@ export class CreateRelativeDto {
   @IsOptionalPhone()
   soDienThoai?: string | null;
 }
+
+/**
+ * Thân của `PUT /patient/relatives/:id` (task B4; PLAN patient 5.7 "Body như POST"; TRACKING B4-C): cùng năm trường, cùng luật với `CreateRelativeDto`
+ * (lớp con rỗng nên chỉ có MỘT nơi định nghĩa, tạo và sửa không thể lệch luật). `benhNhanId`, `trangThaiHieuLuc`, `hoSoNguoiThanId`, `diaChi`
+ * và mọi trường lạ vẫn bị `forbidNonWhitelisted` từ chối. `PUT` thay cả bộ trường: bốn trường đầu bắt buộc; `soDienThoai` thiếu khoá nghĩa là XOÁ SĐT
+ * (controller đổi `undefined` thành `null`, như `null`, chuỗi rỗng và chỉ khoảng trắng).
+ */
+export class UpdateRelativeDto extends CreateRelativeDto {}

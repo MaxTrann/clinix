@@ -4,9 +4,9 @@ import type { MoiQuanHeNguoiThan } from '../../admin/entities/enums.js';
 import type { RelativeResponse } from './relatives.dto.js';
 
 /**
- * Năm giá trị người dùng nhập khi tạo hồ sơ người thân (task B3). Cố ý KHÔNG có `diaChi`, `trangThaiHieuLuc`, `benhNhanId`:
- * địa chỉ luôn NULL (Q8) và trạng thái luôn hiệu lực nằm CỨNG trong câu INSERT; chủ sở hữu là tham số riêng của hàm ghi (TRACKING B3-D).
- * Dùng `null`, không `undefined`, cho số điện thoại để chắc chắn ghi NULL.
+ * Năm giá trị người dùng nhập khi tạo (task B3) hoặc sửa (task B4) hồ sơ người thân. Cố ý KHÔNG có `diaChi`, `trangThaiHieuLuc`, `benhNhanId`:
+ * địa chỉ luôn NULL (Q8) và trạng thái luôn hiệu lực nằm CỨNG trong câu INSERT; câu UPDATE chỉ đặt đúng năm cột này; chủ sở hữu là tham số riêng
+ * của hàm ghi (TRACKING B3-D, B4-D). Dùng `null`, không `undefined`, cho số điện thoại để chắc chắn ghi NULL.
  */
 export interface NewRelative {
   hoTen: string;
@@ -45,6 +45,13 @@ WHERE h.benh_nhan_id = ? AND h.ho_so_nguoi_than_id = ?`;
 const INSERT_RELATIVE_SQL = `INSERT INTO ho_so_nguoi_than
   (benh_nhan_id, ho_ten, ngay_sinh, gioi_tinh, dia_chi, moi_quan_he, so_dien_thoai, trang_thai_hieu_luc)
 VALUES (?, ?, ?, ?, NULL, ?, ?, TRUE)`;
+
+// ĐÚNG năm cột (PLAN 5.3, TRACKING B4-D): `dia_chi`, `benh_nhan_id`, `trang_thai_hieu_luc` không bao giờ nằm trong SET. `benh_nhan_id = ?` (H3) và
+// `trang_thai_hieu_luc = TRUE` (hồ sơ đã ngừng không sửa được, Q9) nằm TRONG câu lệnh nên một câu duy nhất vừa kiểm chủ sở hữu vừa kiểm hiệu lực.
+// Thứ tự tham số: ho_ten, moi_quan_he, gioi_tinh, ngay_sinh, so_dien_thoai, ho_so_nguoi_than_id, benh_nhan_id.
+const UPDATE_RELATIVE_SQL = `UPDATE ho_so_nguoi_than
+SET ho_ten = ?, moi_quan_he = ?, gioi_tinh = ?, ngay_sinh = ?, so_dien_thoai = ?
+WHERE ho_so_nguoi_than_id = ? AND benh_nhan_id = ? AND trang_thai_hieu_luc = TRUE`;
 
 // Chọn từng khoá một (không trải nguyên hàng) để cột thừa không bao giờ lọt ra ngoài
 function toRelative(row: RelativeRow): RelativeResponse {
@@ -114,5 +121,33 @@ export class RelativesRepository {
     );
     // Luôn đúng một hàng; '0' (LAST_INSERT_ID khi không có gì được chèn) chỉ là chốt phòng thủ: đọc lại sẽ không thấy ⇒ service báo lỗi nội bộ
     return rows[0]?.id ?? '0';
+  }
+
+  /**
+   * Sửa năm cột của MỘT hồ sơ ĐANG HIỆU LỰC của `benhNhanId`; trả số hàng KHỚP điều kiện (0 hoặc 1). 0 nghĩa là hồ sơ không có, không thuộc `benhNhanId`
+   * hoặc đã ngừng: service đọc lại bằng `findRelativeById` để biết là 404 hay 409.
+   * PHỤ THUỘC cờ kết nối `FOUND_ROWS` mà `mysql2` bật mặc định: `affectedRows` là số hàng KHỚP chứ không phải số hàng ĐỔI, nên PUT giống hệt dữ liệu cũ
+   * (bảng không có cột "cập nhật lúc") vẫn trả 1, không thành 404 hay 409 oan. Đã đo thật (TRACKING B4-D); RUI-02 sẽ đỏ nếu cờ này bị tắt.
+   * `hoSoNguoiThanId` PHẢI là chuỗi: id BIGINT lớn hơn 2^53 mà ép `Number` sẽ sửa nhầm hồ sơ khác (đã đo, TRACKING B4-F).
+   */
+  async updateRelative(
+    em: EntityManager,
+    benhNhanId: string,
+    hoSoNguoiThanId: string,
+    input: NewRelative,
+  ): Promise<number> {
+    const result: { affectedRows: number } = await em.query(
+      UPDATE_RELATIVE_SQL,
+      [
+        input.hoTen,
+        input.moiQuanHe,
+        input.gioiTinh,
+        input.ngaySinh,
+        input.soDienThoai,
+        hoSoNguoiThanId,
+        benhNhanId,
+      ],
+    );
+    return result.affectedRows;
   }
 }
