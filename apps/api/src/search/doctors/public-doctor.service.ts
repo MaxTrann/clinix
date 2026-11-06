@@ -1,4 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { AppException } from '../../common/errors/app.exception.js';
+import { COMMON_ERROR_CODES } from '../../common/errors/error-codes.js';
+import { parsePublicId } from '../common/id-param.js';
+import { buildWeeklySchedule } from '../common/weekly-schedule.view.js';
 import type { Paged } from '../../common/paging/paged.js';
 import type { SurchargeRule } from '../../pricing/surcharge.calculator.js';
 import { ExamPriceReader } from '../pricing/exam-price.reader.js';
@@ -9,6 +13,7 @@ import {
 import { parseDoctorFilters } from './doctor-filter.parser.js';
 import { filterSortPage } from './doctor-list.rules.js';
 import type {
+  PublicDoctorDetail,
   PublicDoctorItem,
   PublicDoctorQueryDto,
 } from './public-doctor.dto.js';
@@ -39,6 +44,23 @@ export class PublicDoctorService {
       page: query.page,
       pageSize: query.pageSize,
     });
+  }
+
+  /** Id sai dạng, không có hoặc không công khai ⇒ cùng một 404 `KHONG_TIM_THAY` (H8). */
+  async detail(rawId: string): Promise<PublicDoctorDetail> {
+    const found = await this.repository.findDetail(parsePublicId(rawId));
+    if (!found) throw new AppException(404, COMMON_ERROR_CODES.NOT_FOUND);
+    const { doctor, rules, schedule } = found;
+    const ratings = await this.ratings.readMany([doctor.bacSiId]);
+    const item = this.toItem(doctor, rules, ratings);
+    return {
+      ...item,
+      moTaChuyenMon: doctor.moTaChuyenMon ?? null,
+      chiNhanh: {
+        ...item.chiNhanh,
+        lichHoatDong: buildWeeklySchedule(schedule),
+      },
+    };
   }
 
   // Chọn lại từng trường để không lọt cột nào ngoài danh sách trắng (Q14).
