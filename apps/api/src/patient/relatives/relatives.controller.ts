@@ -1,22 +1,34 @@
-import { Body, Controller, Get, Inject, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  Post,
+  Put,
+  Res,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import {
   CurrentUser,
   type AuthenticatedUser,
 } from '../../auth/decorators/current-user.decorator.js';
 import { Roles } from '../../auth/decorators/roles.decorator.js';
-// Import GIÁ TRỊ (không `import type`) cho CreateRelativeDto: ValidationPipe cần metadata của lớp lúc chạy, nếu không thân không được kiểm
+import { ParseRelativeIdPipe } from './relative-id.pipe.js';
+// Import GIÁ TRỊ (không `import type`) cho CreateRelativeDto và UpdateRelativeDto: ValidationPipe cần metadata của lớp lúc chạy, nếu không thân không được kiểm
 import {
   CreateRelativeDto,
+  UpdateRelativeDto,
   type RelativeResponse,
   type RelativesListResponse,
 } from './relatives.dto.js';
 import { RelativesService } from './relatives.service.js';
 
-// Hồ sơ người thân của Bệnh nhân (task B3 GET và POST; PLAN patient 5.3, 5.7; TRACKING B3-E). Controller chỉ nhận/trả; logic ở RelativesService.
+// Hồ sơ người thân của Bệnh nhân (task B3 GET và POST, task B4 PUT; PLAN patient 5.3, 5.7; TRACKING B3-E, B4-E). Controller chỉ nhận/trả; logic ở RelativesService.
 //  - `@Roles('BenhNhan')` DUY NHẤT, ghi trên từng route (QP-08): Lễ tân, Quản trị viên và Bác sĩ nhận 403 (Bác sĩ vẫn bị chặn dù được dùng /profile).
-//  - Chủ sở hữu chỉ lấy từ access token qua `CurrentUser()`; không khai @Query/@Param nên `?benhNhanId=…` bị bỏ qua (QP-06) và không có id trên đường dẫn.
-//    Thân POST là `CreateRelativeDto` (chỉ năm trường; `benhNhanId` trong thân là 400).
+//  - Chủ sở hữu chỉ lấy từ access token qua `CurrentUser()`; không khai @Query nên `?benhNhanId=…` bị bỏ qua (QP-06). Id hồ sơ chỉ có ở `PUT :id`,
+//    qua `ParseRelativeIdPipe` (sai dạng ⇒ 404 cùng thân, Q27). Thân POST là `CreateRelativeDto`, thân PUT là `UpdateRelativeDto` (chỉ năm trường;
+//    `benhNhanId` trong thân là 400).
 //  - Không RequireAdminScope, không OriginGuard: xác thực bằng header Authorization (trình duyệt không tự gửi), không cookie nên không có CSRF.
 @Controller('patient/relatives')
 export class RelativesController {
@@ -47,6 +59,27 @@ export class RelativesController {
     // Đặt trước khi gọi service để nhánh lỗi (403, 500) cũng có
     res.setHeader('Cache-Control', 'no-store');
     return this.service.create(user.accountId, {
+      hoTen: dto.hoTen,
+      moiQuanHe: dto.moiQuanHe,
+      gioiTinh: dto.gioiTinh,
+      ngaySinh: dto.ngaySinh,
+      soDienThoai: dto.soDienThoai ?? null,
+    });
+  }
+
+  // 200 (mặc định của @Put): thân là hồ sơ ĐỌC LẠI từ DB. PUT thay cả bộ trường nên thiếu khoá `soDienThoai` là xoá SĐT (`?? null`, như POST).
+  // `id` đã qua ParseRelativeIdPipe (chuỗi, đúng dạng BIGINT) trước khi vào đây; chuyển TƯỜNG MINH năm trường như POST.
+  @Put(':id')
+  @Roles('BenhNhan')
+  async update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseRelativeIdPipe) id: string,
+    @Body() dto: UpdateRelativeDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<RelativeResponse> {
+    // Đặt trước khi gọi service để nhánh lỗi (404, 409, 500 của service) cũng có
+    res.setHeader('Cache-Control', 'no-store');
+    return this.service.update(user.accountId, id, {
       hoTen: dto.hoTen,
       moiQuanHe: dto.moiQuanHe,
       gioiTinh: dto.gioiTinh,
