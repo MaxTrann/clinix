@@ -3,6 +3,9 @@
 /** Độ dài tối đa của từ khoá tìm kiếm `q` (TCBS/TCCN: 0–100 ký tự). */
 export const SEARCH_QUERY_MAX_LENGTH = 100;
 
+/** Số gợi ý tối đa cho MỖI loại ở ô tìm tổng (Q20). */
+export const SUGGESTIONS_PER_GROUP = 5;
+
 /** Mã lỗi của MỘT trường trong loi[{truong, ma}] (PLAN 5.8). */
 export const SEARCH_ERROR_CODES = {
   INVALID_KEYWORD: 'TU_KHOA_KHONG_HOP_LE',

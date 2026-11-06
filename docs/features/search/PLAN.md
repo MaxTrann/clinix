@@ -471,7 +471,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 03/11/2026: *
 | ☑ | B5 | `GET /public/doctors`: ứng viên bằng SQL + điều kiện công khai; giá/đánh giá qua B4; lọc giá/đánh giá, sắp, cắt trang trong bộ nhớ (5.4); danh sách trắng trường; rỗng ⇒ 200 | B4, B3 | TCBS b3–b6, b8 (tóm tắt), A1/6a–6b | `[CHỜ admin B12]` (qua B4) · `[ĐỒNG BỘ TL]` D2, D3 · `feat(search)` |
 | ☑ | B6 | `GET /public/doctors/:id`: hồ sơ năng lực (mô tả chuyên môn, giờ nhận khám chi nhánh, dịch vụ, giá, đánh giá); 404 cùng thân | B5 | TCBS b9 | `[CHỜ admin B12]` (qua B4) · `feat(search)` |
 | ☐ | B7 | `GET /public/clinic-info` (chân trang — Q19e) | P1 | Bổ trợ khung | Cụm 1 · `feat(search)` |
-| ☐ | B8 | `GET /public/suggestions` (≤ 5 mỗi loại, chỉ dữ liệu công khai, dùng lại repository B2/B3/B5) | B2, B3, B5 | TCCN b3, TCBS b1 (ô tìm tổng — Q20) | **Cụm 4 — sau cùng, bỏ trước nếu thiếu thời gian** · `feat(search)` |
+| ☑ | B8 | `GET /public/suggestions` (≤ 5 mỗi loại, chỉ dữ liệu công khai, dùng lại repository B2/B3/B5) | B2, B3, B5 | TCCN b3, TCBS b1 (ô tìm tổng — Q20) | **Cụm 4 — sau cùng, bỏ trước nếu thiếu thời gian** · `feat(search)` |
 | ☑ | B9 | `GET /public/overview` (ba con số trang chủ, cùng điều kiện công khai — H5) | B2, B3, B5 | Bổ trợ trang chủ (Q21) | **Cụm 4 — sau cùng, bỏ trước nếu thiếu thời gian** · `feat(search)` |
 
 ### 6.4 Nhóm F — Frontend (bám frame mục 4.4; trạng thái chưa có frame theo Q25)
