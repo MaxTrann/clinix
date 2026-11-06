@@ -13,6 +13,7 @@ import {
 } from '../features/auth/auth-session';
 import { getAuthState, setAuthState } from '../features/auth/auth-store';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
+import { createFakeProfileApi } from '../features/patient/testing/fake-profile-api';
 import { apiError, createFakeAuthApi } from '../test/fake-auth-api';
 import { fakeMatchMedia } from '../test/fake-match-media';
 import { createAppRoutes } from './routes';
@@ -57,7 +58,8 @@ const logoutButtons = () =>
 beforeEach(() => {
   resetAuthForTest();
   api = createFakeAuthApi();
-  vi.stubGlobal('fetch', vi.fn(api.fetch));
+  // Đổi có duyệt ở patient F3: trang Hồ sơ người khám thật gọi GET /api/profile (fake auth trả { ok: true } hoặc 401 cho đường dẫn này), nên ca PL-01, PL-01b, PL-04, PL-16, PL-18 cần /profile giả.
+  vi.stubGlobal('fetch', vi.fn(createFakeProfileApi(api.fetch).fetch));
   Object.defineProperty(navigator, 'locks', {
     configurable: true,
     value: undefined,
@@ -115,7 +117,13 @@ describe('khung Bệnh nhân', () => {
     const router = renderAt(PATIENT_PATHS.profile);
     await screen.findByRole('heading', { name: 'Hồ sơ người khám' });
     expect(router.state.historyAction).toBe('POP');
-    expect(screen.getByText('Chưa được triển khai.')).toBeInTheDocument();
+    // Đổi có duyệt ở patient F3: trang thật hiện hồ sơ (họ tên từ GET /api/profile) và nút "Chỉnh sửa", thay cho câu "Chưa được triển khai."
+    expect(
+      await screen.findByRole('button', { name: 'Chỉnh sửa' }),
+    ).toBeVisible();
+    expect(
+      screen.getByText('Nguyễn Văn A', { selector: 'dd' }),
+    ).toBeInTheDocument();
   });
 
   it.each([
@@ -616,7 +624,8 @@ describe('màn hẹp của hai khung', () => {
       hoTen: 'Lễ tân mẫu',
       daXacMinhEmail: true,
     });
-    vi.stubGlobal('fetch', vi.fn(api.fetch));
+    // Đổi có duyệt ở patient F3: trang Hồ sơ người khám thật gọi GET /api/profile (fake auth trả { ok: true } hoặc 401 cho đường dẫn này), nên ca PL-01, PL-01b, PL-04, PL-16, PL-18 cần /profile giả.
+    vi.stubGlobal('fetch', vi.fn(createFakeProfileApi(api.fetch).fetch));
     api.startSession();
     await restoreSession();
     expect(getAuthState().user?.vaiTro).toBe('LeTan');

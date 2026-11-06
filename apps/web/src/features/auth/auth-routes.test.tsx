@@ -4,6 +4,7 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../router/routes';
 import { PATIENT_PATHS } from '../patient';
+import { createFakeProfileApi } from '../patient/testing/fake-profile-api';
 import { apiError, createFakeAuthApi } from '../../test/fake-auth-api';
 import { resetAuthForTest, restoreSession } from './auth-session';
 import { getAuthState, setAuthState, type AuthUser } from './auth-store';
@@ -38,7 +39,10 @@ let api: ReturnType<typeof createFakeAuthApi>;
 beforeEach(() => {
   resetAuthForTest();
   api = createFakeAuthApi();
-  vi.stubGlobal('fetch', vi.fn(api.fetch));
+  // Đổi có duyệt ở patient F3: trang Hồ sơ người khám (route lazy) gửi GET /api/profile sau khi vào khung Bệnh nhân. Không có hàm giả này
+  // thì ca kết thúc, gỡ fetch giả, rồi yêu cầu đi ra localhost:80 thật (dòng log 401 ở AU-65).
+  const profile = createFakeProfileApi(api.fetch);
+  vi.stubGlobal('fetch', vi.fn(profile.fetch));
   Object.defineProperty(navigator, 'locks', {
     configurable: true,
     value: undefined,
@@ -127,6 +131,8 @@ describe('trang giữ chỗ và cổng vai trò', () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(PATIENT_PATHS.profile),
     );
+    // Đổi có duyệt ở patient F3: đợi trang hồ sơ tải xong để GET chạy khi fetch giả còn gắn
+    await screen.findByRole('button', { name: 'Chỉnh sửa' });
     expect(api.refreshCalls).toBe(1);
   });
 
@@ -294,6 +300,8 @@ describe('trang công khai', () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(PATIENT_PATHS.profile),
     );
+    // Đổi có duyệt ở patient F3: đợi trang hồ sơ tải xong để GET chạy khi fetch giả còn gắn
+    await screen.findByRole('button', { name: 'Chỉnh sửa' });
     expect(api.refreshCalls).toBe(1);
     expect(getAuthState().status).toBe('authenticated');
   });
