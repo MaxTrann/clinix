@@ -13,6 +13,9 @@ import { DoctorRatingReader } from './ratings/doctor-rating.reader.js';
 import { PublicSpecialtyController } from './specialties/public-specialty.controller.js';
 import { PublicSpecialtyRepository } from './specialties/public-specialty.repository.js';
 import { PublicSpecialtyService } from './specialties/public-specialty.service.js';
+import { PublicSuggestionController } from './suggestions/public-suggestion.controller.js';
+import { PublicSuggestionRepository } from './suggestions/public-suggestion.repository.js';
+import { PublicSuggestionService } from './suggestions/public-suggestion.service.js';
 import { PublicClinicInfoRepository } from './site/public-clinic-info.repository.js';
 import { PublicClinicInfoService } from './site/public-clinic-info.service.js';
 import { PublicOverviewRepository } from './site/public-overview.repository.js';
@@ -28,6 +31,7 @@ import { PublicSiteController } from './site/public-site.controller.js';
     PublicSpecialtyController,
     PublicServiceController,
     PublicDoctorController,
+    PublicSuggestionController,
   ],
   providers: [
     PublicClinicInfoService,
@@ -42,6 +46,8 @@ import { PublicSiteController } from './site/public-site.controller.js';
     PublicServiceRepository,
     PublicDoctorService,
     PublicDoctorRepository,
+    PublicSuggestionService,
+    PublicSuggestionRepository,
     ExamPriceReader,
     DoctorRatingReader,
   ],
