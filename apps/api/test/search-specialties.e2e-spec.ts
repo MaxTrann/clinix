@@ -105,7 +105,12 @@ describe('B2 — GET /public/specialties (HTTP, AppModule, MySQL thật)', () =>
     expect(hit.body.items).toHaveLength(1);
   });
 
-  it('TCK-06: chi tiết đang hoạt động ⇒ 200 đúng năm trường', async () => {
+  it('TCK-06/07: chi tiết đang hoạt động ⇒ 200 đúng sáu trường, giaKhamTu = giá áp dụng thấp nhất + cọc', async () => {
+    await db.query(
+      `UPDATE dich_vu_kham SET gia_mac_dinh = '300000.00', muc_dat_coc = '50000.00'
+       WHERE dich_vu_kham_id IN (SELECT dich_vu_kham_id FROM bac_si WHERE chuyen_khoa_id = ?)`,
+      [activeId],
+    );
     const { body } = await get(`/public/specialties/${activeId}`).expect(200);
     expect(body).toEqual({
       chuyenKhoaId: activeId,
@@ -113,7 +118,13 @@ describe('B2 — GET /public/specialties (HTTP, AppModule, MySQL thật)', () =>
       moTa: 'Khám tim',
       anhDaiDien: null,
       soBacSi: 1,
+      giaKhamTu: { giaKham: '300000.00', mucDatCoc: '50000.00' },
     });
+    // Lọc chi nhánh không có bác sĩ ⇒ giaKhamTu null (TCK-07).
+    const other = await get(
+      `/public/specialties/${activeId}?chiNhanhId=999999`,
+    ).expect(200);
+    expect(other.body.giaKhamTu).toBeNull();
   });
 
   it('TCK-06: ngừng / không có / sai dạng ⇒ 404 KHONG_TIM_THAY cùng thân', async () => {

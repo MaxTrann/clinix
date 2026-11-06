@@ -1,5 +1,8 @@
 import 'reflect-metadata';
+import type { DataSource } from 'typeorm';
 import { AppException } from '../../common/errors/app.exception.js';
+import type { PublicDoctorRepository } from '../doctors/public-doctor.repository.js';
+import { ExamPriceReader } from '../pricing/exam-price.reader.js';
 import { PublicSpecialtyQueryDto } from './public-specialty.dto.js';
 import type { PublicSpecialtyRepository } from './public-specialty.repository.js';
 import { PublicSpecialtyService } from './public-specialty.service.js';
@@ -15,8 +18,19 @@ const row = {
   trangThaiHoatDong: 'DangHoatDong',
 };
 
-const makeService = (repo: Partial<PublicSpecialtyRepository>) =>
-  new PublicSpecialtyService(repo as PublicSpecialtyRepository);
+// Mặc định không có bác sĩ công khai nào, trừ khi test truyền `doctors` riêng.
+const noDoctors = {
+  findCandidates: vi.fn().mockResolvedValue({ candidates: [], rules: [] }),
+} as unknown as PublicDoctorRepository;
+const makeService = (
+  repo: Partial<PublicSpecialtyRepository>,
+  doctors: PublicDoctorRepository = noDoctors,
+) =>
+  new PublicSpecialtyService(
+    repo as PublicSpecialtyRepository,
+    doctors,
+    new ExamPriceReader({} as DataSource),
+  );
 
 async function errorOf(promise: Promise<unknown>): Promise<AppException> {
   try {
@@ -67,13 +81,57 @@ describe('B2 — PublicSpecialtyService', () => {
     },
   );
 
-  it('detail: có dữ liệu ⇒ trả đúng năm trường; repository nhận id và chi nhánh', async () => {
+  it('detail: có dữ liệu ⇒ năm trường + giaKhamTu; repository nhận id và chi nhánh', async () => {
     const findDetail = vi.fn().mockResolvedValue(row);
     const detail = await makeService({ findDetail }).detail('5', '7');
     expect(Object.keys(detail).sort()).toEqual(
-      ['anhDaiDien', 'chuyenKhoaId', 'moTa', 'soBacSi', 'ten'].sort(),
+      [
+        'anhDaiDien',
+        'chuyenKhoaId',
+        'giaKhamTu',
+        'moTa',
+        'soBacSi',
+        'ten',
+      ].sort(),
     );
     expect(findDetail).toHaveBeenCalledWith('5', '7');
+  });
+
+  it('TCK-07: giaKhamTu = giá áp dụng thấp nhất kèm cọc của dịch vụ đó; lọc đúng chuyên khoa và chi nhánh', async () => {
+    const candidate = (giaMacDinh: string, mucDatCoc: string) => ({
+      chucDanh: 'BS' as const,
+      soNamKinhNghiem: 3,
+      giaMacDinh,
+      mucDatCoc,
+    });
+    const findCandidates = vi.fn().mockResolvedValue({
+      candidates: [
+        candidate('350000.00', '70000.00'),
+        candidate('300000.00', '50000.00'),
+      ],
+      // Không có quy tắc phụ phí ⇒ giá = giá mặc định.
+      rules: [],
+    });
+    const findDetail = vi.fn().mockResolvedValue(row);
+    const detail = await makeService({ findDetail }, {
+      findCandidates,
+    } as unknown as PublicDoctorRepository).detail('5', '7');
+    expect(detail.giaKhamTu).toEqual({
+      giaKham: '300000.00',
+      mucDatCoc: '50000.00',
+    });
+    expect(findCandidates).toHaveBeenCalledWith({
+      dichVuKhamId: null,
+      chuyenKhoaId: '5',
+      chiNhanhId: '7',
+      likePattern: null,
+    });
+  });
+
+  it('TCK-07: chưa có bác sĩ công khai ⇒ giaKhamTu null', async () => {
+    const findDetail = vi.fn().mockResolvedValue(row);
+    const detail = await makeService({ findDetail }).detail('5', undefined);
+    expect(detail.giaKhamTu).toBeNull();
   });
 
   it('TCK-06: không có / ngừng ⇒ 404; id sai dạng ⇒ 404 cùng mã, không chạm DB', async () => {

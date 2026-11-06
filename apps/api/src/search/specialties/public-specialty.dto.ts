@@ -1,6 +1,7 @@
 import { IsOptional, IsString } from 'class-validator';
 import type { Paged } from '../../common/paging/paged.js';
 import { PublicQueryDto } from '../common/public-query.dto.js';
+import type { StartingPrice } from './starting-price.js';
 
 /**
  * Query của `GET /public/specialties`: `q`, `page`, `pageSize` + `chiNhanhId` (Q5).
@@ -33,5 +34,7 @@ export interface PublicSpecialtyPage extends Paged<PublicSpecialtyItem> {
   soCoBacSi: number;
 }
 
-/** Chi tiết chuyên khoa; `giaKhamTu` (Q9) thêm khi B4 xong. */
-export type PublicSpecialtyDetail = PublicSpecialtyItem;
+/** Chi tiết chuyên khoa + `giaKhamTu` (Q9): giá áp dụng thấp nhất của bác sĩ công khai kèm cọc, `null` khi chưa có bác sĩ. */
+export interface PublicSpecialtyDetail extends PublicSpecialtyItem {
+  giaKhamTu: StartingPrice | null;
+}

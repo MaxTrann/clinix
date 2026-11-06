@@ -15,6 +15,8 @@ import { PublicSpecialtyRepository } from './specialties/public-specialty.reposi
 import { PublicSpecialtyService } from './specialties/public-specialty.service.js';
 import { PublicClinicInfoRepository } from './site/public-clinic-info.repository.js';
 import { PublicClinicInfoService } from './site/public-clinic-info.service.js';
+import { PublicOverviewRepository } from './site/public-overview.repository.js';
+import { PublicOverviewService } from './site/public-overview.service.js';
 import { PublicSiteController } from './site/public-site.controller.js';
 
 // Module tra cứu công khai (chỉ đọc). Các task B2–B9 thêm controller/provider vào đây.
@@ -30,6 +32,8 @@ import { PublicSiteController } from './site/public-site.controller.js';
   providers: [
     PublicClinicInfoService,
     PublicClinicInfoRepository,
+    PublicOverviewService,
+    PublicOverviewRepository,
     PublicBranchService,
     PublicBranchRepository,
     PublicSpecialtyService,
