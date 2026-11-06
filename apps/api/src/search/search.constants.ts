@@ -10,6 +10,14 @@ export const SEARCH_ERROR_CODES = {
   INVALID_FILTER: 'BO_LOC_KHONG_HOP_LE',
   /** Mã của MỘT trường lọc là id nhưng không phải số nguyên dương hợp lệ. */
   INVALID_FILTER_ID: 'ID_LOC_KHONG_HOP_LE',
+  /** `giaTu`/`giaDen` không phải số nguyên đồng ≥ 0 (Q12). */
+  INVALID_PRICE: 'GIA_KHONG_HOP_LE',
+  /** `giaTu` lớn hơn `giaDen` (báo ở trường `giaTu`). */
+  INVALID_PRICE_RANGE: 'KHOANG_GIA_KHONG_HOP_LE',
+  /** `diemTu` ngoài khoảng 0,1–5,0 hoặc nhiều hơn 1 chữ số thập phân (Q12). */
+  INVALID_RATING: 'DIEM_KHONG_HOP_LE',
+  /** `sapXep` ngoài danh sách trắng. */
+  INVALID_SORT: 'SAP_XEP_KHONG_HOP_LE',
 } as const;
 
 /** Mọi route của module nằm dưới tiền tố này (Q22); tiền tố `/api` do proxy thêm. */

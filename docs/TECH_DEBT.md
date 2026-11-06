@@ -80,3 +80,8 @@ chấp nhận một lối tắt; đóng dòng khi xử lý xong.
 - Sau 5 lần xóa lỗi, ledger dừng thử lại tự động. Kiểm cấu hình/hạn mức và tài nguyên trước khi người phụ trách quyết định thử lại; không xóa bản ghi DB để che lỗi. Cleanup batch có lease nên ảnh chưa kịp xử lý được nhận lại ở lượt sau.
 - URL cũ anh_dai_dien được giữ để tương thích, chưa tự backfill public_id hoặc loại cột. B1/F2 phải tích hợp API/transaction/preview trước acceptance; cần test Cloudinary thật tách riêng, không suy ra từ mock.
 - Chất lượng 85/80 và sàn cạnh dài 1600 là policy được duyệt, chưa là bằng chứng ảnh đẹp với mọi nội dung. Kiểm bằng bộ ảnh mẫu và UI thường/HiDPI khi F2 có source; không ép 700–800 KB bằng cách hạ policy.
+
+## Search B5 — danh sách bác sĩ công khai (06/11/2026)
+
+- Lọc giá/điểm, sắp xếp và cắt trang làm **trong bộ nhớ** (`search/doctors/doctor-list.rules.ts`): mỗi request đọc mọi bác sĩ khớp bộ lọc SQL và mọi dòng `phu_phi_bac_si`, độ phức tạp O(số bác sĩ khớp). Ổn ở quy mô TLCN; nếu lớn cần cột giá tính sẵn (đổi schema). Chọn vậy để chỉ có MỘT công thức giá (hàm chung `pricing/`), không lặp trong SQL.
+- Tên giá trị `sapXep` (`kinhNghiem`, `giaTangDan`, `danhGiaCao`) là `[đề xuất]` — Figma/PLAN chưa chốt chuỗi; F5 phải dùng đúng các giá trị này hoặc sửa cả hai phía.
