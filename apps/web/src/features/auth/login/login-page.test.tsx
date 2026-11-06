@@ -10,6 +10,7 @@ import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../../router/routes';
 import { apiError, createFakeAuthApi } from '../../../test/fake-auth-api';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../../patient';
+import { createFakeProfileApi } from '../../patient/testing/fake-profile-api';
 import { resetAuthForTest } from '../auth-session';
 import { getAuthState, setAuthState } from '../auth-store';
 import {
@@ -31,13 +32,16 @@ let loginBodies: unknown[];
 function useApi(vaiTro: VaiTro = 'BenhNhan') {
   api = createFakeAuthApi({ vaiTro, hoTen: 'Người mẫu', daXacMinhEmail: true });
   loginBodies = [];
+  // Đổi có duyệt ở patient F3: sau đăng nhập, trang Hồ sơ người khám (route lazy) gửi GET /api/profile. Không có hàm giả này thì
+  // test kết thúc, gỡ fetch giả, rồi yêu cầu đi ra localhost:80 thật (dòng log 401 ở LP-78, LP-108).
+  const profile = createFakeProfileApi(api.fetch);
   vi.stubGlobal(
     'fetch',
     vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input).endsWith('/auth/login')) {
         loginBodies.push(JSON.parse(String(init?.body)));
       }
-      return api.fetch(input, init);
+      return profile.fetch(input, init);
     }),
   );
 }
@@ -60,11 +64,17 @@ const ROLE_SHELL_LABELS: Partial<Record<VaiTro, string>> = {
   LeTan: 'Điều hướng Lễ tân',
 };
 
-function findRoleHome(vaiTro: VaiTro) {
+async function findRoleHome(vaiTro: VaiTro) {
   const shellLabel = ROLE_SHELL_LABELS[vaiTro];
-  return shellLabel
-    ? screen.findByRole('complementary', { name: shellLabel })
-    : screen.findByRole('heading', { name: ROLE_LABELS[vaiTro] });
+  const home = shellLabel
+    ? await screen.findByRole('complementary', { name: shellLabel })
+    : await screen.findByRole('heading', { name: ROLE_LABELS[vaiTro] });
+  // Đổi có duyệt ở patient F3: trang mặc định của Bệnh nhân là route lazy và tự gọi GET /api/profile. Đợi nó tải xong để GET chạy
+  // khi fetch giả còn gắn; nếu không, test kết thúc, gỡ fetch giả, rồi GET đi ra localhost:80 thật (dòng log 401 ở LP-78, LP-108).
+  if (vaiTro === 'BenhNhan') {
+    await screen.findByRole('button', { name: 'Chỉnh sửa' });
+  }
+  return home;
 }
 
 // Bệnh nhân vào `/benh-nhan`, Lễ tân vào `/le-tan` rồi được chuyển ngay tới trang mặc định của khung (Q21e của patient).

@@ -9,8 +9,8 @@ export const PATIENT_ROUTES: RouteObject[] = [
   {
     path: PATIENT_PROFILE_SEGMENT,
     lazy: () =>
-      import('./pages/patient-profile-placeholder-page').then((module) => ({
-        Component: module.PatientProfilePlaceholderPage,
+      import('./pages/patient-profile-page').then((module) => ({
+        Component: module.PatientProfilePage,
       })),
   },
 ];
