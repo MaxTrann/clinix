@@ -1,5 +1,6 @@
 import { IsOptional, IsString } from 'class-validator';
 import type { ChucDanhBacSi } from '../../admin/entities/enums.js';
+import type { WeekdayView } from '../common/weekly-schedule.view.js';
 import { PublicQueryDto } from '../common/public-query.dto.js';
 
 /**
@@ -33,4 +34,10 @@ export interface PublicDoctorItem {
     mucDatCoc: string;
   };
   danhGia: { diemTrungBinh: string | null; soDanhGia: number };
+}
+
+/** Chi tiết một bác sĩ (TCBS b9): như phần tử danh sách + mô tả chuyên môn và giờ nhận khám 7 thứ của chi nhánh. */
+export interface PublicDoctorDetail extends Omit<PublicDoctorItem, 'chiNhanh'> {
+  moTaChuyenMon: string | null;
+  chiNhanh: PublicDoctorItem['chiNhanh'] & { lichHoatDong: WeekdayView[] };
 }

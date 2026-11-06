@@ -1,9 +1,10 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { Public } from '../../auth/decorators/public.decorator.js';
 import type { Paged } from '../../common/paging/paged.js';
 import { PUBLIC_ROUTE_PREFIX } from '../search.constants.js';
 import {
   PublicDoctorQueryDto,
+  type PublicDoctorDetail,
   type PublicDoctorItem,
 } from './public-doctor.dto.js';
 import { PublicDoctorService } from './public-doctor.service.js';
@@ -17,5 +18,10 @@ export class PublicDoctorController {
   @Get()
   list(@Query() query: PublicDoctorQueryDto): Promise<Paged<PublicDoctorItem>> {
     return this.doctors.list(query);
+  }
+
+  @Get(':id')
+  detail(@Param('id') id: string): Promise<PublicDoctorDetail> {
+    return this.doctors.detail(id);
   }
 }

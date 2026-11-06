@@ -139,4 +139,34 @@ describe('B5 — GET /public/doctors (HTTP, AppModule, MySQL thật)', () => {
     await get('/public/doctors?sapXep=giaTangDan').expect(200);
     expect(await count()).toBe(before);
   });
+  it('B6 CC-01 + TBS-13: chi tiết không token ⇒ 200, thêm moTaChuyenMon và lichHoatDong 7 thứ, không lộ email', async () => {
+    const { body } = await get(`/public/doctors/${visibleId}`).expect(200);
+    expect(body).toMatchObject({
+      bacSiId: visibleId,
+      hoTen: 'Nguyễn Văn Hùng',
+      moTaChuyenMon: null,
+      chiNhanh: { chiNhanhId: branchId },
+    });
+    expect(body.chiNhanh.lichHoatDong).toHaveLength(7);
+    expect(JSON.stringify(body)).not.toContain('hung.doctor@example.com');
+    const withToken = await get(
+      `/public/doctors/${visibleId}`,
+      patientToken,
+    ).expect(200);
+    expect(withToken.body).toEqual(body);
+  });
+
+  it('B6 TBS-13: không công khai / không có / sai dạng ⇒ 404 KHONG_TIM_THAY cùng thân', async () => {
+    const [pending] = await db.query<{ id: string }[]>(
+      `SELECT CAST(b.tai_khoan_id AS CHAR) AS id FROM bac_si b
+       JOIN tai_khoan t ON t.tai_khoan_id = b.tai_khoan_id WHERE t.trang_thai = 'ChoKichHoat'`,
+    );
+    const bodies: unknown[] = [];
+    for (const id of [pending?.id ?? '1', '999999', 'abc', '0']) {
+      const response = await get(`/public/doctors/${id}`);
+      expectErrorResponse(response, 404, 'KHONG_TIM_THAY');
+      bodies.push(response.body);
+    }
+    for (const body of bodies) expect(body).toEqual(bodies[0]);
+  });
 });
