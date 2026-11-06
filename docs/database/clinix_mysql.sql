@@ -33,6 +33,9 @@
 -- bảng, 27 enum, 38 CHECK. Chuyển đổi từ DB cũ: mục 10 của clinix_quy_tac_nghiep_vu.md.
 -- 26/10/2026 (admin P1): UNIQUE chuyen_khoa.ten (Q12) và dich_vu_kham (nhom_dich_vu_id, ten) (Q16); migration kiểm trùng sau chuẩn hóa trước khi thêm UNIQUE.
 -- 27/10/2026 (admin P3 #47): đồng bộ trạng thái rút/hủy/quá hạn, email BoQua và enum audit mở rộng; DBML tách enum trạng thái yêu cầu/email thông báo khỏi enum dùng chung. Tổng thể: 44 bảng, 29 enum DBML, 38 CHECK.
+-- 06/11/2026 (module patient, task B3): chỉ sửa chữ ở dòng chú thích và khối quy tắc service, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu
+-- CREATE TABLE nào: COMMENT nội tuyến của tai_khoan.gioi_tinh, ho_so_nguoi_than.gioi_tinh, ho_so_nguoi_than.moi_quan_he còn lời cũ (không nêu tập giá trị, còn [đề xuất])
+-- vì migration phải khớp từng câu; lời đúng nằm ở clinix.dbml và quy tắc 50, 51 của clinix_quy_tac_nghiep_vu.md mục 2.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -104,6 +107,8 @@
 --   * Thu tiền mặt tại quầy: nguoi_thu_id lấy từ PHIÊN ĐĂNG NHẬP của Lễ tân (không nhận từ giao diện); Lễ tân đang hoạt động và có le_tan.chi_nhanh_id = lich_hen.chi_nhanh_id lúc thu; chỉ lịch hẹn DaXacNhan; so_tien = gia_snapshot - tổng giao dịch ThanhToanLichHen ThanhCong của LỊCH GỐC (thu đủ, không thu thiếu hay thừa)
 --   * Thu tiền mặt tại quầy chạy trong MỘT giao dịch: khóa dòng lich_hen (FOR UPDATE) TRƯỚC khi đọc tổng đã trả, ghi giao dịch tiền mặt bằng INSERT ... SELECT có điều kiện, kiểm tra lại tổng đã trả >= giá, UPDATE DaXacNhan -> DaTiepDon phải ảnh hưởng đúng 1 dòng, lỗi thì ROLLBACK cả hai; chống ghi trùng bằng khóa dòng + điều kiện trạng thái, KHÔNG UNIQUE theo lich_hen_id (xem truy vấn mẫu cuối file)
 --   * Lịch đã trả đủ trước khi đến quầy: tiếp đón theo luồng Cập nhật trạng thái lịch hẹn, KHÔNG tạo giao dịch tiền mặt bằng 0
+--   * Giới tính (tai_khoan.gioi_tinh, ho_so_nguoi_than.gioi_tinh) chỉ nhận Nam, Nu, Khac (mã ASCII; giao diện hiển thị Nam, Nữ, Khác); DB không có CHECK nên service là chốt chặn duy nhất; tai_khoan.gioi_tinh được để trống, ho_so_nguoi_than.gioi_tinh bắt buộc (patient Q3)
+--   * Mối quan hệ của hồ sơ người thân (ho_so_nguoi_than.moi_quan_he) đã chốt đúng 8 giá trị Cha, Me, Vo, Chong, Con, AnhChiEm, OngBa, Khac (Khac cho quan hệ không có trong danh sách), do ENUM bảo vệ; bỏ [đề xuất] (patient Q15)
 -- ============================================================================
 
 SET NAMES utf8mb4;
