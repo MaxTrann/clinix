@@ -13,6 +13,8 @@ export interface PublicNavConfig {
   navItems: PublicNavItem[];
   // Nút cam "Đặt lịch khám"
   bookingItem: PublicNavItem;
+  // Trang "Xem tất cả chi nhánh" mở từ bộ chọn chi nhánh (F3); không đặt thì ẩn liên kết
+  allBranchesTo?: string;
   footerLinks: PublicNavItem[];
   legalLinks: PublicNavItem[];
 }

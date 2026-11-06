@@ -76,6 +76,7 @@ export function PublicLayout({ nav }: PublicLayoutProps) {
             canLocate={branchList.canLocate}
             onSelect={branchList.select}
             onLocate={branchList.locate}
+            allBranchesTo={nav.allBranchesTo}
           />
         }
         user={

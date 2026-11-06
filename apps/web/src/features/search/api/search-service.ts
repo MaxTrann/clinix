@@ -74,3 +74,15 @@ export function getSpecialtyDetail(
     },
   );
 }
+
+// Trang "Chi nhánh": cùng pageSize lớn như bộ chọn vì chi nhánh đang chọn được xếp đầu ở trình duyệt (Q5); `q` khớp tên + địa chỉ (Q3).
+export function searchBranches(
+  q: string,
+  signal?: AbortSignal,
+): Promise<Paged<BranchSummary>> {
+  return request<Paged<BranchSummary>>('public/branches', {
+    ...PUBLIC_OPTIONS,
+    query: { q: q || undefined, pageSize: BRANCH_PICKER_PAGE_SIZE },
+    signal,
+  });
+}

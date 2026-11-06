@@ -8,7 +8,7 @@ import { getSpecialties } from '../api/search-service';
 import type { SpecialtySummary } from '../api/search-types';
 import { doctorCountLabel } from './doctor-count-label';
 import { SpecialtyImage } from './specialty-image';
-import { useRemote } from './use-remote';
+import { useRemote } from '../use-remote';
 
 export const SPECIALTY_SEARCH_DEBOUNCE_MS = 300;
 export const SPECIALTY_EMPTY_MESSAGE = 'Không tìm thấy chuyên khoa phù hợp.';
