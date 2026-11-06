@@ -5,7 +5,7 @@
 const MONEY_PATTERN = /^(\d+)(?:\.(\d{1,2}))?$/;
 
 /** "200000.00" / "200000" / "200000.5" ⇒ số đơn vị 0,01 (BigInt). Chuỗi không phải số tiền không âm ⇒ ném lỗi. */
-function toCents(value: string): bigint {
+export function toCents(value: string): bigint {
   const match = MONEY_PATTERN.exec(value);
   if (!match) throw new Error(`Số tiền không hợp lệ: ${JSON.stringify(value)}`);
   const whole = match[1] ?? '0';

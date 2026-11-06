@@ -5,6 +5,9 @@ import { PublicBranchService } from './branches/public-branch.service.js';
 import { PublicServiceController } from './services/public-service.controller.js';
 import { PublicServiceRepository } from './services/public-service.repository.js';
 import { PublicServiceService } from './services/public-service.service.js';
+import { PublicDoctorController } from './doctors/public-doctor.controller.js';
+import { PublicDoctorRepository } from './doctors/public-doctor.repository.js';
+import { PublicDoctorService } from './doctors/public-doctor.service.js';
 import { ExamPriceReader } from './pricing/exam-price.reader.js';
 import { DoctorRatingReader } from './ratings/doctor-rating.reader.js';
 import { PublicSpecialtyController } from './specialties/public-specialty.controller.js';
@@ -22,6 +25,7 @@ import { PublicSiteController } from './site/public-site.controller.js';
     PublicBranchController,
     PublicSpecialtyController,
     PublicServiceController,
+    PublicDoctorController,
   ],
   providers: [
     PublicClinicInfoService,
@@ -32,6 +36,8 @@ import { PublicSiteController } from './site/public-site.controller.js';
     PublicSpecialtyRepository,
     PublicServiceService,
     PublicServiceRepository,
+    PublicDoctorService,
+    PublicDoctorRepository,
     ExamPriceReader,
     DoctorRatingReader,
   ],
