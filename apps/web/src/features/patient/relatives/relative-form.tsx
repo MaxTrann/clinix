@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import {
   BirthDateField,
   FormActions,
@@ -31,6 +31,8 @@ export interface RelativeFormProps {
   onCancel: () => void;
   // Nơi gọi tải lại danh sách nền: nút "Tải lại danh sách" sau POST không rõ kết quả, và PUT gặp 404 hoặc 409 (kèm câu `notice`)
   onReload: (notice?: string) => void;
+  // Nút phụ ở đầu hàng nút cuối (thẻ truyền nút "Ngừng sử dụng" cho form SỬA, patient F7); form không biết gì về ngừng sử dụng
+  leadingAction?: ReactNode;
 }
 
 interface Failure {
@@ -49,6 +51,7 @@ export function RelativeForm({
   onSaved,
   onCancel,
   onReload,
+  leadingAction,
 }: RelativeFormProps) {
   const creating = relative === null;
   const [values, setValues] = useState<RelativeFormValues>(() =>
@@ -212,6 +215,7 @@ export function RelativeForm({
         submitLabel={creating ? 'Thêm hồ sơ' : 'Lưu thay đổi'}
         pendingLabel={creating ? 'Đang thêm…' : 'Đang lưu…'}
         onCancel={onCancel}
+        leadingAction={leadingAction}
       />
     </form>
   );

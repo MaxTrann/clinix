@@ -1,7 +1,13 @@
 import { request } from '../../../shared/api/client';
-import { UnexpectedResponseError } from '../../../shared/api/errors';
+import { ApiError, UnexpectedResponseError } from '../../../shared/api/errors';
+import { isIsoDateTime } from './appointment-labels';
 import { sortRelatives } from './relative-rules';
-import type { Relative, RelativePayload } from './relatives-types';
+import type {
+  BlockingAppointment,
+  DeactivateOutcome,
+  Relative,
+  RelativePayload,
+} from './relatives-types';
 
 const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 // BIGINT dương không có số 0 đứng đầu (CAST AS CHAR ở API): `compareIds` so độ dài rồi từ điển nên cần đúng dạng này
@@ -87,4 +93,62 @@ export async function updateRelative(
       json: body,
     }),
   );
+}
+
+// Mã lỗi 409 của B5: hồ sơ còn lịch hẹn chưa hoàn tất (PLAN 5.9)
+export const BLOCKED_ERROR_CODE = 'HO_SO_NGUOI_THAN_DANG_CO_LICH_HEN';
+
+// `chiTiet` của 409 (patient F7; TRACKING F7-G): mảng KHÔNG rỗng, mỗi phần tử đúng năm khoá chuỗi, `thoiGian` là thời điểm hợp lệ.
+// Khoá khác bị bỏ (không bao giờ vào giao diện), giữ nguyên thứ tự máy chủ (đã sắp theo thời gian). Sai ⇒ phản hồi không dùng được.
+export function parseBlockingAppointments(raw: unknown): BlockingAppointment[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new UnexpectedResponseError(409);
+  }
+  return raw.map((item: unknown) => {
+    if (typeof item !== 'object' || item === null) {
+      throw new UnexpectedResponseError(409);
+    }
+    const { maLichHen, thoiGian, trangThai, bacSi, chiNhanh } = item as Record<
+      string,
+      unknown
+    >;
+    if (
+      !isText(maLichHen) ||
+      !isText(thoiGian) ||
+      !isIsoDateTime(thoiGian) ||
+      !isText(trangThai) ||
+      !isText(bacSi) ||
+      !isText(chiNhanh)
+    ) {
+      throw new UnexpectedResponseError(409);
+    }
+    return { maLichHen, thoiGian, trangThai, bacSi, chiNhanh };
+  });
+}
+
+// POST KHÔNG thân (id chỉ ở đường dẫn, là chuỗi đi nguyên vẹn), không truyền `signal` như POST và PUT ở trên. Idempotent: hồ sơ đã ngừng vẫn 200,
+// nên gọi lại sau lỗi mạng là an toàn (khác POST tạo). 200 phải có `trangThaiHieuLuc: false`; 409 vì lịch hẹn là một kết quả, không phải lỗi;
+// mã lỗi khác (404, 500…) ném lại nguyên cho nơi gọi phân loại.
+export async function deactivateRelative(
+  id: string,
+): Promise<DeactivateOutcome> {
+  try {
+    const body = await request<unknown>(`/patient/relatives/${id}/deactivate`, {
+      method: 'POST',
+    });
+    const state =
+      typeof body === 'object' && body !== null
+        ? (body as { trangThaiHieuLuc?: unknown }).trangThaiHieuLuc
+        : undefined;
+    if (state !== false) throw new UnexpectedResponseError(200);
+    return { kind: 'done' };
+  } catch (error) {
+    if (error instanceof ApiError && error.maLoi === BLOCKED_ERROR_CODE) {
+      return {
+        kind: 'blocked',
+        appointments: parseBlockingAppointments(error.chiTiet),
+      };
+    }
+    throw error;
+  }
 }

@@ -252,6 +252,9 @@ export interface FormActionsProps {
   submitLabel: string;
   pendingLabel: string;
   onCancel: () => void;
+  // Nút phụ ở ĐẦU hàng, dồn về mép trái, xa nút gửi (patient F7: nút "Ngừng sử dụng" của form người thân). Không truyền thì
+  // KHÔNG thêm phần tử nào vào DOM: hàng nút của ProfileForm (F3) giữ nguyên từng ký tự (TRACKING F7-C).
+  leadingAction?: ReactNode;
 }
 
 // Hàng nút cuối form (Hủy, gửi), dùng chung cho form sửa Bản thân (F3) và form người thân (F6, TRACKING F6-B).
@@ -261,9 +264,11 @@ export function FormActions({
   submitLabel,
   pendingLabel,
   onCancel,
+  leadingAction,
 }: FormActionsProps) {
   return (
     <div className="mt-[1.2rem] flex flex-wrap justify-end gap-2.5">
+      {leadingAction ? <div className="mr-auto">{leadingAction}</div> : null}
       <button
         type="button"
         disabled={pending}
