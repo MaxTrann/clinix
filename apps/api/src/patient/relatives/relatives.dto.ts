@@ -23,6 +23,14 @@ export interface RelativeResponse {
   trangThaiHieuLuc: boolean;
 }
 
+/**
+ * Thân phản hồi `POST /patient/relatives/:id/deactivate` (task B5; PLAN patient 5.7): ĐÚNG một khoá, luôn `false` (cả khi hồ sơ đã ngừng từ trước: idempotent).
+ * Lỗi 409 mang danh sách lịch hẹn đang chặn trong `chiTiet` (kiểu `ActiveAppointment` của `appointments/`), không nằm ở đây.
+ */
+export interface DeactivateRelativeResponse {
+  trangThaiHieuLuc: false;
+}
+
 /** Thân phản hồi `GET /patient/relatives`: không phân trang (Q14), cả hai trạng thái, đang sử dụng trước. */
 export interface RelativesListResponse {
   items: RelativeResponse[];

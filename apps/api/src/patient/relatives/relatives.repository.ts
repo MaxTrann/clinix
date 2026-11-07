@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import type { MoiQuanHeNguoiThan } from '../../admin/entities/enums.js';
+import {
+  findActiveAppointments,
+  type ActiveAppointment,
+} from '../../appointments/active-appointment.query.js';
+import {
+  lockVisitProfile,
+  type VisitProfileState,
+} from '../../appointments/visit-profile.query.js';
 import type { RelativeResponse } from './relatives.dto.js';
 
 /**
@@ -53,6 +61,15 @@ const UPDATE_RELATIVE_SQL = `UPDATE ho_so_nguoi_than
 SET ho_ten = ?, moi_quan_he = ?, gioi_tinh = ?, ngay_sinh = ?, so_dien_thoai = ?
 WHERE ho_so_nguoi_than_id = ? AND benh_nhan_id = ? AND trang_thai_hieu_luc = TRUE`;
 
+// Câu ĐỌC CÓ KHOÁ thứ nhất của ngừng sử dụng (task B5): khoá chung với `booking` (quy tắc 37). 0 hàng = tài khoản không có dòng `benh_nhan`.
+const LOCK_PATIENT_SQL =
+  'SELECT tai_khoan_id AS id FROM benh_nhan WHERE tai_khoan_id = ? FOR UPDATE';
+
+// Ngừng sử dụng: chỉ đặt MỘT cột. `benh_nhan_id = ?` (H3) và `trang_thai_hieu_luc = TRUE` nằm TRONG câu lệnh nên `affectedRows` là 1 khi và chỉ khi hồ sơ của
+// người gọi đang hiệu lực. Thứ tự tham số: ho_so_nguoi_than_id, benh_nhan_id.
+const DEACTIVATE_RELATIVE_SQL = `UPDATE ho_so_nguoi_than SET trang_thai_hieu_luc = FALSE
+WHERE ho_so_nguoi_than_id = ? AND benh_nhan_id = ? AND trang_thai_hieu_luc = TRUE`;
+
 // Chọn từng khoá một (không trải nguyên hàng) để cột thừa không bao giờ lọt ra ngoài
 function toRelative(row: RelativeRow): RelativeResponse {
   return {
@@ -83,7 +100,10 @@ export class RelativesRepository {
     return rows.map(toRelative);
   }
 
-  /** Một hồ sơ của `benhNhanId`; `null` nếu không có HOẶC thuộc người khác (không phân biệt hai trường hợp, H3). */
+  /**
+   * Một hồ sơ của `benhNhanId`; `null` nếu không có HOẶC thuộc người khác (không phân biệt hai trường hợp, H3).
+   * Câu ĐỌC THƯỜNG: KHÔNG được gọi trong giao dịch ngừng sử dụng (B5) trước hai câu khoá `lockPatient`, `lockRelative` (bất biến ở `RelativesService.deactivate`).
+   */
   async findRelativeById(
     em: EntityManager,
     benhNhanId: string,
@@ -147,6 +167,57 @@ export class RelativesRepository {
         hoSoNguoiThanId,
         benhNhanId,
       ],
+    );
+    return result.affectedRows;
+  }
+
+  /**
+   * Ngừng sử dụng, câu 1 (ĐỌC CÓ KHOÁ): khoá hàng `benh_nhan` của người gọi; `false` nếu tài khoản không có dòng `benh_nhan`. PHẢI là câu đầu tiên của giao dịch
+   * (xem bất biến ở `RelativesService.deactivate`). `benhNhanId` là tham số bắt buộc, không lấy từ token ở đây.
+   */
+  async lockPatient(em: EntityManager, benhNhanId: string): Promise<boolean> {
+    const rows = await em.query<{ id: string }[]>(LOCK_PATIENT_SQL, [
+      benhNhanId,
+    ]);
+    return rows.length > 0;
+  }
+
+  /**
+   * Ngừng sử dụng, câu 2 (ĐỌC CÓ KHOÁ): khoá hàng hồ sơ của `benhNhanId` và đọc trạng thái DƯỚI khoá. `'missing'` cho cả "không có" lẫn "của người khác" (H3).
+   * Dùng đúng `lockVisitProfile` của `appointments/` để "hồ sơ dùng được" chỉ có MỘT định nghĩa, chung với `booking`. Chỉ gọi sau `lockPatient`.
+   */
+  lockRelative(
+    em: EntityManager,
+    benhNhanId: string,
+    hoSoNguoiThanId: string,
+  ): Promise<VisitProfileState> {
+    return lockVisitProfile(em, benhNhanId, hoSoNguoiThanId);
+  }
+
+  /**
+   * Ngừng sử dụng, câu 3 (ĐỌC THƯỜNG): lịch hẹn đang chặn của đúng hồ sơ người thân đó, sắp theo thời gian. Bọc mỏng `findActiveAppointments` để service giả được repository.
+   * Đây phải là câu `SELECT` thường ĐẦU TIÊN của giao dịch, nằm SAU `lockPatient` và `lockRelative`: không bao giờ gọi trước hai câu khoá.
+   */
+  findBlockingAppointments(
+    em: EntityManager,
+    benhNhanId: string,
+    hoSoNguoiThanId: string,
+  ): Promise<ActiveAppointment[]> {
+    return findActiveAppointments(em, benhNhanId, hoSoNguoiThanId);
+  }
+
+  /**
+   * Ngừng sử dụng, câu 5 (GHI): đặt `trang_thai_hieu_luc = FALSE` cho MỘT hồ sơ ĐANG HIỆU LỰC của `benhNhanId`; trả số hàng KHỚP (phụ thuộc cờ `FOUND_ROWS` như `updateRelative`).
+   * Sau hai câu khoá, kết quả phải là 1. Không đụng cột nào khác và không đụng `lich_hen`. `hoSoNguoiThanId` PHẢI là chuỗi (id BIGINT lớn hơn 2^53).
+   */
+  async deactivateRelative(
+    em: EntityManager,
+    benhNhanId: string,
+    hoSoNguoiThanId: string,
+  ): Promise<number> {
+    const result: { affectedRows: number } = await em.query(
+      DEACTIVATE_RELATIVE_SQL,
+      [hoSoNguoiThanId, benhNhanId],
     );
     return result.affectedRows;
   }

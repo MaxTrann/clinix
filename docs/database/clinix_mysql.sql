@@ -36,6 +36,9 @@
 -- 06/11/2026 (module patient, task B3): chỉ sửa chữ ở dòng chú thích và khối quy tắc service, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu
 -- CREATE TABLE nào: COMMENT nội tuyến của tai_khoan.gioi_tinh, ho_so_nguoi_than.gioi_tinh, ho_so_nguoi_than.moi_quan_he còn lời cũ (không nêu tập giá trị, còn [đề xuất])
 -- vì migration phải khớp từng câu; lời đúng nằm ở clinix.dbml và quy tắc 50, 51 của clinix_quy_tac_nghiep_vu.md mục 2.
+-- 07/11/2026 (module patient, task B5): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE nào: bỏ [cần điền] ở tập trạng thái
+-- lịch hẹn "đang hoạt động" (ChoThanhToan, DaXacNhan, DaTiepDon; nhóm chốt 03/11/2026, PLAN patient Q12) trong khối TRUY VẤN MẪU đếm lịch hẹn; quy tắc 37 và quy tắc mới 52
+-- ("Ngừng sử dụng hồ sơ người thân") nằm ở clinix_quy_tac_nghiep_vu.md mục 2.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -1153,7 +1156,7 @@ ALTER TABLE `thong_tin_phong_kham` ADD CONSTRAINT `chk_phong_kham_mot_dong` CHEC
 
 -- ============================================================================
 -- TRUY VẤN MẪU (comment): đếm lịch hẹn đang hoạt động của MỘT hồ sơ đi khám và so với giới hạn cấu hình (dùng lúc đặt lịch, trong cùng giao dịch với việc tạo lịch hẹn)
--- Tham số: :benh_nhan_id, :ho_so_nguoi_than_id (NULL = bản thân; bắt buộc so sánh bằng <=>). "Đang hoạt động" = ChoThanhToan, DaXacNhan, DaTiepDon [cần điền: nhóm xác nhận tập trạng thái].
+-- Tham số: :benh_nhan_id, :ho_so_nguoi_than_id (NULL = bản thân; bắt buộc so sánh bằng <=>). "Đang hoạt động" = ChoThanhToan, DaXacNhan, DaTiepDon (nhóm đã chốt 03/11/2026, PLAN patient Q12).
 -- da_cham_gioi_han = 1 => từ chối; NULL (chưa có dòng cấu hình) => cũng từ chối (fail-closed), không coi là chưa chạm giới hạn.
 -- ============================================================================
 -- SELECT COUNT(*) AS so_lich_dang_hoat_dong,

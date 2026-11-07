@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Inject,
   Param,
   Post,
@@ -19,12 +20,13 @@ import { ParseRelativeIdPipe } from './relative-id.pipe.js';
 import {
   CreateRelativeDto,
   UpdateRelativeDto,
+  type DeactivateRelativeResponse,
   type RelativeResponse,
   type RelativesListResponse,
 } from './relatives.dto.js';
 import { RelativesService } from './relatives.service.js';
 
-// Hồ sơ người thân của Bệnh nhân (task B3 GET và POST, task B4 PUT; PLAN patient 5.3, 5.7; TRACKING B3-E, B4-E). Controller chỉ nhận/trả; logic ở RelativesService.
+// Hồ sơ người thân của Bệnh nhân (task B3 GET và POST, task B4 PUT, task B5 POST :id/deactivate; PLAN patient 5.3, 5.7; TRACKING B3-E, B4-E, B5-E). Controller chỉ nhận/trả; logic ở RelativesService.
 //  - `@Roles('BenhNhan')` DUY NHẤT, ghi trên từng route (QP-08): Lễ tân, Quản trị viên và Bác sĩ nhận 403 (Bác sĩ vẫn bị chặn dù được dùng /profile).
 //  - Chủ sở hữu chỉ lấy từ access token qua `CurrentUser()`; không khai @Query nên `?benhNhanId=…` bị bỏ qua (QP-06). Id hồ sơ chỉ có ở `PUT :id`,
 //    qua `ParseRelativeIdPipe` (sai dạng ⇒ 404 cùng thân, Q27). Thân POST là `CreateRelativeDto`, thân PUT là `UpdateRelativeDto` (chỉ năm trường;
@@ -86,5 +88,20 @@ export class RelativesController {
       ngaySinh: dto.ngaySinh,
       soDienThoai: dto.soDienThoai ?? null,
     });
+  }
+
+  // `@HttpCode(200)`: `@Post` mặc định trả 201 (đã đo), mà hợp đồng là 200 (hành động trên hồ sơ có sẵn, không tạo gì). KHÔNG khai `@Body` và `@Query`: thân bất kỳ
+  // bị bỏ qua (chủ sở hữu và id không lấy từ đó), `?benhNhanId=…` cũng vậy (QP-06). Idempotent: ngừng hồ sơ đã ngừng của mình vẫn 200.
+  @Post(':id/deactivate')
+  @HttpCode(200)
+  @Roles('BenhNhan')
+  async deactivate(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseRelativeIdPipe) id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<DeactivateRelativeResponse> {
+    // Đặt trước khi gọi service để nhánh lỗi (404, 409, 500 của service) cũng có
+    res.setHeader('Cache-Control', 'no-store');
+    return this.service.deactivate(user.accountId, id);
   }
 }
