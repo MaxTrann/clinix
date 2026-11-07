@@ -9,6 +9,7 @@ import {
   SAMPLE_PROFILE,
   createFakeProfileApi,
   type FakeProfileData,
+  type FakeRelative,
 } from './fake-profile-api';
 
 // Dựng trang "Hồ sơ người khám" trong khung Bệnh nhân với phiên đăng nhập thật (qua fake auth) và `/api/profile` giả
@@ -17,6 +18,8 @@ export const FORM_NAME = 'Chỉnh sửa thông tin bản thân';
 
 export interface HarnessOptions {
   initial?: Partial<FakeProfileData>;
+  // Danh sách người thân ban đầu (patient F6); mặc định rỗng, như ba file test cũ của auth và router
+  relatives?: FakeRelative[];
   // Chạy sau khi phiên đã đăng nhập và trước khi render: để giữ, làm lỗi hoặc bật đồng hồ giả cho yêu cầu đầu tiên
   before?: (api: Awaited<ReturnType<typeof setUpApi>>) => void;
   // false: render trang trực tiếp, không bọc khung Bệnh nhân (khung gỡ trang đi khi phiên bị xoá, che mất hành vi của chính trang)
@@ -24,7 +27,10 @@ export interface HarnessOptions {
 }
 
 // Fake auth + fake /api/profile, phiên đã đăng nhập (có access token). Chưa render gì.
-export async function setUpApi(initial: Partial<FakeProfileData> = {}) {
+export async function setUpApi(
+  initial: Partial<FakeProfileData> = {},
+  relatives: FakeRelative[] = [],
+) {
   resetAuthForTest();
   const account = {
     vaiTro: 'BenhNhan',
@@ -32,7 +38,7 @@ export async function setUpApi(initial: Partial<FakeProfileData> = {}) {
     daXacMinhEmail: true,
   };
   const auth = createFakeAuthApi(account);
-  const profile = createFakeProfileApi(auth.fetch, initial);
+  const profile = createFakeProfileApi(auth.fetch, initial, relatives);
   vi.stubGlobal('fetch', vi.fn(profile.fetch));
   Object.defineProperty(navigator, 'locks', {
     configurable: true,
@@ -44,7 +50,7 @@ export async function setUpApi(initial: Partial<FakeProfileData> = {}) {
 }
 
 export async function renderProfilePage(options: HarnessOptions = {}) {
-  const api = await setUpApi(options.initial);
+  const api = await setUpApi(options.initial, options.relatives);
   options.before?.(api);
 
   const page = <PatientProfilePage />;

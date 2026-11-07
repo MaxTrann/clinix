@@ -74,7 +74,11 @@ function normalizedAddress(text: string): string | null {
   return normalized === '' ? null : normalized;
 }
 
-function birthDateError(text: string, today: string): string | undefined {
+// Xuất cho form người thân (patient F6): cùng luật ngày sinh, không chép lại. Ô trống ⇒ không lỗi (người thân tự kiểm "bắt buộc").
+export function birthDateError(
+  text: string,
+  today: string,
+): string | undefined {
   const typed = trimAsciiWhitespace(text);
   if (typed === '') return undefined;
   const iso = fromDisplayDate(typed);

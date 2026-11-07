@@ -32,6 +32,11 @@ import {
 const valueOf = (label: string) =>
   screen.getByText(label, { selector: 'dt' }).nextElementSibling?.textContent;
 
+// Vùng thông báo (`role="status"`) của khối "Bản thân". Trang có thêm khối "Người thân" cũng có vùng `status` của riêng nó nên
+// `screen.getByRole('status')` không còn đúng một vùng: thu hẹp về khối Bản thân, khẳng định giữ nguyên (đổi ở patient F6, có duyệt).
+const selfStatus = () =>
+  within(screen.getByRole('region', { name: 'Bản thân' })).getByRole('status');
+
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -127,7 +132,7 @@ describe('xem hồ sơ (HS-17)', () => {
         release = profile.hold('GET');
       },
     });
-    expect(screen.getByRole('status')).toHaveTextContent('Đang tải');
+    expect(selfStatus()).toHaveTextContent('Đang tải');
     expect(
       screen.getByRole('heading', { level: 1, name: 'Hồ sơ người khám' }),
     ).toBeInTheDocument();
@@ -180,7 +185,7 @@ describe('xem hồ sơ (HS-17)', () => {
       // Giữ GET lần hai: trong lúc chờ phải quay lại "Đang tải", câu lỗi và nút "Thử lại" biến mất
       const release = profile.hold('GET');
       fireEvent.click(within(alert).getByRole('button', { name: 'Thử lại' }));
-      expect(screen.getByRole('status')).toHaveTextContent('Đang tải');
+      expect(selfStatus()).toHaveTextContent('Đang tải');
       expect(screen.queryByRole('alert')).toBeNull();
       expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull();
       expect(screen.queryByRole('button', { name: 'Chỉnh sửa' })).toBeNull();
@@ -290,7 +295,7 @@ describe('xem hồ sơ (HS-17)', () => {
       withLayout: false,
       before: ({ profile }) => profile.failNext('GET', (init) => hang(init)),
     });
-    expect(screen.getByRole('status')).toHaveTextContent('Đang tải');
+    expect(selfStatus()).toHaveTextContent('Đang tải');
 
     await act(async () => {
       await logout();
@@ -314,7 +319,7 @@ describe('lưu thành công (HS-19)', () => {
   it('PW-40 HS-19 thông báo role=status, về chế độ xem với dữ liệu của PHẢN HỒI PUT, focus nút "Chỉnh sửa"; thông báo ở lại, mất khi sửa lại', async () => {
     const { profile } = await saveWith('0901 234 568');
 
-    expect(screen.getByRole('status')).toHaveTextContent(SAVED_MESSAGE);
+    expect(selfStatus()).toHaveTextContent(SAVED_MESSAGE);
     // Máy chủ chuẩn hoá SĐT thành 10 số liền: trang hiện bản đó, không phải ô đã nhập
     expect(valueOf('Số điện thoại')).toBe('0901234568');
     expect(profile.requests.filter((r) => r.method === 'PUT')).toHaveLength(1);
