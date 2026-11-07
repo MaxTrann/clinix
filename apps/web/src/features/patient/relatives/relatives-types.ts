@@ -33,3 +33,18 @@ export interface RelativeFormValues {
   ngaySinh: string;
   soDienThoai: string;
 }
+
+// ĐÚNG năm khoá của một phần tử `chiTiet` trong 409 `HO_SO_NGUOI_THAN_DANG_CO_LICH_HEN` (patient F7; B5, PLAN 5.7, Q11). Khoá khác bị bỏ khi đọc.
+export interface BlockingAppointment {
+  maLichHen: string;
+  // ISO 8601 UTC: hiển thị qua `formatVietnamDateTime`, không bao giờ qua múi giờ của máy
+  thoiGian: string;
+  // Mã `ChoThanhToan`, `DaXacNhan`, `DaTiepDon` hoặc chuỗi lạ: chỉ hiển thị qua `appointmentStatusLabel`
+  trangThai: string;
+  bacSi: string;
+  chiNhanh: string;
+}
+
+// Kết quả của `POST /patient/relatives/:id/deactivate` mà web xử lý như một kết quả bình thường (không phải lỗi): đã ngừng, hoặc bị lịch hẹn chặn
+export type DeactivateOutcome =
+  { kind: 'done' } | { kind: 'blocked'; appointments: BlockingAppointment[] };

@@ -4,7 +4,11 @@ import { EmptyState } from '../../../shared/ui/empty-state';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { isSessionEnded } from '../profile/profile-errors';
-import { ADDED_MESSAGE, UPDATED_MESSAGE } from './relative-errors';
+import {
+  ADDED_MESSAGE,
+  DEACTIVATE_DONE_MESSAGE,
+  UPDATED_MESSAGE,
+} from './relative-errors';
 import { RelativeCard } from './relative-card';
 import { RelativeForm } from './relative-form';
 import { summarize } from './relative-rules';
@@ -35,6 +39,10 @@ export function RelativesSection() {
   // Sau khi lưu hoặc "Hủy" nút "Thêm người thân" được bật lại, rồi mới focus được
   const refocusAdd = useRef(false);
   const headingId = useId();
+  // Sau khi ngừng sử dụng, nút của thẻ không còn (form ẩn, hồ sơ đã ngừng không có nút sửa) nên focus về tiêu đề khối: luôn có trong trang
+  // và không bao giờ vô hiệu (nút "Thêm người thân" có thể đang vô hiệu khi form thêm mở). Số đếm, không phải cờ: mỗi lần ngừng là một yêu cầu focus mới.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const [headingFocusRequest, setHeadingFocusRequest] = useState(0);
 
   useEffect(() => {
     if (!adding && refocusAdd.current) {
@@ -42,6 +50,11 @@ export function RelativesSection() {
       addButton.current?.focus();
     }
   }, [adding]);
+
+  // Chạy SAU khi hộp xác nhận đã gỡ và `inert` của nền đã được gỡ (cleanup của effect bị gỡ chạy trước effect mới của cùng một lần commit)
+  useEffect(() => {
+    if (headingFocusRequest > 0) headingRef.current?.focus();
+  }, [headingFocusRequest]);
 
   function startAdding() {
     setNotice(null);
@@ -65,6 +78,13 @@ export function RelativesSection() {
     setNotice({ tone: 'success', text: UPDATED_MESSAGE });
   }
 
+  // POST …/deactivate trả 200 (hộp xác nhận ở thẻ): `upsert` hồ sơ đã ngừng ⇒ thẻ tự xuống nhóm đã ngừng, dòng đếm giảm. Thông báo cố định, không có họ tên.
+  function handleDeactivated(deactivated: Relative) {
+    upsert(deactivated);
+    setNotice({ tone: 'success', text: DEACTIVATE_DONE_MESSAGE });
+    setHeadingFocusRequest((n) => n + 1);
+  }
+
   // 404 hoặc 409 khi sửa (kèm câu thông báo) và nút "Tải lại danh sách" sau POST không rõ kết quả (không có câu)
   function handleReload(text?: string) {
     if (text !== undefined) setNotice({ tone: 'error', text });
@@ -78,7 +98,12 @@ export function RelativesSection() {
     <section aria-labelledby={headingId} className="mt-[2.1333rem]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 id={headingId} className={SECTION_HEADING}>
+          <h2
+            ref={headingRef}
+            id={headingId}
+            tabIndex={-1}
+            className={SECTION_HEADING}
+          >
             Người thân
           </h2>
           {counts !== null && (
@@ -107,7 +132,10 @@ export function RelativesSection() {
       {/* Vùng thông báo có sẵn trong DOM để người đọc màn hẹp nghe được câu mới; ở lại tới khi có thông báo khác, mở form thêm hoặc rời trang */}
       <div role="status">
         {notice !== null && (
-          <p className={`${NOTICE_BOX} ${NOTICE_TONE[notice.tone]}`}>
+          <p
+            data-tone={notice.tone}
+            className={`${NOTICE_BOX} ${NOTICE_TONE[notice.tone]}`}
+          >
             {notice.tone === 'success' ? (
               <CircleCheck
                 className="mt-0.5 size-4 shrink-0"
@@ -143,6 +171,7 @@ export function RelativesSection() {
                     <RelativeCard
                       relative={relative}
                       onSaved={handleSaved}
+                      onDeactivated={handleDeactivated}
                       onReload={handleReload}
                     />
                   </li>

@@ -1,6 +1,6 @@
 import { apiError } from '../../../test/fake-auth-api';
 
-// Hàm giả GET và PUT /api/profile và GET, POST, PUT /api/patient/relatives cho test (patient F3, F6; TRACKING F3-G, F3-H, F6-B).
+// Hàm giả GET và PUT /api/profile và GET, POST, PUT, POST …/:id/deactivate /api/patient/relatives cho test (patient F3, F6, F7; TRACKING F3-G, F3-H, F6-B, F7-H).
 // Bọc `fetch` của fake auth và CHỈ chặn hai đường dẫn đó; mọi đường dẫn khác chuyển cho fake auth. Fake auth trả `{ ok: true }`
 // (hoặc 401 nếu không token) cho đường dẫn lạ, nên mọi test mở trang "Hồ sơ người khám" cần hàm này: nó trả `{ items: [] }` cho
 // danh sách người thân khi test không nêu dữ liệu. Lời gọi người thân ghi RIÊNG (`api.relatives`), không lẫn vào `api.requests` và
@@ -11,7 +11,8 @@ type FetchLike = (
   init?: RequestInit,
 ) => Promise<Response>;
 type Method = 'GET' | 'PUT';
-type RelativeMethod = 'GET' | 'POST' | 'PUT';
+// 'DEACTIVATE' là `POST …/:id/deactivate` (khoá riêng để `failNext('POST')` của test tạo hồ sơ không bị lấy nhầm)
+type RelativeMethod = 'GET' | 'POST' | 'PUT' | 'DEACTIVATE';
 type Override = (init?: RequestInit) => Response | Promise<Response>;
 
 // Đúng 10 khoá của GET /profile (PLAN 5.7)
@@ -52,6 +53,15 @@ export interface FakeRelative {
   trangThaiHieuLuc: boolean;
 }
 
+// Đúng năm khoá của một phần tử `chiTiet` trong 409 của `POST …/deactivate` (B5, PLAN 5.7)
+export interface FakeAppointment {
+  maLichHen: string;
+  thoiGian: string;
+  trangThai: string;
+  bacSi: string;
+  chiNhanh: string;
+}
+
 // Hai hồ sơ của frame `416:2` (dữ liệu giả)
 export const SAMPLE_RELATIVES: FakeRelative[] = [
   {
@@ -90,6 +100,7 @@ export function hang(init?: RequestInit): Promise<Response> {
 }
 
 const RELATIVES_PATH = '/api/patient/relatives';
+const DEACTIVATE_PATH = /^\/api\/patient\/relatives\/([^/]+)\/deactivate$/;
 
 // SĐT như API: bỏ dấu cách và dấu chấm; null, rỗng hoặc chỉ khoảng trắng ⇒ null
 function normalizedPhone(value: unknown): string | null {
@@ -107,6 +118,7 @@ export function createFakeProfileApi(
     GET: [],
     POST: [],
     PUT: [],
+    DEACTIVATE: [],
   };
 
   // Giữ lần gọi kế tiếp cho tới khi test tự trả phản hồi
@@ -138,13 +150,19 @@ export function createFakeProfileApi(
 
     // GET, POST, PUT /api/patient/relatives(/:id): lưu ở bộ nhớ, trả như API (POST 201 và PUT 200 trả hồ sơ; PUT 404 nếu không có,
     // 409 nếu đã ngừng). GET trả đúng thứ tự `items` (test tự đặt thứ tự lộn xộn để kiểm web sắp lại).
+    // POST /api/patient/relatives/:id/deactivate (khoá 'DEACTIVATE'): 404 nếu không có; 200 `{ trangThaiHieuLuc: false }` và ghi hồ sơ thành
+    // đã ngừng (cả khi đã ngừng từ trước: idempotent); 409 `HO_SO_NGUOI_THAN_DANG_CO_LICH_HEN` nếu `blocking[id]` có lịch (test đặt, và xoá để thử "đã hủy hết").
     relatives: {
       items: initialRelatives.map((relative) => ({ ...relative })),
+      blocking: {} as Record<string, FakeAppointment[]>,
+      // `method` là khoá của hàm giả ('DEACTIVATE' cho đường ngừng); `httpMethod` và `rawBody` là thứ trình duyệt thật gửi (kiểm "không thân")
       requests: [] as {
         method: RelativeMethod;
+        httpMethod: string;
         path: string;
         headers: Headers;
         body: Record<string, unknown>;
+        rawBody: BodyInit | null | undefined;
       }[],
       count(method: RelativeMethod): number {
         return api.relatives.requests.filter(
@@ -193,14 +211,21 @@ export function createFakeProfileApi(
     },
 
     async handleRelatives(path: string, init?: RequestInit): Promise<Response> {
-      const method = (init?.method ?? 'GET') as RelativeMethod;
+      const httpMethod = init?.method ?? 'GET';
+      const deactivating =
+        httpMethod === 'POST' ? DEACTIVATE_PATH.exec(path) : null;
+      const method = (
+        deactivating ? 'DEACTIVATE' : httpMethod
+      ) as RelativeMethod;
       const body: Record<string, unknown> =
         typeof init?.body === 'string' ? JSON.parse(init.body) : {};
       api.relatives.requests.push({
         method,
+        httpMethod,
         path,
         headers: new Headers(init?.headers),
         body,
+        rawBody: init?.body,
       });
 
       const override = relativeOverrides[method].shift();
@@ -208,6 +233,7 @@ export function createFakeProfileApi(
 
       const { items } = api.relatives;
       if (method === 'GET') return json(200, { items });
+      if (deactivating) return api.deactivate(deactivating[1]);
 
       const fields = {
         hoTen: body.hoTen as string,
@@ -242,6 +268,23 @@ export function createFakeProfileApi(
       }
       Object.assign(found, fields);
       return json(200, found);
+    },
+
+    // POST …/:id/deactivate khi không có override
+    deactivate(id: string): Response {
+      const found = api.relatives.items.find(
+        (item) => item.hoSoNguoiThanId === id,
+      );
+      if (!found) return apiError(404, 'KHONG_TIM_THAY');
+      if (found.trangThaiHieuLuc && api.relatives.blocking[id]?.length) {
+        return json(409, {
+          maLoi: 'HO_SO_NGUOI_THAN_DANG_CO_LICH_HEN',
+          thongBao: 'câu của API',
+          chiTiet: api.relatives.blocking[id],
+        });
+      }
+      found.trangThaiHieuLuc = false;
+      return json(200, { trangThaiHieuLuc: false });
     },
   };
   return api;

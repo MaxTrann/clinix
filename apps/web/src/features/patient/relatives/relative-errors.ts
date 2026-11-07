@@ -185,3 +185,51 @@ export function describeRelativeSaveError(
     ? { kind: 'uncertain', message: unsure[0] }
     : { kind: 'message', message: unsure[1] };
 }
+
+// ---- Ngừng sử dụng (patient F7; TRACKING F7-E) ----
+// Thông báo thành công cố định, không có họ tên (F6-G: không đưa tên vào thông báo hay vùng `aria-live`)
+export const DEACTIVATE_DONE_MESSAGE = 'Đã ngừng sử dụng hồ sơ người thân.';
+// PLAN 5.9, `HO_SO_NGUOI_THAN_DANG_CO_LICH_HEN`: đã gồm gợi ý hủy lịch hẹn trước (liên kết tới "Lịch hẹn của tôi" chờ `booking`, Q11)
+export const BLOCKED_MESSAGE =
+  'Không thể ngừng sử dụng hồ sơ này vì đang có lịch hẹn chưa hoàn tất. Vui lòng hủy các lịch hẹn dưới đây trước.';
+// Khác POST tạo (F6): ngừng sử dụng idempotent nên bấm lại là an toàn, không cần nút "Tải lại danh sách"
+const DEACTIVATE_UNSURE_SUFFIX =
+  'Bấm "Ngừng sử dụng" để thử lại, làm lại không gây hại.';
+export const DEACTIVATE_NETWORK_MESSAGE = `Mất kết nối khi đang ngừng sử dụng, chưa rõ hồ sơ đã được ngừng hay chưa. ${DEACTIVATE_UNSURE_SUFFIX}`;
+export const DEACTIVATE_TIMEOUT_MESSAGE = `Máy chủ phản hồi quá lâu, chưa rõ hồ sơ đã được ngừng hay chưa. ${DEACTIVATE_UNSURE_SUFFIX}`;
+export const DEACTIVATE_UNEXPECTED_MESSAGE = `Không nhận được phản hồi hợp lệ từ máy chủ, chưa rõ hồ sơ đã được ngừng hay chưa. ${DEACTIVATE_UNSURE_SUFFIX}`;
+
+export type DeactivateFailure =
+  // Đăng xuất giữa chừng (client huỷ) và 401 (hook của auth xử lý): không có gì để báo
+  | { kind: 'ignored' }
+  // 404: hồ sơ không còn là của mình ⇒ đóng hộp thoại, báo `notice` và tải lại danh sách
+  | { kind: 'missing'; notice: string }
+  // Mọi lỗi còn lại: GIỮ hộp thoại, hiện `message`, bấm lại được (idempotent, không tự thử lại)
+  | { kind: 'message'; message: string };
+
+export function describeDeactivateError(error: unknown): DeactivateFailure {
+  if (error instanceof RequestAbortedError || isSessionEnded(error)) {
+    return { kind: 'ignored' };
+  }
+  if (error instanceof ApiError) {
+    if (error.maLoi === 'KHONG_TIM_THAY') {
+      return { kind: 'missing', notice: MISSING_MESSAGE };
+    }
+    // 500 JSON: giao dịch đã hoàn tác nên chắc chắn chưa ngừng
+    return {
+      kind: 'message',
+      message:
+        error.maLoi === 'LOI_HE_THONG' ? SYSTEM_MESSAGE : GENERIC_ERROR_MESSAGE,
+    };
+  }
+  if (error instanceof NetworkError) {
+    return { kind: 'message', message: DEACTIVATE_NETWORK_MESSAGE };
+  }
+  if (error instanceof TimeoutError) {
+    return { kind: 'message', message: DEACTIVATE_TIMEOUT_MESSAGE };
+  }
+  if (error instanceof UnexpectedResponseError) {
+    return { kind: 'message', message: DEACTIVATE_UNEXPECTED_MESSAGE };
+  }
+  return { kind: 'message', message: GENERIC_ERROR_MESSAGE };
+}
