@@ -162,7 +162,7 @@ describe('RelativesController', () => {
     }
   });
 
-  it('RLC-05 route là GET patient/relatives và POST patient/relatives (POST không @HttpCode ⇒ 201 mặc định) và PUT :id (B4); controller không có route nào khác (B5 chưa làm)', () => {
+  it('RLC-05 route là GET patient/relatives và POST patient/relatives (POST không @HttpCode ⇒ 201 mặc định) và PUT :id (B4) và POST :id/deactivate (B5); controller không có route nào khác', () => {
     expect(Reflect.getMetadata(PATH_METADATA, RelativesController)).toBe(
       'patient/relatives',
     );
@@ -184,6 +184,17 @@ describe('RelativesController', () => {
       RequestMethod.PUT,
     );
     expect(Reflect.getMetadata(PATH_METADATA, updateHandler)).toBe(':id');
+    // B5: POST :id/deactivate (chi tiết ở relatives.controller.deactivate.spec.ts)
+    const deactivateHandler = Object.getOwnPropertyDescriptor(
+      RelativesController.prototype,
+      'deactivate',
+    )?.value as () => unknown;
+    expect(Reflect.getMetadata(METHOD_METADATA, deactivateHandler)).toBe(
+      RequestMethod.POST,
+    );
+    expect(Reflect.getMetadata(PATH_METADATA, deactivateHandler)).toBe(
+      ':id/deactivate',
+    );
 
     const routes = new MetadataScanner()
       .getAllMethodNames(RelativesController.prototype)
@@ -196,7 +207,7 @@ describe('RelativesController', () => {
             )[name],
           ) !== undefined,
       );
-    expect(routes.sort()).toEqual(['create', 'list', 'update']);
+    expect(routes.sort()).toEqual(['create', 'deactivate', 'list', 'update']);
   });
 
   it('RLC-06 (QP-06) tham số handler: list chỉ CurrentUser và Res; create chỉ CurrentUser, Body và Res; Body là CreateRelativeDto (import giá trị); không Query, không Param', () => {

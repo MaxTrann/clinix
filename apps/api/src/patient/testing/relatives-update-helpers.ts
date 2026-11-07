@@ -168,8 +168,9 @@ export async function waitForLockWaiter(
   db: DataSource,
   timeoutMs = 5000,
 ): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
+  // performance.now(): useIntegrationHooks giả đồng hồ Date, nên Date.now() đứng yên và hạn chờ sẽ KHÔNG BAO GIỜ hết khi ca đỏ (ca treo tới hết giờ test)
+  const deadline = performance.now() + timeoutMs;
+  while (performance.now() < deadline) {
     if ((await lockWaiters(db)) > 0) return;
     await sleep(20);
   }
@@ -202,17 +203,25 @@ export function pauseNextRead(repository: RelativesRepository): {
  * Ép thứ tự bằng chờ khoá THẬT: `hold` chạy trong một giao dịch và GIỮ khoá (giao dịch còn mở); `queued` bắt đầu khi đó và phải xếp hàng chờ khoá (đợi tới khi
  * `data_lock_waits` thấy bên chờ); rồi nhả `hold` (commit) để `queued` chạy tiếp. Trả kết quả của `queued`. Nhả luôn nằm trong `finally`, kể cả khi `hold`,
  * `queued` hay việc chờ thất bại, để không bao giờ để giao dịch mở treo DB dùng chung.
+ * `afterQueued` (tuỳ chọn, task B5): chạy TRONG giao dịch của `hold`, SAU khi đã thấy bên chờ khoá và TRƯỚC khi nhả. Dùng để giả lập `booking` chèn lịch hẹn giữa lúc
+ * ngừng sử dụng đang đứng chờ khoá `benh_nhan` (NT-24). Không truyền thì hành vi y như cũ.
  */
 export async function queueBehindLock<T>(
   db: DataSource,
   hold: (em: EntityManager) => Promise<unknown>,
   queued: () => Promise<T>,
+  afterQueued?: (em: EntityManager) => Promise<unknown>,
 ): Promise<T> {
   const locked = deferred();
+  const queueSeen = deferred();
   const release = deferred();
   const holder = db.transaction('READ COMMITTED', async (em) => {
     await hold(em);
     locked.resolve();
+    if (afterQueued !== undefined) {
+      await queueSeen.promise;
+      await afterQueued(em);
+    }
     await release.promise;
   });
   let waiting: Promise<T> | undefined;
@@ -221,10 +230,12 @@ export async function queueBehindLock<T>(
     waiting = queued();
     waiting.catch(() => undefined); // lỗi của `queued` được trả ở dưới; tránh cảnh báo "unhandled" nếu việc chờ thất bại trước
     await waitForLockWaiter(db);
+    queueSeen.resolve();
     release.resolve();
     await holder;
     return await waiting;
   } finally {
+    queueSeen.resolve();
     release.resolve();
     await holder.catch(() => undefined);
     await waiting?.catch(() => undefined);
