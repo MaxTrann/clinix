@@ -104,9 +104,11 @@ describe('PublicHeader', () => {
         nav.getByRole('button', { name: new RegExp(name) }),
       ).toBeDisabled();
     }
-    expect(
-      screen.getByRole('button', { name: /Đặt lịch khám/ }),
-    ).toBeDisabled();
+    // search F5: "Đặt lịch khám" mở luồng chọn dịch vụ nên là liên kết thật
+    expect(screen.getByRole('link', { name: /Đặt lịch khám/ })).toHaveAttribute(
+      'href',
+      '/dat-lich',
+    );
   });
 
   it('Dịch vụ khám: mở/đóng bằng nút và Esc, chưa có dữ liệu thì báo chưa có nhóm', () => {
