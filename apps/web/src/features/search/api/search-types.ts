@@ -109,6 +109,12 @@ export interface DoctorItem {
   danhGia: { diemTrungBinh: string | null; soDanhGia: number };
 }
 
+/** `GET /public/doctors/:id`: như một phần tử danh sách + mô tả chuyên môn (có thể null) và giờ nhận khám 7 thứ của chi nhánh. */
+export interface DoctorDetail extends Omit<DoctorItem, 'chiNhanh'> {
+  moTaChuyenMon: string | null;
+  chiNhanh: DoctorItem['chiNhanh'] & { lichHoatDong: WeekdayHours[] };
+}
+
 /** Tham số lọc của `GET /public/doctors`; thiếu/rỗng = không lọc. */
 export interface DoctorQuery {
   dichVuKhamId?: string;

@@ -1,7 +1,9 @@
-import { MapPin, Star } from 'lucide-react';
+import { ArrowRight, MapPin, Star } from 'lucide-react';
+import { Link } from 'react-router';
 import type { DoctorItem } from '../api/search-types';
 import { doctorInitials, doctorTitleLabel } from '../format/doctor-title';
 import { formatMoney, isNoDeposit } from '../format/money';
+import { doctorDetailPath } from '../search-paths';
 
 export const NO_RATING_LABEL = 'Chưa có đánh giá';
 export const SCHEDULE_PLACEHOLDER = 'Lịch khám sẽ hiển thị ở bước đặt lịch';
@@ -55,6 +57,12 @@ export function DoctorCard({ doctor }: { doctor: DoctorItem }) {
           </div>
         </div>
         <div className="flex flex-col items-start gap-2 md:items-end">
+          <Link
+            to={doctorDetailPath(doctor.bacSiId)}
+            className="inline-flex items-center gap-1 rounded-lg bg-brand-soft px-3 py-1.5 text-sm font-medium text-brand-strong hover:underline"
+          >
+            Xem hồ sơ <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
           {/* "Nhắn tin" chưa có chức năng nên vô hiệu */}
           <button
             type="button"
