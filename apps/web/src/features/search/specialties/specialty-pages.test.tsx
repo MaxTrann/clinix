@@ -90,6 +90,12 @@ beforeEach(() => {
           }),
         );
       }
+      // Phần bác sĩ của chi nhánh chi tiết (F6) có test riêng; ở đây chỉ cần trả rỗng
+      if (url.includes('/public/doctors')) {
+        return Promise.resolve(
+          jsonResponse(200, { items: [], total: 0, page: 1, pageSize: 20 }),
+        );
+      }
       if (/\/public\/specialties\/[^?]+/.test(url)) {
         if (detail === 'NOT_FOUND') {
           return Promise.resolve(
