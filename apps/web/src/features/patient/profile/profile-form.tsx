@@ -10,18 +10,17 @@ import {
   type ProfileFieldErrors,
 } from './profile-errors';
 import {
+  BirthDateField,
+  FormActions,
   FormAlert,
+  GenderField,
   ReadOnlyField,
-  SelectField,
   TextField,
 } from './profile-field';
-import {
-  GENDER_OPTIONS,
-  todayInVietnam,
-  valuesFromProfile,
-} from './profile-format';
+import { todayInVietnam, valuesFromProfile } from './profile-format';
 import { updateProfile } from './profile-service';
 import type { Profile, ProfileFormValues } from './profile-types';
+import { useMounted } from './use-mounted';
 
 export interface ProfileFormProps {
   profile: Profile;
@@ -54,15 +53,8 @@ export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
   const alertRef = useRef<HTMLDivElement>(null);
   // State chưa kịp render giữa hai lần gửi liên tiếp, nên chống gửi đúp bằng ref (như ChangePasswordForm)
   const submitting = useRef(false);
-  // Form đã bị gỡ (rời trang) thì phản hồi về sau không được gọi onSaved hay đổi state. `usePageActive` của auth không xuất qua
-  // index.ts. StrictMode chạy effect, dọn, rồi chạy lại: lần chạy lại đặt true trở lại.
-  const mounted = useRef(false);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
+  // Form đã bị gỡ (rời trang) thì phản hồi về sau không được gọi onSaved hay đổi state
+  const mounted = useMounted();
 
   // Vào form thì focus ô đầu
   useEffect(() => {
@@ -156,24 +148,17 @@ export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
           inputRef={phoneRef}
           onChange={(event) => update('soDienThoai', event.target.value)}
         />
-        <SelectField
-          label="Giới tính"
-          emptyLabel="Chọn giới tính"
-          options={GENDER_OPTIONS}
+        <GenderField
           value={values.gioiTinh}
           error={fields.gioiTinh}
           selectRef={genderRef}
           onChange={(value) => update('gioiTinh', value)}
         />
-        <TextField
-          label="Ngày sinh"
-          labelHint="(dd/mm/yyyy)"
-          maxLength={10}
-          autoComplete="off"
+        <BirthDateField
           value={values.ngaySinh}
           error={fields.ngaySinh}
           inputRef={birthDateRef}
-          onChange={(event) => update('ngaySinh', event.target.value)}
+          onChange={(value) => update('ngaySinh', value)}
         />
         <TextField
           label="Địa chỉ"
@@ -185,24 +170,12 @@ export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
         />
       </div>
 
-      <div className="mt-[1.2rem] flex flex-wrap justify-end gap-2.5">
-        {/* Không huỷ được yêu cầu đang bay (huỷ giữa chừng thì không biết hiện dữ liệu nào), nên khoá khi đang lưu */}
-        <button
-          type="button"
-          disabled={pending}
-          onClick={onCancel}
-          className="min-h-[2.6667rem] rounded-lg border border-gray-200 bg-white px-[1.2rem] text-sm leading-normal font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
-        >
-          Hủy
-        </button>
-        <button
-          type="submit"
-          disabled={pending}
-          className="min-h-[2.6667rem] rounded-lg border border-transparent bg-brand-strong px-[1.2rem] text-sm leading-normal font-semibold text-white transition-colors hover:bg-cyan-800 disabled:opacity-50 disabled:hover:bg-brand-strong"
-        >
-          {pending ? 'Đang lưu…' : 'Lưu thay đổi'}
-        </button>
-      </div>
+      <FormActions
+        pending={pending}
+        submitLabel="Lưu thay đổi"
+        pendingLabel="Đang lưu…"
+        onCancel={onCancel}
+      />
     </form>
   );
 }

@@ -9,14 +9,15 @@ import { ProfileForm } from '../profile/profile-form';
 import { ProfileView } from '../profile/profile-view';
 import type { Profile } from '../profile/profile-types';
 import { useProfile } from '../profile/use-profile';
+import { RelativesSection } from '../relatives/relatives-section';
 
 // Chữ success trên success-soft đạt 4,72:1 (ADR 0004)
 const SUCCESS_BOX =
   'mb-3 flex items-start gap-2 rounded-xl border border-success-line bg-success-soft p-3 text-sm text-success';
 const SECTION_HEADING = 'text-base font-semibold text-gray-600';
 
-// Trang "Hồ sơ người khám" (patient F3; frame `416:2`, `432:2`): khối Bản thân (xem, rồi sửa tại chỗ) và khối "Bảo mật tài khoản".
-// Khối "Người thân" đến ở F6. h1 giữ đúng chữ vì nhiều test tìm tiêu đề này; luôn hiện, kể cả khi đang tải hay lỗi.
+// Trang "Hồ sơ người khám" (patient F3, F6; frame `416:2`, `432:2`): khối Bản thân (xem, rồi sửa tại chỗ), khối "Người thân" (F6, tải
+// độc lập) và khối "Bảo mật tài khoản". h1 giữ đúng chữ vì nhiều test tìm tiêu đề này; luôn hiện, kể cả khi đang tải hay lỗi.
 export function PatientProfilePage() {
   const { state, retry, replace } = useProfile();
   const [editing, setEditing] = useState(false);
@@ -102,6 +103,8 @@ export function PatientProfilePage() {
           )}
         </div>
       </section>
+
+      <RelativesSection />
 
       <section aria-labelledby={securityId} className="mt-[2.1333rem]">
         <h2 id={securityId} className={SECTION_HEADING}>

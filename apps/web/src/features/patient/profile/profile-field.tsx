@@ -1,7 +1,7 @@
 import { ChevronDown, CircleAlert, Lock } from 'lucide-react';
 import { useId } from 'react';
 import type { InputHTMLAttributes, ReactNode, Ref, RefObject } from 'react';
-import type { GenderOption } from './profile-format';
+import { GENDER_OPTIONS, type GenderOption } from './profile-format';
 
 // Ô của form hồ sơ (patient F3; frame `432:2`): nhãn trên ô, dấu `*` cho ô bắt buộc, câu lỗi dưới ô.
 // Auth không xuất ô nhập của nó qua index.ts và bố cục này khác (không biểu tượng bên trái), nên module có ô riêng (TRACKING F3-B).
@@ -126,6 +126,7 @@ export function SelectField({
         <select
           ref={selectRef}
           id={id}
+          required={required}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           aria-invalid={error ? true : undefined}
@@ -146,6 +147,67 @@ export function SelectField({
       </div>
       {error && <FieldError id={errorId}>{error}</FieldError>}
     </div>
+  );
+}
+
+export interface GenderFieldProps {
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+  error?: string;
+  selectRef?: Ref<HTMLSelectElement>;
+}
+
+// Ô Giới tính (mã Nam, Nu, Khac; Q3), dùng chung cho form Bản thân (tuỳ chọn) và form người thân (bắt buộc)
+export function GenderField({
+  value,
+  onChange,
+  required,
+  error,
+  selectRef,
+}: GenderFieldProps) {
+  return (
+    <SelectField
+      label="Giới tính"
+      required={required}
+      emptyLabel="Chọn giới tính"
+      options={GENDER_OPTIONS}
+      value={value}
+      error={error}
+      selectRef={selectRef}
+      onChange={onChange}
+    />
+  );
+}
+
+export interface BirthDateFieldProps {
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+  error?: string;
+  inputRef?: Ref<HTMLInputElement>;
+}
+
+// Ô Ngày sinh: ô văn bản dd/mm/yyyy (Q7), nhãn phụ "(dd/mm/yyyy)" luôn hiện (TRACKING F3-E), không `type=date`
+export function BirthDateField({
+  value,
+  onChange,
+  required,
+  error,
+  inputRef,
+}: BirthDateFieldProps) {
+  return (
+    <TextField
+      label="Ngày sinh"
+      labelHint="(dd/mm/yyyy)"
+      required={required}
+      maxLength={10}
+      autoComplete="off"
+      value={value}
+      error={error}
+      inputRef={inputRef}
+      onChange={(event) => onChange(event.target.value)}
+    />
   );
 }
 
@@ -181,6 +243,42 @@ export function ReadOnlyField({
       >
         {note}
       </p>
+    </div>
+  );
+}
+
+export interface FormActionsProps {
+  pending: boolean;
+  submitLabel: string;
+  pendingLabel: string;
+  onCancel: () => void;
+}
+
+// Hàng nút cuối form (Hủy, gửi), dùng chung cho form sửa Bản thân (F3) và form người thân (F6, TRACKING F6-B).
+// Không huỷ được yêu cầu đang bay (huỷ giữa chừng thì không biết hiện dữ liệu nào), nên khoá cả hai nút khi đang lưu.
+export function FormActions({
+  pending,
+  submitLabel,
+  pendingLabel,
+  onCancel,
+}: FormActionsProps) {
+  return (
+    <div className="mt-[1.2rem] flex flex-wrap justify-end gap-2.5">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={onCancel}
+        className="min-h-[2.6667rem] rounded-lg border border-gray-200 bg-white px-[1.2rem] text-sm leading-normal font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
+      >
+        Hủy
+      </button>
+      <button
+        type="submit"
+        disabled={pending}
+        className="min-h-[2.6667rem] rounded-lg border border-transparent bg-brand-strong px-[1.2rem] text-sm leading-normal font-semibold text-white transition-colors hover:bg-cyan-800 disabled:opacity-50 disabled:hover:bg-brand-strong"
+      >
+        {pending ? pendingLabel : submitLabel}
+      </button>
     </div>
   );
 }
