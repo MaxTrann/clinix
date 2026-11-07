@@ -8,6 +8,7 @@ export { ServiceGroupPage } from './services/service-group-page';
 export { ServiceListPage } from './services/service-list-page';
 export { DoctorListPage } from './doctors/doctor-list-page';
 export { DoctorTeamPage } from './doctors/doctor-team-page';
+export { DoctorDetailPage } from './doctors/doctor-detail-page';
 export { DOCTOR_TEAM_PATH } from './search-paths';
 export { BOOKING_PATH } from './search-paths';
 export { BranchListPage } from './branches/branch-list-page';
