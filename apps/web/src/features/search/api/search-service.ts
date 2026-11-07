@@ -3,6 +3,7 @@ import type {
   BranchDetail,
   BranchSummary,
   ClinicInfo,
+  DoctorDetail,
   DoctorItem,
   DoctorQuery,
   Items,
@@ -113,6 +114,17 @@ export function getServices(
   return request<Items<ServiceItem>>('public/services', {
     ...PUBLIC_OPTIONS,
     query: { nhomDichVuId, chiNhanhId: chiNhanhId ?? undefined },
+    signal,
+  });
+}
+
+// TCBS b9: chi tiết một bác sĩ; không có/không công khai/sai dạng ⇒ 404 cùng thân.
+export function getDoctorDetail(
+  id: string,
+  signal?: AbortSignal,
+): Promise<DoctorDetail> {
+  return request<DoctorDetail>(`public/doctors/${encodeURIComponent(id)}`, {
+    ...PUBLIC_OPTIONS,
     signal,
   });
 }

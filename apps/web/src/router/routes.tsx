@@ -3,6 +3,7 @@ import { AUTH_PAGE_ROUTES, RequireAuth } from '../features/auth';
 import {
   BranchDetailPage,
   BranchListPage,
+  DoctorDetailPage,
   DoctorListPage,
   DoctorTeamPage,
   PublicLayout,
@@ -48,6 +49,8 @@ export function createAppRoutes(
             },
             // "Đội ngũ bác sĩ" (search F6)
             { path: 'bac-si', element: <DoctorTeamPage /> },
+            // Chi tiết bác sĩ (search F7)
+            { path: 'bac-si/:id', element: <DoctorDetailPage /> },
             { path: '*', element: <NotFoundPage /> },
           ],
         },
