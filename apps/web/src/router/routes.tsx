@@ -3,7 +3,10 @@ import { AUTH_PAGE_ROUTES, RequireAuth } from '../features/auth';
 import {
   BranchDetailPage,
   BranchListPage,
+  DoctorListPage,
   PublicLayout,
+  ServiceGroupPage,
+  ServiceListPage,
   SpecialtyDetailPage,
   SpecialtyListPage,
 } from '../features/search';
@@ -35,6 +38,13 @@ export function createAppRoutes(
             { path: 'chi-nhanh/:id', element: <BranchDetailPage /> },
             { path: 'chuyen-khoa', element: <SpecialtyListPage /> },
             { path: 'chuyen-khoa/:id', element: <SpecialtyDetailPage /> },
+            // Luồng chọn dịch vụ → bác sĩ (search F5, TCBS b1–b3)
+            { path: 'dat-lich', element: <ServiceGroupPage /> },
+            { path: 'dat-lich/nhom/:groupId', element: <ServiceListPage /> },
+            {
+              path: 'dat-lich/nhom/:groupId/dich-vu/:serviceId',
+              element: <DoctorListPage />,
+            },
             { path: '*', element: <NotFoundPage /> },
           ],
         },

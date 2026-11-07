@@ -3,7 +3,12 @@ import type {
   BranchDetail,
   BranchSummary,
   ClinicInfo,
+  DoctorItem,
+  DoctorQuery,
+  Items,
   Paged,
+  ServiceGroupItem,
+  ServiceItem,
   SpecialtyDetail,
   SpecialtyPage,
 } from './search-types';
@@ -83,6 +88,54 @@ export function searchBranches(
   return request<Paged<BranchSummary>>('public/branches', {
     ...PUBLIC_OPTIONS,
     query: { q: q || undefined, pageSize: BRANCH_PICKER_PAGE_SIZE },
+    signal,
+  });
+}
+
+// TCBS b1: nhóm dịch vụ (kèm "giá từ"); `chiNhanhId` null = mọi chi nhánh.
+export function getServiceGroups(
+  chiNhanhId: string | null,
+  signal?: AbortSignal,
+): Promise<Items<ServiceGroupItem>> {
+  return request<Items<ServiceGroupItem>>('public/service-groups', {
+    ...PUBLIC_OPTIONS,
+    query: { chiNhanhId: chiNhanhId ?? undefined },
+    signal,
+  });
+}
+
+// TCBS b2: dịch vụ đang cung cấp của một nhóm (ở chi nhánh đó nếu có chọn).
+export function getServices(
+  nhomDichVuId: string,
+  chiNhanhId: string | null,
+  signal?: AbortSignal,
+): Promise<Items<ServiceItem>> {
+  return request<Items<ServiceItem>>('public/services', {
+    ...PUBLIC_OPTIONS,
+    query: { nhomDichVuId, chiNhanhId: chiNhanhId ?? undefined },
+    signal,
+  });
+}
+
+// TCBS b3–b6: danh sách bác sĩ. Tham số rỗng bị bỏ để URL gọn và đúng nghĩa "không lọc".
+export function getDoctors(
+  params: DoctorQuery,
+  signal?: AbortSignal,
+): Promise<Paged<DoctorItem>> {
+  return request<Paged<DoctorItem>>('public/doctors', {
+    ...PUBLIC_OPTIONS,
+    query: {
+      dichVuKhamId: params.dichVuKhamId || undefined,
+      chuyenKhoaId: params.chuyenKhoaId || undefined,
+      chiNhanhId: params.chiNhanhId || undefined,
+      q: params.q || undefined,
+      giaTu: params.giaTu || undefined,
+      giaDen: params.giaDen || undefined,
+      diemTu: params.diemTu || undefined,
+      sapXep: params.sapXep,
+      page: params.page,
+      pageSize: params.pageSize,
+    },
     signal,
   });
 }
