@@ -3,6 +3,8 @@ import type { DoctorSort } from '../api/search-types';
 // Giá trị các ô lọc trên màn hình (chuỗi, như người dùng gõ). Rỗng = không lọc.
 export interface DoctorFilterValues {
   chiNhanhId: string;
+  // Chỉ dùng ở trang "Đội ngũ bác sĩ"; nơi đã cố định chuyên khoa thì bỏ qua
+  chuyenKhoaId: string;
   q: string;
   giaTu: string;
   giaDen: string;

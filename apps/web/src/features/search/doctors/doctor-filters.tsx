@@ -1,4 +1,8 @@
-import type { BranchSummary, DoctorSort } from '../api/search-types';
+import type {
+  BranchSummary,
+  DoctorSort,
+  SpecialtySummary,
+} from '../api/search-types';
 import {
   KEYWORD_MAX_LENGTH,
   RATING_OPTIONS,
@@ -8,11 +12,16 @@ import {
 } from './doctor-filter-rules';
 
 export const ALL_BRANCHES_LABEL = 'Tất cả chi nhánh';
+export const ALL_SPECIALTIES_LABEL = 'Tất cả chuyên khoa';
 
 interface DoctorFiltersProps {
   values: DoctorFilterValues;
   errors: DoctorFilterErrors;
   branches: BranchSummary[];
+  // Có truyền ⇒ hiện ô chọn chuyên khoa (trang Đội ngũ bác sĩ); không truyền ⇒ ẩn
+  specialties?: SpecialtySummary[];
+  // F5 chỉ tìm tên bác sĩ, F6 tìm cả tên chuyên khoa
+  keywordPlaceholder?: string;
   onChange: (patch: Partial<DoctorFilterValues>) => void;
 }
 
@@ -24,6 +33,8 @@ export function DoctorFilters({
   values,
   errors,
   branches,
+  specialties,
+  keywordPlaceholder = 'Tìm theo tên bác sĩ',
   onChange,
 }: DoctorFiltersProps) {
   return (
@@ -33,6 +44,29 @@ export function DoctorFilters({
       onSubmit={(event) => event.preventDefault()}
       className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
     >
+      {specialties && (
+        <div>
+          <label htmlFor="doctor-specialty" className="text-sm text-gray-700">
+            Chuyên khoa
+          </label>
+          <select
+            id="doctor-specialty"
+            value={values.chuyenKhoaId}
+            onChange={(event) => onChange({ chuyenKhoaId: event.target.value })}
+            className={CONTROL}
+          >
+            <option value="">{ALL_SPECIALTIES_LABEL}</option>
+            {specialties.map((specialty) => (
+              <option
+                key={specialty.chuyenKhoaId}
+                value={specialty.chuyenKhoaId}
+              >
+                {specialty.ten}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div>
         <label htmlFor="doctor-branch" className="text-sm text-gray-700">
           Chi nhánh
@@ -61,7 +95,7 @@ export function DoctorFilters({
           maxLength={KEYWORD_MAX_LENGTH}
           value={values.q}
           onChange={(event) => onChange({ q: event.target.value })}
-          placeholder="Tìm theo tên bác sĩ"
+          placeholder={keywordPlaceholder}
           className={CONTROL}
         />
       </div>

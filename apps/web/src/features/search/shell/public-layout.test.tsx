@@ -90,6 +90,11 @@ describe('PublicHeader', () => {
         'Liên hệ',
       ]),
     );
+    // F6: Bác sĩ mở trang Đội ngũ bác sĩ
+    expect(nav.getByRole('link', { name: 'Bác sĩ' })).toHaveAttribute(
+      'href',
+      '/bac-si',
+    );
     // F4: Chuyên khoa đã có trang nên là liên kết thật
     expect(nav.getByRole('link', { name: 'Chuyên khoa' })).toHaveAttribute(
       'href',
@@ -99,7 +104,7 @@ describe('PublicHeader', () => {
       'aria-current',
       'page',
     );
-    for (const name of ['Bác sĩ', 'Cẩm nang', 'Liên hệ']) {
+    for (const name of ['Cẩm nang', 'Liên hệ']) {
       expect(
         nav.getByRole('button', { name: new RegExp(name) }),
       ).toBeDisabled();

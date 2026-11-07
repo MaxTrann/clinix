@@ -7,7 +7,10 @@ import { getServices } from '../api/search-service';
 import { serviceListPath } from '../search-paths';
 import { useRemote } from '../use-remote';
 import { DoctorFilters } from './doctor-filters';
-import { DoctorResults } from './doctor-results';
+import {
+  DOCTOR_EMPTY_HINT_WITH_SERVICE,
+  DoctorResults,
+} from './doctor-results';
 import { useDoctorSearch } from './use-doctor-search';
 
 export const SERVICE_NOT_FOUND_MESSAGE = 'Không tìm thấy dịch vụ này.';
@@ -82,6 +85,7 @@ export function DoctorListPage() {
               onPageChange={search.setPage}
               onResetFilters={search.reset}
               emptyAction={backToServices}
+              emptyHint={DOCTOR_EMPTY_HINT_WITH_SERVICE}
             />
           </div>
         </>

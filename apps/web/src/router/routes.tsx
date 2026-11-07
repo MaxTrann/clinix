@@ -4,6 +4,7 @@ import {
   BranchDetailPage,
   BranchListPage,
   DoctorListPage,
+  DoctorTeamPage,
   PublicLayout,
   ServiceGroupPage,
   ServiceListPage,
@@ -45,6 +46,8 @@ export function createAppRoutes(
               path: 'dat-lich/nhom/:groupId/dich-vu/:serviceId',
               element: <DoctorListPage />,
             },
+            // "Đội ngũ bác sĩ" (search F6)
+            { path: 'bac-si', element: <DoctorTeamPage /> },
             { path: '*', element: <NotFoundPage /> },
           ],
         },

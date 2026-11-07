@@ -1,4 +1,8 @@
-import { BOOKING_PATH, type PublicNavConfig } from '../features/search';
+import {
+  BOOKING_PATH,
+  DOCTOR_TEAM_PATH,
+  type PublicNavConfig,
+} from '../features/search';
 
 // Menu của khung công khai (PLAN search 5.7, Q19c), thứ tự theo Figma `257:6` và `257:1008`.
 // Mục không có `to` là nút vô hiệu "Chưa được triển khai": module có trang mới chỉ thêm `to` ở đây, không sửa features/search/.
@@ -7,7 +11,7 @@ export const PUBLIC_NAV: PublicNavConfig = {
     { label: 'Trang chủ', to: '/', end: true },
     { label: 'Dịch vụ khám', to: BOOKING_PATH, hasMenu: true },
     { label: 'Chuyên khoa', to: '/chuyen-khoa' },
-    { label: 'Bác sĩ' },
+    { label: 'Bác sĩ', to: DOCTOR_TEAM_PATH },
     { label: 'Cẩm nang' },
     { label: 'Liên hệ' },
   ],
@@ -18,7 +22,7 @@ export const PUBLIC_NAV: PublicNavConfig = {
     { label: 'Trang chủ', to: '/', end: true },
     { label: 'Chuyên khoa', to: '/chuyen-khoa' },
     { label: 'Chi nhánh', to: '/chi-nhanh' },
-    { label: 'Đội ngũ bác sĩ' },
+    { label: 'Đội ngũ bác sĩ', to: DOCTOR_TEAM_PATH },
     { label: 'Cẩm nang sức khỏe' },
     { label: 'Về chúng tôi' },
     { label: 'Câu hỏi thường gặp' },

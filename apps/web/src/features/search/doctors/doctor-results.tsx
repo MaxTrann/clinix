@@ -6,7 +6,9 @@ import type { RemoteState } from '../use-remote';
 import { DoctorCard } from './doctor-card';
 
 export const DOCTOR_EMPTY_MESSAGE = 'Không tìm thấy bác sĩ phù hợp';
-export const DOCTOR_EMPTY_HINT = 'Hãy đổi bộ lọc hoặc chọn dịch vụ khác.';
+export const DOCTOR_EMPTY_HINT = 'Hãy đổi bộ lọc để xem thêm bác sĩ.';
+export const DOCTOR_EMPTY_HINT_WITH_SERVICE =
+  'Hãy đổi bộ lọc hoặc chọn dịch vụ khác.';
 
 interface DoctorResultsProps {
   state: RemoteState<Paged<DoctorItem>>;
@@ -16,6 +18,7 @@ interface DoctorResultsProps {
   onResetFilters: () => void;
   // Gợi ý thêm khi rỗng (F5: liên kết "Chọn dịch vụ khác")
   emptyAction?: ReactNode;
+  emptyHint?: string;
 }
 
 // Kết quả danh sách bác sĩ: đang tải / lỗi (có "Thử lại") / rỗng (A1) / danh sách + phân trang. Bộ lọc đứng ngoài nên không mất khi lỗi (TBS-22).
@@ -26,6 +29,7 @@ export function DoctorResults({
   onPageChange,
   onResetFilters,
   emptyAction,
+  emptyHint = DOCTOR_EMPTY_HINT,
 }: DoctorResultsProps) {
   if (state.status === 'loading') return <LoadingState />;
   if (state.status === 'error') {
@@ -36,7 +40,7 @@ export function DoctorResults({
     return (
       <div className="rounded-xl border border-gray-200 p-5 text-center">
         <p className="font-medium text-gray-900">{DOCTOR_EMPTY_MESSAGE}</p>
-        <p className="mt-1 text-sm text-gray-600">{DOCTOR_EMPTY_HINT}</p>
+        <p className="mt-1 text-sm text-gray-600">{emptyHint}</p>
         <div className="mt-3 flex items-center justify-center gap-4 text-sm font-medium">
           <button type="button" onClick={onResetFilters} className="underline">
             Xoá bộ lọc

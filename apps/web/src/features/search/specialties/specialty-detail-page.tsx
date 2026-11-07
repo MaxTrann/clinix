@@ -7,11 +7,12 @@ import { getSpecialtyDetail } from '../api/search-service';
 import { doctorCountLabel } from './doctor-count-label';
 import { formatVnd } from './format-vnd';
 import { SpecialtyImage } from './specialty-image';
+import { SpecialtyDoctors } from '../doctors/specialty-doctors';
 import { useRemote } from '../use-remote';
 
 export const SPECIALTY_NOT_FOUND_MESSAGE = 'Không tìm thấy chuyên khoa này.';
 
-// Đầu trang "Chi tiết chuyên khoa" (Figma 259:2). Danh sách bác sĩ bên dưới là F6.
+// "Chi tiết chuyên khoa" (Figma 259:2): phần đầu + danh sách bác sĩ của chuyên khoa (F6).
 export function SpecialtyDetailPage() {
   const { id = '' } = useParams();
   const { selection } = useSelectedBranch();
@@ -86,6 +87,9 @@ export function SpecialtyDetailPage() {
               )}
             </div>
           </section>
+        )}
+        {state.status === 'ready' && (
+          <SpecialtyDoctors specialtyId={id} specialtyName={state.data.ten} />
         )}
       </div>
     </main>

@@ -30,6 +30,7 @@ export function useDoctorSearch(base: DoctorSearchBase) {
     Omit<DoctorFilterValues, 'chiNhanhId'> & { chiNhanhId: string | null }
   >({
     chiNhanhId: null,
+    chuyenKhoaId: '',
     q: '',
     giaTu: '',
     giaDen: '',
@@ -61,7 +62,9 @@ export function useDoctorSearch(base: DoctorSearchBase) {
     (signal) =>
       getDoctors(
         {
-          ...base,
+          dichVuKhamId: base.dichVuKhamId,
+          // Chuyên khoa cố định của trang (chi tiết chuyên khoa) thắng ô chọn
+          chuyenKhoaId: base.chuyenKhoaId ?? applied.chuyenKhoaId,
           chiNhanhId: applied.chiNhanhId,
           q: applied.q.trim(),
           giaTu: applied.giaTu.trim(),
@@ -75,7 +78,7 @@ export function useDoctorSearch(base: DoctorSearchBase) {
       ),
     [
       base.dichVuKhamId ?? null,
-      base.chuyenKhoaId ?? null,
+      base.chuyenKhoaId ?? applied.chuyenKhoaId,
       applied.chiNhanhId,
       applied.q.trim(),
       applied.giaTu.trim(),
@@ -98,6 +101,7 @@ export function useDoctorSearch(base: DoctorSearchBase) {
     setPage(1);
     setFilters({
       chiNhanhId: '',
+      chuyenKhoaId: '',
       q: '',
       giaTu: '',
       giaDen: '',
