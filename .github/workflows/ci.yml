@@ -14,7 +14,10 @@ permissions:
   contents: read
 
 jobs:
-  # Phát hiện app đã được khởi tạo chưa. (hashFiles() không dùng được ở `if` cấp job nên phải làm qua job riêng.)
+  # Quyết định job nào cần chạy: app đã được khởi tạo chưa VÀ PR có đụng tới app đó không.
+  # Push vào main luôn chạy đủ. (hashFiles() không dùng được ở `if` cấp job nên phải làm qua job riêng.)
+  # Với PR, actions/checkout lấy merge commit, nên `HEAD^1` là đỉnh main và `git diff HEAD^1 HEAD` ra đúng các file PR thay đổi
+  # (chỉ cần fetch-depth: 2). Lỗi hay không có kết quả thì chạy đủ (an toàn hơn là bỏ sót).
   detect:
     runs-on: ubuntu-latest
     outputs:
@@ -22,10 +25,34 @@ jobs:
       web: ${{ steps.f.outputs.web }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
       - id: f
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [ -f apps/api/package.json ]; then echo "api=true" >> "$GITHUB_OUTPUT"; else echo "api=false" >> "$GITHUB_OUTPUT"; fi
-          if [ -f apps/web/package.json ]; then echo "web=true" >> "$GITHUB_OUTPUT"; else echo "web=false" >> "$GITHUB_OUTPUT"; fi
+          set -eu
+          changed=ALL
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if diff_out=$(git -c core.quotePath=false diff --name-only HEAD^1 HEAD) && [ -n "$diff_out" ]; then
+              changed="$diff_out"
+            fi
+          fi
+          # File dùng chung: đổi là phải chạy cả hai app.
+          shared='^(\.github/workflows/|docker-compose|package(-lock)?\.json$|\.jscpd\.json$)'
+          # Đọc chéo giữa các phần (thêm vào đây khi có test mới đọc file của phần khác):
+          #  - apps/api/src/database/testing/official-schema.ts đọc docs/database/clinix_mysql.sql (schema-parity.int-spec.ts) => chạy API
+          #  - apps/web/src/features/auth/validation/password-policy.test.ts đọc apps/api/src/auth/password/password-policy.vectors.json => chạy web
+          api_extra='^docs/database/'
+          web_extra='^apps/api/src/auth/password/'
+          need() {
+            app="$1"
+            extra="$2"
+            [ -f "apps/$app/package.json" ] || { echo false; return; }
+            if [ "$changed" = "ALL" ] || grep -qE "^apps/$app/|$shared|$extra" <<<"$changed"; then echo true; else echo false; fi
+          }
+          echo "api=$(need api "$api_extra")" >> "$GITHUB_OUTPUT"
+          echo "web=$(need web "$web_extra")" >> "$GITHUB_OUTPUT"
 
   # Chặng 1 — chuẩn commit/PR (squash merge dùng tiêu đề PR làm commit message)
   pr-title:
@@ -51,10 +78,35 @@ jobs:
           GITLEAKS_CONFIG: .gitleaks.toml
           # Nếu repo thuộc một GitHub Organization, cần thêm secret GITLEAKS_LICENSE.
 
-  # Chặng 3 — lint + build + test + coverage cho API (chỉ chạy khi apps/api đã tồn tại)
-  # Có MySQL 8.4 thật để chạy test tích hợp và e2e. Mật khẩu root bên dưới chỉ dùng cho container tạm của job này,
-  # không phải bí mật; test tự tạo/xóa các DB tên *_test nên không đụng dữ liệu nào khác.
-  api:
+  # Chặng 3 — API chia ba job chạy SONG SONG (trước đây một job chạy nối đuôi: lint, build, unit, integration, e2e).
+  # Integration và e2e mỗi job có MySQL 8.4 riêng nên dùng chung tên DB `clinix_test` vẫn không đụng nhau. Mật khẩu root bên dưới
+  # chỉ dùng cho container tạm của job này, không phải bí mật; test tự tạo/xóa các DB tên *_test nên không đụng dữ liệu nào khác.
+  api-unit:
+    needs: detect
+    if: needs.detect.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test -- --coverage
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: api-coverage-unit
+          path: apps/api/coverage
+          if-no-files-found: ignore
+
+  api-int:
     needs: detect
     if: needs.detect.outputs.api == 'true'
     runs-on: ubuntu-latest
@@ -88,17 +140,74 @@ jobs:
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
       - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-      - run: npm test -- --coverage
       - run: npm run test:int -- --coverage
-      - run: npm run test:e2e
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: api-coverage
-          path: apps/api/coverage
+          name: api-coverage-int
+          path: apps/api/coverage/int
           if-no-files-found: ignore
+
+  api-e2e:
+    needs: detect
+    if: needs.detect.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: "3306"
+      TEST_DB_USER: root
+      TEST_DB_PASSWORD: ci-only-throwaway-db
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-only-throwaway-db
+          TZ: Asia/Ho_Chi_Minh
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci
+      - run: npm run test:e2e
+
+  # Job gom kết quả. `api` nằm trong danh sách check bắt buộc của ruleset `protect-main`; đổi tên hay bỏ job này là mọi PR bị treo.
+  # `if: always()` để job vẫn báo kết quả khi một job con lỗi. Phải kiểm `detect` riêng: detect hỏng thì các job con bị bỏ qua,
+  # nếu chỉ tin "bị bỏ qua là đạt" thì sẽ báo xanh giả.
+  api:
+    needs: [detect, api-unit, api-int, api-e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gom kết quả các job API
+        env:
+          DETECT: ${{ needs.detect.result }}
+          NEED_API: ${{ needs.detect.outputs.api }}
+          UNIT: ${{ needs.api-unit.result }}
+          INT: ${{ needs.api-int.result }}
+          E2E: ${{ needs.api-e2e.result }}
+        run: |
+          echo "detect=$DETECT cần-api=$NEED_API unit=$UNIT int=$INT e2e=$E2E"
+          [ "$DETECT" = "success" ] || { echo "detect không thành công"; exit 1; }
+          for r in "$UNIT" "$INT" "$E2E"; do
+            if [ "$NEED_API" = "true" ]; then
+              [ "$r" = "success" ] || { echo "Một job API không thành công: $r"; exit 1; }
+            else
+              [ "$r" = "skipped" ] || { echo "Job API lẽ ra phải bị bỏ qua nhưng là: $r"; exit 1; }
+            fi
+          done
 
   # Chặng 3 — tương tự cho Web
   web:
@@ -151,22 +260,25 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
 
-  # Chặng 6 — build image Docker (chưa push) để bắt lỗi Dockerfile sớm
+  # Chặng 6 — build image Docker (chưa push) để bắt lỗi Dockerfile sớm.
+  # Không cần kết quả test nên chạy ngay sau detect (trước đây chờ api và web xong), và chỉ build image của app có thay đổi.
   docker:
-    needs: [detect, api, web]
-    if: needs.detect.outputs.api == 'true' && needs.detect.outputs.web == 'true'
+    needs: detect
+    if: needs.detect.outputs.api == 'true' || needs.detect.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
-      - uses: docker/build-push-action@v7
+      - if: needs.detect.outputs.api == 'true'
+        uses: docker/build-push-action@v7
         with:
           context: apps/api
           target: prod
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - uses: docker/build-push-action@v7
+      - if: needs.detect.outputs.web == 'true'
+        uses: docker/build-push-action@v7
         with:
           context: apps/web
           target: prod
