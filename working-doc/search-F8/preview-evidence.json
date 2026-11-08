@@ -1,0 +1,214 @@
+{
+  "mockPreview": true,
+  "errors": [],
+  "assets": [
+    {
+      "src": "/assets/search/home/search.svg",
+      "loaded": true,
+      "natural": [
+        19,
+        19
+      ],
+      "rendered": [
+        18.75,
+        18.75
+      ]
+    },
+    {
+      "src": "/assets/search/home/arrow.svg",
+      "loaded": true,
+      "natural": [
+        15,
+        15
+      ],
+      "rendered": [
+        15,
+        15
+      ]
+    },
+    {
+      "src": "/assets/search/home/service-specialty.svg",
+      "loaded": true,
+      "natural": [
+        26,
+        26
+      ],
+      "rendered": [
+        26.25,
+        26.25
+      ]
+    },
+    {
+      "src": "/assets/search/home/arrow.svg",
+      "loaded": true,
+      "natural": [
+        15,
+        15
+      ],
+      "rendered": [
+        15,
+        15
+      ]
+    },
+    {
+      "src": "/assets/search/home/service-general.svg",
+      "loaded": true,
+      "natural": [
+        26,
+        26
+      ],
+      "rendered": [
+        26.25,
+        26.25
+      ]
+    },
+    {
+      "src": "/assets/search/home/arrow.svg",
+      "loaded": true,
+      "natural": [
+        15,
+        15
+      ],
+      "rendered": [
+        15,
+        15
+      ]
+    },
+    {
+      "src": "/assets/search/home/service-coming.svg",
+      "loaded": true,
+      "natural": [
+        26,
+        26
+      ],
+      "rendered": [
+        26.25,
+        26.25
+      ]
+    },
+    {
+      "src": "/assets/search/home/arrow.svg",
+      "loaded": true,
+      "natural": [
+        15,
+        15
+      ],
+      "rendered": [
+        15,
+        15
+      ]
+    },
+    {
+      "src": "/assets/search/home/arrow.svg",
+      "loaded": true,
+      "natural": [
+        15,
+        15
+      ],
+      "rendered": [
+        15,
+        15
+      ]
+    },
+    {
+      "src": "/assets/search/home/step-service.svg",
+      "loaded": true,
+      "natural": [
+        19,
+        19
+      ],
+      "rendered": [
+        18.75,
+        18.75
+      ]
+    },
+    {
+      "src": "/assets/search/home/step-doctor.svg",
+      "loaded": true,
+      "natural": [
+        19,
+        19
+      ],
+      "rendered": [
+        18.75,
+        18.75
+      ]
+    },
+    {
+      "src": "/assets/search/home/step-payment.svg",
+      "loaded": true,
+      "natural": [
+        19,
+        19
+      ],
+      "rendered": [
+        18.75,
+        18.75
+      ]
+    },
+    {
+      "src": "/assets/search/home/step-hold.svg",
+      "loaded": true,
+      "natural": [
+        19,
+        19
+      ],
+      "rendered": [
+        18.75,
+        18.75
+      ]
+    },
+    {
+      "src": "/assets/search/home/calendar.svg",
+      "loaded": true,
+      "natural": [
+        19,
+        19
+      ],
+      "rendered": [
+        18.75,
+        18.75
+      ]
+    }
+  ],
+  "contrast": {
+    "foreground": [
+      255,
+      255,
+      255
+    ],
+    "background": [
+      0,
+      117,
+      149
+    ],
+    "highlightRatio": 3.6479359749163103,
+    "ratio": 5.278369731166806
+  },
+  "railGeometry": {
+    "width": 1069,
+    "scrollWidth": 2153,
+    "firstWidth": 255.9375,
+    "overflow": "auto",
+    "display": "grid",
+    "root": 1440
+  },
+  "scrollAfterNext": 2,
+  "mainOverflow": [],
+  "requests": [
+    "/api/auth/refresh",
+    "/api/public/overview",
+    "/api/public/service-groups",
+    "/api/public/specialties?pageSize=8",
+    "/api/public/doctors?sapXep=kinhNghiem&page=1&pageSize=8",
+    "/api/public/branches?pageSize=100",
+    "/api/public/clinic-info",
+    "/api/public/overview",
+    "/api/public/service-groups",
+    "/api/public/specialties?pageSize=8",
+    "/api/public/doctors?sapXep=kinhNghiem&page=1&pageSize=8",
+    "/api/public/branches?pageSize=100",
+    "/api/public/clinic-info",
+    "/api/public/doctors?sapXep=danhGiaCao&page=1&pageSize=8"
+  ]
+}

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../../router/routes';
+import { emptyPublicHomeResponse } from '../../../test/empty-public-home-response';
 import {
   createFakeAuthApi,
   createFakeLocks,
@@ -40,7 +41,8 @@ beforeEach(() => {
           url: String(input),
           headers: new Headers(init?.headers),
         });
-        return Promise.resolve(clinicInfoResponse());
+        const homeResponse = emptyPublicHomeResponse(String(input));
+        return Promise.resolve(homeResponse ?? clinicInfoResponse());
       }
       return api.fetch(input, init);
     }),
@@ -110,10 +112,11 @@ describe('PublicHeader', () => {
       ).toBeDisabled();
     }
     // search F5: "Đặt lịch khám" mở luồng chọn dịch vụ nên là liên kết thật
-    expect(screen.getByRole('link', { name: /Đặt lịch khám/ })).toHaveAttribute(
-      'href',
-      '/dat-lich',
-    );
+    expect(
+      within(screen.getByRole('banner')).getByRole('link', {
+        name: /Đặt lịch khám/,
+      }),
+    ).toHaveAttribute('href', '/dat-lich');
   });
 
   it('Dịch vụ khám: mở/đóng bằng nút và Esc, chưa có dữ liệu thì báo chưa có nhóm', () => {

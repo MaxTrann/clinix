@@ -15,6 +15,7 @@ export const DOCTOR_PAGE_SIZE = 20;
 export interface DoctorSearchBase {
   dichVuKhamId?: string;
   chuyenKhoaId?: string;
+  initialQuery?: string;
 }
 
 /**
@@ -31,7 +32,7 @@ export function useDoctorSearch(base: DoctorSearchBase) {
   >({
     chiNhanhId: null,
     chuyenKhoaId: '',
-    q: '',
+    q: base.initialQuery ?? '',
     giaTu: '',
     giaDen: '',
     diemTu: '',

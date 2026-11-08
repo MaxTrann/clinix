@@ -13,7 +13,9 @@ describe('App', () => {
     );
     render(<App />);
     expect(
-      await screen.findByRole('heading', { name: 'CLINIX' }),
+      await screen.findByRole('heading', {
+        name: 'Đặt lịch khám đúng bác sĩ, đúng giờ',
+      }),
     ).toBeInTheDocument();
   });
 });

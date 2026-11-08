@@ -6,13 +6,13 @@ import {
   DoctorDetailPage,
   DoctorListPage,
   DoctorTeamPage,
+  HomePage,
   PublicLayout,
   ServiceGroupPage,
   ServiceListPage,
   SpecialtyDetailPage,
   SpecialtyListPage,
 } from '../features/search';
-import { HomePage } from '../pages/home-page';
 import { NotFoundPage } from '../pages/not-found-page';
 import { RouteErrorPage } from '../pages/route-error-page';
 import { LoadingState } from '../shared/ui/loading-state';

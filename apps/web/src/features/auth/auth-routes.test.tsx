@@ -236,7 +236,11 @@ describe('trang công khai', () => {
     signedInAs('BacSi');
     const router = renderAt('/');
     expect(router.state.location.pathname).toBe('/');
-    expect(screen.getByRole('heading', { name: 'CLINIX' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        name: 'Đặt lịch khám đúng bác sĩ, đúng giờ',
+      }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'Về trang của bạn' }),
     ).toHaveAttribute('href', '/bac-si-portal');
@@ -253,7 +257,9 @@ describe('trang công khai', () => {
       setAuthState({ status });
       renderAt('/');
       expect(
-        screen.getByRole('heading', { name: 'CLINIX' }),
+        screen.getByRole('heading', {
+          name: 'Đặt lịch khám đúng bác sĩ, đúng giờ',
+        }),
       ).toBeInTheDocument();
       // Đổi ở search F1: header công khai có liên kết (Đăng nhập…); điều cần giữ là không có lối vào trang vai trò
       expect(

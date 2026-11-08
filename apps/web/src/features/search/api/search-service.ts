@@ -8,6 +8,7 @@ import type {
   DoctorQuery,
   Items,
   Paged,
+  PublicOverview,
   ServiceGroupItem,
   ServiceItem,
   SpecialtyDetail,
@@ -17,6 +18,13 @@ import type {
 // Mọi lời gọi của module search đi qua đây và dùng `skipAuthToken`: route công khai không đọc token, nên không gắn
 // Authorization và không kích hoạt làm mới phiên khi token cũ hết hạn (H7, CC-08).
 const PUBLIC_OPTIONS = { skipAuthToken: true } as const;
+
+export function getOverview(signal?: AbortSignal): Promise<PublicOverview> {
+  return request<PublicOverview>('public/overview', {
+    ...PUBLIC_OPTIONS,
+    signal,
+  });
+}
 
 export function getClinicInfo(signal?: AbortSignal): Promise<ClinicInfo> {
   return request<ClinicInfo>('public/clinic-info', {
@@ -52,7 +60,7 @@ export function getBranchDetail(
 export const SPECIALTY_PAGE_SIZE = 100;
 
 export function getSpecialties(
-  params: { q?: string; chiNhanhId?: string | null },
+  params: { q?: string; chiNhanhId?: string | null; pageSize?: number },
   signal?: AbortSignal,
 ): Promise<SpecialtyPage> {
   return request<SpecialtyPage>('public/specialties', {
@@ -60,7 +68,7 @@ export function getSpecialties(
     query: {
       q: params.q || undefined,
       chiNhanhId: params.chiNhanhId ?? undefined,
-      pageSize: SPECIALTY_PAGE_SIZE,
+      pageSize: params.pageSize ?? SPECIALTY_PAGE_SIZE,
     },
     signal,
   });

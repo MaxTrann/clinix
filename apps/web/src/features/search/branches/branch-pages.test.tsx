@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../../router/routes';
+import { emptyPublicHomeResponse } from '../../../test/empty-public-home-response';
 import { resetSelectedBranchForTest } from '../../../shared/branch-selection';
 import {
   createFakeAuthApi,
@@ -77,6 +78,8 @@ beforeEach(() => {
       const url = String(input);
       if (!url.includes('/public/')) return api.fetch(input, init);
       calls.push({ url, headers: new Headers(init?.headers) });
+      const homeResponse = emptyPublicHomeResponse(url);
+      if (homeResponse) return Promise.resolve(homeResponse);
       if (url.includes('/public/clinic-info')) {
         return Promise.resolve(
           jsonResponse(200, {

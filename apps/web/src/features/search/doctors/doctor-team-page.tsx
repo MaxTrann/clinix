@@ -1,4 +1,4 @@
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { getSpecialties } from '../api/search-service';
 import { useRemote } from '../use-remote';
 import { DoctorFilters } from './doctor-filters';
@@ -8,7 +8,14 @@ import { useDoctorSearch } from './use-doctor-search';
 // Trang "Đội ngũ bác sĩ" (Figma 260:2): không bắt chọn dịch vụ (Q11). Bỏ dải "Ngày khám" và khung giờ (`[SAU]`);
 // thêm lọc giá/đánh giá/sắp xếp theo Q12 (chưa có frame Figma).
 export function DoctorTeamPage() {
-  const search = useDoctorSearch({});
+  const [params] = useSearchParams();
+  const query = (params.get('q') ?? '').trim().slice(0, 100);
+  // Khi điều hướng đến cùng trang với từ khoá khác, khởi tạo lại bộ lọc từ URL.
+  return <DoctorTeamContent key={query} initialQuery={query} />;
+}
+
+function DoctorTeamContent({ initialQuery }: { initialQuery: string }) {
+  const search = useDoctorSearch({ initialQuery });
   // Danh sách chuyên khoa cho ô chọn; lỗi tải thì ô chỉ còn "Tất cả chuyên khoa", danh sách bác sĩ vẫn dùng được
   const specialties = useRemote(
     (signal) => getSpecialties({ chiNhanhId: null }, signal),

@@ -8,6 +8,13 @@ export interface ClinicInfo {
   email: string | null;
 }
 
+/** Ba số đếm toàn hệ thống; không lọc theo chi nhánh (B9). */
+export interface PublicOverview {
+  soChuyenKhoa: number;
+  soBacSi: number;
+  soDichVu: number;
+}
+
 /** Khung phân trang chung của API công khai. */
 export interface Paged<T> {
   items: T[];

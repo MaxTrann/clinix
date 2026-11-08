@@ -1,0 +1,8 @@
+﻿{
+    "command":  "npm.cmd test -- --reporter=json",
+    "date":  "2026-11-08",
+    "passed":  1685,
+    "failed":  0,
+    "files":  84,
+    "success":  true
+}
