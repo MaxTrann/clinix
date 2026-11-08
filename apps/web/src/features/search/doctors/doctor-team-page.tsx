@@ -10,12 +10,25 @@ import { useDoctorSearch } from './use-doctor-search';
 export function DoctorTeamPage() {
   const [params] = useSearchParams();
   const query = (params.get('q') ?? '').trim().slice(0, 100);
+  const serviceId = params.get('dichVuKhamId') ?? '';
   // Khi điều hướng đến cùng trang với từ khoá khác, khởi tạo lại bộ lọc từ URL.
-  return <DoctorTeamContent key={query} initialQuery={query} />;
+  return (
+    <DoctorTeamContent
+      key={JSON.stringify([query, serviceId])}
+      initialQuery={query}
+      serviceId={serviceId}
+    />
+  );
 }
 
-function DoctorTeamContent({ initialQuery }: { initialQuery: string }) {
-  const search = useDoctorSearch({ initialQuery });
+function DoctorTeamContent({
+  initialQuery,
+  serviceId,
+}: {
+  initialQuery: string;
+  serviceId: string;
+}) {
+  const search = useDoctorSearch({ initialQuery, dichVuKhamId: serviceId });
   // Danh sách chuyên khoa cho ô chọn; lỗi tải thì ô chỉ còn "Tất cả chuyên khoa", danh sách bác sĩ vẫn dùng được
   const specialties = useRemote(
     (signal) => getSpecialties({ chiNhanhId: null }, signal),

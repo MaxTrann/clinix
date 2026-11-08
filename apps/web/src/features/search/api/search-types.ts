@@ -15,6 +15,13 @@ export interface PublicOverview {
   soDichVu: number;
 }
 
+/** Gợi ý B8; id bigint giữ dạng chuỗi. API không trả id nhóm dịch vụ. */
+export interface PublicSuggestions {
+  chuyenKhoa: { chuyenKhoaId: string; ten: string }[];
+  dichVu: { dichVuKhamId: string; ten: string }[];
+  bacSi: { bacSiId: string; hoTen: string; chucDanh: DoctorTitle }[];
+}
+
 /** Khung phân trang chung của API công khai. */
 export interface Paged<T> {
   items: T[];

@@ -1,0 +1,70 @@
+{
+  "mockPreview": true,
+  "errors": [],
+  "geometry": {
+    "dropdown": {
+      "x": 186.625,
+      "y": 429.5,
+      "width": 628,
+      "height": 41.25
+    },
+    "form": {
+      "x": 185.625,
+      "bottom": 421,
+      "width": 630
+    },
+    "rootWidth": 1440,
+    "viewport": 1440,
+    "asset": {
+      "loaded": true,
+      "width": 18.75,
+      "height": 18.75
+    }
+  },
+  "longList": {
+    "height": 300,
+    "scrollHeight": 619,
+    "bottom": 729.5,
+    "heroBottom": 640.5,
+    "heroOverflow": "visible"
+  },
+  "mobile": {
+    "x": 29.125,
+    "right": 360.875,
+    "width": 331.75,
+    "viewport": 390
+  },
+  "suggestionCalls": [
+    {
+      "q": "tim",
+      "authorization": null
+    },
+    {
+      "q": "mẫu",
+      "authorization": null
+    },
+    {
+      "q": "không có",
+      "authorization": null
+    }
+  ],
+  "requests": [
+    "/api/auth/refresh",
+    "/api/public/overview",
+    "/api/public/service-groups",
+    "/api/public/specialties?pageSize=8",
+    "/api/public/doctors?sapXep=kinhNghiem&page=1&pageSize=8",
+    "/api/public/branches?pageSize=100",
+    "/api/public/clinic-info",
+    "/api/public/suggestions?q=tim",
+    "/api/auth/refresh",
+    "/api/public/overview",
+    "/api/public/service-groups",
+    "/api/public/specialties?pageSize=8",
+    "/api/public/doctors?sapXep=kinhNghiem&page=1&pageSize=8",
+    "/api/public/branches?pageSize=100",
+    "/api/public/clinic-info",
+    "/api/public/suggestions?q=m%E1%BA%ABu",
+    "/api/public/suggestions?q=kh%C3%B4ng+c%C3%B3"
+  ]
+}

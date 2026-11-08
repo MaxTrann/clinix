@@ -1,0 +1,134 @@
+{
+  "success": true,
+  "numTotalTests": 1698,
+  "numPassedTests": 1698,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "startTime": 1794115448541,
+  "testFiles": 85,
+  "scope": "Full web suite; only F9-related test names retained below",
+  "relatedResults": [
+    {
+      "file": "doctor-team.test.tsx",
+      "status": "passed",
+      "tests": [
+        {
+          "name": "Trang Đội ngũ bác sĩ TCH-05 / Q20: gợi ý dịch vụ lọc bác sĩ bằng id từ URL; đổi dịch vụ trên cùng trang không giữ bộ lọc cũ",
+          "status": "passed"
+        },
+        {
+          "name": "Trang Đội ngũ bác sĩ TBS-21 hiện bác sĩ ngay, không bắt chọn dịch vụ; cùng thẻ với F5",
+          "status": "passed"
+        },
+        {
+          "name": "Trang Đội ngũ bác sĩ TBS-21 có ô tìm theo tên hoặc chuyên khoa, ô chuyên khoa, chi nhánh, giá, đánh giá, sắp xếp",
+          "status": "passed"
+        },
+        {
+          "name": "Trang Đội ngũ bác sĩ TBS-21 chọn chuyên khoa hoặc gõ từ khoá ⇒ gọi lại API với đúng tham số",
+          "status": "passed"
+        },
+        {
+          "name": "Trang Đội ngũ bác sĩ TBS-21 rỗng: thông báo + \"Xoá bộ lọc\", không gợi ý chọn dịch vụ",
+          "status": "passed"
+        },
+        {
+          "name": "Trang Đội ngũ bác sĩ TBS-22 không tải được danh sách chuyên khoa: danh sách bác sĩ vẫn dùng được",
+          "status": "passed"
+        },
+        {
+          "name": "Chi tiết chuyên khoa: bác sĩ của chuyên khoa TBS-21 danh sách chỉ của chuyên khoa đó, cố định chuyên khoa, không có ô chọn chuyên khoa",
+          "status": "passed"
+        },
+        {
+          "name": "Chi tiết chuyên khoa: bác sĩ của chuyên khoa TBS-21 đổi bộ lọc vẫn giữ chuyên khoa",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "file": "global-search.test.tsx",
+      "status": "passed",
+      "tests": [
+        {
+          "name": "TCH-05: gõ nhanh chỉ gọi sau 300 ms, trim từ khoá; combobox có listbox và nhãn ba loại",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05: đổi từ khoá huỷ ngay request đang chạy, bỏ response cũ dù về muộn",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05 / TCH-04: rỗng hoặc chỉ khoảng trắng không gọi API; xoá từ khoá huỷ request và ẩn hộp",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05: lên/xuống/Enter chọn gợi ý qua aria-activedescendant; Escape đóng, không xoá từ khoá",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05 / Q20: bấm Tim mạch mở đúng /chuyen-khoa/1",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05 / Q20: bấm Khám tim mở đúng /bac-si?dichVuKhamId=2",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05 / Q20: bấm BS.CKII Bác sĩ mẫu mở đúng /bac-si/3",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05 / Q20: submit chưa chọn gợi ý tìm bác sĩ bằng từ khoá đã trim và encode",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05: Enter trong lúc nhập dấu không chọn gợi ý",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05 / TBS-22: lỗi mạng/timeout có thông báo và thử lại giữ từ khoá",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05 / TBS-22: lỗi mạng/timeout có thông báo và thử lại giữ từ khoá",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-05: blur ra ngoài đóng hộp/huỷ request; unmount huỷ request kế tiếp",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "file": "home-page.test.tsx",
+      "status": "passed",
+      "tests": [
+        {
+          "name": "TCH-02: đủ khối Q21, số liệu API, trạng thái chưa có dịch vụ/bác sĩ, liên kết đúng; ẩn cẩm nang và bỏ số phút giữ chỗ",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-02: tải tối đa 8 chuyên khoa/bác sĩ đầu, đổi sắp xếp gọi API; không gán ảnh giả",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-02: lỗi một khối vẫn hiện các khối còn lại, thử lại thành công; số liệu lỗi không giả thành 0",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-02: danh sách rỗng có thông báo riêng; ba số 0 từ API vẫn hiện",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-02: đổi chi nhánh huỷ yêu cầu cũ, bỏ kết quả muộn; overview vẫn là toàn hệ thống",
+          "status": "passed"
+        },
+        {
+          "name": "TCH-02 / Q20: gửi tìm kiếm chuyển sang đội ngũ bác sĩ với từ khoá đã trim",
+          "status": "passed"
+        }
+      ]
+    }
+  ]
+}

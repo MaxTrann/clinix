@@ -408,6 +408,8 @@ Mọi truy vấn đếm (`soBacSi`, con số trang chủ, `giaKhamTu`) dùng **c
   (`timeout` 10 s, `maximumAge` 10 phút `[đề xuất]`) ⇒ `nearestBranch` (hàm thuần) ⇒ lưu `nguon: 'DinhVi'`; từ chối/lỗi/không có ⇒ lưu "Toàn quốc". Bộ lọc chi nhánh của trang TCCN ghi vào kho chung;
   bộ lọc chi nhánh của TCBS chỉ **khởi tạo** từ kho chung (Q7d).
 
+F9 (Q20): gợi ý chuyên khoa mở `/chuyen-khoa/:id`, bác sĩ mở `/bac-si/:id`, dịch vụ mở `/bac-si?dichVuKhamId=…` và tái dùng bộ lọc API hiện có. B8 không trả id nhóm dịch vụ nên không tự suy diễn nhóm. Enter/nút Tìm kiếm khi chưa chọn gợi ý mở `/bac-si?q=…`. Hộp chỉ tải khi có từ khoá, chờ 300 ms; đổi từ khoá/đóng hộp/unmount huỷ yêu cầu ngay và bỏ phản hồi muộn.
+
 ### 5.8 Mã lỗi → thông báo (câu chữ `[đề xuất]`; nhóm duyệt và đưa vào Figma)
 
 | Mã lỗi | HTTP | Thông báo |
@@ -486,7 +488,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 03/11/2026: *
 | ☑ | F6 | "Đội ngũ bác sĩ" `/bac-si` (`260:2`, bỏ dải ngày) + danh sách bác sĩ trong "Chi tiết chuyên khoa", dùng lại `DoctorCard`/bộ lọc của F5 | F5, F4 | TCBS b4–b6, b8 (điểm vào khác — Q11) | `feat(web)` |
 | ☑ | F7 | Chi tiết bác sĩ `/bac-si/:id` (`653:2`–`657:2`): tab Giới thiệu, Phòng khám, Hướng dẫn (tĩnh), Đánh giá (chỉ điểm + số lượt — Q16); tab Lịch khám chừa chỗ `[SAU]`; "Nhắn tin" vô hiệu; bỏ "Đặt trước tối đa 7 ngày" | F5, B6 | TCBS b9 | `feat(web)` |
 | ☑ | F8 | Trang chủ thật (`257:2`) theo Q21; xoá `pages/home-page.tsx` và trang chủ tạm của F1, giữ hành vi không chuyển người đã đăng nhập | F1, F4, F5, B9 | Điểm vào TCCN b1, TCBS b1 | Triển khai/kiểm local 08/11/2026; chờ PR/review/merge (#175); xem TRACKING · `feat(web)` |
-| ☐ | F9 | Ô tìm tổng + hộp gợi ý (`258:2`): tự tìm sau 300 ms, huỷ yêu cầu cũ, combobox ARIA, bấm gợi ý mở trang tương ứng | F8, B8 | TCCN b3, TCBS b1 (Q20) | **Cụm 4 — sau cùng, bỏ trước nếu thiếu thời gian** · `feat(web)` |
+| ☐ | F9 | Ô tìm tổng + hộp gợi ý (`258:2`): tự tìm sau 300 ms, huỷ yêu cầu cũ, combobox ARIA, bấm gợi ý mở trang tương ứng | F8, B8 | TCCN b3, TCBS b1 (Q20) | Triển khai/kiểm local 08/11/2026; chờ PR/review/merge (#176); xem TRACKING · `feat(web)` |
 | ☐ | F10 | Màn hẹp (< 1024 px): thanh điều hướng thu vào ngăn kéo (bẫy focus, Esc đóng); bộ chọn chi nhánh trong ngăn kéo; **cuối cụm 1**, không chặn F1 | F1, F2 | Khung (Q19f) | `feat(web)` |
 
 ### 6.5 Nhóm D — Đồng bộ tài liệu (đi cùng PR của task code tương ứng)
