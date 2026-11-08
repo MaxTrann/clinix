@@ -41,6 +41,8 @@
 -- ("Ngừng sử dụng hồ sơ người thân") nằm ở clinix_quy_tac_nghiep_vu.md mục 2.
 -- 07/11/2026 (module patient, task B6): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE nào: thêm quy tắc 53
 -- ("Tra cứu hồ sơ bệnh nhân của Lễ tân") ở clinix_quy_tac_nghiep_vu.md mục 2: phạm vi toàn hệ thống, chỉ Bệnh nhân đã xác minh kể cả NgungHoatDong, chỉ đọc, không ghi nhật ký hành động.
+-- 08/11/2026 (module patient, task B7): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE nào: mở rộng quy tắc 53 ở
+-- clinix_quy_tac_nghiep_vu.md mục 2 thêm phần chi tiết một bệnh nhân (GET /reception/patients/:id): mười trường, người thân ở cả hai trạng thái hiệu lực, 404 chung, chỉ đọc, không ghi nhật ký hành động.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
