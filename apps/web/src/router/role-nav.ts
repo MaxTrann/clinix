@@ -35,7 +35,7 @@ export const PATIENT_NAV: { items: RoleNavItem[]; footerItems: RoleNavItem[] } =
   };
 
 // patient F2. Không có `footerItems` (Figma Lễ tân không có "Về trang chủ"). "Tra cứu bệnh nhân" không đặt `end`: trang con của F8 vẫn sáng mục này.
-// "Thông tin cá nhân" để F4 thêm `to` cùng route; "Lịch làm việc bác sĩ" do `doctor`, "Quản lý lịch hẹn", "Yêu cầu đổi lịch", "Danh sách chờ" do `booking`.
+// "Thông tin cá nhân" có trang từ patient F4 (không đặt `end`: trang không có trang con); "Lịch làm việc bác sĩ" do `doctor`, "Quản lý lịch hẹn", "Yêu cầu đổi lịch", "Danh sách chờ" do `booking`.
 export const RECEPTION_NAV: { items: RoleNavItem[] } = {
   items: [
     { label: 'Tổng quan', icon: LayoutDashboard },
@@ -46,6 +46,6 @@ export const RECEPTION_NAV: { items: RoleNavItem[] } = {
     { label: 'Danh sách chờ', icon: ListOrdered },
     { label: 'Tin nhắn', icon: MessageCircle },
     { label: 'Thông báo', icon: Bell },
-    { label: 'Thông tin cá nhân', icon: User },
+    { label: 'Thông tin cá nhân', icon: User, to: RECEPTION_PATHS.profile },
   ],
 };

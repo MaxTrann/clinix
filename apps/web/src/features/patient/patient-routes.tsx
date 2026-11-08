@@ -2,6 +2,7 @@ import type { RouteObject } from 'react-router';
 import {
   PATIENT_PROFILE_SEGMENT,
   RECEPTION_LOOKUP_SEGMENT,
+  RECEPTION_PROFILE_SEGMENT,
 } from './patient-paths';
 
 // Route con của khung Bệnh nhân (đường dẫn tương đối với `/benh-nhan`). Route mặc định và route của module khác do router/role-routes.tsx ghép.
@@ -22,6 +23,14 @@ export const RECEPTION_ROUTES: RouteObject[] = [
     lazy: () =>
       import('./pages/reception-lookup-placeholder-page').then((module) => ({
         Component: module.ReceptionLookupPlaceholderPage,
+      })),
+  },
+  // patient F4: "Thông tin cá nhân" của Lễ tân
+  {
+    path: RECEPTION_PROFILE_SEGMENT,
+    lazy: () =>
+      import('./pages/reception-profile-page').then((module) => ({
+        Component: module.ReceptionProfilePage,
       })),
   },
 ];

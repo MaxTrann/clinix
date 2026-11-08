@@ -255,6 +255,9 @@ export interface FormActionsProps {
   // Nút phụ ở ĐẦU hàng, dồn về mép trái, xa nút gửi (patient F7: nút "Ngừng sử dụng" của form người thân). Không truyền thì
   // KHÔNG thêm phần tử nào vào DOM: hàng nút của ProfileForm (F3) giữ nguyên từng ký tự (TRACKING F7-C).
   leadingAction?: ReactNode;
+  // patient F4 (frame `504:2`): hai nút chia đôi hàng, Hủy ở trái (mỗi nút `flex-1`). Mặc định false: hàng nút dồn về bên phải như F3,
+  // class và DOM của F3, F6, F7 giữ nguyên từng ký tự (TRACKING F4-C)
+  fullWidth?: boolean;
 }
 
 // Hàng nút cuối form (Hủy, gửi), dùng chung cho form sửa Bản thân (F3) và form người thân (F6, TRACKING F6-B).
@@ -265,22 +268,30 @@ export function FormActions({
   pendingLabel,
   onCancel,
   leadingAction,
+  fullWidth = false,
 }: FormActionsProps) {
+  const grow = fullWidth ? ' flex-1' : '';
   return (
-    <div className="mt-[1.2rem] flex flex-wrap justify-end gap-2.5">
+    <div
+      className={
+        fullWidth
+          ? 'mt-[1.2rem] flex gap-3'
+          : 'mt-[1.2rem] flex flex-wrap justify-end gap-2.5'
+      }
+    >
       {leadingAction ? <div className="mr-auto">{leadingAction}</div> : null}
       <button
         type="button"
         disabled={pending}
         onClick={onCancel}
-        className="min-h-[2.6667rem] rounded-lg border border-gray-200 bg-white px-[1.2rem] text-sm leading-normal font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
+        className={`min-h-[2.6667rem] rounded-lg border border-gray-200 bg-white px-[1.2rem] text-sm leading-normal font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50${grow}`}
       >
         Hủy
       </button>
       <button
         type="submit"
         disabled={pending}
-        className="min-h-[2.6667rem] rounded-lg border border-transparent bg-brand-strong px-[1.2rem] text-sm leading-normal font-semibold text-white transition-colors hover:bg-cyan-800 disabled:opacity-50 disabled:hover:bg-brand-strong"
+        className={`min-h-[2.6667rem] rounded-lg border border-transparent bg-brand-strong px-[1.2rem] text-sm leading-normal font-semibold text-white transition-colors hover:bg-cyan-800 disabled:opacity-50 disabled:hover:bg-brand-strong${grow}`}
       >
         {pending ? pendingLabel : submitLabel}
       </button>

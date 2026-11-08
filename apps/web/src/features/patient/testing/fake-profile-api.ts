@@ -1,4 +1,5 @@
 import { apiError } from '../../../test/fake-auth-api';
+import type { ProfileBranch } from '../profile/profile-types';
 
 // Hàm giả GET và PUT /api/profile và GET, POST, PUT, POST …/:id/deactivate /api/patient/relatives cho test (patient F3, F6, F7; TRACKING F3-G, F3-H, F6-B, F7-H).
 // Bọc `fetch` của fake auth và CHỈ chặn hai đường dẫn đó; mọi đường dẫn khác chuyển cho fake auth. Fake auth trả `{ ok: true }`
@@ -25,7 +26,8 @@ export interface FakeProfileData {
   diaChi: string | null;
   anhDaiDien: null;
   vaiTro: string;
-  chiNhanh: null;
+  // null với Bệnh nhân; { chiNhanhId, ten } với Lễ tân (patient F4)
+  chiNhanh: ProfileBranch | null;
   phamViQuanTri: null;
 }
 
@@ -39,6 +41,20 @@ export const SAMPLE_PROFILE: FakeProfileData = {
   anhDaiDien: null,
   vaiTro: 'BenhNhan',
   chiNhanh: null,
+  phamViQuanTri: null,
+};
+
+// Hồ sơ Lễ tân của frame `503:2` (patient F4): đủ 10 khoá, `chiNhanh` có giá trị. Id chi nhánh là chuỗi (BIGINT)
+export const SAMPLE_RECEPTIONIST: FakeProfileData = {
+  hoTen: 'Lê Thị Lệ Ngân',
+  email: 'letan@example.invalid',
+  soDienThoai: '0965432109',
+  gioiTinh: null,
+  ngaySinh: null,
+  diaChi: null,
+  anhDaiDien: null,
+  vaiTro: 'LeTan',
+  chiNhanh: { chiNhanhId: '3', ten: 'CLINIX Chi nhánh Quận 3' },
   phamViQuanTri: null,
 };
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { refreshCurrentUser } from '../../auth';
 import {
   buildProfileUpdate,
@@ -27,6 +27,13 @@ export interface ProfileFormProps {
   // Gọi khi PUT trả 200, với hồ sơ ĐỌC LẠI từ máy chủ (không phải ô đã nhập)
   onSaved: (saved: Profile) => void;
   onCancel: () => void;
+  // patient F4 (TRACKING F4-C). Cả ba tuỳ chọn; không truyền thì form giống từng byte với F3.
+  // 'stack' = bố cục MỘT cột của frame `504:2`: email đứng sau địa chỉ, hai nút chia đôi hàng. Mặc định 'grid' = lưới của F3.
+  layout?: 'grid' | 'stack';
+  // Câu chỉ đọc dưới ô email; mặc định câu của F3 (`432:2`), Lễ tân dùng câu của `503:2`, `504:2`
+  emailNote?: string;
+  // Ô chỉ đọc đặt NGAY SAU ô email (chi nhánh công tác của Lễ tân). Phải là khối chữ, không phải ô nhập: web không cho sửa chúng
+  extraReadOnly?: ReactNode;
 }
 
 interface Failure {
@@ -39,7 +46,15 @@ const EMAIL_NOTE = 'Email dùng để đăng nhập, không thể thay đổi.';
 
 // Form sửa hồ sơ bản thân (HS-18, HS-19, HS-20; frame `432:2`), chỉ là phần `<form>`: thẻ và đầu thẻ do nơi dùng đặt (TRACKING F3-B).
 // Họ tên, SĐT, ngày sinh, địa chỉ là dữ liệu cá nhân: chỉ nằm trong state của form (không console, kho trình duyệt, URL, location.state).
-export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
+export function ProfileForm({
+  profile,
+  onSaved,
+  onCancel,
+  layout = 'grid',
+  emailNote = EMAIL_NOTE,
+  extraReadOnly,
+}: ProfileFormProps) {
+  const stacked = layout === 'stack';
   const [values, setValues] = useState<ProfileFormValues>(() =>
     valuesFromProfile(profile),
   );
@@ -115,6 +130,13 @@ export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
   }
 
   const fields = failure?.fields ?? {};
+  // Hai ô chỉ đọc đi cùng nhau; chỉ khác chỗ đứng: sau họ tên (lưới F3) hay sau địa chỉ (một cột, `504:2`)
+  const readOnlyFields = (
+    <>
+      <ReadOnlyField label="Email" value={profile.email} note={emailNote} />
+      {extraReadOnly}
+    </>
+  );
 
   return (
     <form
@@ -127,7 +149,13 @@ export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
       {failure?.alert && (
         <FormAlert alertRef={alertRef}>{failure.alert}</FormAlert>
       )}
-      <div className="grid grid-cols-1 gap-x-[1.8667rem] gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div
+        className={
+          stacked
+            ? 'flex flex-col gap-4'
+            : 'grid grid-cols-1 gap-x-[1.8667rem] gap-y-4 sm:grid-cols-2 xl:grid-cols-3'
+        }
+      >
         <TextField
           label="Họ và tên"
           required
@@ -137,7 +165,7 @@ export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
           inputRef={hoTenRef}
           onChange={(event) => update('hoTen', event.target.value)}
         />
-        <ReadOnlyField label="Email" value={profile.email} note={EMAIL_NOTE} />
+        {!stacked && readOnlyFields}
         <TextField
           label="Số điện thoại"
           required
@@ -168,6 +196,7 @@ export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
           inputRef={addressRef}
           onChange={(event) => update('diaChi', event.target.value)}
         />
+        {stacked && readOnlyFields}
       </div>
 
       <FormActions
@@ -175,6 +204,7 @@ export function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
         submitLabel="Lưu thay đổi"
         pendingLabel="Đang lưu…"
         onCancel={onCancel}
+        fullWidth={stacked}
       />
     </form>
   );

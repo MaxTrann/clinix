@@ -339,14 +339,16 @@ describe('khung Lễ tân', () => {
     });
     expect(lookup).toHaveAttribute('aria-current', 'page');
     expect(lookup).toHaveAttribute('href', RECEPTION_PATHS.lookup);
-    // Chỉ "Tra cứu bệnh nhân" có trang ở F2; tám mục còn lại vô hiệu, kể cả "Thông tin cá nhân" (chờ F4) (KG-04)
-    expect(within(menu).getAllByRole('link')).toHaveLength(1);
+    // "Tra cứu bệnh nhân" (F2) và "Thông tin cá nhân" (F4) có trang; bảy mục còn lại vô hiệu (KG-04). Đổi có duyệt ở patient F4.
+    expect(within(menu).getAllByRole('link')).toHaveLength(2);
+    const profile = within(menu).getByRole('link', {
+      name: 'Thông tin cá nhân',
+    });
+    expect(profile).toHaveAttribute('href', RECEPTION_PATHS.profile);
+    expect(profile).not.toHaveAttribute('aria-current');
     const disabled = within(menu).getAllByRole('button');
-    expect(disabled).toHaveLength(8);
+    expect(disabled).toHaveLength(7);
     for (const button of disabled) expect(button).toBeDisabled();
-    expect(
-      within(menu).getByRole('button', { name: /^Thông tin cá nhân/ }),
-    ).toBeDisabled();
     // Figma `483:2`: cuối thanh bên chỉ có nút Đăng xuất
     expect(screen.queryByRole('link', { name: 'Về trang chủ' })).toBeNull();
     expect(logoutButtons()).toHaveLength(2);
@@ -525,9 +527,11 @@ describe('khung Lễ tân', () => {
     const focusable = Array.from(
       document.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
     ).map((element) => element.textContent?.trim());
+    // Đổi có duyệt ở patient F4: "Thông tin cá nhân" nay là liên kết nhận focus, đứng sau "Tra cứu bệnh nhân" như thứ tự menu Figma
     expect(focusable).toEqual([
       'CLINIX',
       'Tra cứu bệnh nhân',
+      'Thông tin cá nhân',
       'Đăng xuất',
       'Đăng xuất',
     ]);

@@ -8,10 +8,12 @@ export const PATIENT_PATHS = {
   profile: `${ROLE_HOME_PATHS.BenhNhan}/${PATIENT_PROFILE_SEGMENT}`,
 } as const;
 
-// patient F2. "Thông tin cá nhân" (`thong-tin-ca-nhan`) do F4 thêm cùng route, chưa khai ở đây để không có hằng chưa dùng
+// patient F2 (tra cứu bệnh nhân), patient F4 (thông tin cá nhân)
 export const RECEPTION_LOOKUP_SEGMENT = 'tra-cuu-benh-nhan';
+export const RECEPTION_PROFILE_SEGMENT = 'thong-tin-ca-nhan';
 
 export const RECEPTION_PATHS = {
   root: ROLE_HOME_PATHS.LeTan,
   lookup: `${ROLE_HOME_PATHS.LeTan}/${RECEPTION_LOOKUP_SEGMENT}`,
+  profile: `${ROLE_HOME_PATHS.LeTan}/${RECEPTION_PROFILE_SEGMENT}`,
 } as const;
