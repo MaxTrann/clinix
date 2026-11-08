@@ -363,7 +363,7 @@ describe('khung Lễ tân', () => {
     expect(router.state.location.pathname).toBe('/');
   });
 
-  it('PL-09b KG-02 mở thẳng /le-tan/tra-cuu-benh-nhan không bị chuyển hướng, có trang giữ chỗ', async () => {
+  it('PL-09b KG-02 mở thẳng /le-tan/tra-cuu-benh-nhan không bị chuyển hướng, có trang tra cứu', async () => {
     // Đường dẫn đã chốt ở Q21g; các ca khác dùng hằng nên không bắt được hằng sai (đột biến M19 của F2)
     expect(RECEPTION_PATHS.lookup).toBe('/le-tan/tra-cuu-benh-nhan');
     signedInAs('LeTan');
@@ -371,7 +371,10 @@ describe('khung Lễ tân', () => {
     await screen.findByRole('heading', { name: 'Tra cứu bệnh nhân' });
     expect(router.state.historyAction).toBe('POP');
     expect(router.state.location.pathname).toBe(RECEPTION_PATHS.lookup);
-    expect(screen.getByRole('main')).toHaveTextContent('Chưa được triển khai.');
+    // Đổi có duyệt ở patient F8: trang thật hiện lời mời chọn bệnh nhân, thay cho câu "Chưa được triển khai." của trang giữ chỗ
+    expect(screen.getByRole('main')).toHaveTextContent(
+      'Chọn một bệnh nhân để xem hồ sơ',
+    );
     expect(await receptionShell()).toBeInTheDocument();
   });
 

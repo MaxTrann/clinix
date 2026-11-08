@@ -21,8 +21,8 @@ export const RECEPTION_ROUTES: RouteObject[] = [
   {
     path: RECEPTION_LOOKUP_SEGMENT,
     lazy: () =>
-      import('./pages/reception-lookup-placeholder-page').then((module) => ({
-        Component: module.ReceptionLookupPlaceholderPage,
+      import('./pages/reception-lookup-page').then((module) => ({
+        Component: module.ReceptionLookupPage,
       })),
   },
   // patient F4: "Thông tin cá nhân" của Lễ tân
