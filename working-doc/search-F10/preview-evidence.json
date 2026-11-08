@@ -1,0 +1,66 @@
+{
+  "mode": "Chromium API mock",
+  "evidence": [
+    {
+      "width": 320,
+      "drawer": {
+        "x": 32,
+        "y": 0,
+        "width": 288,
+        "height": 844
+      },
+      "branchPopup": {
+        "x": 47,
+        "y": 343.25,
+        "width": 258,
+        "height": 126.75
+      },
+      "focusTrap": true,
+      "escapeReturnFocus": true
+    },
+    {
+      "width": 390,
+      "drawer": {
+        "x": 90,
+        "y": 0,
+        "width": 300,
+        "height": 844
+      },
+      "branchPopup": {
+        "x": 105,
+        "y": 343.25,
+        "width": 270,
+        "height": 126.75
+      },
+      "focusTrap": true,
+      "escapeReturnFocus": true
+    },
+    {
+      "width": 1023,
+      "drawer": {
+        "x": 723,
+        "y": 0,
+        "width": 300,
+        "height": 844
+      },
+      "branchPopup": {
+        "x": 738,
+        "y": 343.25,
+        "width": 270,
+        "height": 126.75
+      },
+      "focusTrap": true,
+      "escapeReturnFocus": true
+    },
+    {
+      "width": 1024,
+      "desktopNav": true
+    },
+    {
+      "width": 1440,
+      "desktopNav": true
+    }
+  ],
+  "routeCloses": true,
+  "errors": []
+}
