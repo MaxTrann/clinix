@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router';
 import {
+  ADMIN_PROFILE_SEGMENT,
   PATIENT_PROFILE_SEGMENT,
   RECEPTION_LOOKUP_SEGMENT,
   RECEPTION_PROFILE_SEGMENT,
@@ -31,6 +32,18 @@ export const RECEPTION_ROUTES: RouteObject[] = [
     lazy: () =>
       import('./pages/reception-profile-page').then((module) => ({
         Component: module.ReceptionProfilePage,
+      })),
+  },
+];
+
+// Route con của khung Quản trị viên (đường dẫn tương đối với `/admin`, patient F5). `router/role-routes.tsx` ghép cạnh `ADMIN_ROUTES`;
+// không bọc `AdminScopeGuard` (policy "Any" luôn cho qua, và không được import nội bộ của `features/admin`, TRACKING F5-G).
+export const ADMIN_PROFILE_ROUTES: RouteObject[] = [
+  {
+    path: ADMIN_PROFILE_SEGMENT,
+    lazy: () =>
+      import('./pages/admin-profile-page').then((module) => ({
+        Component: module.AdminProfilePage,
       })),
   },
 ];

@@ -9,6 +9,7 @@ import {
   type VaiTro,
 } from '../features/auth';
 import {
+  ADMIN_PROFILE_ROUTES,
   PATIENT_PATHS,
   PATIENT_ROUTES,
   PatientLayout,
@@ -63,7 +64,7 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
   QuanTriVien: {
     path: ROLE_HOME_PATHS.QuanTriVien,
     element: <AdminLayout />,
-    children: ADMIN_ROUTES,
+    children: [...ADMIN_ROUTES, ...ADMIN_PROFILE_ROUTES],
     errorElement: <AdminErrorBoundary />,
   },
 };

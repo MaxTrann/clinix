@@ -7,8 +7,11 @@ export interface ProfileBranch {
   ten: string;
 }
 
-// Sáu khoá của mọi vai trò, cộng `chiNhanh` (F4). GET /profile còn trả vaiTro, phamViQuanTri, anhDaiDien: F5 thêm
-// `phamViQuanTri` vào kiểu này và vào `parseProfile` cùng cách (TRACKING patient mục 5).
+// Phạm vi quản trị (chỉ đọc) của Quản trị viên (patient F5; TRACKING F5-D): Toàn hệ thống hoặc một chi nhánh.
+// Mã khác (hợp đồng lệch) không vào kiểu này: `parseProfile` coi như thiếu.
+export type AdminScope = 'ToanHeThong' | 'ChiNhanh';
+
+// Sáu khoá của mọi vai trò, cộng `chiNhanh` (F4) và `phamViQuanTri` (F5). GET /profile còn trả vaiTro, anhDaiDien: web không dùng.
 export interface Profile {
   hoTen: string;
   email: string;
@@ -21,6 +24,8 @@ export interface Profile {
   // Chỉ có khi API trả chi nhánh. API bảo đảm khoá này có ở Lễ tân và Bác sĩ (thiếu hàng chi nhánh thì API trả 500, không trả null);
   // Bệnh nhân không có chi nhánh nên khoá vắng mặt. Thiếu ở Lễ tân là hợp đồng lệch, trang vẫn không vỡ (hiện "Chưa cập nhật").
   chiNhanh?: ProfileBranch;
+  // Chỉ có khi API trả đúng một trong hai mã (Quản trị viên). `null`, thiếu hay mã lạ ⇒ không có khoá, trang hiện "Chưa cập nhật" (cùng cách `chiNhanh`).
+  phamViQuanTri?: AdminScope;
 }
 
 // Thân PUT /profile: ĐÚNG năm khoá, PUT thay cả bộ. `email` và mọi khoá khác bị API từ chối (400 TRUONG_KHONG_DUOC_PHEP).
