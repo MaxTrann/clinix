@@ -7,6 +7,7 @@ import { PatientLayout } from '../shell/patient-layout';
 import { PatientProfilePage } from '../pages/patient-profile-page';
 import {
   SAMPLE_PROFILE,
+  SAMPLE_RECEPTIONIST,
   createFakeProfileApi,
   type FakeProfileData,
   type FakeRelative,
@@ -27,14 +28,17 @@ export interface HarnessOptions {
 }
 
 // Fake auth + fake /api/profile, phiên đã đăng nhập (có access token). Chưa render gì.
+// `vaiTro` mặc định BenhNhan (F3, F6, F7); trang Lễ tân (patient F4) truyền 'LeTan': tên ở thanh bên là tên hồ sơ mẫu của vai trò đó.
 export async function setUpApi(
   initial: Partial<FakeProfileData> = {},
   relatives: FakeRelative[] = [],
+  vaiTro: 'BenhNhan' | 'LeTan' = 'BenhNhan',
 ) {
   resetAuthForTest();
   const account = {
-    vaiTro: 'BenhNhan',
-    hoTen: SAMPLE_PROFILE.hoTen,
+    vaiTro,
+    hoTen:
+      vaiTro === 'LeTan' ? SAMPLE_RECEPTIONIST.hoTen : SAMPLE_PROFILE.hoTen,
     daXacMinhEmail: true,
   };
   const auth = createFakeAuthApi(account);
