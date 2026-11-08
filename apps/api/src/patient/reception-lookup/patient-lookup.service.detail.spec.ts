@@ -153,6 +153,40 @@ describe('PatientLookupService.getDetail', () => {
     });
   });
 
+  it('PDS-04c (Q14, TC-11) không giới hạn số người thân: repository trả 8 người thân xen kẽ đang dùng và đã ngừng ⇒ nguoiThan đủ 8 phần tử, đúng thứ tự repository trả, mỗi phần tử đúng sáu khoá', async () => {
+    const eight = Array.from({ length: 8 }, (_, i) =>
+      relative(String(i + 1), i % 2 === 0),
+    );
+    const t = build(profile(), eight);
+
+    const { nguoiThan } = await t.service.getDetail('3');
+
+    expect(nguoiThan).toHaveLength(8);
+    expect(nguoiThan.map((r) => r.hoTen)).toStrictEqual(
+      eight.map((r) => r.hoTen),
+    );
+    expect(nguoiThan.map((r) => r.trangThaiHieuLuc)).toStrictEqual([
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+    ]);
+    for (const item of nguoiThan) {
+      expect(Object.keys(item).sort()).toStrictEqual([
+        'gioiTinh',
+        'hoTen',
+        'moiQuanHe',
+        'ngaySinh',
+        'soDienThoai',
+        'trangThaiHieuLuc',
+      ]);
+    }
+  });
+
   it('PDS-05 (Q18, H4) gốc ra ĐÚNG mười khoá theo thứ tự của PLAN 5.7, không khoá thừa dù findDetail trả thêm (matKhauBam, loaiTaiKhoan, taiKhoanId)', async () => {
     const dirty = {
       ...profile(),
