@@ -52,7 +52,11 @@ describe('routes', () => {
   it('WS-50 / hiện trang chủ CLINIX', () => {
     stubPublicApi();
     renderAt('/', createAppRoutes());
-    expect(screen.getByRole('heading', { name: 'CLINIX' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        name: 'Đặt lịch khám đúng bác sĩ, đúng giờ',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('WS-51 đường lạ hiện trang 404', () => {

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../../router/routes';
+import { emptyPublicHomeResponse } from '../../../test/empty-public-home-response';
 import type { BranchSummary } from '../api/search-types';
 import { resetSelectedBranchForTest } from '../../../shared/branch-selection';
 import {
@@ -114,6 +115,8 @@ beforeEach(() => {
           }),
         );
       }
+      const homeResponse = emptyPublicHomeResponse(url);
+      if (homeResponse) return Promise.resolve(homeResponse);
       const detail = /\/public\/branches\/(\d+)/.exec(url);
       if (detail && detailFails) {
         return Promise.resolve(
