@@ -4,6 +4,7 @@ import type { TrangThaiTaiKhoan } from '../../auth/entities/enums.js';
 import { PageQueryDto } from '../../common/paging/page-query.dto.js';
 import type { Paged } from '../../common/paging/paged.js';
 import { PATIENT_FIELD_ERROR_CODES } from '../patient.constants.js';
+import type { RelativeResponse } from '../relatives/relatives.dto.js';
 import {
   isValidKeyword,
   normalizeKeyword,
@@ -51,3 +52,33 @@ export interface PatientLookupItem {
 }
 
 export type PatientLookupPage = Paged<PatientLookupItem>;
+
+/**
+ * Một người thân trong chi tiết bệnh nhân (task B7; PLAN patient Q18; TRACKING B7-B): ĐÚNG sáu khoá của `RelativeResponse` (B3) trừ `hoSoNguoiThanId`
+ * (mã nội bộ: Lễ tân không có API nào nhận id người thân). `trangThaiHieuLuc` là boolean (cả hai trạng thái đều được trả); web dùng chỉ số mảng làm `key`.
+ */
+export type PatientDetailRelative = Omit<RelativeResponse, 'hoSoNguoiThanId'>;
+
+/**
+ * Phần hồ sơ BẢN THÂN của chi tiết bệnh nhân (kết quả của repository; chưa có người thân): ĐÚNG chín khoá này (danh sách trắng, Q18).
+ *  - `soDienThoai`, `email`, `hoTen` NOT NULL ở `tai_khoan`; `gioiTinh`, `ngaySinh`, `diaChi` có thể `null`; `ngaySinh` là `YYYY-MM-DD`.
+ *  - `thoiDiemTao`: chuỗi ISO 8601 UTC (`Date.toISOString()`, cùng quy ước `thoiGian` của B5); nơi hiển thị tự đổi sang NGÀY giờ Việt Nam.
+ *  - `trangThai` là MÃ (`DangHoatDong`, `NgungHoatDong`); `soLanVangMat` là số (`benh_nhan.so_lan_no_show`, NOT NULL DEFAULT 0), luôn có.
+ * Không có `taiKhoanId` (id đã nằm trên đường dẫn), mật khẩu băm, khoá đăng nhập, ví, ảnh, "Lịch sử lịch hẹn" (việc của `booking`).
+ */
+export interface PatientDetailProfile {
+  hoTen: string;
+  email: string;
+  soDienThoai: string;
+  gioiTinh: string | null;
+  ngaySinh: string | null;
+  diaChi: string | null;
+  thoiDiemTao: string;
+  trangThai: TrangThaiTaiKhoan;
+  soLanVangMat: number;
+}
+
+/** Thân 200 của `GET /reception/patients/:id`: ĐÚNG mười khoá theo thứ tự của PLAN 5.7 (chín khoá bản thân rồi `nguoiThan`). */
+export interface PatientDetail extends PatientDetailProfile {
+  nguoiThan: PatientDetailRelative[];
+}

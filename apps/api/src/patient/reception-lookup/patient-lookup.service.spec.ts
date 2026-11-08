@@ -1,5 +1,6 @@
 import type { DataSource, EntityManager } from 'typeorm';
 import { vi } from 'vitest';
+import type { RelativesRepository } from '../relatives/relatives.repository.js';
 import {
   buildLookupPatterns,
   type LookupPatterns,
@@ -41,6 +42,7 @@ function build(total: number, rows: PatientLookupItem[] = [item('1')]) {
       count,
       findPage,
     } as unknown as PatientLookupRepository,
+    {} as unknown as RelativesRepository,
   );
   return { service, count, findPage };
 }
@@ -102,6 +104,7 @@ describe('PatientLookupService.search', () => {
         count,
         findPage,
       } as unknown as PatientLookupRepository,
+      {} as unknown as RelativesRepository,
     );
 
     const result = await service.search(
@@ -160,6 +163,7 @@ describe('PatientLookupService.search', () => {
         count: vi.fn(() => Promise.reject(failure)),
         findPage: vi.fn(),
       } as unknown as PatientLookupRepository,
+      {} as unknown as RelativesRepository,
     );
     await expect(countFails.search(query())).rejects.toBe(failure);
 
@@ -169,6 +173,7 @@ describe('PatientLookupService.search', () => {
         count: vi.fn(() => Promise.resolve(5)),
         findPage: vi.fn(() => Promise.reject(failure)),
       } as unknown as PatientLookupRepository,
+      {} as unknown as RelativesRepository,
     );
     await expect(pageFails.search(query())).rejects.toBe(failure);
   });

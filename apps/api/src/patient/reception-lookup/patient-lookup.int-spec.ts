@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 import { AdminFixtures } from '../../admin/testing/admin-fixtures.js';
 import { insertBenhNhan } from '../../auth/entities/testing/auth-fixtures.js';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
+import { RelativesRepository } from '../relatives/relatives.repository.js';
 import {
   addManyPatients,
   addPatient,
@@ -35,7 +36,11 @@ let service: PatientLookupService;
 useIntegrationHooks((testDb) => {
   db = testDb;
   fx = new AdminFixtures(testDb);
-  service = new PatientLookupService(testDb, new PatientLookupRepository());
+  service = new PatientLookupService(
+    testDb,
+    new PatientLookupRepository(),
+    new RelativesRepository(),
+  );
 });
 
 // Đầu vào giống DTO đã kiểm: offset = (page - 1) * pageSize

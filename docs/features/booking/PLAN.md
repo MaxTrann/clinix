@@ -6,6 +6,7 @@
 > Kế hoạch do AI (Claude Code, Claude Sonnet 5.5) lập theo [`docs/FEATURE_PLANNING_PROMPT.md`](../../FEATURE_PLANNING_PROMPT.md) →
 > **ghi `AI_USAGE_LOG.md` (bảng 1) cho lần lập kế hoạch này và cho mọi lần dùng AI sinh mã theo kế hoạch** (CONTRIBUTING mục 4).
 > Đã kiểm mã thật ở commit `a3f26b1` (= `origin/main` = PR 220 khi lập bản nháp 1; **không** tin ô tick của PLAN các module khác) và đọc Figma CLINIX ngày 08/11/2026 (mục 4.4).
+> Sau đó đã gộp `origin/main` `3143568` (PR 221, patient B7): thay đổi chỉ nằm ở `patient/reception-lookup/`, `patient/testing/`, vài dòng chú thích và quy tắc 53 của `docs/database/*`, `docs/TECH_DEBT.md` (dòng 83) và tài liệu patient; không đổi chỗ nào PLAN này dựa vào.
 > Mọi chỗ ghi **"chưa đo"** là suy ra từ mã/tài liệu, **chưa chạy thử** trên MySQL thật; danh sách việc phải đo trước khi viết mã ở mục 5.15.
 
 ## 0. Quy ước đọc
@@ -49,7 +50,7 @@ Không có use case nào của module này **tải ảnh lên**, nên không có
 - **`appointments/` đã có (patient B5), chỉ là hàm thuần nhận `EntityManager`, chưa có module/controller:** `active-appointment-states.ts` (`ACTIVE_APPOINTMENT_STATES` = `ChoThanhToan`, `DaXacNhan`, `DaTiepDon`), `active-appointment.query.ts`
   (`findActiveAppointments(em, benhNhanId, hoSoNguoiThanId)`, câu đọc thường), `visit-profile.query.ts` (`lockVisitProfile`, `isVisitProfileUsable`: `FOR UPDATE` hàng `ho_so_nguoi_than`, trả `missing`/`inactive`/`active`), cùng spec và `appointments.int-spec.ts`.
   Comment trong mã ghi **hợp đồng khoá**; `booking` tiếp quản thư mục này.
-- `patient` B1–B6 đã merge (hồ sơ cá nhân, người thân, ngừng sử dụng, tra cứu bệnh nhân của Lễ tân); B7 đang làm. `RelativesService.deactivate` chạy `REPEATABLE READ`, khoá `benh_nhan` → `ho_so_nguoi_than` → đọc `lich_hen`; mã `HO_SO_NGUOI_THAN_DA_NGUNG` (409) đã có ở `patient/relatives`.
+- `patient` B1–B7 đã merge (hồ sơ cá nhân, người thân, ngừng sử dụng, tra cứu bệnh nhân của Lễ tân gồm tìm kiếm B6 và chi tiết B7: PR 221, squash `3143568`). `RelativesService.deactivate` chạy `REPEATABLE READ`, khoá `benh_nhan` → `ho_so_nguoi_than` → đọc `lich_hen`; mã `HO_SO_NGUOI_THAN_DA_NGUNG` (409) đã có ở `patient/relatives`.
 - `search` (Trung) 14/28 task: API công khai chi nhánh, chuyên khoa, nhóm dịch vụ, dịch vụ, bác sĩ, gợi ý, tổng quan. `search/pricing/exam-price.reader.ts` (`ExamPriceReader.loadRules`, `priceFor`) — **`SearchModule` không có `exports`**, nên module khác chưa import được;
   `search/common/public-doctor.sql.ts` có hằng `PUBLIC_DOCTOR_CONDITION` ("bác sĩ công khai": tài khoản `DangHoatDong`, chuyên khoa `DangHoatDong`, cặp chi nhánh–dịch vụ còn trong `chi_nhanh_dich_vu_kham`).
 - `pricing/` dùng chung: `surcharge.calculator.ts` (`computeSurcharge`, `computeExamPrice`, `pickApplicableRule`) và `money.ts` (`addMoney`, `toCents`, cộng bằng BigInt) — **đã có**, dùng lại, không viết phép tính thứ hai.
