@@ -489,7 +489,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 03/11/2026: *
 | ☑ | F7 | Chi tiết bác sĩ `/bac-si/:id` (`653:2`–`657:2`): tab Giới thiệu, Phòng khám, Hướng dẫn (tĩnh), Đánh giá (chỉ điểm + số lượt — Q16); tab Lịch khám chừa chỗ `[SAU]`; "Nhắn tin" vô hiệu; bỏ "Đặt trước tối đa 7 ngày" | F5, B6 | TCBS b9 | `feat(web)` |
 | ☑ | F8 | Trang chủ thật (`257:2`) theo Q21; xoá `pages/home-page.tsx` và trang chủ tạm của F1, giữ hành vi không chuyển người đã đăng nhập | F1, F4, F5, B9 | Điểm vào TCCN b1, TCBS b1 | Triển khai/kiểm local 08/11/2026; chờ PR/review/merge (#175); xem TRACKING · `feat(web)` |
 | ☐ | F9 | Ô tìm tổng + hộp gợi ý (`258:2`): tự tìm sau 300 ms, huỷ yêu cầu cũ, combobox ARIA, bấm gợi ý mở trang tương ứng | F8, B8 | TCCN b3, TCBS b1 (Q20) | Triển khai/kiểm local 08/11/2026; chờ PR/review/merge (#176); xem TRACKING · `feat(web)` |
-| ☐ | F10 | Màn hẹp (< 1024 px): thanh điều hướng thu vào ngăn kéo (bẫy focus, Esc đóng); bộ chọn chi nhánh trong ngăn kéo; **cuối cụm 1**, không chặn F1 | F1, F2 | Khung (Q19f) | `feat(web)` |
+| ☐ | F10 | Màn hẹp (< 1024 px): thanh điều hướng thu vào ngăn kéo (bẫy focus, Esc đóng); bộ chọn chi nhánh trong ngăn kéo; **cuối cụm 1**, không chặn F1. Đã triển khai/kiểm local 08/11/2026 (#177), xem TRACKING; ô chưa tick chờ merge | F1, F2 | Khung (Q19f) | `feat(web)` |
 
 ### 6.5 Nhóm D — Đồng bộ tài liệu (đi cùng PR của task code tương ứng)
 
