@@ -14,7 +14,7 @@ import { useSelectedBranch } from '../../../shared/branch-selection';
 import { BranchPicker } from './branch-picker';
 import type { PublicNavConfig } from './public-nav-types';
 import { PublicFooter } from './public-footer';
-import { PublicHeader } from './public-header';
+import { PublicShell } from './public-shell';
 import { usePublicBranches } from './use-public-branches';
 
 export interface PublicLayoutProps {
@@ -62,7 +62,7 @@ export function PublicLayout({ nav }: PublicLayoutProps) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <PublicHeader
+      <PublicShell
         navItems={nav.navItems}
         bookingItem={nav.bookingItem}
         loginPath={LOGIN_PATH}
@@ -93,23 +93,24 @@ export function PublicLayout({ nav }: PublicLayoutProps) {
               }
             : null
         }
-      />
-      <div className="flex-1">
-        <Outlet />
-      </div>
-      <PublicFooter
-        links={nav.footerLinks}
-        legalLinks={nav.legalLinks}
-        clinicInfo={clinicInfo}
-        hours={
-          hoursSource
-            ? {
-                branchName: hoursSource.ten,
-                groups: groupWeeklyHours(hoursSource.lichHoatDong),
-              }
-            : null
-        }
-      />
+      >
+        <div className="flex-1">
+          <Outlet />
+        </div>
+        <PublicFooter
+          links={nav.footerLinks}
+          legalLinks={nav.legalLinks}
+          clinicInfo={clinicInfo}
+          hours={
+            hoursSource
+              ? {
+                  branchName: hoursSource.ten,
+                  groups: groupWeeklyHours(hoursSource.lichHoatDong),
+                }
+              : null
+          }
+        />
+      </PublicShell>
     </div>
   );
 }

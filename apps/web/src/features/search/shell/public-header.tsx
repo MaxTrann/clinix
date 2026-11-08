@@ -21,6 +21,7 @@ export interface PublicHeaderProps {
   serviceGroups?: ServiceGroupLink[];
   // Bộ chọn chi nhánh, đặt bên trái nút "Đặt lịch khám" (Q19a)
   branchPicker?: ReactNode;
+  menuButton?: ReactNode;
 }
 
 // Số đo theo Figma `257:6` (gốc 15px): cao 60px, chữ 13,125px, mục py 7,5px px 11,25px, bo 7,375px.
@@ -41,7 +42,7 @@ function DisabledItem({ item }: { item: PublicNavItem }) {
   );
 }
 
-function NavEntry({
+export function NavEntry({
   item,
   serviceGroups,
 }: {
@@ -76,6 +77,60 @@ function NavEntry({
   );
 }
 
+export function PublicActions({
+  bookingItem,
+  loginPath,
+  user,
+  branchPicker,
+  compact = false,
+}: Pick<
+  PublicHeaderProps,
+  'bookingItem' | 'loginPath' | 'user' | 'branchPicker'
+> & { compact?: boolean }) {
+  return (
+    <div
+      className={`flex gap-4 ${compact ? 'flex-col items-stretch' : 'items-center'}`}
+    >
+      {branchPicker}
+      {bookingItem.to ? (
+        <Link
+          to={bookingItem.to}
+          // Figma: chữ trắng trên cam `#fe9a00` không đạt tương phản (Q26) nên dùng chữ đậm tối trên nền cam
+          className="flex items-center gap-1.5 rounded-[0.625rem] bg-amber-500 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-amber-400"
+        >
+          <CalendarDays className="size-4" aria-hidden="true" />
+          {bookingItem.label}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          disabled
+          title={NOT_IMPLEMENTED_TITLE}
+          className="flex items-center gap-1.5 rounded-[0.625rem] bg-gray-100 px-4 py-2 text-sm font-medium text-gray-500"
+        >
+          <CalendarDays className="size-4" aria-hidden="true" />
+          {bookingItem.label}
+          <span className="sr-only"> (chưa được triển khai)</span>
+        </button>
+      )}
+      {user ? (
+        <AccountMenu
+          userName={user.name}
+          homePath={user.homePath}
+          logout={user.logout}
+        />
+      ) : (
+        <Link
+          to={loginPath}
+          className="rounded-[0.625rem] border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        >
+          Đăng nhập
+        </Link>
+      )}
+    </div>
+  );
+}
+
 export function PublicHeader({
   navItems,
   bookingItem,
@@ -83,6 +138,7 @@ export function PublicHeader({
   user,
   serviceGroups,
   branchPicker,
+  menuButton,
 }: PublicHeaderProps) {
   return (
     <header className="border-b border-gray-100 bg-white shadow-sm">
@@ -94,54 +150,30 @@ export function PublicHeader({
           <span className="text-lg font-semibold text-gray-900">CLINIX</span>
         </Link>
 
-        <nav aria-label="Điều hướng chính" className="flex items-center gap-1">
-          {navItems.map((item) => (
-            <NavEntry
-              key={item.label}
-              item={item}
-              serviceGroups={serviceGroups}
-            />
-          ))}
-        </nav>
+        {!menuButton && (
+          <nav
+            aria-label="Điều hướng chính"
+            className="flex items-center gap-1"
+          >
+            {navItems.map((item) => (
+              <NavEntry
+                key={item.label}
+                item={item}
+                serviceGroups={serviceGroups}
+              />
+            ))}
+          </nav>
+        )}
 
-        <div className="flex items-center gap-4">
-          {branchPicker}
-          {bookingItem.to ? (
-            <Link
-              to={bookingItem.to}
-              // Figma: chữ trắng trên cam `#fe9a00` không đạt tương phản (Q26) nên dùng chữ đậm tối trên nền cam
-              className="flex items-center gap-1.5 rounded-[0.625rem] bg-amber-500 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-amber-400"
-            >
-              <CalendarDays className="size-4" aria-hidden="true" />
-              {bookingItem.label}
-            </Link>
-          ) : (
-            <button
-              type="button"
-              disabled
-              title={NOT_IMPLEMENTED_TITLE}
-              className="flex items-center gap-1.5 rounded-[0.625rem] bg-gray-100 px-4 py-2 text-sm font-medium text-gray-500"
-            >
-              <CalendarDays className="size-4" aria-hidden="true" />
-              {bookingItem.label}
-              <span className="sr-only"> (chưa được triển khai)</span>
-            </button>
-          )}
-          {user ? (
-            <AccountMenu
-              userName={user.name}
-              homePath={user.homePath}
-              logout={user.logout}
-            />
-          ) : (
-            <Link
-              to={loginPath}
-              className="rounded-[0.625rem] border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              Đăng nhập
-            </Link>
-          )}
-        </div>
+        {!menuButton && (
+          <PublicActions
+            bookingItem={bookingItem}
+            loginPath={loginPath}
+            user={user}
+            branchPicker={branchPicker}
+          />
+        )}
+        {menuButton}
       </div>
     </header>
   );
