@@ -187,7 +187,8 @@ npm run test:e2e                 # AppModule + MySQL thật
 
 - Hai lệnh tự đọc `.env` ở gốc repo: dùng `TEST_DB_HOST/PORT/USER/NAME` (mặc định `127.0.0.1:3306`, user `root`, DB `clinix_test`) và mật khẩu `TEST_DB_PASSWORD`, nếu không đặt thì lấy `MYSQL_ROOT_PASSWORD`.
 - Test **xóa và tạo lại** các DB `clinix_test`, `clinix_ref_test`, `clinix_migration_test`; tên DB test bắt buộc viết thường và kết thúc `_test` (mã từ chối chạy với tên khác) nên **không bao giờ đụng DB dev `clinix`**.
-- Chạy tuần tự (không song song) vì các file dùng chung một DB test. Trên CI, job `api` có service MySQL 8.4 riêng và chạy cả hai lệnh này.
+- Chạy tuần tự (không song song) vì các file dùng chung một DB test. Trên CI, hai lệnh này chạy ở hai job riêng (`api-int`, `api-e2e`), mỗi job có service MySQL 8.4 riêng nên dùng chung tên DB `clinix_test` vẫn không đụng nhau; job `api` (check bắt buộc) chỉ gom kết quả của `api-unit`, `api-int`, `api-e2e`.
+- CI chỉ chạy phần có file thay đổi (job `detect` trong `.github/workflows/ci.yml`): PR chỉ sửa web bỏ qua các job API, PR chỉ sửa tài liệu bỏ qua cả API lẫn web, push vào `main` luôn chạy đủ. Các job bị bỏ qua hiện "skipped" và vẫn tính là đạt. Khi thêm một test đọc file của phần khác (như `docs/database/clinix_mysql.sql` hoặc `apps/api/src/auth/password/password-policy.vectors.json`), thêm đường dẫn đó vào `detect`, nếu không PR chỉ sửa file ấy sẽ qua CI mà `main` đỏ.
 
 ## 6. Quy trình làm việc hằng ngày
 
