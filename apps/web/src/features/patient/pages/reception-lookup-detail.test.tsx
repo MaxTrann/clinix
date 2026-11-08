@@ -19,6 +19,7 @@ import {
 } from '../testing/fake-lookup-api';
 import {
   advance,
+  clearButton,
   nextTick,
   renderLookupPage,
   resultRow,
@@ -431,6 +432,50 @@ describe('từ khoá đổi trong lúc đang xem hồ sơ (Q18, F8-G)', () => {
     expect(lookup.details).toHaveLength(1);
     expect(cell('Email')).toBe('hung@example.invalid');
     expect(resultRow(/Đặng Văn Hùng/)).toHaveAttribute('aria-current', 'true');
+  });
+});
+
+describe('bỏ chọn là bỏ THẬT, không phải ẩn tạm (Q18, H4; lỗi phiên kiểm 08/11/2026)', () => {
+  const heading = () =>
+    within(detailRegion()).queryByRole('heading', {
+      level: 2,
+      name: 'Đặng Văn Hùng',
+    });
+  const anyCurrent = () =>
+    resultRows().some((row) => row.hasAttribute('aria-current'));
+
+  it('LK-99 TC-17 Q18 H4 từ khoá đổi rồi QUAY LẠI từ khoá cũ: hồ sơ đã bỏ chọn KHÔNG tự hiện lại, hàng không còn aria-current, không tải lại chi tiết', async () => {
+    const { lookup } = await mount();
+    await open(/Đặng Văn Hùng/);
+    await advance(50);
+    expect(heading()).toBeInTheDocument();
+
+    await searchFor('mai');
+    expect(heading()).toBeNull();
+
+    await searchFor('example');
+    expect(heading()).toBeNull();
+    expect(anyCurrent()).toBe(false);
+    expect(
+      screen.getByText('Chọn một bệnh nhân để xem hồ sơ'),
+    ).toBeInTheDocument();
+    expect(lookup.details).toHaveLength(1);
+  });
+
+  it('LK-100 TC-17 Q18 H4 bấm "Xóa tìm kiếm" rồi gõ lại ĐÚNG từ khoá cũ: hồ sơ cũ KHÔNG hiện lại', async () => {
+    const { lookup } = await mount();
+    await open(/Đặng Văn Hùng/);
+    await advance(50);
+    expect(heading()).toBeInTheDocument();
+
+    fireEvent.click(clearButton());
+    await advance(50);
+    expect(heading()).toBeNull();
+
+    await searchFor('example');
+    expect(heading()).toBeNull();
+    expect(anyCurrent()).toBe(false);
+    expect(lookup.details).toHaveLength(1);
   });
 });
 

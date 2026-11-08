@@ -165,6 +165,46 @@ describe('dưới 1024 px: một cột', () => {
   });
 });
 
+describe('bỏ chọn thật khi từ khoá đổi, ở cả hai chế độ (Q18, H4)', () => {
+  const noPatientProfile = () =>
+    expect(
+      within(detailRegion()).queryByRole('heading', { level: 2 }),
+    ).toBeNull();
+
+  it('LK-101 Q21c Q18 H4 390 px: xem hồ sơ, "Quay lại danh sách", đổi từ khoá rồi QUAY LẠI từ khoá cũ ⇒ không có hồ sơ, vẫn ở chế độ danh sách', async () => {
+    await mount(390);
+    fireEvent.click(resultRow(/Đặng Văn Hùng/));
+    await advance(0);
+    expect(searchWrapper()).toHaveAttribute('hidden');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại danh sách' }));
+    await advance(0);
+    await searchFor('mai');
+    await searchFor('example');
+
+    noPatientProfile();
+    expect(detailRegion()).toHaveAttribute('hidden');
+    expect(resultsRegion()).not.toHaveAttribute('hidden');
+    expect(searchWrapper()).not.toHaveAttribute('hidden');
+    expect(
+      screen.getAllByRole('button').some((b) => b.hasAttribute('aria-current')),
+    ).toBe(false);
+  });
+
+  it('LK-102 Q21c Q18 H4 chọn hồ sơ ở màn rộng, đổi từ khoá rồi quay lại từ khoá cũ, rồi thu hẹp ⇒ KHÔNG nhảy về chế độ chỉ-hồ-sơ', async () => {
+    const { media } = await mount(1280);
+    fireEvent.click(resultRow(/Đặng Văn Hùng/));
+    await advance(0);
+    await searchFor('mai');
+    await searchFor('example');
+
+    act(() => media.resize(390));
+    noPatientProfile();
+    expect(detailRegion()).toHaveAttribute('hidden');
+    expect(resultsRegion()).not.toHaveAttribute('hidden');
+  });
+});
+
 describe('trợ năng (KG-09)', () => {
   it('LK-96 KG-09 mọi nút (hàng, "Xóa tìm kiếm", "Trang trước", "Trang sau", "Quay lại danh sách") đều có tên truy cập', async () => {
     const media = fakeMatchMedia(390);

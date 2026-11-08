@@ -29,17 +29,18 @@ type FocusTarget = 'detail' | 'list' | 'results';
 export function ReceptionLookupPage() {
   const search = usePatientSearch();
   const wide = useMediaQuery(WIDE_QUERY);
-  // Hồ sơ đang chọn nhớ từ khoá lúc chọn: chỉ hợp lệ khi từ khoá đang áp dụng còn đúng như thế. Từ khoá mới BẮT ĐẦU TÌM (hoặc ô xuống dưới
-  // 2 ký tự) thì tự bỏ chọn; đổi trang hay Enter làm mới thì giữ. Suy ra từ state, không dùng effect đặt state.
-  const [selection, setSelection] = useState<{
-    id: string;
-    keyword: string;
-  } | null>(null);
+  // Hồ sơ đang chọn (mã bệnh nhân). Từ khoá mới BẮT ĐẦU TÌM (hoặc ô xuống dưới 2 ký tự, hay bị xoá) thì BỎ CHỌN THẬT, không phải ẩn tạm; đổi trang
+  // hay Enter làm mới không đổi `search.keyword` nên giữ. Mẫu "điều chỉnh state khi render" của React (so với giá trị lần render trước), không
+  // dùng effect đặt state. Bản đầu nhớ từ khoá lúc chọn rồi so lúc render, nên hồ sơ cũ tự hiện lại khi từ khoá quay về đúng chuỗi cũ (hay xoá
+  // ô rồi gõ lại): phiên kiểm độc lập 08/11/2026 bắt được, vì đó là dữ liệu cá nhân của người Lễ tân không bấm ở lần tìm này (H4).
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'detail'>('list');
-  const selectedId =
-    selection !== null && selection.keyword === search.keyword
-      ? selection.id
-      : null;
+  const [previousKeyword, setPreviousKeyword] = useState(search.keyword);
+  if (search.keyword !== previousKeyword) {
+    setPreviousKeyword(search.keyword);
+    setSelectedId(null);
+    setView('list');
+  }
   const detail = usePatientDetail(selectedId);
 
   const resultsRegion = useRef<HTMLElement>(null);
@@ -65,7 +66,7 @@ export function ReceptionLookupPage() {
 
   function select(id: string) {
     if (search.keyword === null) return;
-    setSelection({ id, keyword: search.keyword });
+    setSelectedId(id);
     setView('detail');
     if (!wide) pendingFocus.current = 'detail';
   }
