@@ -264,7 +264,7 @@ it('TCH-02: đổi chi nhánh huỷ yêu cầu cũ, bỏ kết quả muộn; ove
 
 it('TCH-02 / Q20: gửi tìm kiếm chuyển sang đội ngũ bác sĩ với từ khoá đã trim', async () => {
   openHome();
-  fireEvent.change(screen.getByRole('searchbox'), {
+  fireEvent.change(screen.getByRole('combobox'), {
     target: { value: '  tim mạch  ' },
   });
   fireEvent.submit(screen.getByRole('search'));

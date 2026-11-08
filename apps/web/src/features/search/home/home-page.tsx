@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { homePathFor, useAuth } from '../../auth';
 import { useSelectedBranch } from '../../../shared/branch-selection';
 import { EmptyState } from '../../../shared/ui/empty-state';
@@ -20,16 +20,15 @@ import {
   HomeSpecialtyCard,
 } from './home-cards';
 import { HomeProcess } from './home-process';
+import { GlobalSearch } from './global-search';
 
 export const HOME_PREVIEW_SIZE = 8;
 const container = 'mx-auto max-w-300 px-7.5';
 
 export function HomePage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { selection } = useSelectedBranch();
   const branchId = selection?.chiNhanhId ?? null;
-  const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'kinhNghiem' | 'danhGiaCao'>('kinhNghiem');
   const carousel = useRef<HTMLUListElement>(null);
   const overview = useRemote(getOverview, []);
@@ -64,12 +63,14 @@ export function HomePage() {
       {/* Q26: nền brand-strong giữ chữ trắng đủ tương phản; không dùng gradient sáng phía sau chữ. */}
       <section
         aria-labelledby="home-title"
-        className="relative overflow-hidden bg-brand-strong text-white"
+        className="relative bg-brand-strong text-white"
       >
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute right-20 top-10 size-72 rounded-full border border-white/20"
-        />
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+        >
+          <div className="absolute right-20 top-10 size-72 rounded-full border border-white/20" />
+        </div>
         <div className={`${container} relative py-20`}>
           <div className="max-w-168">
             <p className="text-sm">Phòng khám CLINIX</p>
@@ -84,45 +85,7 @@ export function HomePage() {
               Tìm dịch vụ, chuyên khoa hoặc bác sĩ, rồi đặt lịch khám chỉ trong
               vài bước.
             </p>
-            <form
-              role="search"
-              aria-label="Tìm kiếm trên trang chủ"
-              className="mt-8 flex overflow-hidden rounded-2xl bg-white text-gray-900 shadow-xl"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const q = query.trim();
-                void navigate(
-                  q
-                    ? `${DOCTOR_TEAM_PATH}?${new URLSearchParams({ q })}`
-                    : DOCTOR_TEAM_PATH,
-                );
-              }}
-            >
-              <label className="flex min-w-0 flex-1 items-center gap-3 px-4">
-                <img
-                  src="/assets/search/home/search.svg"
-                  alt=""
-                  aria-hidden="true"
-                />
-                <span className="sr-only">
-                  Tìm bác sĩ, chuyên khoa, dịch vụ
-                </span>
-                <input
-                  type="search"
-                  maxLength={100}
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Tìm bác sĩ, chuyên khoa, dịch vụ"
-                  className="min-w-0 flex-1 border-0 bg-white py-4 text-gray-900"
-                />
-              </label>
-              <button
-                type="submit"
-                className="border-l border-gray-200 bg-brand-strong px-5 font-medium text-white"
-              >
-                Tìm kiếm
-              </button>
-            </form>
+            <GlobalSearch />
             <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
               <span>Gợi ý:</span>
               <Link

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../../router/routes';
@@ -153,6 +159,25 @@ function renderAt(path: string) {
 }
 
 describe('Trang Đội ngũ bác sĩ', () => {
+  it('TCH-05 / Q20: gợi ý dịch vụ lọc bác sĩ bằng id từ URL; đổi dịch vụ trên cùng trang không giữ bộ lọc cũ', async () => {
+    const router = renderAt('/bac-si?dichVuKhamId=20');
+    await screen.findByText(/Nguyễn Minh Anh/);
+    expect(doctorCalls[0].searchParams.get('dichVuKhamId')).toBe('20');
+    await act(async () => {
+      await router.navigate('/bac-si?dichVuKhamId=21');
+    });
+    await waitFor(() =>
+      expect(doctorCalls.at(-1)?.searchParams.get('dichVuKhamId')).toBe('21'),
+    );
+    await act(async () => {
+      await router.navigate('/bac-si?q=tim');
+    });
+    await waitFor(() =>
+      expect(doctorCalls.at(-1)?.searchParams.get('q')).toBe('tim'),
+    );
+    expect(doctorCalls.at(-1)?.searchParams.has('dichVuKhamId')).toBe(false);
+  });
+
   it('TBS-21 hiện bác sĩ ngay, không bắt chọn dịch vụ; cùng thẻ với F5', async () => {
     renderAt('/bac-si');
     expect(
