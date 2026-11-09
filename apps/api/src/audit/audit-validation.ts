@@ -106,6 +106,50 @@ function configChanges(changes: unknown): void {
   }
 }
 
+function calendarDate(value: unknown): asserts value is string {
+  // Ngày lịch YYYY-MM-DD có thật (2026-02-30 bị loại); so bằng UTC nên không phụ thuộc múi giờ máy.
+  requireValid(
+    typeof value === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      new Date(`${value}T00:00:00Z`).toISOString().startsWith(value),
+  );
+}
+function shiftName(value: unknown): void {
+  requireValid(value === 'CaSang' || value === 'CaChieu');
+}
+function leaveFacts(
+  changes: unknown,
+  extra: string[] = [],
+): asserts changes is Record<string, unknown> {
+  fields(changes, [
+    'bac_si_id',
+    'ngay_bat_dau',
+    'ngay_ket_thuc',
+    'ca',
+    ...extra,
+  ]);
+  id(changes.bac_si_id);
+  calendarDate(changes.ngay_bat_dau);
+  calendarDate(changes.ngay_ket_thuc);
+  requireValid(changes.ngay_bat_dau <= changes.ngay_ket_thuc);
+  if (changes.ca !== null) {
+    shiftName(changes.ca);
+    // Nghỉ theo ca chỉ 1 ngày (chk_nghi_phep_hinh_thuc).
+    requireValid(changes.ngay_bat_dau === changes.ngay_ket_thuc);
+  }
+}
+function uniqueList(
+  value: unknown,
+  each: (item: unknown) => void,
+): asserts value is unknown[] {
+  requireValid(
+    Array.isArray(value) &&
+      value.length > 0 &&
+      new Set(value).size === value.length,
+  );
+  value.forEach(each);
+}
+
 function validateChanges(entry: Record<string, unknown>): void {
   const changes = entry.changes;
   const branch = entry.branchId;
@@ -226,6 +270,45 @@ function validateChanges(entry: Record<string, unknown>): void {
       count(changes.so_benh_nhan_thong_bao_lai);
       break;
     }
+    case 'PhanCongLichLamViec':
+      requireValid(entry.targetType === 'tai_khoan');
+      id(branch);
+      fields(changes, ['tu_ngay', 'den_ngay', 'thu_trong_tuan', 'ca', 'so_ca']);
+      calendarDate(changes.tu_ngay);
+      calendarDate(changes.den_ngay);
+      requireValid(changes.tu_ngay <= changes.den_ngay);
+      uniqueList(changes.thu_trong_tuan, (day) =>
+        requireValid(
+          Number.isInteger(day) && Number(day) >= 1 && Number(day) <= 7,
+        ),
+      );
+      uniqueList(changes.ca, shiftName);
+      requireValid(
+        Number.isSafeInteger(changes.so_ca) && Number(changes.so_ca) >= 1,
+      );
+      break;
+    case 'GoLichLamViec':
+      requireValid(entry.targetType === 'lich_lam_viec');
+      id(branch);
+      fields(changes, ['bac_si_id', 'ngay', 'ca', 'so_khung_gio']);
+      id(changes.bac_si_id);
+      calendarDate(changes.ngay);
+      shiftName(changes.ca);
+      count(changes.so_khung_gio);
+      break;
+    case 'DuyetNghiPhep':
+      requireValid(entry.targetType === 'yeu_cau_nghi_phep');
+      id(branch);
+      leaveFacts(changes);
+      break;
+    case 'TuChoiNghiPhep':
+      requireValid(entry.targetType === 'yeu_cau_nghi_phep');
+      id(branch);
+      leaveFacts(changes, ['ly_do_tu_choi']);
+      // Lý do của Admin 1–255 ký tự (Q27c); không phải lý do của Bác sĩ.
+      reason(changes.ly_do_tu_choi);
+      requireValid(String(changes.ly_do_tu_choi).length <= 255);
+      break;
     default:
       throw new AuditError('AUDIT_ACTION_UNSUPPORTED');
   }

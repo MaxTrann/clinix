@@ -6,6 +6,7 @@ import { TAO_BANG_NGHI_PHEP_SQL } from './migrations/1793275200000-tao-bang-nghi
 import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-su.js';
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
 import {
+  maskAuditEnums,
   normalizeStatement,
   officialStatementsFor,
   referencedTables,
@@ -158,7 +159,11 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     const official =
       officialStatementsFor(OPERATIONS_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    expect(TAO_BANG_VAN_HANH_SQL.map(normalizeStatement)).toEqual(official);
+    // Hai enum của nhat_ky_hanh_dong được mở rộng ở migration P4 (sau migration này); trạng thái cuối
+    // được so bằng SHOW CREATE TABLE ở test phía trên và MG-08.
+    expect(
+      TAO_BANG_VAN_HANH_SQL.map(normalizeStatement).map(maskAuditEnums),
+    ).toEqual(official.map(maskAuditEnums));
   });
 
   it('mọi câu lệnh trong migration P3 chỉ tác động bảy bảng vận hành', () => {

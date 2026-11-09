@@ -78,3 +78,14 @@ export function officialStatementsFor(tables: readonly string[]): string[] {
 export function normalizeStatement(statement: string): string {
   return statement.replace(/\r\n/g, '\n').trim();
 }
+
+/**
+ * Che hai danh sách ENUM của nhat_ky_hanh_dong. Migration vận hành (P3) giữ danh sách cũ vì enum được mở
+ * rộng bằng migration P4 về sau; trạng thái cuối được so bằng SHOW CREATE TABLE và MG-08.
+ */
+export function maskAuditEnums(statement: string): string {
+  return statement.replace(
+    /`(hanh_dong|loai_doi_tuong)` ENUM \([^)]*\)/g,
+    '`$1` ENUM (...)',
+  );
+}

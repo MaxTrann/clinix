@@ -1,3 +1,4 @@
+import { NhatKyPhanCongNghiPhep1793361600000 } from './1793361600000-nhat-ky-phan-cong-nghi-phep.js';
 import { TaoBangAnh1793188800000 } from './1793188800000-tao-bang-anh.js';
 import { TaoBangAuth1793001600000 } from './1793001600000-tao-bang-auth.js';
 import { TaoBangDanhMuc1793024340000 } from './1793024340000-tao-bang-danh-muc.js';
@@ -14,4 +15,5 @@ export const MIGRATIONS = [
   TaoBangVanHanh1793090000000,
   TaoBangAnh1793188800000,
   TaoBangNghiPhep1793275200000,
+  NhatKyPhanCongNghiPhep1793361600000,
 ];

@@ -100,6 +100,10 @@ export const HANH_DONG_NHAY_CAM = [
   'RutThayDoiChiNhanh',
   'HuyThayDoiChiNhanh',
   'DoiHieuLucThayDoiChiNhanh',
+  'PhanCongLichLamViec',
+  'GoLichLamViec',
+  'DuyetNghiPhep',
+  'TuChoiNghiPhep',
 ] as const;
 export type HanhDongNhayCam = (typeof HANH_DONG_NHAY_CAM)[number];
 
@@ -113,5 +117,7 @@ export const LOAI_DOI_TUONG_NHAT_KY = [
   'yeu_cau_doi_lich_ngoai_chinh_sach',
   'cau_hinh_he_thong',
   'yeu_cau_thay_doi_chi_nhanh',
+  'lich_lam_viec',
+  'yeu_cau_nghi_phep',
 ] as const;
 export type LoaiDoiTuongNhatKy = (typeof LOAI_DOI_TUONG_NHAT_KY)[number];

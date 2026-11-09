@@ -542,3 +542,20 @@ UPDATE ma_xac_thuc SET thu_hoi_luc = NOW() WHERE loai = 'DangKy' AND da_dung_luc
 - Đầu vào ảnh tĩnh JPEG/PNG/WebP ≤10 MB/25 MP; ≤2 MB không chủ động resize/nén, >2 MB nén trước/resize khi cần, output ≤2 MB; mục tiêu mềm 700–800 KB. Chuẩn hóa EXIF, bỏ metadata riêng tư, giữ alpha/tỷ lệ.
 - Thay/gỡ ảnh: commit DB trước network; ảnh cũ ChoXoa. ChuaGan hết hạn sau 24 giờ. Dọn mỗi giờ tối đa 50 ảnh, nhận lease 5 phút bằng DB, tối đa 5 lần xóa lỗi rồi kiểm tra thủ công. Không xóa ảnh đang tham chiếu hoặc upload chưa xác định kết quả.
 - Side effect Cloudinary không nằm trong transaction. Timeout upload giữ dấu để kiểm tra thủ công; không tự retry hoặc coi đã thành công. Rollback migration khi bảng còn dữ liệu bị chặn để không mất dấu tài nguyên.
+
+## P4 — Nhật ký phân công ca và nghỉ phép của bác sĩ (09/11/2026, module doctor)
+
+Thêm **cuối** hai enum của `nhat_ky_hanh_dong` (không đổi thứ tự và giá trị đã lưu):
+
+- `hanh_dong`: `PhanCongLichLamViec`, `GoLichLamViec`, `DuyetNghiPhep`, `TuChoiNghiPhep`.
+- `loai_doi_tuong`: `lich_lam_viec`, `yeu_cau_nghi_phep`.
+
+Đối tượng và nội dung (chỉ danh sách trắng, không có lý do của Bác sĩ, tên hay thông tin bệnh nhân; `chi_nhanh_id` luôn có, là chi nhánh hiện tại của bác sĩ): `PhanCongLichLamViec` ghi lên `tai_khoan` (bác sĩ), một dòng mỗi bác sĩ; `GoLichLamViec` ghi lên `lich_lam_viec` (mã ca); `DuyetNghiPhep` và `TuChoiNghiPhep` ghi lên `yeu_cau_nghi_phep` (mã yêu cầu). Cấu trúc `chi_tiet_thay_doi` do tầng ứng dụng kiểm (`apps/api/src/audit/audit-validation.ts`); schema không ép. DB mới tạo từ `clinix_mysql.sql` đã có các giá trị này. DB đang ở bản trước và có dữ liệu cần giữ thì sao lưu trước, chạy đúng lệnh sau (migration `NhatKyPhanCongNghiPhep1793361600000` chạy cùng nội dung):
+
+```sql audit_phan_cong_nghi_phep
+ALTER TABLE nhat_ky_hanh_dong
+  MODIFY hanh_dong ENUM ('DoiQuyen', 'OverrideLichHen', 'HoanTienDacBiet', 'DoiChiNhanhBacSi', 'ChinhNoShow', 'AnDanhGia', 'XuLyDoiLichNgoaiChinhSach', 'SuaGhiChuKham', 'BacSiHuyDotXuat', 'CapNhatCauHinh', 'XuLyNapViChuaCong', 'TaoTaiKhoanNhanSu', 'KhoaTaiKhoan', 'MoKhoaTaiKhoan', 'MoKhoaNoShow', 'DuyetThayDoiChiNhanh', 'TuChoiThayDoiChiNhanh', 'RutThayDoiChiNhanh', 'HuyThayDoiChiNhanh', 'DoiHieuLucThayDoiChiNhanh', 'PhanCongLichLamViec', 'GoLichLamViec', 'DuyetNghiPhep', 'TuChoiNghiPhep') NOT NULL,
+  MODIFY loai_doi_tuong ENUM ('tai_khoan', 'benh_nhan', 'lich_hen', 'ho_so_kham', 'danh_gia_bac_si', 'giao_dich_thanh_toan', 'yeu_cau_doi_lich_ngoai_chinh_sach', 'cau_hinh_he_thong', 'yeu_cau_thay_doi_chi_nhanh', 'lich_lam_viec', 'yeu_cau_nghi_phep') NOT NULL COMMENT 'Bảng bị tác động';
+```
+
+Kiểm tra sau chuyển đổi: mọi giá trị cũ còn nguyên; bốn hành động mới được chấp nhận với đúng loại đối tượng ở trên. Hoàn tác (revert) chỉ chạy được khi chưa có dòng nhật ký nào dùng giá trị mới (nếu còn, MySQL báo lỗi 1265 và không đổi gì).

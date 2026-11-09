@@ -52,7 +52,7 @@ describe('C2-01…08 — MySQL thật (chỉ cơ chế, chưa acceptance B-task)
     }
     expect(await db.getRepository(NhatKyHanhDong).count()).toBe(0);
   });
-  it('C2-02/03 đủ 11 action lưu đúng entry, không đòi FK target lịch sử', async () => {
+  it('C2-02/03 đủ 15 action lưu đúng entry, không đòi FK target lịch sử', async () => {
     const { account } = await fixtures.admin();
     const branch = await fixtures.branch();
     const entries = auditEntries(account.taiKhoanId, branch.chiNhanhId);
@@ -62,7 +62,8 @@ describe('C2-01…08 — MySQL thật (chỉ cơ chế, chưa acceptance B-task)
     const rows = await db
       .getRepository(NhatKyHanhDong)
       .find({ order: { nhatKyHanhDongId: 'ASC' } });
-    expect(rows).toHaveLength(11);
+    expect(rows).toHaveLength(entries.length);
+    expect(entries).toHaveLength(15);
     rows.forEach((row, index) => {
       const entry = entries[index]!;
       expect(row).toMatchObject({

@@ -6,6 +6,7 @@ import {
   normalizeStatement,
   officialStatementsFor,
   targetTable,
+  maskAuditEnums,
 } from './testing/official-schema.js';
 
 const CATALOG_TABLES = [
@@ -76,7 +77,10 @@ describe('migration P3 khớp schema SQL chính thức', () => {
     const official =
       officialStatementsFor(OPERATIONS_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    expect(TAO_BANG_VAN_HANH_SQL.map(normalizeStatement)).toEqual(official);
+    // Hai enum của nhat_ky_hanh_dong được mở rộng ở migration P4 (sau migration này).
+    expect(
+      TAO_BANG_VAN_HANH_SQL.map(normalizeStatement).map(maskAuditEnums),
+    ).toEqual(official.map(maskAuditEnums));
   });
 
   it('mọi câu migration chỉ tác động bảy bảng vận hành P3', () => {

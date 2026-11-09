@@ -1,4 +1,4 @@
-import type { DataSource } from 'typeorm';
+import type { DataSource, QueryRunner } from 'typeorm';
 import {
   listMigrations,
   revertLastMigration,
@@ -57,6 +57,29 @@ const MIGRATED_TABLES = [
   ...OPERATIONS_TABLES,
   'anh_tai_len',
   ...NGHI_PHEP_TABLES,
+];
+// 20 hành động đã có trước P4 (đúng thứ tự trong migration vận hành).
+const HANH_DONG_TRUOC_P4 = [
+  'DoiQuyen',
+  'OverrideLichHen',
+  'HoanTienDacBiet',
+  'DoiChiNhanhBacSi',
+  'ChinhNoShow',
+  'AnDanhGia',
+  'XuLyDoiLichNgoaiChinhSach',
+  'SuaGhiChuKham',
+  'BacSiHuyDotXuat',
+  'CapNhatCauHinh',
+  'XuLyNapViChuaCong',
+  'TaoTaiKhoanNhanSu',
+  'KhoaTaiKhoan',
+  'MoKhoaTaiKhoan',
+  'MoKhoaNoShow',
+  'DuyetThayDoiChiNhanh',
+  'TuChoiThayDoiChiNhanh',
+  'RutThayDoiChiNhanh',
+  'HuyThayDoiChiNhanh',
+  'DoiHieuLucThayDoiChiNhanh',
 ];
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
@@ -203,9 +226,63 @@ describe('vòng đời migration', () => {
     }
   });
 
-  it('MG-05: down hoàn tác migration cuối (nghỉ phép): giữ các bảng cũ, xóa bảng nghỉ phép, rồi up lại được', async () => {
-    const last = MIGRATIONS.at(-1)?.name;
-    expect(await revertLastMigration(dataSource)).toBe(last);
+  it('MG-06: migration enum nhật ký (P4) nhận giá trị mới, giữ giá trị cũ; down bị chặn khi còn dòng dùng giá trị mới', async () => {
+    const readEnum = async (column: string): Promise<string[]> => {
+      const rows = (await dataSource.query(
+        "SELECT COLUMN_TYPE AS type FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'nhat_ky_hanh_dong' AND COLUMN_NAME = ?",
+        [column],
+      )) as { type: string }[];
+      return [...(rows[0]?.type ?? '').matchAll(/'([^']+)'/g)].map(
+        (match) => match[1]!,
+      );
+    };
+    const insertNew = (queryRunner: QueryRunner) =>
+      queryRunner.query(
+        "INSERT INTO nhat_ky_hanh_dong (tai_khoan_id, hanh_dong, loai_doi_tuong, ma_doi_tuong, thoi_diem, ket_qua) VALUES (900001, 'GoLichLamViec', 'lich_lam_viec', 1, NOW(), 'ThanhCong')",
+      );
+
+    const afterUp = await readEnum('hanh_dong');
+    // Giá trị cũ đứng nguyên vị trí đầu danh sách, giá trị mới thêm cuối.
+    expect(afterUp.slice(0, 20)).toEqual(HANH_DONG_TRUOC_P4);
+    expect(afterUp.slice(20)).toEqual([
+      'PhanCongLichLamViec',
+      'GoLichLamViec',
+      'DuyetNghiPhep',
+      'TuChoiNghiPhep',
+    ]);
+    expect((await readEnum('loai_doi_tuong')).slice(9)).toEqual([
+      'lich_lam_viec',
+      'yeu_cau_nghi_phep',
+    ]);
+
+    // Có dòng dùng giá trị mới: down không được làm mất dấu vết (MySQL 1265, không đổi gì).
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+      await insertNew(queryRunner);
+      await expect(revertLastMigration(dataSource)).rejects.toThrow();
+      expect(await readEnum('hanh_dong')).toEqual(afterUp);
+      await queryRunner.query('DELETE FROM nhat_ky_hanh_dong');
+    } finally {
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+      await queryRunner.release();
+    }
+
+    // Hết dòng dùng giá trị mới: down chạy, enum về như trước P4; up lại được.
+    const p4 = MIGRATIONS.at(-1)?.name;
+    expect(await revertLastMigration(dataSource)).toBe(p4);
+    expect(await readEnum('hanh_dong')).toEqual(HANH_DONG_TRUOC_P4);
+    expect(await readEnum('loai_doi_tuong')).toHaveLength(9);
+    expect(await listTables(dataSource)).toContain('yeu_cau_nghi_phep');
+    expect(await runPendingMigrations(dataSource)).toEqual([p4]);
+    expect(await readEnum('hanh_dong')).toEqual(afterUp);
+  });
+
+  it('MG-05: down hoàn tác migration nghỉ phép (ngay trước P4): giữ các bảng cũ, xóa bảng nghỉ phép, rồi up lại được', async () => {
+    const [nghiPhep, p4] = [MIGRATIONS.at(-2)?.name, MIGRATIONS.at(-1)?.name];
+    expect(await revertLastMigration(dataSource)).toBe(p4);
+    expect(await revertLastMigration(dataSource)).toBe(nghiPhep);
     const tables = await listTables(dataSource);
     expect(tables).not.toContain('yeu_cau_nghi_phep');
     expect(tables).toContain('anh_tai_len');
@@ -215,7 +292,7 @@ describe('vòng đời migration', () => {
     for (const table of AUTH_TABLES) expect(tables).toContain(table);
     expect((await listMigrations(dataSource)).at(-1)?.executed).toBe(false);
 
-    expect(await runPendingMigrations(dataSource)).toEqual([last]);
+    expect(await runPendingMigrations(dataSource)).toEqual([nghiPhep, p4]);
     expect(await listTables(dataSource)).toEqual(
       expect.arrayContaining(MIGRATED_TABLES),
     );
