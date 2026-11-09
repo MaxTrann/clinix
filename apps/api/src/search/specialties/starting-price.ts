@@ -1,5 +1,5 @@
 import { toCents } from '../../pricing/money.js';
-import type { ExamPrice } from '../pricing/exam-price.reader.js';
+import type { ExamPrice } from '../../pricing/exam-price.reader.js';
 
 /** "Giá khám từ X · cọc Y" của chuyên khoa (Q9). */
 export interface StartingPrice {
