@@ -22,6 +22,7 @@ chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá s
 | 08/11/2026 | **Phiên kiểm độc lập bản nháp 1: đạt.** Nhóm trả lời đủ Q1–Q46 (38 câu đồng ý nguyên văn, 8 câu kèm điều kiện: Q7, Q13, Q15, Q17, Q21, Q28, Q29, Q44) ⇒ cập nhật `PLAN.md` thành bản nháp 2 (ghi chú "Đã trả lời" cuối từng câu có điều kiện, mục 3 ở dưới). Áp dụng 8 chỗ sửa: (1) bỏ "dòng 83" của `TECH_DEBT` ở Q28 và D3 (dùng số kế tiếp trên `main`, hiện 84); (2) Q44/L3 khôi phục đoạn 2.4 HLH, ví dụ mốc `≥24 giờ: 100%; 2–24 giờ: 50%; <2 giờ: 0%` ghi vào Q15, Q16; (3) D5 thêm yêu cầu chạy lại idempotent cho `doctor` và ca DT-17 (mất tiến trình giữa hai bước duyệt nghỉ); (4) gắn `[CHỜ Trung]` cho Q7, Q15, Q29 và các task B6, P6, P7, B8, B15, D1; (5) mục 8 thêm "Gợi ý MVP cho demo"; (6) mục 3 của file này ghi quyết định; (7) thêm dòng #61 vào `AI_USAGE_LOG.md`; (8) `git diff` đọc lại | Không áp dụng (chỉ tài liệu) | n/a | Người kiểm đã độc lập xác nhận thứ tự khoá 5.3 không có chu trình (luồng tạo xin tầng 2–6, huỷ xin tầng 5–6, duyệt nghỉ giữ `bac_si` X chỉ ở bước (1) rồi commit mới gọi huỷ), cột sinh `khung_gio_dang_giu` gồm `HoanThanh`, `VangMat`, và không có CHECK nào ràng buộc `han_thanh_toan`/`giu_cho_den` theo trạng thái (nên Q2 hợp lệ); vẫn "chưa đo" (M1–M11 làm ở X1). Đoạn 2.4 HLH bị cắt do khung nội dung (content control) của Word, không phải do dán; "(3 )" ở ĐLK A3/11a là nguyên văn 2.4. **Chưa đối chiếu mục 5.10 với PLAN `doctor`** (chưa có bản). Test case: 230 (thêm DT-17) |
 | 08/11/2026 | **Đồng bộ mục 5.10 với PLAN `doctor`** (chỉ tài liệu; đối chiếu với `docs/features/doctor/PLAN.md` mục 5.10 bản 08/11/2026 chưa merge, đọc ở worktree `clinix-app-doctor`) và ghi quyết định của Trung về Q7, Q15, Q29 (gỡ thẻ `[CHỜ Trung]`). Sửa `PLAN.md`: D5 thêm `now` (chỉ lấy lịch `thoi_gian > now`); D3 ghi nhận `listMany` và `trangThaiNgay` 4 giá trị; thêm D13 `listAffectedByLeave`, D14 `countActiveByShifts` (gán B11); làm rõ D7 (`DELETE khung_gio` còn bị khoá ngoại chặn, kể cả lịch `DaHuy`), D8 (doctor F1 tạo mục `BacSi`, F11 chỉ thêm một dòng, F1 merge trước F11), D9 (`seed:doctor-demo`), D11 và bảng khoá 5.3 (tầng 4b `dich_vu_kham` `FOR SHARE` của doctor, booking không xin khoá nào); B14 (`TargetFor` đổi thành bảng tra theo hành động, đụng `doctor` P4; ca `C2-03` không ghi số cứng); P6, P7 theo Q15, Q29 | CG-11…CG-17 (mới, chỉ viết kế hoạch) | n/a | Test case 230 → 237. `DH-04` của `doctor` (vòng khoá với `ServiceService.update` của admin) cần MySQL thật, chưa chạy. Không ghi dòng `AI_USAGE_LOG.md` (kế hoạch đã có dòng #61) |
 | 08/11/2026 | Đổi tiền tố mã test CP, LS, LT thành CG, LSH, LTN vì trùng mã ở `auth` (tiền tố CP ở `change-password-form.test.tsx`, LS ở `login.service.spec.ts`, LT ở `login.load.int-spec.ts`, cả ba cũng ở `docs/features/auth/TRACKING.md`); giữ nguyên số; thêm ghi chú tiền tố ở PLAN mục 0. Phiên kiểm vòng 1 sửa thêm: Q15, P6 ghi rõ Trung báo Đại khi bắt đầu task admin | CG-01…CG-17, LSH-01…LSH-14, LTN-01…LTN-05 (chỉ đổi tên, vẫn 237 ca) | n/a | `KT-` (dùng chung với patient X3) giữ; `AR-`, `DT-` do `doctor` trích dẫn nên giữ. `LH-0001` ở test của patient là mã lịch hẹn mẫu (4 chữ số), không phải mã test |
+| 09/11/2026 | **Cập nhật PLAN theo ba lưu ý của Trung sau doctor X1** (chỉ tài liệu; tin Trung 09/11/2026, số đo M4, M10, M12 ở `docs/features/doctor/TRACKING.md` mục 6): (1) khoá `lich_hen` chỉ theo khoá chính hoặc `ma_lich_hen`, không theo `khung_gio_id` (5.3 tầng 6 và quy tắc 7, luồng huỷ 5.6, hết hạn lười 5.5 ghi `[đề xuất]` đọc thường rồi khoá theo khoá chính, H2, B10); (2) `findAffectedByLeave`/`listAffectedByLeave` dùng khoảng nửa mở trên `thoi_gian`, không bọc `DATE()`, cột `DATE` đọc bằng `DATE_FORMAT` (D13, H13, B11); (3) P7: timestamp migration lớn hơn mọi migration đã merge (nay là `1793361600000`, không phải `1793275200000`). Thêm ba ca test HL-18, AR-05, CG-18 (237 ⇒ 240 ca). P8 bỏ vì `doctor` đã merge `BranchHoursReader` và `checkSlotWithinBranchHours` (D2 đánh dấu đã merge; B6 import từ `scheduling/`). | HL-18, AR-05, CG-18 (mới, chưa chạy) | n/a (chỉ tài liệu) | Điểm lệch: Trung nêu mốc `1793275200000` nhưng `main` đã có `1793361600000-nhat-ky-phan-cong-nghi-phep.ts` (doctor P4, PR 317); PLAN ghi theo `main`. Mục hết hạn lười khoá `lich_hen` qua chỉ mục `khung_gio_dang_giu`: chưa có số đo riêng, ghi `[đề xuất]` và chốt bằng ca đo ở B6 |
 | | | | Pass / Fail | |
 
 ## 2. Kết quả test theo use case
@@ -32,7 +33,7 @@ Cập nhật lần chạy mới nhất; chi tiết từng ca xem mục 1. **Chư
 |---|---|---|---|---|---|
 | Đặt lịch khám (`DL-*`, 7.1) | 29 | 0 | 0 | 29 | |
 | Hết hạn giữ chỗ, xác nhận thanh toán (`HG-*`, 7.2) | 14 | 0 | 0 | 14 | |
-| Hủy lịch hẹn (`HL-*`, 7.3) | 17 | 0 | 0 | 17 | |
+| Hủy lịch hẹn (`HL-*`, 7.3) | 18 | 0 | 0 | 18 | |
 | Tra cứu của Bệnh nhân (`LSH-*`, 7.4) | 14 | 0 | 0 | 14 | |
 | Ma trận và cập nhật trạng thái (`MT-*`, `CT-*`, 7.5) | 26 | 0 | 0 | 26 | |
 | Vắng mặt tự động và no-show (`VM-*`, 7.6) | 16 | 0 | 0 | 16 | |
@@ -40,13 +41,13 @@ Cập nhật lần chạy mới nhất; chi tiết từng ca xem mục 1. **Chư
 | Danh sách Bác sĩ (`DSB-*`, 7.8) | 9 | 0 | 0 | 9 | |
 | Phân quyền và sở hữu (`QB-*`, 7.9) | 10 | 0 | 0 | 10 | |
 | Đồng thời (`DT-*`, 7.10) | 17 | 0 | 0 | 17 | |
-| Bất biến và kiến trúc (`INV-*`, `AR-*`, 7.11) | 9 | 0 | 0 | 9 | |
+| Bất biến và kiến trúc (`INV-*`, `AR-*`, 7.11) | 10 | 0 | 0 | 10 | |
 | Hợp đồng khoá với `patient` (`KT-*`, 7.12) | 5 | 0 | 0 | 5 | |
-| Cổng với module khác (`CG-*`, 7.13) | 17 | 0 | 0 | 17 | |
+| Cổng với module khác (`CG-*`, 7.13) | 18 | 0 | 0 | 18 | |
 | Thông báo và email (`TB-*`, 7.14) | 8 | 0 | 0 | 8 | |
 | Giao diện (`WZ-*`, `LH-*`, `LTN-*`, `QT-*`, `BSI-*`, 7.15) | 29 | 0 | 0 | 29 | |
 | Bảo mật dùng chung (`BB-*`, 7.16) | 5 | 0 | 0 | 5 | |
-| **Tổng** | **237** | 0 | 0 | 237 | |
+| **Tổng** | **240** | 0 | 0 | 240 | |
 
 ## 3. Quyết định đã chốt
 
@@ -116,6 +117,7 @@ Trả lời ngày **08/11/2026** (từ phiên kiểm độc lập bản nháp 1,
 | Tự Vắng mặt không giải phóng khung giờ, không mời danh sách chờ | Nhóm 25/10/2026 (2.4 CNTT b8) | `markNoShow` giữ `DaDat`, không gọi `WaitlistPort` |
 | Giá = `computeExamPrice` của `pricing/`; không công thức thứ hai | admin Q21, search Q15 | B8 dùng `ExamPriceReader` (P3) |
 | Phân ranh `doctor`/`booking` | Prompt 08/11/2026 mục C; **5.10 đối chiếu với doctor xong 08/11/2026 (phiên kiểm): Khớp D1, D2, D4, D6 đến D12; sửa D3, D5; thêm D13, D14** | PLAN.md 5.10 (đã đối chiếu); chi tiết ở dòng nhật ký 08/11/2026 cuối mục 1 |
+| Ba lưu ý của Trung sau doctor X1 (khoá `lich_hen` theo khoá chính hoặc `ma_lich_hen`, khoảng nửa mở không bọc `DATE()`, timestamp migration P7) | Trung 09/11/2026 (số đo M4, M10, M12 của doctor) | PLAN.md 5.3 quy tắc 7, 5.5, 5.6, D13, H2, H13, B10, B11, P7; bỏ P8; ca HL-18, AR-05, CG-18; điểm lệch số timestamp ở mục 1 |
 
 ## 4. Ghi chú AI
 
@@ -134,6 +136,7 @@ Việc chưa làm; cập nhật cột "Trạng thái" khi hai bên đã thống 
 
 | Với | Việc | Task / mục PLAN | Trạng thái |
 |---|---|---|---|
+| `doctor` (Trung) | Ba lưu ý 09/11/2026 đã ghi vào PLAN (khoá `lich_hen`, khoảng nửa mở, timestamp P7); `BranchHoursReader` và `checkSlotWithinBranchHours` đã merge nên bỏ P8; nhờ Trung xem lại điểm lệch mốc timestamp (`1793361600000` của doctor P4 thay cho `1793275200000`) | 5.3, 5.10 D2, D13, P7, P8 | Đã ghi vào PLAN; chờ Trung xác nhận khi review PR |
 | `doctor` (Trung) | **Đối chiếu mục 5.10** (D1–D14): tên và hình dạng `checkSlotWithinBranchHours`, `AvailableSlotsReader`, `LeaveReader`, `DoctorLeaveApprovalService` (khoá `bac_si` `FOR UPDATE` trước), `AppointmentTransitionService.complete`, `AppointmentCancellationService.cancel` + `CancelOutcome`, quy tắc ghi `khung_gio`, seed, trang Bác sĩ. **Thêm (08/11/2026):** bước (2) của duyệt nghỉ phép (huỷ hàng loạt sau commit) phải **chạy lại idempotent** nếu bị dừng giữa chừng (job quét yêu cầu `DaDuyet` còn lịch bị ảnh hưởng, hoặc gọi lại `findAffectedByLeave`); ca đồng thời DT-17 | 5.10, D5, P8, B11, B16, F11, DT-17 | **Đã đối chiếu 08/11/2026** (3.2): khớp D1, D2, D4, D6 đến D12; sửa D3, D5; thêm D13, D14. Còn chờ: F1 của `doctor` merge trước F11; D13, D14 ở B11 |
 | Trung | Hỏi và ghi câu trả lời: **Q7** (`doctor` sở hữu "khung giờ còn trống", sửa PLAN `search` Q18), **Q15** (Trung làm migration + entity `moc_hoan_tien`), **Q29** (đồng ý phương án A) | Q7, Q15, Q29; B6, B8, B15, P6, P7, D1 | **Đã trả lời 08/11/2026** (3.1) |
 | `search` (Trung) | Q18 đổi chủ "khung giờ còn trống"; K1 trả `khungGioId`; chuyển `ExamPriceReader` (P3) và `BOOKING_PATH` (P5); điểm vào A1 (K3) | D1, P3, P5 | Chưa (Q7 đã đồng ý; Trung sửa PLAN `search` ở task D1 của PLAN `doctor`) |
