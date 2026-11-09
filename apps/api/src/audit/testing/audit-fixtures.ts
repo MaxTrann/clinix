@@ -117,5 +117,55 @@ export function auditEntries(actorId = '1', branchId = '2'): AuditEntry[] {
         ly_do: 'Điều chỉnh cấu hình',
       },
     },
+    {
+      ...common,
+      branchId,
+      action: 'PhanCongLichLamViec',
+      targetType: 'tai_khoan',
+      changes: {
+        tu_ngay: '2026-12-01',
+        den_ngay: '2026-12-31',
+        thu_trong_tuan: [1, 3, 5],
+        ca: ['CaSang', 'CaChieu'],
+        so_ca: 26,
+      },
+    },
+    {
+      ...common,
+      branchId,
+      action: 'GoLichLamViec',
+      targetType: 'lich_lam_viec',
+      changes: {
+        bac_si_id: '5',
+        ngay: '2026-12-02',
+        ca: 'CaSang',
+        so_khung_gio: 8,
+      },
+    },
+    {
+      ...common,
+      branchId,
+      action: 'DuyetNghiPhep',
+      targetType: 'yeu_cau_nghi_phep',
+      changes: {
+        bac_si_id: '5',
+        ngay_bat_dau: '2026-12-10',
+        ngay_ket_thuc: '2026-12-12',
+        ca: null,
+      },
+    },
+    {
+      ...common,
+      branchId,
+      action: 'TuChoiNghiPhep',
+      targetType: 'yeu_cau_nghi_phep',
+      changes: {
+        bac_si_id: '5',
+        ngay_bat_dau: '2026-12-15',
+        ngay_ket_thuc: '2026-12-15',
+        ca: 'CaChieu',
+        ly_do_tu_choi: 'Thiếu bác sĩ trực',
+      },
+    },
   ];
 }

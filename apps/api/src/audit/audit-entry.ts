@@ -8,6 +8,14 @@ type ConfigValue = number | number[];
 type AccountState = { trang_thai: TrangThaiTaiKhoan };
 type BranchState = { chi_nhanh_id: string };
 type EffectiveState = { hieu_luc_tu: string };
+type ShiftName = 'CaSang' | 'CaChieu';
+// Danh sách trắng cho yêu cầu nghỉ phép: không có lý do của Bác sĩ (Q34); ca = null khi nghỉ cả ngày.
+type LeaveRequestFacts = {
+  bac_si_id: string;
+  ngay_bat_dau: string;
+  ngay_ket_thuc: string;
+  ca: ShiftName | null;
+};
 
 interface ChangeMap {
   TaoTaiKhoanNhanSu: {
@@ -57,20 +65,46 @@ interface ChangeMap {
     sau: Record<string, ConfigValue>;
     ly_do: string;
   };
+  PhanCongLichLamViec: {
+    tu_ngay: string;
+    den_ngay: string;
+    thu_trong_tuan: number[];
+    ca: ShiftName[];
+    so_ca: number;
+  };
+  GoLichLamViec: {
+    bac_si_id: string;
+    ngay: string;
+    ca: ShiftName;
+    so_khung_gio: number;
+  };
+  DuyetNghiPhep: LeaveRequestFacts;
+  TuChoiNghiPhep: LeaveRequestFacts & { ly_do_tu_choi: string };
 }
 
 export type AuditAction = keyof ChangeMap;
-type TargetFor<A extends AuditAction> = A extends 'CapNhatCauHinh'
-  ? 'cau_hinh_he_thong'
-  : A extends 'MoKhoaNoShow'
-    ? 'benh_nhan'
-    : A extends
-          | 'TaoTaiKhoanNhanSu'
-          | 'KhoaTaiKhoan'
-          | 'MoKhoaTaiKhoan'
-          | 'DoiChiNhanhBacSi'
-      ? 'tai_khoan'
-      : 'yeu_cau_thay_doi_chi_nhanh';
+
+// Bảng tra đối tượng theo hành động: mỗi hành động một dòng (thêm hành động mới mà quên dòng ở đây
+// thì tsc báo lỗi vì TargetFor<A> không tìm được khoá). Thay cho chuỗi điều kiện lồng nhau trước đây,
+// vốn rơi mặc định về 'yeu_cau_thay_doi_chi_nhanh' nên hành động mới dễ bị gán sai đối tượng.
+interface TargetMap {
+  TaoTaiKhoanNhanSu: 'tai_khoan';
+  KhoaTaiKhoan: 'tai_khoan';
+  MoKhoaTaiKhoan: 'tai_khoan';
+  MoKhoaNoShow: 'benh_nhan';
+  DoiChiNhanhBacSi: 'tai_khoan';
+  DuyetThayDoiChiNhanh: 'yeu_cau_thay_doi_chi_nhanh';
+  TuChoiThayDoiChiNhanh: 'yeu_cau_thay_doi_chi_nhanh';
+  RutThayDoiChiNhanh: 'yeu_cau_thay_doi_chi_nhanh';
+  HuyThayDoiChiNhanh: 'yeu_cau_thay_doi_chi_nhanh';
+  DoiHieuLucThayDoiChiNhanh: 'yeu_cau_thay_doi_chi_nhanh';
+  CapNhatCauHinh: 'cau_hinh_he_thong';
+  PhanCongLichLamViec: 'tai_khoan';
+  GoLichLamViec: 'lich_lam_viec';
+  DuyetNghiPhep: 'yeu_cau_nghi_phep';
+  TuChoiNghiPhep: 'yeu_cau_nghi_phep';
+}
+type TargetFor<A extends AuditAction> = TargetMap[A];
 
 // Discriminated union giữ action/target/payload khớp nhau ngay khi consumer viết mã.
 export type AuditEntry = {

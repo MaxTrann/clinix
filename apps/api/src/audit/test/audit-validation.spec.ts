@@ -68,7 +68,7 @@ describe('C2-02/03/05 — whitelist payload và chặn bí mật', () => {
       ).toThrow('AUDIT_ENTRY_INVALID');
     },
   );
-  it('C2-03 action ngoài 11 contract bị từ chối rõ', () => {
+  it('C2-03 action ngoài tập hành động của AuditEntry bị từ chối rõ (TD-06)', () => {
     expect(() =>
       validateAuditEntry({ ...configEntry(), action: 'DoiQuyen' }),
     ).toThrow('AUDIT_ACTION_UNSUPPORTED');
@@ -256,5 +256,125 @@ describe('C2-02/03/05 — whitelist payload và chặn bí mật', () => {
         }),
       ).toThrow('AUDIT_ENTRY_INVALID');
     }
+  });
+});
+
+describe('TD-06 / P4 — 4 hành động phân công và nghỉ phép', () => {
+  const entryOf = (action: string) =>
+    auditEntries().find((entry) => entry.action === action)!;
+  const withChanges = (action: string, patch: Record<string, unknown>) => ({
+    ...entryOf(action),
+    changes: { ...entryOf(action).changes, ...patch },
+  });
+
+  it.each([
+    ['PhanCongLichLamViec', 'tai_khoan'],
+    ['GoLichLamViec', 'lich_lam_viec'],
+    ['DuyetNghiPhep', 'yeu_cau_nghi_phep'],
+    ['TuChoiNghiPhep', 'yeu_cau_nghi_phep'],
+  ])(
+    '%s chỉ nhận đối tượng %s và cần chi nhánh của bác sĩ',
+    (action, target) => {
+      const entry = entryOf(action);
+      expect(entry.targetType).toBe(target);
+      expect(() => validateAuditEntry({ ...entry, branchId: null })).toThrow(
+        'AUDIT_ENTRY_INVALID',
+      );
+      expect(() =>
+        validateAuditEntry({
+          ...entry,
+          targetType: 'yeu_cau_thay_doi_chi_nhanh',
+        }),
+      ).toThrow('AUDIT_ENTRY_INVALID');
+    },
+  );
+
+  it.each([
+    ['tu_ngay sau den_ngay', { tu_ngay: '2027-01-01' }],
+    ['ngày không có thật', { den_ngay: '2026-02-30' }],
+    ['thứ ngoài 1–7', { thu_trong_tuan: [0, 1] }],
+    ['thứ trùng', { thu_trong_tuan: [1, 1] }],
+    ['thứ rỗng', { thu_trong_tuan: [] }],
+    ['CaToi', { ca: ['CaToi'] }],
+    ['ca trùng', { ca: ['CaSang', 'CaSang'] }],
+    ['so_ca = 0', { so_ca: 0 }],
+    ['so_ca không nguyên', { so_ca: 1.5 }],
+  ])('PhanCongLichLamViec từ chối: %s', (_name, patch) => {
+    expect(() =>
+      validateAuditEntry(withChanges('PhanCongLichLamViec', patch)),
+    ).toThrow('AUDIT_ENTRY_INVALID');
+  });
+
+  it.each([
+    ['CaToi', { ca: 'CaToi' }],
+    ['bac_si_id không phải id', { bac_si_id: '0' }],
+    ['ngày sai định dạng', { ngay: '2026-12-2' }],
+    ['so_khung_gio âm', { so_khung_gio: -1 }],
+  ])('GoLichLamViec từ chối: %s', (_name, patch) => {
+    expect(() =>
+      validateAuditEntry(withChanges('GoLichLamViec', patch)),
+    ).toThrow('AUDIT_ENTRY_INVALID');
+  });
+
+  it.each(['DuyetNghiPhep', 'TuChoiNghiPhep'])(
+    '%s: ngày đảo ngược, nghỉ theo ca nhiều ngày, CaToi và lý do của Bác sĩ đều bị từ chối',
+    (action) => {
+      expect(() =>
+        validateAuditEntry(
+          withChanges(action, {
+            ngay_bat_dau: '2026-12-20',
+            ngay_ket_thuc: '2026-12-10',
+            ca: null,
+          }),
+        ),
+      ).toThrow('AUDIT_ENTRY_INVALID');
+      expect(() =>
+        validateAuditEntry(
+          withChanges(action, {
+            ngay_bat_dau: '2026-12-10',
+            ngay_ket_thuc: '2026-12-11',
+            ca: 'CaSang',
+          }),
+        ),
+      ).toThrow('AUDIT_ENTRY_INVALID');
+      expect(() =>
+        validateAuditEntry(
+          withChanges(action, {
+            ngay_bat_dau: '2026-12-10',
+            ngay_ket_thuc: '2026-12-10',
+            ca: 'CaToi',
+          }),
+        ),
+      ).toThrow('AUDIT_ENTRY_INVALID');
+      // Lý do của Bác sĩ không được ghi vào nhật ký (Q34): khóa thừa bị từ chối.
+      expect(() =>
+        validateAuditEntry(withChanges(action, { ly_do: 'Bận việc gia đình' })),
+      ).toThrow('AUDIT_ENTRY_INVALID');
+    },
+  );
+
+  it('TuChoiNghiPhep: lý do của Admin 1–255 ký tự, không rỗng', () => {
+    for (const reason of ['', '   ', 'a'.repeat(256)]) {
+      expect(() =>
+        validateAuditEntry(
+          withChanges('TuChoiNghiPhep', { ly_do_tu_choi: reason }),
+        ),
+      ).toThrow('AUDIT_ENTRY_INVALID');
+    }
+    const ok = withChanges('TuChoiNghiPhep', {
+      ly_do_tu_choi: 'a'.repeat(255),
+    });
+    expect(validateAuditEntry(ok)).toEqual(ok);
+  });
+
+  it('DuyetNghiPhep nhận nghỉ theo ca một ngày và nghỉ cả ngày nhiều ngày', () => {
+    const byShift = withChanges('DuyetNghiPhep', {
+      ngay_bat_dau: '2026-12-10',
+      ngay_ket_thuc: '2026-12-10',
+      ca: 'CaChieu',
+    });
+    expect(validateAuditEntry(byShift)).toEqual(byShift);
+    const wholeDays = entryOf('DuyetNghiPhep');
+    expect(validateAuditEntry(wholeDays)).toEqual(wholeDays);
   });
 });

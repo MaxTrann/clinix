@@ -182,6 +182,10 @@ Enum hanh_dong_nhay_cam_enum {
   RutThayDoiChiNhanh
   HuyThayDoiChiNhanh
   DoiHieuLucThayDoiChiNhanh
+  PhanCongLichLamViec
+  GoLichLamViec
+  DuyetNghiPhep
+  TuChoiNghiPhep
 }
 
 Enum loai_doi_tuong_enum {
@@ -194,6 +198,8 @@ Enum loai_doi_tuong_enum {
   yeu_cau_doi_lich_ngoai_chinh_sach
   cau_hinh_he_thong
   yeu_cau_thay_doi_chi_nhanh
+  lich_lam_viec
+  yeu_cau_nghi_phep
 }
 
 Enum loai_hoi_thoai_enum {
