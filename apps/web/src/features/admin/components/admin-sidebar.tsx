@@ -118,7 +118,11 @@ const MENU_GROUPS: MenuGroup[] = [
     label: 'Tài khoản',
     items: [
       { label: 'Thông báo', icon: 'notification' },
-      { label: 'Thông tin cá nhân', icon: 'profile' },
+      {
+        label: 'Thông tin cá nhân',
+        icon: 'profile',
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/thong-tin-ca-nhan`,
+      },
     ],
   },
 ];

@@ -17,3 +17,12 @@ export const RECEPTION_PATHS = {
   lookup: `${ROLE_HOME_PATHS.LeTan}/${RECEPTION_LOOKUP_SEGMENT}`,
   profile: `${ROLE_HOME_PATHS.LeTan}/${RECEPTION_PROFILE_SEGMENT}`,
 } as const;
+
+// patient F5 (thông tin cá nhân của Quản trị viên). Cùng đoạn với Lễ tân nhưng khác khu `/admin`. Mục menu ở `features/admin` ghi
+// đường dẫn này bằng chữ (không import chéo `features/`); ca `AQ-` giữ hai nơi khớp nhau.
+export const ADMIN_PROFILE_SEGMENT = 'thong-tin-ca-nhan';
+
+export const ADMIN_PATHS = {
+  root: ROLE_HOME_PATHS.QuanTriVien,
+  profile: `${ROLE_HOME_PATHS.QuanTriVien}/${ADMIN_PROFILE_SEGMENT}`,
+} as const;

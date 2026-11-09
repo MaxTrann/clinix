@@ -1,5 +1,5 @@
 import { apiError } from '../../../test/fake-auth-api';
-import type { ProfileBranch } from '../profile/profile-types';
+import type { AdminScope, ProfileBranch } from '../profile/profile-types';
 
 // Hàm giả GET và PUT /api/profile và GET, POST, PUT, POST …/:id/deactivate /api/patient/relatives cho test (patient F3, F6, F7; TRACKING F3-G, F3-H, F6-B, F7-H).
 // Bọc `fetch` của fake auth và CHỈ chặn hai đường dẫn đó; mọi đường dẫn khác chuyển cho fake auth. Fake auth trả `{ ok: true }`
@@ -28,7 +28,8 @@ export interface FakeProfileData {
   vaiTro: string;
   // null với Bệnh nhân; { chiNhanhId, ten } với Lễ tân (patient F4)
   chiNhanh: ProfileBranch | null;
-  phamViQuanTri: null;
+  // null với mọi vai trò khác Quản trị viên (patient F5)
+  phamViQuanTri: AdminScope | null;
 }
 
 export const SAMPLE_PROFILE: FakeProfileData = {
@@ -56,6 +57,29 @@ export const SAMPLE_RECEPTIONIST: FakeProfileData = {
   vaiTro: 'LeTan',
   chiNhanh: { chiNhanhId: '3', ten: 'CLINIX Chi nhánh Quận 3' },
   phamViQuanTri: null,
+};
+
+// Hồ sơ Quản trị viên Toàn hệ thống của frame `510:2` (patient F5): đủ 10 khoá, `chiNhanh` null, phạm vi 'ToanHeThong'
+export const SAMPLE_ADMIN: FakeProfileData = {
+  hoTen: 'Admin CLINIX',
+  email: 'admin@example.invalid',
+  soDienThoai: '0954321098',
+  gioiTinh: null,
+  ngaySinh: null,
+  diaChi: null,
+  anhDaiDien: null,
+  vaiTro: 'QuanTriVien',
+  chiNhanh: null,
+  phamViQuanTri: 'ToanHeThong',
+};
+
+// Hồ sơ Quản trị viên Chi nhánh của frame `620:2` (patient F5): phạm vi 'ChiNhanh' và `chiNhanh` có giá trị (id là chuỗi, BIGINT)
+export const SAMPLE_ADMIN_BRANCH: FakeProfileData = {
+  ...SAMPLE_ADMIN,
+  email: 'admin.q3@example.invalid',
+  soDienThoai: '0954321099',
+  chiNhanh: { chiNhanhId: '3', ten: 'CLINIX Chi nhánh Quận 3' },
+  phamViQuanTri: 'ChiNhanh',
 };
 
 // Đúng bảy khoá của một phần tử GET /patient/relatives (PLAN 5.7)
