@@ -49,12 +49,14 @@ const OPERATIONS_TABLES = [
   'thong_bao',
   'email_thong_bao',
 ];
+const NGHI_PHEP_TABLES = ['yeu_cau_nghi_phep'];
 const MIGRATED_TABLES = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
   ...STAFF_TABLES,
   ...OPERATIONS_TABLES,
   'anh_tai_len',
+  ...NGHI_PHEP_TABLES,
 ];
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
@@ -201,11 +203,12 @@ describe('vòng đời migration', () => {
     }
   });
 
-  it('down hoàn tác migration P7 cuối: giữ các bảng cũ, xóa bảng ảnh, rồi up lại được', async () => {
+  it('MG-05: down hoàn tác migration cuối (nghỉ phép): giữ các bảng cũ, xóa bảng nghỉ phép, rồi up lại được', async () => {
     const last = MIGRATIONS.at(-1)?.name;
     expect(await revertLastMigration(dataSource)).toBe(last);
     const tables = await listTables(dataSource);
-    expect(tables).not.toContain('anh_tai_len');
+    expect(tables).not.toContain('yeu_cau_nghi_phep');
+    expect(tables).toContain('anh_tai_len');
     for (const table of OPERATIONS_TABLES) expect(tables).toContain(table);
     for (const table of STAFF_TABLES) expect(tables).toContain(table);
     for (const table of CATALOG_TABLES) expect(tables).toContain(table);

@@ -2,6 +2,7 @@ import { TAO_BANG_ANH_SQL } from './migrations/1793188800000-tao-bang-anh.js';
 import type { DataSource } from 'typeorm';
 import { TAO_BANG_AUTH_SQL } from './migrations/1793001600000-tao-bang-auth.js';
 import { TAO_BANG_DANH_MUC_SQL } from './migrations/1793024340000-tao-bang-danh-muc.js';
+import { TAO_BANG_NGHI_PHEP_SQL } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-su.js';
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
 import {
@@ -52,12 +53,14 @@ const OPERATIONS_TABLES = [
   'thong_bao',
   'email_thong_bao',
 ];
+const NGHI_PHEP_TABLES = ['yeu_cau_nghi_phep'];
 const MIGRATED_TABLES = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
   ...STAFF_TABLES,
   ...OPERATIONS_TABLES,
   'anh_tai_len',
+  ...NGHI_PHEP_TABLES,
 ];
 let migrated: DataSource;
 let reference: DataSource;
@@ -161,6 +164,21 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
   it('mọi câu lệnh trong migration P3 chỉ tác động bảy bảng vận hành', () => {
     for (const statement of TAO_BANG_VAN_HANH_SQL) {
       expect(OPERATIONS_TABLES).toContain(targetTable(statement));
+    }
+  });
+});
+
+describe('doctor P1 — bảng nghỉ phép', () => {
+  it('MG-01: DDL migration nghỉ phép trùng TỪNG CÂU, cùng thứ tự, với file SQL chính thức', () => {
+    const official =
+      officialStatementsFor(NGHI_PHEP_TABLES).map(normalizeStatement);
+    expect(official.length).toBeGreaterThan(0);
+    expect(TAO_BANG_NGHI_PHEP_SQL.map(normalizeStatement)).toEqual(official);
+  });
+
+  it('mọi câu lệnh trong migration nghỉ phép chỉ tác động bảng yeu_cau_nghi_phep', () => {
+    for (const statement of TAO_BANG_NGHI_PHEP_SQL) {
+      expect(NGHI_PHEP_TABLES).toContain(targetTable(statement));
     }
   });
 });
