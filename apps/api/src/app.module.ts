@@ -1,3 +1,4 @@
+import { DoctorModule } from './doctor/doctor.module.js';
 import { UploadModule } from './common/upload/upload.module.js';
 import { RbacModule } from './rbac/rbac.module.js';
 import { Module } from '@nestjs/common';
@@ -30,6 +31,7 @@ import { PatientModule } from './patient/patient.module.js';
     BranchModule,
     SearchModule,
     PatientModule,
+    DoctorModule,
     AuthModule,
     RbacModule,
     // Task P4: chưa có nơi nào dùng MailService (A2/A5/A11 và admin sẽ import MailModule); đưa vào đây để cấu hình SMTP sai

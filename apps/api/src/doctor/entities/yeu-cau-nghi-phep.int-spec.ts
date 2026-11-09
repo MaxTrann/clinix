@@ -1,60 +1,28 @@
 import type { DataSource } from 'typeorm';
-import { AdminFixtures } from '../../admin/testing/admin-fixtures.js';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
+import {
+  DoctorFixtures,
+  type LeaveRequestInput,
+} from '../testing/doctor-fixtures.js';
 
 // Doctor P1 — ràng buộc của bảng yeu_cau_nghi_phep trên MySQL 8.4 THẬT (MG-02, MG-03, MG-04).
 let db: DataSource;
-let fx: AdminFixtures;
+let fx: DoctorFixtures;
 useIntegrationHooks((d) => {
   db = d;
-  fx = new AdminFixtures(d);
+  fx = new DoctorFixtures(d);
 });
 
-type Row = {
-  bacSiId: string;
-  hinhThuc: string;
-  batDau: string;
-  ketThuc: string;
-  ca: string | null;
-  trangThai: string;
-  nguoiXuLyId: string | null;
-  thoiDiemXuLy: string | null;
-};
-
-// Dòng hợp lệ (CaNgay, một ngày, đang chờ duyệt); từng ca test ghi đè đúng một chỗ.
-async function insert(bacSiId: string, overrides: Partial<Row> = {}) {
-  const r: Row = {
-    bacSiId,
-    hinhThuc: 'CaNgay',
-    batDau: '2026-12-01',
-    ketThuc: '2026-12-01',
-    ca: null,
-    trangThai: 'ChoDuyet',
-    nguoiXuLyId: null,
-    thoiDiemXuLy: null,
-    ...overrides,
-  };
-  await db.query(
-    `INSERT INTO yeu_cau_nghi_phep
-       (bac_si_id, hinh_thuc_nghi, ngay_bat_dau, ngay_ket_thuc, ca, ly_do, trang_thai, nguoi_xu_ly_id, thoi_diem_xu_ly, thoi_diem_tao)
-     VALUES (?, ?, ?, ?, ?, 'Việc gia đình', ?, ?, ?, NOW())`,
-    [
-      r.bacSiId,
-      r.hinhThuc,
-      r.batDau,
-      r.ketThuc,
-      r.ca,
-      r.trangThai,
-      r.nguoiXuLyId,
-      r.thoiDiemXuLy,
-    ],
-  );
-}
+// Dòng hợp lệ (CaNgay, một ngày, đang chờ duyệt) lấy từ DoctorFixtures; từng ca test ghi đè đúng một chỗ.
+const insert = (
+  bacSiId: string,
+  overrides: Omit<LeaveRequestInput, 'bacSiId'> = {},
+) => fx.leaveRequest({ bacSiId, ...overrides });
 
 async function setup() {
-  const branch = await fx.branch();
-  const doctor = await fx.doctor(branch);
-  const admin = await fx.admin();
+  const branch = await fx.admin.branch();
+  const doctor = await fx.admin.doctor(branch);
+  const admin = await fx.admin.admin();
   return {
     doctorId: doctor.account.taiKhoanId,
     adminId: admin.account.taiKhoanId,
