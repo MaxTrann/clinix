@@ -49,7 +49,7 @@ nghiệm thu tối thiểu) và use case đã chốt (77 UC, xem repo `TLCN_CLIN
 
 - [x] Auth (đăng ký, xác minh OTP, đăng nhập, quên mật khẩu, đổi mật khẩu, đăng xuất; guard Role theo SOW 3.2.1) — module `auth`, kế hoạch và kết quả ở `docs/features/auth/PLAN.md`, `TRACKING.md` (kiểm tay X1 ở mục 6). Còn X3 (giới hạn request theo IP), bắt buộc trước khi mở công khai, ngoài phạm vi TLCN.
 - [ ] RBAC: Ownership + Scope theo SOW 3.2.1 (module `rbac` và `admin`) — nền cho mọi phân quyền sau này. **Bắt đầu bằng [`docs/FEATURE_PLANNING_PROMPT.md`](FEATURE_PLANNING_PROMPT.md)** để có kế hoạch chia việc cụ thể.
-- [ ] Hồ sơ bệnh nhân.
+- [x] Hồ sơ bệnh nhân (cập nhật hồ sơ cá nhân cho bốn vai trò, hồ sơ người thân, tra cứu bệnh nhân cho Lễ tân, khung giao diện Bệnh nhân và Lễ tân) — module `patient`, kế hoạch và kết quả ở `docs/features/patient/PLAN.md`, `TRACKING.md` (kiểm tay X1 ở mục 1). Trừ F9 (quét QR CCCD, hoãn 09/11/2026) và X3 (chờ `booking`); ảnh đại diện hoãn từ Q4 (`docs/TECH_DEBT.md` dòng 84).
 - [ ] Tra cứu chi nhánh / chuyên khoa / bác sĩ / lịch trống.
 - [ ] **Đặt lịch (booking) cốt lõi** — luồng quan trọng nhất theo SOW 5.1.2; cần giữ chỗ/transaction chống double-booking (rủi ro đã ghi ở SOW 7.1), kèm test case cho tình huống đặt đồng thời.
 - [ ] Theo dõi / cập nhật trạng thái lịch hẹn.

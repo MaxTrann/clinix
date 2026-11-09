@@ -33,3 +33,7 @@ Chỉ ghi khi đã **merge vào main** — việc còn nằm trong nhánh hoặc
 ## 04/11/2026
 
 - **Module `auth` hoàn tất** (PR 181, task X1 và X2; issue 11 là Epic): đăng ký và xác minh OTP qua email, đăng nhập (khoá tạm sau 5 lần sai), làm mới phiên có xoay refresh token, đăng xuất, quên mật khẩu, đổi mật khẩu; backend A1–A15, frontend F1–F5, tiền đề P0–P7. Kiểm tay với Gmail SMTP thật, độ phủ test và danh sách việc còn lại (X3 giới hạn request theo IP, checklist staging HTTPS) ở [`features/auth/TRACKING.md`](features/auth/TRACKING.md) mục 6; giải thích luồng cho vấn đáp ở [`features/auth/GIAI_THICH_LUONG.md`](features/auth/GIAI_THICH_LUONG.md).
+
+## 09/11/2026
+
+- **Module `patient` hoàn tất trừ F9 (QR CCCD, hoãn theo quyết định 09/11) và X3 (chờ `booking`)** (PR [cần điền: số PR], task X1 và X2 = issue 152 và 153; issue 132 là Epic): hồ sơ cá nhân cho bốn vai trò, hồ sơ người thân (thêm, sửa, ngừng sử dụng), tra cứu bệnh nhân cho Lễ tân, khung Bệnh nhân và Lễ tân, trang Thông tin cá nhân của Lễ tân và Quản trị viên; backend B1–B7, frontend F1–F8 và F11, tiền đề P1–P2. Chạy tay X1 trên `docker compose`: 127/127 ca API và luồng giao diện thật đạt; độ phủ gộp API `patient` 100% câu, web `features/patient` 99,52% câu; việc còn lại và số liệu ở [`features/patient/TRACKING.md`](features/patient/TRACKING.md); giải thích luồng cho vấn đáp ở [`features/patient/GIAI_THICH_LUONG.md`](features/patient/GIAI_THICH_LUONG.md).
