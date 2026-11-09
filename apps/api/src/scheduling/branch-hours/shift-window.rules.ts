@@ -3,8 +3,8 @@ import {
   CA_DA_KET_THUC,
   CA_KHONG_DU_MOT_KHUNG_GIO,
   CA_KHONG_TON_TAI,
-  CHI_NHANH_CHUA_KHAI_BAO_GIO,
-  CHI_NHANH_NGAY_NGHI,
+  CHI_NHANH_CHUA_KHAI_BAO,
+  CHI_NHANH_NGHI,
   NGAY_PHAN_CONG_DA_QUA,
 } from '../scheduling.constants.js';
 import { generateSlotStarts } from '../slots/slot-generator.rules.js';
@@ -44,8 +44,8 @@ export type ShiftAssignableResult =
     };
 
 const MA_LOI_THEO_LY_DO = {
-  ChuaKhaiBao: CHI_NHANH_CHUA_KHAI_BAO_GIO,
-  NgayNghi: CHI_NHANH_NGAY_NGHI,
+  ChuaKhaiBao: CHI_NHANH_CHUA_KHAI_BAO,
+  NgayNghi: CHI_NHANH_NGHI,
   CaKhongTonTai: CA_KHONG_TON_TAI,
 } as const;
 

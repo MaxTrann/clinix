@@ -111,14 +111,14 @@ describe('checkShiftAssignable (PCLV A1, A3, A4)', () => {
     const args = { ...base, ngay: '2026-11-11', ca: 'CaSang' } as const;
     expect(checkShiftAssignable({ ...args, ngayHoatDong: null })).toEqual({
       ok: false,
-      maLoi: 'CHI_NHANH_CHUA_KHAI_BAO_GIO',
+      maLoi: 'CHI_NHANH_CHUA_KHAI_BAO',
     });
     expect(
       checkShiftAssignable({
         ...args,
         ngayHoatDong: { ...NGAY_DU_CA, hoatDong: false },
       }),
-    ).toEqual({ ok: false, maLoi: 'CHI_NHANH_NGAY_NGHI' });
+    ).toEqual({ ok: false, maLoi: 'CHI_NHANH_NGHI' });
   });
 
   it('CaToi và ca chiều không tồn tại ⇒ CA_KHONG_TON_TAI kèm khoảng sáng/chiều của ngày', () => {
