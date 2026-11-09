@@ -8,7 +8,7 @@ import {
 } from '../common/public-doctor.sql.js';
 import { runReadOnly } from '../common/read-only-tx.js';
 import type { ScheduleRow } from '../common/weekly-schedule.view.js';
-import { ExamPriceReader } from '../pricing/exam-price.reader.js';
+import { ExamPriceReader } from '../../pricing/exam-price.reader.js';
 import type { DoctorFilters } from './doctor-filter.parser.js';
 
 /** Ứng viên thô từ SQL — chỉ các cột trong danh sách trắng (Q14), chưa có giá áp dụng và điểm. */

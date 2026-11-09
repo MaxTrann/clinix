@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import type { DataSource } from 'typeorm';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { PublicDoctorRepository } from '../doctors/public-doctor.repository.js';
-import { ExamPriceReader } from '../pricing/exam-price.reader.js';
+import { ExamPriceReader } from '../../pricing/exam-price.reader.js';
 import { PublicSpecialtyQueryDto } from './public-specialty.dto.js';
 import type { PublicSpecialtyRepository } from './public-specialty.repository.js';
 import { PublicSpecialtyService } from './public-specialty.service.js';

@@ -5,7 +5,7 @@ import {
   readTestDbSettings,
   resetTables,
 } from '../../database/testing/test-database.js';
-import { ExamPriceReader } from '../pricing/exam-price.reader.js';
+import { ExamPriceReader } from '../../pricing/exam-price.reader.js';
 import { DoctorRatingReader } from '../ratings/doctor-rating.reader.js';
 import { SearchFixtures } from '../testing/search-fixtures.js';
 import { PublicDoctorRepository } from './public-doctor.repository.js';

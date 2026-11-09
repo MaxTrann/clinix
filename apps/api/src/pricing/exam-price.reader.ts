@@ -1,12 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
-import type { ChucDanhBacSi } from '../../admin/entities/enums.js';
+import type { ChucDanhBacSi } from '../admin/entities/enums.js';
 import {
   computeExamPrice,
   computeSurcharge,
   type DoctorForPricing,
   type SurchargeRule,
-} from '../../pricing/surcharge.calculator.js';
+} from './surcharge.calculator.js';
 
 /** Giá khám áp dụng của một bác sĩ: chuỗi decimal như DB (ví dụ "350000.00"). */
 export interface ExamPrice {

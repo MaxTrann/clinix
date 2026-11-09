@@ -8,7 +8,7 @@ import { PublicServiceService } from './services/public-service.service.js';
 import { PublicDoctorController } from './doctors/public-doctor.controller.js';
 import { PublicDoctorRepository } from './doctors/public-doctor.repository.js';
 import { PublicDoctorService } from './doctors/public-doctor.service.js';
-import { ExamPriceReader } from './pricing/exam-price.reader.js';
+import { ExamPriceReader } from '../pricing/exam-price.reader.js';
 import { DoctorRatingReader } from './ratings/doctor-rating.reader.js';
 import { PublicSpecialtyController } from './specialties/public-specialty.controller.js';
 import { PublicSpecialtyRepository } from './specialties/public-specialty.repository.js';
