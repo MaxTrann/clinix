@@ -28,7 +28,8 @@ export class YeuCauNghiPhep {
   @Column({ name: 'hinh_thuc_nghi', type: 'enum', enum: HINH_THUC_NGHI })
   hinhThucNghi!: HinhThucNghi;
 
-  // Cột `date` đọc về chuỗi 'YYYY-MM-DD' (tránh lệch múi giờ khi qua Date).
+  // CẨN THẬN: đọc bằng find()/SQL thô, MySQL trả cột DATE thành `Date` và có thể lệch 1 ngày tuỳ múi giờ máy chạy.
+  // Khi cần chuỗi 'YYYY-MM-DD' thì chọn `DATE_FORMAT(cột, '%Y-%m-%d')` (như patient/profile/profile.repository.ts).
   @Column({ name: 'ngay_bat_dau', type: 'date' })
   ngayBatDau!: string;
 

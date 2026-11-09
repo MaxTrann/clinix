@@ -1,7 +1,6 @@
 import type { DataSource } from 'typeorm';
 import { AdminFixtures } from '../../admin/testing/admin-fixtures.js';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
-import { YeuCauNghiPhep } from './yeu-cau-nghi-phep.entity.js';
 
 // Doctor P1 — ràng buộc của bảng yeu_cau_nghi_phep trên MySQL 8.4 THẬT (MG-02, MG-03, MG-04).
 let db: DataSource;
@@ -63,7 +62,7 @@ async function setup() {
 }
 
 describe('yeu_cau_nghi_phep trên MySQL thật', () => {
-  it('đường đúng: nghỉ nhiều ngày cả ngày, nghỉ một ca, đã duyệt đủ người/thời điểm; entity đọc ngày về chuỗi', async () => {
+  it('đường đúng: nghỉ nhiều ngày cả ngày, nghỉ một ca, đã duyệt đủ người/thời điểm; ngày đọc bằng DATE_FORMAT không lệch múi giờ', async () => {
     const { doctorId, adminId } = await setup();
     await insert(doctorId, { batDau: '2026-12-01', ketThuc: '2026-12-05' });
     await insert(doctorId, { hinhThuc: 'TheoCa', ca: 'CaChieu' });
@@ -72,13 +71,18 @@ describe('yeu_cau_nghi_phep trên MySQL thật', () => {
       nguoiXuLyId: adminId,
       thoiDiemXuLy: '2026-11-20 08:00:00',
     });
-    const rows = await db
-      .getRepository(YeuCauNghiPhep)
-      .find({ order: { yeuCauNghiPhepId: 'ASC' } });
+    // DATE_FORMAT để kết quả không phụ thuộc múi giờ của máy chạy test (CI chạy UTC, máy dev chạy UTC+7)
+    const rows: { batDau: string; ketThuc: string; trangThai: string }[] =
+      await db.query(
+        `SELECT DATE_FORMAT(ngay_bat_dau, '%Y-%m-%d') AS batDau, DATE_FORMAT(ngay_ket_thuc, '%Y-%m-%d') AS ketThuc, trang_thai AS trangThai
+         FROM yeu_cau_nghi_phep ORDER BY yeu_cau_nghi_phep_id`,
+      );
     expect(rows).toHaveLength(3);
-    expect(rows[0]?.ngayBatDau).toBe('2026-12-01');
-    expect(rows[0]?.ngayKetThuc).toBe('2026-12-05');
-    expect(rows[0]?.trangThai).toBe('ChoDuyet');
+    expect(rows[0]).toEqual({
+      batDau: '2026-12-01',
+      ketThuc: '2026-12-05',
+      trangThai: 'ChoDuyet',
+    });
   });
 
   it('MG-02 chk_nghi_phep_hinh_thuc: DB từ chối CaNgay có ca, TheoCa không ca, TheoCa nhiều ngày, CaNgay bắt đầu > kết thúc', async () => {
