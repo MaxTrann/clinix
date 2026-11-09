@@ -1,3 +1,4 @@
+import { AppointmentsModule } from './appointments/appointments.module.js';
 import { DoctorModule } from './doctor/doctor.module.js';
 import { UploadModule } from './common/upload/upload.module.js';
 import { RbacModule } from './rbac/rbac.module.js';
@@ -32,6 +33,7 @@ import { PatientModule } from './patient/patient.module.js';
     SearchModule,
     PatientModule,
     DoctorModule,
+    AppointmentsModule,
     AuthModule,
     RbacModule,
     // Task P4: chưa có nơi nào dùng MailService (A2/A5/A11 và admin sẽ import MailModule); đưa vào đây để cấu hình SMTP sai

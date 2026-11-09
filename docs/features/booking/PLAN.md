@@ -23,7 +23,7 @@
 - Mỗi task = **một PR** nhỏ, **chỉ backend HOẶC chỉ frontend**, scope `booking` (hạ tầng: `api`/`web`/`db`/`docs`). Test đặt cạnh mã; mỗi test ghi mã test case ở mục 7.
 - `[đề xuất]` = giá trị AI tự đề xuất, chưa chốt; `[cần điền]` = thiếu thông tin, chưa có đề xuất.
 - Mã task: `P` nền, `B` backend, `F` frontend, `D` đồng bộ tài liệu, `X` kiểm tay và tổng kết (nếp của `patient`, `search`).
-- Mã test case (mục 7): tiền tố của module này là `DL`, `HG`, `HL`, `LSH`, `MT`, `CT`, `VM`, `DSV`, `DSB`, `QB`, `DT`, `INV`, `AR`, `KT`, `CG`, `TB`, `WZ`, `LH`, `LTN`, `QT`, `BSI`, `BB`. Đã kiểm bằng `grep` ở `apps` và `docs` (không tính `docs/features/booking`) ngày 08/11/2026: không tiền tố nào trùng mã hai chữ số của module khác, **ngoại lệ có chủ đích:** `KT-` dùng chung với patient X3; `AR-` và `DT-` được `doctor` trích dẫn (AR-01, AR-03, DT-09, DT-17). Đã đổi `CP`, `LS`, `LT` thành `CG`, `LSH`, `LTN` vì trùng mã ở `auth`. Thêm tiền tố mới thì `grep` lại trước khi dùng.
+- Mã test case (mục 7): tiền tố của module này là `DL`, `HG`, `HL`, `LSH`, `MT`, `CT`, `VM`, `DSV`, `DSB`, `QB`, `DT`, `INV`, `AR`, `KT`, `CG`, `TB`, `WZ`, `LH`, `LTN`, `QT`, `BSI`, `BB`; task P1 thêm `BCS`, `BTX`, `LOK` `[đề xuất, grep ngày 09/11/2026 ở apps, docs, AGENTS.md: không trùng]`. Đã kiểm bằng `grep` ở `apps` và `docs` (không tính `docs/features/booking`) ngày 08/11/2026: không tiền tố nào trùng mã hai chữ số của module khác, **ngoại lệ có chủ đích:** `KT-` dùng chung với patient X3; `AR-` và `DT-` được `doctor` trích dẫn (AR-01, AR-03, DT-09, DT-17). Đã đổi `CP`, `LS`, `LT` thành `CG`, `LSH`, `LTN` vì trùng mã ở `auth`. Thêm tiền tố mới thì `grep` lại trước khi dùng.
 
 ## 1. Phạm vi
 
@@ -364,11 +364,12 @@ apps/api/src/appointments/            # module AppointmentsModule (scope commit 
   active-appointment-states.ts        # (đã có) ACTIVE_APPOINTMENT_STATES
   active-appointment.query.ts         # (đã có) findActiveAppointments
   visit-profile.query.ts              # (đã có) lockVisitProfile, isVisitProfileUsable
-  appointments.module.ts              # P1: export các dịch vụ DÙNG CHUNG cho doctor/payment/wallet/waitlist (mục 5.10)
-  appointments.constants.ts           # mã lỗi (5.14), mã sự kiện thông báo, hằng job (cron, cỡ lô, trần lô)
+  appointments.module.ts              # P1: vỏ rỗng, đăng ký AppModule MỘT lần; task sau thêm provider và export các dịch vụ DÙNG CHUNG cho doctor/payment/wallet/waitlist (mục 5.10)
+  appointments.constants.ts           # mã lỗi (5.14) kèm bookingException, mã sự kiện thông báo, hằng job (cron, cỡ lô, trần lô); P1
   state/                              # appointment-state.matrix.ts (thuần), appointment-transition.service.ts (NƠI DUY NHẤT ghi trang_thai)
   slots/                              # slot-hold.service.ts (giữ chỗ, đặt, giải phóng dưới khoá), bookability.rules.ts (thuần), bookability.reader.ts
   locking/                            # booking-transaction.ts (READ COMMITTED + thử lại 1213/1205), lock-order.ts (hằng + ghi chú thứ tự khoá)
+  architecture.spec.ts, architecture.int-spec.ts  # P1: AR-01, AR-04, AR-05 (quét mã, luật ở testing/architecture-rules.ts), AR-03 (hướng phụ thuộc ở spec; cây AppModule ở int-spec)
   create/                             # booking-checks.controller|service (POST /booking/checks), create-appointment.controller|service, appointment-code.ts (thuần)
   cancel/                             # appointment-cancellation.service.ts, refund-calculator.ts (thuần), patient-cancel.controller.ts
   status/                             # reception-status.controller|service, admin-override.controller|service, check-in.service.ts, no-show.service.ts
@@ -377,7 +378,7 @@ apps/api/src/appointments/            # module AppointmentsModule (scope commit 
   lists/                              # patient-*, operations-* (Lễ tân và QTV dùng chung), doctor-*: controller + service + repository + dto
   ports/                              # payment.port.ts, refund.port.ts, waitlist.port.ts, doctor-leave.port.ts, pending-branch-changes.port.ts, appointment-notifier.port.ts (+ bản Noop và Fake)
   notifications/                      # mẫu thư (renderBookingConfirmationMail, …) và AppointmentNotifier thật khi Q29 chốt
-  testing/                            # booking-fixtures.ts, concurrency-harness.ts, invariants.ts, fake-ports.ts (dùng chung int-spec/e2e-spec; chống jscpd)
+  testing/                            # booking-fixtures.ts, concurrency-harness.ts, invariants.ts, fake-ports.ts (dùng chung int-spec/e2e-spec; chống jscpd); P1 thêm architecture-rules.ts
 apps/api/src/rbac/reception-scope.service.ts   # [ĐỤNG rbac] (Q34)
 apps/api/src/audit/audit-entry.ts              # [ĐỤNG audit] thêm OverrideLichHen (B14)
 apps/api/src/pricing/exam-price.reader.ts      # [ĐỤNG search] chuyển ExamPriceReader từ search/pricing/ (P3), search import lại
@@ -428,7 +429,7 @@ Cột sinh `khung_gio_dang_giu` của DB gồm `HoanThanh`, `VangMat` (khác `AC
 | 6 | `lich_hen` `FOR UPDATE` **theo khoá chính (`lich_hen_id`) hoặc `ma_lich_hen`, không bao giờ theo `khung_gio_id`** (quy tắc 7 bên dưới) | mọi luồng đổi trạng thái |
 | 7 | `giao_dich_thanh_toan` → `vi_noi_bo` → bảng chỉ-thêm (`lich_su_hoan_tien`, `giao_dich_vi`, `thong_bao`, `nhat_ky_hanh_dong`) | `payment`, `wallet`, thông báo, audit (**sau** `lich_hen`; `payment` phải khoá `lich_hen` trước `vi_noi_bo`: ghi ở 5.10) |
 
-Quy tắc áp dụng: (1) luồng chỉ biết `lich_hen` (huỷ, hết hạn, xác nhận, tiếp đón, Vắng mặt) **đọc thường một lần** để lấy `lich_hen_id`, `khung_gio_id` và `benh_nhan_id` (cả ba **bất biến** sau khi chèn: lịch đổi/huỷ vẫn giữ `khung_gio_id`), rồi khoá theo thứ tự trên, rồi **kiểm lại trạng thái, sở hữu và điều kiện dưới khoá**; (2) kiểm quyền/phạm vi (404) làm ở lần đọc thường **và** kiểm lại dưới khoá; (3) mọi giao dịch ghi mở `READ COMMITTED` (Q42; không khoá khoảng chỉ mục, tránh 1213 chéo giữa các lịch khác nhau); (4) luồng trả **kết quả có kiểu** thay vì ném `AppException` bên trong giao dịch, controller đổi sang lỗi API sau commit (nếp `LoginService` A8); (5) `withBookingTransaction` thử lại tối đa 2 lần (tổng 3) khi gặp 1213/1205 **trước commit**, không bao giờ thử lại sau commit; tác dụng phụ (hoàn tiền, mời danh sách chờ, gửi thư trực tiếp) chỉ chạy **sau commit, đúng một lần**; (6) job quét theo lô, **một giao dịch riêng cho mỗi lịch hẹn**, không khoá nhiều lịch cùng lúc; (7) **khoá `lich_hen` chỉ bằng `lich_hen_id` hoặc `ma_lich_hen` (UNIQUE), KHÔNG BAO GIỜ bằng `WHERE khung_gio_id = ? FOR UPDATE`** (chỉ mục phụ của khoá ngoại). Số đo thật (doctor X1, M12, `docs/features/doctor/TRACKING.md` mục 6, 09/11/2026): khi `cancel` khoá `lich_hen` qua `khung_gio_id` thì **deadlock 1213, nạn nhân là `cancel`**, với `DELETE khung_gio` của gỡ ca của `doctor` (cả hai cùng đụng chỉ mục `lich_hen.khung_gio_id` và hàng `khung_gio`); khoá theo khoá chính hoặc theo `ma_lich_hen` thì không có chu trình. Thứ tự chung của `booking` và `doctor`: **`khung_gio` trước, `lich_hen` sau** (tầng 5 rồi 6). Phía `doctor`: gặp 1451 khi gỡ ca còn lịch tham chiếu thì rollback ngay (không để giao dịch mở).
+Quy tắc áp dụng: (1) luồng chỉ biết `lich_hen` (huỷ, hết hạn, xác nhận, tiếp đón, Vắng mặt) **đọc thường một lần** để lấy `lich_hen_id`, `khung_gio_id` và `benh_nhan_id` (cả ba **bất biến** sau khi chèn: lịch đổi/huỷ vẫn giữ `khung_gio_id`), rồi khoá theo thứ tự trên, rồi **kiểm lại trạng thái, sở hữu và điều kiện dưới khoá**; (2) kiểm quyền/phạm vi (404) làm ở lần đọc thường **và** kiểm lại dưới khoá; (3) mọi giao dịch ghi mở `READ COMMITTED` (Q42; không khoá khoảng chỉ mục, tránh 1213 chéo giữa các lịch khác nhau); (4) luồng trả **kết quả có kiểu** thay vì ném `AppException` bên trong giao dịch, controller đổi sang lỗi API sau commit (nếp `LoginService` A8); (5) `withBookingTransaction` thử lại tối đa 2 lần (tổng 3) khi gặp 1213/1205 **trước commit**, không bao giờ thử lại sau commit; hết lượt thì `AppException` 503 `HE_THONG_DANG_BAN` (không gắn `cause`); tác dụng phụ (hoàn tiền, mời danh sách chờ, gửi thư trực tiếp) chỉ chạy **sau commit, đúng một lần**; (6) job quét theo lô, **một giao dịch riêng cho mỗi lịch hẹn**, không khoá nhiều lịch cùng lúc; (7) **khoá `lich_hen` chỉ bằng `lich_hen_id` hoặc `ma_lich_hen` (UNIQUE), KHÔNG BAO GIỜ bằng `WHERE khung_gio_id = ? FOR UPDATE`** (chỉ mục phụ của khoá ngoại). Số đo thật (doctor X1, M12, `docs/features/doctor/TRACKING.md` mục 6, 09/11/2026): khi `cancel` khoá `lich_hen` qua `khung_gio_id` thì **deadlock 1213, nạn nhân là `cancel`**, với `DELETE khung_gio` của gỡ ca của `doctor` (cả hai cùng đụng chỉ mục `lich_hen.khung_gio_id` và hàng `khung_gio`); khoá theo khoá chính hoặc theo `ma_lich_hen` thì không có chu trình. Thứ tự chung của `booking` và `doctor`: **`khung_gio` trước, `lich_hen` sau** (tầng 5 rồi 6). Phía `doctor`: gặp 1451 khi gỡ ca còn lịch tham chiếu thì rollback ngay (không để giao dịch mở).
 Không có khoá `tai_khoan` trong luồng đặt lịch: guard đã đọc `trang_thai` tài khoản mỗi request; một tài khoản bị khoá đúng lúc đang đặt chỉ tạo thêm một lịch hợp lệ (vô hại).
 
 ### 5.4 Đặt lịch khám (ĐLK b8–b18)
@@ -595,7 +596,7 @@ Trạng thái loading/rỗng/lỗi/mất mạng/timeout: dùng `loading-state`, 
 
 ### 5.14 Mã lỗi → thông báo (câu chữ `[đề xuất]`; nhóm duyệt và đưa vào Figma)
 
-Mã viết `HOA_GACH_DUOI`, chỉ 4xx (503 chỉ cho lỗi dịch vụ phía sau tạm thời); lỗi UNIQUE/FK/deadlock đã lường trước **không** ra 500. Mã chung đã có: `KHONG_TIM_THAY` (404), `KHONG_DU_QUYEN` (403), `HE_THONG_CHUA_CAU_HINH` (409), `HO_SO_NGUOI_THAN_DA_NGUNG` (409, của patient).
+Mã viết `HOA_GACH_DUOI`, chỉ 4xx (503 chỉ cho lỗi dịch vụ phía sau tạm thời); lỗi UNIQUE/FK/deadlock đã lường trước **không** ra 500. Ba mã 400 (`LY_DO_KHAM_KHONG_HOP_LE`, `LY_DO_BAT_BUOC`, `TU_KHOA_KHONG_HOP_LE`) là mã TRƯỜNG: nằm ở `loi[].ma` của 400 `DU_LIEU_KHONG_HOP_LE` (nếp patient, search, admin; P1, duyệt 09/11/2026). Hết lượt thử lại deadlock hoặc 1205 ⇒ 503 `HE_THONG_DANG_BAN` (5.3 quy tắc 5). Mã chung đã có: `KHONG_TIM_THAY` (404), `KHONG_DU_QUYEN` (403), `HE_THONG_CHUA_CAU_HINH` (409), `HO_SO_NGUOI_THAN_DA_NGUNG` (409, của patient).
 
 | Mã | HTTP | Nhánh | Thông báo cho người dùng |
 |---|---|---|---|
@@ -614,15 +615,16 @@ Mã viết `HOA_GACH_DUOI`, chỉ 4xx (503 chỉ cho lỗi dịch vụ phía sau
 | `DAT_LICH_BI_KHOA_NO_SHOW` | 403 | A4 | Tài khoản đang bị khoá đặt lịch trực tuyến do vắng mặt nhiều lần. Vui lòng liên hệ Lễ tân hoặc Quản trị viên. |
 | `VUOT_SO_LICH_HEN_TOI_DA` | 409 | A3/11a (`chiTiet.toiDa`) | Hồ sơ này đã có {n} lịch hẹn đang hoạt động, là mức tối đa. |
 | `LICH_HEN_TRUNG_THOI_GIAN` | 409 | A3/11a (`chiTiet.maLichHen`, `thoiGian`) | Hồ sơ này đã có lịch hẹn {mã} trùng thời gian. |
-| `LY_DO_KHAM_KHONG_HOP_LE` | 400 | b10 | Lý do khám không hợp lệ (tối đa 500 ký tự). |
+| `LY_DO_KHAM_KHONG_HOP_LE` | 400 (mã trường: `loi[].ma`) | b10 | Lý do khám không hợp lệ (tối đa 500 ký tự). |
 | `LICH_HEN_KHONG_CHO_HUY` | 409 | HLH A1 (`chiTiet.trangThai`) | Lịch hẹn đang ở trạng thái {…} nên không thể hủy. |
 | `CHUYEN_TRANG_THAI_KHONG_HOP_LE` | 409 | CNTT, override | Không thể chuyển lịch hẹn từ {…} sang {…}. |
 | `CHI_BAC_SI_HOAN_THANH` | 409 | CNTT A1 | Trạng thái Hoàn thành chỉ do Bác sĩ chuyển sau khi hoàn tất ca khám. |
 | `CON_PHAN_CHUA_THANH_TOAN` | 409 | CNTT A2 (`chiTiet.conPhaiThu`) | Lịch hẹn còn {số tiền} chưa thanh toán. Vui lòng thu tiền tại quầy trước khi tiếp đón. |
 | `NGOAI_KHUNG_GIO_TIEP_DON` | 409 | cửa sổ tiếp đón (`chiTiet.tu`, `den`) | Chỉ tiếp đón từ {…} đến {…}. |
 | `CHUA_QUA_GIO_HEN` | 409 | Vắng mặt sớm | Chưa hết thời gian tiếp đón nên chưa thể đánh dấu vắng mặt. |
-| `LY_DO_BAT_BUOC` | 400 | Lễ tân huỷ, QTV override | Vui lòng nhập lý do (tối đa 255 ký tự). |
-| `TU_KHOA_KHONG_HOP_LE` | 400 | `q` | Từ khoá tìm kiếm không hợp lệ. |
+| `LY_DO_BAT_BUOC` | 400 (mã trường: `loi[].ma`) | Lễ tân huỷ, QTV override | Vui lòng nhập lý do (tối đa 255 ký tự). |
+| `TU_KHOA_KHONG_HOP_LE` | 400 (mã trường: `loi[].ma`) | `q` | Từ khoá tìm kiếm không hợp lệ. |
+| `HE_THONG_DANG_BAN` | 503 | hết lượt thử lại 1213/1205 (5.3 quy tắc 5; P1, duyệt 09/11/2026) | Hệ thống đang xử lý nhiều yêu cầu cùng lúc. Vui lòng thử lại sau ít giây. |
 
 Mã nội bộ không ra HTTP: `HetHanGiuCho` (kết quả `confirmPaid`). Lỗi DTO dùng `VALIDATION_CODES` của auth P5.
 
@@ -678,7 +680,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 08/11/2026: *
 
 | ☐ | ID | Việc (file; chạm ngoài module; việc phải đo) | Phụ thuộc | Truy vết | Thẻ / PR gợi ý |
 |---|---|---|---|---|---|
-| ☐ | P1 | **Khung `AppointmentsModule`** (`appointments/appointments.module.ts`, đăng ký `AppModule` một dòng — file dùng chung), `appointments.constants.ts` (mã lỗi 5.14, mã sự kiện 5.12, hằng job: cron, cỡ lô, trần lô), `state/appointment-state.matrix.ts` (hàm thuần `canTransition`, `allowedTargets` dùng chung cho API và `chuyenDuoc[]`), `locking/booking-transaction.ts` (`READ COMMITTED` + thử lại ≤ 2 lần 1213/1205 **chỉ trước commit**, kết quả có kiểu) và `locking/lock-order.ts` (hằng + ghi chú bảng 5.3); test kiến trúc AR-01, AR-03, AR-04; một dòng TRACKING quyết định `read-only-tx.ts` chuyển lên `common/` hay viết lại | patient B5 (đã có), auth A4 | ĐLK b17; CNTT b2, A1; HLH A1; H2, H7, H8 | `[TIỀN ĐỀ]` `[CHỜ Q21, Q24, Q42]` · `feat(booking)` · MT-01…MT-04, AR-01, AR-03, AR-04 |
+| ☑ | P1 | **Khung `AppointmentsModule`** (`appointments/appointments.module.ts`, đăng ký `AppModule` bằng 2 dòng (một `import`, một phần tử `imports`) — file dùng chung, báo Trung), `appointments.constants.ts` (mã lỗi 5.14, mã sự kiện 5.12, hằng job: cron, cỡ lô, trần lô), `state/appointment-state.matrix.ts` (hàm thuần `canTransition`, `allowedTargets` dùng chung cho API và `chuyenDuoc[]`), `locking/booking-transaction.ts` (`READ COMMITTED` + thử lại ≤ 2 lần 1213/1205 **chỉ trước commit**, kết quả có kiểu) và `locking/lock-order.ts` (hằng + ghi chú bảng 5.3); test kiến trúc AR-01, AR-03, AR-04, AR-05; một dòng TRACKING quyết định `read-only-tx.ts` chuyển lên `common/` hay viết lại. **Kế hoạch chi tiết P1-A…P1-M, bảng ma trận 22 ô và tám câu hỏi (a) đến (h): [`TRACKING.md`](TRACKING.md) mục 3.3 đến 3.5, ĐÃ DUYỆT (09/11/2026)** | patient B5 (đã có), auth A4 | ĐLK b17; CNTT b2, A1; HLH A1; H2, H7, H8 | `[TIỀN ĐỀ]` `[Q42 TẠM]` (Q21, Q24 đã trả lời 08/11/2026; Q42 TẠM duyệt 09/11/2026, B6 vẫn chờ Q42) · `feat(booking)` · MT-01…MT-03, MT-04 (chỉ phần ma trận), AR-01, AR-03, AR-04, AR-05, BCS-01…BCS-05, BTX-01…BTX-11, LOK-01…LOK-04 (7.17) |
 | ☐ | P2 | **Cổng, bản giả và hạ tầng test:** `ports/` (`PaymentPort`, `PaymentSummaryPort`, `RefundPort`, `WalletBalancePort`, `WaitlistPort`, `DoctorLeavePort`, `PendingBranchChangesPort`, `AppointmentNotifier`; token DI; `Noop` mặc định có cảnh báo log một lần), `testing/booking-fixtures.ts` (bác sĩ + ca + khung giờ đặt được + bệnh nhân + hồ sơ người thân + cấu hình, dựng bằng `AdminFixtures`), `concurrency-harness.ts`, `invariants.ts` (INV-1…INV-5), `fake-ports.ts`; seed `booking-demo` (mốc hoàn minh hoạ + một dịch vụ cọc > 0, số `[cần điền]`) thêm vào `seed-cli` `[ĐỤNG admin]` (chỉ thêm lệnh mới, báo Trung). Có thể tách thành hai PR nếu quá lớn | P1 | Nền cho mọi test; Q41 | `[TIỀN ĐỀ]` `[ĐỤNG admin]` · `test(booking)` · CG-01…CG-10, INV-01…INV-05 |
 | ☐ | P3 | `[ĐỤNG search]` chuyển `ExamPriceReader` từ `search/pricing/` sang `apps/api/src/pricing/` (`git mv`, sửa import ở `search.module.ts` và test, **không đổi hành vi**); chạy lại toàn bộ test giá của `search` | — (độc lập) | ĐLK b12; H3 | `[ĐỤNG search]` — báo Trung · `refactor(search)` |
 | ☐ | P4 | `[ĐỤNG rbac]` `rbac/reception-scope.service.ts` (+ provider, export): `resolve(accountId)` đọc `le_tan.chi_nhanh_id` mỗi request (không cache); không còn là Lễ tân đang hoạt động ⇒ 403; test tích hợp | — (độc lập) | XDS TĐK; CNTT TĐK; QB-04 | `[ĐỤNG rbac]` `[CHỜ Q34]` — báo Trung · `feat(rbac)` |
@@ -691,7 +693,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 08/11/2026: *
 
 | ☐ | ID | Việc (file; chạm ngoài module; việc phải đo) | Phụ thuộc | Truy vết | Thẻ / PR gợi ý |
 |---|---|---|---|---|---|
-| ☐ | B1 | `GET /patient/appointments` (TCLS): `lists/patient-appointments.{controller,service,repository,dto}.ts`; SQL thô, **phạm vi `benh_nhan_id` nằm trong SQL**, bộ lọc Q31, `q` (Q35), `demTheoTrangThai` (một câu `GROUP BY` cùng bộ lọc trừ trạng thái), giao dịch chỉ đọc cho `total`/`items`/đếm, `no-store`, trang vượt cuối ⇒ 200 rỗng. **Cần đo** M8 (mảng `trangThai`), M9 (`maLichHen`) | P1, P2 | TCLS b2–b4, A1 | `feat(booking)` · LSH-01…LSH-09, LSH-12…LSH-14, QB-01, QB-02, QB-08, QB-09 |
+| ☐ | B1 | `GET /patient/appointments` (TCLS): `lists/patient-appointments.{controller,service,repository,dto}.ts`; SQL thô, **phạm vi `benh_nhan_id` nằm trong SQL**, bộ lọc Q31, `q` (Q35), `demTheoTrangThai` (một câu `GROUP BY` cùng bộ lọc trừ trạng thái), giao dịch chỉ đọc cho `total`/`items`/đếm, `no-store`, trang vượt cuối ⇒ 200 rỗng. **Cần đo** M8 (mảng `trangThai`), M9 (`maLichHen`) | P1, P2 | TCLS b2–b4, A1 | `feat(booking)` · LSH-01…LSH-09, LSH-12…LSH-14, QB-01, QB-02, QB-08, QB-09, AR-02 và QB-07 (quét `@Roles` của controller đầu tiên của module, mẫu `auditPatientControllers` của patient) |
 | ☐ | B2 | `GET /patient/appointments/:maLichHen` (chi tiết): `choPhepHuy` từ ma trận, `thanhToan`/`hoanTien` = `null` qua cổng, `thoiGianMayChu`, `Pipe` chuẩn hoá `maLichHen` | B1 | TCLS b5–b6; L17 | `feat(booking)` · LSH-10, LSH-11, LSH-13, QB-01, QB-09 |
 | ☐ | B3 | `GET /reception/appointments` và `/:maLichHen` (XDS cho Lễ tân): `lists/operations-appointments.*` dùng chung với B4; ép chi nhánh bằng `ReceptionScopeService`; bộ lọc Q32; `chuyenDuoc[]` bằng ma trận P1; `conPhaiThu` qua `PaymentSummaryPort`; danh sách trắng trường | P1, P2, P4 | XDS b2–b4, A1; CNTT b1–b2 | `feat(booking)` `[CHỜ Q32]` · DSV-01, DSV-04…DSV-12, CT-11, QB-02, QB-04 |
 | ☐ | B4 | `GET /admin/appointments` và `/:maLichHen`: `@Roles('QuanTriVien')` + `@RequireAdminScope('Any')`, `AdminScopeCtx`, `BranchAccessPolicy.branchFilter`/`assertCanSee` (ngoài phạm vi ⇒ 404); panel "Lịch sử trạng thái" dựng từ `thoi_diem_tao`, `thoi_diem_huy`, `ly_do_huy` + audit `OverrideLichHen`; cột/lọc `thanhToan` ẩn tới khi có `payment` | B3 | XDS TĐK, b2–b4 | `feat(booking)` · DSV-02, DSV-03, QB-05 |
@@ -701,7 +703,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 08/11/2026: *
 | ☐ | B8 | **`POST /booking/appointments`:** `create/create-appointment.{controller,service}.ts`, `create/appointment-code.ts` (thuần), giao dịch 5.4 (khoá `benh_nhan` → `lockVisitProfile` → `bac_si` `FOR SHARE` → `khung_gio`), giá + snapshot, `INSERT lich_hen`, cọc 0đ xác nhận ngay (`PaymentPort.recordZeroPayment` + `confirmPaid` nội bộ), `no-store`. Cọc > 0 chỉ chạy được khi có `moc_hoan_tien` (task admin của Trung, Q15; P6 chỉ làm tạm). **Cần đo** M2, M7, M9, M11 | B6, B7, P2, P3, (P6 cho cọc > 0) | ĐLK b13–b18, A2; HĐK thành công/thất bại | `[ĐỒNG BỘ TL]` D2 · `[CHỜ Q1, Q2, Q13, Q15]` · `feat(booking)` · DL-01, DL-02, DL-20…DL-22, DL-25…DL-29, DT-10, DT-11, KT-01…KT-05 |
 | ☐ | B9 | **Hết hạn giữ chỗ:** `state/appointment-transition.service.ts` (khung + `expire`), `expiry/hold-expiry.job.ts` (`@Cron` mỗi phút; quét theo lô; một giao dịch riêng mỗi lịch; cờ `running`; tắt ở `NODE_ENV=test`; không `ScheduleModule.forRoot()`), kết quả có kiểu `Expired`/`NotDue`/`Failed`. **Cần đo** M4, M5 | B6 | ĐLK b19, A5 | `[CHỜ Q2, Q6]` · `feat(booking)` · HG-01…HG-10, DT-08, DT-16 |
 | ☐ | B10 | **Huỷ dùng chung:** `cancel/appointment-cancellation.service.ts` (`cancel` + `CancelOutcome`, 5.6), `cancel/refund-calculator.ts` (thuần), `cancel/patient-cancel.controller.ts` (`GET …/cancel-preview`, `POST …/cancel`); gọi `RefundPort` và `WaitlistPort` **sau commit một lần**; **khoá `lich_hen` theo khoá chính hoặc `ma_lich_hen`, không theo `khung_gio_id`** (5.3 quy tắc 7; doctor M12); thêm `cancel` vào `AppointmentTransitionService` | B9 | HLH b1–b8, A1–A3 | `[ĐỒNG BỘ TL]` D2 · `[CHỜ Q16, Q17, Q18, Q27, Q44]` · `feat(booking)` · HL-01…HL-18, DT-05…DT-07 |
-| ☐ | B11 | **Hàm gọi vào cho module khác:** `AppointmentTransitionService.confirmPaid` (Q4, Q20), `complete` (D6), `AppointmentQueries.findAffectedByLeave` (D5, **có tham số `now`**: chỉ lấy lịch `thoi_gian > now`), **`listAffectedByLeave` (D13)** và **`countActiveByShifts` (D14)** (hai hàm chỉ đọc cho `doctor`; D5 và D13 dùng chung MỘT hàm lọc "bị ảnh hưởng"; **điều kiện thời gian là khoảng nửa mở trên `thoi_gian`, không bọc `DATE()`; cột `DATE` đọc bằng `DATE_FORMAT`**, doctor M4 và M10); chạy với `payment`/`doctor` giả; xuất từ `AppointmentsModule` | B9 | ĐLK b16; CNTT (`HoanThanh` chỉ Bác sĩ); HĐK nghỉ phép; PDN b2 và lưới lịch của `doctor` | `[CHỜ Q4, Q20]` `[CHỜ payment]` (tích hợp thật ở B17) · `feat(booking)` · HG-11…HG-13, CG-02, CG-07, CG-08, CG-11…CG-18, DT-03, DT-04 |
+| ☐ | B11 | **Hàm gọi vào cho module khác:** `AppointmentTransitionService.confirmPaid` (Q4, Q20), `complete` (D6), `AppointmentQueries.findAffectedByLeave` (D5, **có tham số `now`**: chỉ lấy lịch `thoi_gian > now`), **`listAffectedByLeave` (D13)** và **`countActiveByShifts` (D14)** (hai hàm chỉ đọc cho `doctor`; D5 và D13 dùng chung MỘT hàm lọc "bị ảnh hưởng"; **điều kiện thời gian là khoảng nửa mở trên `thoi_gian`, không bọc `DATE()`; cột `DATE` đọc bằng `DATE_FORMAT`**, doctor M4 và M10); chạy với `payment`/`doctor` giả; xuất từ `AppointmentsModule` | B9 | ĐLK b16; CNTT (`HoanThanh` chỉ Bác sĩ); HĐK nghỉ phép; PDN b2 và lưới lịch của `doctor` | `[CHỜ Q4, Q20]` `[CHỜ payment]` (tích hợp thật ở B17) · `feat(booking)` · HG-11…HG-13, CG-02, CG-07, CG-08, CG-11…CG-18, DT-03, DT-04, MT-04 (phần `complete` thật: `NotAssigned`, `InvalidState`; phần ma trận đã ở P1) |
 | ☐ | B12 | **Cập nhật trạng thái của Lễ tân:** `status/reception-status.{controller,service}.ts`, `check-in.service.ts` (cửa sổ tiếp đón, `remainingToCollect`), `no-show.service.ts` (`markNoShow`: khoá `benh_nhan` → `lich_hen`, cộng `so_lan_no_show`, bật cờ khi đạt ngưỡng, không cảnh báo lặp), huỷ qua B10; thêm `checkIn`, `markNoShow` vào `AppointmentTransitionService`; thông báo qua `AppointmentNotifier` | B10, B11, B3, P4 | CNTT b1–b5, b9–b13, A1–A4 | `[ĐỒNG BỘ TL]` D2 · `[CHỜ Q14, Q21, Q22, Q25, Q27, Q28]` · `feat(booking)` · CT-01…CT-13, CT-22, MT-01…MT-04, VM-05…VM-09, VM-14, VM-15, DT-05, DT-06, DT-15 |
 | ☐ | B13 | **`NoShowJob`** (`@Cron` mỗi 5 phút): câu ứng viên và kiểm lại dưới khoá dùng **cùng** hằng SQL (4 bảng, `:now`), không giải phóng khung giờ, không `WaitlistPort`, bỏ qua ca không có khoảng (cảnh báo log), thiếu cấu hình ⇒ bỏ lượt. **Cần đo** M6 | B12 | CNTT b7–b8, A3 | `[CHỜ Q23]` · `feat(booking)` · VM-01…VM-13, VM-16, DT-06 |
 | ☐ | B14 | **Override của Quản trị viên:** `status/admin-override.{controller,service}.ts`; ma trận Q24; `[ĐỤNG audit]` mở rộng `audit/audit-entry.ts` thêm `OverrideLichHen` (`targetType: 'lich_hen'`, `truoc`, `sau`, `ly_do`) và test của audit. **Đụng nhau với `doctor` P4** (P4 thêm bốn hành động mới vào cùng `ChangeMap` và `TargetFor`): `TargetFor` hiện rơi mặc định về `yeu_cau_thay_doi_chi_nhanh`, nên hành động nào không được liệt kê sẽ bị gán sai đối tượng ⇒ **đổi `TargetFor` thành bảng tra theo hành động (mỗi hành động một dòng) thay cho chuỗi điều kiện lồng nhau**, để mỗi PR chỉ thêm dòng của mình; **PR nào gộp sau phải gộp `main` rồi viết lại danh sách**; ca `C2-03` đọc từ tập hành động hiện có của `AuditEntry`, **không ghi số cứng số hành động** (hai PR cùng đổi một con số sẽ xung đột); phối hợp với `doctor` P4 trước khi làm. Ghi audit **cùng giao dịch** (lỗi ⇒ hoàn tác tất cả) | B12 | CNTT b6; HĐK override; L9, L10 | `[ĐỤNG audit]` — báo Trung · `[CHỜ Q24]` · `feat(booking)` · CT-14…CT-21 |
@@ -731,7 +733,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 08/11/2026: *
 |---|---|---|---|---|
 | ☐ | D1 | `[ĐỤNG search]` ghi vào `docs/features/search/TRACKING.md` mục 3 việc **đổi chủ** "khung giờ còn trống" (Q18 → `doctor`) và vào PLAN `search` 5.6 việc K1 trả `khungGioId` (Q8); cùng người sửa với PLAN `doctor` | Sau Q7, Q8 (đã trả lời; Trung sửa ở task D1 của PLAN `doctor`, task này chỉ kiểm lại) | L4, L17 |
 | ☐ | D2 | `[ĐỒNG BỘ TL]` `docs/database/clinix.dbml` và `clinix_quy_tac_nghiep_vu.md` (**sửa cả ba file `docs/database/*` cho khớp**; `clinix_mysql.sql` chỉ thêm truy vấn mẫu, không sửa `CREATE TABLE` vì COMMENT được `schema-parity` so với migration, TECH_DEBT dòng 8): ghi chú cột `chinh_sach_hoan_snapshot` (dạng JSON, Q15), `ma_lich_hen` (định dạng Q13), `han_thanh_toan` (NULL khi `DaXacNhan`), `khung_gio.trang_thai` (`HetHan` suy ra khi đọc, Q3); quy tắc mới: thứ tự khoá toàn cục và luồng tạo lịch, huỷ dùng chung và hoàn cọc theo bậc, Vắng mặt/no-show/khoá và mở khoá lại, override, quy tắc 37, 40 bỏ `[đề xuất]` theo Q22. **Nhắc người dùng sửa 2.4** (repo `TLCN_CLINIX`): ĐLK b8 theo Q1 và b10 ("không bắt buộc"), A5; CNTT (Hoàn thành không thuộc override, "quá giờ hẹn", cửa sổ tiếp đón); XDS (ô tìm, bộ lọc); TCLS (Sắp tới/Lịch sử và số đếm); HLH (lý do) | PR của B8, B10, B12, B14 (mỗi PR một phần) | L1, L5, L10, L11, L19, L23, L24 |
-| ☐ | D3 | `docs/TECH_DEBT.md` (từ **số kế tiếp trên `main` lúc ghi**, hiện 84: Lễ tân không ghi nhật ký và không lưu người thực hiện, Q28; kiểm chồng lấn dùng thời lượng dịch vụ hiện hành; `HetHan` không ghi; hết hạn lười; cổng `Noop` chưa thay; bước thanh toán/tiếp đón chờ `payment`); danh sách việc Figma cho nhóm (mục 4.4, 4.5) | Cuối cụm 2 và 4 | Q28, mục 4.4–4.5 |
+| ☐ | D3 | `docs/TECH_DEBT.md` (từ **số kế tiếp trên `main` lúc ghi**, lúc 09/11/2026 là 87: Lễ tân không ghi nhật ký và không lưu người thực hiện, Q28; kiểm chồng lấn dùng thời lượng dịch vụ hiện hành; `HetHan` không ghi; hết hạn lười; cổng `Noop` chưa thay; bước thanh toán/tiếp đón chờ `payment`); danh sách việc Figma cho nhóm (mục 4.4, 4.5) | Cuối cụm 2 và 4 | Q28, mục 4.4–4.5 |
 
 ### 6.6 Nhóm X — Hoàn tất
 
@@ -778,7 +780,7 @@ Loại: **U** = thuần (`*.spec.ts`), **I** = tích hợp MySQL thật (`*.int-
 | DL-20 | Giá: có và không có quy tắc phụ phí; đổi giá dịch vụ/quy tắc **sau** khi đặt | `gia_snapshot` = `computeExamPrice` (chuỗi decimal chính xác); lịch đã đặt không đổi; không số thực | b14, quy tắc 11 | I |
 | DL-21 | `chinh_sach_hoan_snapshot`: cọc 0 ⇒ NULL; cọc > 0 có mốc ⇒ mảng giảm dần; cọc > 0 không mốc ⇒ `[]`; đổi `moc_hoan_tien` sau đó không đổi lịch | Đúng dạng JSON `so_gio_truoc_toi_thieu`, `ty_le_hoan` | HĐK, Q15 | I |
 | DL-22 | Mã lịch hẹn: định dạng `CLX-yyyyMMdd-XXXXX` (ngày giờ VN, không I L O U); va chạm 1062 sinh lại; hết 5 lần | Đúng dạng, duy nhất, không đoán được; hết 5 lần ⇒ 500 `LOI_HE_THONG` có `requestId` | b14, Q13 | U, I |
-| DL-23 | Lý do khám: không gửi/rỗng; 500 và 501 ký tự; ký tự điều khiển; NFC | Rỗng ⇒ `NULL`; 501 và ký tự điều khiển ⇒ 400 `LY_DO_KHAM_KHONG_HOP_LE` | b10, Q9 | U, E |
+| DL-23 | Lý do khám: không gửi/rỗng; 500 và 501 ký tự; ký tự điều khiển; NFC | Rỗng ⇒ `NULL`; 501 và ký tự điều khiển ⇒ 400 `DU_LIEU_KHONG_HOP_LE` với `loi[].ma` = `LY_DO_KHAM_KHONG_HOP_LE` | b10, Q9 | U, E |
 | DL-24 | `POST /booking/checks` trả tóm tắt đủ trường; lỗi đầu tiên theo đúng thứ tự 5.4; **không đổi dữ liệu** (đếm hàng `lich_hen`, trạng thái `khung_gio` trước/sau) | Tóm tắt có `giaApDung`, `phuPhi`, `tienCoc`, `chinhSachHoan`, `soDuVi: null` | b8, b11, b12 | I, E |
 | DL-25 | Client gửi `bacSiId`, `chiNhanhId`, `dichVuKhamId`, `benhNhanId`, `trangThai` trong thân | 400 (không nhận); lịch tạo luôn lấy bác sĩ/chi nhánh/dịch vụ từ khung giờ | b8, QB-03 | E |
 | DL-26 | `lich_lam_viec.chi_nhanh_id` lệch `bac_si.chi_nhanh_id` | 409 `KHUNG_GIO_KHONG_HOP_LE` | D12 | I |
@@ -839,7 +841,7 @@ Loại: **U** = thuần (`*.spec.ts`), **I** = tích hợp MySQL thật (`*.int-
 | LSH-05 | `demTheoTrangThai` | Đúng từng trạng thái dưới các bộ lọc khác; **không** đổi khi đổi `trangThai` | Figma `411:2` | I |
 | LSH-06 | Có lịch `DaDoiLich` | Không xuất hiện; không tính vào đếm | Q31 | I |
 | LSH-07 | Phân trang: `page`/`pageSize` (tối đa 100); trang vượt cuối; `total` và `items` cùng ảnh chụp khi có ghi đồng thời | 200 `items` rỗng ở trang vượt cuối (không 500); `total` khớp | Q35 | I |
-| LSH-08 | `q`: mã lịch, tên bác sĩ, tên người khám; `%`, `_`, `!`; 1 và 101 ký tự; điều khiển | Khớp chứa không phân biệt hoa thường/dấu; ký tự đặc biệt là ký tự thường; sai ⇒ 400 `TU_KHOA_KHONG_HOP_LE` | Q35 | I, U |
+| LSH-08 | `q`: mã lịch, tên bác sĩ, tên người khám; `%`, `_`, `!`; 1 và 101 ký tự; điều khiển | Khớp chứa không phân biệt hoa thường/dấu; ký tự đặc biệt là ký tự thường; sai ⇒ 400 `DU_LIEU_KHONG_HOP_LE` với `loi[].ma` = `TU_KHOA_KHONG_HOP_LE` | Q35 | I, U |
 | LSH-09 | A1: không có lịch phù hợp bộ lọc | 200 `items: []`, `total: 0` | A1/4a–4b | I, E |
 | LSH-10 | Chi tiết: đủ trường; `thanhToan`, `hoanTien` = `null` (chưa có module); `choPhepHuy` | Đúng theo trạng thái | b6, L17 | I |
 | LSH-11 | Chi tiết lịch của người khác / mã sai dạng / chữ thường | 404 cùng thân; chữ thường được chuẩn hoá | QB-01, H17 | E |
@@ -853,10 +855,10 @@ Loại: **U** = thuần (`*.spec.ts`), **I** = tích hợp MySQL thật (`*.int-
 |---|---|---|---|---|
 | MT-01 | `canTransition`/`allowedTargets` cho mọi (vai trò × nguồn × đích) | Khớp bảng 5.2 và Q21, Q24, không còn ô thừa | b2, A1 | U |
 | MT-02 | `allowedTargets` Lễ tân theo thời điểm: trước cửa sổ, trong cửa sổ, sau cửa sổ; còn phải thu / đủ | `DaHuy` luôn (nguồn hợp lệ); `DaTiepDon` chỉ trong cửa sổ và đủ tiền; `VangMat` chỉ sau cửa sổ | b2, Q22 | U |
-| MT-03 | Chọn `HoanThanh` (mọi vai trò trừ Bác sĩ) | `CHI_BAC_SI_HOAN_THANH` | A1/2a–2b | U, E |
-| MT-04 | `complete` bởi bác sĩ khác / sai trạng thái | `NotAssigned` / `InvalidState` | D6 | I |
+| MT-03 | Chọn `HoanThanh` (mọi vai trò trừ Bác sĩ, kể cả Quản trị viên override; mọi nguồn; Q21, duyệt 09/11/2026) | `CHI_BAC_SI_HOAN_THANH` | A1/2a–2b | U, E |
+| MT-04 | `complete` bởi bác sĩ khác / sai trạng thái | `NotAssigned` / `InvalidState` (P1 chỉ phủ phần ma trận: `BacSi` chỉ `DaTiepDon → HoanThanh`; ca thật ở B11) | D6 | I |
 | CT-01 | Lễ tân `DaXacNhan → DaHuy` kèm `lyDo` | 200; khung giờ `ConTrong`; hoàn theo bậc; thông báo | b3–b5 | I, E |
-| CT-02 | Lễ tân `ChoThanhToan → DaHuy`; thiếu `lyDo` | 200; thiếu lý do ⇒ 400 `LY_DO_BAT_BUOC` | Q27 | E |
+| CT-02 | Lễ tân `ChoThanhToan → DaHuy`; thiếu `lyDo` | 200; thiếu lý do ⇒ 400 `DU_LIEU_KHONG_HOP_LE` với `loi[].ma` = `LY_DO_BAT_BUOC` | Q27 | E |
 | CT-03 | Lễ tân `DaXacNhan → VangMat` sau hết cửa sổ | `VangMat`; `so_lan_no_show` + 1 (tài khoản đặt); khung giờ giữ `DaDat`; không `WaitlistPort` | b3–b4, b9 | I |
 | CT-04 | Lễ tân `VangMat` trước/trong cửa sổ tiếp đón; biên `thoi_gian + check_in_sau_phut` | 409 `CHUA_QUA_GIO_HEN`; biên: đúng mốc còn trong cửa sổ (chưa được), +1s được | Q22 | I |
 | CT-05 | Lễ tân `DaXacNhan → DaTiepDon`, đủ tiền (cổng giả 0), trong cửa sổ | `DaTiepDon`; khung giờ giữ `DaDat` | b2–b4 | I |
@@ -869,8 +871,8 @@ Loại: **U** = thuần (`*.spec.ts`), **I** = tích hợp MySQL thật (`*.int-
 | CT-12 | Thông báo cho Bệnh nhân: `LichHenDaHuy`, `LichHenVangMat` ghi đúng tài khoản đặt (không phải người thân) | Đúng | b5, b13 | I |
 | CT-13 | Hai Lễ tân cùng đổi một lịch (hủy và vắng mặt) | Đúng một kết quả; bên thua nhận kết quả có kiểu (409), INV | A3, H4 | I |
 | CT-14 | QTV override từng cặp hợp lệ của Q24 | Trạng thái, khung giờ, audit `OverrideLichHen` (`truoc`, `sau`, `ly_do`) cùng giao dịch; thông báo | b6 | I |
-| CT-15 | Override thiếu/rỗng `lyDo`; > 255 | 400 `LY_DO_BAT_BUOC` | b6 | E |
-| CT-16 | Override cặp không hợp lệ: nguồn `HoanThanh`/`DaHuy`/`DaDoiLich`; đích `HoanThanh`/`DaDoiLich`/`ChoThanhToan`; cùng trạng thái | 409 `CHUYEN_TRANG_THAI_KHONG_HOP_LE` | A1, Q24 | I |
+| CT-15 | Override thiếu/rỗng `lyDo`; > 255 | 400 `DU_LIEU_KHONG_HOP_LE` với `loi[].ma` = `LY_DO_BAT_BUOC` | b6 | E |
+| CT-16 | Override cặp không hợp lệ: nguồn `HoanThanh`/`DaHuy`/`DaDoiLich`; đích `DaDoiLich`/`ChoThanhToan`; cùng trạng thái (đích `HoanThanh` xem MT-03: `CHI_BAC_SI_HOAN_THANH`, duyệt 09/11/2026) | 409 `CHUYEN_TRANG_THAI_KHONG_HOP_LE` | A1, Q24 | I |
 | CT-17 | QTV Chi nhánh override lịch chi nhánh khác; QTV Toàn hệ thống mọi chi nhánh | 404 cùng thân; Toàn hệ thống ok | QB-05 | E |
 | CT-18 | Audit lỗi (`AuditError`) | Hoàn tác **toàn bộ** (trạng thái, khung giờ, thông báo) | H12 | I |
 | CT-19 | Override sang `VangMat` | Cộng no-show như mọi đường khác; bật cờ khi đạt ngưỡng | b9 | I |
@@ -972,11 +974,11 @@ Loại: **U** = thuần (`*.spec.ts`), **I** = tích hợp MySQL thật (`*.int-
 | ID | Kịch bản | Mong đợi | Phủ | Loại |
 |---|---|---|---|---|
 | INV-01…INV-05 | Chạy sau mọi ca ghi/đồng thời | INV-1 đến INV-5 của mục 5.2 | H1 | I |
-| AR-01 | Quét `src/` tìm `UPDATE lich_hen`/`UPDATE khung_gio` ngoài `appointments/` (kể cả tên bảng trong chuỗi SQL, query builder) | Không có; có ngoại lệ ghi rõ (`seed`, `testing/`) | H7 | U |
+| AR-01 | Quét `src/` tìm `UPDATE lich_hen`/`UPDATE khung_gio` ngoài `appointments/` (kể cả tên bảng trong chuỗi SQL, query builder) | Không có; ngoại lệ là dữ liệu kèm lý do (`scheduling/`, `doctor/`: `INSERT`/`DELETE` `khung_gio`; `database/migrations/`; `database/seeds/`: `INSERT`; thư mục `testing/`) | H7 | U |
 | AR-02 | Quét route của module | Mọi route có `@Roles` | QB-07 | U |
-| AR-03 | Cây import chỉ có đúng một `ScheduleModule` | Đúng (E2E-J02 vẫn xanh) | H9 | E |
+| AR-03 | Cây import chỉ có đúng một `ScheduleModule`; hướng phụ thuộc H20 (cây `AppointmentsModule` không chứa `DoctorModule`, cây `SchedulingModule` không chứa `AppointmentsModule`, không `forRoot(` trong `appointments/`) | Đúng (E2E-J02 vẫn xanh); phần không cần `AppModule` ở `architecture.spec.ts`, phần cây `AppModule` ở `architecture.int-spec.ts` | H9 | E |
 | AR-04 | Quét SQL của module tìm `NOW()`/`CURDATE()` | Không có (dùng `:now`) | H8 | U |
-| AR-05 | Quét SQL của module tìm điều kiện bọc cột chỉ mục (`DATE(thoi_gian)` hay `DATE(` quanh `thoi_gian`) và `WHERE khung_gio_id = ? … FOR UPDATE` trên `lich_hen` | Không có | doctor M10, M12 | U |
+| AR-05 | Quét SQL của module tìm điều kiện bọc cột chỉ mục (`DATE(thoi_gian)` hay `DATE(` quanh `thoi_gian`) và `WHERE khung_gio_id = ? … FOR UPDATE` trên `lich_hen` | Không có | doctor M10, M12; task P1 (duyệt 09/11/2026) | U |
 
 ### 7.12 Hợp đồng khoá với `patient` (KT) — patient X3 chạy lại
 
@@ -1065,8 +1067,35 @@ Loại: **U** = thuần (`*.spec.ts`), **I** = tích hợp MySQL thật (`*.int-
 | BB-01 | Chạy đủ luồng đặt, huỷ, vắng mặt với log bắt | Log không có lý do khám, tên, SĐT, `maLichHen` kèm dữ liệu cá nhân | SOW 3.2 | E |
 | BB-02 | Lỗi 5xx | Chỉ `maLoi`, `thongBao`, `requestId`; không stack/SQL | P5 auth | E |
 | BB-03 | Mã lịch hẹn: không tuần tự; entropy 5 ký tự/ngày | Không đoán được kế tiếp | H17 | U |
-| BB-04 | Lỗi UNIQUE/FK/deadlock/1205 đã lường trước | 4xx có mã, **không** 500 | H1, H2 | I |
+| BB-04 | Lỗi UNIQUE/FK/deadlock/1205 đã lường trước | 4xx có mã hoặc 503 `HE_THONG_DANG_BAN` (hết lượt thử lại deadlock/1205), **không** 500 | H1, H2 | I |
 | BB-05 | Quét web: không `localStorage`/`sessionStorage` chứa dữ liệu lịch hẹn/lý do khám | Đúng | Q38 | W |
+
+### 7.17 Khung P1: hằng, giao dịch, thứ tự khoá (BCS, BTX, LOK) — duyệt 09/11/2026
+
+Mã mới của task P1 (grep `apps`, `docs`, `AGENTS.md` ngày 09/11/2026: `BCS`, `BTX`, `LOK` không trùng). Chạy trong `*.spec.ts` (không DB) trừ BTX-10, BTX-11 (`*.int-spec.ts`, phụ thuộc câu (g) ở [`TRACKING.md`](TRACKING.md) mục 3.5). Chi tiết thiết kế: TRACKING mục 3.3 P1-C, P1-E, P1-F.
+
+| ID | Kịch bản | Mong đợi | Phủ | Loại |
+|---|---|---|---|---|
+| BCS-01 | Bảng mã lỗi của 5.14 | Đủ mã (24, cộng `HE_THONG_DANG_BAN` nếu câu h), không trùng, đúng `ERROR_CODE_PATTERN`; HTTP đúng cột 5.14 (403 `DAT_LICH_BI_KHOA_NO_SHOW`, 404 `KHUNG_GIO_KHONG_TON_TAI`, 409 phần còn lại; ba mã 400 là mã trường nếu câu f) | 5.14 | U |
+| BCS-02 | Ba mã dùng lại từ `scheduling/scheduling.constants.ts` (`CHI_NHANH_CHUA_KHAI_BAO`, `CHI_NHANH_NGHI`, `CA_KHONG_TON_TAI`) | Cùng giá trị chuỗi, không khai lần hai | 5.10 D2 | U |
+| BCS-03 | `bookingException(code, chiTiet?)` cho mọi mã có HTTP | Dựng được `AppException` đúng trạng thái và `maLoi`; `thongBao` không rỗng; `chiTiet` chuyển nguyên | 5.14 | U |
+| BCS-04 | Bốn mã sự kiện của 5.12 | Dạng PascalCase, khác nhau, ≤ 100 ký tự (`thong_bao.loai_su_kien`) | Q29 | U |
+| BCS-05 | Hằng job | Cron 6 trường hợp lệ; hết hạn giữ chỗ mỗi phút; Vắng mặt mỗi 5 phút; lô 100, trần 10 lô; hai job không cùng giây | 5.5, Q23, H9 | U |
+| BTX-01 | `withBookingTransaction` chạy thành công | Mở đúng một giao dịch `READ COMMITTED`; `work` chạy một lần; trả đúng giá trị | 5.3 quy tắc 3 | U |
+| BTX-02 | `work` ném 1213 một lần rồi thành công | `work` chạy 2 lần, mỗi lần với một `EntityManager` mới; trả giá trị lần hai | H2 | U |
+| BTX-03 | Như BTX-02 với 1205 | Như BTX-02 | H2 | U |
+| BTX-04 | 1213 hoặc 1205 cả ba lần | Đúng 3 lần chạy (1 + 2 thử lại), rồi `AppException` 503 `HE_THONG_DANG_BAN` không gắn `cause` (theo câu h); log có errno, không có dữ liệu | H2, Q42, BB-04 | U |
+| BTX-05 | Lỗi khác: 1062, 1451, `AppException`, `Error` thường | Không thử lại; `work` đúng 1 lần; ném lại nguyên lỗi | BB-04 | U |
+| BTX-06 | 1213 ném SAU khi `work` đã trả (lúc commit) | Không thử lại; `work` đúng 1 lần | 5.3 quy tắc 5 | U |
+| BTX-07 | `work` trả kết quả "từ chối" có kiểu | Giao dịch vẫn commit (không rollback); hàm trả nguyên kết quả | 5.3 quy tắc 4, A8 | U |
+| BTX-08 | Cảnh báo mỗi lần thử lại | Có `label`, số lần, errno; không chứa tham số hay dữ liệu của `work` | H12 | U |
+| BTX-09 | Lỗi bọc kiểu `QueryFailedError` (`driverError.errno`) | Vẫn nhận ra 1213 và 1205 | `database/mysql-errors.ts` | U |
+| BTX-10 | (MySQL thật; câu g) READ COMMITTED bằng hành vi | A đọc, B commit, A đọc lại thấy giá trị mới (REPEATABLE READ sẽ thấy giá trị cũ) | Q42 | I |
+| BTX-11 | (MySQL thật; câu g) 1213 thật | Hai giao dịch khoá hai hàng theo thứ tự ngược nhau bằng cổng đồng bộ ⇒ đúng một bên bị 1213, `withBookingTransaction` thử lại; cả hai kết thúc đúng | H2 | I |
+| LOK-01 | Bảng tầng khoá | Tầng 1, 2, 3, 4, 4b, 5, 6, 7 đúng thứ tự và đúng bảng của 5.3 | 5.3 | U |
+| LOK-02 | `findLockOrderViolation` với chuỗi hợp lệ | `null` cho: tạo (`benh_nhan` → `ho_so_nguoi_than` → `bac_si` → `khung_gio` → `lich_hen`), huỷ (`khung_gio` → `lich_hen`), `payment` (`lich_hen` → `vi_noi_bo`), lặp cùng bảng | H2 | U |
+| LOK-03 | `findLockOrderViolation` với chuỗi ngược | Bắt: `lich_hen` trước `khung_gio`; `ho_so_nguoi_than` trước `benh_nhan`; `khung_gio` trước `bac_si`; `vi_noi_bo` trước `lich_hen` | H2, doctor M12 | U |
+| LOK-04 | Hằng quy tắc 7 | Khoá hợp lệ của `lich_hen` là `lich_hen_id`, `ma_lich_hen`; cột cấm là `khung_gio_id`, `khung_gio_dang_giu` | 5.3 quy tắc 7 | U |
 
 ## 8. Đề xuất gom cụm (chỉ đề xuất — nhóm chốt)
 
