@@ -559,3 +559,14 @@ ALTER TABLE nhat_ky_hanh_dong
 ```
 
 Kiểm tra sau chuyển đổi: mọi giá trị cũ còn nguyên; bốn hành động mới được chấp nhận với đúng loại đối tượng ở trên. Hoàn tác (revert) chỉ chạy được khi chưa có dòng nhật ký nào dùng giá trị mới (nếu còn, MySQL báo lỗi 1265 và không đổi gì).
+
+## B3 — Phân công ca của bác sĩ (09/11/2026, module doctor; không đổi schema)
+
+Không có `ALTER`: `POST /admin/doctor-shifts` chỉ ghi `lich_lam_viec`, `khung_gio` và `nhat_ky_hanh_dong` theo các quy tắc sau (DB không ép, service giữ):
+
+- **Một giao dịch, all-or-none** cho cả yêu cầu (mọi bác sĩ × ngày × ca). Có ca vi phạm (ngày đã qua, ca đã kết thúc hôm nay, chi nhánh nghỉ/chưa khai báo, ca không tồn tại trong ngày đó, ca ngắn hơn một khung giờ, trùng ca đã có) thì không ghi gì; lỗi trả mã của vi phạm đầu tiên kèm tối đa 50 mục trong `chiTiet.viPham[]`.
+- **Chi nhánh của ca** = `bac_si.chi_nhanh_id` đọc dưới khoá lúc phân công; ca cũ giữ chi nhánh cũ khi bác sĩ đổi chi nhánh. Thân yêu cầu không được chứa `chiNhanhId`.
+- **Khung giờ sinh ngay trong giao dịch phân công** (`ConTrong`, nối liền theo `dich_vu_kham.thoi_luong`); chạy lại không đổi `trang_thai`/`giu_cho_den` của ô đã có.
+- **Thứ tự khoá** (tránh deadlock): `bac_si` của mọi bác sĩ trong yêu cầu bằng MỘT câu `ORDER BY tai_khoan_id ASC FOR UPDATE`, rồi `dich_vu_kham` `FOR SHARE`; sau khoá mới kiểm lại luật. Giao dịch `READ COMMITTED`; deadlock/chờ khoá (1213/1205) chạy lại tối đa 2 lần trước commit. Trùng ca do hai người ghi cùng lúc: UNIQUE `(bac_si_id, ngay, ca)` trả lỗi 1062, service đổi thành `CA_DA_PHAN_CONG` (409).
+- `CaToi` không bao giờ được phân công. Giới hạn mỗi lần: 20 bác sĩ, 92 ngày, 1.000 ca.
+- **Nhật ký**: mỗi bác sĩ một dòng `PhanCongLichLamViec` cùng giao dịch (lỗi ghi nhật ký thì hoàn tác cả ca lẫn khung giờ).
