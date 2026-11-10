@@ -16,6 +16,7 @@ import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 // import, nên module thật KHÔNG tự ghi đè từ ngoài. Cách làm: sửa đúng MỘT dòng của cổng đó (thay `useClass: Noop…` bằng `useExisting: <lớp thật>`) và thêm module nguồn
 // vào `imports`; module nguồn phải EXPORT CẢ LỚP thật (không chỉ token), nếu không Nest báo không tiêm được. Ví dụ nghỉ phép (B16):
 //   imports: [SchedulingModule],  providers: [{ provide: DOCTOR_LEAVE_PORT, useExisting: LeaveReader }, …]   (SchedulingModule đã xuất LeaveReader)
+// `SchedulingModule` đòi `DataSource` (doctor B6: `AvailableSlotsReader`); app thật có sẵn toàn cục, còn test dựng riêng module phải cấp bằng `useMocker` (xem `doctor-leave.port.int-spec.ts`).
 // `PendingBranchChangesPort` cần adapter `useClass` (admin chỉ có `getPendingEffectiveChanges(chiNhanhId)`). Cảnh báo cho payment, wallet, waitlist (suy ra, chưa đo): các module
 // đó `import AppointmentsModule` (gọi `confirmPaid`, `RefundCalculator`, `SlotHoldService`) nên nếu module này cũng import lại họ sẽ thành vòng import module (Nest đòi
 // `forwardRef`): đặt bản thật của cổng trong một module nhỏ KHÔNG import `AppointmentsModule`. Test thay cổng bằng bản giả: `overrideProvider(TOKEN).useValue(fake)`.

@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import type { DataSource } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
 import { LeaveReader } from '../../scheduling/leave/leave.reader.js';
 import { SchedulingModule } from '../../scheduling/scheduling.module.js';
@@ -23,10 +23,13 @@ useIntegrationHooks((d) => {
 
 describe('BPO-05 hợp đồng D4: LeaveReader thật đi qua cổng DoctorLeavePort', () => {
   it('đúng công thức B16: provider `{ provide: DOCTOR_LEAVE_PORT, useExisting: LeaveReader }` với SchedulingModule (đã xuất LeaveReader) cho đúng thể hiện LeaveReader', async () => {
+    // Từ doctor B6, SchedulingModule có `AvailableSlotsReader` cần `DataSource` (ở app thật do TypeOrmModule cấp toàn cục); ở đây cấp `db` thật của int-spec, cùng nếp `scheduling.module.spec.ts`.
     const moduleRef = await Test.createTestingModule({
       imports: [SchedulingModule],
       providers: [{ provide: DOCTOR_LEAVE_PORT, useExisting: LeaveReader }],
-    }).compile();
+    })
+      .useMocker((token) => (token === DataSource ? db : undefined))
+      .compile();
     const port = moduleRef.get<DoctorLeavePort>(DOCTOR_LEAVE_PORT);
     expect(port).toBeInstanceOf(LeaveReader);
     expect(port).toBe(moduleRef.get(LeaveReader));
