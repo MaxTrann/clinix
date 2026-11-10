@@ -6,6 +6,8 @@ import {
   ACTIVE_APPOINTMENT_STATES,
   isActiveAppointmentState,
 } from '../active-appointment-states.js';
+import type { PaymentView } from '../ports/payment.port.js';
+import type { RefundView } from '../ports/wallet.port.js';
 import {
   CalendarDayParam,
   IdFilterParam,
@@ -88,7 +90,7 @@ export interface PatientAppointmentsQuery {
 
 /**
  * Một dòng danh sách: ĐÚNG mười hai khoá (danh sách trắng, Q31). Không `lich_hen_id`, `benh_nhan_id`, `khung_gio_id`, `ho_so_nguoi_than_id`, không email hay SĐT
- * của bác sĩ (LSH-14, H10); `lyDoKham`, `thanhToan`, `hoanTien` thuộc chi tiết (B2). `thoiGian`, `hanThanhToan`: ISO 8601 UTC. Tiền: chuỗi decimal.
+ * của bác sĩ (LSH-14, H10); `lyDoKham`, `thanhToan`, `hoanTien`, `thoiGianMayChu` thuộc chi tiết (`PatientAppointmentDetail`, B2). `thoiGian`, `hanThanhToan`: ISO 8601 UTC. Tiền: chuỗi decimal.
  */
 export interface PatientAppointmentItem {
   maLichHen: string;
@@ -103,6 +105,19 @@ export interface PatientAppointmentItem {
   tienCoc: string;
   hanThanhToan: string | null;
   choPhepHuy: boolean;
+}
+
+/**
+ * Chi tiết MỘT lịch hẹn (task B2; PLAN booking 5.8, 5.9, L17; TRACKING 3.15.1): ĐÚNG mười sáu khoá = mười hai khoá của một dòng danh sách (cùng hàm ánh xạ) cộng
+ * `lyDoKham` (chuỗi hoặc `null`), `thanhToan` và `hoanTien` (`null` tới khi `payment` và `wallet` có, qua cổng), `thoiGianMayChu` (ISO 8601 UTC, giữ mili giây:
+ * để giao diện bù lệch đồng hồ khi đếm ngược theo `hanThanhToan`). Không `lich_hen_id`, `benh_nhan_id`, `khung_gio_id`, `ho_so_nguoi_than_id`, không email hay SĐT
+ * của bác sĩ (LSH-14), không `lyDoHuy` (chờ F2, B12 và Figma `691:2` chốt: thêm khoá sau là cộng thêm).
+ */
+export interface PatientAppointmentDetail extends PatientAppointmentItem {
+  lyDoKham: string | null;
+  thanhToan: PaymentView | null;
+  hoanTien: RefundView | null;
+  thoiGianMayChu: string;
 }
 
 /** Số lịch theo từng trạng thái hiển thị: đủ sáu khoá, trạng thái không có dòng nào là `0`. */

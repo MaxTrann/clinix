@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
+import { SchedulingModule } from '../scheduling/scheduling.module.js';
+import { PatientAppointmentDetailService } from './lists/patient-appointment-detail.service.js';
 import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
 import { PatientAppointmentsRepository } from './lists/patient-appointments.repository.js';
 import { PatientAppointmentsService } from './lists/patient-appointments.service.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
+import { BookabilityReader } from './slots/bookability.reader.js';
 
 // Module `booking` (PLAN booking 5.1, 5.10; TRACKING 3.3 P1-B, 3.6 P2-B, P2-D). P1 dựng vỏ; P2 thêm TÁM cổng sang module khác, mỗi cổng gắn bản `Noop` mặc định
 // (`ports/ports.providers.ts`). Mọi thứ khác P1 làm ra (ma trận trạng thái, hằng và mã lỗi, `withBookingTransaction`, `lock-order`) là hàm hoặc hằng thuần mà nơi
@@ -14,6 +17,8 @@ import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 //   B10 `AppointmentCancellationService`                        B11  `AppointmentQueries` (+ `confirmPaid`, `complete`, `findAffectedByLeave`, D13, D14)
 //   B3 thêm RbacModule, B14 thêm AuditModule; controller và service của B1 đến B14
 //   B1 (đã làm) `PatientAppointmentsController`, `PatientAppointmentsService`, `PatientAppointmentsRepository` (`lists/`; `GET /patient/appointments`, chỉ đọc)
+//   B2 (đã làm) `PatientAppointmentDetailService` (`lists/`; `GET /patient/appointments/:maLichHen`, chỉ đọc; cùng controller và repository của B1)
+//   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới); B6b thêm `SlotHoldService`
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
 //
 // THAY `Noop` BẰNG BẢN THẬT (B16, B17) — đã kiểm bằng script Nest (TRACKING 3.6 P2-D): provider khai ngay trong module này THẮNG provider cùng token của module được
@@ -29,11 +34,14 @@ import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 // `ScheduleModule.forRoot()` (app.module.ts đã đăng ký một lần; gọi thêm thì mọi job `@Cron` chạy gấp đôi, TECH_DEBT dòng 33; job B9, B13 chỉ dùng `@Cron`).
 // `DataSource` có sẵn toàn cục từ `DatabaseModule` (như `PatientModule`) nên chưa cần `imports`.
 @Module({
+  imports: [SchedulingModule],
   controllers: [PatientAppointmentsController],
   providers: [
     ...BOOKING_PORT_PROVIDERS,
     PatientAppointmentsService,
+    PatientAppointmentDetailService,
     PatientAppointmentsRepository,
+    BookabilityReader,
   ],
 })
 export class AppointmentsModule {}

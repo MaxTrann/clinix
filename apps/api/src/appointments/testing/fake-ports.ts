@@ -3,9 +3,17 @@ import type {
   AppointmentNotifier,
 } from '../ports/appointment-notifier.port.js';
 import type { DoctorLeavePort } from '../ports/doctor-leave.port.js';
-import type { PaymentPort, PaymentSummaryPort } from '../ports/payment.port.js';
+import type {
+  PaymentPort,
+  PaymentSummaryPort,
+  PaymentView,
+} from '../ports/payment.port.js';
 import type { PendingBranchChangesPort } from '../ports/pending-branch-changes.port.js';
-import type { RefundPort, WalletBalancePort } from '../ports/wallet.port.js';
+import type {
+  RefundPort,
+  RefundView,
+  WalletBalancePort,
+} from '../ports/wallet.port.js';
 import type { WaitlistPort } from '../ports/waitlist.port.js';
 
 // Bản Fake LẬP TRÌNH ĐƯỢC của tám cổng (PLAN booking 5.15; TRACKING 3.6 P2-E), dùng cho DL, HL, HG, CT, DT và X1 từ B6 trở đi. Để ở `testing/` (không ở `ports/`):
@@ -111,6 +119,10 @@ export class FakePaymentSummaryPort implements PaymentSummaryPort {
   readonly remainingCall = new ScriptedCall<
     PaymentSummaryPort['remainingToCollect']
   >('0.00');
+  /** Mặc định `null` như bản `Noop`: chi tiết lịch hẹn ra `thanhToan: null` (B2). */
+  readonly findPaymentCall = new ScriptedCall<
+    PaymentSummaryPort['findPayment']
+  >(null);
 
   amountPaid(
     ...args: Parameters<PaymentSummaryPort['amountPaid']>
@@ -122,6 +134,12 @@ export class FakePaymentSummaryPort implements PaymentSummaryPort {
     ...args: Parameters<PaymentSummaryPort['remainingToCollect']>
   ): Promise<string> {
     return this.remainingCall.call(...args);
+  }
+
+  findPayment(
+    ...args: Parameters<PaymentSummaryPort['findPayment']>
+  ): Promise<PaymentView | null> {
+    return this.findPaymentCall.call(...args);
   }
 
   /** Số đã thu theo `lichHenId`; id không nêu ⇒ `fallback`. */
@@ -145,9 +163,17 @@ export class FakeRefundPort implements RefundPort {
   readonly refundCall = new ScriptedCall<RefundPort['refund']>({
     kind: 'Refunded',
   });
+  /** Mặc định `null` như bản `Noop`: chi tiết lịch hẹn ra `hoanTien: null` (B2). */
+  readonly findRefundCall = new ScriptedCall<RefundPort['findRefund']>(null);
 
   refund(...args: Parameters<RefundPort['refund']>) {
     return this.refundCall.call(...args);
+  }
+
+  findRefund(
+    ...args: Parameters<RefundPort['findRefund']>
+  ): Promise<RefundView | null> {
+    return this.findRefundCall.call(...args);
   }
 
   /** Kết quả của mọi lần gọi tiếp theo. */

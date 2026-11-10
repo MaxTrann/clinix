@@ -1,12 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { runReadOnly } from '../../common/transaction/read-only-tx.js';
-import { canTransition } from '../state/appointment-state.matrix.js';
 import { dayBounds, intersectStates } from './list-query.rules.js';
+import { toItem } from './patient-appointment.mapper.js';
 import {
   NHOM_STATES,
   PATIENT_VISIBLE_STATES,
-  type PatientAppointmentItem,
   type PatientAppointmentsPage,
   type PatientAppointmentsQuery,
   type StatusCounts,
@@ -14,33 +13,7 @@ import {
 import {
   PatientAppointmentsRepository,
   type PatientAppointmentFilter,
-  type PatientAppointmentRow,
 } from './patient-appointments.repository.js';
-
-// Chỉ liệt kê từng khoá (không trải hàng thô): cột thừa của repository không bao giờ ra ngoài (LSH-14). `choPhepHuy` lấy từ ma trận P1, không viết lại luật (LSH-13).
-function toItem(row: PatientAppointmentRow): PatientAppointmentItem {
-  return {
-    maLichHen: row.maLichHen,
-    trangThai: row.trangThai,
-    thoiGian: row.thoiGian.toISOString(),
-    bacSi: row.bacSi,
-    chuyenKhoa: row.chuyenKhoa,
-    chiNhanh: row.chiNhanh,
-    dichVu: row.dichVu,
-    nguoiKham: {
-      hoTen: row.nguoiKham,
-      laBanThan: Number(row.laBanThan) === 1,
-    },
-    giaSnapshot: row.giaSnapshot,
-    tienCoc: row.tienCoc,
-    hanThanhToan: row.hanThanhToan?.toISOString() ?? null,
-    choPhepHuy: canTransition({
-      actor: 'BenhNhan',
-      from: row.trangThai,
-      to: 'DaHuy',
-    }).ok,
-  };
-}
 
 // Đủ sáu khoá, trạng thái không có dòng nào là 0 (khung hình cố định cho thẻ lọc của giao diện)
 function toCounts(
