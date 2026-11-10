@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
+import { PatientAppointmentsRepository } from './lists/patient-appointments.repository.js';
+import { PatientAppointmentsService } from './lists/patient-appointments.service.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 
 // Module `booking` (PLAN booking 5.1, 5.10; TRACKING 3.3 P1-B, 3.6 P2-B, P2-D). P1 dựng vỏ; P2 thêm TÁM cổng sang module khác, mỗi cổng gắn bản `Noop` mặc định
@@ -10,6 +13,7 @@ import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 //   B6  `SlotHoldService` (imports: SchedulingModule)          B9   `AppointmentTransitionService` (nơi DUY NHẤT ghi `lich_hen.trang_thai`, H7)
 //   B10 `AppointmentCancellationService`                        B11  `AppointmentQueries` (+ `confirmPaid`, `complete`, `findAffectedByLeave`, D13, D14)
 //   B3 thêm RbacModule, B14 thêm AuditModule; controller và service của B1 đến B14
+//   B1 (đã làm) `PatientAppointmentsController`, `PatientAppointmentsService`, `PatientAppointmentsRepository` (`lists/`; `GET /patient/appointments`, chỉ đọc)
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
 //
 // THAY `Noop` BẰNG BẢN THẬT (B16, B17) — đã kiểm bằng script Nest (TRACKING 3.6 P2-D): provider khai ngay trong module này THẮNG provider cùng token của module được
@@ -24,5 +28,12 @@ import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 // Chiều phụ thuộc DUY NHẤT: doctor → appointments → scheduling (doctor H20). Module này KHÔNG BAO GIỜ import `DoctorModule`, KHÔNG import `ScheduleModule` và KHÔNG gọi
 // `ScheduleModule.forRoot()` (app.module.ts đã đăng ký một lần; gọi thêm thì mọi job `@Cron` chạy gấp đôi, TECH_DEBT dòng 33; job B9, B13 chỉ dùng `@Cron`).
 // `DataSource` có sẵn toàn cục từ `DatabaseModule` (như `PatientModule`) nên chưa cần `imports`.
-@Module({ providers: [...BOOKING_PORT_PROVIDERS] })
+@Module({
+  controllers: [PatientAppointmentsController],
+  providers: [
+    ...BOOKING_PORT_PROVIDERS,
+    PatientAppointmentsService,
+    PatientAppointmentsRepository,
+  ],
+})
 export class AppointmentsModule {}

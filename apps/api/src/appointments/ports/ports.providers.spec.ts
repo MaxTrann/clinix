@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 import { AppointmentsModule } from '../appointments.module.js';
 import {
   APPOINTMENT_NOTIFIER,
@@ -36,6 +37,11 @@ const EXPECTED = [
   [APPOINTMENT_NOTIFIER, NoopAppointmentNotifier],
 ] as const;
 
+// AppointmentsModule có service đọc DB (task B1) nên đòi `DataSource`; app thật có sẵn toàn cục từ DatabaseModule, còn test dựng riêng module cấp một DataSource GIẢ
+// (không DB, không ai gọi tới nó trong các ca này) bằng `useMocker`, như `doctor-leave.port.int-spec.ts`. Token nào khác vẫn thiếu thì Nest báo lỗi như cũ.
+const noDatabase = (token: unknown) =>
+  token === DataSource ? ({} as DataSource) : undefined;
+
 describe('BPO-01 token DI và AppointmentsModule', () => {
   it('có đúng tám token, đều là Symbol và khác nhau', () => {
     expect(BOOKING_PORT_TOKENS).toHaveLength(8);
@@ -47,7 +53,9 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
   it('AppointmentsModule cấp đủ tám token bằng đúng bản Noop (không cần DB)', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppointmentsModule],
-    }).compile();
+    })
+      .useMocker(noDatabase)
+      .compile();
     for (const [token, noop] of EXPECTED)
       expect(moduleRef.get(token, { strict: false })).toBeInstanceOf(noop);
     await moduleRef.close();
@@ -60,6 +68,7 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
     })
       .overrideProvider(DOCTOR_LEAVE_PORT)
       .useValue(fake)
+      .useMocker(noDatabase)
       .compile();
     for (const [token, noop] of EXPECTED) {
       const resolved = moduleRef.get(token, { strict: false });
@@ -72,7 +81,9 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
   it('mỗi token được cấp một thể hiện riêng (cờ cảnh báo một lần không dùng chung giữa các cổng)', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppointmentsModule],
-    }).compile();
+    })
+      .useMocker(noDatabase)
+      .compile();
     const instances = BOOKING_PORT_TOKENS.map((t) =>
       moduleRef.get(t, { strict: false }),
     );
