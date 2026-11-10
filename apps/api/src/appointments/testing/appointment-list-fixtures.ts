@@ -22,6 +22,7 @@ export interface BookInput {
   ngay: string;
   hoSoNguoiThanId?: string | null;
   maLichHen?: string;
+  lyDoKham?: string | null;
 }
 
 export class AppointmentListFixtures {
@@ -70,6 +71,7 @@ export class AppointmentListFixtures {
       patientId: input.patientId,
       hoSoNguoiThanId: input.hoSoNguoiThanId ?? null,
       ...(input.maLichHen === undefined ? {} : { maLichHen: input.maLichHen }),
+      ...(input.lyDoKham === undefined ? {} : { lyDoKham: input.lyDoKham }),
     });
   }
 

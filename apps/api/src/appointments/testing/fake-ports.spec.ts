@@ -122,6 +122,42 @@ describe('BPO-02 Fake thanh toán và ví', () => {
     wallet.availableCall.returns('75000.00');
     await expect(wallet.available('7')).resolves.toBe('75000.00');
   });
+
+  it('LSH-23 findPayment và findRefund: mặc định null như bản Noop; đặt được giá trị mẫu; ghi đúng em và lichHenId', async () => {
+    const payment = new FakePaymentSummaryPort();
+    const refund = new FakeRefundPort();
+    const manager = em();
+    await expect(payment.findPayment(manager, '11')).resolves.toBeNull();
+    await expect(refund.findRefund(manager, '11')).resolves.toBeNull();
+
+    const paymentView = {
+      daThu: '50000.00',
+      conPhaiThu: '100000.00',
+      giaoDich: [
+        {
+          phuongThuc: 'MoMo' as const,
+          soTien: '50000.00',
+          thoiDiem: '2026-11-10T03:00:00.000Z',
+        },
+      ],
+    };
+    const refundView = {
+      soTien: '50000.00',
+      trangThai: 'ThanhCong' as const,
+      thoiDiem: '2026-11-10T04:00:00.000Z',
+    };
+    payment.findPaymentCall.returns(paymentView);
+    refund.findRefundCall.returns(refundView);
+    await expect(payment.findPayment(manager, '12')).resolves.toEqual(
+      paymentView,
+    );
+    await expect(refund.findRefund(manager, '12')).resolves.toEqual(refundView);
+    expect(payment.findPaymentCall.calls).toEqual([
+      [manager, '11'],
+      [manager, '12'],
+    ]);
+    expect(refund.findRefundCall.calls[1]?.[0]).toBe(manager);
+  });
 });
 
 describe('BPO-03 Fake danh sách chờ và thông báo', () => {
