@@ -89,3 +89,31 @@ export function maskAuditEnums(statement: string): string {
     '`$1` ENUM (...)',
   );
 }
+
+const THONG_BAO_LICH_HEN_COLUMN_LINE =
+  /\n {2}`lich_hen_id` bigint COMMENT '[^']*',(?=\n)/;
+const THONG_BAO_LICH_HEN_INDEX =
+  /^CREATE UNIQUE INDEX `thong_bao_index_lich_hen` ON `thong_bao` /;
+const THONG_BAO_LICH_HEN_FOREIGN_KEY =
+  /^ALTER TABLE `thong_bao` ADD FOREIGN KEY \(`lich_hen_id`\) /;
+
+/**
+ * Che phần booking P7 (thong_bao.lich_hen_id) khỏi các câu CHÍNH THỨC của bảng vận hành. Migration vận hành (P3) tạo
+ * `thong_bao` trước khi cột này có; migration P7 thêm bằng ALTER nên không thể trùng chữ với CREATE TABLE. Bỏ đúng ba thứ:
+ * dòng cột `lich_hen_id` trong CREATE TABLE `thong_bao`, câu CREATE UNIQUE INDEX `thong_bao_index_lich_hen` và câu
+ * ADD FOREIGN KEY (`lich_hen_id`) của thong_bao. Trạng thái cuối được so bằng SHOW CREATE TABLE (TBLH-10).
+ * Nhận câu ĐÃ chuẩn hóa xuống dòng (normalizeStatement).
+ */
+export function maskThongBaoLichHen(statements: readonly string[]): string[] {
+  return statements
+    .filter(
+      (statement) =>
+        !THONG_BAO_LICH_HEN_INDEX.test(statement) &&
+        !THONG_BAO_LICH_HEN_FOREIGN_KEY.test(statement),
+    )
+    .map((statement) =>
+      statement.startsWith('CREATE TABLE `thong_bao` (')
+        ? statement.replace(THONG_BAO_LICH_HEN_COLUMN_LINE, '')
+        : statement,
+    );
+}

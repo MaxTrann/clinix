@@ -5,6 +5,7 @@ import { TaoBangDanhMuc1793024340000 } from './1793024340000-tao-bang-danh-muc.j
 import { TaoBangNghiPhep1793275200000 } from './1793275200000-tao-bang-nghi-phep.js';
 import { TaoBangNhanSu1793080000000 } from './1793080000000-tao-bang-nhan-su.js';
 import { TaoBangVanHanh1793090000000 } from './1793090000000-tao-bang-van-hanh.js';
+import { ThongBaoLichHen1793448000000 } from './1793448000000-thong-bao-lich-hen.js';
 
 // Sổ đăng ký migration, theo thứ tự thời gian. Thêm migration mới vào CUỐI mảng với timestamp lớn hơn;
 // bài test registry.spec.ts báo lỗi nếu có file migration chưa được đăng ký hoặc sai thứ tự.
@@ -16,4 +17,5 @@ export const MIGRATIONS = [
   TaoBangAnh1793188800000,
   TaoBangNghiPhep1793275200000,
   NhatKyPhanCongNghiPhep1793361600000,
+  ThongBaoLichHen1793448000000,
 ];
