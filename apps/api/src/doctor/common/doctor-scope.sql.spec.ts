@@ -13,7 +13,10 @@ describe('doctorScopePredicate', () => {
     const predicate = doctorScopePredicate('42');
     expect(predicate.parameters).toEqual(['42', '42']);
     expect(predicate.sql).toContain('b.chi_nhanh_id = ?');
-    expect(predicate.sql).toContain('EXISTS (SELECT 1 FROM lich_lam_viec');
+    expect(predicate.sql).toContain(
+      'b.tai_khoan_id IN (SELECT scope_lv.bac_si_id FROM lich_lam_viec',
+    );
+    expect(predicate.sql).not.toContain('EXISTS'); // dạng IN (subquery) theo M11
     expect(predicate.sql).not.toContain('42');
     expect(predicate.sql.match(/\?/g)).toHaveLength(2);
   });

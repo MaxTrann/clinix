@@ -8,6 +8,9 @@ export interface SqlPredicate {
   parameters: string[];
 }
 
+// Dạng `IN (subquery)` theo khuyến nghị đo M11 (X1, TRACKING mục 6): dùng chỉ mục `lich_lam_viec_index_4 (chi_nhanh_id, ngay)`, ~10–12 ms trên
+// 100.000 ca, nhanh gấp ~7 lần dạng `OR EXISTS` (~71–77 ms) vì không phải đọc ~250 ca của MỖI bác sĩ. Cùng ngữ nghĩa Q14.
+
 /**
  * `chiNhanhId` không có (Admin Toàn hệ thống không lọc) ⇒ không giới hạn. Giá trị luôn bind tham số.
  * `alias` là bí danh bảng `bac_si` do repository chọn (không nhận từ request) nên chỉ cho phép định danh an toàn.
@@ -20,7 +23,7 @@ export function doctorScopePredicate(
     throw new Error('Alias SQL không hợp lệ');
   if (chiNhanhId === undefined) return { sql: '1 = 1', parameters: [] };
   return {
-    sql: `(${alias}.chi_nhanh_id = ? OR EXISTS (SELECT 1 FROM lich_lam_viec scope_lv WHERE scope_lv.bac_si_id = ${alias}.tai_khoan_id AND scope_lv.chi_nhanh_id = ?))`,
+    sql: `(${alias}.chi_nhanh_id = ? OR ${alias}.tai_khoan_id IN (SELECT scope_lv.bac_si_id FROM lich_lam_viec scope_lv WHERE scope_lv.chi_nhanh_id = ?))`,
     parameters: [chiNhanhId, chiNhanhId],
   };
 }
