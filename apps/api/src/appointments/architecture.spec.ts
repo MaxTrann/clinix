@@ -37,14 +37,20 @@ describe('AR-01 chỉ appointments/ ghi lich_hen và khung_gio (H7)', () => {
     expect(findWriteViolations(files)).toEqual([]);
   });
 
-  it('bộ quét THẤY câu ghi thật: bỏ ngoại lệ thì lộ đúng chỗ INSERT khung_gio của bộ sinh khung giờ (doctor D1)', () => {
+  it('bộ quét THẤY câu ghi thật: bỏ ngoại lệ thì lộ đúng chỗ INSERT khung_gio của bộ sinh khung giờ (doctor D1) và DELETE khung_gio của gỡ ca (doctor B4, D7)', () => {
     const withoutExceptions = findWriteViolations(files, []);
     expect(withoutExceptions.length).toBeGreaterThan(0);
+    // Doctor chỉ có đúng hai kiểu ghi khung_gio được phép (D7): chèn ô ConTrong khi sinh và xoá ô ConTrong khi gỡ ca; không UPDATE.
     for (const line of withoutExceptions)
-      expect(line).toMatch(/INSERT INTO khung_gio/);
+      expect(line).toMatch(/(?:INSERT INTO|DELETE FROM) khung_gio/);
     expect(
       withoutExceptions.some((line) =>
         line.startsWith('scheduling/slots/slot-generator.ts:'),
+      ),
+    ).toBe(true);
+    expect(
+      withoutExceptions.some((line) =>
+        line.startsWith('doctor/shifts/shift-removal.repository.ts:'),
       ),
     ).toBe(true);
   });

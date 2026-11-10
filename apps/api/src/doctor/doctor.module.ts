@@ -11,6 +11,8 @@ import { ScheduleViewService } from './schedule-view/schedule-view.service.js';
 import { ShiftAssignmentController } from './shifts/shift-assignment.controller.js';
 import { ShiftAssignmentRepository } from './shifts/shift-assignment.repository.js';
 import { ShiftAssignmentService } from './shifts/shift-assignment.service.js';
+import { ShiftRemovalRepository } from './shifts/shift-removal.repository.js';
+import { ShiftRemovalService } from './shifts/shift-removal.service.js';
 
 // Khung module `doctor`: phân công ca, xem lịch, xin nghỉ và duyệt nghỉ phép. Controller/service thêm dần ở B2…B17 (B2: xem trước phân công).
 // Cây phụ thuộc một chiều (H20): doctor → scheduling; scheduling KHÔNG import appointments/ hay doctor/.
@@ -29,6 +31,8 @@ import { ShiftAssignmentService } from './shifts/shift-assignment.service.js';
     ScheduleViewService,
     AdminScheduleRepository,
     AdminScheduleService,
+    ShiftRemovalRepository,
+    ShiftRemovalService,
   ],
 })
 export class DoctorModule {}
