@@ -56,6 +56,8 @@ const OPERATIONS_TABLES = [
   'email_thong_bao',
 ];
 const NGHI_PHEP_TABLES = ['yeu_cau_nghi_phep'];
+// booking P6: mốc hoàn tiền
+const MOC_HOAN_TIEN_TABLES = ['moc_hoan_tien'];
 const MIGRATED_TABLES = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
@@ -63,6 +65,7 @@ const MIGRATED_TABLES = [
   ...OPERATIONS_TABLES,
   'anh_tai_len',
   ...NGHI_PHEP_TABLES,
+  ...MOC_HOAN_TIEN_TABLES,
 ];
 let migrated: DataSource;
 let reference: DataSource;
@@ -99,6 +102,7 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
   });
 
   // TBLH-10: gồm cả thong_bao.lich_hen_id (thứ tự cột, COMMENT, chỉ mục thong_bao_index_lich_hen, thong_bao_ibfk_3).
+  // MHT-03: gồm cả moc_hoan_tien (COMMENT, UNIQUE moc_hoan_tien_index_1, khóa ngoại moc_hoan_tien_ibfk_1, CHECK chk_moc_hoan_ty_le).
   it('SHOW CREATE TABLE của DB dựng bằng migration giống hệt DB dựng thẳng từ file SQL chính thức', async () => {
     const tables = (await listTables(migrated)).filter(
       (table) => table !== 'migrations' && table !== 'typeorm_metadata',
