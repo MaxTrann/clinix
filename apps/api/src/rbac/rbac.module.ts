@@ -4,6 +4,8 @@ import { AdminScopeRepository } from './admin-scope.repository.js';
 import { AdminScopeService } from './admin-scope.service.js';
 import { BranchAccessPolicy } from './branch-access.policy.js';
 import { AdminScopeGuard } from './guards/admin-scope.guard.js';
+import { ReceptionScopeRepository } from './reception-scope.repository.js';
+import { ReceptionScopeService } from './reception-scope.service.js';
 
 @Module({
   controllers: [AdminMeController],
@@ -12,7 +14,14 @@ import { AdminScopeGuard } from './guards/admin-scope.guard.js';
     AdminScopeService,
     AdminScopeGuard,
     BranchAccessPolicy,
+    ReceptionScopeRepository,
+    ReceptionScopeService,
   ],
-  exports: [AdminScopeService, AdminScopeGuard, BranchAccessPolicy],
+  exports: [
+    AdminScopeService,
+    AdminScopeGuard,
+    BranchAccessPolicy,
+    ReceptionScopeService,
+  ],
 })
 export class RbacModule {}
