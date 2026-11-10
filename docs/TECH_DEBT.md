@@ -114,3 +114,8 @@ chấp nhận một lối tắt; đóng dòng khi xử lý xong.
 
 - Lọc giá/điểm, sắp xếp và cắt trang làm **trong bộ nhớ** (`search/doctors/doctor-list.rules.ts`): mỗi request đọc mọi bác sĩ khớp bộ lọc SQL và mọi dòng `phu_phi_bac_si`, độ phức tạp O(số bác sĩ khớp). Ổn ở quy mô TLCN; nếu lớn cần cột giá tính sẵn (đổi schema). Chọn vậy để chỉ có MỘT công thức giá (hàm chung `pricing/`), không lặp trong SQL.
 - Tên giá trị `sapXep` (`kinhNghiem`, `giaTangDan`, `danhGiaCao`) là `[đề xuất]` — Figma/PLAN chưa chốt chuỗi; F5 phải dùng đúng các giá trị này hoặc sửa cả hai phía.
+
+## Doctor B10 — thông báo nghỉ phép (10/11/2026)
+
+- `LeaveNotifier` ghi `thong_bao` trong ứng dụng nhưng chuông thông báo vẫn ẩn tới khi module `notification` có (patient Q21b), nên các dòng này tạm chưa ai đọc. Không ghi `email_thong_bao` vì chưa có worker gửi (ghi hàng `ChoGui` rồi gửi thư cũ về sau là sai). Khi `notification` có `NotificationService`: thay `LeaveNotifier` và gửi email (doctor Q33).
+- Người nhận Admin được truy vấn lại mỗi lần gửi (không cache) và mỗi Admin một dòng `thong_bao`; ổn ở quy mô TLCN.
