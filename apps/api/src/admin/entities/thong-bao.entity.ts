@@ -7,6 +7,9 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
   ['yeuCauThayDoiChiNhanhId', 'taiKhoanId', 'loaiSuKien'],
   { unique: true },
 )
+@Index('thong_bao_index_lich_hen', ['lichHenId', 'taiKhoanId', 'loaiSuKien'], {
+  unique: true,
+})
 export class ThongBao {
   @PrimaryGeneratedColumn({ type: 'bigint', name: 'thong_bao_id' })
   thongBaoId!: string;
@@ -29,6 +32,10 @@ export class ThongBao {
     nullable: true,
   })
   yeuCauThayDoiChiNhanhId!: string | null;
+
+  // Chỉ có với thông báo sinh từ một lịch hẹn (booking P7); bigint ra chuỗi như các cột khóa khác.
+  @Column({ name: 'lich_hen_id', type: 'bigint', nullable: true })
+  lichHenId!: string | null;
 
   @Column({ name: 'thoi_diem_tao', type: 'datetime' })
   thoiDiemTao!: Date;

@@ -1,6 +1,6 @@
 # CLINIX – Quy tắc nghiệp vụ trong Database (bản 2)
 
-Nguồn: `clinix.dbml` và `clinix_mysql.sql` (cùng thư mục `docs/database/`, là bản chuẩn từ 17/10/2026; hai file này giữ đồng bộ bằng tay; cập nhật 27/10/2026: 44 bảng, 29 enum, 38 CHECK; quy tắc 50, 51 (giới tính, mối quan hệ người thân) thêm 06/11/2026, chỉ sửa chữ). Cần MySQL 8.0.17+ (CHECK được thực thi từ 8.0.16; hàm `JSON_SCHEMA_VALID` của `chk_cau_hinh_nhac_lich` cần 8.0.17).
+Nguồn: `clinix.dbml` và `clinix_mysql.sql` (cùng thư mục `docs/database/`, là bản chuẩn từ 17/10/2026; hai file này giữ đồng bộ bằng tay; cập nhật 27/10/2026: 44 bảng, 29 enum, 38 CHECK; quy tắc 50, 51 (giới tính, mối quan hệ người thân) thêm 06/11/2026, chỉ sửa chữ; 10/11/2026 (booking P7): `thong_bao.lich_hen_id`, quy tắc 28 và mục cuối file, không đổi số bảng, enum, CHECK). Cần MySQL 8.0.17+ (CHECK được thực thi từ 8.0.16; hàm `JSON_SCHEMA_VALID` của `chk_cau_hinh_nhac_lich` cần 8.0.17).
 
 ## 1. Do database bảo vệ
 
@@ -33,7 +33,7 @@ Nguồn: `clinix.dbml` và `clinix_mysql.sql` (cùng thư mục `docs/database/`
 | 25 | Lịch hoạt động chi nhánh là lịch NHẬN KHÁM với tối đa hai khoảng: mỗi khoảng (sáng, chiều) hoặc để trống cả hai giờ hoặc đủ giờ với bắt đầu < kết thúc trong ngày, không qua đêm (`chk_lich_hoat_dong_khoang`); hai khoảng không chồng nhau, kết thúc sáng <= bắt đầu chiều (`chk_lich_hoat_dong_khong_chong`); ngày hoạt động có ít nhất một khoảng đầy đủ, ngày nghỉ có cả bốn giờ để trống (`chk_lich_hoat_dong_ngay`) | `chk_lich_hoat_dong_khoang`, `chk_lich_hoat_dong_khong_chong`, `chk_lich_hoat_dong_ngay` | CHECK |
 | 26 | Yêu cầu thay đổi chi nhánh: nội dung trước/sau là JSON object không rỗng; ChoDuyet và DaRut chưa có dữ liệu duyệt/hủy/quá hạn; DaDuyet có người duyệt, số ngày báo trước và hieu_luc_tu >= thoi_diem_duyet + so_ngay_bao_truoc ngày, ap_dung_luc không sớm hơn hieu_luc_tu; TuChoi cần người duyệt, thời điểm và lý do; DaHuy cần dữ liệu duyệt, người/thời điểm hủy, lý do không rỗng và chưa áp dụng. so_lan_doi_hieu_luc >= 0; qua_han_luc chỉ có thể từ mốc hieu_luc_tu trở đi. Mỗi chi nhánh chỉ có một yêu cầu ChoDuyet hoặc DaDuyet chưa áp dụng (dang_mo_chi_nhanh) | chk_yc_chi_nhanh_noi_dung, chk_yc_chi_nhanh_xu_ly, yeu_cau_thay_doi_chi_nhanh_unique_dang_mo | CHECK, UNIQUE |
 | 27 | Mỗi lịch hẹn tối đa 1 dòng trong danh sách bị ảnh hưởng của một yêu cầu | khóa chính `(yeu_cau_thay_doi_chi_nhanh_id, lich_hen_id)` | PRIMARY KEY |
-| 28 | Thông báo sinh từ một yêu cầu thay đổi chi nhánh không trùng theo (yêu cầu, tài khoản, loại sự kiện); thông báo thường (không gắn yêu cầu) không bị ảnh hưởng | `thong_bao_index_yeu_cau_chi_nhanh` | UNIQUE (NULL không tính) |
+| 28 | Thông báo sinh từ một yêu cầu thay đổi chi nhánh hoặc từ một lịch hẹn không trùng theo (yêu cầu hoặc lịch hẹn, tài khoản, loại sự kiện); thông báo thường (không gắn yêu cầu hay lịch hẹn) không bị ảnh hưởng | `thong_bao_index_yeu_cau_chi_nhanh`, `thong_bao_index_lich_hen` | UNIQUE (NULL không tính) |
 | 29 | Mỗi thông báo có tối đa 1 dòng email; DaGui phải có da_gui_luc và đã thử >= 1 lần, ThatBai phải có lỗi cuối và đã thử >= 1 lần, ChoGui chưa có da_gui_luc; BoQua biểu thị email thông báo bị dừng và chưa được gửi, không dùng cho email nhắc lịch | email_thong_bao.thong_bao_id, chk_email_thong_bao_ket_qua | UNIQUE, CHECK |
 | 30 | Cấu hình hệ thống: thời gian giữ chỗ và thời hạn phản hồi lời mời > 0; ngưỡng no-show và số lịch hẹn tối đa mỗi hồ sơ đi khám >= 1; số lần tự đổi lịch, số mục chờ, phút tiếp đón trước/sau, số ngày báo trước và hai trọng số >= 0 [đề xuất miền giá trị; giới hạn trên của từng tham số: cần điền] | `chk_cau_hinh_gia_tri` | CHECK |
 | 31 | Mốc nhắc lịch `thoi_diem_nhac_lich` là mảng JSON số nguyên dương không trùng (mảng rỗng được chấp nhận, chưa chốt có cho tắt nhắc lịch không) | `chk_cau_hinh_nhac_lich` | CHECK (JSON_SCHEMA_VALID) |
@@ -570,3 +570,22 @@ Không có `ALTER`: `POST /admin/doctor-shifts` chỉ ghi `lich_lam_viec`, `khun
 - **Thứ tự khoá** (tránh deadlock): `bac_si` của mọi bác sĩ trong yêu cầu bằng MỘT câu `ORDER BY tai_khoan_id ASC FOR UPDATE`, rồi `dich_vu_kham` `FOR SHARE`; sau khoá mới kiểm lại luật. Giao dịch `READ COMMITTED`; deadlock/chờ khoá (1213/1205) chạy lại tối đa 2 lần trước commit. Trùng ca do hai người ghi cùng lúc: UNIQUE `(bac_si_id, ngay, ca)` trả lỗi 1062, service đổi thành `CA_DA_PHAN_CONG` (409).
 - `CaToi` không bao giờ được phân công. Giới hạn mỗi lần: 20 bác sĩ, 92 ngày, 1.000 ca.
 - **Nhật ký**: mỗi bác sĩ một dòng `PhanCongLichLamViec` cùng giao dịch (lỗi ghi nhật ký thì hoàn tác cả ca lẫn khung giờ).
+
+## booking P7 — Thông báo gắn với lịch hẹn (10/11/2026, module booking)
+
+Thêm cột `thong_bao.lich_hen_id` (nullable, khóa ngoại tới `lich_hen`) và UNIQUE `thong_bao_index_lich_hen` trên `(lich_hen_id, tai_khoan_id, loai_su_kien)`, theo mẫu của `yeu_cau_thay_doi_chi_nhanh_id` và `thong_bao_index_yeu_cau_chi_nhanh` (quyết định Q29 phương án A của module booking; Trung đồng ý 08/11/2026). Không thêm bảng, enum hay CHECK.
+
+- **Ngữ nghĩa.** Cột chỉ có với thông báo sinh từ một lịch hẹn; thông báo khác để trống. UNIQUE bỏ qua NULL nên thông báo hiện có và thông báo sinh từ yêu cầu thay đổi chi nhánh không bị ảnh hưởng, nhiều dòng `lich_hen_id` NULL vẫn hợp lệ. Cùng (lịch hẹn, tài khoản, loại sự kiện) chỉ có 1 thông báo: ghi lần hai bị lỗi 1062, nơi ghi (booking, task B15) phải coi là "đã có" và không trả 500. `loai_su_kien` so theo `utf8mb4_unicode_ci` (không phân biệt hoa thường) nên dùng hằng mã sự kiện cố định.
+- **Không có CHECK "đúng một nguồn".** Thông báo thường không gắn nguồn nào (cả hai cột NULL, quy tắc 28) nên "đúng một" sai; "tối đa một" chưa có chỗ nào cần: mỗi module chỉ điền cột của mình, service giữ.
+- **Khóa ngoại** để mặc định (từ chối xóa): xóa `lich_hen` còn thông báo gắn vào bị MySQL chặn (lỗi 1451); lịch hẹn không bị xóa trong luồng nghiệp vụ.
+- **Chuyển đổi.** DB mới tạo từ `clinix_mysql.sql` đã có cột. DB đang ở bản trước và có dữ liệu cần giữ thì sao lưu trước, chạy đúng ba lệnh sau theo thứ tự (migration `ThongBaoLichHen1793448000000` chạy cùng nội dung):
+
+```sql thong_bao_lich_hen
+ALTER TABLE `thong_bao` ADD COLUMN `lich_hen_id` bigint COMMENT 'Chỉ có với thông báo sinh từ một lịch hẹn (xác nhận, hủy, vắng mặt, khóa đặt lịch do no-show); các thông báo khác để trống. Cùng (lịch hẹn, tài khoản, loại sự kiện) chỉ có 1 thông báo nên ghi lại hoặc chạy lại không tạo thông báo trùng' AFTER `yeu_cau_thay_doi_chi_nhanh_id`;
+CREATE UNIQUE INDEX `thong_bao_index_lich_hen` ON `thong_bao` (`lich_hen_id`, `tai_khoan_id`, `loai_su_kien`);
+ALTER TABLE `thong_bao` ADD FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen` (`lich_hen_id`);
+```
+
+Kiểm tra sau chuyển đổi: mọi thông báo cũ còn nguyên với `lich_hen_id` NULL; `SHOW CREATE TABLE thong_bao` có cột sau `yeu_cau_thay_doi_chi_nhanh_id`, chỉ mục UNIQUE `thong_bao_index_lich_hen` đúng ba cột, và khóa ngoại tới `lich_hen`. Hoàn tác (revert) theo thứ tự khóa ngoại, chỉ mục, cột; chỉ chạy được khi chưa có dòng nào có `lich_hen_id` khác NULL (nếu còn, migration báo lỗi và không đổi gì, để không làm mất liên kết thông báo với lịch hẹn).
+
+Việc ghi `thong_bao` của booking (cùng giao dịch với việc đổi trạng thái lịch hẹn, bắt lỗi 1062) thuộc task B15, không nằm trong DB.

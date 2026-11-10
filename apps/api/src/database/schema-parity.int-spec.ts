@@ -7,6 +7,7 @@ import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-s
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
 import {
   maskAuditEnums,
+  maskThongBaoLichHen,
   normalizeStatement,
   officialStatementsFor,
   referencedTables,
@@ -97,6 +98,7 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     expect(TAO_BANG_AUTH_SQL.map(normalizeStatement)).toEqual(official);
   });
 
+  // TBLH-10: gồm cả thong_bao.lich_hen_id (thứ tự cột, COMMENT, chỉ mục thong_bao_index_lich_hen, thong_bao_ibfk_3).
   it('SHOW CREATE TABLE của DB dựng bằng migration giống hệt DB dựng thẳng từ file SQL chính thức', async () => {
     const tables = (await listTables(migrated)).filter(
       (table) => table !== 'migrations' && table !== 'typeorm_metadata',
@@ -159,11 +161,12 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     const official =
       officialStatementsFor(OPERATIONS_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    // Hai enum của nhat_ky_hanh_dong được mở rộng ở migration P4 (sau migration này); trạng thái cuối
-    // được so bằng SHOW CREATE TABLE ở test phía trên và MG-08.
+    // Hai enum của nhat_ky_hanh_dong được mở rộng ở migration P4 và cột thong_bao.lich_hen_id (cùng chỉ mục, khóa ngoại)
+    // được thêm ở migration booking P7 (đều sau migration này); trạng thái cuối được so bằng SHOW CREATE TABLE ở test
+    // phía trên, MG-08 và TBLH-01.
     expect(
       TAO_BANG_VAN_HANH_SQL.map(normalizeStatement).map(maskAuditEnums),
-    ).toEqual(official.map(maskAuditEnums));
+    ).toEqual(maskThongBaoLichHen(official).map(maskAuditEnums));
   });
 
   it('mọi câu lệnh trong migration P3 chỉ tác động bảy bảng vận hành', () => {

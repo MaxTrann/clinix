@@ -6,6 +6,9 @@ import {
 } from './migration-runner.js';
 import { MIGRATIONS } from './migrations/index.js';
 import { TaoBangDanhMuc1793024340000 } from './migrations/1793024340000-tao-bang-danh-muc.js';
+import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
+import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
+import { ThongBaoLichHen1793448000000 } from './migrations/1793448000000-thong-bao-lich-hen.js';
 import {
   createTestDataSource,
   listTables,
@@ -81,8 +84,54 @@ const HANH_DONG_TRUOC_P4 = [
   'HuyThayDoiChiNhanh',
   'DoiHieuLucThayDoiChiNhanh',
 ];
+const NGHI_PHEP_NAME = TaoBangNghiPhep1793275200000.name;
+const P4_NAME = NhatKyPhanCongNghiPhep1793361600000.name;
+const BOOKING_P7_NAME = ThongBaoLichHen1793448000000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
+
+/** Tên các migration đứng SAU `name` trong sổ đăng ký, theo thứ tự áp dụng (rỗng nếu `name` là migration cuối). */
+function migrationsAfter(name: string): string[] {
+  const index = MIGRATIONS.findIndex((migration) => migration.name === name);
+  expect(index, `${name} có trong MIGRATIONS`).toBeGreaterThanOrEqual(0);
+  return MIGRATIONS.slice(index + 1).map((migration) => migration.name);
+}
+
+/**
+ * Hoàn tác mọi migration đứng sau `name` (từ cuối về) để `name` thành migration cuối đã áp dụng; trả về tên chúng.
+ * Các test MG-05, MG-06, TBLH-09 gọi migration theo TÊN nên thêm migration mới ở cuối sổ không làm chúng vỡ.
+ */
+async function revertAfter(name: string): Promise<string[]> {
+  const later = migrationsAfter(name);
+  for (const expected of [...later].reverse()) {
+    expect(await revertLastMigration(dataSource)).toBe(expected);
+  }
+  return later;
+}
+
+/** Cột thong_bao.lich_hen_id, chỉ mục thong_bao_index_lich_hen và khóa ngoại của nó trong DB. */
+async function readThongBaoLichHen(): Promise<{
+  hasColumn: boolean;
+  indexColumns: string[];
+  foreignKeys: number;
+}> {
+  const [columns, indexes, foreignKeys] = await Promise.all([
+    dataSource.query(
+      "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'thong_bao' AND COLUMN_NAME = 'lich_hen_id'",
+    ) as Promise<unknown[]>,
+    dataSource.query(
+      "SELECT COLUMN_NAME AS name FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'thong_bao' AND INDEX_NAME = 'thong_bao_index_lich_hen' ORDER BY SEQ_IN_INDEX",
+    ) as Promise<{ name: string }[]>,
+    dataSource.query(
+      "SELECT 1 FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'thong_bao' AND COLUMN_NAME = 'lich_hen_id' AND REFERENCED_TABLE_NAME = 'lich_hen'",
+    ) as Promise<unknown[]>,
+  ]);
+  return {
+    hasColumn: columns.length > 0,
+    indexColumns: indexes.map((row) => row.name),
+    foreignKeys: foreignKeys.length,
+  };
+}
 
 beforeAll(async () => {
   await recreateDatabase(settings);
@@ -226,6 +275,70 @@ describe('vòng đời migration', () => {
     }
   });
 
+  it('TBLH-09: down của booking P7 gỡ cột, chỉ mục, khóa ngoại và bị chặn khi còn thông báo gắn lịch hẹn; up lại được', async () => {
+    const later = await revertAfter(BOOKING_P7_NAME);
+    const installed = {
+      hasColumn: true,
+      indexColumns: ['lich_hen_id', 'tai_khoan_id', 'loai_su_kien'],
+      foreignKeys: 1,
+    };
+    expect(await readThongBaoLichHen()).toEqual(installed);
+    const countRows = async (): Promise<number> => {
+      const rows = (await dataSource.query(
+        'SELECT COUNT(*) AS total FROM thong_bao',
+      )) as { total: string | number }[];
+      return Number(rows[0]?.total);
+    };
+
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      // Bảng tham chiếu để trống: tắt kiểm khóa ngoại trên MỘT kết nối để dựng dòng (như test P3 ở trên)
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+      const insert = (lichHenId: string | null) =>
+        queryRunner.query(
+          "INSERT INTO thong_bao (tai_khoan_id, noi_dung, loai_su_kien, lich_hen_id, thoi_diem_tao) VALUES (900001, 'TBLH-09', 'LichHenDaHuy', ?, NOW())",
+          [lichHenId],
+        );
+      await insert(null);
+      await insert('900001');
+
+      // Còn dòng gắn lịch hẹn: down ném lỗi và KHÔNG đổi gì (cột, chỉ mục, khóa ngoại, dòng, sổ migration)
+      await expect(revertLastMigration(dataSource)).rejects.toThrow(
+        /thông báo gắn lịch hẹn/,
+      );
+      expect(await readThongBaoLichHen()).toEqual(installed);
+      expect(await countRows()).toBe(2);
+      const status = await listMigrations(dataSource);
+      expect(
+        status.find((item) => item.name === BOOKING_P7_NAME)?.executed,
+      ).toBe(true);
+
+      // Hết dòng gắn lịch hẹn: down chạy; thông báo khác còn nguyên
+      await queryRunner.query(
+        'DELETE FROM thong_bao WHERE lich_hen_id IS NOT NULL',
+      );
+      expect(await revertLastMigration(dataSource)).toBe(BOOKING_P7_NAME);
+      expect(await readThongBaoLichHen()).toEqual({
+        hasColumn: false,
+        indexColumns: [],
+        foreignKeys: 0,
+      });
+      expect(await countRows()).toBe(1);
+
+      // up lại được, cùng trạng thái như trước khi hoàn tác
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        BOOKING_P7_NAME,
+        ...later,
+      ]);
+      expect(await readThongBaoLichHen()).toEqual(installed);
+      await queryRunner.query('DELETE FROM thong_bao');
+    } finally {
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+      await queryRunner.release();
+    }
+  });
+
   it('MG-06: migration enum nhật ký (P4) nhận giá trị mới, giữ giá trị cũ; down bị chặn khi còn dòng dùng giá trị mới', async () => {
     const readEnum = async (column: string): Promise<string[]> => {
       const rows = (await dataSource.query(
@@ -241,6 +354,8 @@ describe('vòng đời migration', () => {
         "INSERT INTO nhat_ky_hanh_dong (tai_khoan_id, hanh_dong, loai_doi_tuong, ma_doi_tuong, thoi_diem, ket_qua) VALUES (900001, 'GoLichLamViec', 'lich_lam_viec', 1, NOW(), 'ThanhCong')",
       );
 
+    // P4 phải là migration cuối đã áp dụng thì revertLastMigration mới chạm đúng nó (migration thêm sau P4 được hoàn tác trước).
+    const later = await revertAfter(P4_NAME);
     const afterUp = await readEnum('hanh_dong');
     // Giá trị cũ đứng nguyên vị trí đầu danh sách, giá trị mới thêm cuối.
     expect(afterUp.slice(0, 20)).toEqual(HANH_DONG_TRUOC_P4);
@@ -270,19 +385,18 @@ describe('vòng đời migration', () => {
     }
 
     // Hết dòng dùng giá trị mới: down chạy, enum về như trước P4; up lại được.
-    const p4 = MIGRATIONS.at(-1)?.name;
-    expect(await revertLastMigration(dataSource)).toBe(p4);
+    expect(await revertLastMigration(dataSource)).toBe(P4_NAME);
     expect(await readEnum('hanh_dong')).toEqual(HANH_DONG_TRUOC_P4);
     expect(await readEnum('loai_doi_tuong')).toHaveLength(9);
     expect(await listTables(dataSource)).toContain('yeu_cau_nghi_phep');
-    expect(await runPendingMigrations(dataSource)).toEqual([p4]);
+    expect(await runPendingMigrations(dataSource)).toEqual([P4_NAME, ...later]);
     expect(await readEnum('hanh_dong')).toEqual(afterUp);
   });
 
   it('MG-05: down hoàn tác migration nghỉ phép (ngay trước P4): giữ các bảng cũ, xóa bảng nghỉ phép, rồi up lại được', async () => {
-    const [nghiPhep, p4] = [MIGRATIONS.at(-2)?.name, MIGRATIONS.at(-1)?.name];
-    expect(await revertLastMigration(dataSource)).toBe(p4);
-    expect(await revertLastMigration(dataSource)).toBe(nghiPhep);
+    const later = await revertAfter(P4_NAME);
+    expect(await revertLastMigration(dataSource)).toBe(P4_NAME);
+    expect(await revertLastMigration(dataSource)).toBe(NGHI_PHEP_NAME);
     const tables = await listTables(dataSource);
     expect(tables).not.toContain('yeu_cau_nghi_phep');
     expect(tables).toContain('anh_tai_len');
@@ -292,7 +406,11 @@ describe('vòng đời migration', () => {
     for (const table of AUTH_TABLES) expect(tables).toContain(table);
     expect((await listMigrations(dataSource)).at(-1)?.executed).toBe(false);
 
-    expect(await runPendingMigrations(dataSource)).toEqual([nghiPhep, p4]);
+    expect(await runPendingMigrations(dataSource)).toEqual([
+      NGHI_PHEP_NAME,
+      P4_NAME,
+      ...later,
+    ]);
     expect(await listTables(dataSource)).toEqual(
       expect.arrayContaining(MIGRATED_TABLES),
     );
