@@ -44,6 +44,16 @@ export interface PatientAppointmentRow {
   hanThanhToan: Date | null;
 }
 
+/**
+ * Hàng thô của câu chi tiết (task B2): thêm `lichHenId` (BIGINT ra chuỗi nhờ cấu hình driver) CHỈ để service gọi cổng thanh toán và hoàn tiền, nó không bao giờ
+ * ra JSON (`toDetail` ánh xạ từng khoá; LSH-14), và `lyDoKham`. Không đọc `ly_do_huy`: lý do Lễ tân, Quản trị viên nhập là chữ tự do dùng để truy vết nội bộ
+ * (Q27), chưa trả cho Bệnh nhân (TRACKING 3.15, câu (h)).
+ */
+export interface PatientAppointmentDetailRow extends PatientAppointmentRow {
+  lichHenId: string;
+  lyDoKham: string | null;
+}
+
 // Mọi JOIN trong đều qua khoá ngoại NOT NULL nên không đổi số hàng; không lọc `trang_thai` của bác sĩ hay chuyên khoa (lịch sử vẫn hiện tên). Chuyên khoa lấy qua
 // `bac_si.chuyen_khoa_id` HIỆN TẠI (L14). Hồ sơ người thân: LEFT JOIN, vì lịch của bản thân không có hồ sơ; khoá ngoại kép ở `lich_hen` đảm bảo hồ sơ cùng chủ.
 const FROM_APPOINTMENTS = `FROM lich_hen lh
@@ -56,11 +66,16 @@ INNER JOIN tai_khoan tbn ON tbn.tai_khoan_id = lh.benh_nhan_id
 LEFT JOIN ho_so_nguoi_than hs ON hs.ho_so_nguoi_than_id = lh.ho_so_nguoi_than_id`;
 
 // Danh sách trắng cột, không `SELECT *`: không `lich_hen_id`, `benh_nhan_id`, email hay SĐT bác sĩ (LSH-14). Người khám: bản thân là họ tên tài khoản, người thân là họ tên hồ sơ.
-const PAGE_COLUMNS = `SELECT lh.ma_lich_hen AS maLichHen, lh.trang_thai AS trangThai, lh.thoi_gian AS thoiGian,
+// Mười hai cột của MỘT item; câu trang (danh sách) và câu chi tiết (B2) cùng dùng nên chỉ có một nơi định nghĩa.
+const ITEM_COLUMNS = `SELECT lh.ma_lich_hen AS maLichHen, lh.trang_thai AS trangThai, lh.thoi_gian AS thoiGian,
   tbs.ho_ten AS bacSi, ck.ten AS chuyenKhoa, cn.ten AS chiNhanh, dv.ten AS dichVu,
   (lh.ho_so_nguoi_than_id IS NULL) AS laBanThan, COALESCE(hs.ho_ten, tbn.ho_ten) AS nguoiKham,
   CAST(lh.gia_snapshot AS CHAR) AS giaSnapshot, CAST(lh.tien_coc_snapshot AS CHAR) AS tienCoc,
   lh.han_thanh_toan AS hanThanhToan`;
+
+// Chi tiết: `lich_hen_id` chỉ để gọi cổng; `ly_do_kham` là văn bản tự do của chính Bệnh nhân (Q9)
+const DETAIL_COLUMNS = `${ITEM_COLUMNS},
+  lh.lich_hen_id AS lichHenId, lh.ly_do_kham AS lyDoKham`;
 
 // Họ tên so sau khi gấp `đ` và `Đ` thành `d` (REPLACE phân biệt hoa thường nên hai lớp; từ khoá cũng đã gấp bằng `foldDStroke`): `đ` không bằng `d` trong
 // `utf8mb4_unicode_ci`. Biểu thức chép từ `patient/reception-lookup/patient-lookup.repository.ts` (TECH_DEBT dòng 94). Người khám của lịch người thân chỉ khớp tên NGƯỜI THÂN.
@@ -178,8 +193,30 @@ export class PatientAppointmentsRepository {
   ): Promise<PatientAppointmentRow[]> {
     const { sql, params } = filterOf(patientId, filter);
     return em.query<PatientAppointmentRow[]>(
-      `${PAGE_COLUMNS} ${sql}\n${ORDER_BY[order]} LIMIT ? OFFSET ?`,
+      `${ITEM_COLUMNS} ${sql}\n${ORDER_BY[order]} LIMIT ? OFFSET ?`,
       [...params, limit, offset],
     );
+  }
+
+  /**
+   * Chi tiết MỘT lịch (task B2; TRACKING 3.15 B2-D). Tra theo `ma_lich_hen` (UNIQUE) và `lh.benh_nhan_id = ?` (chủ sở hữu, từ access token) NGAY TRONG SQL: lịch của người
+   * khác và lịch không tồn tại cùng ra "không có hàng", không có nhánh nào chạy sau khi thấy hàng của người khác (H10). `maLichHen` đã chuẩn hoá chữ hoa
+   * (`ParseAppointmentCodePipe`; collation `utf8mb4_unicode_ci` không phân biệt hoa thường, H17). `states` là tập hiển thị của Bệnh nhân: `DaDoiLich` cũng ra "không có hàng"
+   * (Q31). Không khoá. Người gọi truyền `manager` của MỘT lần gọi `runReadOnly` (cùng ảnh chụp với các câu của cổng).
+   */
+  async findDetail(
+    em: EntityManager,
+    patientId: string,
+    maLichHen: string,
+    states: readonly PatientVisibleState[],
+  ): Promise<PatientAppointmentDetailRow | null> {
+    const rows = await em.query<PatientAppointmentDetailRow[]>(
+      `${DETAIL_COLUMNS} ${FROM_APPOINTMENTS}
+WHERE lh.ma_lich_hen = ?
+  AND lh.benh_nhan_id = ?
+  AND lh.trang_thai IN (${states.map(() => '?').join(', ')})`,
+      [maLichHen, patientId, ...states],
+    );
+    return rows[0] ?? null;
   }
 }
