@@ -6,6 +6,7 @@
 // 07/11/2026 (module patient, task B5): chỉ sửa chữ, không đổi bảng, cột, enum, constraint: quy tắc 37 bỏ [cần điền] ở tập trạng thái lịch hẹn "đang hoạt động" (ChoThanhToan, DaXacNhan, DaTiepDon; nhóm chốt 03/11/2026, PLAN patient Q12) và thêm quy tắc 52 "Ngừng sử dụng hồ sơ người thân" (clinix_quy_tac_nghiep_vu.md mục 2).
 // 07/11/2026 (module patient, task B6): chỉ sửa chữ, không đổi bảng, cột, enum, constraint: thêm quy tắc 53 "Tra cứu hồ sơ bệnh nhân của Lễ tân" (clinix_quy_tac_nghiep_vu.md mục 2): phạm vi toàn hệ thống (khác quy tắc 25 của Quản trị viên Chi nhánh), chỉ Bệnh nhân đã xác minh kể cả NgungHoatDong, khớp chứa họ tên (chữ đ coi như d) và email, thêm SĐT khi từ khoá toàn chữ số, chỉ đọc, không ghi nhật ký hành động (Q20 = A).
 // 08/11/2026 (module patient, task B7): chỉ sửa chữ, không đổi bảng, cột, enum, constraint: mở rộng quy tắc 53 (clinix_quy_tac_nghiep_vu.md mục 2) thêm phần chi tiết một bệnh nhân (GET /reception/patients/:id): cùng phạm vi và cùng tập tra cứu được với danh sách, mười trường gồm số lần vắng khám và danh sách người thân ở cả hai trạng thái hiệu lực, 404 chung cho id không có, không phải Bệnh nhân, chưa xác minh hay sai dạng, chỉ đọc, không ghi nhật ký hành động (Q20 = A).
+// 10/11/2026 (module booking, task P7): thong_bao thêm lich_hen_id (ref: >? lich_hen, nullable) và index unique (lich_hen_id, tai_khoan_id, loai_su_kien); không thêm bảng, enum hay CHECK.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17
@@ -817,11 +818,13 @@ Table thong_bao {
   loai_su_kien varchar(100) [not null, note: 'Mã sự kiện nghiệp vụ. Sự kiện báo bệnh nhân về thay đổi chi nhánh sắp có hiệu lực: [đề xuất] ThayDoiChiNhanhAnhHuongLichHen; kết quả cho người đề xuất: [đề xuất] KetQuaYeuCauThayDoiChiNhanh. Chưa có danh mục mã sự kiện chung']
   trang_thai_doc boolean [not null, default: false]
   yeu_cau_thay_doi_chi_nhanh_id bigint [ref: >? yeu_cau_thay_doi_chi_nhanh.yeu_cau_thay_doi_chi_nhanh_id, note: 'Chỉ có với thông báo sinh từ yêu cầu thay đổi chi nhánh; các thông báo khác để trống. Cùng (yêu cầu, tài khoản, loại sự kiện) chỉ có 1 thông báo nên duyệt lại/chạy lại không tạo thông báo trùng']
+  lich_hen_id bigint [ref: >? lich_hen.lich_hen_id, note: 'Chỉ có với thông báo sinh từ một lịch hẹn (xác nhận, hủy, vắng mặt, khóa đặt lịch do no-show); các thông báo khác để trống. Cùng (lịch hẹn, tài khoản, loại sự kiện) chỉ có 1 thông báo nên ghi lại hoặc chạy lại không tạo thông báo trùng']
   thoi_diem_tao datetime [not null]
 
   indexes {
     (tai_khoan_id, trang_thai_doc, thoi_diem_tao)
     (yeu_cau_thay_doi_chi_nhanh_id, tai_khoan_id, loai_su_kien) [unique]
+    (lich_hen_id, tai_khoan_id, loai_su_kien) [unique]
   }
 
   Note: 'Thông báo trong ứng dụng (kênh thứ nhất). "Đẩy tức thời" là cách giao diện hiển thị ngay thông báo này cho phiên đang mở; không phải thông báo đẩy trên thiết bị di động và CSDL không có bảng token thiết bị. Email của thông báo nằm ở email_thong_bao.'

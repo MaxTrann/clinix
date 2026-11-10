@@ -43,6 +43,10 @@
 -- ("Tra cứu hồ sơ bệnh nhân của Lễ tân") ở clinix_quy_tac_nghiep_vu.md mục 2: phạm vi toàn hệ thống, chỉ Bệnh nhân đã xác minh kể cả NgungHoatDong, chỉ đọc, không ghi nhật ký hành động.
 -- 08/11/2026 (module patient, task B7): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE nào: mở rộng quy tắc 53 ở
 -- clinix_quy_tac_nghiep_vu.md mục 2 thêm phần chi tiết một bệnh nhân (GET /reception/patients/:id): mười trường, người thân ở cả hai trạng thái hiệu lực, 404 chung, chỉ đọc, không ghi nhật ký hành động.
+-- 10/11/2026 (module booking, task P7): thong_bao thêm lich_hen_id (nullable, khóa ngoại tới lich_hen) và UNIQUE
+-- thong_bao_index_lich_hen (lich_hen_id, tai_khoan_id, loai_su_kien) để thông báo của một lịch hẹn không bị ghi trùng; không thêm
+-- bảng, enum hay CHECK nên các số bảng, enum, CHECK ở các dòng trên không đổi. Chuyển đổi từ DB cũ: mục "booking P7" ở cuối
+-- clinix_quy_tac_nghiep_vu.md.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -72,7 +76,7 @@
 --   * Lịch hoạt động chi nhánh: thứ 1 đến 7; mỗi (chi nhánh, thứ) tối đa 1 dòng; tối đa hai khoảng nhận khám (sáng, chiều), mỗi khoảng hoặc để trống cả hai giờ hoặc đủ giờ với bắt đầu < kết thúc trong ngày (không qua đêm); hai khoảng không chồng nhau; hoat_dong = true thì có ít nhất một khoảng, ngày nghỉ thì cả bốn giờ để trống  [chk_lich_hoat_dong_thu, chk_lich_hoat_dong_khoang, chk_lich_hoat_dong_khong_chong, chk_lich_hoat_dong_ngay, PRIMARY KEY]
 --   * Tên chuyên khoa duy nhất; tên dịch vụ duy nhất trong cùng nhóm dịch vụ  [chuyen_khoa_index_ten, dich_vu_kham_index_nhom_ten]
 --   * Yêu cầu thay đổi chi nhánh: nội dung trước/sau là JSON object không rỗng; ChoDuyet chưa có người duyệt và hiệu lực; DaDuyet có người duyệt, số ngày báo trước và hieu_luc_tu >= thời điểm duyệt + số ngày báo trước; TuChoi bắt buộc có lý do  [chk_yc_chi_nhanh_noi_dung, chk_yc_chi_nhanh_xu_ly]
---   * Mỗi thông báo có tối đa 1 dòng email; thông báo của 1 yêu cầu thay đổi chi nhánh không trùng theo (yêu cầu, tài khoản, loại sự kiện); email DaGui phải có da_gui_luc, ThatBai phải có lỗi  [email_thong_bao.thong_bao_id UNIQUE, thong_bao_index_yeu_cau_chi_nhanh, chk_email_thong_bao_ket_qua]
+--   * Mỗi thông báo có tối đa 1 dòng email; thông báo của 1 yêu cầu thay đổi chi nhánh hoặc của 1 lịch hẹn không trùng theo (yêu cầu hoặc lịch hẹn, tài khoản, loại sự kiện); email DaGui phải có da_gui_luc, ThatBai phải có lỗi  [email_thong_bao.thong_bao_id UNIQUE, thong_bao_index_yeu_cau_chi_nhanh, thong_bao_index_lich_hen, chk_email_thong_bao_ket_qua]
 --   * Cấu hình hệ thống: thời gian giữ chỗ, thời hạn phản hồi lời mời > 0; ngưỡng no-show và số lịch hẹn tối đa mỗi hồ sơ >= 1; các số còn lại >= 0 [đề xuất, chưa có giới hạn trên]; mốc nhắc lịch là mảng số nguyên dương không trùng  [chk_cau_hinh_gia_tri, chk_cau_hinh_nhac_lich]
 --   * Cột cấu hình chưa chốt là NOT NULL không DEFAULT: không tạo được dòng cấu hình khi thiếu giá trị, không có giá trị ngầm (lỗi 1364)  [cau_hinh_he_thong]
 --   * Hồ sơ người thân của lịch hẹn phải thuộc đúng bệnh nhân đặt lịch (lịch của bản thân, ho_so_nguoi_than_id NULL, không bị kiểm tra)  [fk_lich_hen_ho_so_chu_so_huu]
@@ -514,6 +518,7 @@ CREATE TABLE `thong_bao` (
   `loai_su_kien` varchar(100) NOT NULL COMMENT 'Mã sự kiện nghiệp vụ. Sự kiện báo bệnh nhân về thay đổi chi nhánh sắp có hiệu lực: [đề xuất] ThayDoiChiNhanhAnhHuongLichHen; kết quả cho người đề xuất: [đề xuất] KetQuaYeuCauThayDoiChiNhanh. Chưa có danh mục mã sự kiện chung',
   `trang_thai_doc` boolean NOT NULL DEFAULT false,
   `yeu_cau_thay_doi_chi_nhanh_id` bigint COMMENT 'Chỉ có với thông báo sinh từ yêu cầu thay đổi chi nhánh; các thông báo khác để trống. Cùng (yêu cầu, tài khoản, loại sự kiện) chỉ có 1 thông báo nên duyệt lại/chạy lại không tạo thông báo trùng',
+  `lich_hen_id` bigint COMMENT 'Chỉ có với thông báo sinh từ một lịch hẹn (xác nhận, hủy, vắng mặt, khóa đặt lịch do no-show); các thông báo khác để trống. Cùng (lịch hẹn, tài khoản, loại sự kiện) chỉ có 1 thông báo nên ghi lại hoặc chạy lại không tạo thông báo trùng',
   `thoi_diem_tao` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -648,6 +653,8 @@ CREATE INDEX `benh_nhan_danh_gia_bai_viet_index_24` ON `benh_nhan_danh_gia_bai_v
 CREATE INDEX `thong_bao_index_25` ON `thong_bao` (`tai_khoan_id`, `trang_thai_doc`, `thoi_diem_tao`);
 
 CREATE UNIQUE INDEX `thong_bao_index_yeu_cau_chi_nhanh` ON `thong_bao` (`yeu_cau_thay_doi_chi_nhanh_id`, `tai_khoan_id`, `loai_su_kien`);
+
+CREATE UNIQUE INDEX `thong_bao_index_lich_hen` ON `thong_bao` (`lich_hen_id`, `tai_khoan_id`, `loai_su_kien`);
 
 CREATE INDEX `email_thong_bao_index_trang_thai` ON `email_thong_bao` (`trang_thai`, `lan_thu_cuoi_luc`);
 
@@ -851,6 +858,8 @@ ALTER TABLE `benh_nhan_danh_gia_bai_viet` ADD FOREIGN KEY (`bai_viet_id`) REFERE
 ALTER TABLE `thong_bao` ADD FOREIGN KEY (`tai_khoan_id`) REFERENCES `tai_khoan` (`tai_khoan_id`);
 
 ALTER TABLE `thong_bao` ADD FOREIGN KEY (`yeu_cau_thay_doi_chi_nhanh_id`) REFERENCES `yeu_cau_thay_doi_chi_nhanh` (`yeu_cau_thay_doi_chi_nhanh_id`);
+
+ALTER TABLE `thong_bao` ADD FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen` (`lich_hen_id`);
 
 ALTER TABLE `email_thong_bao` ADD FOREIGN KEY (`thong_bao_id`) REFERENCES `thong_bao` (`thong_bao_id`);
 

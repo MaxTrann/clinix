@@ -2,11 +2,13 @@ import { TAO_BANG_ANH_SQL } from './migrations/1793188800000-tao-bang-anh.js';
 import { TAO_BANG_DANH_MUC_SQL } from './migrations/1793024340000-tao-bang-danh-muc.js';
 import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-su.js';
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
+import { THONG_BAO_LICH_HEN_UP_SQL } from './migrations/1793448000000-thong-bao-lich-hen.js';
 import {
   normalizeStatement,
   officialStatementsFor,
   targetTable,
   maskAuditEnums,
+  maskThongBaoLichHen,
 } from './testing/official-schema.js';
 
 const CATALOG_TABLES = [
@@ -77,10 +79,11 @@ describe('migration P3 khớp schema SQL chính thức', () => {
     const official =
       officialStatementsFor(OPERATIONS_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    // Hai enum của nhat_ky_hanh_dong được mở rộng ở migration P4 (sau migration này).
+    // Hai enum của nhat_ky_hanh_dong được mở rộng ở migration P4 và thong_bao.lich_hen_id được thêm ở migration
+    // booking P7 (đều sau migration này); phần P7 được che, xem TBLH-01 đến TBLH-03 ở dưới.
     expect(
       TAO_BANG_VAN_HANH_SQL.map(normalizeStatement).map(maskAuditEnums),
-    ).toEqual(official.map(maskAuditEnums));
+    ).toEqual(maskThongBaoLichHen(official).map(maskAuditEnums));
   });
 
   it('mọi câu migration chỉ tác động bảy bảng vận hành P3', () => {
@@ -102,5 +105,94 @@ describe('P7 — canonical SQL ảnh Cloudinary', () => {
     expect(TAO_BANG_ANH_SQL.map(normalizeStatement)).toEqual(
       expected.map(normalizeStatement),
     );
+  });
+});
+
+describe('migration booking P7 (thong_bao.lich_hen_id) khớp schema SQL chính thức', () => {
+  const thongBao = officialStatementsFor(['thong_bao']).map(normalizeStatement);
+  const isThongBaoTable = (sql: string): boolean =>
+    sql.startsWith('CREATE TABLE `thong_bao` (');
+  const createTable = thongBao.find(isThongBaoTable) ?? '';
+  const lines = createTable.split('\n');
+  const columnAt = lines.findIndex((line) =>
+    line.startsWith('  `lich_hen_id` '),
+  );
+  // Dòng cột (bỏ dấu phẩy cuối) và tên cột đứng ngay trước nó, trích từ CREATE TABLE chính thức
+  const columnLine = (lines[columnAt] ?? '').trim().replace(/,$/, '');
+  const previousColumn = /^ {2}`(\w+)`/.exec(lines[columnAt - 1] ?? '')?.[1];
+  const [addColumn = '', createIndex = '', addForeignKey = ''] =
+    THONG_BAO_LICH_HEN_UP_SQL;
+  const buildAddColumn = (line: string): string =>
+    `ALTER TABLE \`thong_bao\` ADD COLUMN ${line} AFTER \`${previousColumn}\``;
+
+  it('TBLH-01: ADD COLUMN trùng từng ký tự dòng cột ở CREATE TABLE chính thức; chỉ mục và khóa ngoại trùng nguyên văn', () => {
+    expect(columnAt).toBeGreaterThan(0);
+    expect(previousColumn).toBe('yeu_cau_thay_doi_chi_nhanh_id');
+    expect(addColumn).toBe(buildAddColumn(columnLine));
+    expect(
+      thongBao.filter((sql) =>
+        sql.startsWith('CREATE UNIQUE INDEX `thong_bao_index_lich_hen` '),
+      ),
+    ).toEqual([createIndex]);
+    expect(
+      thongBao.filter((sql) =>
+        sql.startsWith(
+          'ALTER TABLE `thong_bao` ADD FOREIGN KEY (`lich_hen_id`) ',
+        ),
+      ),
+    ).toEqual([addForeignKey]);
+    // Ca âm: chỉ khác cách gõ dấu tiếng Việt (hủy / huỷ) ở COMMENT cũng không còn trùng
+    expect(columnLine).toContain('hủy');
+    expect(buildAddColumn(columnLine.replace('hủy', 'huỷ'))).not.toBe(
+      addColumn,
+    );
+  });
+
+  it('TBLH-02: đúng 3 câu theo thứ tự cột, chỉ mục, khóa ngoại; mọi câu chỉ tác động bảng thong_bao', () => {
+    expect(THONG_BAO_LICH_HEN_UP_SQL).toHaveLength(3);
+    expect(addColumn).toMatch(/^ALTER TABLE `thong_bao` ADD COLUMN /);
+    expect(createIndex).toMatch(/^CREATE UNIQUE INDEX /);
+    expect(addForeignKey).toMatch(/^ALTER TABLE `thong_bao` ADD FOREIGN KEY /);
+    for (const statement of THONG_BAO_LICH_HEN_UP_SQL) {
+      expect(targetTable(statement)).toBe('thong_bao');
+    }
+  });
+
+  it('TBLH-03: mặt nạ bỏ đúng một dòng cột và hai câu của P7, không bỏ nhầm câu giống chữ ở bảng khác', () => {
+    const operations =
+      officialStatementsFor(OPERATIONS_TABLES).map(normalizeStatement);
+    const masked = maskThongBaoLichHen(operations);
+    const isP7Statement = (sql: string): boolean =>
+      sql.startsWith('CREATE UNIQUE INDEX `thong_bao_index_lich_hen` ') ||
+      sql.startsWith(
+        'ALTER TABLE `thong_bao` ADD FOREIGN KEY (`lich_hen_id`) ',
+      );
+
+    expect(operations.filter(isP7Statement)).toHaveLength(2);
+    expect(masked).toHaveLength(operations.length - 2);
+    // CREATE TABLE thong_bao mất đúng một dòng (dòng cột lich_hen_id), các dòng còn lại nguyên
+    const before = operations.find(isThongBaoTable) ?? '';
+    const after = masked.find(isThongBaoTable) ?? '';
+    expect(before).toContain('`lich_hen_id`');
+    expect(after).not.toContain('lich_hen_id');
+    expect(after.split('\n')).toEqual(
+      before.split('\n').filter((line) => !line.startsWith('  `lich_hen_id` ')),
+    );
+    // Mọi câu khác giữ nguyên chữ và thứ tự
+    expect(masked.filter((sql) => !isThongBaoTable(sql))).toEqual(
+      operations.filter((sql) => !isThongBaoTable(sql) && !isP7Statement(sql)),
+    );
+    // Ca âm: khóa ngoại lich_hen_id của bảng KHÁC (cùng chữ cột) và CREATE TABLE khác có cột lich_hen_id không bị che
+    const otherForeignKey =
+      'ALTER TABLE `yeu_cau_thay_doi_chi_nhanh_lich_hen` ADD FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen` (`lich_hen_id`)';
+    expect(maskThongBaoLichHen([otherForeignKey])).toEqual([otherForeignKey]);
+    expect(
+      officialStatementsFor(['yeu_cau_thay_doi_chi_nhanh_lich_hen']).map(
+        normalizeStatement,
+      ),
+    ).toContain(otherForeignKey);
+    const otherTable =
+      "CREATE TABLE `khac` (\n  `lich_hen_id` bigint COMMENT 'x',\n  `a` int\n)";
+    expect(maskThongBaoLichHen([otherTable])).toEqual([otherTable]);
   });
 });
