@@ -19,7 +19,7 @@ import {
 } from './testing/architecture-rules.js';
 
 // Task P1 — AR-01, AR-04, AR-05 (quét mã nguồn) và phần không cần AppModule của AR-03 (PLAN booking 7.11; TRACKING 3.3 P1-I). Phần cây AppModule của AR-03: architecture.int-spec.ts.
-// Bộ quét dùng lại hàm của doctor (TECH_DEBT dòng 87); luật riêng ở testing/architecture-rules.ts, nhận `{ path, source }[]` nên test bằng dữ liệu tổng hợp.
+// Bộ quét dùng lại hàm của doctor (TECH_DEBT dòng 88); luật riêng ở testing/architecture-rules.ts, nhận `{ path, source }[]` nên test bằng dữ liệu tổng hợp.
 const SRC_DIR = fileURLToPath(new URL('..', import.meta.url));
 
 function loadSrc(): SourceFile[] {

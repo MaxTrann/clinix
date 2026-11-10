@@ -3,12 +3,9 @@ import {
   createTestDataSource,
   readTestDbSettings,
   resetTables,
-} from '../../database/testing/test-database.js';
-import {
-  computeExamPrice,
-  computeSurcharge,
-} from '../../pricing/surcharge.calculator.js';
-import { SearchFixtures } from '../testing/search-fixtures.js';
+} from '../database/testing/test-database.js';
+import { computeExamPrice, computeSurcharge } from './surcharge.calculator.js';
+import { SearchFixtures } from '../search/testing/search-fixtures.js';
 import { ExamPriceReader } from './exam-price.reader.js';
 
 // B4 — TBS-08: giá áp dụng đọc từ MySQL thật, so TRỰC TIẾP với hàm chung (không tự tính lại).

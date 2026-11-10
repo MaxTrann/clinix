@@ -2,7 +2,7 @@ import { stripComments } from '../../doctor/testing/architecture-scan.js';
 import { LICH_HEN_FORBIDDEN_LOCK_COLUMNS } from '../locking/lock-order.js';
 
 // Luật quét mã nguồn cho test kiến trúc của booking (PLAN booking 7.11: AR-01, AR-04, AR-05; TRACKING 3.3 P1-I). Hàm THUẦN nhận danh sách `{ path, source }` để test được
-// bằng dữ liệu tổng hợp; `architecture.spec.ts` nạp cây `src/` thật. Dùng `stripComments` của doctor (TECH_DEBT dòng 87), không sao chép.
+// bằng dữ liệu tổng hợp; `architecture.spec.ts` nạp cây `src/` thật. Dùng `stripComments` của doctor (TECH_DEBT dòng 88), không sao chép.
 //
 // GIỚI HẠN ĐÃ BIẾT (heuristic trên văn bản, không phải trình phân tích SQL): không bắt SQL ghép chuỗi từ nhiều biến, ghi qua đối tượng repository đặt tên biến
 // (`repo.save(x)`), hay `FOR UPDATE OF <bảng>` của MySQL 8; phần còn lại do review (H7). Chỉ cấm GHI, không cấm đọc (`SELECT`, `JOIN`, `FOR SHARE`).

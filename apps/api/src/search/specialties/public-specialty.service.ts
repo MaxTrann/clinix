@@ -3,7 +3,7 @@ import { AppException } from '../../common/errors/app.exception.js';
 import { COMMON_ERROR_CODES } from '../../common/errors/error-codes.js';
 import { PublicDoctorRepository } from '../doctors/public-doctor.repository.js';
 import { parseFilterId, parsePublicId } from '../common/id-param.js';
-import { ExamPriceReader } from '../pricing/exam-price.reader.js';
+import { ExamPriceReader } from '../../pricing/exam-price.reader.js';
 import type {
   PublicSpecialtyDetail,
   PublicSpecialtyItem,

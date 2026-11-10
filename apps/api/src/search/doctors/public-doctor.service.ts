@@ -5,7 +5,7 @@ import { parsePublicId } from '../common/id-param.js';
 import { buildWeeklySchedule } from '../common/weekly-schedule.view.js';
 import type { Paged } from '../../common/paging/paged.js';
 import type { SurchargeRule } from '../../pricing/surcharge.calculator.js';
-import { ExamPriceReader } from '../pricing/exam-price.reader.js';
+import { ExamPriceReader } from '../../pricing/exam-price.reader.js';
 import {
   DoctorRatingReader,
   type DoctorRating,
