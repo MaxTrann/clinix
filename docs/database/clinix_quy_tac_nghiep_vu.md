@@ -589,3 +589,17 @@ ALTER TABLE `thong_bao` ADD FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen` (`
 Kiểm tra sau chuyển đổi: mọi thông báo cũ còn nguyên với `lich_hen_id` NULL; `SHOW CREATE TABLE thong_bao` có cột sau `yeu_cau_thay_doi_chi_nhanh_id`, chỉ mục UNIQUE `thong_bao_index_lich_hen` đúng ba cột, và khóa ngoại tới `lich_hen`. Hoàn tác (revert) theo thứ tự khóa ngoại, chỉ mục, cột; chỉ chạy được khi chưa có dòng nào có `lich_hen_id` khác NULL (nếu còn, migration báo lỗi và không đổi gì, để không làm mất liên kết thông báo với lịch hẹn).
 
 Việc ghi `thong_bao` của booking (cùng giao dịch với việc đổi trạng thái lịch hẹn, bắt lỗi 1062) thuộc task B15, không nằm trong DB.
+
+## B11 — Tạo yêu cầu nghỉ phép của bác sĩ (10/11/2026, module doctor; không đổi schema)
+
+Không có `ALTER`: `POST /doctor/leave-requests` chỉ ghi `yeu_cau_nghi_phep` và `thong_bao` theo các quy tắc sau (DB không ép, service giữ; hai CHECK sẵn có vẫn là lưới cuối):
+
+- **Chủ sở hữu** lấy từ token, thân yêu cầu không có `bacSiId`. Chỉ vai trò Bác sĩ; không có thao tác huỷ yêu cầu (Bác sĩ chờ Quản trị viên duyệt hoặc từ chối).
+- **Hình thức**: `CaNgay` (một hoặc nhiều ngày liên tiếp, không chọn ca) hoặc `TheoCa` (đúng một ngày, `CaSang` hoặc `CaChieu`; `CaToi` không hợp lệ).
+- **Hạn**: ngày bắt đầu không trước hôm nay (giờ Việt Nam); tối đa 31 ngày liên tiếp (tính cả hai đầu); ngày kết thúc không quá hôm nay + 90 ngày. `TheoCa` vào hôm nay chỉ nhận khi ca chưa kết thúc (giờ kết thúc = giờ kết thúc khoảng nhận khám của chi nhánh ghi trên ca). Các số 31, 90 là `[đề xuất]` đã được nhóm duyệt.
+- **Phải có ca trong lịch làm việc**: `TheoCa` cần đúng (ngày, ca); `CaNgay` cần ít nhất một ca của bác sĩ trong khoảng. Ngày không có ca trong khoảng là vô hại.
+- **Chồng nhau**: từ chối nếu bác sĩ đã có yêu cầu `ChoDuyet` hoặc `DaDuyet` giao khoảng ngày và (một bên là `CaNgay` hoặc hai bên `TheoCa` cùng ca). Yêu cầu `TuChoi` không chặn.
+- **Trần chờ duyệt**: tối đa 5 yêu cầu `ChoDuyet` cùng lúc cho một bác sĩ `[đề xuất]`.
+- **Lý do**: chuẩn hoá NFC, cắt khoảng trắng ASCII hai đầu, 2–500 điểm mã, không có ký tự điều khiển; không bao giờ xuất hiện trong thông báo, nhật ký hay thân lỗi.
+- **Khoá và giao dịch**: một giao dịch `READ COMMITTED`: khoá hàng `bac_si` của chính bác sĩ (`FOR UPDATE`) rồi mới đếm, kiểm chồng nhau và kiểm ca; nhờ đó hai yêu cầu giống nhau gửi đồng thời chỉ một cái thành công. Deadlock/hết chờ khoá (1213/1205) chạy lại tối đa 2 lần trước commit.
+- **Thông báo cùng giao dịch**: `NghiPhepDaGui` cho bác sĩ và `NghiPhepChoDuyet` cho Quản trị viên có thẩm quyền; lỗi ghi thông báo hoàn tác cả yêu cầu. Khung giờ không đổi trạng thái: việc chặn đặt lịch là suy ra từ yêu cầu `ChoDuyet`/`DaDuyet`.
