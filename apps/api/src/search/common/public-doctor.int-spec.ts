@@ -9,7 +9,7 @@ import {
   PUBLIC_DOCTOR_CONDITION,
   PUBLIC_DOCTOR_FROM,
 } from './public-doctor.sql.js';
-import { runReadOnly } from './read-only-tx.js';
+import { runReadOnly } from '../../common/transaction/read-only-tx.js';
 
 // P1 — hằng điều kiện công khai và giao dịch chỉ đọc trên MySQL thật. Phủ phần khung của AN-01…AN-03; AN-* đầy đủ ở B2/B5.
 let db: DataSource;

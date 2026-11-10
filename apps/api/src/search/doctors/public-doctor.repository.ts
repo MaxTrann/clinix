@@ -6,7 +6,7 @@ import {
   PUBLIC_DOCTOR_CONDITION,
   PUBLIC_DOCTOR_FROM,
 } from '../common/public-doctor.sql.js';
-import { runReadOnly } from '../common/read-only-tx.js';
+import { runReadOnly } from '../../common/transaction/read-only-tx.js';
 import type { ScheduleRow } from '../common/weekly-schedule.view.js';
 import { ExamPriceReader } from '../../pricing/exam-price.reader.js';
 import type { DoctorFilters } from './doctor-filter.parser.js';

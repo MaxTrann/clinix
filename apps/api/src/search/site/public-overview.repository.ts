@@ -5,7 +5,7 @@ import {
   PUBLIC_DOCTOR_FROM,
 } from '../common/public-doctor.sql.js';
 import { publicServiceCondition } from '../common/public-service.sql.js';
-import { runReadOnly } from '../common/read-only-tx.js';
+import { runReadOnly } from '../../common/transaction/read-only-tx.js';
 import type { PublicOverview } from './public-overview.dto.js';
 
 type CountRow = { total: string | number };
