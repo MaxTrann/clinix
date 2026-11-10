@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module.js';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
+import { AdminScheduleController } from './schedule-view/admin-schedule.controller.js';
+import { AdminScheduleRepository } from './schedule-view/admin-schedule.repository.js';
+import { AdminScheduleService } from './schedule-view/admin-schedule.service.js';
 import { DoctorScheduleController } from './schedule-view/doctor-schedule.controller.js';
 import { ScheduleViewRepository } from './schedule-view/schedule-view.repository.js';
 import { ScheduleViewService } from './schedule-view/schedule-view.service.js';
@@ -14,12 +17,18 @@ import { ShiftAssignmentService } from './shifts/shift-assignment.service.js';
 // KHÔNG gọi ScheduleModule.forRoot() ở đây: app.module.ts đã đăng ký một lần (sweeper B16 chỉ dùng @Cron).
 @Module({
   imports: [SchedulingModule, RbacModule, AuditModule],
-  controllers: [ShiftAssignmentController, DoctorScheduleController],
+  controllers: [
+    ShiftAssignmentController,
+    DoctorScheduleController,
+    AdminScheduleController,
+  ],
   providers: [
     ShiftAssignmentRepository,
     ShiftAssignmentService,
     ScheduleViewRepository,
     ScheduleViewService,
+    AdminScheduleRepository,
+    AdminScheduleService,
   ],
 })
 export class DoctorModule {}

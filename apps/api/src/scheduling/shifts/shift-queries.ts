@@ -42,6 +42,37 @@ export class ShiftQueries {
     );
   }
 
+  /**
+   * Ca của NHIỀU bác sĩ trong [tuNgay, denNgay] (một truy vấn cho cả trang lưới). Có `chiNhanhId` thì CHỈ lấy ca mang chi nhánh đó:
+   * lọc nằm trong SQL, không lọc sau, để ca ngoài phạm vi không bao giờ rời DB (H10).
+   */
+  async listShiftsOfDoctors(
+    em: EntityManager,
+    input: {
+      bacSiIds: readonly string[];
+      tuNgay: string;
+      denNgay: string;
+      chiNhanhId?: string;
+    },
+  ): Promise<(DoctorShift & { bacSiId: string })[]> {
+    if (input.bacSiIds.length === 0) return [];
+    const branch =
+      input.chiNhanhId === undefined ? '' : ' AND lv.chi_nhanh_id = ?';
+    return em.query(
+      `${SELECT_SHIFT}, CAST(lv.bac_si_id AS CHAR) AS bacSiId, CAST(lv.chi_nhanh_id AS CHAR) AS chiNhanhId, cn.ten AS chiNhanhTen
+         FROM lich_lam_viec lv
+         JOIN chi_nhanh cn ON cn.chi_nhanh_id = lv.chi_nhanh_id
+        WHERE lv.bac_si_id IN (${input.bacSiIds.map(() => '?').join(', ')}) AND lv.ngay >= ? AND lv.ngay <= ?${branch}
+        ORDER BY lv.bac_si_id ASC, lv.ngay ASC, lv.ca ASC`,
+      [
+        ...input.bacSiIds,
+        input.tuNgay,
+        input.denNgay,
+        ...(input.chiNhanhId === undefined ? [] : [input.chiNhanhId]),
+      ],
+    );
+  }
+
   /** Mọi ca của bác sĩ trong [tuNgay, denNgay] (gồm hai đầu), kèm chi nhánh trên ca. Dùng chỉ mục `(bac_si_id, ngay, ca)`. */
   async listDoctorShifts(
     em: EntityManager,
