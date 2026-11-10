@@ -6,6 +6,9 @@ import { AdminScheduleController } from './schedule-view/admin-schedule.controll
 import { AdminScheduleRepository } from './schedule-view/admin-schedule.repository.js';
 import { AdminScheduleService } from './schedule-view/admin-schedule.service.js';
 import { DoctorScheduleController } from './schedule-view/doctor-schedule.controller.js';
+import { ReceptionScheduleController } from './schedule-view/reception-schedule.controller.js';
+import { ReceptionScheduleService } from './schedule-view/reception-schedule.service.js';
+import { ScheduleGridService } from './schedule-view/schedule-grid.service.js';
 import { ScheduleViewRepository } from './schedule-view/schedule-view.repository.js';
 import { ScheduleViewService } from './schedule-view/schedule-view.service.js';
 import { ShiftAssignmentController } from './shifts/shift-assignment.controller.js';
@@ -23,6 +26,7 @@ import { ShiftRemovalService } from './shifts/shift-removal.service.js';
     ShiftAssignmentController,
     DoctorScheduleController,
     AdminScheduleController,
+    ReceptionScheduleController,
   ],
   providers: [
     ShiftAssignmentRepository,
@@ -31,6 +35,8 @@ import { ShiftRemovalService } from './shifts/shift-removal.service.js';
     ScheduleViewService,
     AdminScheduleRepository,
     AdminScheduleService,
+    ScheduleGridService,
+    ReceptionScheduleService,
     ShiftRemovalRepository,
     ShiftRemovalService,
   ],
