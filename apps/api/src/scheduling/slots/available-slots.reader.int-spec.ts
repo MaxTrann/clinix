@@ -158,7 +158,10 @@ describe('AvailableSlotsReader trên MySQL thật', () => {
       khungGio: [],
     });
     await db.query(
-      'UPDATE chi_nhanh_lich_hoat_dong SET hoat_dong = 0 WHERE chi_nhanh_id = ? AND thu_trong_tuan = 1',
+      // chk_lich_hoat_dong_ngay: ngày nghỉ thì cả bốn cột giờ phải để trống.
+      `UPDATE chi_nhanh_lich_hoat_dong
+          SET hoat_dong = 0, gio_bat_dau_sang = NULL, gio_ket_thuc_sang = NULL, gio_bat_dau_chieu = NULL, gio_ket_thuc_chieu = NULL
+        WHERE chi_nhanh_id = ? AND thu_trong_tuan = 1`,
       [w.branch.chiNhanhId],
     );
     expect(await at()).toMatchObject({
