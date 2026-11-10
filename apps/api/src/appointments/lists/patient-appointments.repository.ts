@@ -63,7 +63,7 @@ const PAGE_COLUMNS = `SELECT lh.ma_lich_hen AS maLichHen, lh.trang_thai AS trang
   lh.han_thanh_toan AS hanThanhToan`;
 
 // Họ tên so sau khi gấp `đ` và `Đ` thành `d` (REPLACE phân biệt hoa thường nên hai lớp; từ khoá cũng đã gấp bằng `foldDStroke`): `đ` không bằng `d` trong
-// `utf8mb4_unicode_ci`. Biểu thức chép từ `patient/reception-lookup/patient-lookup.repository.ts` (TECH_DEBT dòng 92). Người khám của lịch người thân chỉ khớp tên NGƯỜI THÂN.
+// `utf8mb4_unicode_ci`. Biểu thức chép từ `patient/reception-lookup/patient-lookup.repository.ts` (TECH_DEBT dòng 94). Người khám của lịch người thân chỉ khớp tên NGƯỜI THÂN.
 const foldedName = (column: string) =>
   `REPLACE(REPLACE(${column}, 'đ', 'd'), 'Đ', 'D') LIKE ? ESCAPE '!'`;
 const KEYWORD_CONDITIONS = [

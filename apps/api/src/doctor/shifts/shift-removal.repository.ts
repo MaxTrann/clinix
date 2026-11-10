@@ -94,9 +94,12 @@ export class ShiftRemovalRepository {
     em: EntityManager,
     lichLamViecId: string,
   ): Promise<void> {
-    await em.query(`DELETE FROM khung_gio WHERE lich_lam_viec_id = ?`, [
-      lichLamViecId,
-    ]);
+    // D7: chỉ xoá ô `ConTrong`. Nơi gọi đã kiểm dưới khoá; điều kiện này là lớp phòng thủ thứ hai: ô khác `ConTrong` (lọt qua vì lỗi
+    // lập trình) không bị xoá, rồi `DELETE lich_lam_viec` vướng khoá ngoại 1451 và hoàn tác cả giao dịch.
+    await em.query(
+      `DELETE FROM khung_gio WHERE lich_lam_viec_id = ? AND trang_thai = 'ConTrong'`,
+      [lichLamViecId],
+    );
     await em.query(`DELETE FROM lich_lam_viec WHERE lich_lam_viec_id = ?`, [
       lichLamViecId,
     ]);
