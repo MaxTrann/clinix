@@ -17,6 +17,11 @@ import {
 } from '../../scheduling/calendar-date.js';
 import { SlotGeneratorService } from '../../scheduling/slots/slot-generator.js';
 import {
+  DUPLICATE_ENTRY_ERRNO,
+  mysqlErrno,
+  shouldRetry,
+} from '../common/mysql-errors.js';
+import {
   ASSIGNABLE_SHIFTS,
   SHIFT_ERROR_CODES,
 } from './shift-assignment.constants.js';
@@ -52,18 +57,6 @@ export interface ShiftAssignmentResult {
   soCa: number;
   soKhungGio: number;
   theoBacSi: { bacSiId: string; soCa: number }[];
-}
-
-/** Số lần chạy lại tối đa khi MySQL huỷ giao dịch vì deadlock/chờ khoá quá lâu (Q40): chỉ trước commit nên chạy lại an toàn. */
-const MAX_RETRIES = 2;
-const RETRYABLE_ERRNO = new Set([1213, 1205]);
-const DUPLICATE_ENTRY_ERRNO = 1062;
-
-/** errno của lỗi MySQL do TypeORM bọc (`driverError`); không phải lỗi MySQL ⇒ undefined. */
-function mysqlErrno(error: unknown): number | undefined {
-  const driverError = (error as { driverError?: { errno?: unknown } } | null)
-    ?.driverError;
-  return typeof driverError?.errno === 'number' ? driverError.errno : undefined;
 }
 
 export interface ShiftPreview {
@@ -107,13 +100,7 @@ export class ShiftAssignmentService {
           this.assignInTransaction(em, scope, actorId, input, now),
         );
       } catch (error) {
-        const errno = mysqlErrno(error);
-        if (
-          errno !== undefined &&
-          RETRYABLE_ERRNO.has(errno) &&
-          attempt < MAX_RETRIES
-        )
-          continue;
+        if (shouldRetry(error, attempt)) continue;
         throw error;
       }
     }
