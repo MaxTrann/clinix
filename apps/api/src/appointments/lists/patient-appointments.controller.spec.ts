@@ -1,14 +1,22 @@
 import 'reflect-metadata';
-import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants.js';
+import {
+  HEADERS_METADATA,
+  METHOD_METADATA,
+  PATH_METADATA,
+  ROUTE_ARGS_METADATA,
+} from '@nestjs/common/constants.js';
 import { Reflector } from '@nestjs/core';
 import type { Response } from 'express';
 import { vi } from 'vitest';
 import type { AuthenticatedUser } from '../../auth/decorators/current-user.decorator.js';
 import { ROLES_KEY } from '../../auth/decorators/roles.decorator.js';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator.js';
+import { ParseAppointmentCodePipe } from '../appointment-code.pipe.js';
+import type { PatientAppointmentDetailService } from './patient-appointment-detail.service.js';
 import { PatientAppointmentsController } from './patient-appointments.controller.js';
 import {
   PatientAppointmentsQueryDto,
+  type PatientAppointmentDetail,
   type PatientAppointmentsPage,
 } from './patient-appointments.dto.js';
 import type { PatientAppointmentsService } from './patient-appointments.service.js';
@@ -34,6 +42,11 @@ const EMPTY_PAGE: PatientAppointmentsPage = {
   },
 };
 
+// Chỉ cần một đối tượng để kiểm "trả nguyên": controller không đọc nội dung
+const DETAIL_RESULT = {
+  maLichHen: 'CLX-20261110-7K3QD',
+} as PatientAppointmentDetail;
+
 function setup() {
   const calls: string[] = [];
   const headers = new Map<string, string>();
@@ -47,10 +60,12 @@ function setup() {
     calls.push('service');
     return Promise.resolve(EMPTY_PAGE);
   });
-  const controller = new PatientAppointmentsController({
-    list,
-  } as unknown as PatientAppointmentsService);
-  return { controller, list, res, calls, headers };
+  const detail = vi.fn((..._args: unknown[]) => Promise.resolve(DETAIL_RESULT));
+  const controller = new PatientAppointmentsController(
+    { list } as unknown as PatientAppointmentsService,
+    { detail } as unknown as PatientAppointmentDetailService,
+  );
+  return { controller, list, detail, res, calls, headers };
 }
 
 function queryOf(values: Partial<PatientAppointmentsQueryDto> = {}) {
@@ -135,5 +150,58 @@ describe('PatientAppointmentsController', () => {
       offset: 50,
     });
     expect(result).toBe(EMPTY_PAGE);
+  });
+});
+
+// Task B2 — chi tiết: chỉ nhận/trả (không DB). Chuẩn hoá `maLichHen` và thân 404: pipe (appointment-code.pipe.spec.ts) và e2e.
+describe('PatientAppointmentsController.detail', () => {
+  const handler = Reflect.get(
+    PatientAppointmentsController.prototype,
+    'detail',
+  ) as (...args: unknown[]) => unknown;
+
+  it('QB-07 route GET patient/appointments/:maLichHen; @Roles("BenhNhan") DUY NHẤT ngay trên route, không @Public (AR-02)', () => {
+    const reflector = new Reflector();
+    expect(Reflect.getMetadata(PATH_METADATA, handler)).toBe(':maLichHen');
+    expect(Reflect.getMetadata(METHOD_METADATA, handler)).toBeDefined();
+    expect(reflector.get<string[]>(ROLES_KEY, handler)).toStrictEqual([
+      'BenhNhan',
+    ]);
+    expect(reflector.get<boolean | undefined>(IS_PUBLIC_KEY, handler)).toBe(
+      undefined,
+    );
+  });
+
+  it('QB-08 Cache-Control: no-store khai bằng @Header (Nest áp sau guard và TRƯỚC pipe nên 404 do pipe cũng có)', () => {
+    expect(Reflect.getMetadata(HEADERS_METADATA, handler)).toStrictEqual([
+      { name: 'Cache-Control', value: 'no-store' },
+    ]);
+  });
+
+  it('QB-09 tham số :maLichHen đi qua ParseAppointmentCodePipe (không dùng giá trị thô)', () => {
+    const args = Reflect.getMetadata(
+      ROUTE_ARGS_METADATA,
+      PatientAppointmentsController,
+      'detail',
+    ) as Record<string, { data?: string; pipes?: unknown[]; index: number }>;
+    const param = Object.values(args).find((arg) => arg.data === 'maLichHen');
+    expect(param?.pipes).toStrictEqual([ParseAppointmentCodePipe]);
+  });
+
+  it('LSH-11, QB-01 chủ sở hữu CHỈ lấy từ người dùng đã xác thực; mã lịch đi nguyên vào service; kết quả trả nguyên', async () => {
+    const { controller, detail } = setup();
+    const result = await controller.detail(USER, 'CLX-20261110-7K3QD');
+    expect(detail).toHaveBeenCalledTimes(1);
+    expect(detail.mock.calls[0]).toStrictEqual(['77', 'CLX-20261110-7K3QD']);
+    expect(result).toBe(DETAIL_RESULT);
+  });
+
+  it('QB-09 lỗi 404 của service (không xem được) lan ra nguyên vẹn, controller không bắt và không đổi', async () => {
+    const { controller, detail } = setup();
+    const error = new Error('404 giả');
+    detail.mockRejectedValueOnce(error);
+    await expect(controller.detail(USER, 'CLX-20261110-7K3QD')).rejects.toBe(
+      error,
+    );
   });
 });

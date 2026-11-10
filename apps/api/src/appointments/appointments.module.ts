@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PatientAppointmentDetailService } from './lists/patient-appointment-detail.service.js';
 import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
 import { PatientAppointmentsRepository } from './lists/patient-appointments.repository.js';
 import { PatientAppointmentsService } from './lists/patient-appointments.service.js';
@@ -14,6 +15,7 @@ import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 //   B10 `AppointmentCancellationService`                        B11  `AppointmentQueries` (+ `confirmPaid`, `complete`, `findAffectedByLeave`, D13, D14)
 //   B3 thêm RbacModule, B14 thêm AuditModule; controller và service của B1 đến B14
 //   B1 (đã làm) `PatientAppointmentsController`, `PatientAppointmentsService`, `PatientAppointmentsRepository` (`lists/`; `GET /patient/appointments`, chỉ đọc)
+//   B2 (đã làm) `PatientAppointmentDetailService` (`lists/`; `GET /patient/appointments/:maLichHen`, chỉ đọc; cùng controller và repository của B1)
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
 //
 // THAY `Noop` BẰNG BẢN THẬT (B16, B17) — đã kiểm bằng script Nest (TRACKING 3.6 P2-D): provider khai ngay trong module này THẮNG provider cùng token của module được
@@ -33,6 +35,7 @@ import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
   providers: [
     ...BOOKING_PORT_PROVIDERS,
     PatientAppointmentsService,
+    PatientAppointmentDetailService,
     PatientAppointmentsRepository,
   ],
 })

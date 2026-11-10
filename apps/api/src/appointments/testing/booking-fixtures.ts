@@ -27,6 +27,25 @@ const SLOT_BOOKED_STATES: readonly TrangThaiLichHen[] = [
   'VangMat',
 ];
 
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+let codeCounter = 0;
+
+/**
+ * Mã lịch hẹn ĐÚNG dạng Q13 (`CLX-20261110-` + năm ký tự Crockford), duy nhất trong một tiến trình (bộ đếm, không ngẫu nhiên nên không có xác suất trùng làm test chập chờn).
+ * Mặc định cũ của `AdminFixtures.appointment` là 20 ký tự hex chữ thường: `ParseAppointmentCodePipe` (B2) sẽ 404 với mã đó, nên mọi lịch dựng qua `appointmentIn`
+ * mặc định dùng mã này để route `:maLichHen` của B2, B3, B4, B5, B10 gọi được bằng mã của fixture.
+ */
+export function nextAppointmentCode(): string {
+  codeCounter += 1;
+  let rest = codeCounter;
+  let suffix = '';
+  for (let i = 0; i < 5; i += 1) {
+    suffix = `${CROCKFORD.charAt(rest % 32)}${suffix}`;
+    rest = Math.floor(rest / 32);
+  }
+  return `CLX-20261110-${suffix}`;
+}
+
 export interface AppointmentInput {
   /** Bác sĩ phụ trách (chi nhánh, dịch vụ của lịch lấy từ đây) */
   doctor: BacSi;
@@ -38,7 +57,10 @@ export interface AppointmentInput {
   giaSnapshot?: string;
   tienCocSnapshot?: string;
   chinhSachHoanSnapshot?: Record<string, unknown> | null;
+  /** Mặc định `nextAppointmentCode()` */
   maLichHen?: string;
+  /** Mặc định `NULL` (lý do khám là tuỳ chọn, Q9) */
+  lyDoKham?: string | null;
 }
 
 export interface SlotState {
@@ -158,7 +180,8 @@ export class BookingFixtures {
         ...(input.chinhSachHoanSnapshot !== undefined
           ? { chinhSachHoanSnapshot: input.chinhSachHoanSnapshot }
           : {}),
-        ...(input.maLichHen ? { maLichHen: input.maLichHen } : {}),
+        maLichHen: input.maLichHen ? input.maLichHen : nextAppointmentCode(),
+        ...(input.lyDoKham === undefined ? {} : { lyDoKham: input.lyDoKham }),
       },
     );
     const slotStatus = pending

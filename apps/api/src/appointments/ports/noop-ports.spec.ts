@@ -74,6 +74,16 @@ const CASES: NoopCase[] = [
     },
   },
   {
+    // Task B2 — LSH-23: cổng đọc cho chi tiết lịch hẹn; chưa có module ⇒ `null` (không phải "0.00"), không đọc DB
+    name: 'PaymentSummaryPort.findPayment',
+    expected: null,
+    build: () => {
+      const port = new NoopPaymentSummaryPort();
+      const asPort: PaymentSummaryPort = port;
+      return { port, invoke: (em, tag) => asPort.findPayment(em, tag) };
+    },
+  },
+  {
     name: 'RefundPort.refund',
     expected: { kind: 'NotNeeded' },
     build: () => {
@@ -84,6 +94,15 @@ const CASES: NoopCase[] = [
         invoke: (_em, tag) =>
           asPort.refund({ lichHenId: tag, soTien: '1.00', lyDo: tag }),
       };
+    },
+  },
+  {
+    name: 'RefundPort.findRefund',
+    expected: null,
+    build: () => {
+      const port = new NoopRefundPort();
+      const asPort: RefundPort = port;
+      return { port, invoke: (em, tag) => asPort.findRefund(em, tag) };
     },
   },
   {
@@ -242,7 +261,7 @@ describe('CG-01b Noop cảnh báo đúng một lần, không nội dung riêng t
       await built.invoke(em, 'KHAC');
       messages.add(String(warn.mock.calls[0]?.[0]));
     }
-    // 9 phương thức nhưng chỉ 8 lớp: hai phương thức của PaymentSummaryPort dùng chung một câu
+    // 11 phương thức nhưng chỉ 8 lớp: ba phương thức của PaymentSummaryPort và hai của RefundPort dùng chung một câu
     expect(messages.size).toBe(8);
   });
 
