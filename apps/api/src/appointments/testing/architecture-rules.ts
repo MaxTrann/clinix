@@ -1,4 +1,5 @@
 import { stripComments } from '../../doctor/testing/architecture-scan.js';
+import { auditPatientControllers } from '../../patient/testing/patient-route-audit.js';
 import { LICH_HEN_FORBIDDEN_LOCK_COLUMNS } from '../locking/lock-order.js';
 
 // Luật quét mã nguồn cho test kiến trúc của booking (PLAN booking 7.11: AR-01, AR-04, AR-05; TRACKING 3.3 P1-I). Hàm THUẦN nhận danh sách `{ path, source }` để test được
@@ -134,6 +135,18 @@ export function findWriteViolations(
     }
   }
   return found;
+}
+
+/**
+ * AR-02 và QB-07 (task B1; PLAN booking 5.9, 7.9, 7.11): mọi route của các controller đã đăng ký trong `AppointmentsModule` phải có `@Roles` hợp lệ (đọc cùng cách `RolesGuard`:
+ * method thay thế class) và không có `@Public`; không có `@Roles` thì mọi vai trò đã đăng nhập đi qua. DÙNG LẠI bộ quét metadata của patient (QP-08: hàm không có gì riêng của patient,
+ * đã có test riêng), không chép. Khác các luật AR-01, AR-04, AR-05 ở trên (quét VĂN BẢN nguồn), luật này đọc metadata của lớp controller nên nhận danh sách lớp, không nhận `SourceFile`.
+ * Controller lấy từ metadata của module nên không phải giữ danh sách route viết tay: controller mới đăng ký là tự bị quét. Trả danh sách vi phạm, rỗng = đạt.
+ */
+export function findRouteRoleViolations(
+  controllers: Parameters<typeof auditPatientControllers>[0],
+): string[] {
+  return auditPatientControllers(controllers);
 }
 
 // AR-04 (H8): giờ của DB. Mọi mốc từ `nowVN()` rồi `toSecond()` và truyền `:now` vào SQL (test dùng đồng hồ giả).

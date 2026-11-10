@@ -1,6 +1,11 @@
+import 'reflect-metadata';
+import { Controller, Get, Post, SetMetadata } from '@nestjs/common';
+import { MODULE_METADATA } from '@nestjs/common/constants.js';
 import { ScheduleModule } from '@nestjs/schedule';
 import { relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { IS_PUBLIC_KEY } from '../auth/decorators/public.decorator.js';
+import { ROLES_KEY, Roles } from '../auth/decorators/roles.decorator.js';
 import { DoctorModule } from '../doctor/doctor.module.js';
 import {
   listSourceFiles,
@@ -10,15 +15,18 @@ import {
 } from '../doctor/testing/architecture-scan.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import { AppointmentsModule } from './appointments.module.js';
+import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
 import {
   ALLOWED_WRITES,
   findClockViolations,
   findIndexAndLockViolations,
+  findRouteRoleViolations,
   findWriteViolations,
   type SourceFile,
 } from './testing/architecture-rules.js';
 
 // Task P1 — AR-01, AR-04, AR-05 (quét mã nguồn) và phần không cần AppModule của AR-03 (PLAN booking 7.11; TRACKING 3.3 P1-I). Phần cây AppModule của AR-03: architecture.int-spec.ts.
+// Task B1 — AR-02 và QB-07 (quét metadata route; TRACKING 3.13).
 // Bộ quét dùng lại hàm của doctor (TECH_DEBT dòng 88); luật riêng ở testing/architecture-rules.ts, nhận `{ path, source }[]` nên test bằng dữ liệu tổng hợp.
 const SRC_DIR = fileURLToPath(new URL('..', import.meta.url));
 
@@ -244,6 +252,73 @@ describe('AR-05 không bọc cột chỉ mục, không khoá lich_hen qua khung_
         clean.map((s, i) => file(`x/${String(i)}.ts`, s)),
       ),
     ).toEqual([]);
+  });
+});
+
+// Controller giả cho AR-02: mỗi lớp là một kiểu vi phạm. Quét thật (QP-08) đã có test riêng ở patient/testing/patient-route-audit.spec.ts; ở đây chứng minh luật của booking NỐI đúng.
+@Controller('x')
+class Missing {
+  @Get() list() {}
+}
+@Controller('x')
+class EmptyRoles {
+  @Get() @SetMetadata(ROLES_KEY, []) list() {}
+}
+@Controller('x')
+class Public {
+  @Get() @Roles('BenhNhan') @SetMetadata(IS_PUBLIC_KEY, true) list() {}
+}
+@Controller('x')
+class UnknownRole {
+  @Get() @SetMetadata(ROLES_KEY, ['Khach']) list() {}
+}
+@Controller('x')
+@Roles('LeTan')
+class ClassLevel {
+  @Get() list() {}
+  @Post() create() {}
+}
+@Controller('x')
+class OneBad {
+  @Get() @Roles('BacSi') good() {}
+  @Post() bad() {}
+}
+
+describe('AR-02, QB-07 mọi route của appointments/ có @Roles, không @Public', () => {
+  const controllers = (Reflect.getMetadata(
+    MODULE_METADATA.CONTROLLERS,
+    AppointmentsModule,
+  ) ?? []) as Parameters<typeof findRouteRoleViolations>[0];
+
+  it('AppointmentsModule thật: có controller (không đạt giả vì rỗng), gồm PatientAppointmentsController, và không route nào thiếu @Roles hay có @Public', () => {
+    expect([...controllers].length).toBeGreaterThan(0);
+    expect([...controllers]).toContain(PatientAppointmentsController);
+    expect(findRouteRoleViolations(controllers)).toEqual([]);
+  });
+
+  it.each([
+    ['thiếu @Roles', Missing, 'Missing.list: thiếu @Roles (hoặc rỗng)'],
+    ['@Roles rỗng', EmptyRoles, 'EmptyRoles.list: thiếu @Roles (hoặc rỗng)'],
+    ['@Public', Public, 'Public.list: có @Public'],
+    [
+      'vai trò lạ',
+      UnknownRole,
+      'UnknownRole.list: @Roles có vai trò không thuộc LOAI_TAI_KHOAN',
+    ],
+    [
+      'một route trong hai thiếu',
+      OneBad,
+      'OneBad.bad: thiếu @Roles (hoặc rỗng)',
+    ],
+  ])(
+    'đột biến: controller %s bị bắt, thông điệp có TênController.tênHàm',
+    (_name, controller, message) => {
+      expect(findRouteRoleViolations([controller])).toEqual([message]);
+    },
+  );
+
+  it('không bắt nhầm: @Roles ở class đủ cho mọi route (khớp RolesGuard)', () => {
+    expect(findRouteRoleViolations([ClassLevel])).toEqual([]);
   });
 });
 
