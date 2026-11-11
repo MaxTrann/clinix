@@ -3,7 +3,13 @@ import { ADMIN_ROUTES } from '../features/admin/admin-routes';
 import { AdminErrorBoundary } from '../features/admin/admin-error-boundary';
 import { AdminLayout } from '../features/admin/admin-layout';
 import { RequireAuth, ROLE_HOME_PATHS, type VaiTro } from '../features/auth';
-import { DOCTOR_PATHS, DOCTOR_ROUTES, DoctorLayout } from '../features/doctor';
+import {
+  ADMIN_SCHEDULE_ROUTES,
+  DOCTOR_PATHS,
+  DOCTOR_ROUTES,
+  DoctorLayout,
+  RECEPTION_SCHEDULE_ROUTES,
+} from '../features/doctor';
 import {
   ADMIN_PROFILE_ROUTES,
   PATIENT_PATHS,
@@ -70,6 +76,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
             element: <Navigate to={RECEPTION_PATHS.lookup} replace />,
           },
           ...RECEPTION_ROUTES,
+          // doctor F5: Lịch làm việc bác sĩ của Lễ tân
+          ...RECEPTION_SCHEDULE_ROUTES,
         ],
       },
     ],
@@ -77,7 +85,12 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
   QuanTriVien: {
     path: ROLE_HOME_PATHS.QuanTriVien,
     element: <AdminLayout />,
-    children: [...ADMIN_ROUTES, ...ADMIN_PROFILE_ROUTES],
+    // doctor F6: Lịch làm việc bác sĩ của Quản trị viên (đã bọc AdminScopeGuard ở ADMIN_SCHEDULE_ROUTES)
+    children: [
+      ...ADMIN_ROUTES,
+      ...ADMIN_PROFILE_ROUTES,
+      ...ADMIN_SCHEDULE_ROUTES,
+    ],
     errorElement: <AdminErrorBoundary />,
   },
 };

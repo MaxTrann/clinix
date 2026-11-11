@@ -339,15 +339,15 @@ describe('khung Lễ tân', () => {
     });
     expect(lookup).toHaveAttribute('aria-current', 'page');
     expect(lookup).toHaveAttribute('href', RECEPTION_PATHS.lookup);
-    // "Tra cứu bệnh nhân" (F2) và "Thông tin cá nhân" (F4) có trang; bảy mục còn lại vô hiệu (KG-04). Đổi có duyệt ở patient F4.
-    expect(within(menu).getAllByRole('link')).toHaveLength(2);
+    // "Tra cứu bệnh nhân" (F2), "Thông tin cá nhân" (F4) và "Lịch làm việc bác sĩ" (doctor F5) có trang; sáu mục còn lại vô hiệu (KG-04). Đổi có duyệt ở patient F4, doctor F5.
+    expect(within(menu).getAllByRole('link')).toHaveLength(3);
     const profile = within(menu).getByRole('link', {
       name: 'Thông tin cá nhân',
     });
     expect(profile).toHaveAttribute('href', RECEPTION_PATHS.profile);
     expect(profile).not.toHaveAttribute('aria-current');
     const disabled = within(menu).getAllByRole('button');
-    expect(disabled).toHaveLength(7);
+    expect(disabled).toHaveLength(6);
     for (const button of disabled) expect(button).toBeDisabled();
     // Figma `483:2`: cuối thanh bên chỉ có nút Đăng xuất
     expect(screen.queryByRole('link', { name: 'Về trang chủ' })).toBeNull();
@@ -534,6 +534,8 @@ describe('khung Lễ tân', () => {
     expect(focusable).toEqual([
       'CLINIX',
       'Tra cứu bệnh nhân',
+      // Đổi có duyệt ở doctor F5: "Lịch làm việc bác sĩ" có trang, đứng giữa hai mục trên theo thứ tự menu Figma
+      'Lịch làm việc bác sĩ',
       'Thông tin cá nhân',
       'Đăng xuất',
       'Đăng xuất',

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { DoctorSchedulePage } from './doctor-schedule-page';
+import { withEmptyLeaveHistory } from '../testing/fetch-routing';
 import type { DoctorSchedule, DoctorShift } from '../api/schedule-api';
 
 // doctor F2: WL-01, WL-02, WL-03, WL-06, WL-07, WL-10 (PLAN doctor mục 7.12).
@@ -43,7 +44,7 @@ function lastQuery() {
 
 beforeEach(() => {
   fetchMock.mockReset();
-  vi.stubGlobal('fetch', fetchMock);
+  vi.stubGlobal('fetch', withEmptyLeaveHistory(fetchMock));
   // Chỉ giả `Date` (hôm nay = thứ Tư 14/10/2026, giờ VN); timer thật để hook tải xong
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-14T03:00:00Z'));
@@ -216,9 +217,7 @@ describe('DoctorSchedulePage (F2)', () => {
       )
       .mockResolvedValueOnce(response(schedule([shift({})])));
     render(<DoctorSchedulePage />);
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Đang tải lịch làm việc...',
-    );
+    expect(screen.getByText('Đang tải lịch làm việc...')).toBeVisible();
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Đã có lỗi xảy ra');
