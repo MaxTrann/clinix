@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import type { EntityManager } from 'typeorm';
+import { Inject, Injectable } from '@nestjs/common';
+import { DataSource, type EntityManager } from 'typeorm';
 import { escapeLikePattern } from '../../common/paging/like-pattern.js';
 import type { CaLamViec } from '../../scheduling/branch-hours/branch-hours.types.js';
 import type {
@@ -85,6 +85,8 @@ const where = (conditions: string[]) =>
 /** SQL chỉ đọc của danh sách và chi tiết yêu cầu nghỉ (Quản trị viên). Người gọi truyền `em` của MỘT lần `runReadOnly` (cùng ảnh chụp). */
 @Injectable()
 export class AdminLeaveRepository {
+  constructor(@Inject(DataSource) private readonly db: DataSource) {}
+
   /** Mới nhất trước; id phá hoà cùng giây. SELECT và COUNT dùng CÙNG điều kiện, trước phân trang. */
   async findPage(
     em: EntityManager,
@@ -123,6 +125,42 @@ export class AdminLeaveRepository {
         base.parameters,
       );
     return Object.fromEntries(rows.map((r) => [r.trangThai, Number(r.so)]));
+  }
+
+  /** Giao dịch ghi `READ COMMITTED` tường minh như phân công, gỡ ca và tạo yêu cầu (Q40). */
+  transaction<T>(work: (em: EntityManager) => Promise<T>): Promise<T> {
+    return this.db.transaction('READ COMMITTED', work);
+  }
+
+  /**
+   * Khoá CHỈ hàng yêu cầu (PLAN 5.9: từ chối không xin `bac_si`). Trả trạng thái hiện tại, hoặc `null` nếu không có.
+   * Hai Admin cùng từ chối: người sau chờ ở đây rồi thấy `TuChoi` (Q31).
+   */
+  async lockRequest(
+    em: EntityManager,
+    id: string,
+  ): Promise<TrangThaiYeuCauNghiPhep | null> {
+    const rows: { trangThai: TrangThaiYeuCauNghiPhep }[] = await em.query(
+      `SELECT trang_thai AS trangThai FROM yeu_cau_nghi_phep WHERE yeu_cau_nghi_phep_id = ? FOR UPDATE`,
+      [id],
+    );
+    return rows[0]?.trangThai ?? null;
+  }
+
+  /** Chỉ đổi khi còn `ChoDuyet` (lưới an toàn cùng CHECK `chk_nghi_phep_xu_ly`); trả số hàng đổi. */
+  async markRejected(
+    em: EntityManager,
+    id: string,
+    processedBy: string,
+    processedAt: Date,
+  ): Promise<number> {
+    const result: { affectedRows: number } = await em.query(
+      `UPDATE yeu_cau_nghi_phep
+          SET trang_thai = 'TuChoi', nguoi_xu_ly_id = ?, thoi_diem_xu_ly = ?
+        WHERE yeu_cau_nghi_phep_id = ? AND trang_thai = 'ChoDuyet'`,
+      [processedBy, processedAt, id],
+    );
+    return result.affectedRows;
   }
 
   /** Không lọc chi nhánh trong SQL: service lấy `chiNhanhId` từ DB rồi hỏi `BranchAccessPolicy` (đúng nếp admin). */
