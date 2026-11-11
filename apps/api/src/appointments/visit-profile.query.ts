@@ -36,6 +36,32 @@ export async function lockVisitProfile(
   return Number(row.trangThaiHieuLuc) === 1 ? 'active' : 'inactive';
 }
 
+// Cùng điều kiện với câu khoá ở trên (phạm vi chủ sở hữu nằm TRONG SQL, H3) nhưng KHÔNG `FOR UPDATE`: cho `POST /booking/checks` (B7), chỉ ĐỌC trong một giao dịch `READ ONLY`.
+const READ_VISIT_PROFILE_SQL = `SELECT trang_thai_hieu_luc AS trangThaiHieuLuc
+FROM ho_so_nguoi_than
+WHERE ho_so_nguoi_than_id = ? AND benh_nhan_id = ?`;
+
+/**
+ * Như `lockVisitProfile` nhưng ĐỌC THƯỜNG, không khoá hàng nào (task B7, câu (c)): kết quả chỉ để thông tin, quyết định thật ở bước tạo dưới khoá (B8 vẫn dùng
+ * `lockVisitProfile`). Hồ sơ của người khác và id không tồn tại cho CÙNG `'missing'` (người gọi đổi thành cùng một 404, QB-01); `hoSoNguoiThanId = null` là bản thân,
+ * luôn `'active'`, không truy vấn. `hoSoNguoiThanId` PHẢI là chuỗi (id BIGINT lớn hơn 2^53 mà ép `Number` sẽ trỏ nhầm hồ sơ khác).
+ */
+export async function readVisitProfile(
+  em: EntityManager,
+  benhNhanId: string,
+  hoSoNguoiThanId: string | null,
+): Promise<VisitProfileState> {
+  if (hoSoNguoiThanId === null) return 'active';
+  const rows = await em.query<{ trangThaiHieuLuc: number | string }[]>(
+    READ_VISIT_PROFILE_SQL,
+    [hoSoNguoiThanId, benhNhanId],
+  );
+  const row = rows[0];
+  if (row === undefined) return 'missing';
+  // `tinyint` của MySQL ra số 1 hoặc 0 (không phải boolean)
+  return Number(row.trangThaiHieuLuc) === 1 ? 'active' : 'inactive';
+}
+
 /** Hồ sơ đi khám có dùng được để đặt lịch mới không: `true` chỉ khi hồ sơ của chính `benhNhanId` và đang hiệu lực (NT-18). Cùng hợp đồng khoá ở trên. */
 export async function isVisitProfileUsable(
   em: EntityManager,

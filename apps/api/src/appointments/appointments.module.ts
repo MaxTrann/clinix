@@ -1,7 +1,13 @@
 import { Module } from '@nestjs/common';
 import { SystemConfigModule } from '../admin/system-config/system-config.module.js';
+import { ExamPriceReader } from '../pricing/exam-price.reader.js';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
+import { BookingChecksController } from './create/booking-checks.controller.js';
+import { BookingChecksService } from './create/booking-checks.service.js';
+import { BookingEligibilityService } from './create/booking-eligibility.service.js';
+import { BookingSummaryReader } from './create/booking-summary.reader.js';
+import { RefundPolicyReader } from './create/refund-policy.js';
 import { HoldExpiryJob } from './expiry/hold-expiry.job.js';
 import { OperationsAppointmentsRepository } from './lists/operations-appointments.repository.js';
 import { OperationsAppointmentsService } from './lists/operations-appointments.service.js';
@@ -32,6 +38,8 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
 //       `SystemConfigModule` (khung giờ check-in cho `chuyenDuoc` của chi tiết)`]`: cả hai là module lá, không import ngược `AppointmentsModule` nên không tạo vòng.
 //   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới)
 //   B6b (đã làm) `SlotHoldService` (`slots/`; NƠI DUY NHẤT ghi `khung_gio`: `hold`, `markBooked`, `release`, `expireLapsedHold`, `holdForInvitation`, `releaseInvitationHold`; không tiêm gì, nhận `em` của người gọi), `state/lapsed-hold.ts` (`cancelLapsedHold`, hàm thuần SQL, không phải provider)
+//   B7 (đã làm) `BookingChecksController` (`create/`; `GET /booking/eligibility` và `POST /booking/checks`, chỉ đọc), `BookingEligibilityService`, `BookingChecksService`, `BookingSummaryReader`, `RefundPolicyReader`;
+//       dùng lại `SystemConfigModule` mà B3 đã nhập vào `imports` (không nhập lần hai) và thêm `ExamPriceReader` của `pricing/` vào `providers` (chỉ `search/` khai nó; chưa có `PricingModule`; TECH_DEBT)
 //   B9 (đã làm) `AppointmentTransitionService` (`state/`; khung của mọi phương thức đổi trạng thái, mới có `expire`; tiêm `DataSource`, `SlotHoldService`, `WAITLIST_PORT`) và `HoldExpiryJob` (`expiry/`; `@Cron` mỗi phút,
 //       tắt ở NODE_ENV=test; chỉ `@Cron`, không `ScheduleModule.forRoot()`). CHƯA `exports`: chưa module nào ngoài `appointments` gọi `expire` (B10, B11 xuất khi doctor, payment cần `complete`, `confirmPaid`).
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
@@ -50,7 +58,11 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
 // `DataSource` có sẵn toàn cục từ `DatabaseModule` (như `PatientModule`) nên chưa cần `imports`.
 @Module({
   imports: [SchedulingModule, RbacModule, SystemConfigModule],
-  controllers: [PatientAppointmentsController, ReceptionAppointmentsController],
+  controllers: [
+    PatientAppointmentsController,
+    ReceptionAppointmentsController,
+    BookingChecksController,
+  ],
   providers: [
     ...BOOKING_PORT_PROVIDERS,
     PatientAppointmentsService,
@@ -61,6 +73,11 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
     ReceptionAppointmentsService,
     BookabilityReader,
     SlotHoldService,
+    BookingEligibilityService,
+    BookingChecksService,
+    BookingSummaryReader,
+    RefundPolicyReader,
+    ExamPriceReader,
     AppointmentTransitionService,
     HoldExpiryJob,
   ],

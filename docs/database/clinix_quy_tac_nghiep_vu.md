@@ -603,3 +603,15 @@ Không có `ALTER`: `POST /doctor/leave-requests` chỉ ghi `yeu_cau_nghi_phep` 
 - **Lý do**: chuẩn hoá NFC, cắt khoảng trắng ASCII hai đầu, 2–500 điểm mã, không có ký tự điều khiển; không bao giờ xuất hiện trong thông báo, nhật ký hay thân lỗi.
 - **Khoá và giao dịch**: một giao dịch `READ COMMITTED`: khoá hàng `bac_si` của chính bác sĩ (`FOR UPDATE`) rồi mới đếm, kiểm chồng nhau và kiểm ca; nhờ đó hai yêu cầu giống nhau gửi đồng thời chỉ một cái thành công. Deadlock/hết chờ khoá (1213/1205) chạy lại tối đa 2 lần trước commit.
 - **Thông báo cùng giao dịch**: `NghiPhepDaGui` cho bác sĩ và `NghiPhepChoDuyet` cho Quản trị viên có thẩm quyền; lỗi ghi thông báo hoàn tác cả yêu cầu. Khung giờ không đổi trạng thái: việc chặn đặt lịch là suy ra từ yêu cầu `ChoDuyet`/`DaDuyet`.
+
+## B14 — Quản trị viên từ chối yêu cầu nghỉ phép (11/11/2026, module doctor; không đổi schema)
+
+Không có `ALTER`: `POST /admin/leave-requests/:id/reject` chỉ đổi `yeu_cau_nghi_phep`, ghi `nhat_ky_hanh_dong` (hành động `TuChoiNghiPhep` của P4) và `thong_bao`. DB không ép các quy tắc dưới đây (chỉ hai CHECK sẵn có là lưới cuối), service giữ:
+
+- **Quyền và phạm vi**: chỉ Quản trị viên. Toàn hệ thống từ chối được mọi yêu cầu; Quản trị viên Chi nhánh chỉ từ chối yêu cầu của bác sĩ có chi nhánh **hiện tại** (`bac_si.chi_nhanh_id`) là chi nhánh mình, vì bảng yêu cầu không có cột chi nhánh. Ngoài phạm vi, không có hoặc id sai dạng đều là 404 cùng thân, và 404 được quyết **trước** khi nói gì về trạng thái (không lộ yêu cầu đã xử lý hay chưa).
+- **Lý do từ chối bắt buộc**: chuẩn hoá NFC, cắt khoảng trắng ASCII hai đầu, 1–255 điểm mã, không có ký tự điều khiển. Thiếu, sai kiểu hay không hợp lệ đều là 400 `LY_DO_TU_CHOI_KHONG_HOP_LE`. Schema **không có cột** lý do từ chối: lý do chỉ nằm ở `nhat_ky_hanh_dong.chi_tiet_thay_doi.ly_do_tu_choi` và trong nội dung thông báo cho bác sĩ (Q27c); đây là lý do của Quản trị viên, không phải lý do xin nghỉ của bác sĩ (cái này không bao giờ vào nhật ký hay thông báo).
+- **Chỉ từ `ChoDuyet`**: yêu cầu `DaDuyet` hoặc `TuChoi` ⇒ 409 `YEU_CAU_DA_XU_LY`. Hai Quản trị viên từ chối cùng lúc: một thành công, một nhận 409 (hàng yêu cầu khoá `FOR UPDATE`, kiểm lại trạng thái dưới khoá).
+- **Khoá và giao dịch**: một giao dịch `READ COMMITTED`; **chỉ khoá hàng yêu cầu**, không khoá `bac_si` (từ chối không đổi gì mà `booking` quan tâm). Phạm vi đọc lại dưới khoá nên đổi chi nhánh của bác sĩ giữa chừng không làm lọt quyền. Deadlock/hết chờ khoá (1213/1205) chạy lại tối đa 2 lần trước commit.
+- **Kết quả**: `trang_thai = TuChoi`, `nguoi_xu_ly_id` = người đăng nhập (từ phiên, không từ thân yêu cầu), `thoi_diem_xu_ly` = giờ Việt Nam tại lúc xử lý (cắt giây).
+- **Nhật ký và thông báo cùng giao dịch**: ghi `TuChoiNghiPhep` (danh sách trắng: `bac_si_id`, `ngay_bat_dau`, `ngay_ket_thuc`, `ca`, `ly_do_tu_choi`; `chi_nhanh_id` = chi nhánh hiện tại của bác sĩ) và thông báo `NghiPhepTuChoi` cho bác sĩ kèm lý do; lỗi ghi một trong hai hoàn tác cả việc từ chối.
+- **Khung giờ không đổi trạng thái**: ô khung giờ của ngày nghỉ "nhận lịch trở lại" chỉ vì yêu cầu không còn `ChoDuyet`/`DaDuyet` (việc chặn đặt lịch là suy ra).

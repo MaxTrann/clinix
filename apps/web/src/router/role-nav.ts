@@ -12,6 +12,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
+import { DOCTOR_PATHS } from '../features/doctor';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
 import type { RoleNavItem } from '../shared/ui/role-shell';
 
@@ -47,5 +48,17 @@ export const RECEPTION_NAV: { items: RoleNavItem[] } = {
     { label: 'Tin nhắn', icon: MessageCircle },
     { label: 'Thông báo', icon: Bell },
     { label: 'Thông tin cá nhân', icon: User, to: RECEPTION_PATHS.profile },
+  ],
+};
+
+// doctor F1 (Figma `466:2`). "Lịch hẹn" do `booking` F11 đặt `to` (doctor F10 gắn route); "Tổng quan", "Tin nhắn", "Thông báo", "Thông tin cá nhân" chưa có trang (nút vô hiệu).
+export const DOCTOR_NAV: { items: RoleNavItem[] } = {
+  items: [
+    { label: 'Tổng quan', icon: LayoutDashboard },
+    { label: 'Lịch hẹn', icon: Calendar },
+    { label: 'Lịch làm việc', icon: ClipboardList, to: DOCTOR_PATHS.schedule },
+    { label: 'Tin nhắn', icon: MessageCircle },
+    { label: 'Thông báo', icon: Bell },
+    { label: 'Thông tin cá nhân', icon: User },
   ],
 };
