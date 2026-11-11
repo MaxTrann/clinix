@@ -20,13 +20,16 @@ import {
   ALLOWED_WRITES,
   findClockViolations,
   findIndexAndLockViolations,
+  findInternalWriteViolations,
   findRouteRoleViolations,
   findWriteViolations,
+  INTERNAL_WRITE_RULES,
   type SourceFile,
 } from './testing/architecture-rules.js';
 
 // Task P1 — AR-01, AR-04, AR-05 (quét mã nguồn) và phần không cần AppModule của AR-03 (PLAN booking 7.11; TRACKING 3.3 P1-I). Phần cây AppModule của AR-03: architecture.int-spec.ts.
 // Task B1 — AR-02 và QB-07 (quét metadata route; TRACKING 3.13).
+// Task B6b — AR-06 và CG-10 (luật nội bộ: mỗi bảng chỉ MỘT nơi ghi trong appointments/; TRACKING 3.14 B6-G).
 // Bộ quét dùng lại hàm của doctor (TECH_DEBT dòng 88); luật riêng ở testing/architecture-rules.ts, nhận `{ path, source }[]` nên test bằng dữ liệu tổng hợp.
 const SRC_DIR = fileURLToPath(new URL('..', import.meta.url));
 
@@ -153,6 +156,141 @@ describe('AR-01 chỉ appointments/ ghi lich_hen và khung_gio (H7)', () => {
       expect(entry.lyDo.length).toBeGreaterThan(10);
       if (entry.rules !== 'ALL') expect(entry.rules.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots/, UPDATE lich_hen chỉ ở state/, INSERT INTO lich_hen chỉ ở create/, không INSERT/DELETE khung_gio (D7)', () => {
+  it('cây src/ thật đạt, và bộ quét THẤY hai nơi ghi thật (bỏ mọi chỗ được phép thì lộ đúng slots/ và state/)', () => {
+    expect(findInternalWriteViolations(files)).toEqual([]);
+    const noneAllowed = INTERNAL_WRITE_RULES.map((entry) => ({
+      ...entry,
+      allowedDirs: [],
+    }));
+    const exposed = findInternalWriteViolations(files, noneAllowed);
+    expect(
+      exposed.some((line) =>
+        line.startsWith(
+          'appointments/slots/slot-hold.service.ts: UPDATE khung_gio',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      exposed.some((line) =>
+        line.startsWith('appointments/state/lapsed-hold.ts: UPDATE lich_hen'),
+      ),
+    ).toBe(true);
+    // CG-10: ngoài slots/ không file nào của appointments/ có UPDATE khung_gio
+    expect(
+      exposed
+        .filter((line) => line.includes('UPDATE khung_gio'))
+        .every((line) => line.startsWith('appointments/slots/')),
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      'UPDATE khung_gio',
+      'appointments/create/x.ts',
+      "q('UPDATE khung_gio SET a = 1')",
+    ],
+    [
+      'UPDATE khung_gio',
+      'appointments/state/x.ts',
+      'q(`update `khung_gio` set a = 1`)',
+    ],
+    [
+      'UPDATE lich_hen',
+      'appointments/slots/x.ts',
+      "q('UPDATE lich_hen SET trang_thai = ?')",
+    ],
+    [
+      'UPDATE lich_hen',
+      'appointments/create/x.ts',
+      "q('UPDATE IGNORE lich_hen SET a = 1')",
+    ],
+    [
+      'INSERT INTO lich_hen',
+      'appointments/slots/x.ts',
+      "q('INSERT INTO lich_hen (a) VALUES (1)')",
+    ],
+    [
+      'INSERT INTO lich_hen',
+      'appointments/state/x.ts',
+      "q('REPLACE INTO lich_hen (a) VALUES (1)')",
+    ],
+    [
+      'INSERT INTO khung_gio',
+      'appointments/slots/x.ts',
+      "q('INSERT INTO khung_gio (a) VALUES (1)')",
+    ],
+    [
+      'INSERT INTO khung_gio',
+      'appointments/create/x.ts',
+      "q('INSERT INTO khung_gio (a) VALUES (1)')",
+    ],
+    [
+      'DELETE FROM khung_gio',
+      'appointments/slots/x.ts',
+      "q('DELETE FROM `khung_gio` WHERE a = 1')",
+    ],
+    [
+      'DELETE FROM khung_gio',
+      'appointments/state/x.ts',
+      "q('DELETE FROM khung_gio WHERE a = 1')",
+    ],
+  ])('đột biến: mẫu "%s" sai chỗ (%s) bị bắt', (rule, path, source) => {
+    const found = findInternalWriteViolations([file(path, source)]);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain(path);
+    expect(found[0]).toContain(rule);
+    expect(found[0]).toContain('Chỗ được phép:');
+  });
+
+  it('không bắt nhầm: đúng chỗ được phép, comment, đọc có khoá, bảng có tiền tố giống tên, và file ngoài appointments/ (đó là việc của AR-01)', () => {
+    const clean = [
+      file('appointments/slots/hold.ts', "q('UPDATE khung_gio SET a = 1')"),
+      file('appointments/state/lapsed.ts', "q('UPDATE lich_hen SET a = 1')"),
+      file(
+        'appointments/create/new.ts',
+        "q('INSERT INTO lich_hen (a) VALUES (1)')",
+      ),
+      file(
+        'appointments/slots/a.ts',
+        '// UPDATE khung_gio SET a = 1 ở nơi khác\n/* DELETE FROM khung_gio */',
+      ),
+      file(
+        'appointments/cancel/b.ts',
+        "q('SELECT * FROM khung_gio WHERE khung_gio_id = ? FOR UPDATE')",
+      ),
+      file(
+        'appointments/cancel/c.ts',
+        "q('SELECT * FROM lich_hen WHERE lich_hen_id = ? FOR UPDATE')",
+      ),
+      file(
+        'appointments/cancel/d.ts',
+        "q('UPDATE lich_hen_cho SET a = 1'); q('UPDATE khung_gio_dang_moi SET a = 1')",
+      ),
+      file('doctor/shifts/e.ts', "q('DELETE FROM khung_gio WHERE a = 1')"),
+      file(
+        'scheduling/slots/f.ts',
+        "q('INSERT INTO khung_gio (a) VALUES (1)')",
+      ),
+    ];
+    expect(findInternalWriteViolations(clean)).toEqual([]);
+  });
+
+  it('mỗi luật nội bộ đều có mẫu thật trong WRITE_RULES, lý do và thư mục (nếu có) kết thúc bằng "/"; sai tên mẫu thì báo lỗi chứ không im lặng bỏ qua', () => {
+    for (const entry of INTERNAL_WRITE_RULES) {
+      expect(entry.lyDo.length).toBeGreaterThan(10);
+      for (const dir of entry.allowedDirs)
+        expect(dir).toMatch(/^appointments\/.*\/$/);
+    }
+    expect(() =>
+      findInternalWriteViolations(
+        [file('appointments/x.ts', 'a')],
+        [{ rule: 'không có mẫu này', allowedDirs: [], lyDo: 'thử' }],
+      ),
+    ).toThrow(/không có mẫu/);
   });
 });
 

@@ -149,6 +149,77 @@ export function findRouteRoleViolations(
   return auditPatientControllers(controllers);
 }
 
+/**
+ * Luật NỘI BỘ của AR-06 (task B6b; TRACKING 3.14 B6-G; CG-10 là phần `khung_gio`): AR-01 chỉ cấm ghi NGOÀI `appointments/`; trong `appointments/` mỗi bảng chỉ có MỘT nơi ghi: `UPDATE khung_gio`
+ * chỉ ở `slots/` (`SlotHoldService`), `UPDATE lich_hen` chỉ ở `state/` (`cancelLapsedHold`, B9 thêm lớp cạnh nó), `INSERT INTO lich_hen` chỉ ở `create/` (B8), và `INSERT INTO khung_gio`,
+ * `DELETE FROM khung_gio` KHÔNG ở đâu cả (D7: booking không chèn, không xoá khung giờ). Tên mẫu lấy từ `WRITE_RULES` (một chỗ định nghĩa mẫu); thêm ngoại lệ là sửa mảng này kèm lý do.
+ */
+export interface InternalWriteRule {
+  /** Tên mẫu trong `WRITE_RULES` */
+  rule: string;
+  /** Thư mục (kết thúc bằng `/`, tính từ `src/`) được dùng mẫu này; rỗng = không nơi nào */
+  allowedDirs: readonly string[];
+  /** Vì sao, và nếu hợp lệ thì làm gì */
+  lyDo: string;
+}
+
+export const INTERNAL_WRITE_RULES: readonly InternalWriteRule[] = [
+  {
+    rule: 'UPDATE khung_gio',
+    allowedDirs: ['appointments/slots/'],
+    lyDo: 'mọi ghi khung_gio đi qua SlotHoldService (CG-10, doctor D7, PLAN 5.10 W3)',
+  },
+  {
+    rule: 'UPDATE lich_hen',
+    allowedDirs: ['appointments/state/'],
+    lyDo: 'chỉ lớp trạng thái (appointments/state/) ghi lich_hen.trang_thai (H7)',
+  },
+  {
+    rule: 'INSERT INTO lich_hen',
+    allowedDirs: ['appointments/create/'],
+    lyDo: 'chỉ luồng tạo lịch (appointments/create/, task B8) chèn lich_hen',
+  },
+  {
+    rule: 'INSERT INTO khung_gio',
+    allowedDirs: [],
+    lyDo: 'booking không chèn khung_gio (doctor D1: chỉ bộ sinh khung giờ của scheduling/ chèn ô ConTrong)',
+  },
+  {
+    rule: 'DELETE FROM khung_gio',
+    allowedDirs: [],
+    lyDo: 'booking không xoá khung_gio (doctor D7: chỉ gỡ ca của doctor/ xoá ô ConTrong)',
+  },
+];
+
+/**
+ * AR-06: câu ghi SAI CHỖ trong `appointments/` (code, không phải `testing/` hay file test: bộ nạp đã bỏ). Trả danh sách thông điệp (rỗng = đạt). Cùng giới hạn đã biết của AR-01 (văn bản, không bắt SQL ghép chuỗi).
+ */
+export function findInternalWriteViolations(
+  files: readonly SourceFile[],
+  rules: readonly InternalWriteRule[] = INTERNAL_WRITE_RULES,
+): string[] {
+  const found: string[] = [];
+  for (const file of files) {
+    if (!file.path.startsWith(OWN_DIR)) continue;
+    const code = stripComments(file.source);
+    for (const entry of rules) {
+      const write = WRITE_RULES.find(
+        (candidate) => candidate.name === entry.rule,
+      );
+      if (write === undefined)
+        throw new Error(
+          `INTERNAL_WRITE_RULES: không có mẫu "${entry.rule}" trong WRITE_RULES`,
+        );
+      if (!write.patterns.some((pattern) => pattern.test(code))) continue;
+      if (entry.allowedDirs.some((dir) => file.path.startsWith(dir))) continue;
+      found.push(
+        `${file.path}: ${entry.rule} — ${entry.lyDo}. Chỗ được phép: ${entry.allowedDirs.length === 0 ? 'không nơi nào' : entry.allowedDirs.join(', ')}`,
+      );
+    }
+  }
+  return found;
+}
+
 // AR-04 (H8): giờ của DB. Mọi mốc từ `nowVN()` rồi `toSecond()` và truyền `:now` vào SQL (test dùng đồng hồ giả).
 const CLOCK_RULES: readonly Rule[] = [
   { name: 'NOW()', patterns: [/\bNOW\s*\(/i] },

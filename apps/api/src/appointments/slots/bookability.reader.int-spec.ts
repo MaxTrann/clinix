@@ -1,6 +1,5 @@
 import { Test } from '@nestjs/testing';
 import { DataSource, type EntityManager } from 'typeorm';
-import { vi } from 'vitest';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
 import { BranchHoursReader } from '../../scheduling/branch-hours/branch-hours.reader.js';
 import { AppointmentsModule } from '../appointments.module.js';
@@ -8,6 +7,11 @@ import { BOOKING_ERROR_CODES } from '../appointments.constants.js';
 import { findLockOrderViolation } from '../locking/lock-order.js';
 import { BookingFixtures } from '../testing/booking-fixtures.js';
 import { holdRowLock } from '../testing/concurrency-harness.js';
+import {
+  firstTableOf,
+  interceptQuery,
+  isLockingStatement,
+} from '../testing/query-spy.js';
 import {
   FakeDoctorLeavePort,
   FakePendingBranchChangesPort,
@@ -148,19 +152,6 @@ async function snapshot(): Promise<string> {
   ]);
 }
 
-/** Bọc `em.query` của MỘT giao dịch: mỗi câu đi qua `handler(sql, run)`, `run()` chạy câu thật (BKR-03 ghi lại câu, BKR-10 chen một hành động sau câu đọc đầu tiên). */
-function interceptQuery(
-  em: EntityManager,
-  handler: (sql: string, run: () => Promise<unknown>) => Promise<unknown>,
-): void {
-  const original = em.query.bind(em) as (
-    sql: string,
-    params?: unknown[],
-  ) => Promise<unknown>;
-  vi.spyOn(em, 'query').mockImplementation(((sql: string, params?: unknown[]) =>
-    handler(sql, () => original(sql, params))) as typeof em.query);
-}
-
 describe('BKR-01 chế độ none: không giữ khoá nào', () => {
   it('đọc xong (giao dịch còn mở) thì phiên khác khoá được bac_si và khung_gio ngay bằng FOR UPDATE NOWAIT', async () => {
     const w = await world();
@@ -211,17 +202,15 @@ describe('BKR-03 thứ tự câu ở chế độ locked (PLAN 5.3, H2)', () => {
       await w.reader.read(em, w.input(0), 'locked');
     });
 
-    const isLocking = (sql: string) => /\bFOR\s+(?:UPDATE|SHARE)\b/i.test(sql);
-    const tableOf = (sql: string) => /\bFROM\s+`?(\w+)`?/i.exec(sql)?.[1];
-    const locking = statements.filter(isLocking);
-    const tables = locking.map(tableOf);
+    const locking = statements.filter(isLockingStatement);
+    const tables = locking.map(firstTableOf);
     expect(tables).toEqual(['bac_si', 'khung_gio']);
     expect(findLockOrderViolation(tables as string[])).toBeNull();
     // đúng MỘT câu đọc thường (biết bac_si_id) đứng trước hai câu khoá; mọi câu còn lại sau chúng
-    expect(statements.findIndex(isLocking)).toBe(1);
+    expect(statements.findIndex(isLockingStatement)).toBe(1);
     expect(statements[0]).toMatch(LOCATE_STATEMENT);
-    expect(statements.slice(1, 3).every(isLocking)).toBe(true);
-    expect(statements.slice(3).some(isLocking)).toBe(false);
+    expect(statements.slice(1, 3).every(isLockingStatement)).toBe(true);
+    expect(statements.slice(3).some(isLockingStatement)).toBe(false);
     // sau khi khoá còn các câu đọc thường (bác sĩ, giờ chi nhánh, lịch giữ khung giờ, lịch đang hoạt động, chồng lấn)
     expect(statements.length).toBeGreaterThan(3);
   });
