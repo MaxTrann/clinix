@@ -6,7 +6,7 @@ export const DOCTOR_ROUTES: RouteObject[] = [
   {
     path: DOCTOR_SCHEDULE_SEGMENT,
     lazy: () =>
-      import('./pages/doctor-schedule-page').then((module) => ({
+      import('./schedule/doctor-schedule-page').then((module) => ({
         Component: module.DoctorSchedulePage,
       })),
   },
