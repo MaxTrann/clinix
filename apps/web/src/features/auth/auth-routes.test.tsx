@@ -216,6 +216,14 @@ describe('đăng xuất trên trang giữ chỗ', () => {
   it('AU-71 lỗi: giữ trang, báo câu đã chốt, Thử lại gửi lại', async () => {
     await signInThroughApi();
     api.failNext('/auth/logout', () => apiError(500, 'LOI_HE_THONG'));
+    // Trang Lịch làm việc (doctor F2) gọi GET /doctor/schedule: trả tuần trống để không có hộp lỗi thứ hai lẫn với lỗi đăng xuất
+    api.failNext(
+      '/doctor/schedule',
+      () =>
+        new Response(JSON.stringify({ ca: [], chiNhanhLoc: [] }), {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
     const router = renderAt('/bac-si-portal');
     await doctorShell();
 

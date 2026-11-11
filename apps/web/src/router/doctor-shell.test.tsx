@@ -62,7 +62,25 @@ const menuLabels = (container: HTMLElement) =>
 beforeEach(() => {
   resetAuthForTest();
   api = createFakeAuthApi();
-  vi.stubGlobal('fetch', vi.fn(api.fetch));
+  // Trang Lịch làm việc gọi GET /api/doctor/schedule: trả tuần trống để trang tải xong, mọi đường dẫn khác chuyển cho fake auth
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).startsWith('/api/doctor/schedule')
+        ? Promise.resolve(
+            new Response(
+              JSON.stringify({
+                tuNgay: '',
+                denNgay: '',
+                ca: [],
+                chiNhanhLoc: [],
+              }),
+              { headers: { 'Content-Type': 'application/json' } },
+            ),
+          )
+        : api.fetch(input, init),
+    ),
+  );
   Object.defineProperty(navigator, 'locks', {
     configurable: true,
     value: undefined,
