@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '../../../shared/ui/empty-state';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
@@ -16,7 +16,12 @@ import {
   todayVn,
   weekStartOf,
 } from '../../../shared/schedule/week';
+import type { LeaveStatus } from '../api/leave-api';
 import type { DoctorShift } from '../api/schedule-api';
+import { LeaveHistory } from '../leave/leave-history';
+import { LeaveRequestDialog } from '../leave/leave-request-dialog';
+import { LEAVE_CREATED_MESSAGE, LeaveToast } from '../leave/leave-toast';
+import { useLeaveHistory } from '../leave/use-leave-history';
 import { MonthGrid } from './month-grid';
 import {
   ALL,
@@ -42,8 +47,8 @@ function rangeOf(mode: ViewMode, anchor: string) {
   return { start: gridStart, end: gridEnd };
 }
 
-// Trang "Lịch làm việc" của Bác sĩ: tuần (doctor F2; Figma `466:2`, `469:2`) và tháng + bộ lọc (doctor F3; Figma `467:2`). "Yêu cầu nghỉ" và lịch sử
-// yêu cầu là F4. Ngày hiện tại, đầu tuần, đầu tháng tính theo giờ Việt Nam (WL-03, WL-11).
+// Trang "Lịch làm việc" của Bác sĩ: tuần (doctor F2; Figma `466:2`, `469:2`), tháng + bộ lọc (doctor F3; Figma `467:2`), nút "Yêu cầu nghỉ" và
+// "Lịch sử yêu cầu nghỉ" (doctor F4; Figma `468:2`, `470:2`, `471:2`). Ngày hiện tại, đầu tuần, đầu tháng tính theo giờ Việt Nam (WL-03, WL-11).
 export function DoctorSchedulePage() {
   const [today] = useState(() => todayVn());
   const [mode, setMode] = useState<ViewMode>('week');
@@ -52,10 +57,19 @@ export function DoctorSchedulePage() {
   const [filters, setFilters] = useState<ScheduleFilters>(NO_FILTERS);
   const [selected, setSelected] = useState<DoctorShift | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+  // F4: hộp gửi yêu cầu nghỉ, thông báo thành công, lịch sử (trang + lọc trạng thái)
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyStatus, setHistoryStatus] = useState<LeaveStatus | undefined>();
+  const leaveButtonRef = useRef<HTMLButtonElement | null>(null);
+  const history = useLeaveHistory(historyPage, historyStatus);
+  const dismissToast = useCallback(() => setToast(null), []);
 
   const range = rangeOf(mode, anchor);
   const monthStart = monthStartOf(anchor);
   const { state, retry } = useSchedule(range.start, range.end);
+  const { reload: reloadHistory } = history;
 
   const data = state.status === 'success' ? state.data : null;
   const branchOptions = useMemo(() => data?.chiNhanhLoc ?? [], [data]);
@@ -100,17 +114,27 @@ export function DoctorSchedulePage() {
 
   return (
     <section className="flex flex-col gap-5">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-gray-900">Lịch làm việc</h1>
-        <p className="text-sm text-gray-600">
-          Theo dõi ca làm việc, trạng thái phân công và quản lý yêu cầu nghỉ.
-        </p>
-        {branches !== '' && (
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold text-gray-900">Lịch làm việc</h1>
           <p className="text-sm text-gray-600">
-            Chi nhánh công tác:{' '}
-            <span className="font-medium text-gray-900">{branches}</span>
+            Theo dõi ca làm việc, trạng thái phân công và quản lý yêu cầu nghỉ.
           </p>
-        )}
+          {branches !== '' && (
+            <p className="text-sm text-gray-600">
+              Chi nhánh công tác:{' '}
+              <span className="font-medium text-gray-900">{branches}</span>
+            </p>
+          )}
+        </div>
+        <button
+          ref={leaveButtonRef}
+          type="button"
+          onClick={() => setLeaveOpen(true)}
+          className="min-h-11 rounded-lg bg-brand-strong px-5 text-sm font-semibold text-white transition-colors hover:bg-cyan-800"
+        >
+          Yêu cầu nghỉ
+        </button>
       </header>
 
       <ScheduleToolbar
@@ -167,6 +191,37 @@ export function DoctorSchedulePage() {
             />
           )}
         </>
+      )}
+
+      <LeaveHistory
+        state={history.state}
+        page={historyPage}
+        onPageChange={setHistoryPage}
+        status={historyStatus}
+        onStatusChange={(value) => {
+          setHistoryStatus(value);
+          setHistoryPage(1);
+        }}
+        onRetry={reloadHistory}
+      />
+
+      {leaveOpen && (
+        <LeaveRequestDialog
+          returnFocusRef={leaveButtonRef}
+          onClose={() => setLeaveOpen(false)}
+          onCreated={() => {
+            setLeaveOpen(false);
+            setToast(LEAVE_CREATED_MESSAGE);
+            // Yêu cầu mới nhất ở trang đầu; lịch tải lại để ô nghỉ hiện "Chờ duyệt"
+            setHistoryPage(1);
+            setHistoryStatus(undefined);
+            reloadHistory();
+            retry();
+          }}
+        />
+      )}
+      {toast !== null && (
+        <LeaveToast message={toast} onDismiss={dismissToast} />
       )}
 
       {selected !== null && (
