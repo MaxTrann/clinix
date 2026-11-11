@@ -6,6 +6,7 @@ import {
 } from './migration-runner.js';
 import { MIGRATIONS } from './migrations/index.js';
 import { TaoBangDanhMuc1793024340000 } from './migrations/1793024340000-tao-bang-danh-muc.js';
+import { TaoBangMocHoanTien1793534400000 } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
 import { ThongBaoLichHen1793448000000 } from './migrations/1793448000000-thong-bao-lich-hen.js';
@@ -53,6 +54,7 @@ const OPERATIONS_TABLES = [
   'email_thong_bao',
 ];
 const NGHI_PHEP_TABLES = ['yeu_cau_nghi_phep'];
+const MOC_HOAN_TIEN_TABLES = ['moc_hoan_tien'];
 const MIGRATED_TABLES = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
@@ -60,6 +62,7 @@ const MIGRATED_TABLES = [
   ...OPERATIONS_TABLES,
   'anh_tai_len',
   ...NGHI_PHEP_TABLES,
+  ...MOC_HOAN_TIEN_TABLES,
 ];
 // 20 hành động đã có trước P4 (đúng thứ tự trong migration vận hành).
 const HANH_DONG_TRUOC_P4 = [
@@ -87,6 +90,7 @@ const HANH_DONG_TRUOC_P4 = [
 const NGHI_PHEP_NAME = TaoBangNghiPhep1793275200000.name;
 const P4_NAME = NhatKyPhanCongNghiPhep1793361600000.name;
 const BOOKING_P7_NAME = ThongBaoLichHen1793448000000.name;
+const BOOKING_P6_NAME = TaoBangMocHoanTien1793534400000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -99,7 +103,7 @@ function migrationsAfter(name: string): string[] {
 
 /**
  * Hoàn tác mọi migration đứng sau `name` (từ cuối về) để `name` thành migration cuối đã áp dụng; trả về tên chúng.
- * Các test MG-05, MG-06, TBLH-09 gọi migration theo TÊN nên thêm migration mới ở cuối sổ không làm chúng vỡ.
+ * Các test MG-05, MG-06, TBLH-09, MHT-09 gọi migration theo TÊN nên thêm migration mới ở cuối sổ không làm chúng vỡ.
  */
 async function revertAfter(name: string): Promise<string[]> {
   const later = migrationsAfter(name);
@@ -269,6 +273,62 @@ describe('vòng đời migration', () => {
         'SELECT COUNT(*) AS total FROM cau_hinh_he_thong',
       );
       expect(Number(configRows[0]?.total)).toBe(0);
+    } finally {
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+      await queryRunner.release();
+    }
+  });
+
+  it('MHT-09: down của booking P6 xóa bảng moc_hoan_tien kể cả khi còn dòng (không chặn); up lại cho bảng RỖNG, cùng cấu trúc', async () => {
+    // P6 là migration cuối trong sổ nên không có gì phải hoàn tác trước nó
+    expect(await revertAfter(BOOKING_P6_NAME)).toEqual([]);
+    const showCreate = async (): Promise<string> => {
+      const rows = (await dataSource.query(
+        'SHOW CREATE TABLE `moc_hoan_tien`',
+      )) as Record<string, string>[];
+      return (rows[0]?.['Create Table'] ?? '').replace(
+        / AUTO_INCREMENT=\d+/,
+        '',
+      );
+    };
+    const installed = await showCreate();
+    expect(installed).toContain('chk_moc_hoan_ty_le');
+
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      // dich_vu_kham để trống: tắt kiểm khóa ngoại trên MỘT kết nối để dựng dòng mốc (như TBLH-09)
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+      await queryRunner.query(
+        'INSERT INTO moc_hoan_tien (dich_vu_kham_id, so_gio_truoc_toi_thieu, ty_le_hoan) VALUES (900001, 24, 100)',
+      );
+      const countRows = async (): Promise<number> => {
+        const rows = (await queryRunner.query(
+          'SELECT COUNT(*) AS total FROM moc_hoan_tien',
+        )) as { total: string | number }[];
+        return Number(rows[0]?.total);
+      };
+      expect(await countRows()).toBe(1);
+
+      // Còn dòng mốc: down VẪN chạy (chỉ mất cấu hình mốc), các bảng khác còn nguyên
+      expect(await revertLastMigration(dataSource)).toBe(BOOKING_P6_NAME);
+      const tables = await listTables(dataSource);
+      expect(tables).not.toContain('moc_hoan_tien');
+      expect(tables).toEqual(
+        expect.arrayContaining(
+          MIGRATED_TABLES.filter((table) => table !== 'moc_hoan_tien'),
+        ),
+      );
+      expect(
+        (await listMigrations(dataSource)).find(
+          (item) => item.name === BOOKING_P6_NAME,
+        )?.executed,
+      ).toBe(false);
+
+      // up lại: đúng một migration, bảng trở lại RỖNG với cùng cấu trúc (cột, COMMENT, UNIQUE, khóa ngoại, CHECK)
+      expect(await runPendingMigrations(dataSource)).toEqual([BOOKING_P6_NAME]);
+      expect(await showCreate()).toBe(installed);
+      expect(await countRows()).toBe(0);
     } finally {
       await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
       await queryRunner.release();

@@ -1,5 +1,6 @@
 import { TAO_BANG_ANH_SQL } from './migrations/1793188800000-tao-bang-anh.js';
 import { TAO_BANG_DANH_MUC_SQL } from './migrations/1793024340000-tao-bang-danh-muc.js';
+import { TAO_BANG_MOC_HOAN_TIEN_SQL } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-su.js';
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
 import { THONG_BAO_LICH_HEN_UP_SQL } from './migrations/1793448000000-thong-bao-lich-hen.js';
@@ -194,5 +195,49 @@ describe('migration booking P7 (thong_bao.lich_hen_id) khớp schema SQL chính 
     const otherTable =
       "CREATE TABLE `khac` (\n  `lich_hen_id` bigint COMMENT 'x',\n  `a` int\n)";
     expect(maskThongBaoLichHen([otherTable])).toEqual([otherTable]);
+  });
+});
+
+describe('migration booking P6 (moc_hoan_tien) khớp schema SQL chính thức', () => {
+  const official = officialStatementsFor(['moc_hoan_tien']).map(
+    normalizeStatement,
+  );
+  const [
+    createTable = '',
+    createIndex = '',
+    addForeignKey = '',
+    addCheck = '',
+  ] = TAO_BANG_MOC_HOAN_TIEN_SQL;
+
+  it('MHT-01: 4 câu DDL trùng từng câu, cùng thứ tự, với clinix_mysql.sql; ca âm: đổi dấu tiếng Việt (Hủy/Huỷ) thì không còn trùng', () => {
+    expect(official).toHaveLength(4);
+    expect(TAO_BANG_MOC_HOAN_TIEN_SQL.map(normalizeStatement)).toEqual(
+      official,
+    );
+    // Ca âm: chỉ khác cách gõ dấu ở COMMENT cũng làm lệch văn bản
+    expect(createTable).toContain('Hủy');
+    const changed = [
+      createTable.replace('Hủy', 'Huỷ'),
+      ...TAO_BANG_MOC_HOAN_TIEN_SQL.slice(1),
+    ];
+    expect(changed.map(normalizeStatement)).not.toEqual(official);
+  });
+
+  it('MHT-02: đúng 4 câu theo thứ tự bảng, UNIQUE, khóa ngoại, CHECK; UNIQUE đứng trước khóa ngoại; mọi câu chỉ tác động moc_hoan_tien', () => {
+    expect(TAO_BANG_MOC_HOAN_TIEN_SQL).toHaveLength(4);
+    expect(createTable).toMatch(/^CREATE TABLE `moc_hoan_tien` /);
+    expect(createIndex).toMatch(
+      /^CREATE UNIQUE INDEX `moc_hoan_tien_index_1` /,
+    );
+    expect(addForeignKey).toMatch(
+      /^ALTER TABLE `moc_hoan_tien` ADD FOREIGN KEY \(`dich_vu_kham_id`\) REFERENCES `dich_vu_kham` /,
+    );
+    expect(addCheck).toMatch(
+      /^ALTER TABLE `moc_hoan_tien` ADD CONSTRAINT `chk_moc_hoan_ty_le` CHECK /,
+    );
+    expect(addCheck).toContain('`ty_le_hoan` BETWEEN 0 AND 100');
+    for (const statement of TAO_BANG_MOC_HOAN_TIEN_SQL) {
+      expect(targetTable(statement)).toBe('moc_hoan_tien');
+    }
   });
 });
