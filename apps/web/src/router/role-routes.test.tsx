@@ -222,14 +222,14 @@ describe('khung Bệnh nhân', () => {
   });
 
   // Đổi có duyệt ở patient F2: tên ca bỏ "LeTan" (Lễ tân có khung ở F2, xem PL-09); thân ca, mã ca và mã KG giữ nguyên
-  it('PL-05 KG-07 BacSi vẫn là trang giữ chỗ; QuanTriVien vẫn là khung Admin', async () => {
+  // Đổi có duyệt ở doctor F1: BacSi có khung thật (ca khung Bác sĩ: router/doctor-shell.test.tsx WK-01…WK-07); không còn trang giữ chỗ
+  it('PL-05 KG-07 BacSi không còn trang giữ chỗ: không thấy khung Bệnh nhân', async () => {
     signedInAs('BacSi');
     renderAt(ROLE_HOME_PATHS.BacSi);
-    expect(screen.getByRole('heading', { name: 'Bác sĩ' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Đăng xuất' })).toHaveLength(
-      1,
-    );
-    expect(screen.queryByRole('complementary')).toBeNull();
+    await screen.findByRole('complementary', { name: 'Điều hướng Bác sĩ' });
+    expect(
+      screen.queryByRole('complementary', { name: 'Điều hướng Bệnh nhân' }),
+    ).toBeNull();
   });
 
   // PL-05b ("LeTan vẫn là trang giữ chỗ") bỏ, đổi có duyệt ở patient F2: Lễ tân có khung thật, ca kiểm ngược lại là PL-09

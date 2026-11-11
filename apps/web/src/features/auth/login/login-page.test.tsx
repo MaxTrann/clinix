@@ -9,6 +9,7 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../../router/routes';
 import { apiError, createFakeAuthApi } from '../../../test/fake-auth-api';
+import { DOCTOR_PATHS } from '../../doctor';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../../patient';
 import { createFakeProfileApi } from '../../patient/testing/fake-profile-api';
 import { resetAuthForTest } from '../auth-session';
@@ -56,12 +57,13 @@ const failLogin = (status: number, body: Record<string, unknown>) =>
       }),
   );
 
-// Tên thanh bên của khung thật theo vai trò; vai trò không có ở đây vẫn là trang giữ chỗ (chỉ còn Bác sĩ).
+// Tên thanh bên của khung thật theo vai trò; doctor F1: Bác sĩ cũng có khung thật.
 // Đổi có duyệt ở patient F1 (Bệnh nhân) và patient F2 (Lễ tân): viết thành bảng tra thay cho chuỗi if.
 const ROLE_SHELL_LABELS: Partial<Record<VaiTro, string>> = {
   QuanTriVien: 'Điều hướng Admin',
   BenhNhan: 'Điều hướng Bệnh nhân',
   LeTan: 'Điều hướng Lễ tân',
+  BacSi: 'Điều hướng Bác sĩ',
 };
 
 async function findRoleHome(vaiTro: VaiTro) {
@@ -82,6 +84,7 @@ async function findRoleHome(vaiTro: VaiTro) {
 const LANDING_PATHS: Partial<Record<VaiTro, string>> = {
   BenhNhan: PATIENT_PATHS.profile,
   LeTan: RECEPTION_PATHS.lookup,
+  BacSi: DOCTOR_PATHS.schedule,
 };
 
 function landingPathFor(vaiTro: VaiTro) {
