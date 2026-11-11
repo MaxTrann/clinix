@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { DoctorSchedulePage } from './doctor-schedule-page';
+import { withEmptyLeaveHistory } from '../testing/fetch-routing';
 import type { DoctorSchedule, DoctorShift } from '../api/schedule-api';
 
 // doctor F3: WL-04 (lưới tháng), WL-05 (lọc ca/trạng thái/chi nhánh), WL-06 (chi tiết ca từ chip), WL-03 (Hôm nay), WL-11 (biên tháng).
@@ -64,7 +65,7 @@ const OCTOBER = [
 
 beforeEach(() => {
   fetchMock.mockReset();
-  vi.stubGlobal('fetch', fetchMock);
+  vi.stubGlobal('fetch', withEmptyLeaveHistory(fetchMock));
   // Hôm nay = thứ Tư 14/10/2026 giờ VN; chỉ giả `Date`, timer thật
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-14T03:00:00Z'));
