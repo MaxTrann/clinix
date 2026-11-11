@@ -4,6 +4,7 @@ import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { ALERT_BOX, FieldError, FormAlert } from '../auth-form-parts';
 import { login } from '../auth-session';
+import { readReturnTo, withReturnTo } from '../return-to';
 import { textFrom } from '../route-state';
 import {
   FORGOT_PASSWORD_PATH,
@@ -46,6 +47,8 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
   const [email, setEmail] = useState(
     () => textFrom(location.state, 'email') ?? '',
   );
+  // Trang cần đăng nhập mà người dùng vừa rời (booking F3): chuyển tiếp qua đăng ký và xác minh để đăng nhập xong quay lại đúng chỗ
+  const returnTo = readReturnTo(location.state);
   const [matKhau, setMatKhau] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState(false);
@@ -85,7 +88,7 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
     if (next.kind === 'unverified') {
       // Vào thẳng màn nhập mã (N2); không tự gửi thư. Đẩy lịch sử để Back quay lại đăng nhập.
       navigate(VERIFY_EMAIL_PATH, {
-        state: verifyEmailHandoff(email, next.chiTiet),
+        state: withReturnTo(verifyEmailHandoff(email, next.chiTiet), returnTo),
       });
       return;
     }
@@ -162,7 +165,7 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
               {failure.message}{' '}
               <Link
                 to={REGISTER_PATH}
-                state={{ email }}
+                state={withReturnTo({ email }, returnTo)}
                 className="font-medium underline"
               >
                 Đăng ký lại
@@ -295,6 +298,7 @@ export function LoginForm({ sessionEnded }: LoginFormProps) {
         Chưa có tài khoản?{' '}
         <Link
           to={REGISTER_PATH}
+          state={withReturnTo(undefined, returnTo)}
           className="font-medium text-brand-strong hover:underline"
         >
           Đăng ký ngay

@@ -1,3 +1,4 @@
+import { readReturnTo } from '../return-to';
 import { textFrom } from '../route-state';
 
 const UNVERIFIED_NOTICE =
@@ -29,10 +30,12 @@ export interface PendingVerification {
   fresh: boolean;
   notice: string | null;
   draft: RegisterDraft | null;
+  // Trang cần đăng nhập người dùng đã rời (booking F3), đi qua xác minh để đăng nhập xong quay lại; chỉ có khi đã được kiểm hợp lệ
+  from?: string;
 }
 
 export type VerifyRouteState =
-  { verified: true; email: string } | PendingVerification;
+  { verified: true; email: string; from?: string } | PendingVerification;
 
 function fromHandoff(state: object, email: string): PendingVerification | null {
   const { chiTiet } = state as { chiTiet?: unknown };
@@ -62,8 +65,14 @@ function isDraft(value: unknown): value is RegisterDraft {
   );
 }
 
-// null: không đủ dữ liệu để ở lại trang này
+// null: không đủ dữ liệu để ở lại trang này. `from` (nếu hợp lệ) được gắn vào mọi nhánh; không có thì kết quả y như trước.
 export function parseVerifyState(state: unknown): VerifyRouteState | null {
+  const parsed = parseVerifyFields(state);
+  const from = readReturnTo(state);
+  return parsed === null || from === null ? parsed : { ...parsed, from };
+}
+
+function parseVerifyFields(state: unknown): VerifyRouteState | null {
   const email = textFrom(state, 'email');
   if (email === null) return null;
   const value = state as Record<string, unknown>;
