@@ -1,3 +1,5 @@
+import type { EntityManager } from 'typeorm';
+import { vi } from 'vitest';
 import {
   addBranchFilter,
   addCommonFilters,
@@ -7,6 +9,7 @@ import {
   fromWhere,
   ITEM_COLUMNS,
   ORDER_BY,
+  queryStatusCounts,
   type CommonFilter,
   type SqlClauses,
 } from './list-query.sql.js';
@@ -235,6 +238,28 @@ describe('fromWhere, ORDER_BY, cột (DSV-06, DSV-08)', () => {
       params: ['DaHuy'],
     });
     expect(fromWhere(clauses, '')).toStrictEqual(fromWhere(clauses));
+  });
+
+  it('LSH-05, DSB-11 `queryStatusCounts` (chung B1, B5): đúng một câu `GROUP BY lh.trang_thai` trên `FROM … WHERE …` đã dựng, tham số đi nguyên, số đếm (chuỗi BIGINT) ra số', async () => {
+    const clauses = fresh();
+    addStateFilter(clauses, ['DaHuy', 'VangMat']);
+    const query = vi.fn((_sql: string, _params: unknown[]) =>
+      Promise.resolve([
+        { trangThai: 'DaHuy', soLuong: '3' },
+        { trangThai: 'VangMat', soLuong: 2 },
+      ]),
+    );
+    const em = { query } as unknown as EntityManager;
+    const from = fromWhere(clauses);
+    expect(await queryStatusCounts(em, from)).toStrictEqual([
+      { trangThai: 'DaHuy', soLuong: 3 },
+      { trangThai: 'VangMat', soLuong: 2 },
+    ]);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledWith(
+      `SELECT lh.trang_thai AS trangThai, COUNT(*) AS soLuong ${from.sql}\nGROUP BY lh.trang_thai`,
+      ['DaHuy', 'VangMat'],
+    );
   });
 
   it('DSV-06 sắp xếp ổn định: `thoi_gian` rồi `lich_hen_id` CÙNG chiều', () => {

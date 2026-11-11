@@ -293,7 +293,8 @@ describe('GET /doctor/appointments — phạm vi và hình dạng', () => {
       pageSize: 2,
       demTheoTrangThai: COUNTS_A1,
     });
-    const huge = await get('?page=9007199254740991&pageSize=100', w.tokenA1);
+    // 10^18 × 100 > 2^64 (OFFSET tối đa của MySQL): thiếu chặn `offset < total` ở service thì MySQL báo 1064 ⇒ 500. `page=9007199254740991` (MAX_SAFE_INTEGER) × 100 vẫn < 2^64 nên KHÔNG bắt được lỗi.
+    const huge = await get('?page=1000000000000000000&pageSize=100', w.tokenA1);
     expect(huge.status).toBe(200);
     expect(pageOf(huge)).toMatchObject({ items: [], total: 5 });
     expect(codesOf(await get('?page=2&pageSize=2', w.tokenA1))).toStrictEqual([

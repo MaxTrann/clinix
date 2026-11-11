@@ -1,3 +1,4 @@
+import type { EntityManager } from 'typeorm';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import { escapeLikePattern } from '../../common/paging/like-pattern.js';
 import {
@@ -193,4 +194,22 @@ export function fromWhere(
     sql: `${FROM_APPOINTMENTS}${joins === '' ? '' : `\n${joins}`}\nWHERE ${clauses.where.join('\n  AND ')}`,
     params: clauses.params,
   };
+}
+
+/**
+ * Số lịch theo từng trạng thái (chỉ trạng thái có dòng) trên `FROM … WHERE …` đã dựng bằng `fromWhere`: `GROUP BY lh.trang_thai`. Dùng chung của hai danh sách có `demTheoTrangThai` (B1 Bệnh nhân, B5 Bác sĩ);
+ * người gọi truyền bộ lọc KHÔNG có `trangThai[]`. `COUNT(*)` là BIGINT nên ra chuỗi ⇒ `Number`. `S` là tập trạng thái mà vai trò được thấy.
+ */
+export async function queryStatusCounts<S extends TrangThaiLichHen>(
+  em: EntityManager,
+  from: { sql: string; params: unknown[] },
+): Promise<{ trangThai: S; soLuong: number }[]> {
+  const rows = await em.query<{ trangThai: S; soLuong: string | number }[]>(
+    `SELECT lh.trang_thai AS trangThai, COUNT(*) AS soLuong ${from.sql}\nGROUP BY lh.trang_thai`,
+    from.params,
+  );
+  return rows.map((row) => ({
+    trangThai: row.trangThai,
+    soLuong: Number(row.soLuong),
+  }));
 }

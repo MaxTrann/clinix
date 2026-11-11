@@ -10,6 +10,7 @@ import {
   fromWhere,
   ITEM_COLUMNS,
   ORDER_BY,
+  queryStatusCounts,
   type ListItemRow,
   type ListOrder,
   type SqlClauses,
@@ -102,17 +103,10 @@ export class PatientAppointmentsRepository {
     patientId: string,
     filter: PatientAppointmentFilter,
   ): Promise<{ trangThai: PatientVisibleState; soLuong: number }[]> {
-    const { sql, params } = filterOf(patientId, filter);
-    const rows = await em.query<
-      { trangThai: PatientVisibleState; soLuong: string | number }[]
-    >(
-      `SELECT lh.trang_thai AS trangThai, COUNT(*) AS soLuong ${sql}\nGROUP BY lh.trang_thai`,
-      params,
+    return queryStatusCounts<PatientVisibleState>(
+      em,
+      filterOf(patientId, filter),
     );
-    return rows.map((row) => ({
-      trangThai: row.trangThai,
-      soLuong: Number(row.soLuong),
-    }));
   }
 
   /** Một trang. `limit` và `offset` đã kiểm (`PageQueryDto`) và `offset < total` (service). */

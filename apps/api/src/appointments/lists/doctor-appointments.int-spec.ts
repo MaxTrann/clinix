@@ -466,8 +466,9 @@ describe('DSB-04, DSB-05 sắp xếp, phân trang, không có lịch', () => {
       expect(page.total).toBe(5);
       expect(page.demTheoTrangThai).toStrictEqual(COUNTS_A1);
     }
+    // `page` 10^18 × `pageSize` 100 > 2^64 (OFFSET tối đa của MySQL): service mà gửi OFFSET này thì MySQL báo 1064. `Number.MAX_SAFE_INTEGER` (9×10^15) × 100 vẫn < 2^64 nên MySQL nhận và KHÔNG bắt được lỗi.
     const huge = await list(w.doctorA1, {
-      page: Number.MAX_SAFE_INTEGER,
+      page: 1_000_000_000_000_000_000,
       pageSize: 100,
     });
     expect(huge).toMatchObject({ items: [], total: 5 });

@@ -14,6 +14,7 @@ import {
   addStateFilter,
   fromWhere,
   ORDER_BY,
+  queryStatusCounts,
   type KeywordTargets,
   type ListOrder,
   type SqlClauses,
@@ -142,17 +143,7 @@ export class DoctorAppointmentsRepository {
     bacSiId: string,
     filter: DoctorAppointmentFilter,
   ): Promise<{ trangThai: DoctorVisibleState; soLuong: number }[]> {
-    const { sql, params } = filterOf(bacSiId, filter);
-    const rows = await em.query<
-      { trangThai: DoctorVisibleState; soLuong: string | number }[]
-    >(
-      `SELECT lh.trang_thai AS trangThai, COUNT(*) AS soLuong ${sql}\nGROUP BY lh.trang_thai`,
-      params,
-    );
-    return rows.map((row) => ({
-      trangThai: row.trangThai,
-      soLuong: Number(row.soLuong),
-    }));
+    return queryStatusCounts<DoctorVisibleState>(em, filterOf(bacSiId, filter));
   }
 
   /** Một trang. `limit` và `offset` đã kiểm (`PageQueryDto`) và `offset < total` (service). */
