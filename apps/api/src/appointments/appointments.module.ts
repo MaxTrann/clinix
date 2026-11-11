@@ -8,6 +8,7 @@ import { BookingChecksService } from './create/booking-checks.service.js';
 import { BookingEligibilityService } from './create/booking-eligibility.service.js';
 import { BookingSummaryReader } from './create/booking-summary.reader.js';
 import { RefundPolicyReader } from './create/refund-policy.js';
+import { HoldExpiryJob } from './expiry/hold-expiry.job.js';
 import { OperationsAppointmentsRepository } from './lists/operations-appointments.repository.js';
 import { OperationsAppointmentsService } from './lists/operations-appointments.service.js';
 import { PatientAppointmentDetailService } from './lists/patient-appointment-detail.service.js';
@@ -19,6 +20,7 @@ import { ReceptionAppointmentsService } from './lists/reception-appointments.ser
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 import { BookabilityReader } from './slots/bookability.reader.js';
 import { SlotHoldService } from './slots/slot-hold.service.js';
+import { AppointmentTransitionService } from './state/appointment-transition.service.js';
 
 // Module `booking` (PLAN booking 5.1, 5.10; TRACKING 3.3 P1-B, 3.6 P2-B, P2-D). P1 dựng vỏ; P2 thêm TÁM cổng sang module khác, mỗi cổng gắn bản `Noop` mặc định
 // (`ports/ports.providers.ts`). Mọi thứ khác P1 làm ra (ma trận trạng thái, hằng và mã lỗi, `withBookingTransaction`, `lock-order`) là hàm hoặc hằng thuần mà nơi
@@ -26,7 +28,7 @@ import { SlotHoldService } from './slots/slot-hold.service.js';
 // trong `appointments/`, không đụng lại `app.module.ts` (file dùng chung), và để test kiến trúc AR-03 kiểm được chiều phụ thuộc.
 //
 // Task nào thêm gì (providers; exports là các dịch vụ DÙNG CHUNG cho doctor, payment, wallet, waitlist):
-//   B6  `SlotHoldService` (imports: SchedulingModule)          B9   `AppointmentTransitionService` (nơi DUY NHẤT ghi `lich_hen.trang_thai`, H7)
+//   B6  `SlotHoldService` (imports: SchedulingModule)          B9 (đã làm) `AppointmentTransitionService` (nơi DUY NHẤT ghi `lich_hen.trang_thai`, H7; `expire`), `HoldExpiryJob`
 //   B10 `AppointmentCancellationService`                        B11  `AppointmentQueries` (+ `confirmPaid`, `complete`, `findAffectedByLeave`, D13, D14)
 //   B14 thêm AuditModule; controller và service của B1 đến B14 (B3 đã thêm RbacModule và SystemConfigModule)
 //   B1 (đã làm) `PatientAppointmentsController`, `PatientAppointmentsService`, `PatientAppointmentsRepository` (`lists/`; `GET /patient/appointments`, chỉ đọc)
@@ -38,6 +40,8 @@ import { SlotHoldService } from './slots/slot-hold.service.js';
 //   B6b (đã làm) `SlotHoldService` (`slots/`; NƠI DUY NHẤT ghi `khung_gio`: `hold`, `markBooked`, `release`, `expireLapsedHold`, `holdForInvitation`, `releaseInvitationHold`; không tiêm gì, nhận `em` của người gọi), `state/lapsed-hold.ts` (`cancelLapsedHold`, hàm thuần SQL, không phải provider)
 //   B7 (đã làm) `BookingChecksController` (`create/`; `GET /booking/eligibility` và `POST /booking/checks`, chỉ đọc), `BookingEligibilityService`, `BookingChecksService`, `BookingSummaryReader`, `RefundPolicyReader`;
 //       dùng lại `SystemConfigModule` mà B3 đã nhập vào `imports` (không nhập lần hai) và thêm `ExamPriceReader` của `pricing/` vào `providers` (chỉ `search/` khai nó; chưa có `PricingModule`; TECH_DEBT)
+//   B9 (đã làm) `AppointmentTransitionService` (`state/`; khung của mọi phương thức đổi trạng thái, mới có `expire`; tiêm `DataSource`, `SlotHoldService`, `WAITLIST_PORT`) và `HoldExpiryJob` (`expiry/`; `@Cron` mỗi phút,
+//       tắt ở NODE_ENV=test; chỉ `@Cron`, không `ScheduleModule.forRoot()`). CHƯA `exports`: chưa module nào ngoài `appointments` gọi `expire` (B10, B11 xuất khi doctor, payment cần `complete`, `confirmPaid`).
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
 //
 // THAY `Noop` BẰNG BẢN THẬT (B16, B17) — đã kiểm bằng script Nest (TRACKING 3.6 P2-D): provider khai ngay trong module này THẮNG provider cùng token của module được
@@ -74,6 +78,8 @@ import { SlotHoldService } from './slots/slot-hold.service.js';
     BookingSummaryReader,
     RefundPolicyReader,
     ExamPriceReader,
+    AppointmentTransitionService,
+    HoldExpiryJob,
   ],
 })
 export class AppointmentsModule {}
