@@ -12,7 +12,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import { DOCTOR_PATHS } from '../features/doctor';
+import { DOCTOR_PATHS, RECEPTION_SCHEDULE_PATH } from '../features/doctor';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
 import type { RoleNavItem } from '../shared/ui/role-shell';
 
@@ -42,7 +42,11 @@ export const RECEPTION_NAV: { items: RoleNavItem[] } = {
     { label: 'Tổng quan', icon: LayoutDashboard },
     { label: 'Quản lý lịch hẹn', icon: Calendar },
     { label: 'Tra cứu bệnh nhân', icon: Users, to: RECEPTION_PATHS.lookup },
-    { label: 'Lịch làm việc bác sĩ', icon: Stethoscope },
+    {
+      label: 'Lịch làm việc bác sĩ',
+      icon: Stethoscope,
+      to: RECEPTION_SCHEDULE_PATH,
+    },
     { label: 'Yêu cầu đổi lịch', icon: RefreshCw },
     { label: 'Danh sách chờ', icon: ListOrdered },
     { label: 'Tin nhắn', icon: MessageCircle },
