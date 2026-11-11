@@ -21,6 +21,11 @@ export interface ModalFrameProps {
   // Hiện nút × ở góc (Figma `468:2`, `471:2`; hộp `469:2` không có)
   showCloseIcon?: boolean;
   widthClass?: string;
+  // 'right' = ngăn kéo sát mép phải, cao hết màn hình (Lễ tân: chi tiết ca, chi tiết ngày; Figma `499:2`, `500:2`)
+  placement?: 'center' | 'right';
+  // Dòng phụ dưới tiêu đề (ngăn kéo: chuyên khoa, "Không có ca làm việc")
+  subtitle?: string;
+  subtitleClass?: string;
   children: ReactNode;
 }
 
@@ -34,6 +39,9 @@ export function ModalFrame({
   busy = false,
   showCloseIcon = false,
   widthClass = 'max-w-sm',
+  placement = 'center',
+  subtitle,
+  subtitleClass = 'text-brand-strong',
   children,
 }: ModalFrameProps) {
   const titleId = useId();
@@ -74,7 +82,11 @@ export function ModalFrame({
       onClick={(event) => {
         if (event.target === event.currentTarget) close();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className={`fixed inset-0 z-50 flex bg-black/50 ${
+        placement === 'right'
+          ? 'justify-end'
+          : 'items-center justify-center p-4'
+      }`}
     >
       <div
         ref={dialogRef}
@@ -82,12 +94,21 @@ export function ModalFrame({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-busy={busy}
-        className={`flex max-h-[90vh] w-full flex-col rounded-xl bg-white shadow-xl ${widthClass}`}
+        className={`flex w-full flex-col bg-white shadow-xl ${widthClass} ${
+          placement === 'right'
+            ? 'h-full max-h-none'
+            : 'max-h-[90vh] rounded-xl'
+        }`}
       >
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
-          <h2 id={titleId} className="text-base font-semibold text-gray-900">
-            {title}
-          </h2>
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-base font-semibold text-gray-900">
+              {title}
+            </h2>
+            {subtitle !== undefined && (
+              <p className={`mt-0.5 text-sm ${subtitleClass}`}>{subtitle}</p>
+            )}
+          </div>
           {showCloseIcon && (
             <button
               type="button"
