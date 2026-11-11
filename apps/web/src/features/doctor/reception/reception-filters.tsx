@@ -14,6 +14,8 @@ import {
 export const ALL = 'all';
 
 export interface ReceptionFilters {
+  // Chỉ Quản trị viên Toàn hệ thống dùng (Lễ tân và Admin Chi nhánh bị ép chi nhánh ở server)
+  chiNhanhId: string;
   chuyenKhoaId: string;
   bacSiId: string;
   ca: ShiftCode | typeof ALL;
@@ -24,6 +26,8 @@ export interface ReceptionToolbarProps {
   filters: ReceptionFilters;
   onChange: (filters: ReceptionFilters) => void;
   doctors: readonly ReceptionDoctor[];
+  // Có danh sách ⇒ hiện ô "Tất cả chi nhánh" (Admin Toàn hệ thống, doctor F6, Figma `515:2`); không có ⇒ ẩn
+  branches?: readonly { chiNhanhId: string; ten: string }[];
   // "12/10 – 18/10/2026"
   weekLabel: string;
   onPreviousWeek: () => void;
@@ -42,6 +46,7 @@ export function ReceptionToolbar({
   filters,
   onChange,
   doctors,
+  branches,
   weekLabel,
   onPreviousWeek,
   onNextWeek,
@@ -52,14 +57,37 @@ export function ReceptionToolbar({
       doctors.map((d) => [d.chuyenKhoa.chuyenKhoaId, d.chuyenKhoa.ten]),
     ),
   ];
-  const visibleDoctors =
-    filters.chuyenKhoaId === ALL
-      ? doctors
-      : doctors.filter(
-          (d) => d.chuyenKhoa.chuyenKhoaId === filters.chuyenKhoaId,
-        );
+  const visibleDoctors = doctors.filter(
+    (d) =>
+      (filters.chuyenKhoaId === ALL ||
+        d.chuyenKhoa.chuyenKhoaId === filters.chuyenKhoaId) &&
+      (filters.chiNhanhId === ALL ||
+        d.chiNhanh.chiNhanhId === filters.chiNhanhId),
+  );
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3">
+      {branches && branches.length > 0 && (
+        <select
+          aria-label="Lọc theo chi nhánh"
+          className={SELECT}
+          value={filters.chiNhanhId}
+          onChange={(event) =>
+            // Đổi chi nhánh thì bác sĩ đang chọn (có thể thuộc chi nhánh khác) về "Tất cả"
+            onChange({
+              ...filters,
+              chiNhanhId: event.target.value,
+              bacSiId: ALL,
+            })
+          }
+        >
+          <option value={ALL}>Tất cả chi nhánh</option>
+          {branches.map((branch) => (
+            <option key={branch.chiNhanhId} value={branch.chiNhanhId}>
+              {branch.ten}
+            </option>
+          ))}
+        </select>
+      )}
       <select
         aria-label="Lọc theo chuyên khoa"
         className={SELECT}

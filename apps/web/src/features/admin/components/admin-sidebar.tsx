@@ -66,7 +66,12 @@ const MENU_GROUPS: MenuGroup[] = [
     label: 'Vận hành',
     items: [
       { label: 'Lịch hẹn', icon: 'appointments' },
-      { label: 'Lịch làm việc bác sĩ', icon: 'schedule' },
+      {
+        label: 'Lịch làm việc bác sĩ',
+        icon: 'schedule',
+        // doctor F6; trang do module `doctor` làm, ghi bằng chữ để không import chéo features/
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/lich-lam-viec-bac-si`,
+      },
       { label: 'Duyệt yêu cầu', icon: 'approvals' },
       { label: 'Danh sách chờ', icon: 'list' },
     ],

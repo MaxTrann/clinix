@@ -16,6 +16,8 @@ export interface ReceptionDoctor {
 
 export interface ReceptionShift {
   lichLamViecId: string;
+  // Chi nhánh GHI TRÊN CA (Admin Toàn hệ thống thấy ca ở nhiều chi nhánh)
+  chiNhanh?: { chiNhanhId: string; ten: string };
   ngay: string;
   ca: ShiftCode;
   batDau: string | null;
@@ -41,6 +43,14 @@ export interface ReceptionGrid extends ReceptionPaged<ReceptionDoctorRow> {
   denNgay: string;
 }
 
+// Lưới của Lễ tân (B8) và của Quản trị viên (B9) cùng hình dạng (cùng lõi `ScheduleGridService` ở server): hai nguồn khác nhau ở đường dẫn,
+// phạm vi và mã lỗi, còn giao diện dùng chung (doctor F5, F6).
+export type GridSource = 'reception' | 'admin';
+const BASE_PATHS: Record<GridSource, string> = {
+  reception: '/reception/doctor-schedules',
+  admin: '/admin/doctor-shifts',
+};
+
 // Danh sách chọn bác sĩ/chuyên khoa lấy một lần (tối đa 100 bác sĩ của chi nhánh); lưới phân trang 50 bác sĩ mỗi trang.
 export const DOCTOR_OPTIONS_PAGE_SIZE = 100;
 export const GRID_PAGE_SIZE = 50;
@@ -56,10 +66,11 @@ function assertPaged(data: unknown): void {
 }
 
 export async function listReceptionDoctors(
+  source: GridSource,
   signal?: AbortSignal,
 ): Promise<ReceptionPaged<ReceptionDoctor>> {
   const data = await request<ReceptionPaged<ReceptionDoctor>>(
-    '/reception/doctor-schedules/doctors',
+    `${BASE_PATHS[source]}/doctors`,
     { query: { page: 1, pageSize: DOCTOR_OPTIONS_PAGE_SIZE }, signal },
   );
   assertPaged(data);
@@ -72,14 +83,17 @@ export interface ReceptionGridQuery {
   page: number;
   bacSiId?: string;
   chuyenKhoaId?: string;
+  // Chỉ Quản trị viên Toàn hệ thống: Lễ tân gửi lên là 400; Admin Chi nhánh bị ép chi nhánh của mình ở server
+  chiNhanhId?: string;
   ca?: ShiftCode;
 }
 
 export async function getReceptionGrid(
+  source: GridSource,
   query: ReceptionGridQuery,
   signal?: AbortSignal,
 ): Promise<ReceptionGrid> {
-  const data = await request<ReceptionGrid>('/reception/doctor-schedules', {
+  const data = await request<ReceptionGrid>(BASE_PATHS[source], {
     query: { ...query, pageSize: GRID_PAGE_SIZE },
     signal,
   });
@@ -96,4 +110,16 @@ export async function getReceptionBranchName(
     { signal },
   );
   return profile?.chiNhanh?.ten ?? null;
+}
+
+/** Số yêu cầu nghỉ đang chờ duyệt trong phạm vi của Quản trị viên (banner "Có N yêu cầu nghỉ chờ duyệt…", Figma `622:2`; WA-14). */
+export async function countPendingLeaveRequests(
+  signal?: AbortSignal,
+): Promise<number> {
+  const data = await request<{ total?: number }>('/admin/leave-requests', {
+    query: { trangThai: 'ChoDuyet', page: 1, pageSize: 1 },
+    signal,
+  });
+  if (typeof data?.total !== 'number') throw new UnexpectedResponseError(200);
+  return data.total;
 }

@@ -46,6 +46,8 @@ function BookingLinkButton({ label }: { label: string }) {
 export interface ShiftDrawerProps extends DrawerProps {
   doctor: ReceptionDoctorRow;
   shift: ReceptionShift;
+  // Admin Toàn hệ thống: ghi thêm chi nhánh của ca (doctor F6)
+  showBranch?: boolean;
 }
 
 // Ngăn kéo "Chi tiết ca" (Figma `499:2`, WL-08): bác sĩ + chuyên khoa, ngày, ca + giờ, trạng thái. Mục "LỊCH HẸN TRONG CA" của Figma chưa có:
@@ -53,6 +55,7 @@ export interface ShiftDrawerProps extends DrawerProps {
 export function ShiftDrawer({
   doctor,
   shift,
+  showBranch = false,
   returnFocusRef,
   onClose,
 }: ShiftDrawerProps) {
@@ -87,6 +90,12 @@ export function ShiftDrawer({
         >
           {RECEPTION_STATUS_LABELS[status]}
         </span>
+        {showBranch && shift.chiNhanh && (
+          <p className="mt-4 text-sm text-gray-700">
+            <span className="text-gray-500">Chi nhánh: </span>
+            {shift.chiNhanh.ten}
+          </p>
+        )}
       </div>
       <div className="border-t border-gray-100 px-6 py-4">
         <button
