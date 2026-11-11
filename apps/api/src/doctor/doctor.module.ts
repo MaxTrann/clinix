@@ -12,6 +12,8 @@ import { ScheduleGridService } from './schedule-view/schedule-grid.service.js';
 import { ScheduleViewRepository } from './schedule-view/schedule-view.repository.js';
 import { ScheduleViewService } from './schedule-view/schedule-view.service.js';
 import { DoctorLeaveController } from './leave-requests/doctor-leave.controller.js';
+import { DoctorLeaveHistoryRepository } from './leave-requests/doctor-leave-history.repository.js';
+import { DoctorLeaveHistoryService } from './leave-requests/doctor-leave-history.service.js';
 import { DoctorLeaveRepository } from './leave-requests/doctor-leave.repository.js';
 import { DoctorLeaveService } from './leave-requests/doctor-leave.service.js';
 import { LeaveNotifier } from './notifications/leave-notifier.js';
@@ -47,6 +49,8 @@ import { ShiftRemovalService } from './shifts/shift-removal.service.js';
     LeaveNotifier,
     DoctorLeaveRepository,
     DoctorLeaveService,
+    DoctorLeaveHistoryRepository,
+    DoctorLeaveHistoryService,
   ],
 })
 export class DoctorModule {}
