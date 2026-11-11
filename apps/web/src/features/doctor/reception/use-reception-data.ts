@@ -53,10 +53,12 @@ export function useLoad<T>(
 export function useReceptionGrid(
   source: GridSource,
   query: ReceptionGridQuery,
+  // Tăng lên để tải lại lưới (sau khi phân công hoặc gỡ ca, doctor F7)
+  refresh = 0,
 ) {
   return useLoad<ReceptionGrid>(
     (signal) => getReceptionGrid(source, query, signal),
-    JSON.stringify([source, query]),
+    JSON.stringify([source, query, refresh]),
   );
 }
 
