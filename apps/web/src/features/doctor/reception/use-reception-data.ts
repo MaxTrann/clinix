@@ -3,6 +3,7 @@ import { RequestAbortedError } from '../../../shared/api/errors';
 import {
   getReceptionBranchName,
   getReceptionGrid,
+  type GridSource,
   listReceptionDoctors,
   type ReceptionDoctor,
   type ReceptionGrid,
@@ -15,7 +16,7 @@ export type LoadState<T> =
   | { status: 'error'; error: unknown };
 
 // Mẫu chung: gọi `load` khi `key` đổi hoặc `retry`, huỷ yêu cầu cũ để kết quả muộn không ghi đè (cùng cách với `useSchedule`).
-function useLoad<T>(
+export function useLoad<T>(
   load: (signal: AbortSignal) => Promise<T>,
   key: string,
 ): { state: LoadState<T>; retry: () => void } {
@@ -49,18 +50,21 @@ function useLoad<T>(
 }
 
 /** Lưới lịch của các bác sĩ trong phạm vi Lễ tân cho một tuần, theo bộ lọc (chuyên khoa, bác sĩ, ca) và trang. */
-export function useReceptionGrid(query: ReceptionGridQuery) {
+export function useReceptionGrid(
+  source: GridSource,
+  query: ReceptionGridQuery,
+) {
   return useLoad<ReceptionGrid>(
-    (signal) => getReceptionGrid(query, signal),
-    JSON.stringify(query),
+    (signal) => getReceptionGrid(source, query, signal),
+    JSON.stringify([source, query]),
   );
 }
 
 /** Danh sách bác sĩ để chọn ở bộ lọc (một lần khi mở trang). */
-export function useReceptionDoctors() {
+export function useReceptionDoctors(source: GridSource) {
   return useLoad<ReceptionDoctor[]>(
-    async (signal) => (await listReceptionDoctors(signal)).items,
-    'doctors',
+    async (signal) => (await listReceptionDoctors(source, signal)).items,
+    `doctors:${source}`,
   );
 }
 

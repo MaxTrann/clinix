@@ -4,6 +4,7 @@ import { AdminErrorBoundary } from '../features/admin/admin-error-boundary';
 import { AdminLayout } from '../features/admin/admin-layout';
 import { RequireAuth, ROLE_HOME_PATHS, type VaiTro } from '../features/auth';
 import {
+  ADMIN_SCHEDULE_ROUTES,
   DOCTOR_PATHS,
   DOCTOR_ROUTES,
   DoctorLayout,
@@ -84,7 +85,12 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
   QuanTriVien: {
     path: ROLE_HOME_PATHS.QuanTriVien,
     element: <AdminLayout />,
-    children: [...ADMIN_ROUTES, ...ADMIN_PROFILE_ROUTES],
+    // doctor F6: Lịch làm việc bác sĩ của Quản trị viên (đã bọc AdminScopeGuard ở ADMIN_SCHEDULE_ROUTES)
+    children: [
+      ...ADMIN_ROUTES,
+      ...ADMIN_PROFILE_ROUTES,
+      ...ADMIN_SCHEDULE_ROUTES,
+    ],
     errorElement: <AdminErrorBoundary />,
   },
 };

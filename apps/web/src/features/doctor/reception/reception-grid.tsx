@@ -24,6 +24,10 @@ export interface ReceptionGridProps {
   triggerRef: RefObject<HTMLElement | null>;
   onSelectShift: (doctor: ReceptionDoctorRow, shift: ReceptionShift) => void;
   onSelectDay: (day: string) => void;
+  // Admin Toàn hệ thống: ghi chi nhánh HIỆN TẠI của bác sĩ ở bên phải tên (Figma `515:2`)
+  showBranch?: boolean;
+  // Admin: ô trống có dấu "+" mờ (Figma `515:2`); là chỗ F7 gắn hộp Phân công, trước đó chỉ là hình (không phải nút)
+  showAssignPlus?: boolean;
 }
 
 // Nhãn thứ ngắn của Figma `486:2`: "T2" … "T7", "CN"
@@ -48,6 +52,8 @@ export function ReceptionGrid({
   triggerRef,
   onSelectShift,
   onSelectDay,
+  showBranch = false,
+  showAssignPlus = false,
 }: ReceptionGridProps) {
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
   // Giờ hàng lấy từ mọi ca của mọi bác sĩ trong tuần (cùng chi nhánh nên thường trùng nhau)
@@ -118,7 +124,7 @@ export function ReceptionGrid({
                     colSpan={8}
                     className="border-y border-gray-200 bg-gray-50 px-3 py-2.5 text-left font-normal"
                   >
-                    <span className="inline-flex items-center gap-2">
+                    <span className="flex items-center gap-2">
                       <Stethoscope
                         aria-hidden="true"
                         className="size-4 text-brand-strong"
@@ -132,6 +138,11 @@ export function ReceptionGrid({
                       {doctor.ngungHoatDong && (
                         <span className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-600">
                           Ngừng hoạt động
+                        </span>
+                      )}
+                      {showBranch && (
+                        <span className="ml-auto text-xs font-normal text-gray-500">
+                          {doctor.chiNhanh.ten}
                         </span>
                       )}
                     </span>
@@ -157,13 +168,22 @@ export function ReceptionGrid({
                             day === today ? 'bg-info-surface/60' : ''
                           }`}
                         >
-                          {shift && (
+                          {shift ? (
                             <ShiftButton
                               doctor={doctor}
                               shift={shift}
                               triggerRef={triggerRef}
                               onSelect={onSelectShift}
                             />
+                          ) : (
+                            showAssignPlus && (
+                              <span
+                                aria-hidden="true"
+                                className="flex h-full items-center justify-center rounded-md border border-dashed border-gray-200 text-gray-300"
+                              >
+                                +
+                              </span>
+                            )
                           )}
                         </td>
                       );
