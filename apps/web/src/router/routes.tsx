@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router';
 import { AUTH_PAGE_ROUTES, RequireAuth } from '../features/auth';
+import { BOOKING_WIZARD_ROUTES } from '../features/booking';
 import {
   BranchDetailPage,
   BranchListPage,
@@ -46,6 +47,11 @@ export function createAppRoutes(
             {
               path: 'dat-lich/nhom/:groupId/dich-vu/:serviceId',
               element: <DoctorListPage />,
+            },
+            // Bước 4–6 của luồng đặt lịch (booking F3, Q36): cùng khung công khai, chỉ Bệnh nhân; vai khác 404, chưa đăng nhập thì tới đăng nhập kèm `from`
+            {
+              element: <RequireAuth roles={['BenhNhan']} />,
+              children: BOOKING_WIZARD_ROUTES,
             },
             // "Đội ngũ bác sĩ" (search F6)
             { path: 'bac-si', element: <DoctorTeamPage /> },

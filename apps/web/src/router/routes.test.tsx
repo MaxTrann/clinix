@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { createMemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { resetAuthForTest } from '../features/auth/auth-session';
@@ -91,6 +91,65 @@ describe('routes', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Đã có lỗi xảy ra');
     expect(screen.queryByText(/chi tiết nội bộ/)).not.toBeInTheDocument();
     vi.restoreAllMocks();
+  });
+});
+
+// booking F3 `[ĐỤNG router]`. Mã ca BWZ-07 là [đề xuất] (PLAN booking mục 7.27). Chi tiết từng bước ở features/booking/wizard.
+describe('routes — Bước 4–6 của luồng đặt lịch', () => {
+  afterEach(() => {
+    resetAuthForTest();
+    vi.unstubAllGlobals();
+  });
+
+  it('BWZ-07 chưa đăng nhập ⇒ /dang-nhap kèm from; vai khác Bệnh nhân ⇒ 404 trong khung công khai; Bệnh nhân vào được', async () => {
+    stubPublicApi();
+    const paths = [
+      '/dat-lich/thong-tin?khungGioId=5',
+      '/dat-lich/xac-nhan?khungGioId=5',
+      '/dat-lich/thanh-toan/CP1',
+      '/dat-lich/hoan-tat/CP1',
+    ];
+
+    for (const path of paths) {
+      setAuthState({ status: 'unauthenticated' });
+      const router = renderAt(path, createAppRoutes());
+      await screen.findByRole('heading', { name: 'Đăng nhập' });
+      expect(router.state.location.pathname).toBe('/dang-nhap');
+      expect(router.state.location.state).toEqual({ from: path });
+      cleanup();
+    }
+
+    for (const vaiTro of ['LeTan', 'BacSi', 'QuanTriVien'] as const) {
+      for (const path of paths) {
+        setAuthState({
+          status: 'authenticated',
+          user: { vaiTro, hoTen: 'Người mẫu', daXacMinhEmail: true },
+        });
+        renderAt(path, createAppRoutes());
+        await screen.findByRole('heading', { name: 'Không tìm thấy trang' });
+        expect(screen.queryByTestId(/booking-step-\d-body/)).toBeNull();
+        cleanup();
+      }
+    }
+
+    setAuthState({
+      status: 'authenticated',
+      user: { vaiTro: 'BenhNhan', hoTen: 'Người mẫu', daXacMinhEmail: true },
+    });
+    renderAt('/dat-lich/thanh-toan/CP1', createAppRoutes());
+    expect(
+      await screen.findByTestId('booking-step-5-body'),
+    ).toBeInTheDocument();
+    cleanup();
+    renderAt('/dat-lich/hoan-tat/CP1', createAppRoutes());
+    expect(
+      await screen.findByTestId('booking-step-6-body'),
+    ).toBeInTheDocument();
+    cleanup();
+    renderAt('/dat-lich/thong-tin', createAppRoutes());
+    expect(
+      await screen.findByText('Liên kết chọn khung giờ không hợp lệ.'),
+    ).toBeInTheDocument();
   });
 });
 

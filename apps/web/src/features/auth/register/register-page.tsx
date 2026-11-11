@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router';
 import { AuthCard } from '../../../shared/ui/auth-card';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { useAuth } from '../auth-store';
+import { readReturnTo } from '../return-to';
 import { textFrom } from '../route-state';
 import { homePathFor } from '../roles';
 import { RegisterForm } from './register-form';
@@ -25,6 +26,7 @@ export function RegisterPage() {
           soDienThoai: textFrom(state, 'soDienThoai') ?? '',
           notice: textFrom(state, 'notice'),
         }}
+        returnTo={readReturnTo(state)}
       />
     </AuthCard>
   );
