@@ -1,18 +1,24 @@
 import { Module } from '@nestjs/common';
 import { SystemConfigModule } from '../admin/system-config/system-config.module.js';
 import { ExamPriceReader } from '../pricing/exam-price.reader.js';
+import { RbacModule } from '../rbac/rbac.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import { BookingChecksController } from './create/booking-checks.controller.js';
 import { BookingChecksService } from './create/booking-checks.service.js';
 import { BookingEligibilityService } from './create/booking-eligibility.service.js';
 import { BookingSummaryReader } from './create/booking-summary.reader.js';
 import { RefundPolicyReader } from './create/refund-policy.js';
+import { OperationsAppointmentsRepository } from './lists/operations-appointments.repository.js';
+import { OperationsAppointmentsService } from './lists/operations-appointments.service.js';
 import { PatientAppointmentDetailService } from './lists/patient-appointment-detail.service.js';
 import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
 import { PatientAppointmentsRepository } from './lists/patient-appointments.repository.js';
 import { PatientAppointmentsService } from './lists/patient-appointments.service.js';
+import { ReceptionAppointmentsController } from './lists/reception-appointments.controller.js';
+import { ReceptionAppointmentsService } from './lists/reception-appointments.service.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 import { BookabilityReader } from './slots/bookability.reader.js';
+import { SlotHoldService } from './slots/slot-hold.service.js';
 
 // Module `booking` (PLAN booking 5.1, 5.10; TRACKING 3.3 P1-B, 3.6 P2-B, P2-D). P1 dựng vỏ; P2 thêm TÁM cổng sang module khác, mỗi cổng gắn bản `Noop` mặc định
 // (`ports/ports.providers.ts`). Mọi thứ khác P1 làm ra (ma trận trạng thái, hằng và mã lỗi, `withBookingTransaction`, `lock-order`) là hàm hoặc hằng thuần mà nơi
@@ -22,12 +28,16 @@ import { BookabilityReader } from './slots/bookability.reader.js';
 // Task nào thêm gì (providers; exports là các dịch vụ DÙNG CHUNG cho doctor, payment, wallet, waitlist):
 //   B6  `SlotHoldService` (imports: SchedulingModule)          B9   `AppointmentTransitionService` (nơi DUY NHẤT ghi `lich_hen.trang_thai`, H7)
 //   B10 `AppointmentCancellationService`                        B11  `AppointmentQueries` (+ `confirmPaid`, `complete`, `findAffectedByLeave`, D13, D14)
-//   B3 thêm RbacModule, B14 thêm AuditModule; controller và service của B1 đến B14
+//   B14 thêm AuditModule; controller và service của B1 đến B14 (B3 đã thêm RbacModule và SystemConfigModule)
 //   B1 (đã làm) `PatientAppointmentsController`, `PatientAppointmentsService`, `PatientAppointmentsRepository` (`lists/`; `GET /patient/appointments`, chỉ đọc)
 //   B2 (đã làm) `PatientAppointmentDetailService` (`lists/`; `GET /patient/appointments/:maLichHen`, chỉ đọc; cùng controller và repository của B1)
-//   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới); B6b thêm `SlotHoldService`
+//   B3 (đã làm) `ReceptionAppointmentsController` + `ReceptionAppointmentsService` (`GET /reception/appointments` và `/:maLichHen`, chỉ đọc, phạm vi chi nhánh của Lễ tân) trên lớp dùng chung
+//       `OperationsAppointmentsService` + `OperationsAppointmentsRepository` (cũng là nền của B4 Quản trị viên). `imports: [RbacModule` (phạm vi `ReceptionScopeService`, `BranchAccessPolicy`),
+//       `SystemConfigModule` (khung giờ check-in cho `chuyenDuoc` của chi tiết)`]`: cả hai là module lá, không import ngược `AppointmentsModule` nên không tạo vòng.
+//   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới)
+//   B6b (đã làm) `SlotHoldService` (`slots/`; NƠI DUY NHẤT ghi `khung_gio`: `hold`, `markBooked`, `release`, `expireLapsedHold`, `holdForInvitation`, `releaseInvitationHold`; không tiêm gì, nhận `em` của người gọi), `state/lapsed-hold.ts` (`cancelLapsedHold`, hàm thuần SQL, không phải provider)
 //   B7 (đã làm) `BookingChecksController` (`create/`; `GET /booking/eligibility` và `POST /booking/checks`, chỉ đọc), `BookingEligibilityService`, `BookingChecksService`, `BookingSummaryReader`, `RefundPolicyReader`;
-//      thêm `SystemConfigModule` vào `imports` (cấu hình hệ thống của admin; B3 cũng thêm: giữ MỘT lần) và `ExamPriceReader` của `pricing/` vào `providers` (chỉ `search/` khai nó; chưa có `PricingModule`; TECH_DEBT)
+//       dùng lại `SystemConfigModule` mà B3 đã nhập vào `imports` (không nhập lần hai) và thêm `ExamPriceReader` của `pricing/` vào `providers` (chỉ `search/` khai nó; chưa có `PricingModule`; TECH_DEBT)
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
 //
 // THAY `Noop` BẰNG BẢN THẬT (B16, B17) — đã kiểm bằng script Nest (TRACKING 3.6 P2-D): provider khai ngay trong module này THẮNG provider cùng token của module được
@@ -43,14 +53,22 @@ import { BookabilityReader } from './slots/bookability.reader.js';
 // `ScheduleModule.forRoot()` (app.module.ts đã đăng ký một lần; gọi thêm thì mọi job `@Cron` chạy gấp đôi, TECH_DEBT dòng 33; job B9, B13 chỉ dùng `@Cron`).
 // `DataSource` có sẵn toàn cục từ `DatabaseModule` (như `PatientModule`) nên chưa cần `imports`.
 @Module({
-  imports: [SchedulingModule, SystemConfigModule],
-  controllers: [PatientAppointmentsController, BookingChecksController],
+  imports: [SchedulingModule, RbacModule, SystemConfigModule],
+  controllers: [
+    PatientAppointmentsController,
+    ReceptionAppointmentsController,
+    BookingChecksController,
+  ],
   providers: [
     ...BOOKING_PORT_PROVIDERS,
     PatientAppointmentsService,
     PatientAppointmentDetailService,
     PatientAppointmentsRepository,
+    OperationsAppointmentsRepository,
+    OperationsAppointmentsService,
+    ReceptionAppointmentsService,
     BookabilityReader,
+    SlotHoldService,
     BookingEligibilityService,
     BookingChecksService,
     BookingSummaryReader,

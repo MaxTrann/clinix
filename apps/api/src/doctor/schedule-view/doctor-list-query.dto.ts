@@ -6,7 +6,7 @@ import { PageQueryDto } from '../../common/paging/page-query.dto.js';
 export const ID_PATTERN = /^[1-9]\d{0,18}$/;
 
 // Q38: `q` 2–100 ký tự sau khi bỏ khoảng trắng đầu/cuối và chuẩn hoá NFC (tên tiếng Việt gõ dạng tổ hợp vẫn khớp).
-const normalizeQ = ({ value }: { value: unknown }): unknown =>
+export const normalizeQ = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim().normalize('NFC') : value;
 
 /** Phần chung của mọi danh sách bác sĩ trong module (Admin B9, Lễ tân B8): tìm theo tên/chuyên khoa, lọc chuyên khoa, phân trang. */

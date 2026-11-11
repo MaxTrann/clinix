@@ -1,6 +1,7 @@
 import type { PaymentView } from '../ports/payment.port.js';
 import type { RefundView } from '../ports/wallet.port.js';
 import { canTransition } from '../state/appointment-state.matrix.js';
+import { toItemCore } from './list-item.mapper.js';
 import type {
   PatientAppointmentDetail,
   PatientAppointmentItem,
@@ -19,21 +20,10 @@ export function canPatientCancel(trangThai: PatientVisibleState): boolean {
   return canTransition({ actor: 'BenhNhan', from: trangThai, to: 'DaHuy' }).ok;
 }
 
+// Mười khoá chung (`toItemCore`, dùng cả cho Lễ tân và Quản trị viên) cộng hai khoá riêng của Bệnh nhân: `hanThanhToan` và `choPhepHuy`. Thứ tự khoá trong JSON giữ như trước.
 export function toItem(row: PatientAppointmentRow): PatientAppointmentItem {
   return {
-    maLichHen: row.maLichHen,
-    trangThai: row.trangThai,
-    thoiGian: row.thoiGian.toISOString(),
-    bacSi: row.bacSi,
-    chuyenKhoa: row.chuyenKhoa,
-    chiNhanh: row.chiNhanh,
-    dichVu: row.dichVu,
-    nguoiKham: {
-      hoTen: row.nguoiKham,
-      laBanThan: Number(row.laBanThan) === 1,
-    },
-    giaSnapshot: row.giaSnapshot,
-    tienCoc: row.tienCoc,
+    ...toItemCore(row),
     hanThanhToan: row.hanThanhToan?.toISOString() ?? null,
     choPhepHuy: canPatientCancel(row.trangThai),
   };
