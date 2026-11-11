@@ -9,6 +9,7 @@ import { ChiNhanhDichVuKham } from '../admin/entities/chi-nhanh-dich-vu-kham.ent
 import { ChiNhanhLichHoatDong } from '../admin/entities/chi-nhanh-lich-hoat-dong.entity.js';
 import { ChuyenKhoa } from '../admin/entities/chuyen-khoa.entity.js';
 import { DichVuKham } from '../admin/entities/dich-vu-kham.entity.js';
+import { MocHoanTien } from '../admin/entities/moc-hoan-tien.entity.js';
 import { NhomDichVu } from '../admin/entities/nhom-dich-vu.entity.js';
 import { BacSi } from '../admin/entities/bac-si.entity.js';
 import { HoSoNguoiThan } from '../admin/entities/ho-so-nguoi-than.entity.js';
@@ -42,6 +43,7 @@ export const ENTITIES = [
   NhomDichVu,
   DichVuKham,
   ChiNhanhDichVuKham,
+  MocHoanTien,
   BacSi,
   LeTan,
   QuanTriVien,
