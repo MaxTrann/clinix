@@ -10,12 +10,14 @@ import {
   todayVn,
   weekStartOf,
 } from '../../../shared/schedule/week';
+import type { ReactNode } from 'react';
 import {
   GRID_PAGE_SIZE,
   type GridSource,
   type ReceptionDoctorRow,
   type ReceptionShift,
 } from '../api/reception-api';
+import type { ShiftCode } from '../../../shared/schedule/shift-labels';
 import { STATUS_STYLES } from '../schedule/status-styles';
 import { DayDrawer, ShiftDrawer } from './reception-drawers';
 import {
@@ -41,8 +43,21 @@ export interface ScheduleBoardProps {
   source: GridSource;
   // Admin Toàn hệ thống: ô lọc chi nhánh, tên chi nhánh ở từng bác sĩ, chi nhánh trong ngăn kéo (Figma `515:2`)
   allBranches?: boolean;
-  // Admin: ô trống có dấu "+" mờ, chỗ F7 gắn hộp Phân công
-  showAssignPlus?: boolean;
+  // Admin (doctor F7): bấm ô trống "+" ⇒ mở hộp Phân công điền sẵn; không truyền ⇒ ô trống để trống
+  onAssignCell?: (
+    cell: { bacSiId: string; ngay: string; ca: ShiftCode },
+    // Ô đã bấm: hộp Phân công trả focus về đây khi đóng (jsdom/Safari không tự focus nút khi bấm nên không dựa vào activeElement)
+    trigger: HTMLElement,
+  ) => void;
+  // Hành động thêm trong ngăn kéo "Chi tiết ca" (Admin: "Gỡ ca"); `close` đóng ngăn kéo, `refresh` tải lại lưới
+  shiftActions?: (context: {
+    doctor: ReceptionDoctorRow;
+    shift: ReceptionShift;
+    close: () => void;
+    refresh: () => void;
+  }) => ReactNode;
+  // Đổi giá trị này (từ ngoài) để tải lại lưới, ví dụ sau khi phân công thành công
+  refreshToken?: number;
   // Dòng chú thích cuối trang (Lễ tân: "Trang này chỉ để xem…")
   footerNote?: string;
 }
@@ -52,7 +67,9 @@ export interface ScheduleBoardProps {
 export function ScheduleBoard({
   source,
   allBranches = false,
-  showAssignPlus = false,
+  onAssignCell,
+  shiftActions,
+  refreshToken = 0,
   footerNote,
 }: ScheduleBoardProps) {
   const [today] = useState(() => todayVn());
@@ -65,6 +82,8 @@ export function ScheduleBoard({
     status: ALL,
   });
   const [page, setPage] = useState(1);
+  // Tải lại lưới sau khi gỡ ca trong ngăn kéo (cùng cơ chế với `refreshToken` từ ngoài)
+  const [localRefresh, setLocalRefresh] = useState(0);
   const [shiftOpen, setShiftOpen] = useState<{
     doctor: ReceptionDoctorRow;
     shift: ReceptionShift;
@@ -92,19 +111,23 @@ export function ScheduleBoard({
         : undefined,
     [allBranches, doctorList],
   );
-  const { state, retry } = useReceptionGrid(source, {
-    tuNgay: weekStart,
-    denNgay: addDays(weekStart, DAYS_IN_WEEK - 1),
-    page,
-    bacSiId: filters.bacSiId === ALL ? undefined : filters.bacSiId,
-    chuyenKhoaId:
-      filters.chuyenKhoaId === ALL ? undefined : filters.chuyenKhoaId,
-    chiNhanhId:
-      allBranches && filters.chiNhanhId !== ALL
-        ? filters.chiNhanhId
-        : undefined,
-    ca: filters.ca === ALL ? undefined : filters.ca,
-  });
+  const { state, retry } = useReceptionGrid(
+    source,
+    {
+      tuNgay: weekStart,
+      denNgay: addDays(weekStart, DAYS_IN_WEEK - 1),
+      page,
+      bacSiId: filters.bacSiId === ALL ? undefined : filters.bacSiId,
+      chuyenKhoaId:
+        filters.chuyenKhoaId === ALL ? undefined : filters.chuyenKhoaId,
+      chiNhanhId:
+        allBranches && filters.chiNhanhId !== ALL
+          ? filters.chiNhanhId
+          : undefined,
+      ca: filters.ca === ALL ? undefined : filters.ca,
+    },
+    refreshToken + localRefresh,
+  );
 
   function changeFilters(next: ReceptionFilters) {
     const { bacSiId, ...rest } = next;
@@ -214,7 +237,7 @@ export function ScheduleBoard({
           onSelectShift={(doctor, shift) => setShiftOpen({ doctor, shift })}
           onSelectDay={setDayOpen}
           showBranch={allBranches}
-          showAssignPlus={showAssignPlus}
+          onAssignCell={onAssignCell}
         />
       )}
       {state.status === 'success' && pageCount > 1 && (
@@ -256,6 +279,12 @@ export function ScheduleBoard({
           doctor={shiftOpen.doctor}
           shift={shiftOpen.shift}
           showBranch={allBranches}
+          actions={shiftActions?.({
+            doctor: shiftOpen.doctor,
+            shift: shiftOpen.shift,
+            close: () => setShiftOpen(null),
+            refresh: () => setLocalRefresh((value) => value + 1),
+          })}
           returnFocusRef={triggerRef}
           onClose={() => setShiftOpen(null)}
         />

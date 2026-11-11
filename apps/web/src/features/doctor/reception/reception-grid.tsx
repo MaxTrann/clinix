@@ -26,8 +26,12 @@ export interface ReceptionGridProps {
   onSelectDay: (day: string) => void;
   // Admin Toàn hệ thống: ghi chi nhánh HIỆN TẠI của bác sĩ ở bên phải tên (Figma `515:2`)
   showBranch?: boolean;
-  // Admin: ô trống có dấu "+" mờ (Figma `515:2`); là chỗ F7 gắn hộp Phân công, trước đó chỉ là hình (không phải nút)
-  showAssignPlus?: boolean;
+  // Admin (doctor F7): ô trống có nút "+" mở hộp Phân công điền sẵn bác sĩ/ngày/ca (WA-05); không truyền ⇒ ô trống để trống (Lễ tân)
+  onAssignCell?: (
+    cell: { bacSiId: string; ngay: string; ca: ShiftCode },
+    // Ô đã bấm: hộp Phân công trả focus về đây khi đóng (jsdom/Safari không tự focus nút khi bấm nên không dựa vào activeElement)
+    trigger: HTMLElement,
+  ) => void;
 }
 
 // Nhãn thứ ngắn của Figma `486:2`: "T2" … "T7", "CN"
@@ -53,7 +57,7 @@ export function ReceptionGrid({
   onSelectShift,
   onSelectDay,
   showBranch = false,
-  showAssignPlus = false,
+  onAssignCell,
 }: ReceptionGridProps) {
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
   // Giờ hàng lấy từ mọi ca của mọi bác sĩ trong tuần (cùng chi nhánh nên thường trùng nhau)
@@ -176,13 +180,21 @@ export function ReceptionGrid({
                               onSelect={onSelectShift}
                             />
                           ) : (
-                            showAssignPlus && (
-                              <span
-                                aria-hidden="true"
-                                className="flex h-full items-center justify-center rounded-md border border-dashed border-gray-200 text-gray-300"
+                            onAssignCell && (
+                              <button
+                                type="button"
+                                aria-label={`Phân công ca: ${doctor.hoTen}, ${SHIFT_LABELS[ca]}, ${formatWeekdayDate(day)}`}
+                                onClick={(event) => {
+                                  triggerRef.current = event.currentTarget;
+                                  onAssignCell(
+                                    { bacSiId: doctor.bacSiId, ngay: day, ca },
+                                    event.currentTarget,
+                                  );
+                                }}
+                                className="flex h-full w-full items-center justify-center rounded-md border border-dashed border-gray-200 text-gray-300 transition-colors hover:border-brand-strong hover:bg-sky-50 hover:text-brand-strong"
                               >
                                 +
-                              </span>
+                              </button>
                             )
                           )}
                         </td>

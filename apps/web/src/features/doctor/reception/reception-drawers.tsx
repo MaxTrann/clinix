@@ -1,4 +1,4 @@
-import { useRef, type RefObject } from 'react';
+import { useRef, type ReactNode, type RefObject } from 'react';
 import { CalendarDays, Clock } from 'lucide-react';
 import {
   formatShiftHours,
@@ -48,6 +48,8 @@ export interface ShiftDrawerProps extends DrawerProps {
   shift: ReceptionShift;
   // Admin Toàn hệ thống: ghi thêm chi nhánh của ca (doctor F6)
   showBranch?: boolean;
+  // Hành động thêm ở chân ngăn kéo (Admin: "Gỡ ca", doctor F7)
+  actions?: ReactNode;
 }
 
 // Ngăn kéo "Chi tiết ca" (Figma `499:2`, WL-08): bác sĩ + chuyên khoa, ngày, ca + giờ, trạng thái. Mục "LỊCH HẸN TRONG CA" của Figma chưa có:
@@ -56,6 +58,7 @@ export function ShiftDrawer({
   doctor,
   shift,
   showBranch = false,
+  actions,
   returnFocusRef,
   onClose,
 }: ShiftDrawerProps) {
@@ -106,6 +109,7 @@ export function ShiftDrawer({
         >
           Đóng
         </button>
+        {actions}
         <BookingLinkButton label="Quản lý lịch hẹn" />
       </div>
     </ModalFrame>

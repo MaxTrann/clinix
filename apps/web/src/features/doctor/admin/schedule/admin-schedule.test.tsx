@@ -20,8 +20,8 @@ import type {
 import { jsonResponse } from '../../testing/fetch-routing';
 import { ADMIN_SCHEDULE_PATH } from './admin-schedule-paths';
 
-// doctor F6: WA-01 (lưới Admin: Toàn hệ thống lọc chi nhánh / Chi nhánh chip cố định), WA-14 (banner yêu cầu chờ duyệt), WA-05 (ô "+": phần hình;
-// hộp mở điền sẵn là F7). Hôm nay = thứ Tư 14/10/2026 giờ VN.
+// doctor F6: WA-01 (lưới Admin: Toàn hệ thống lọc chi nhánh / Chi nhánh chip cố định), WA-14 (banner yêu cầu chờ duyệt). Hộp Phân công, ô "+" (WA-05)
+// và Gỡ ca là F7: xem `assign/assign-dialog.test.tsx`. Hôm nay = thứ Tư 14/10/2026 giờ VN.
 const Q3 = { chiNhanhId: '1', ten: 'CLINIX Chi nhánh Quận 3' };
 const Q7 = { chiNhanhId: '2', ten: 'CLINIX Chi nhánh Quận 7' };
 const DOCTOR_A: ReceptionDoctor = {
@@ -246,19 +246,6 @@ describe('lưới Admin Toàn hệ thống (F6)', () => {
     expect(callsTo('/admin/leave-requests')).toHaveLength(0);
   });
 
-  it('WA-05 ô trống có "+" mờ (hình, không phải nút) và nút "Phân công ca" chưa dùng được: bấm không mở gì (hộp Phân công là F7)', async () => {
-    await renderAdmin();
-    const table = await screen.findByRole('table');
-    // 2 bác sĩ × 2 ca × 7 ngày = 28 ô; 3 ô có ca ⇒ 25 ô "+"
-    expect(within(table).getAllByText('+')).toHaveLength(25);
-    expect(within(table).queryByRole('button', { name: '+' })).toBeNull();
-    const button = screen.getByRole('button', { name: /Phân công ca/ });
-    expect(button).toHaveAttribute('aria-disabled', 'true');
-    expect(button).toHaveAttribute('title', 'Chưa được triển khai');
-    fireEvent.click(button);
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
   it('WA-01 ngăn kéo "Chi tiết ca" của Admin Toàn hệ thống ghi chi nhánh của ca', async () => {
     await renderAdmin();
     fireEvent.click(
@@ -308,7 +295,7 @@ describe('lưới Admin Chi nhánh (F6)', () => {
       ),
     ).toBe(true);
     // Vẫn có nút "Phân công ca" (Figma 622:2)
-    expect(screen.getByRole('button', { name: /Phân công ca/ })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Phân công ca' })).toBeVisible();
   });
 
   it('WA-14 banner: "Có 1 yêu cầu nghỉ chờ duyệt trong phạm vi của bạn." + "Xem yêu cầu" (chưa dùng được tới F8); gọi đúng tham số', async () => {
