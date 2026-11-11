@@ -1,9 +1,15 @@
 import { Module } from '@nestjs/common';
+import { SystemConfigModule } from '../admin/system-config/system-config.module.js';
+import { RbacModule } from '../rbac/rbac.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
+import { OperationsAppointmentsRepository } from './lists/operations-appointments.repository.js';
+import { OperationsAppointmentsService } from './lists/operations-appointments.service.js';
 import { PatientAppointmentDetailService } from './lists/patient-appointment-detail.service.js';
 import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
 import { PatientAppointmentsRepository } from './lists/patient-appointments.repository.js';
 import { PatientAppointmentsService } from './lists/patient-appointments.service.js';
+import { ReceptionAppointmentsController } from './lists/reception-appointments.controller.js';
+import { ReceptionAppointmentsService } from './lists/reception-appointments.service.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 import { BookabilityReader } from './slots/bookability.reader.js';
 import { SlotHoldService } from './slots/slot-hold.service.js';
@@ -16,9 +22,12 @@ import { SlotHoldService } from './slots/slot-hold.service.js';
 // Task nào thêm gì (providers; exports là các dịch vụ DÙNG CHUNG cho doctor, payment, wallet, waitlist):
 //   B6  `SlotHoldService` (imports: SchedulingModule)          B9   `AppointmentTransitionService` (nơi DUY NHẤT ghi `lich_hen.trang_thai`, H7)
 //   B10 `AppointmentCancellationService`                        B11  `AppointmentQueries` (+ `confirmPaid`, `complete`, `findAffectedByLeave`, D13, D14)
-//   B3 thêm RbacModule, B14 thêm AuditModule; controller và service của B1 đến B14
+//   B14 thêm AuditModule; controller và service của B1 đến B14 (B3 đã thêm RbacModule và SystemConfigModule)
 //   B1 (đã làm) `PatientAppointmentsController`, `PatientAppointmentsService`, `PatientAppointmentsRepository` (`lists/`; `GET /patient/appointments`, chỉ đọc)
 //   B2 (đã làm) `PatientAppointmentDetailService` (`lists/`; `GET /patient/appointments/:maLichHen`, chỉ đọc; cùng controller và repository của B1)
+//   B3 (đã làm) `ReceptionAppointmentsController` + `ReceptionAppointmentsService` (`GET /reception/appointments` và `/:maLichHen`, chỉ đọc, phạm vi chi nhánh của Lễ tân) trên lớp dùng chung
+//       `OperationsAppointmentsService` + `OperationsAppointmentsRepository` (cũng là nền của B4 Quản trị viên). `imports: [RbacModule` (phạm vi `ReceptionScopeService`, `BranchAccessPolicy`),
+//       `SystemConfigModule` (khung giờ check-in cho `chuyenDuoc` của chi tiết)`]`: cả hai là module lá, không import ngược `AppointmentsModule` nên không tạo vòng.
 //   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới)
 //   B6b (đã làm) `SlotHoldService` (`slots/`; NƠI DUY NHẤT ghi `khung_gio`: `hold`, `markBooked`, `release`, `expireLapsedHold`, `holdForInvitation`, `releaseInvitationHold`; không tiêm gì, nhận `em` của người gọi), `state/lapsed-hold.ts` (`cancelLapsedHold`, hàm thuần SQL, không phải provider)
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
@@ -36,13 +45,16 @@ import { SlotHoldService } from './slots/slot-hold.service.js';
 // `ScheduleModule.forRoot()` (app.module.ts đã đăng ký một lần; gọi thêm thì mọi job `@Cron` chạy gấp đôi, TECH_DEBT dòng 33; job B9, B13 chỉ dùng `@Cron`).
 // `DataSource` có sẵn toàn cục từ `DatabaseModule` (như `PatientModule`) nên chưa cần `imports`.
 @Module({
-  imports: [SchedulingModule],
-  controllers: [PatientAppointmentsController],
+  imports: [SchedulingModule, RbacModule, SystemConfigModule],
+  controllers: [PatientAppointmentsController, ReceptionAppointmentsController],
   providers: [
     ...BOOKING_PORT_PROVIDERS,
     PatientAppointmentsService,
     PatientAppointmentDetailService,
     PatientAppointmentsRepository,
+    OperationsAppointmentsRepository,
+    OperationsAppointmentsService,
+    ReceptionAppointmentsService,
     BookabilityReader,
     SlotHoldService,
   ],

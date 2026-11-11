@@ -16,6 +16,7 @@ import {
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import { AppointmentsModule } from './appointments.module.js';
 import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
+import { ReceptionAppointmentsController } from './lists/reception-appointments.controller.js';
 import {
   ALLOWED_WRITES,
   findClockViolations,
@@ -428,9 +429,10 @@ describe('AR-02, QB-07 mọi route của appointments/ có @Roles, không @Publi
     AppointmentsModule,
   ) ?? []) as Parameters<typeof findRouteRoleViolations>[0];
 
-  it('AppointmentsModule thật: có controller (không đạt giả vì rỗng), gồm PatientAppointmentsController, và không route nào thiếu @Roles hay có @Public', () => {
+  it('AppointmentsModule thật: có controller (không đạt giả vì rỗng), gồm PatientAppointmentsController và ReceptionAppointmentsController (B3), và không route nào thiếu @Roles hay có @Public', () => {
     expect([...controllers].length).toBeGreaterThan(0);
     expect([...controllers]).toContain(PatientAppointmentsController);
+    expect([...controllers]).toContain(ReceptionAppointmentsController);
     expect(findRouteRoleViolations(controllers)).toEqual([]);
   });
 
