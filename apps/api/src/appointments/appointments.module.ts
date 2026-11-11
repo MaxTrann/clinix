@@ -12,6 +12,7 @@ import { ReceptionAppointmentsController } from './lists/reception-appointments.
 import { ReceptionAppointmentsService } from './lists/reception-appointments.service.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 import { BookabilityReader } from './slots/bookability.reader.js';
+import { SlotHoldService } from './slots/slot-hold.service.js';
 
 // Module `booking` (PLAN booking 5.1, 5.10; TRACKING 3.3 P1-B, 3.6 P2-B, P2-D). P1 dựng vỏ; P2 thêm TÁM cổng sang module khác, mỗi cổng gắn bản `Noop` mặc định
 // (`ports/ports.providers.ts`). Mọi thứ khác P1 làm ra (ma trận trạng thái, hằng và mã lỗi, `withBookingTransaction`, `lock-order`) là hàm hoặc hằng thuần mà nơi
@@ -27,7 +28,8 @@ import { BookabilityReader } from './slots/bookability.reader.js';
 //   B3 (đã làm) `ReceptionAppointmentsController` + `ReceptionAppointmentsService` (`GET /reception/appointments` và `/:maLichHen`, chỉ đọc, phạm vi chi nhánh của Lễ tân) trên lớp dùng chung
 //       `OperationsAppointmentsService` + `OperationsAppointmentsRepository` (cũng là nền của B4 Quản trị viên). `imports: [RbacModule` (phạm vi `ReceptionScopeService`, `BranchAccessPolicy`),
 //       `SystemConfigModule` (khung giờ check-in cho `chuyenDuoc` của chi tiết)`]`: cả hai là module lá, không import ngược `AppointmentsModule` nên không tạo vòng.
-//   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới); B6b thêm `SlotHoldService`
+//   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới)
+//   B6b (đã làm) `SlotHoldService` (`slots/`; NƠI DUY NHẤT ghi `khung_gio`: `hold`, `markBooked`, `release`, `expireLapsedHold`, `holdForInvitation`, `releaseInvitationHold`; không tiêm gì, nhận `em` của người gọi), `state/lapsed-hold.ts` (`cancelLapsedHold`, hàm thuần SQL, không phải provider)
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
 //
 // THAY `Noop` BẰNG BẢN THẬT (B16, B17) — đã kiểm bằng script Nest (TRACKING 3.6 P2-D): provider khai ngay trong module này THẮNG provider cùng token của module được
@@ -54,6 +56,7 @@ import { BookabilityReader } from './slots/bookability.reader.js';
     OperationsAppointmentsService,
     ReceptionAppointmentsService,
     BookabilityReader,
+    SlotHoldService,
   ],
 })
 export class AppointmentsModule {}

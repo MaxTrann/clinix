@@ -179,6 +179,10 @@ export const BOOKING_NOTIFICATION_EVENTS = {
 export type BookingNotificationEvent =
   (typeof BOOKING_NOTIFICATION_EVENTS)[keyof typeof BOOKING_NOTIFICATION_EVENTS];
 
+// Lý do huỷ khi hết hạn giữ chỗ (Q6: `DaHuy` kèm `ly_do_huy` là MỘT hằng, không thông báo). MỘT chuỗi cho cả hết hạn lười (`cancelLapsedHold`, B6b) và `HoldExpiryJob` (B9);
+// `lich_hen.ly_do_huy` là `varchar(255)`.
+export const HOLD_EXPIRED_CANCEL_REASON = 'Hết thời gian giữ chỗ';
+
 // --- Hằng job [đề xuất], theo nếp `UNVERIFIED_CLEANUP_*` của auth. Hai job chưa viết (B9 hết hạn giữ chỗ, B13 tự Vắng mặt).
 // Cron 6 trường (giây phút giờ ngày tháng thứ). Giây lệch nhau và lệch giây 0 để không dồn vào cùng giây với các job khác (auth dặn).
 export const HOLD_EXPIRY_JOB_NAME = 'booking-hold-expiry';
