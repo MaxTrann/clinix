@@ -1,5 +1,12 @@
 import { Module } from '@nestjs/common';
+import { SystemConfigModule } from '../admin/system-config/system-config.module.js';
+import { ExamPriceReader } from '../pricing/exam-price.reader.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
+import { BookingChecksController } from './create/booking-checks.controller.js';
+import { BookingChecksService } from './create/booking-checks.service.js';
+import { BookingEligibilityService } from './create/booking-eligibility.service.js';
+import { BookingSummaryReader } from './create/booking-summary.reader.js';
+import { RefundPolicyReader } from './create/refund-policy.js';
 import { PatientAppointmentDetailService } from './lists/patient-appointment-detail.service.js';
 import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
 import { PatientAppointmentsRepository } from './lists/patient-appointments.repository.js';
@@ -19,6 +26,8 @@ import { BookabilityReader } from './slots/bookability.reader.js';
 //   B1 (đã làm) `PatientAppointmentsController`, `PatientAppointmentsService`, `PatientAppointmentsRepository` (`lists/`; `GET /patient/appointments`, chỉ đọc)
 //   B2 (đã làm) `PatientAppointmentDetailService` (`lists/`; `GET /patient/appointments/:maLichHen`, chỉ đọc; cùng controller và repository của B1)
 //   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới); B6b thêm `SlotHoldService`
+//   B7 (đã làm) `BookingChecksController` (`create/`; `GET /booking/eligibility` và `POST /booking/checks`, chỉ đọc), `BookingEligibilityService`, `BookingChecksService`, `BookingSummaryReader`, `RefundPolicyReader`;
+//      thêm `SystemConfigModule` vào `imports` (cấu hình hệ thống của admin; B3 cũng thêm: giữ MỘT lần) và `ExamPriceReader` của `pricing/` vào `providers` (chỉ `search/` khai nó; chưa có `PricingModule`; TECH_DEBT)
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
 //
 // THAY `Noop` BẰNG BẢN THẬT (B16, B17) — đã kiểm bằng script Nest (TRACKING 3.6 P2-D): provider khai ngay trong module này THẮNG provider cùng token của module được
@@ -34,14 +43,19 @@ import { BookabilityReader } from './slots/bookability.reader.js';
 // `ScheduleModule.forRoot()` (app.module.ts đã đăng ký một lần; gọi thêm thì mọi job `@Cron` chạy gấp đôi, TECH_DEBT dòng 33; job B9, B13 chỉ dùng `@Cron`).
 // `DataSource` có sẵn toàn cục từ `DatabaseModule` (như `PatientModule`) nên chưa cần `imports`.
 @Module({
-  imports: [SchedulingModule],
-  controllers: [PatientAppointmentsController],
+  imports: [SchedulingModule, SystemConfigModule],
+  controllers: [PatientAppointmentsController, BookingChecksController],
   providers: [
     ...BOOKING_PORT_PROVIDERS,
     PatientAppointmentsService,
     PatientAppointmentDetailService,
     PatientAppointmentsRepository,
     BookabilityReader,
+    BookingEligibilityService,
+    BookingChecksService,
+    BookingSummaryReader,
+    RefundPolicyReader,
+    ExamPriceReader,
   ],
 })
 export class AppointmentsModule {}
