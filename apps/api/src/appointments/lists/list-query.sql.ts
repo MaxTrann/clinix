@@ -1,3 +1,4 @@
+import type { EntityManager } from 'typeorm';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import { escapeLikePattern } from '../../common/paging/like-pattern.js';
 import {
@@ -133,15 +134,21 @@ export function addCommonFilters(
   }
 }
 
-/** Cột để khớp `q` ngoài hai cột LUÔN có (mã lịch nguyên văn, tên bác sĩ): tên (gấp `đ`) và, nếu có, SĐT (chỉ chữ số, bỏ dấu cách và chấm: `phoneDigits`). */
+/**
+ * Cột để khớp `q` ngoài mã lịch (LUÔN có, nguyên văn) và tên bác sĩ của dòng (có, trừ khi `doctorName` là `false`): tên (gấp `đ`) và, nếu có, SĐT (chỉ chữ số, bỏ dấu cách và chấm:
+ * `phoneDigits`). `doctorName: false` dành cho danh sách của CHÍNH Bác sĩ (B5): mọi dòng đều có tên họ, gõ một chữ trong tên mình sẽ khớp MỌI dòng; B1, B3, B4 không khai nên giữ nguyên.
+ */
 export interface KeywordTargets {
   nameColumns: readonly string[];
   phoneColumn?: string;
+  /** Mặc định `true`: khớp `tbs.ho_ten` (tên bác sĩ của dòng). */
+  doctorName?: boolean;
 }
 
 /**
  * Ô tìm `q` (Q35): một điều kiện `(… OR …)` khớp CHỨA, không phân biệt hoa thường và dấu nhờ collation (`đ` do `foldedName`). `keyword` đã chuẩn hoá và hợp lệ (2 đến 100 ký tự);
- * `%`, `_`, `!` là ký tự thường (`escapeLikePattern`). Thứ tự tham số theo thứ tự điều kiện: mã lịch, tên bác sĩ, các cột tên của `targets`, SĐT (nếu có và `q` toàn chữ số).
+ * `%`, `_`, `!` là ký tự thường (`escapeLikePattern`). Thứ tự tham số theo thứ tự điều kiện: mã lịch, tên bác sĩ (trừ khi `doctorName === false`), các cột tên của `targets`, SĐT (nếu có và
+ * `q` toàn chữ số).
  */
 export function addKeywordFilter(
   clauses: SqlClauses,
@@ -151,12 +158,17 @@ export function addKeywordFilter(
   if (keyword === null) return;
   const code = `%${escapeLikePattern(keyword)}%`;
   const name = `%${escapeLikePattern(foldDStroke(keyword))}%`;
+  const withDoctorName = targets.doctorName !== false;
   const conditions = [
     `lh.ma_lich_hen LIKE ? ESCAPE '!'`,
-    foldedName('tbs.ho_ten'),
+    ...(withDoctorName ? [foldedName('tbs.ho_ten')] : []),
     ...targets.nameColumns.map(foldedName),
   ];
-  const params = [code, name, ...targets.nameColumns.map(() => name)];
+  const params = [
+    code,
+    ...(withDoctorName ? [name] : []),
+    ...targets.nameColumns.map(() => name),
+  ];
   const digits =
     targets.phoneColumn === undefined ? null : phoneDigits(keyword);
   if (targets.phoneColumn !== undefined && digits !== null) {
@@ -167,13 +179,37 @@ export function addKeywordFilter(
   clauses.params.push(...params);
 }
 
-/** `FROM … WHERE …` dùng CHUNG cho các câu của một danh sách (đếm, nhóm, trang), dựng một lần nên số đếm luôn đúng tập mà trang cắt ra. `where` không được rỗng (luôn có điều kiện phạm vi hoặc trạng thái). */
-export function fromWhere(clauses: SqlClauses): {
+/**
+ * `FROM … WHERE …` dùng CHUNG cho các câu của một danh sách (đếm, nhóm, trang), dựng một lần nên số đếm luôn đúng tập mà trang cắt ra. `where` không được rỗng (luôn có điều kiện phạm vi hoặc
+ * trạng thái). `joins` (mặc định rỗng) là các `JOIN` cộng thêm giữa `FROM` và `WHERE` (B5 nối `khung_gio`, `lich_lam_viec` để lấy `ca`); B1, B3, B4 không truyền nên SQL của họ không đổi.
+ */
+export function fromWhere(
+  clauses: SqlClauses,
+  joins = '',
+): {
   sql: string;
   params: unknown[];
 } {
   return {
-    sql: `${FROM_APPOINTMENTS}\nWHERE ${clauses.where.join('\n  AND ')}`,
+    sql: `${FROM_APPOINTMENTS}${joins === '' ? '' : `\n${joins}`}\nWHERE ${clauses.where.join('\n  AND ')}`,
     params: clauses.params,
   };
+}
+
+/**
+ * Số lịch theo từng trạng thái (chỉ trạng thái có dòng) trên `FROM … WHERE …` đã dựng bằng `fromWhere`: `GROUP BY lh.trang_thai`. Dùng chung của hai danh sách có `demTheoTrangThai` (B1 Bệnh nhân, B5 Bác sĩ);
+ * người gọi truyền bộ lọc KHÔNG có `trangThai[]`. `COUNT(*)` là BIGINT nên ra chuỗi ⇒ `Number`. `S` là tập trạng thái mà vai trò được thấy.
+ */
+export async function queryStatusCounts<S extends TrangThaiLichHen>(
+  em: EntityManager,
+  from: { sql: string; params: unknown[] },
+): Promise<{ trangThai: S; soLuong: number }[]> {
+  const rows = await em.query<{ trangThai: S; soLuong: string | number }[]>(
+    `SELECT lh.trang_thai AS trangThai, COUNT(*) AS soLuong ${from.sql}\nGROUP BY lh.trang_thai`,
+    from.params,
+  );
+  return rows.map((row) => ({
+    trangThai: row.trangThai,
+    soLuong: Number(row.soLuong),
+  }));
 }

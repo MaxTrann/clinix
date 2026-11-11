@@ -22,3 +22,12 @@ export function collectStrings(value: unknown): string[] {
 /** Khoá bị cấm trong JSON của danh sách trắng: id (kết thúc bằng `Id`), email, băm, ngày sinh, địa chỉ, giới tính. `soDienThoai` KHÔNG nằm đây: Lễ tân được thấy SĐT của người đặt (Q32), test tự kiểm giá trị. */
 export const FORBIDDEN_KEY =
   /id$|email|mat_?khau|bam$|ngay_?sinh|dia_?chi|gioi_?tinh/i;
+
+/**
+ * Khoá bị cấm trong JSON của BÁC SĨ (B5, DSB-06): KHÁC `FORBIDDEN_KEY` vì Q33 CHO PHÉP `ngaySinh`, `gioiTinh`, `soDienThoai` (của người khám) và `chiNhanh`. Cấm: id (kết thúc bằng `Id`), email, băm,
+ * địa chỉ, giá, cọc, hạn và trạng thái thanh toán, hoàn tiền, người đặt, tên chính bác sĩ (`bacSi`), thời gian máy chủ, và `lyDoHuy` (Figma `692:2` không hiện lý do huỷ; Q27). Viết theo từng cụm
+ * (`giaSnapshot`, không phải `gia`) vì `gia` có trong `thoiGian`. `thanh_?toan` KHÔNG khớp khi đứng sau `cho`: `ChoThanhToan` là một trong sáu TÊN TRẠNG THÁI hợp lệ, là khoá của `demTheoTrangThai`
+ * (không phải dữ liệu thanh toán); mọi khoá thanh toán khác (`thanhToan`, `hanThanhToan`, `trangThaiThanhToan`…) vẫn bị cấm.
+ */
+export const DOCTOR_FORBIDDEN_KEY =
+  /id$|email|mat_?khau|bam$|dia_?chi|gia_?snapshot|tien_?coc|(?<!cho_?)thanh_?toan|hoan_?tien|ly_?do_?huy|nguoi_?dat|may_?chu|^bac_?si$/i;

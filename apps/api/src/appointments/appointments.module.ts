@@ -9,6 +9,9 @@ import { BookingEligibilityService } from './create/booking-eligibility.service.
 import { BookingSummaryReader } from './create/booking-summary.reader.js';
 import { RefundPolicyReader } from './create/refund-policy.js';
 import { HoldExpiryJob } from './expiry/hold-expiry.job.js';
+import { DoctorAppointmentsController } from './lists/doctor-appointments.controller.js';
+import { DoctorAppointmentsRepository } from './lists/doctor-appointments.repository.js';
+import { DoctorAppointmentsService } from './lists/doctor-appointments.service.js';
 import { OperationsAppointmentsRepository } from './lists/operations-appointments.repository.js';
 import { OperationsAppointmentsService } from './lists/operations-appointments.service.js';
 import { PatientAppointmentDetailService } from './lists/patient-appointment-detail.service.js';
@@ -36,6 +39,8 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
 //   B3 (đã làm) `ReceptionAppointmentsController` + `ReceptionAppointmentsService` (`GET /reception/appointments` và `/:maLichHen`, chỉ đọc, phạm vi chi nhánh của Lễ tân) trên lớp dùng chung
 //       `OperationsAppointmentsService` + `OperationsAppointmentsRepository` (cũng là nền của B4 Quản trị viên). `imports: [RbacModule` (phạm vi `ReceptionScopeService`, `BranchAccessPolicy`),
 //       `SystemConfigModule` (khung giờ check-in cho `chuyenDuoc` của chi tiết)`]`: cả hai là module lá, không import ngược `AppointmentsModule` nên không tạo vòng.
+//   B5 (đã làm) `DoctorAppointmentsController` + `DoctorAppointmentsService` + `DoctorAppointmentsRepository` (`GET /doctor/appointments` và `/:maLichHen`, chỉ đọc, chỉ lịch của chính bác sĩ; dùng nền
+//       `list-query.*` của B1, B3, KHÔNG dùng `OperationsAppointmentsService`: không có JOIN hay cột giá, phạm vi là `bac_si_id` thay vì chi nhánh). Không thêm `imports`.
 //   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới)
 //   B6b (đã làm) `SlotHoldService` (`slots/`; NƠI DUY NHẤT ghi `khung_gio`: `hold`, `markBooked`, `release`, `expireLapsedHold`, `holdForInvitation`, `releaseInvitationHold`; không tiêm gì, nhận `em` của người gọi), `state/lapsed-hold.ts` (`cancelLapsedHold`, hàm thuần SQL, không phải provider)
 //   B7 (đã làm) `BookingChecksController` (`create/`; `GET /booking/eligibility` và `POST /booking/checks`, chỉ đọc), `BookingEligibilityService`, `BookingChecksService`, `BookingSummaryReader`, `RefundPolicyReader`;
@@ -62,9 +67,12 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
     PatientAppointmentsController,
     ReceptionAppointmentsController,
     BookingChecksController,
+    DoctorAppointmentsController,
   ],
   providers: [
     ...BOOKING_PORT_PROVIDERS,
+    DoctorAppointmentsService,
+    DoctorAppointmentsRepository,
     PatientAppointmentsService,
     PatientAppointmentDetailService,
     PatientAppointmentsRepository,
