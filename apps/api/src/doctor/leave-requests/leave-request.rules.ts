@@ -41,22 +41,37 @@ export function normalizeReason(
   if (typeof raw !== 'string') {
     return { ok: false, ma: LEAVE_FIELD_ERRORS.REASON_REQUIRED };
   }
-  const value = raw.normalize('NFC').replace(ASCII_EDGE_WHITESPACE, '');
-  if (value.length === 0) {
-    return { ok: false, ma: LEAVE_FIELD_ERRORS.REASON_REQUIRED };
+  const value = normalizeFreeText(raw, REASON_MIN_LENGTH, REASON_MAX_LENGTH);
+  if (value === null) {
+    // Rỗng sau khi cắt ⇒ thiếu; còn lại (quá ngắn, quá dài, ký tự điều khiển) ⇒ không hợp lệ.
+    const empty =
+      raw.normalize('NFC').replace(ASCII_EDGE_WHITESPACE, '') === '';
+    return {
+      ok: false,
+      ma: empty
+        ? LEAVE_FIELD_ERRORS.REASON_REQUIRED
+        : LEAVE_FIELD_ERRORS.REASON_INVALID,
+    };
   }
-  // Đếm theo điểm mã (không phải đơn vị UTF-16): một emoji là 1, khớp cách người dùng đếm.
+  return { ok: true, value };
+}
+
+/**
+ * Chuẩn hoá chữ tự do: NFC, cắt khoảng trắng ASCII hai đầu, rồi kiểm `min`–`max` điểm mã (một emoji là 1, khớp cách người dùng đếm)
+ * và không có ký tự điều khiển. Trả chuỗi đã chuẩn hoá hoặc `null` nếu sai. Dùng chung cho lý do xin nghỉ (Q25) và lý do từ chối (Q27).
+ */
+export function normalizeFreeText(
+  raw: string,
+  min: number,
+  max: number,
+): string | null {
+  const value = raw.normalize('NFC').replace(ASCII_EDGE_WHITESPACE, '');
   // Đếm điểm mã bằng vòng for..of (duyệt theo điểm mã), không dùng spread trên chuỗi.
   let length = 0;
   for (const _ of value) length += 1;
-  if (
-    length < REASON_MIN_LENGTH ||
-    length > REASON_MAX_LENGTH ||
-    CONTROL_CHARACTER.test(value)
-  ) {
-    return { ok: false, ma: LEAVE_FIELD_ERRORS.REASON_INVALID };
-  }
-  return { ok: true, value };
+  if (length < min || length > max || CONTROL_CHARACTER.test(value))
+    return null;
+  return value;
 }
 
 /** Kiểm chéo các trường (PLAN 5.7 bước 1). Rỗng = hợp lệ. Kiểm kiểu từng trường đã do DTO làm. */

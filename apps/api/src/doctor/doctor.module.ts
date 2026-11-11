@@ -13,6 +13,7 @@ import { ScheduleViewRepository } from './schedule-view/schedule-view.repository
 import { ScheduleViewService } from './schedule-view/schedule-view.service.js';
 import { DoctorLeaveController } from './leave-requests/doctor-leave.controller.js';
 import { AdminLeaveController } from './leave-approval/admin-leave.controller.js';
+import { AdminLeaveRejectService } from './leave-approval/admin-leave-reject.service.js';
 import { AdminLeaveRepository } from './leave-approval/admin-leave.repository.js';
 import { AdminLeaveService } from './leave-approval/admin-leave.service.js';
 import { DoctorLeaveHistoryRepository } from './leave-requests/doctor-leave-history.repository.js';
@@ -57,6 +58,7 @@ import { ShiftRemovalService } from './shifts/shift-removal.service.js';
     DoctorLeaveHistoryService,
     AdminLeaveRepository,
     AdminLeaveService,
+    AdminLeaveRejectService,
   ],
 })
 export class DoctorModule {}
