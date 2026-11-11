@@ -1,5 +1,11 @@
 import { StrictMode } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { createAppRoutes } from '../../router/routes';
@@ -12,9 +18,10 @@ import { ROLE_HOME_PATHS, ROLE_LABELS, type VaiTro } from './roles';
 
 // Task F1. Mã ca AU-nn là [đề xuất]; ca nào phủ test case của PLAN thì ghi kèm mã đó.
 const ROLES = Object.keys(ROLE_HOME_PATHS) as VaiTro[];
-// Đổi có duyệt ở patient F1 rồi patient F2: Bệnh nhân (F1) và Lễ tân (F2) có khung thật, chỉ Bác sĩ còn là trang giữ chỗ
-// (ca tương ứng: router/role-routes.test.tsx PL-01 cho Bệnh nhân, PL-09 cho Lễ tân)
-const PLACEHOLDER_ROLES: VaiTro[] = ['BacSi'];
+// Đổi có duyệt ở patient F1, F2 và doctor F1: cả ba vai trò Bệnh nhân, Lễ tân, Bác sĩ có khung thật (không còn trang giữ chỗ)
+// (ca tương ứng: router/role-routes.test.tsx PL-01, PL-09; router/doctor-shell.test.tsx WK-01)
+const doctorShell = () =>
+  screen.findByRole('complementary', { name: 'Điều hướng Bác sĩ' });
 const patientShell = () =>
   screen.findByRole('complementary', { name: 'Điều hướng Bệnh nhân' });
 
@@ -65,20 +72,15 @@ describe('đường dẫn theo mã Figma Make', () => {
 });
 
 describe('trang giữ chỗ và cổng vai trò', () => {
-  it.each(PLACEHOLDER_ROLES)(
-    'AU-61 (DN-03) %s vào đúng trang giữ chỗ',
-    (vaiTro) => {
-      signedInAs(vaiTro);
-      renderAt(ROLE_HOME_PATHS[vaiTro]);
-      expect(
-        screen.getByRole('heading', { name: ROLE_LABELS[vaiTro] }),
-      ).toBeInTheDocument();
-      expect(screen.getByText(`Họ tên ${vaiTro}`)).toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: 'Đăng xuất' }),
-      ).toBeInTheDocument();
-    },
-  );
+  it('AU-61 (DN-03) BacSi vào khung Bác sĩ, có họ tên và nút Đăng xuất', async () => {
+    signedInAs('BacSi');
+    renderAt(ROLE_HOME_PATHS.BacSi);
+    const aside = await doctorShell();
+    expect(within(aside).getByText('Họ tên BacSi')).toBeInTheDocument();
+    expect(
+      within(aside).getByRole('button', { name: 'Đăng xuất' }),
+    ).toBeInTheDocument();
+  });
 
   it.each(
     ROLES.flatMap((a) => ROLES.filter((b) => a !== b).map((b) => [a, b])),
@@ -195,9 +197,10 @@ describe('đăng xuất trên trang giữ chỗ', () => {
       initialIndex: 1,
     });
     render(<RouterProvider router={router} />);
-    expect(screen.getByRole('heading', { name: 'Bác sĩ' })).toBeInTheDocument();
+    await doctorShell();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
+    // Khung có hai nút Đăng xuất (thanh bên, thanh trên); bấm nút ở thanh bên
+    fireEvent.click(screen.getAllByRole('button', { name: 'Đăng xuất' })[0]);
 
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/dang-nhap'),
@@ -213,15 +216,24 @@ describe('đăng xuất trên trang giữ chỗ', () => {
   it('AU-71 lỗi: giữ trang, báo câu đã chốt, Thử lại gửi lại', async () => {
     await signInThroughApi();
     api.failNext('/auth/logout', () => apiError(500, 'LOI_HE_THONG'));
+    // Trang Lịch làm việc (doctor F2) gọi GET /doctor/schedule: trả tuần trống để không có hộp lỗi thứ hai lẫn với lỗi đăng xuất
+    api.failNext(
+      '/doctor/schedule',
+      () =>
+        new Response(JSON.stringify({ ca: [], chiNhanhLoc: [] }), {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
     const router = renderAt('/bac-si-portal');
-    expect(screen.getByRole('heading', { name: 'Bác sĩ' })).toBeInTheDocument();
+    await doctorShell();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Đăng xuất' })[0]);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Không đăng xuất được, vui lòng thử lại',
     );
-    expect(router.state.location.pathname).toBe('/bac-si-portal');
+    // Route chỉ mục của khung Bác sĩ đã chuyển tới Lịch làm việc
+    expect(router.state.location.pathname).toBe('/bac-si-portal/lich-lam-viec');
 
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     await waitFor(() =>

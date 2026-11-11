@@ -2,12 +2,8 @@ import { Navigate, type RouteObject } from 'react-router';
 import { ADMIN_ROUTES } from '../features/admin/admin-routes';
 import { AdminErrorBoundary } from '../features/admin/admin-error-boundary';
 import { AdminLayout } from '../features/admin/admin-layout';
-import {
-  RequireAuth,
-  ROLE_HOME_PATHS,
-  RolePlaceholderPage,
-  type VaiTro,
-} from '../features/auth';
+import { RequireAuth, ROLE_HOME_PATHS, type VaiTro } from '../features/auth';
+import { DOCTOR_PATHS, DOCTOR_ROUTES, DoctorLayout } from '../features/doctor';
 import {
   ADMIN_PROFILE_ROUTES,
   PATIENT_PATHS,
@@ -18,7 +14,7 @@ import {
   ReceptionLayout,
 } from '../features/patient';
 import { ShellContentError } from '../shared/ui/shell-content-error';
-import { PATIENT_NAV, RECEPTION_NAV } from './role-nav';
+import { DOCTOR_NAV, PATIENT_NAV, RECEPTION_NAV } from './role-nav';
 
 // Bảng "vai trò ⇒ route". Khi trang thật xong, chỉ thay ĐÚNG mục của vai trò đó (ví dụ admin F1 thay QuanTriVien); cổng theo vai trò do hàm dưới gắn.
 const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
@@ -42,7 +38,24 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
       },
     ],
   },
-  BacSi: { path: ROLE_HOME_PATHS.BacSi, element: <RolePlaceholderPage /> },
+  // doctor F1: khung Bác sĩ, cùng khuôn với BenhNhan. Module khác cắm trang cạnh DOCTOR_ROUTES và đặt `to` ở role-nav.ts
+  BacSi: {
+    path: ROLE_HOME_PATHS.BacSi,
+    element: <DoctorLayout {...DOCTOR_NAV} />,
+    children: [
+      {
+        errorElement: <ShellContentError />,
+        children: [
+          // Chưa có "Tổng quan": chuyển tới Lịch làm việc (như patient Q21e)
+          {
+            index: true,
+            element: <Navigate to={DOCTOR_PATHS.schedule} replace />,
+          },
+          ...DOCTOR_ROUTES,
+        ],
+      },
+    ],
+  },
   // patient F2: khung Lễ tân, cùng khuôn với BenhNhan. Module khác cắm trang cạnh RECEPTION_ROUTES (TRACKING F2-D)
   LeTan: {
     path: ROLE_HOME_PATHS.LeTan,
