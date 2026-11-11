@@ -140,7 +140,7 @@ export class HoldExpiryJob {
   }
 
   // Chỉ mã lịch, lý do và tên lớp lỗi. `Busy` (tranh chấp khoá, đã thử lại hết lượt) là tạm thời nên chỉ cảnh báo; còn lại là ERROR cần người xem
-  // (dữ liệu lệch lặp lại mỗi phút cho tới khi sửa, TECH_DEBT dòng 100).
+  // (dữ liệu lệch lặp lại mỗi phút cho tới khi sửa, TECH_DEBT dòng 101).
   private logFailure(
     lichHenId: string,
     failure: Extract<ExpireOutcome, { kind: 'Failed' }>,
