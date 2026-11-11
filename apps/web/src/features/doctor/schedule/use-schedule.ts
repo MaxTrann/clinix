@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RequestAbortedError } from '../../../shared/api/errors';
-import { addDays, DAYS_IN_WEEK } from '../../../shared/schedule/week';
 import { getDoctorSchedule, type DoctorSchedule } from '../api/schedule-api';
 
-export type WeekScheduleState =
+export type ScheduleState =
   | { status: 'loading' }
   | { status: 'success'; data: DoctorSchedule }
   | { status: 'error'; error: unknown };
 
-/** Tải lịch của một tuần (T2–CN) của chính Bác sĩ đang đăng nhập. Đổi tuần thì huỷ yêu cầu cũ để kết quả muộn không ghi đè tuần mới. */
-export function useWeekSchedule(weekStart: string) {
-  const [state, setState] = useState<WeekScheduleState>({ status: 'loading' });
+/** Tải lịch của chính Bác sĩ đang đăng nhập trong `tuNgay`…`denNgay` (tuần hoặc lưới tháng, ≤ 42 ngày). Đổi khoảng thì huỷ yêu cầu cũ để kết quả muộn không ghi đè. */
+export function useSchedule(tuNgay: string, denNgay: string) {
+  const [state, setState] = useState<ScheduleState>({ status: 'loading' });
   const [revision, setRevision] = useState(0);
   const retry = useCallback(() => setRevision((value) => value + 1), []);
 
@@ -19,10 +18,7 @@ export function useWeekSchedule(weekStart: string) {
     // Đặt trạng thái trong timer để không gọi setState đồng bộ trong effect (cùng cách với `useClinicInfo`)
     const timer = window.setTimeout(() => {
       setState({ status: 'loading' });
-      void getDoctorSchedule(
-        { tuNgay: weekStart, denNgay: addDays(weekStart, DAYS_IN_WEEK - 1) },
-        controller.signal,
-      ).then(
+      void getDoctorSchedule({ tuNgay, denNgay }, controller.signal).then(
         (data) => setState({ status: 'success', data }),
         (error: unknown) => {
           if (controller.signal.aborted || error instanceof RequestAbortedError)
@@ -35,7 +31,7 @@ export function useWeekSchedule(weekStart: string) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [weekStart, revision]);
+  }, [tuNgay, denNgay, revision]);
 
   return { state, retry };
 }
