@@ -182,6 +182,37 @@ describe('addKeywordFilter: ô tìm q (LSH-08, DSV-07)', () => {
     expect(clauses.where[0]).not.toContain('so_dien_thoai');
     expect(clauses.params).toHaveLength(3);
   });
+
+  it('DSB-13 `doctorName: false` (danh sách của chính Bác sĩ, B5): KHÔNG khớp `tbs.ho_ten`, bỏ đúng một tham số tên; mã lịch, cột tên và SĐT giữ thứ tự', () => {
+    const clauses = fresh();
+    addKeywordFilter(clauses, '0987 654.321', {
+      nameColumns: ['COALESCE(hs.ho_ten, tbn.ho_ten)'],
+      phoneColumn:
+        'IF(lh.ho_so_nguoi_than_id IS NULL, tbn.so_dien_thoai, hs.so_dien_thoai)',
+      doctorName: false,
+    });
+    expect(clauses.where).toStrictEqual([
+      `(lh.ma_lich_hen LIKE ? ESCAPE '!' OR ${FOLD('COALESCE(hs.ho_ten, tbn.ho_ten)')} OR IF(lh.ho_so_nguoi_than_id IS NULL, tbn.so_dien_thoai, hs.so_dien_thoai) LIKE ? ESCAPE '!')`,
+    ]);
+    expect(clauses.where[0]).not.toContain('tbs.ho_ten');
+    expect(clauses.params).toStrictEqual([
+      '%0987 654.321%',
+      '%0987 654.321%',
+      '%0987654321%',
+    ]);
+  });
+
+  it('DSB-13 mặc định và `doctorName: true` giữ NGUYÊN SQL của B1, B3 (có `tbs.ho_ten`): hai cách gọi cho cùng một kết quả', () => {
+    const omitted = fresh();
+    addKeywordFilter(omitted, 'dang', { nameColumns: ['hs.ho_ten'] });
+    const explicit = fresh();
+    addKeywordFilter(explicit, 'dang', {
+      nameColumns: ['hs.ho_ten'],
+      doctorName: true,
+    });
+    expect(explicit).toStrictEqual(omitted);
+    expect(omitted.where[0]).toContain('tbs.ho_ten');
+  });
 });
 
 describe('fromWhere, ORDER_BY, cột (DSV-06, DSV-08)', () => {
@@ -193,6 +224,17 @@ describe('fromWhere, ORDER_BY, cột (DSV-06, DSV-08)', () => {
       sql: `${FROM_APPOINTMENTS}\nWHERE lh.chi_nhanh_id = ?\n  AND lh.trang_thai IN (?)`,
       params: ['1', 'DaHuy'],
     });
+  });
+
+  it('DSB-03 `joins` chèn giữa `FROM` và `WHERE` (B5 lấy `ca`); không truyền hoặc rỗng ⇒ y hệt cách gọi cũ của B1, B3', () => {
+    const clauses = fresh();
+    addStateFilter(clauses, ['DaHuy']);
+    const join = 'INNER JOIN khung_gio kg ON kg.khung_gio_id = lh.khung_gio_id';
+    expect(fromWhere(clauses, join)).toStrictEqual({
+      sql: `${FROM_APPOINTMENTS}\n${join}\nWHERE lh.trang_thai IN (?)`,
+      params: ['DaHuy'],
+    });
+    expect(fromWhere(clauses, '')).toStrictEqual(fromWhere(clauses));
   });
 
   it('DSV-06 sắp xếp ổn định: `thoi_gian` rồi `lich_hen_id` CÙNG chiều', () => {
