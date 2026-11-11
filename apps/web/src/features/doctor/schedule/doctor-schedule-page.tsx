@@ -1,8 +1,14 @@
-import { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 import { EmptyState } from '../../../shared/ui/empty-state';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
+import {
+  addMonths,
+  formatMonthLabel,
+  isInMonth,
+  monthGrid,
+  monthStartOf,
+} from '../../../shared/schedule/month';
 import {
   addDays,
   DAYS_IN_WEEK,
@@ -11,29 +17,86 @@ import {
   weekStartOf,
 } from '../../../shared/schedule/week';
 import type { DoctorShift } from '../api/schedule-api';
+import { MonthGrid } from './month-grid';
+import {
+  ALL,
+  applyFilters,
+  hasActiveFilters,
+  NO_FILTERS,
+  type ScheduleFilters,
+} from './schedule-filters';
 import { ScheduleSummary } from './schedule-summary';
+import { ScheduleToolbar, type ViewMode } from './schedule-toolbar';
 import { ShiftDetailDialog } from './shift-detail-dialog';
-import { useWeekSchedule } from './use-week-schedule';
+import { useSchedule } from './use-schedule';
 import { countWeek } from './week-counts';
 import { WeekGrid } from './week-grid';
 
-const NAV_BUTTON =
-  'inline-flex size-9 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100';
+// Khoảng ngày cần tải cho kỳ đang xem: tuần = T2–CN; tháng = cả lưới (T2 đầu lưới … CN cuối lưới, ≤ 42 ngày)
+function rangeOf(mode: ViewMode, anchor: string) {
+  if (mode === 'week') {
+    const start = weekStartOf(anchor);
+    return { start, end: addDays(start, DAYS_IN_WEEK - 1) };
+  }
+  const { gridStart, gridEnd } = monthGrid(monthStartOf(anchor));
+  return { start: gridStart, end: gridEnd };
+}
 
-// Trang "Lịch làm việc" của Bác sĩ, chế độ tuần (doctor F2; Figma `466:2`, `469:2`). Chế độ tháng, lọc, "Yêu cầu nghỉ" và lịch sử yêu cầu
-// là F3, F4. Ngày hiện tại và đầu tuần tính theo giờ Việt Nam (WL-03, WL-11).
+// Trang "Lịch làm việc" của Bác sĩ: tuần (doctor F2; Figma `466:2`, `469:2`) và tháng + bộ lọc (doctor F3; Figma `467:2`). "Yêu cầu nghỉ" và lịch sử
+// yêu cầu là F4. Ngày hiện tại, đầu tuần, đầu tháng tính theo giờ Việt Nam (WL-03, WL-11).
 export function DoctorSchedulePage() {
   const [today] = useState(() => todayVn());
-  const [weekStart, setWeekStart] = useState(() => weekStartOf(today));
+  const [mode, setMode] = useState<ViewMode>('week');
+  // Một ngày bất kỳ trong kỳ đang xem; đổi chế độ giữ nguyên ngày này nên Tuần ⇄ Tháng không nhảy lung tung
+  const [anchor, setAnchor] = useState(today);
+  const [filters, setFilters] = useState<ScheduleFilters>(NO_FILTERS);
   const [selected, setSelected] = useState<DoctorShift | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
-  const { state, retry } = useWeekSchedule(weekStart);
 
-  const branches =
-    state.status === 'success'
-      ? state.data.chiNhanhLoc.map((branch) => branch.ten).join(', ')
-      : '';
-  const isCurrentWeek = weekStart === weekStartOf(today);
+  const range = rangeOf(mode, anchor);
+  const monthStart = monthStartOf(anchor);
+  const { state, retry } = useSchedule(range.start, range.end);
+
+  const data = state.status === 'success' ? state.data : null;
+  const branchOptions = useMemo(() => data?.chiNhanhLoc ?? [], [data]);
+  // Chi nhánh đang lọc có thể không còn ở kỳ mới (Bác sĩ đã đổi chi nhánh): coi như "Tất cả" thay vì hiện lưới trống khó hiểu
+  const effectiveFilters = useMemo<ScheduleFilters>(
+    () =>
+      filters.chiNhanhId === ALL ||
+      branchOptions.some((b) => b.chiNhanhId === filters.chiNhanhId)
+        ? filters
+        : { ...filters, chiNhanhId: ALL },
+    [filters, branchOptions],
+  );
+
+  // Ca của kỳ đang xem: tháng chỉ tính ngày thuộc tháng (lưới tải thêm ngày của tháng liền kề để đủ tuần)
+  const periodShifts = useMemo(
+    () =>
+      (data?.ca ?? []).filter(
+        (shift) => mode === 'week' || isInMonth(shift.ngay, monthStart),
+      ),
+    [data, mode, monthStart],
+  );
+  const shown = useMemo(
+    () => applyFilters(periodShifts, effectiveFilters),
+    [periodShifts, effectiveFilters],
+  );
+
+  const periodLabel =
+    mode === 'week'
+      ? `Tuần ${formatWeekRange(range.start)}`
+      : formatMonthLabel(monthStart);
+  const containsToday =
+    mode === 'week'
+      ? range.start === weekStartOf(today)
+      : monthStart === monthStartOf(today);
+  const step = (direction: 1 | -1) =>
+    setAnchor((value) =>
+      mode === 'week'
+        ? addDays(value, direction * DAYS_IN_WEEK)
+        : addMonths(monthStartOf(value), direction),
+    );
+  const branches = branchOptions.map((branch) => branch.ten).join(', ');
 
   return (
     <section className="flex flex-col gap-5">
@@ -50,45 +113,18 @@ export function DoctorSchedulePage() {
         )}
       </header>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3">
-        <div className="flex items-center rounded-lg border border-gray-200">
-          <button
-            type="button"
-            aria-label="Tuần trước"
-            className={NAV_BUTTON}
-            onClick={() =>
-              setWeekStart((value) => addDays(value, -DAYS_IN_WEEK))
-            }
-          >
-            <ChevronLeft aria-hidden="true" className="size-4" />
-          </button>
-          <p
-            aria-live="polite"
-            className="px-3 text-sm font-semibold text-gray-900"
-          >
-            Tuần {formatWeekRange(weekStart)}
-          </p>
-          <button
-            type="button"
-            aria-label="Tuần sau"
-            className={NAV_BUTTON}
-            onClick={() =>
-              setWeekStart((value) => addDays(value, DAYS_IN_WEEK))
-            }
-          >
-            <ChevronRight aria-hidden="true" className="size-4" />
-          </button>
-        </div>
-        {/* "Hôm nay" không có trong Figma `466:2` (L20 của PLAN); thêm theo WL-03 [đề xuất] */}
-        <button
-          type="button"
-          disabled={isCurrentWeek}
-          onClick={() => setWeekStart(weekStartOf(today))}
-          className="min-h-9 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:text-gray-500 disabled:hover:bg-white"
-        >
-          Hôm nay
-        </button>
-      </div>
+      <ScheduleToolbar
+        mode={mode}
+        onModeChange={setMode}
+        periodLabel={periodLabel}
+        onPrevious={() => step(-1)}
+        onNext={() => step(1)}
+        onToday={() => setAnchor(today)}
+        todayDisabled={containsToday}
+        filters={effectiveFilters}
+        onFiltersChange={setFilters}
+        branches={branchOptions}
+      />
 
       {state.status === 'loading' && (
         <LoadingState message="Đang tải lịch làm việc..." />
@@ -98,17 +134,38 @@ export function DoctorSchedulePage() {
       )}
       {state.status === 'success' && (
         <>
-          <ScheduleSummary counts={countWeek(state.data.ca)} />
-          {state.data.ca.length === 0 && (
-            <EmptyState message="Tuần này bạn chưa có ca làm việc nào." />
+          <ScheduleSummary counts={countWeek(shown)} />
+          {periodShifts.length === 0 && (
+            <EmptyState
+              message={
+                mode === 'week'
+                  ? 'Tuần này bạn chưa có ca làm việc nào.'
+                  : 'Tháng này bạn chưa có ca làm việc nào.'
+              }
+            />
           )}
-          <WeekGrid
-            weekStart={weekStart}
-            today={today}
-            shifts={state.data.ca}
-            triggerRef={triggerRef}
-            onSelect={setSelected}
-          />
+          {periodShifts.length > 0 &&
+            shown.length === 0 &&
+            hasActiveFilters(effectiveFilters) && (
+              <EmptyState message="Không có ca nào khớp với bộ lọc." />
+            )}
+          {mode === 'week' ? (
+            <WeekGrid
+              weekStart={range.start}
+              today={today}
+              shifts={shown}
+              triggerRef={triggerRef}
+              onSelect={setSelected}
+            />
+          ) : (
+            <MonthGrid
+              monthStart={monthStart}
+              today={today}
+              shifts={shown}
+              triggerRef={triggerRef}
+              onSelect={setSelected}
+            />
+          )}
         </>
       )}
 
