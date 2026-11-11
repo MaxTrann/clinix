@@ -160,11 +160,12 @@ export class SlotHoldService {
     return slot === null ? { kind: 'NotFound' } : write(slot);
   }
 
-  // Đặt lại khung giờ hết hạn về `ConTrong` đúng với hạn đã đọc dưới khoá; không thể `Stale` dưới khoá, nếu có thì hoàn tác (ném `Error`).
-  private async releaseLapsed(
-    em: EntityManager,
-    slot: LockedSlot,
-  ): Promise<void> {
+  /**
+   * Đặt lại khung giờ hết hạn về `ConTrong` đúng với hạn đã đọc dưới khoá; không thể `Stale` dưới khoá, nếu có thì hoàn tác (ném `Error`).
+   * CÔNG KHAI từ B9: `AppointmentTransitionService.expire` (job, đã biết lịch) gọi đúng hàm này sau `cancelLapsedHold`, cùng đường với `expireLapsedHold` (B8, tìm lịch theo khung giờ),
+   * để "thả khung giờ sau khi huỷ lịch hết hạn" chỉ có MỘT bản logic.
+   */
+  async releaseLapsed(em: EntityManager, slot: LockedSlot): Promise<void> {
     const released = await this.release(em, slot, {
       from: 'DangGiuCho',
       den: slot.giuChoDen,
