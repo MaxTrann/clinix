@@ -10,7 +10,10 @@ import {
   HOLD_EXPIRED_CANCEL_REASON,
 } from '../appointments.constants.js';
 import { SlotHoldService } from '../slots/slot-hold.service.js';
-import { FakeWaitlistPort } from '../testing/fake-ports.js';
+import {
+  FakeAppointmentNotifier,
+  FakeWaitlistPort,
+} from '../testing/fake-ports.js';
 import { canTransition } from './appointment-state.matrix.js';
 import {
   AppointmentTransitionService,
@@ -131,6 +134,7 @@ function setup(script: Script = defaultScript()) {
     db as unknown as DataSource,
     new SlotHoldService(),
     waitlist,
+    new FakeAppointmentNotifier(),
   );
   const expire = (now: Date = NOW): Promise<ExpireOutcome> =>
     service.expire({ lichHenId: LICH_HEN_ID, now });

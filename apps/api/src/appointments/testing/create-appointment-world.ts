@@ -16,7 +16,7 @@ import { RefundPolicyReader } from '../create/refund-policy.js';
 import { withBookingTransaction } from '../locking/booking-transaction.js';
 import { BookabilityReader } from '../slots/bookability.reader.js';
 import { SlotHoldService } from '../slots/slot-hold.service.js';
-import { lockSlot } from '../slots/slot-lock.js';
+import { AppointmentTransitionService } from '../state/appointment-transition.service.js';
 import { BOOKABLE_DAY, BookingFixtures } from './booking-fixtures.js';
 import { withRowLock } from './concurrency-harness.js';
 import {
@@ -24,6 +24,7 @@ import {
   FakeDoctorLeavePort,
   FakePaymentPort,
   FakePendingBranchChangesPort,
+  FakeWaitlistPort,
   FakeWalletBalancePort,
 } from './fake-ports.js';
 import { assertBookingInvariants } from './invariants.js';
@@ -217,32 +218,31 @@ export function writeTargets(statements: readonly string[]): string[] {
 }
 
 /**
- * Hàm GIẢ cho đường `confirmPaid` của B11 (chưa có): đi ĐÚNG chuỗi khoá của PLAN 5.3 (`khung_gio` rồi `lich_hen` theo khoá chính), đổi lịch `ChoThanhToan` → `DaXacNhan` với
- * `han_thanh_toan` NULL và khung giờ `DangGiuCho` → `DaDat`. Chỉ để TAO-11 chứng minh hai lối vào `DaXacNhan` (INSERT của B8 và confirmPaid) cùng giữ INV-01…INV-05; B11 thay bằng hàm thật.
+ * Xác nhận thanh toán một lịch `ChoThanhToan` bằng `AppointmentTransitionService.confirmPaid` THẬT (task B11), trong một `withBookingTransaction` như `payment` sẽ làm. Tên và chữ ký giữ từ B8, khi đây còn là
+ * bản giả tự viết chuỗi khoá (B8 ghi "B11 thay bằng hàm thật"), để TAO-11 không phải đổi: nó chứng minh hai lối vào `DaXacNhan` (INSERT cọc 0đ của B8 và `confirmPaid`) cùng giữ INV-01…INV-05. `khungGioId` không còn
+ * cần (hàm thật tự đọc khung giờ của lịch). Không phải `Confirmed` thì ném lỗi (ca gọi nó luôn mong `Confirmed`).
  */
 export function simulateConfirmPaid(
   db: DataSource,
   ids: { khungGioId: string; lichHenId: string },
 ): Promise<void> {
+  const service = new AppointmentTransitionService(
+    db,
+    new SlotHoldService(),
+    new FakeWaitlistPort(),
+    new FakeAppointmentNotifier(),
+  );
   return withBookingTransaction(
     db,
     async (em) => {
-      const slot = await lockSlot(em, ids.khungGioId);
-      if (slot === null) throw new Error('khung giờ không còn');
-      await em.query(
-        'SELECT lich_hen_id FROM lich_hen WHERE lich_hen_id = ? FOR UPDATE',
-        [ids.lichHenId],
-      );
-      const updated: { affectedRows?: number } = await em.query(
-        "UPDATE lich_hen SET trang_thai = 'DaXacNhan', han_thanh_toan = NULL WHERE lich_hen_id = ? AND trang_thai = 'ChoThanhToan'",
-        [ids.lichHenId],
-      );
-      if (updated.affectedRows !== 1)
-        throw new Error('lịch không còn ChoThanhToan');
-      const booked = await new SlotHoldService().markBooked(em, slot);
-      if (booked.kind !== 'Done') throw new Error('markBooked không Done');
+      const outcome = await service.confirmPaid(em, {
+        lichHenId: ids.lichHenId,
+        soTienDaThu: '50000.00',
+      });
+      if (outcome.kind !== 'Confirmed')
+        throw new Error(`confirmPaid không trả Confirmed: ${outcome.kind}`);
     },
-    { label: 'simulate-confirm-paid' },
+    { label: 'confirm-paid-for-create-test' },
   );
 }
 

@@ -13,6 +13,11 @@ export interface AppointmentEvent {
   loaiSuKien: BookingNotificationEvent;
   lichHenId: string;
   taiKhoanId: string;
+  /**
+   * Chỉ `LichHenDaXacNhan` (task B11, Q20, Q46): tổng tiền `payment` đã thu thật cho lịch, chuỗi decimal (H11), để thư dựng "Tổng giá, cọc, còn lại" mà KHÔNG đọc bảng của
+   * `payment` (`confirmPaid` chạy TRƯỚC khi `payment` ghi `giao_dich_thanh_toan`, nên lúc `notify` chưa có dòng nào để đọc). Còn lại = `gia_snapshot` trừ số này.
+   */
+  daThu?: string;
 }
 
 export interface AppointmentNotifier {

@@ -42,11 +42,15 @@ INNER JOIN dich_vu_kham dv ON dv.dich_vu_kham_id = lh.dich_vu_kham_id
 INNER JOIN tai_khoan tbn ON tbn.tai_khoan_id = lh.benh_nhan_id
 LEFT JOIN ho_so_nguoi_than hs ON hs.ho_so_nguoi_than_id = lh.ho_so_nguoi_than_id`;
 
+// Họ tên NGƯỜI KHÁM: bản thân là họ tên tài khoản (`tbn`), người thân là họ tên hồ sơ (`hs`, LEFT JOIN nên NULL khi khám cho chính mình). Xuất ra để `queries/` (booking B11, D13)
+// dùng đúng biểu thức này thay vì chép lần hai.
+export const EXAMINEE_NAME_SQL = 'COALESCE(hs.ho_ten, tbn.ho_ten)';
+
 // Danh sách trắng cột, không `SELECT *`: không `lich_hen_id`, `benh_nhan_id`, email hay SĐT bác sĩ (LSH-14, DSV-08). Người khám: bản thân là họ tên tài khoản, người thân là họ tên hồ sơ.
 // Mười hai cột của MỘT dòng; câu trang, câu chi tiết của mọi vai trò cùng dùng nên chỉ có một nơi định nghĩa.
 export const ITEM_COLUMNS = `SELECT lh.ma_lich_hen AS maLichHen, lh.trang_thai AS trangThai, lh.thoi_gian AS thoiGian,
   tbs.ho_ten AS bacSi, ck.ten AS chuyenKhoa, cn.ten AS chiNhanh, dv.ten AS dichVu,
-  (lh.ho_so_nguoi_than_id IS NULL) AS laBanThan, COALESCE(hs.ho_ten, tbn.ho_ten) AS nguoiKham,
+  (lh.ho_so_nguoi_than_id IS NULL) AS laBanThan, ${EXAMINEE_NAME_SQL} AS nguoiKham,
   CAST(lh.gia_snapshot AS CHAR) AS giaSnapshot, CAST(lh.tien_coc_snapshot AS CHAR) AS tienCoc,
   lh.han_thanh_toan AS hanThanhToan`;
 

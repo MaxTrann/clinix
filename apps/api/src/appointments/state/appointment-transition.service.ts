@@ -8,15 +8,29 @@ import {
 } from '../../database/mysql-errors.js';
 import { BOOKING_ERROR_CODES } from '../appointments.constants.js';
 import { withBookingTransaction } from '../locking/booking-transaction.js';
+import {
+  APPOINTMENT_NOTIFIER,
+  type AppointmentNotifier,
+} from '../ports/appointment-notifier.port.js';
 import { WAITLIST_PORT, type WaitlistPort } from '../ports/waitlist.port.js';
 import { SlotHoldService } from '../slots/slot-hold.service.js';
 import { lockSlot } from '../slots/slot-lock.js';
+import {
+  completeWithin,
+  type CompleteInput,
+  type CompleteOutcome,
+} from './complete-appointment.js';
+import {
+  confirmPaidWithin,
+  type ConfirmPaidInput,
+  type ConfirmPaidOutcome,
+} from './confirm-paid.js';
 import { cancelLapsedHold } from './lapsed-hold.js';
 import { readLichHenKeys } from './lich-hen-keys.query.js';
 
 // `AppointmentTransitionService`: NƠI DUY NHẤT đổi `lich_hen.trang_thai` của module booking (PLAN booking 5.2, 5.5, 5.10 D6; luật H7 và AR-06: `UPDATE lich_hen` chỉ ở `appointments/state/`).
-// B9 dựng KHUNG và phương thức đầu tiên `expire`; B10 (`cancel`), B11 (`confirmPaid`, `complete`), B12 (`checkIn`, `markNoShow`), B14 (override) THÊM phương thức vào đúng lớp này
-// (TRACKING 3.19.1). Chưa có phương thức nào ngoài `expire`: không dựng trước thứ chưa có người dùng.
+// B9 dựng KHUNG và phương thức đầu tiên `expire`; B11 thêm `confirmPaid` (payment gọi) và `complete` (doctor gọi), thân ở `confirm-paid.ts` và `complete-appointment.ts`; B10 (`cancel`), B12 (`checkIn`,
+// `markNoShow`), B14 (override) THÊM phương thức vào đúng lớp này (TRACKING 3.19.1, 3.24). Không dựng trước thứ chưa có người dùng.
 //
 // KHUÔN BẢY BƯỚC của mọi phương thức:
 //  1. ĐỌC THƯỜNG các khoá bất biến của lịch (`readLichHenKeys`: `khung_gio_id`, sau này thêm `benh_nhan_id`…), chưa khoá gì.
@@ -32,6 +46,10 @@ import { readLichHenKeys } from './lich-hen-keys.query.js';
 //
 // HAI HỌ phương thức trong MỘT lớp: (A) TỰ MỞ giao dịch (`expire`, `cancel`, `markNoShow`, override): vỏ ngoài `withBookingTransaction` + thân nhận `em`; (B) NHẬN `em` CỦA NGƯỜI GỌI
 // và không mở giao dịch (`confirmPaid` trong giao dịch của `payment`, `complete` trong giao dịch của `doctor`, `checkIn`, `markReplaced`): chỉ có thân nhận `em`. Viết thân nhận `em` trước.
+
+// Kiểu của hai hàm gọi vào (B11): người gọi (`payment`, `doctor`) import cùng chỗ với lớp dịch vụ
+export type { CompleteInput, CompleteOutcome } from './complete-appointment.js';
+export type { ConfirmPaidInput, ConfirmPaidOutcome } from './confirm-paid.js';
 
 export type ExpireNotDueReason =
   /** Không có hàng `lich_hen` đó */
@@ -90,7 +108,32 @@ export class AppointmentTransitionService {
     @Inject(DataSource) private readonly db: DataSource,
     @Inject(SlotHoldService) private readonly slotHolds: SlotHoldService,
     @Inject(WAITLIST_PORT) private readonly waitlist: WaitlistPort,
+    @Inject(APPOINTMENT_NOTIFIER)
+    private readonly notifier: AppointmentNotifier,
   ) {}
+
+  /**
+   * Xác nhận thanh toán (họ B, PLAN 5.5, Q4, Q20, H16): `payment` gọi TRONG giao dịch của nó. `ChoThanhToan` thành `DaXacNhan` và khung giờ `DangGiuCho` thành `DaDat`, ghi thông báo
+   * `LichHenDaXacNhan`, tất cả trong `em` của người gọi; KHÔNG mở giao dịch, KHÔNG tự kiểm đồng hồ, KHÔNG bắt lỗi DB. Kết quả có kiểu (không ném `AppException`). Điều kiện người gọi phải giữ
+   * (gọi TRƯỚC mọi ghi vào bảng có khoá ngoại tới `lich_hen`, chỉ gọi khi đã thu đủ cọc…): chú thích đầu `confirm-paid.ts`.
+   */
+  confirmPaid(
+    em: EntityManager,
+    input: ConfirmPaidInput,
+  ): Promise<ConfirmPaidOutcome> {
+    return confirmPaidWithin(em, input, {
+      slotHolds: this.slotHolds,
+      notifier: this.notifier,
+    });
+  }
+
+  /**
+   * Hoàn thành ca khám (họ B, PLAN 5.10 D6): `doctor` gọi trong giao dịch của nó; `DaTiepDon` thành `HoanThanh`, không đụng khung giờ. `HoanThanh` chỉ qua hàm này. Điều kiện người gọi phải giữ:
+   * chú thích đầu `complete-appointment.ts`.
+   */
+  complete(em: EntityManager, input: CompleteInput): Promise<CompleteOutcome> {
+    return completeWithin(em, input);
+  }
 
   /**
    * Hết hạn giữ chỗ MỘT lịch (PLAN 5.5, ĐLK b19, A5): `ChoThanhToan` mà `han_thanh_toan <= now` thành `DaHuy` (`ly_do_huy` = hằng, Q6) và khung giờ thành `ConTrong`, trong MỘT giao dịch.
