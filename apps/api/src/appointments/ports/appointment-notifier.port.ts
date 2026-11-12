@@ -1,5 +1,6 @@
 import type { EntityManager } from 'typeorm';
 import type { BookingNotificationEvent } from '../appointments.constants.js';
+import type { CancelReason } from '../cancel/cancel.types.js';
 import { NoopPort } from './noop-warning.js';
 
 // Cổng thông báo (PLAN booking 5.10 B, 5.12; Q29). Ghi `thong_bao` TRONG giao dịch đổi trạng thái (người gọi truyền `em`); gửi thư là việc của worker
@@ -13,6 +14,14 @@ export interface AppointmentEvent {
   loaiSuKien: BookingNotificationEvent;
   lichHenId: string;
   taiKhoanId: string;
+  /**
+   * Chỉ có ở `LichHenDaHuy` (B10; TRACKING 3.23 B10-F): lý do huỷ để B15 chọn một trong ba biến thể thư (Figma 676:2) và số hoàn mà lần huỷ này TÍNH RA (`null` khi chưa thu đồng nào).
+   * Là số tính lúc huỷ, không phải số đã vào ví: thư hoàn tiền thực tế do `wallet` gửi (5.12).
+   */
+  huy?: {
+    reason: CancelReason;
+    hoanCoc: { tyLe: number; soTien: string } | null;
+  };
 }
 
 export interface AppointmentNotifier {

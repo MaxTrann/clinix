@@ -183,6 +183,14 @@ export type BookingNotificationEvent =
 // `lich_hen.ly_do_huy` là `varchar(255)`.
 export const HOLD_EXPIRED_CANCEL_REASON = 'Hết thời gian giữ chỗ';
 
+// Lý do huỷ của B10 (Q27; TRACKING 3.23 B10-C). `lich_hen.ly_do_huy` là `varchar(255)`.
+//  - Bệnh nhân KHÔNG nhập lý do ở giao diện (Figma 421:2), nên mặc định là hằng này; API vẫn nhận `lyDo` tuỳ chọn ≤ 255.
+//  - Nghỉ phép của bác sĩ cũng là HẰNG (Q27): lý do nghỉ phép của bác sĩ là dữ liệu riêng tư, không được chảy vào `ly_do_huy` (Lễ tân và Quản trị viên đọc được).
+//  - Lễ tân và Quản trị viên: bắt buộc, chữ tự do 1 đến `CANCEL_REASON_MAX_LENGTH`.
+export const PATIENT_CANCEL_REASON = 'Bệnh nhân hủy lịch hẹn';
+export const LEAVE_CANCEL_REASON = 'Bác sĩ nghỉ phép'; // [đề xuất] chữ
+export const CANCEL_REASON_MAX_LENGTH = 255;
+
 // --- Hằng job [đề xuất], theo nếp `UNVERIFIED_CLEANUP_*` của auth. Hai job chưa viết (B9 hết hạn giữ chỗ, B13 tự Vắng mặt).
 // Cron 6 trường (giây phút giờ ngày tháng thứ). Giây lệch nhau và lệch giây 0 để không dồn vào cùng giây với các job khác (auth dặn).
 export const HOLD_EXPIRY_JOB_NAME = 'booking-hold-expiry';
