@@ -115,9 +115,9 @@ describe('Lễ tân vào "Thông tin cá nhân" (KG-04, KG-06, HS-21)', () => {
     expect(
       screen.getByRole('heading', { name: 'Đổi mật khẩu' }),
     ).toBeInTheDocument();
-    // Cạnh menu chỉ còn 6 mục vô hiệu (F2 có 8, F4 mở thêm 1, doctor F5 mở thêm 1)
+    // Cạnh menu chỉ còn 5 mục vô hiệu (F2 có 8, F4 mở thêm 1, doctor F5 mở thêm 1, booking F8 mở thêm 1: "Quản lý lịch hẹn" nay có trang)
     const disabled = within(menuOf(await aside())).getAllByRole('button');
-    expect(disabled).toHaveLength(6);
+    expect(disabled).toHaveLength(5);
     for (const button of disabled) expect(button).toBeDisabled();
   });
 });

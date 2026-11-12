@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from 'react';
-import { DetailRow } from './detail-card';
+import { DetailRow } from '../../common/detail-card';
 import { CANCEL_TEXT } from './detail-messages';
 import { cutoffLine, refundLine, refundResultLine } from './refund-text';
 import type { CancelBoxState } from './use-cancel-box';

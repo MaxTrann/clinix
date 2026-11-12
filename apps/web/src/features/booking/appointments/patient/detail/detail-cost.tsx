@@ -6,7 +6,7 @@ import {
   formatVnd,
 } from '../../common/appointment-format';
 import type { PatientAppointmentDetail } from '../api/patient-appointment-types';
-import { DetailCard, DetailRow } from './detail-card';
+import { DetailCard, DetailRow } from '../../common/detail-card';
 import { DETAIL_TEXT } from './detail-messages';
 
 // Khối thanh toán của lịch `ChoThanhToan` (Figma `426:2`). KHÔNG đếm ngược (đếm ngược và hết hạn là WZ-10 của F6, Đại duyệt 12/11/2026): chỉ hiện hạn thanh toán

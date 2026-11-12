@@ -1,24 +1,12 @@
+import type { AppointmentCore } from '../../common/appointment-core';
 import type { AppointmentState } from '../../common/appointment-status';
 
 // Kiểu dữ liệu của "Lịch hẹn của tôi" (booking F1; hợp đồng `GET /patient/appointments` ở PLAN 5.9, TRACKING 3.13.2).
 
-// MỘT dòng danh sách: ĐÚNG mười hai khoá của B1 (danh sách trắng; `lich_hen_id`, `benh_nhan_id`, email, SĐT… không bao giờ có). Bộ đọc giữ đủ
-// mười hai khoá (F2, F8… dùng lại một phần) và bỏ khoá thừa. Figma `411:2` chỉ vẽ sáu khoá của danh sách; chi tiết là việc của F2.
-export interface PatientAppointment {
-  maLichHen: string;
-  // Mã trạng thái. Chỉ sáu mã trong `APPOINTMENT_STATES` có nhãn; mã lạ vẫn đi qua và hiện "Chưa xác định" (appointmentStateLabel)
-  trangThai: string;
-  // ISO 8601 UTC: hiển thị qua `formatVietnam*`, không bao giờ theo múi giờ của máy
-  thoiGian: string;
-  // Chỉ họ tên và tên: API không trả chức danh bác sĩ hay quan hệ của người thân (TRACKING 3.25 F1-D (4))
-  bacSi: string;
-  chuyenKhoa: string;
-  chiNhanh: string;
-  dichVu: string;
-  nguoiKham: { hoTen: string; laBanThan: boolean };
-  // Chuỗi decimal ("300000.00"), chỉ để hiển thị qua `formatVnd`; không tính toán trên số thực
-  giaSnapshot: string;
-  tienCoc: string;
+// MỘT dòng danh sách: ĐÚNG mười hai khoá của B1 (danh sách trắng; `lich_hen_id`, `benh_nhan_id`, email, SĐT… không bao giờ có): mười khoá chung với Lễ tân
+// (`AppointmentCore`, F8 chuyển lên `common/`) cộng `hanThanhToan`, `choPhepHuy`. Bộ đọc giữ đủ mười hai khoá (F2 dùng lại) và bỏ khoá thừa. Figma `411:2`
+// chỉ vẽ sáu khoá của danh sách; chi tiết là việc của F2.
+export interface PatientAppointment extends AppointmentCore {
   hanThanhToan: string | null;
   choPhepHuy: boolean;
 }
@@ -51,28 +39,12 @@ export interface AppointmentListQuery {
   page: number;
 }
 
-// Các lựa chọn của bộ lọc. Id là chuỗi (BIGINT). Danh sách bác sĩ và chuyên khoa lấy một trang tối đa 100 mục: `truncated` = còn mục chưa lấy được
-// (`total` lớn hơn số mục nhận), để giao diện ghi "danh sách rút gọn" thay vì cắt âm thầm.
+// Lựa chọn của bộ lọc Người khám. Id là chuỗi (BIGINT). Lựa chọn Bác sĩ, Chuyên khoa dùng chung với Lễ tân nên ở `common/filter-option-types.ts` (F8).
 export interface RelativeOption {
   hoSoNguoiThanId: string;
   hoTen: string;
   // false = hồ sơ đã ngừng sử dụng (vẫn có thể có lịch trong lịch sử nên vẫn là một lựa chọn)
   trangThaiHieuLuc: boolean;
-}
-
-export interface SpecialtyOption {
-  chuyenKhoaId: string;
-  ten: string;
-}
-
-export interface DoctorOption {
-  bacSiId: string;
-  hoTen: string;
-}
-
-export interface OptionList<T> {
-  options: T[];
-  truncated: boolean;
 }
 
 // ---- Chi tiết và huỷ (booking F2; hợp đồng đọc từ mã backend B2, B10: TRACKING 3.27 F2-D) ----

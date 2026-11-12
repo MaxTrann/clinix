@@ -1,7 +1,7 @@
 import { Calendar, Stethoscope } from 'lucide-react';
 import type { PatientAppointmentDetail } from '../api/patient-appointment-types';
 import { LIST_TEXT } from '../list-messages';
-import { DetailCard, DetailRow } from './detail-card';
+import { DetailCard, DetailRow } from '../../common/detail-card';
 import { DETAIL_TEXT } from './detail-messages';
 
 // Cột trái của trang chi tiết (Figma `420:2`). `Dịch vụ` là hàng THÊM (Figma thiếu mà API có, Đại duyệt 12/11/2026); `Kênh đặt` BỎ (PLAN Q37, L-list).

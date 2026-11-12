@@ -1,4 +1,4 @@
-// Luật từ khoá của ô tìm "Lịch hẹn của tôi" (booking F1; PLAN Q35): 2 đến 100 ĐIỂM MÃ sau khi chuẩn hoá NFC và cắt khoảng trắng ASCII, đúng như API.
+// Luật từ khoá của ô tìm của các trang danh sách lịch hẹn (booking F1, chuyển lên common/ ở F8; F8, F10, F11 dùng lại; PLAN Q35): 2 đến 100 ĐIỂM MÃ sau khi chuẩn hoá NFC và cắt khoảng trắng ASCII, đúng như API.
 // Client chỉ kiểm độ dài để khỏi gọi API khi chắc chắn bị 400; ký tự điều khiển hay ký tự vô hình để API chặn (400 `TU_KHOA_KHONG_HOP_LE`, trang hiện
 // "Từ khoá không hợp lệ"). Bản nhỏ riêng của booking: `features/` không import chéo và không chép `lookup-keyword.ts` của patient (ghi TECH_DEBT).
 export const KEYWORD_MIN_LENGTH = 2;

@@ -96,19 +96,6 @@ const UNSURE =
 
 export const cannotCancelMessage = () => CANNOT_CANCEL;
 
-// ---- Lỗi tải trang chi tiết: chọn theo `maLoi`, KHÔNG theo mã HTTP hay `thongBao` (CODING_CONVENTION) ----
-// `notFound`: MỘT màn cho "không có", "của người khác", `DaDoiLich`, mã sai dạng (cùng thân 404, QB-01, H10): không lộ lịch có tồn tại hay không.
-// `session`, `forbidden`: cùng yêu cầu sẽ cùng kết quả nên không `Thử lại`. `other`: mạng, quá giờ, phản hồi lạ, 5xx, `maLoi` lạ: câu của `ErrorState` kèm `Thử lại`.
-export type DetailErrorKind = 'notFound' | 'session' | 'forbidden' | 'other';
-
-export function classifyDetailError(error: unknown): DetailErrorKind {
-  if (!(error instanceof ApiError)) return 'other';
-  if (error.maLoi === BOOKING_ERROR_CODES.NOT_FOUND) return 'notFound';
-  if (error.maLoi === BOOKING_ERROR_CODES.UNAUTHENTICATED) return 'session';
-  if (error.maLoi === BOOKING_ERROR_CODES.FORBIDDEN) return 'forbidden';
-  return 'other';
-}
-
 // ---- Lỗi của hộp huỷ ----
 // `final`: không thử lại được (cùng yêu cầu cùng kết quả): chỉ còn đóng. `retry`: bấm lại được (503 hoàn tác trọn; xem trước chỉ đọc). `uncertain`: gửi huỷ mà
 // không biết máy chủ đã xử lý chưa: giữ nút xác nhận (bấm lại an toàn, lần hai ra 409 `DaHuy`) và thêm `Tải lại chi tiết`.

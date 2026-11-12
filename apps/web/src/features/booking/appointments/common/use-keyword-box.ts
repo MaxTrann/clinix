@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { checkKeyword } from './keyword-rules';
-import { LIST_TEXT } from './list-messages';
+import { COMMON_LIST_TEXT } from './list-text';
 
 // Ô tìm của "Lịch hẹn của tôi" (booking F1; PLAN Q35). Quyết định đã duyệt 12/11/2026, đúng nếp patient F8 nhưng gọn hơn:
 //  - tự áp dụng 300 ms sau lần gõ cuối; Enter bỏ qua phần đợi (cùng từ khoá thì làm mới danh sách);
@@ -52,10 +52,12 @@ export function useKeywordBox(options: {
 
   let hint: KeywordHint | null = null;
   if (problem === 'long') {
-    hint = { text: LIST_TEXT.keywordTooLong, error: true };
+    hint = { text: COMMON_LIST_TEXT.keywordTooLong, error: true };
   } else if (problem === 'short' && length === 1) {
-    hint = { text: LIST_TEXT.keywordTooShort, error: false };
+    hint = { text: COMMON_LIST_TEXT.keywordTooShort, error: false };
   }
 
   return { input, hint, change, clear, submit, setComposing };
 }
+
+export type KeywordBoxController = ReturnType<typeof useKeywordBox>;
