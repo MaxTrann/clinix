@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { AuditService } from '../../audit/audit.service.js';
 import { AppException } from '../../common/errors/app.exception.js';
-import { COMMON_ERROR_CODES } from '../../common/errors/error-codes.js';
 import { nowVN, toSecond } from '../../common/time/time.js';
 import type { AdminScope } from '../../rbac/admin-scope.js';
 import { BranchAccessPolicy } from '../../rbac/branch-access.policy.js';
@@ -12,11 +11,14 @@ import {
   LeaveNotifier,
 } from '../notifications/leave-notifier.js';
 import { APPROVAL_ERROR_CODES } from './admin-leave.constants.js';
-import {
-  AdminLeaveRepository,
-  type AdminLeaveRow,
-} from './admin-leave.repository.js';
+import { AdminLeaveRepository } from './admin-leave.repository.js';
 import { normalizeRejectReason } from './admin-leave-reject.rules.js';
+import {
+  leaveAlreadyHandled,
+  leaveAuditFacts,
+  leaveNotFound,
+  leaveNotification,
+} from './leave-facts.js';
 
 export interface RejectedLeaveRequest {
   yeuCauNghiPhepId: string;
@@ -76,17 +78,14 @@ export class AdminLeaveRejectService {
     processedAt: Date,
   ): Promise<RejectedLeaveRequest> {
     // 1. Khoá hàng yêu cầu: hai Admin cùng xử lý thì người sau chờ rồi thấy trạng thái mới (Q31, DH-08).
-    if ((await this.repository.lockRequest(em, id)) === null) throw notFound();
+    if ((await this.repository.lockRequest(em, id)) === null)
+      throw leaveNotFound();
     // 2. Phạm vi theo chi nhánh HIỆN TẠI của bác sĩ, đọc sau khoá. Ngoài phạm vi ⇒ 404 TRƯỚC khi nói gì về trạng thái (không lộ).
     const row = await this.repository.findOne(em, id);
-    if (row === null) throw notFound();
+    if (row === null) throw leaveNotFound();
     this.policy.assertCanSee(scope, row.chiNhanhId);
     // 3. Kiểm lại dưới khoá.
-    if (row.trangThai !== 'ChoDuyet') {
-      throw new AppException(409, APPROVAL_ERROR_CODES.ALREADY_HANDLED, {
-        thongBao: 'Yêu cầu đã được xử lý.',
-      });
-    }
+    if (row.trangThai !== 'ChoDuyet') throw leaveAlreadyHandled();
     // 4. Đổi trạng thái. 0 hàng là không thể xảy ra dưới khoá; nếu xảy ra thì báo như đã xử lý, không ghi nhật ký sai.
     const changed = await this.repository.markRejected(
       em,
@@ -94,11 +93,7 @@ export class AdminLeaveRejectService {
       actorId,
       processedAt,
     );
-    if (changed !== 1) {
-      throw new AppException(409, APPROVAL_ERROR_CODES.ALREADY_HANDLED, {
-        thongBao: 'Yêu cầu đã được xử lý.',
-      });
-    }
+    if (changed !== 1) throw leaveAlreadyHandled();
     // 5. Nhật ký và thông báo CÙNG giao dịch: lỗi ghi (PD-18) hoàn tác cả việc từ chối.
     await this.audit.record(em, {
       actorId,
@@ -108,22 +103,14 @@ export class AdminLeaveRejectService {
       targetId: id,
       result: 'ThanhCong',
       changes: {
-        bac_si_id: row.bacSiId,
-        ngay_bat_dau: row.tuNgay,
-        ngay_ket_thuc: row.denNgay,
-        ca: shiftOf(row),
+        ...leaveAuditFacts(row),
         // Lý do của ADMIN (1–255), không bao giờ là lý do xin nghỉ của Bác sĩ (Q34).
         ly_do_tu_choi: reason,
       },
     });
     await this.notifier.notify(em, {
+      ...leaveNotification(row),
       loaiSuKien: LEAVE_EVENTS.Rejected,
-      bacSiId: row.bacSiId,
-      chiNhanhId: row.chiNhanhId,
-      tenBacSi: row.bacSiHoTen,
-      ngayBatDau: row.tuNgay,
-      ngayKetThuc: row.denNgay,
-      ca: row.ca,
       lyDoTuChoi: reason,
     });
     return {
@@ -132,15 +119,4 @@ export class AdminLeaveRejectService {
       thoiDiemXuLy: processedAt.toISOString(),
     };
   }
-}
-
-const notFound = () => new AppException(404, COMMON_ERROR_CODES.NOT_FOUND);
-
-/** Ca tối không bao giờ được phân công (Q6); gặp nó là dữ liệu hỏng ⇒ hoàn tác và báo lỗi hệ thống thay vì ghi nhật ký sai. */
-function shiftOf(row: AdminLeaveRow): 'CaSang' | 'CaChieu' | null {
-  if (row.ca === 'CaToi')
-    throw new Error(
-      'Yêu cầu nghỉ theo ca tối không thể tồn tại: ' + row.yeuCauNghiPhepId,
-    );
-  return row.ca;
 }

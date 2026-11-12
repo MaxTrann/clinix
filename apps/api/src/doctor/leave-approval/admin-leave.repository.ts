@@ -18,6 +18,15 @@ export interface AdminLeaveFilter {
   to?: string;
 }
 
+/** Một yêu cầu `DaDuyet` mà sweeper cần chạy lại (đủ để tìm lịch bị ảnh hưởng). */
+export interface ApprovedLeaveRow {
+  yeuCauNghiPhepId: string;
+  bacSiId: string;
+  tuNgay: string;
+  denNgay: string;
+  ca: CaLamViec | null;
+}
+
 export interface AdminLeaveRow {
   yeuCauNghiPhepId: string;
   trangThai: TrangThaiYeuCauNghiPhep;
@@ -127,6 +136,29 @@ export class AdminLeaveRepository {
     return Object.fromEntries(rows.map((r) => [r.trangThai, Number(r.so)]));
   }
 
+  /**
+   * Yêu cầu `DaDuyet` còn hiệu lực (`ngay_ket_thuc >= today`) cho sweeper, theo `yeu_cau_nghi_phep_id` tăng dần, sau con trỏ `after` (id của hàng cuối lô trước).
+   * Con trỏ để yêu cầu nào cũng lỗi mãi không chặn các yêu cầu sau nó. Chỉ đọc, không khoá; cột DATE đọc bằng `DATE_FORMAT`; không có lý do nghỉ của Bác sĩ.
+   */
+  async findApprovedActive(
+    em: EntityManager,
+    input: { today: string; after: string | null; limit: number },
+  ): Promise<ApprovedLeaveRow[]> {
+    return em.query(
+      `SELECT CAST(yeu_cau_nghi_phep_id AS CHAR) AS yeuCauNghiPhepId, CAST(bac_si_id AS CHAR) AS bacSiId,
+              DATE_FORMAT(ngay_bat_dau, '%Y-%m-%d') AS tuNgay, DATE_FORMAT(ngay_ket_thuc, '%Y-%m-%d') AS denNgay, ca
+         FROM yeu_cau_nghi_phep
+        WHERE trang_thai = 'DaDuyet' AND ngay_ket_thuc >= ? AND yeu_cau_nghi_phep_id > ?
+        ORDER BY yeu_cau_nghi_phep_id LIMIT ?`,
+      [input.today, input.after ?? '0', input.limit],
+    );
+  }
+
+  /** `EntityManager` tự commit, cho một câu đọc thường ngoài giao dịch (Duyệt đọc trước `bac_si_id` để biết khoá hàng nào). */
+  manager(): EntityManager {
+    return this.db.manager;
+  }
+
   /** Giao dịch ghi `READ COMMITTED` tường minh như phân công, gỡ ca và tạo yêu cầu (Q40). */
   transaction<T>(work: (em: EntityManager) => Promise<T>): Promise<T> {
     return this.db.transaction('READ COMMITTED', work);
@@ -157,6 +189,34 @@ export class AdminLeaveRepository {
     const result: { affectedRows: number } = await em.query(
       `UPDATE yeu_cau_nghi_phep
           SET trang_thai = 'TuChoi', nguoi_xu_ly_id = ?, thoi_diem_xu_ly = ?
+        WHERE yeu_cau_nghi_phep_id = ? AND trang_thai = 'ChoDuyet'`,
+      [processedBy, processedAt, id],
+    );
+    return result.affectedRows;
+  }
+
+  /**
+   * Duyệt (B15) khoá `bac_si` TRƯỚC hàng yêu cầu (PLAN 5.9, tầng 4): đặt lịch xin `bac_si` FOR SHARE rồi kiểm nghỉ phép (D4), nên đặt lịch và duyệt
+   * nối tiếp nhau (H6). Trả `false` nếu không có bác sĩ.
+   */
+  async lockDoctor(em: EntityManager, bacSiId: string): Promise<boolean> {
+    const rows: unknown[] = await em.query(
+      `SELECT tai_khoan_id FROM bac_si WHERE tai_khoan_id = ? FOR UPDATE`,
+      [bacSiId],
+    );
+    return rows.length > 0;
+  }
+
+  /** Chỉ đổi khi còn `ChoDuyet` (cùng lưới an toàn với `markRejected`); trả số hàng đổi. */
+  async markApproved(
+    em: EntityManager,
+    id: string,
+    processedBy: string,
+    processedAt: Date,
+  ): Promise<number> {
+    const result: { affectedRows: number } = await em.query(
+      `UPDATE yeu_cau_nghi_phep
+          SET trang_thai = 'DaDuyet', nguoi_xu_ly_id = ?, thoi_diem_xu_ly = ?
         WHERE yeu_cau_nghi_phep_id = ? AND trang_thai = 'ChoDuyet'`,
       [processedBy, processedAt, id],
     );
