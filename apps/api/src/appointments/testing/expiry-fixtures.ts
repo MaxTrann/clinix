@@ -14,7 +14,11 @@ import { WAITLIST_PORT } from '../ports/waitlist.port.js';
 import { SlotHoldService } from '../slots/slot-hold.service.js';
 import { AppointmentTransitionService } from '../state/appointment-transition.service.js';
 import type { BookingFixtures } from './booking-fixtures.js';
-import { createFakePorts, FakeWaitlistPort } from './fake-ports.js';
+import {
+  createFakePorts,
+  FakeAppointmentNotifier,
+  FakeWaitlistPort,
+} from './fake-ports.js';
 
 // Hạ tầng test dùng chung của các int-spec của B9 (TRX-08, TRX-09, HG-01…HG-10, DT-08, DT-16; PLAN booking 7.26, TRACKING 3.19.3). Nằm ở `testing/` nên AR-01 và AR-06 bỏ qua; `.jscpd.json` KHÔNG bỏ
 // `*.int-spec.ts`, nên phần dựng dữ liệu và dựng "bản API" nằm MỘT chỗ ở đây thay vì chép ở từng spec.
@@ -107,13 +111,15 @@ export type ExpiryWorld = Awaited<ReturnType<typeof expiryWorld>>;
 export function createExpiryStack(
   db: DataSource,
   waitlist: FakeWaitlistPort = new FakeWaitlistPort(),
+  notifier: FakeAppointmentNotifier = new FakeAppointmentNotifier(),
 ) {
   const service = new AppointmentTransitionService(
     db,
     new SlotHoldService(),
     waitlist,
+    notifier,
   );
-  return { waitlist, service, job: new HoldExpiryJob(db, service) };
+  return { waitlist, notifier, service, job: new HoldExpiryJob(db, service) };
 }
 
 /**

@@ -1299,6 +1299,29 @@ ALTER TABLE `thong_tin_phong_kham` ADD CONSTRAINT `chk_phong_kham_mot_dong` CHEC
 -- ============================================================================
 -- SELECT lich_hen_id, trang_thai FROM lich_hen WHERE ma_lich_hen = :ma_lich_hen;
 
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): HUỶ LỊCH HẸN dùng chung (booking B10) — MỘT giao dịch READ COMMITTED; thứ tự khóa: khung_gio (5) rồi lich_hen THEO KHÓA CHÍNH (6)
+-- (KHÔNG BAO GIỜ WHERE khung_gio_id = ? FOR UPDATE: deadlock 1213 với gỡ ca của bác sĩ, doctor M12). Bệnh nhân, Lễ tân, Quản trị viên override và hệ thống (bác sĩ nghỉ phép) đi CÙNG chuỗi:
+-- đọc thường theo ma_lich_hen để biết lich_hen_id và khung_gio_id (cột bất biến), rồi khóa, rồi KIỂM LẠI sở hữu/phạm vi và trạng thái dưới khóa (ma trận trạng thái 5.2 theo vai trò).
+-- ============================================================================
+-- SELECT lich_hen_id, khung_gio_id, benh_nhan_id, chi_nhanh_id, trang_thai FROM lich_hen WHERE ma_lich_hen = :ma_lich_hen;
+-- SELECT khung_gio_id, trang_thai, giu_cho_den FROM khung_gio WHERE khung_gio_id = :khung_gio_id FOR UPDATE;
+-- SELECT benh_nhan_id, chi_nhanh_id, trang_thai, thoi_gian, chinh_sach_hoan_snapshot FROM lich_hen WHERE lich_hen_id = :lich_hen_id FOR UPDATE;
+-- UPDATE lich_hen SET trang_thai = 'DaHuy', thoi_diem_huy = :now, ly_do_huy = :ly_do WHERE lich_hen_id = :lich_hen_id AND trang_thai = :trang_thai_nguon_da_doc;   -- đúng 1 dòng
+-- UPDATE khung_gio SET trang_thai = 'ConTrong', giu_cho_den = NULL WHERE khung_gio_id = :khung_gio_id AND trang_thai = :DangGiuCho_hoac_DaDat AND giu_cho_den <=> :giu_cho_den_da_doc;   -- DangGiuCho khi lịch ChoThanhToan, DaDat (giu_cho_den NULL) với các trạng thái còn lại
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): MỐC HOÀN áp dụng khi Bệnh nhân hay Lễ tân huỷ lúc :now (booking B10; RefundCalculator đọc CHỈ chinh_sach_hoan_snapshot của lịch, không đọc moc_hoan_tien hiện hành: không hồi tố)
+-- Lấy mốc có so_gio_truoc_toi_thieu LỚN NHẤT mà thời gian còn lại >= số giờ x 3600 giây (nửa đóng: đúng 24 giờ được mốc 24); đã quá giờ hẹn (thoi_gian < :now) hoặc không mốc nào: không có dòng = 0%.
+-- Tiền hoàn = số tiền ĐÃ THU x ty_le_hoan / 100, làm tròn XUỐNG 0,01 (ứng dụng tính bằng BigInt đơn vị 0,01, không số thực). Quản trị viên override và bác sĩ nghỉ phép: 100%, bỏ qua bậc.
+-- ============================================================================
+-- SELECT m.so_gio_truoc_toi_thieu, m.ty_le_hoan
+--   FROM lich_hen lh,
+--        JSON_TABLE(lh.chinh_sach_hoan_snapshot, '$[*]' COLUMNS (so_gio_truoc_toi_thieu INT PATH '$.so_gio_truoc_toi_thieu', ty_le_hoan INT PATH '$.ty_le_hoan')) AS m
+--  WHERE lh.ma_lich_hen = :ma_lich_hen AND lh.thoi_gian >= :now
+--    AND TIMESTAMPDIFF(SECOND, :now, lh.thoi_gian) >= m.so_gio_truoc_toi_thieu * 3600
+--  ORDER BY m.so_gio_truoc_toi_thieu DESC LIMIT 1;
+
 
 -- P7 (28/10/2026): bổ sung quản lý ảnh Cloudinary; giữ URL chuyên khoa cũ.
 CREATE TABLE `anh_tai_len` (

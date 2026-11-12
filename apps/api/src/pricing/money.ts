@@ -13,7 +13,8 @@ export function toCents(value: string): bigint {
   return BigInt(whole) * 100n + BigInt(fraction);
 }
 
-function fromCents(cents: bigint): string {
+/** Số đơn vị 0,01 (BigInt không âm) ⇒ chuỗi đúng 2 chữ số thập phân. Xuất cho `booking` (`RefundCalculator`, B10): một công thức đổi tiền, không bản thứ hai. */
+export function fromCents(cents: bigint): string {
   const whole = cents / 100n;
   const fraction = (cents % 100n).toString().padStart(2, '0');
   return `${whole.toString()}.${fraction}`;

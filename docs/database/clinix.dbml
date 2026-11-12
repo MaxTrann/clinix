@@ -606,8 +606,8 @@ Table lich_hen {
   chinh_sach_hoan_snapshot json [note: 'Bản sao các mốc hoàn tiền lúc đặt (chính sách không hồi tố); lịch mới do đổi lịch sao chép từ lịch trước. Dạng: mảng JSON [{"so_gio_truoc_toi_thieu": 24, "ty_le_hoan": 100}, ...] sắp GIẢM DẦN theo so_gio_truoc_toi_thieu (Q15). NULL (SQL NULL, không phải chuỗi JSON null) khi tien_coc_snapshot = 0; mảng rỗng [] khi cọc > 0 mà dịch vụ chưa có mốc nào (không hoàn gì). Ghi bằng chuỗi JSON, đọc ra mảng đã parse']
   trang_thai trang_thai_lich_hen_enum [not null]
   han_thanh_toan datetime [note: 'Quá hạn mà chưa thanh toán thì tự hủy. Chỉ có giá trị khi ChoThanhToan: bằng toSecond(thời điểm đặt) + thoi_gian_giu_cho phút và bằng khung_gio.giu_cho_den (một giá trị duy nhất); đúng mốc này là hết hạn (nửa mở). NULL khi DaXacNhan (cọc 0đ xác nhận ngay lúc tạo, hoặc đã thanh toán) để lịch đã xác nhận không bị quét hết hạn']
-  thoi_diem_huy datetime
-  ly_do_huy varchar(255)
+  thoi_diem_huy datetime [note: 'Lúc huỷ: bằng MỘT mốc toSecond(now) của lượt huỷ (booking B10), cũng là mốc tính bậc hoàn cọc. Hết hạn giữ chỗ (B9) ghi mốc đầu lượt quét']
+  ly_do_huy varchar(255) [note: 'Chữ theo lý do huỷ (booking B10, Q27): Bệnh nhân = Bệnh nhân hủy lịch hẹn (hoặc lý do tuỳ chọn tối đa 255 ký tự do họ nhập); Lễ tân và Quản trị viên override = lý do nhập, bắt buộc; hệ thống huỷ vì bác sĩ nghỉ phép = Bác sĩ nghỉ phép (lý do nghỉ của bác sĩ là dữ liệu riêng tư, không đi vào cột này); hết hạn giữ chỗ = Hết thời gian giữ chỗ. Chữ tự do, KHÔNG có mã lý do (TECH_DEBT dòng 106)']
   ly_do_kham text
   thoi_diem_tao datetime [not null, default: `now()`, note: 'Thời điểm đặt lịch']
   cap_nhat_lan_cuoi datetime [not null, default: `now()`, note: 'Tự cập nhật mỗi khi dòng thay đổi (ON UPDATE trong SQL)']
