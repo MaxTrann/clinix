@@ -19,6 +19,8 @@ import { ROLES_KEY } from '../../auth/decorators/roles.decorator.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { ParseAppointmentCodePipe } from '../appointment-code.pipe.js';
 import { AppointmentsModule } from '../appointments.module.js';
+import { AppointmentQueries } from '../queries/appointment-queries.js';
+import { AppointmentTransitionService } from '../state/appointment-transition.service.js';
 import { AppointmentCancellationService } from './appointment-cancellation.service.js';
 import type { CancelOutcome } from './cancel.types.js';
 import { CancelPreviewService } from './cancel-preview.service.js';
@@ -225,10 +227,14 @@ describe('HBN-01 nối dây trong AppointmentsModule: DI thật và hợp đồn
     await moduleRef.close();
   });
 
-  it('AppointmentsModule XUẤT đúng AppointmentCancellationService (và chỉ nó): module `doctor` nhập AppointmentsModule rồi tiêm được lớp này, không tiêm được CancelPreviewService', async () => {
+  it('AppointmentsModule XUẤT đúng ba lớp (AppointmentTransitionService và AppointmentQueries của B11, AppointmentCancellationService của B10): module `doctor` nhập AppointmentsModule rồi tiêm được AppointmentCancellationService, không tiêm được CancelPreviewService', async () => {
     expect(
       Reflect.getMetadata(MODULE_METADATA.EXPORTS, AppointmentsModule),
-    ).toEqual([AppointmentCancellationService]);
+    ).toEqual([
+      AppointmentTransitionService,
+      AppointmentQueries,
+      AppointmentCancellationService,
+    ]);
 
     @Injectable()
     class Consumer {

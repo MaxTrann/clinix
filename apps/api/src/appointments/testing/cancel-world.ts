@@ -65,6 +65,7 @@ export function createCancelStack(
     db,
     new SlotHoldService(),
     ports.waitlist,
+    ports.notifier,
   );
   const service = new AppointmentCancellationService(
     db,
