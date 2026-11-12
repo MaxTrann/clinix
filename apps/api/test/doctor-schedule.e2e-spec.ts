@@ -5,6 +5,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
+import { BookingFixtures } from '../src/appointments/testing/booking-fixtures.js';
 import { SessionService } from '../src/auth/session/session.service.js';
 import { expectErrorResponse } from '../src/common/testing/error-assertions.js';
 import { resetTables } from '../src/database/testing/test-database.js';
@@ -246,11 +247,38 @@ describe('B7 — Bác sĩ xem lịch làm việc', () => {
     expect(text).not.toMatch(/@|email|soDienThoai/i);
   });
 
-  it('XL-18 chưa có booking: không có trường soLichHen (không hiện "0 lịch" sai)', async () => {
+  it('XL-18 soLichHen = số lịch ChoThanhToan/DaXacNhan/DaTiepDon của từng ca (D14, B17); ca không có lịch ⇒ 0; lịch đã huỷ không tính; chỉ có số lượng, không tên bệnh nhân', async () => {
     const { doctor, token } = await setup();
-    await fx.admin.shift(doctor.profile, { ngay: MON, ca: 'CaSang' });
+    const bookings = new BookingFixtures(db);
+    const patientId = (await fx.admin.patient()).account.taiKhoanId;
+    const morning = await fx.shiftWithSlots(doctor.profile, {
+      ngay: MON,
+      ca: 'CaSang',
+    });
+    await fx.shiftWithSlots(doctor.profile, { ngay: MON, ca: 'CaChieu' });
+    const book = (
+      state: 'ChoThanhToan' | 'DaXacNhan' | 'DaTiepDon' | 'DaHuy',
+      index: number,
+    ) =>
+      bookings.appointmentIn(state, {
+        doctor: doctor.profile,
+        khungGioId: morning.slotIds[index] as string,
+        patientId,
+      });
+    await book('DaXacNhan', 0);
+    await book('ChoThanhToan', 1);
+    await book('DaTiepDon', 2);
+    await book('DaHuy', 3);
+
     const res = await get(week, token).expect(200);
-    expect(res.body.ca[0]).not.toHaveProperty('soLichHen');
+    const byShift = Object.fromEntries(
+      res.body.ca.map((s: { ca: string; soLichHen: number }) => [
+        s.ca,
+        s.soLichHen,
+      ]),
+    );
+    expect(byShift).toEqual({ CaSang: 3, CaChieu: 0 });
+    expect(JSON.stringify(res.body)).not.toContain('hoTen');
   });
 
   it('XL-20/QH-04 hai bác sĩ cùng chi nhánh: mỗi người chỉ thấy ca và yêu cầu nghỉ của mình', async () => {

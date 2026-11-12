@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
+import { BookingFixtures } from '../src/appointments/testing/booking-fixtures.js';
 import { SessionService } from '../src/auth/session/session.service.js';
 import { expectErrorResponse } from '../src/common/testing/error-assertions.js';
 import { nowVN, todayVN } from '../src/common/time/time.js';
@@ -101,6 +102,7 @@ describe('B11 — tạo yêu cầu nghỉ phép', () => {
       denNgay: day(5),
       ca: 'CaSang',
       soCaBiAnhHuong: 1,
+      soLichHenDangCo: 0, // B17 (Q22, D14): chưa có lịch hẹn nào trong ca
     });
     const [row] = await db.query(
       `SELECT trang_thai, bac_si_id, nguoi_xu_ly_id, ly_do FROM yeu_cau_nghi_phep`,
@@ -364,10 +366,42 @@ describe('B11 — tạo yêu cầu nghỉ phép', () => {
       );
   });
 
-  it('YN-22 chưa nối booking: phản hồi không có soLichHenDangCo', async () => {
-    const w = await setup();
+  it('YN-22 phản hồi có soLichHenDangCo = số lịch ChoThanhToan/DaXacNhan/DaTiepDon trong các ca bị phủ; lịch đã huỷ và lịch ở ngày khác không tính (B17, D14)', async () => {
+    const w = await setup([5, 6]);
+    const bookings = new BookingFixtures(db);
+    const patientId = (await fx.admin.patient()).account.taiKhoanId;
+    const slotOf = async (ngay: string, index: number) =>
+      String(
+        (
+          await db.query(
+            `SELECT k.khung_gio_id AS id FROM khung_gio k JOIN lich_lam_viec l ON l.lich_lam_viec_id = k.lich_lam_viec_id
+              WHERE l.ngay = ? AND l.ca = 'CaSang' ORDER BY k.ngay_gio LIMIT 1 OFFSET ?`,
+            [ngay, index],
+          )
+        )[0].id,
+      );
+    const book = async (
+      state: 'ChoThanhToan' | 'DaXacNhan' | 'DaTiepDon' | 'DaHuy',
+      ngay: string,
+      index: number,
+    ) =>
+      bookings.appointmentIn(state, {
+        doctor: w.doctor.profile,
+        khungGioId: await slotOf(ngay, index),
+        patientId,
+      });
+    await book('DaXacNhan', day(5), 0);
+    await book('ChoThanhToan', day(5), 1);
+    await book('DaTiepDon', day(5), 2);
+    await book('DaHuy', day(5), 3); // không tính
+    await book('DaXacNhan', day(6), 0); // ngày khác: không tính
+
     const res = await post(caNgay(day(5)), w.token).expect(201);
-    expect(res.body).not.toHaveProperty('soLichHenDangCo');
+    expect(res.body.soLichHenDangCo).toBe(3);
+    expect(res.body.soCaBiAnhHuong).toBe(2);
+    // Nghỉ theo ca chiều của ngày không có lịch ⇒ 0 (không phải vắng trường)
+    const none = await post(theoCa(day(6), 'CaChieu'), w.token).expect(201);
+    expect(none.body.soLichHenDangCo).toBe(0);
   });
 
   it('BD-02 lỗi kiểm dữ liệu có đúng hình dạng chuẩn và loi[] theo trường', async () => {
