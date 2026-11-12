@@ -82,6 +82,29 @@ describe('HD-08 quét mã doctor/ và scheduling/', () => {
   });
 });
 
+describe('PD-19 Duyệt chỉ huỷ lịch qua cancel của booking (H6)', () => {
+  it('mã doctor/ không dùng RefundPort, WaitlistPort hay AppointmentTransitionService: hoàn tiền, mời chờ, đổi trạng thái lịch đều nằm trong cancel của booking', () => {
+    const forbidden =
+      /\b(RefundPort|REFUND_PORT|WaitlistPort|WAITLIST_PORT|AppointmentTransitionService)\b/;
+    const found = listSourceFiles(DOCTOR_DIR).filter((file) =>
+      forbidden.test(stripComments(readSource(file))),
+    );
+    expect(found).toEqual([]);
+  });
+
+  it('DoctorModule import AppointmentsModule (một chiều doctor → appointments), cây vẫn không có chu trình', async () => {
+    const { AppointmentsModule } =
+      await import('../appointments/appointments.module.js');
+    const tree = await walkModuleTree(DoctorModule);
+    expect(tree.cycle).toBeNull();
+    expect(tree.references.has(AppointmentsModule)).toBe(true);
+    const fromAppointments = await walkModuleTree(AppointmentsModule);
+    expect(names(fromAppointments.references.keys())).not.toContain(
+      'DoctorModule',
+    );
+  });
+});
+
 describe('bộ duyệt cây import thật sự bắt được lỗi (ca đột biến)', () => {
   it('phát hiện chu trình giữa hai module', async () => {
     @Module({ imports: [forwardRef(() => ModuleB)] })
