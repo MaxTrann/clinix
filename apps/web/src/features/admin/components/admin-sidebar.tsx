@@ -72,7 +72,12 @@ const MENU_GROUPS: MenuGroup[] = [
         // doctor F6; trang do module `doctor` làm, ghi bằng chữ để không import chéo features/
         to: `${ROLE_HOME_PATHS.QuanTriVien}/lich-lam-viec-bac-si`,
       },
-      { label: 'Duyệt yêu cầu', icon: 'approvals' },
+      {
+        label: 'Duyệt yêu cầu',
+        icon: 'approvals',
+        // doctor F8; ghi bằng chữ để không import chéo features/
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/duyet-yeu-cau`,
+      },
       { label: 'Danh sách chờ', icon: 'list' },
     ],
   },
