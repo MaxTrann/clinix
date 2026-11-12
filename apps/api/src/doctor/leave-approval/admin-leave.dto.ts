@@ -8,6 +8,7 @@ import {
   ValidateBy,
   type ValidationArguments,
 } from 'class-validator';
+import type { AffectedLeaveItem } from '../../appointments/queries/affected-by-leave.query.js';
 import { PageQueryDto } from '../../common/paging/page-query.dto.js';
 import {
   isCalendarDate,
@@ -103,7 +104,8 @@ export interface LeaveStats {
 
 /**
  * Một dòng danh sách. Danh sách trắng: tên bác sĩ, chuyên khoa, chi nhánh HIỆN TẠI của bác sĩ (Q28); KHÔNG có `lyDo` (thuộc chi tiết),
- * `nguoi_xu_ly_id`, email hay SĐT. Cột "lịch hẹn bị ảnh hưởng" ẩn tới khi booking B11 có (nối ở B17, Q26): không trả 0 giả.
+ * `nguoi_xu_ly_id`, email hay SĐT.
+ * `soLichHenBiAnhHuong` (D13, B17): số lịch `ChoThanhToan`/`DaXacNhan` có `thoi_gian > now` trong khoảng nghỉ (cùng định nghĩa với bước huỷ của Duyệt); `null` với yêu cầu `TuChoi` (không ảnh hưởng ai).
  * `thoiDiemTao`, `thoiDiemXuLy`: ISO 8601 UTC.
  */
 export interface AdminLeaveItem {
@@ -118,11 +120,26 @@ export interface AdminLeaveItem {
   bacSi: { bacSiId: string; hoTen: string };
   chuyenKhoa: { ten: string };
   chiNhanh: { chiNhanhId: string; ten: string };
+  soLichHenBiAnhHuong: number | null;
 }
 
-/** Chi tiết = dòng danh sách + lý do của Bác sĩ (Admin cần để quyết định). Mục "lịch hẹn bị ảnh hưởng" thêm ở B17 (D13). */
+/**
+ * Hộp xác nhận Duyệt (D13, B17; Q32): tổng số lịch, số bệnh nhân khác nhau, số lịch đã đặt cọc, và tối đa `AFFECTED_PREVIEW_LIMIT` lịch đầu theo giờ hẹn.
+ * `tong`, `soBenhNhan`, `soCoCoc` là số thật, không phụ thuộc giới hạn; `conNua` = còn lịch chưa liệt kê. Danh sách trắng của booking: mã lịch hẹn, giờ, trạng thái, họ tên người khám,
+ * tiền cọc; KHÔNG email, SĐT, lý do khám, `benh_nhan_id` (PD-20).
+ */
+export interface AffectedAppointmentsView {
+  tong: number;
+  soBenhNhan: number;
+  soCoCoc: number;
+  conNua: boolean;
+  items: AffectedLeaveItem[];
+}
+
+/** Chi tiết = dòng danh sách + lý do của Bác sĩ (Admin cần để quyết định) + lịch hẹn bị ảnh hưởng (`null` với yêu cầu `TuChoi`). */
 export interface AdminLeaveDetail extends AdminLeaveItem {
   lyDo: string;
+  lichHenBiAnhHuong: AffectedAppointmentsView | null;
 }
 
 export interface AdminLeavePage {

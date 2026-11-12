@@ -103,6 +103,8 @@ describe('B13 — Quản trị viên: danh sách và chi tiết yêu cầu ngh�
         'chuyenKhoa',
         'denNgay',
         'hinhThuc',
+        // B17 (D13): số lịch hẹn bị ảnh hưởng của yêu cầu còn hiệu lực
+        'soLichHenBiAnhHuong',
         'thoiDiemTao',
         'thoiDiemXuLy',
         'trangThai',

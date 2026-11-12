@@ -1322,6 +1322,27 @@ ALTER TABLE `thong_tin_phong_kham` ADD CONSTRAINT `chk_phong_kham_mot_dong` CHEC
 --    AND TIMESTAMPDIFF(SECOND, :now, lh.thoi_gian) >= m.so_gio_truoc_toi_thieu * 3600
 --  ORDER BY m.so_gio_truoc_toi_thieu DESC LIMIT 1;
 
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): LỄ TÂN TIẾP ĐÓN (booking B12; cùng hàm checkIn với thu tiền mặt tại quầy của payment) — chỉ khóa lich_hen THEO KHÓA CHÍNH (6); KHÔNG khóa khung_gio, KHÔNG khóa benh_nhan, không thông báo.
+-- Kiểm LẠI phạm vi chi nhánh, trạng thái, cửa sổ tiếp đón (quy tắc 40: thoi_gian - check_in_truoc_phut <= :now <= thoi_gian + check_in_sau_phut) và còn phải thu = 0 DƯỚI khóa, rồi UPDATE có điều kiện nguồn.
+-- Người gọi payment: gọi checkIn TRƯỚC mọi INSERT vào bảng có khóa ngoại tới lich_hen, hoặc sau khi đã SELECT ... FOR UPDATE hàng lich_hen (ghi bảng con trước rồi mới khóa X: hai lần thu tiền cùng một lịch deadlock 1213).
+-- ============================================================================
+-- SELECT benh_nhan_id, chi_nhanh_id, trang_thai, thoi_gian, chinh_sach_hoan_snapshot FROM lich_hen WHERE lich_hen_id = :lich_hen_id FOR UPDATE;
+-- UPDATE lich_hen SET trang_thai = 'DaTiepDon' WHERE lich_hen_id = :lich_hen_id AND trang_thai = 'DaXacNhan';   -- đúng 1 dòng
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): ĐÁNH VẮNG MẶT một lịch (booking B12; cùng hàm markNoShow cho Lễ tân, job tự Vắng mặt B13 và Quản trị viên override B14) — MỘT giao dịch READ COMMITTED;
+-- thứ tự khóa: benh_nhan (2) rồi lich_hen THEO KHÓA CHÍNH (6); KHÔNG khóa khung_gio (khung giờ giữ DaDat). benh_nhan_id là tài khoản ĐẶT, kể cả lịch của hồ sơ người thân (Q14).
+-- Lưu ý đã đo: mọi UPDATE lich_hen SET trang_thai xin NGẦM khóa S trên hàng benh_nhan của chủ lịch (chỉ mục khóa ngoại lich_hen_index_9 có cột trang_thai) nên có thể deadlock 1213 với đổi trạng thái của CÙNG lịch; thử lại ≤ 2 lần.
+-- ============================================================================
+-- SELECT benh_nhan_id, chi_nhanh_id FROM lich_hen WHERE lich_hen_id = :lich_hen_id;   -- đọc thường, cột bất biến
+-- SELECT so_lan_no_show, khoa_dat_lich_do_no_show FROM benh_nhan WHERE tai_khoan_id = :benh_nhan_id FOR UPDATE;
+-- SELECT benh_nhan_id, chi_nhanh_id, trang_thai, thoi_gian, chinh_sach_hoan_snapshot FROM lich_hen WHERE lich_hen_id = :lich_hen_id FOR UPDATE;
+-- UPDATE lich_hen SET trang_thai = 'VangMat' WHERE lich_hen_id = :lich_hen_id AND trang_thai = :trang_thai_nguon_da_doc;   -- đúng 1 dòng
+-- UPDATE benh_nhan SET so_lan_no_show = so_lan_no_show + 1 WHERE tai_khoan_id = :benh_nhan_id;
+-- SELECT so_lan_no_show, khoa_dat_lich_do_no_show FROM benh_nhan WHERE tai_khoan_id = :benh_nhan_id;
+-- UPDATE benh_nhan SET khoa_dat_lich_do_no_show = 1 WHERE tai_khoan_id = :benh_nhan_id AND khoa_dat_lich_do_no_show = 0;   -- chỉ khi số mới >= nguong_no_show và cờ đang tắt; ROW_COUNT 1 = vừa khóa
+
 
 -- P7 (28/10/2026): bổ sung quản lý ảnh Cloudinary; giữ URL chuyên khoa cũ.
 CREATE TABLE `anh_tai_len` (

@@ -2,6 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AppException } from '../../common/errors/app.exception.js';
 import { BranchHoursReader } from '../../scheduling/branch-hours/branch-hours.reader.js';
 import { LeaveReader } from '../../scheduling/leave/leave.reader.js';
+import {
+  APPOINTMENT_LEAVE_READ_PORT,
+  type AppointmentLeaveReadPort,
+} from '../leave-approval/appointment-leave-read.port.js';
 import { ShiftQueries } from '../../scheduling/shifts/shift-queries.js';
 import { SHIFT_ERROR_CODES } from '../shifts/shift-assignment.constants.js';
 import {
@@ -50,6 +54,8 @@ export class ScheduleGridService {
     @Inject(ShiftQueries) private readonly shifts: ShiftQueries,
     @Inject(LeaveReader) private readonly leaves: LeaveReader,
     @Inject(BranchHoursReader) private readonly branchHours: BranchHoursReader,
+    @Inject(APPOINTMENT_LEAVE_READ_PORT)
+    private readonly appointments: AppointmentLeaveReadPort,
   ) {}
 
   listDoctors(
@@ -115,6 +121,10 @@ export class ScheduleGridService {
       denNgay,
     });
     const hours = await this.branchHours.loadMany(em, hoursPairsOf(shifts));
+    // D14 (B17, Q18): một lần đếm số lịch hẹn cho mọi ca của trang
+    const activeCounts = await this.appointments.countByShifts(
+      shifts.map((shift) => shift.lichLamViecId),
+    );
 
     return {
       tuNgay,
@@ -128,7 +138,9 @@ export class ScheduleGridService {
           ...doctor,
           ca: shifts
             .filter((shift) => shift.bacSiId === doctor.bacSiId)
-            .map((shift) => toShiftView(shift, { leaves: myLeaves, hours })),
+            .map((shift) =>
+              toShiftView(shift, { activeCounts, leaves: myLeaves, hours }),
+            ),
         };
       }),
     };

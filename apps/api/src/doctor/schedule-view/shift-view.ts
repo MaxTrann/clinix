@@ -23,10 +23,13 @@ export interface DoctorScheduleShift {
   ketThuc: string | null;
   gioCaKhongCon: boolean;
   nghiPhep: LeaveState | null;
-  // `soLichHen` cố ý KHÔNG có: chưa có booking D14 thì không hiện "0 lịch" sai (XL-18, Q18).
+  /** Số lịch hẹn đang có của ca (D14, B17: `ChoThanhToan`, `DaXacNhan`, `DaTiepDon`; Q18). Chỉ số lượng, không tên bệnh nhân (XL-18). */
+  soLichHen: number;
 }
 
 export interface ShiftViewContext {
+  /** Kết quả `countByShifts` theo `lichLamViecId`; ca không có khoá ⇒ 0 (booking trả `0` cho ca không có lịch). */
+  activeCounts: Readonly<Record<string, number>>;
   leaves: readonly BlockingLeave[];
   hours: ReadonlyMap<string, BranchDayHours | null>;
 }
@@ -60,5 +63,6 @@ export function toShiftView(
     chiNhanh: { chiNhanhId: shift.chiNhanhId, ten: shift.chiNhanhTen },
     ...shiftHours(shift.ca, hours),
     nghiPhep: leaveStateForShift(context.leaves, shift),
+    soLichHen: context.activeCounts[shift.lichLamViecId] ?? 0,
   };
 }

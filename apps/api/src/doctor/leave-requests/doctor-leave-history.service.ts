@@ -1,13 +1,19 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppException } from '../../common/errors/app.exception.js';
 import { COMMON_ERROR_CODES } from '../../common/errors/error-codes.js';
 import type { Paged } from '../../common/paging/paged.js';
+import { nowVN, todayVN } from '../../common/time/time.js';
 import { runReadOnly } from '../../common/transaction/read-only-tx.js';
+import {
+  APPOINTMENT_LEAVE_READ_PORT,
+  type AppointmentLeaveReadPort,
+} from '../leave-approval/appointment-leave-read.port.js';
 import {
   DoctorLeaveHistoryRepository,
   type LeaveRequestRow,
 } from './doctor-leave-history.repository.js';
+import { countActiveAppointments } from './leave-impact.js';
 import type {
   LeaveHistoryQueryDto,
   LeaveRequestView,
@@ -20,7 +26,11 @@ export class DoctorLeaveHistoryService {
     @Inject(DataSource) private readonly db: DataSource,
     @Inject(DoctorLeaveHistoryRepository)
     private readonly repository: DoctorLeaveHistoryRepository,
+    @Inject(APPOINTMENT_LEAVE_READ_PORT)
+    private readonly appointments: AppointmentLeaveReadPort,
   ) {}
+
+  private readonly logger = new Logger(DoctorLeaveHistoryService.name);
 
   async list(
     bacSiId: string,
@@ -47,12 +57,33 @@ export class DoctorLeaveHistoryService {
   }
 
   async get(bacSiId: string, id: string): Promise<LeaveRequestView> {
-    const row = await runReadOnly(this.db, (em) =>
-      this.repository.findOne(em, bacSiId, id),
-    );
+    const { row, shiftIds } = await runReadOnly(this.db, async (em) => {
+      const found = await this.repository.findOne(em, bacSiId, id);
+      if (found === null) return { row: null, shiftIds: [] as string[] };
+      // Chỉ yêu cầu còn hiệu lực (ChoDuyet/DaDuyet) và chỉ các ca từ hôm nay trở đi mới có "hệ quả" (bước huỷ của Duyệt không đụng lịch đã qua giờ).
+      const today = todayVN(nowVN());
+      const shiftIds =
+        found.trangThai === 'TuChoi'
+          ? []
+          : await this.repository.findShiftIds(em, {
+              bacSiId,
+              tuNgay: found.tuNgay > today ? found.tuNgay : today,
+              denNgay: found.denNgay,
+              ca: found.ca,
+            });
+      return { row: found, shiftIds };
+    });
     // Không có và của người khác: cùng 404, cùng thân.
     if (row === null) throw new AppException(404, COMMON_ERROR_CODES.NOT_FOUND);
-    return toView(row);
+    if (row.trangThai === 'TuChoi') return toView(row);
+    const soLichHenDangCo = await countActiveAppointments(
+      this.appointments,
+      shiftIds,
+      this.logger,
+    );
+    return soLichHenDangCo === undefined
+      ? toView(row)
+      : { ...toView(row), soLichHenDangCo };
   }
 }
 

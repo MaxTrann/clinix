@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { AppException } from '../../common/errors/app.exception.js';
 import { COMMON_ERROR_CODES } from '../../common/errors/error-codes.js';
@@ -14,10 +14,15 @@ import {
 import { LeaveReader } from '../../scheduling/leave/leave.reader.js';
 import { shouldRetry } from '../common/mysql-errors.js';
 import {
+  APPOINTMENT_LEAVE_READ_PORT,
+  type AppointmentLeaveReadPort,
+} from '../leave-approval/appointment-leave-read.port.js';
+import {
   LEAVE_EVENTS,
   LeaveNotifier,
 } from '../notifications/leave-notifier.js';
 import type { CreateLeaveRequestDto } from './doctor-leave.dto.js';
+import { countActiveAppointments } from './leave-impact.js';
 import {
   DoctorLeaveRepository,
   type DoctorForLeave,
@@ -44,7 +49,8 @@ export interface CreatedLeaveRequest {
   ca: CaLamViec | null;
   /** Số ca trong lịch làm việc bị yêu cầu này phủ (Q20). */
   soCaBiAnhHuong: number;
-  // `soLichHenDangCo` (Q22, D14) chưa có: cần booking B11. Thêm ở doctor B17, ẩn chứ không trả 0 khi chưa nối.
+  /** Số lịch hẹn đang có trong các ca bị phủ (Q22, D14, B17). Vắng khi không đọc được `booking` (không hiện số sai). */
+  soLichHenDangCo?: number;
 }
 
 interface ValidatedLeave {
@@ -77,7 +83,11 @@ export class DoctorLeaveService {
     @Inject(LeaveReader) private readonly leaveReader: LeaveReader,
     @Inject(BranchHoursReader) private readonly branchHours: BranchHoursReader,
     @Inject(LeaveNotifier) private readonly notifier: LeaveNotifier,
+    @Inject(APPOINTMENT_LEAVE_READ_PORT)
+    private readonly appointments: AppointmentLeaveReadPort,
   ) {}
+
+  private readonly logger = new Logger(DoctorLeaveService.name);
 
   async create(
     bacSiId: string,
@@ -113,9 +123,18 @@ export class DoctorLeaveService {
     };
     for (let attempt = 0; ; attempt += 1) {
       try {
-        return await this.repository.transaction((em) =>
+        const { created, shiftIds } = await this.repository.transaction((em) =>
           this.createInTransaction(em, input, now, today),
         );
+        // SAU commit: lỗi đọc số lịch hẹn không được làm hỏng một yêu cầu đã tạo (không thể bấm lại: sẽ trùng).
+        const soLichHenDangCo = await countActiveAppointments(
+          this.appointments,
+          shiftIds,
+          this.logger,
+        );
+        return soLichHenDangCo === undefined
+          ? created
+          : { ...created, soLichHenDangCo };
       } catch (error) {
         // Deadlock/hết chờ khoá xảy ra trước commit nên chạy lại cả giao dịch là an toàn.
         if (shouldRetry(error, attempt)) continue;
@@ -129,7 +148,7 @@ export class DoctorLeaveService {
     input: ValidatedLeave,
     now: Date,
     today: string,
-  ): Promise<CreatedLeaveRequest> {
+  ): Promise<{ created: CreatedLeaveRequest; shiftIds: string[] }> {
     // 1. Khoá bác sĩ: mọi kiểm tra bên dưới đúng cho tới khi commit (hai yêu cầu giống hệt chạy lần lượt: DH-02).
     const doctor = await this.repository.lockDoctor(em, input.bacSiId);
     if (doctor === null) {
@@ -184,13 +203,16 @@ export class DoctorLeaveService {
     await this.notifyCreated(em, input, doctor);
 
     return {
-      yeuCauNghiPhepId: id,
-      trangThai: 'ChoDuyet',
-      hinhThuc: input.hinhThuc,
-      tuNgay: input.tuNgay,
-      denNgay: input.denNgay,
-      ca: input.ca,
-      soCaBiAnhHuong: covered.length,
+      created: {
+        yeuCauNghiPhepId: id,
+        trangThai: 'ChoDuyet',
+        hinhThuc: input.hinhThuc,
+        tuNgay: input.tuNgay,
+        denNgay: input.denNgay,
+        ca: input.ca,
+        soCaBiAnhHuong: covered.length,
+      },
+      shiftIds: covered.map((shift) => shift.lichLamViecId),
     };
   }
 

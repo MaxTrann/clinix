@@ -7,7 +7,7 @@ import type {
 // Cổng `doctor` dùng để huỷ lịch hẹn bị ảnh hưởng khi duyệt nghỉ phép (PLAN doctor 5.10 B, D5; task B15).
 // Production chỉ có MỘT bản thật (`BookingCancellationAdapter`), KHÔNG có `Noop` (Q26: Noop âm thầm "không có gì để huỷ" làm Duyệt sai nghĩa).
 // Bản giả chỉ có trong test (thay token bằng `overrideProvider` hoặc dựng service bằng tay).
-// B17 sẽ thêm `listAffected` (D13) và `countByShifts` (D14) vào cổng này.
+// Phần ĐỌC cho hộp xác nhận và số lịch hẹn (D13, D14, B17) nằm ở cổng riêng `AppointmentLeaveReadPort`.
 
 export const APPOINTMENT_CANCELLATION_PORT = Symbol(
   'APPOINTMENT_CANCELLATION_PORT',

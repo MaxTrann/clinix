@@ -214,6 +214,8 @@ describe('B12 — lịch sử và chi tiết yêu cầu nghỉ phép', () => {
         'denNgay',
         'hinhThuc',
         'lyDo',
+        // B17 (Q22, D14): chi tiết yêu cầu còn hiệu lực có số lịch hẹn đang có trong các ca bị phủ (ở đây không có ca nào ⇒ 0)
+        'soLichHenDangCo',
         'thoiDiemTao',
         'thoiDiemXuLy',
         'trangThai',
@@ -221,6 +223,7 @@ describe('B12 — lịch sử và chi tiết yêu cầu nghỉ phép', () => {
         'yeuCauNghiPhepId',
       ].sort(),
     );
+    expect(done.body.soLichHenDangCo).toBe(0);
     expect(done.body).toMatchObject({
       yeuCauNghiPhepId: processed,
       trangThai: 'DaDuyet',

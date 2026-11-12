@@ -8,6 +8,9 @@ export const APPROVAL_ERROR_CODES = {
   EXPIRED: 'YEU_CAU_NGHI_DA_QUA_HAN',
 } as const;
 
+/** Số lịch hẹn tối đa trả kèm trong chi tiết yêu cầu nghỉ (hộp xác nhận Duyệt, D13); `tong` vẫn là tổng thật, `conNua` báo còn lịch chưa liệt kê. `[đề xuất]` */
+export const AFFECTED_PREVIEW_LIMIT = 20;
+
 // Chạy lại huỷ lịch hẹn sau khi duyệt (B16; PLAN doctor 5.8, Q29): sweeper và nút "Xử lý lại" dùng cùng `LeaveCancellationRunner`.
 export const LEAVE_SWEEPER_JOB_NAME = 'doctor-leave-cancellation-sweeper';
 /** Mỗi 5 phút, lệch giây 40 để không trùng nhịp với job hết hạn giữ chỗ của booking (giây 20). `[đề xuất]` */

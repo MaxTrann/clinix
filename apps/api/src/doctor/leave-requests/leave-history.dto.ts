@@ -32,4 +32,6 @@ export interface LeaveRequestView {
   lyDo: string;
   thoiDiemTao: string;
   thoiDiemXuLy: string | null;
+  /** Chỉ ở CHI TIẾT và chỉ yêu cầu ChoDuyet/DaDuyet (Q22, D14, B17): số lịch hẹn đang có trong các ca (từ hôm nay) mà yêu cầu phủ. Vắng khi `TuChoi` hay không đọc được `booking`. */
+  soLichHenDangCo?: number;
 }

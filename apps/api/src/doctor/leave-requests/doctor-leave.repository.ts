@@ -9,6 +9,7 @@ export interface DoctorForLeave {
 }
 
 export interface ShiftInRange {
+  lichLamViecId: string;
   /** Chi nhánh GHI TRÊN CA (có thể khác chi nhánh hiện tại nếu bác sĩ đã chuyển): giờ ca tính theo chi nhánh này. */
   chiNhanhId: string;
   ngay: string;
@@ -71,7 +72,7 @@ export class DoctorLeaveRepository {
     denNgay: string,
   ): Promise<ShiftInRange[]> {
     return em.query(
-      `SELECT CAST(chi_nhanh_id AS CHAR) AS chiNhanhId, DATE_FORMAT(ngay, '%Y-%m-%d') AS ngay, ca
+      `SELECT CAST(lich_lam_viec_id AS CHAR) AS lichLamViecId, CAST(chi_nhanh_id AS CHAR) AS chiNhanhId, DATE_FORMAT(ngay, '%Y-%m-%d') AS ngay, ca
          FROM lich_lam_viec
         WHERE bac_si_id = ? AND ngay >= ? AND ngay <= ?
         ORDER BY ngay ASC, ca ASC`,
