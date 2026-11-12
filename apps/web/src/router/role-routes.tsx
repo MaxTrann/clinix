@@ -20,6 +20,7 @@ import {
   RECEPTION_ROUTES,
   ReceptionLayout,
 } from '../features/patient';
+import { PATIENT_APPOINTMENT_ROUTES } from '../features/booking';
 import { ShellContentError } from '../shared/ui/shell-content-error';
 import { DOCTOR_NAV, PATIENT_NAV, RECEPTION_NAV } from './role-nav';
 
@@ -41,6 +42,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
             element: <Navigate to={PATIENT_PATHS.profile} replace />,
           },
           ...PATIENT_ROUTES,
+          // booking F1: Lịch hẹn của tôi
+          ...PATIENT_APPOINTMENT_ROUTES,
         ],
       },
     ],

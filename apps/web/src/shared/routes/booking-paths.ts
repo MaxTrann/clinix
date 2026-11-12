@@ -24,3 +24,10 @@ export const bookingPaymentPath = (maLichHen: string) =>
   BOOKING_PAYMENT_ROUTE.replace(':maLichHen', encodeURIComponent(maLichHen));
 export const bookingDonePath = (maLichHen: string) =>
   BOOKING_DONE_ROUTE.replace(':maLichHen', encodeURIComponent(maLichHen));
+
+// "Lịch hẹn của tôi" của Bệnh nhân (booking F1, PLAN booking 5.13; tên đường dẫn là [đề xuất]). Đặt cùng file để `router/` (menu, route) và
+// `features/patient` (F2 nối liên kết "Lịch hẹn của tôi" ở relative-errors.ts) dùng chung mà không import chéo `features/`. File này không
+// import gì nên gốc khu Bệnh nhân viết thẳng `/benh-nhan`; ca BP-09 khoá nó khớp `ROLE_HOME_PATHS.BenhNhan`. Đoạn đường là nhãn menu
+// không dấu, như `ho-so-nguoi-kham` của patient.
+export const PATIENT_APPOINTMENTS_SEGMENT = 'lich-hen-cua-toi';
+export const PATIENT_APPOINTMENTS_PATH = `/benh-nhan/${PATIENT_APPOINTMENTS_SEGMENT}`;
