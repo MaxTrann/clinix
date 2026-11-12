@@ -15,7 +15,7 @@ export const TRANSITION_ACTORS = [
   'QuanTriVien', // override (CNTT b6, Q24)
   'BacSi', // chỉ `complete`
   'HeThong', // hết hạn giữ chỗ, duyệt nghỉ phép, job Vắng mặt: điều kiện thời gian/ca của từng luồng kiểm DƯỚI KHOÁ ở B9, B11, B13
-  'ThanhToan', // đường `confirmPaid` (payment thật HOẶC `create` khi cọc 0đ) và `checkIn` của thanh toán offline
+  'ThanhToan', // đường `confirmPaid` của payment (B11) và `checkIn` của thanh toán offline; cọc 0đ KHÔNG đi đường này: `create` INSERT thẳng `DaXacNhan` (B8, TRACKING 3.21 câu (a))
 ] as const;
 export type TransitionActor = (typeof TRANSITION_ACTORS)[number];
 

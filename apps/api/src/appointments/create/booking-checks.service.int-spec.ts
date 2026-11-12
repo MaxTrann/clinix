@@ -2,12 +2,16 @@ import type { DataSource } from 'typeorm';
 import { vi } from 'vitest';
 import { SystemConfigRepository } from '../../admin/system-config/system-config.repository.js';
 import { SystemConfigService } from '../../admin/system-config/system-config.service.js';
-import { AppException } from '../../common/errors/app.exception.js';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
 import { ExamPriceReader } from '../../pricing/exam-price.reader.js';
 import { BranchHoursReader } from '../../scheduling/branch-hours/branch-hours.reader.js';
 import { BookabilityReader } from '../slots/bookability.reader.js';
 import { BOOKABLE_DAY, BookingFixtures } from '../testing/booking-fixtures.js';
+import {
+  bookAtOtherDoctorOf,
+  failureOf,
+  secondDoctorOf,
+} from '../testing/create-appointment-world.js';
 import {
   FakeDoctorLeavePort,
   FakePendingBranchChangesPort,
@@ -70,27 +74,12 @@ async function world() {
       patientId,
       ...options,
     });
-  /** Bác sĩ thứ hai cùng chi nhánh với một ca sáng ngày 10/11: ô i cùng GIỜ với ô i của bác sĩ thế giới. */
-  const secondDoctor = async () => {
-    const doctor = await fx.admin.doctor(w.branch);
-    const { slotIds } = await fx.doctor.shiftWithSlots(doctor.profile, {
-      ngay: BOOKABLE_DAY,
-      ca: 'CaSang',
-    });
-    return { doctor, slotIds };
-  };
+  /** Bác sĩ thứ hai cùng chi nhánh với một ca sáng ngày 10/11: ô i cùng GIỜ với ô i của bác sĩ thế giới (hàm dùng chung với int-spec của B8: `testing/create-appointment-world.ts`). */
+  const secondDoctor = () => secondDoctorOf(fx, w.branch);
   /** Lịch `DaXacNhan` ở ô 0 của MỘT bác sĩ khác (cùng giờ với ô 0 của bác sĩ thế giới); mặc định của Bệnh nhân của thế giới, hồ sơ bản thân. Trả lịch hẹn vừa tạo. */
-  const bookAtOtherDoctor = async (
+  const bookAtOtherDoctor = (
     options: { patientId?: string; hoSoNguoiThanId?: string | null } = {},
-  ) => {
-    const { doctor, slotIds } = await secondDoctor();
-    return fx.appointmentIn('DaXacNhan', {
-      doctor: doctor.profile,
-      khungGioId: slotIds[0]!,
-      patientId,
-      ...options,
-    });
-  };
+  ) => bookAtOtherDoctorOf(fx, w.branch, patientId, options);
   return {
     ...w,
     leave,
@@ -103,23 +92,6 @@ async function world() {
     book,
     secondDoctor,
     bookAtOtherDoctor,
-  };
-}
-
-async function failureOf(promise: Promise<unknown>) {
-  const error = await promise.then(
-    () => null,
-    (e: unknown) => e,
-  );
-  expect(error).toBeInstanceOf(AppException);
-  const exception = error as AppException;
-  return {
-    status: exception.getStatus(),
-    body: exception.getResponse() as {
-      maLoi: string;
-      thongBao: string;
-      chiTiet?: unknown;
-    },
   };
 }
 

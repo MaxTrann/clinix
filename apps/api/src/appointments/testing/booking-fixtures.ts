@@ -196,6 +196,29 @@ export class BookingFixtures {
     return appointment;
   }
 
+  /**
+   * Đặt cọc của một dịch vụ khám (chuỗi decimal, ví dụ `'50000.00'`) và, nếu có, các mốc hoàn `[số giờ trước tối thiểu, tỉ lệ hoàn %]` của nó (task B8, TRACKING 3.21 câu (h)): dựng dữ liệu cọc > 0
+   * cho test mà không đụng seed `booking-demo` (P2b). Gọi lại sẽ THAY cả bộ mốc của dịch vụ đó.
+   */
+  async depositService(
+    dichVuKhamId: string,
+    tienCoc: string,
+    tiers: readonly (readonly [number, number])[] = [],
+  ): Promise<void> {
+    await this.db.query(
+      'UPDATE dich_vu_kham SET muc_dat_coc = ? WHERE dich_vu_kham_id = ?',
+      [tienCoc, dichVuKhamId],
+    );
+    await this.db.query('DELETE FROM moc_hoan_tien WHERE dich_vu_kham_id = ?', [
+      dichVuKhamId,
+    ]);
+    for (const [soGio, tyLe] of tiers)
+      await this.db.query(
+        'INSERT INTO moc_hoan_tien (dich_vu_kham_id, so_gio_truoc_toi_thieu, ty_le_hoan) VALUES (?, ?, ?)',
+        [dichVuKhamId, soGio, tyLe],
+      );
+  }
+
   /** Trạng thái hiện tại của một khung giờ (cho test kiểm trước và sau). */
   async slotState(khungGioId: string): Promise<SlotState> {
     const rows: { trangThai: string; giuChoDen: string | null }[] =
