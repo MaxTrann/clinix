@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { LIST_TEXT, pageLabel } from './list-messages';
+import { COMMON_LIST_TEXT, pageLabel } from './list-text';
 
 interface ListPaginationProps {
   page: number;
@@ -23,16 +23,16 @@ export function ListPagination({
   const steps = [
     {
       key: 'previous',
-      text: LIST_TEXT.previous,
-      name: LIST_TEXT.previousPage,
+      text: COMMON_LIST_TEXT.previous,
+      name: COMMON_LIST_TEXT.previousPage,
       Icon: ChevronLeft,
       target: current - 1,
       disabled: current <= 1,
     },
     {
       key: 'next',
-      text: LIST_TEXT.next,
-      name: LIST_TEXT.nextPage,
+      text: COMMON_LIST_TEXT.next,
+      name: COMMON_LIST_TEXT.nextPage,
       Icon: ChevronRight,
       target: current + 1,
       disabled: current >= pageCount,
@@ -41,7 +41,7 @@ export function ListPagination({
 
   return (
     <nav
-      aria-label={LIST_TEXT.paginationLabel}
+      aria-label={COMMON_LIST_TEXT.paginationLabel}
       className="mt-3 flex items-center justify-end gap-2"
     >
       <span className="text-xs whitespace-nowrap text-gray-600">
@@ -54,7 +54,7 @@ export function ListPagination({
           aria-label={name}
           disabled={disabled}
           onClick={() => onPageChange(target)}
-          className="inline-flex min-h-[2.4rem] items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+          className="inline-flex min-h-[2.4rem] items-center gap-1 rounded-lg border border-gray-500 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
         >
           {key === 'next' && text}
           <Icon aria-hidden="true" className="size-4" />

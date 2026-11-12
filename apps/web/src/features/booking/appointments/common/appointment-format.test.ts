@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  formatVietnamShortDate,
   formatVietnamTime,
   formatVietnamWeekdayDate,
   formatVnd,
   isDecimalAmount,
   isIsoDateTime,
+  isPositiveAmount,
 } from './appointment-format';
 
 // booking F1. LHL-12 (giờ Việt Nam, H1) và LHL-13 (tiền là chuỗi decimal, H4); mã LHL là [đề xuất] (PLAN booking mục 7.31 sau khi duyệt).
@@ -159,5 +161,35 @@ describe('booking F1 — tiền là chuỗi decimal', () => {
     }
     expect(isDecimalAmount('300000.00')).toBe(true);
     expect(isDecimalAmount('0')).toBe(true);
+  });
+});
+
+// booking F8 (Lễ tân): ngày ngắn "18/10" của cột "Ngày & Giờ" (Figma `479:2`) và "còn phải thu" kiểm trên chuỗi. Mã LTL, LTC là [đề xuất] (PLAN booking mục 7.34).
+describe('booking F8 — ngày ngắn và số tiền dương', () => {
+  it('LTL-17 formatVietnamShortDate theo NGÀY giờ Việt Nam: 17:00 UTC đã là ngày hôm sau, qua tháng và qua năm, không năm', () => {
+    expect(formatVietnamShortDate('2026-10-18T01:00:00.000Z')).toBe('18/10');
+    expect(formatVietnamShortDate('2026-10-19T16:59:59.999Z')).toBe('19/10');
+    expect(formatVietnamShortDate('2026-10-19T17:00:00.000Z')).toBe('20/10');
+    expect(formatVietnamShortDate('2026-10-31T17:00:00.000Z')).toBe('01/11');
+    expect(formatVietnamShortDate('2026-12-31T17:00:00.000Z')).toBe('01/01');
+  });
+
+  it('LTC-03 isPositiveAmount chỉ nhìn chữ số của CHUỖI: "0", "0.00" là hết; "0.10", "200000.00" là còn; sai dạng không bao giờ là dương', () => {
+    for (const value of ['0', '0.0', '0.00', '000.00']) {
+      expect(isPositiveAmount(value)).toBe(false);
+    }
+    for (const value of [
+      '0.01',
+      '0.10',
+      '1',
+      '200000.00',
+      '9007199254740993.00',
+    ]) {
+      expect(isPositiveAmount(value)).toBe(true);
+    }
+    // Ca âm: sai dạng thì không coi là còn nợ dù có chữ số khác 0
+    for (const value of ['', 'abc', '-5000.00', '1e6', ' 5', '5 ', '1,5']) {
+      expect(isPositiveAmount(value)).toBe(false);
+    }
   });
 });

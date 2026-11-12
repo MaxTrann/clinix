@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ROLE_HOME_PATHS } from '../../features/auth';
+import { RECEPTION_PATHS } from '../../features/patient';
 import {
   BOOKING_CONFIRM_PATH,
   BOOKING_DONE_ROUTE,
@@ -17,6 +18,8 @@ import {
   PATIENT_APPOINTMENTS_PATH,
   PATIENT_APPOINTMENTS_SEGMENT,
   patientAppointmentDetailPath,
+  RECEPTION_APPOINTMENTS_PATH,
+  RECEPTION_APPOINTMENTS_SEGMENT,
   serviceListPath,
 } from './booking-paths';
 
@@ -178,5 +181,34 @@ describe('booking F2 — đường dẫn chi tiết lịch hẹn', () => {
     expect(
       PATIENT_APPOINTMENT_DETAIL_ROUTE.startsWith(`${BOOKING_PATH}/`),
     ).toBe(false);
+  });
+});
+
+// booking F8. Mã ca BP-11 là [đề xuất] (PLAN booking mục 7.18 và 7.34). Cùng nếp BP-09: gốc `/le-tan` viết chữ ở `booking-paths.ts` nên ca này giữ nó khớp
+// `ROLE_HOME_PATHS.LeTan`, đoạn đường là nhãn menu không dấu và đường dẫn không trùng trang nào đã có của khu Lễ tân hay của luồng đặt lịch.
+describe('booking F8 — đường dẫn "Quản lý lịch hẹn" của Lễ tân', () => {
+  it('BP-11 nằm dưới gốc khu Lễ tân, đoạn đường là nhãn menu không dấu, khác mọi đường dẫn đã có', () => {
+    expect(RECEPTION_APPOINTMENTS_SEGMENT).toBe('quan-ly-lich-hen');
+    expect(RECEPTION_APPOINTMENTS_PATH).toBe('/le-tan/quan-ly-lich-hen');
+    // Khớp gốc khu Lễ tân của auth: đổi `ROLE_HOME_PATHS.LeTan` mà quên file này thì ca đỏ
+    expect(RECEPTION_APPOINTMENTS_PATH).toBe(
+      `${ROLE_HOME_PATHS.LeTan}/${RECEPTION_APPOINTMENTS_SEGMENT}`,
+    );
+
+    // Ca âm: không trùng gốc của bốn khu, hai trang đã có của khu Lễ tân (patient), không nằm trong luồng đặt lịch, không trùng Bước 4–6
+    const taken = [
+      ...Object.values(ROLE_HOME_PATHS),
+      RECEPTION_PATHS.lookup,
+      RECEPTION_PATHS.profile,
+      BOOKING_PATH,
+      BOOKING_INFO_PATH,
+      BOOKING_CONFIRM_PATH,
+      BOOKING_PAYMENT_ROUTE,
+      BOOKING_DONE_ROUTE,
+    ];
+    expect(taken).not.toContain(RECEPTION_APPOINTMENTS_PATH);
+    expect(RECEPTION_APPOINTMENTS_PATH.startsWith(`${BOOKING_PATH}/`)).toBe(
+      false,
+    );
   });
 });

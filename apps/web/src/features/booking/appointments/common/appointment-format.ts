@@ -49,6 +49,12 @@ export function formatVietnamWeekdayDate(iso: string): string {
   return `${WEEKDAY_LABELS[weekday]}, ${day}/${month}/${year}`;
 }
 
+// ISO UTC ⇒ "18/10" theo NGÀY giờ Việt Nam, không năm (Figma Lễ tân `479:2`: ô "Ngày & Giờ" ghi giờ rồi ngày ngắn). Cùng cách lấy ngày như trên: không cắt chuỗi, không theo múi giờ máy.
+export function formatVietnamShortDate(iso: string): string {
+  const { month, day } = vietnamParts(iso);
+  return `${day}/${month}`;
+}
+
 // ISO UTC ⇒ "08:00" theo giờ Việt Nam (00:00 đến 23:59)
 export function formatVietnamTime(iso: string): string {
   const { hour, minute } = vietnamParts(iso);
@@ -69,4 +75,10 @@ export function formatVnd(amount: string): string {
   if (match === null) throw new RangeError(`Số tiền không hợp lệ: ${amount}`);
   const integerPart = match[1].replace(/^0+(?=\d)/, '');
   return `${integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}đ`;
+}
+
+// Số tiền decimal có lớn hơn 0 không, kiểm trên CHUỖI (không qua `Number`): chuỗi đã đúng dạng `DECIMAL_AMOUNT` nên chỉ cần có một chữ số khác 0 ("0", "0.00" là
+// không còn gì; "0.10" và "200000.00" là còn). Dùng cho "còn phải thu" của Lễ tân: nơi gọi KHÔNG tính tiền, chỉ hỏi còn hay hết.
+export function isPositiveAmount(value: string): boolean {
+  return DECIMAL_AMOUNT.test(value) && /[1-9]/.test(value);
 }

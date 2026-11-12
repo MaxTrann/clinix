@@ -4,15 +4,15 @@ import { Link, useParams } from 'react-router';
 import { PATIENT_APPOINTMENTS_PATH } from '../../../../../shared/routes/booking-paths';
 import { ErrorState } from '../../../../../shared/ui/error-state';
 import { LoadingState } from '../../../../../shared/ui/loading-state';
+import {
+  classifyDetailError,
+  type DetailErrorKind,
+} from '../../common/error-kinds';
 import { LIST_TEXT } from '../list-messages';
 import { CancelSection } from './cancel-section';
 import { DetailCostCard } from './detail-cost';
 import { DetailInfoCard, RecordCard } from './detail-info';
-import {
-  classifyDetailError,
-  DETAIL_TEXT,
-  type DetailErrorKind,
-} from './detail-messages';
+import { DETAIL_TEXT } from './detail-messages';
 import { DetailSummary } from './detail-summary';
 import { DetailTimeline } from './detail-timeline';
 import { useAppointmentDetail } from './use-appointment-detail';

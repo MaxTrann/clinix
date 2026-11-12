@@ -1,24 +1,12 @@
 import { Link } from 'react-router';
 import { BOOKING_PATH } from '../../../../shared/routes/booking-paths';
-import { ErrorState } from '../../../../shared/ui/error-state';
 import { LoadingState } from '../../../../shared/ui/loading-state';
+import { ListFailure } from '../common/list-failure';
+import { ListPagination } from '../common/list-pagination';
 import { AppointmentTable } from './appointment-table';
-import { LIST_TEXT, classifyListError, shownLabel } from './list-messages';
-import { ListPagination } from './list-pagination';
+import { LIST_TEXT, shownLabel } from './list-messages';
 import { StatusTabs } from './status-tabs';
 import type { AppointmentListController } from './use-appointment-list';
-
-// Thông báo lỗi có câu riêng theo `maLoi` (phiên hết hạn, không đủ quyền): không có `Thử lại` vì cùng yêu cầu sẽ cùng kết quả
-function ListAlert({ message }: { message: string }) {
-  return (
-    <p
-      role="alert"
-      className="my-2 rounded-xl border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger-strong"
-    >
-      {message}
-    </p>
-  );
-}
 
 // Rỗng có hai câu khác nhau: chưa có lịch nào (kèm nút đặt lịch) và có lịch nhưng không khớp bộ lọc (kèm nút xoá bộ lọc)
 function EmptyList({ list }: { list: AppointmentListController }) {
@@ -59,14 +47,7 @@ export function AppointmentResults({
     return <LoadingState message={LIST_TEXT.loading} />;
   }
   if (view.kind === 'error') {
-    const kind = classifyListError(view.error);
-    if (kind === 'session') {
-      return <ListAlert message={LIST_TEXT.sessionExpired} />;
-    }
-    if (kind === 'forbidden') {
-      return <ListAlert message={LIST_TEXT.forbidden} />;
-    }
-    return <ErrorState error={view.error} onRetry={list.retry} />;
+    return <ListFailure error={view.error} onRetry={list.retry} />;
   }
 
   const { data, refreshing } = view;

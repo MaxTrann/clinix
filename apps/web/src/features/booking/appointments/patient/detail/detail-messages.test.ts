@@ -12,35 +12,11 @@ import {
   TIMEOUT_ERROR_MESSAGE,
 } from '../../../../../shared/api/error-message';
 import { LIST_TEXT } from '../list-messages';
-import {
-  classifyDetailError,
-  describeCancelError,
-  DETAIL_TEXT,
-} from './detail-messages';
+import { describeCancelError, DETAIL_TEXT } from './detail-messages';
 
 // booking F2: chọn câu lỗi theo `maLoi`, KHÔNG theo mã HTTP hay `thongBao` (CODING_CONVENTION; PLAN 5.14). Mã LCT, HHL là [đề xuất] (PLAN booking mục 7.33).
 const api = (status: number, maLoi: string, chiTiet?: unknown) =>
   new ApiError(status, { maLoi, thongBao: 'Lỗi giả', chiTiet });
-
-describe('classifyDetailError', () => {
-  it('LCT-06 theo maLoi: KHONG_TIM_THAY, CHUA_DANG_NHAP, KHONG_DU_QUYEN; còn lại là other', () => {
-    expect(classifyDetailError(api(404, 'KHONG_TIM_THAY'))).toBe('notFound');
-    expect(classifyDetailError(api(401, 'CHUA_DANG_NHAP'))).toBe('session');
-    expect(classifyDetailError(api(403, 'KHONG_DU_QUYEN'))).toBe('forbidden');
-    expect(classifyDetailError(new NetworkError())).toBe('other');
-    expect(classifyDetailError(new TimeoutError())).toBe('other');
-    expect(classifyDetailError(new UnexpectedResponseError(502))).toBe('other');
-    expect(classifyDetailError('lỗi lạ')).toBe('other');
-  });
-
-  it('LCT-06 maLoi lạ cùng HTTP 404, 403, 401 hay 500 ⇒ other (không theo mã HTTP)', () => {
-    for (const status of [401, 403, 404, 409, 500, 503]) {
-      expect(classifyDetailError(api(status, 'MA_LA'))).toBe('other');
-    }
-    // Ngược lại: KHONG_TIM_THAY dù HTTP khác 404 vẫn là notFound (chọn theo maLoi)
-    expect(classifyDetailError(api(500, 'KHONG_TIM_THAY'))).toBe('notFound');
-  });
-});
 
 describe('describeCancelError', () => {
   it('HHL-08 409 LICH_HEN_KHONG_CHO_HUY: DaHuy có câu riêng, trạng thái khác nêu nhãn, thiếu hay lạ ⇒ câu chung; luôn dừng và tải lại chi tiết', () => {

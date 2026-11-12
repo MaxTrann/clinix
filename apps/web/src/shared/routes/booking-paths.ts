@@ -42,3 +42,9 @@ export const patientAppointmentDetailPath = (maLichHen: string) =>
     ':maLichHen',
     encodeURIComponent(maLichHen),
   );
+
+// "Quản lý lịch hẹn" của Lễ tân (booking F8, BP-11; tên đường dẫn là [đề xuất], Đại duyệt 12/11/2026). `*_SEGMENT` là mẫu TƯƠNG ĐỐI với `/le-tan` cho route con của
+// khung Lễ tân (`RECEPTION_APPOINTMENT_ROUTES`), `*_PATH` là đường dẫn đầy đủ cho mục menu. File này không import gì nên gốc khu Lễ tân viết thẳng `/le-tan`; ca BP-11 khoá
+// nó khớp `ROLE_HOME_PATHS.LeTan`. Đoạn đường là nhãn menu không dấu (như `tra-cuu-benh-nhan` của patient). Chi tiết một lịch là ngăn kéo trên cùng trang, không có đường dẫn riêng.
+export const RECEPTION_APPOINTMENTS_SEGMENT = 'quan-ly-lich-hen';
+export const RECEPTION_APPOINTMENTS_PATH = `/le-tan/${RECEPTION_APPOINTMENTS_SEGMENT}`;

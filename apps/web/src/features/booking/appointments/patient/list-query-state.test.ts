@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   INITIAL_QUERY,
   hasActiveFilters,
-  isDateRangeValid,
   queryReducer,
   type ListQueryState,
   type QueryAction,
@@ -49,28 +48,6 @@ describe('booking F1 — máy trạng thái bộ lọc', () => {
       page: 4,
     };
     expect(queryReducer(busy, { type: 'reset' })).toEqual(INITIAL_QUERY);
-  });
-
-  it('LHL-18 khoảng ngày: thiếu một đầu, hai đầu bằng nhau và đúng thứ tự là hợp lệ; đảo ngược là không', () => {
-    expect(isDateRangeValid({ from: '', to: '' })).toBe(true);
-    expect(isDateRangeValid({ from: '2026-10-01', to: '' })).toBe(true);
-    expect(isDateRangeValid({ from: '', to: '2026-10-01' })).toBe(true);
-    expect(isDateRangeValid({ from: '2026-10-20', to: '2026-10-20' })).toBe(
-      true,
-    );
-    expect(isDateRangeValid({ from: '2026-10-19', to: '2026-10-20' })).toBe(
-      true,
-    );
-    expect(isDateRangeValid({ from: '2026-10-20', to: '2026-10-19' })).toBe(
-      false,
-    );
-    // So sánh chuỗi là so sánh ngày, kể cả qua tháng và qua năm
-    expect(isDateRangeValid({ from: '2026-12-31', to: '2027-01-01' })).toBe(
-      true,
-    );
-    expect(isDateRangeValid({ from: '2027-01-01', to: '2026-12-31' })).toBe(
-      false,
-    );
   });
 
   it('LHL-18 ô ngày sai thứ tự ⇒ GIỮ khoảng đã áp dụng và trang, chỉ đổi chữ trong ô; sửa lại hợp lệ thì áp dụng và về trang 1', () => {
