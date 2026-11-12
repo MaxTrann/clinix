@@ -14,7 +14,7 @@ type Settled = {
 };
 
 // Tải hồ sơ khi trang mở (và mỗi lần bấm "Thử lại"); huỷ khi gỡ trang để kết quả muộn không cập nhật trang đã gỡ.
-// Trạng thái "đang tải" suy ra từ số lần gọi (`attempt`) thay vì setState trong effect, như features/search/specialties/use-remote.ts.
+// Trạng thái "đang tải" suy ra từ số lần gọi (`attempt`) thay vì setState trong effect, như shared/hooks/use-remote.ts.
 export function useProfile(): {
   state: ProfileLoad;
   retry: () => void;

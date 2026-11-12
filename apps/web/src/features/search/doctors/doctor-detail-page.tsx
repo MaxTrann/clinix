@@ -9,7 +9,7 @@ import type { DoctorDetail } from '../api/search-types';
 import { doctorInitials, doctorTitleLabel } from '../format/doctor-title';
 import { formatMoney } from '../format/money';
 import { DOCTOR_TEAM_PATH } from '../search-paths';
-import { useRemote } from '../use-remote';
+import { useRemote } from '../../../shared/hooks/use-remote';
 import { NO_RATING_LABEL } from './doctor-card';
 import {
   ClinicPanel,

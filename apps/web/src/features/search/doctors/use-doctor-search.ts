@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSelectedBranch } from '../../../shared/branch-selection';
 import { getBranches, getDoctors } from '../api/search-service';
-import { useRemote } from '../use-remote';
+import { useRemote } from '../../../shared/hooks/use-remote';
 import {
   DEFAULT_SORT,
   hasFilterErrors,

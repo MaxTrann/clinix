@@ -13,7 +13,7 @@ import { getServiceGroups } from '../api/search-service';
 import type { ServiceGroupItem } from '../api/search-types';
 import { formatMoney } from '../format/money';
 import { serviceListPath } from '../search-paths';
-import { useRemote } from '../use-remote';
+import { useRemote } from '../../../shared/hooks/use-remote';
 
 export const SERVICE_GROUP_EMPTY_MESSAGE = 'Chưa có nhóm dịch vụ nào.';
 export const COMING_SOON_LABEL = 'Sắp triển khai';

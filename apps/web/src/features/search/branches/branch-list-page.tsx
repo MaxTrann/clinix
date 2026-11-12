@@ -8,7 +8,7 @@ import { LoadingState } from '../../../shared/ui/loading-state';
 import { searchBranches } from '../api/search-service';
 import type { BranchSummary } from '../api/search-types';
 import { selectedFirst } from './selected-first';
-import { useRemote } from '../use-remote';
+import { useRemote } from '../../../shared/hooks/use-remote';
 
 export const BRANCH_SEARCH_DEBOUNCE_MS = 300;
 export const BRANCH_EMPTY_MESSAGE = 'Không tìm thấy kết quả phù hợp.';
