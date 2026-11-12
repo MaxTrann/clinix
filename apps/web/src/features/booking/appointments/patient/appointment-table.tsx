@@ -1,3 +1,5 @@
+import { Link } from 'react-router';
+import { patientAppointmentDetailPath } from '../../../../shared/routes/booking-paths';
 import {
   formatVietnamTime,
   formatVietnamWeekdayDate,
@@ -5,7 +7,7 @@ import {
 } from '../common/appointment-format';
 import { StatusChip } from '../common/status-chip';
 import type { PatientAppointment } from './api/patient-appointment-types';
-import { LIST_TEXT } from './list-messages';
+import { detailLinkSuffix, LIST_TEXT } from './list-messages';
 
 const HEADER_CELL = 'px-3.5 py-2.5 text-xs font-semibold text-gray-700';
 const BODY_CELL = 'px-3.5 py-3 align-middle';
@@ -42,16 +44,16 @@ function AppointmentRow({ appointment }: { appointment: PatientAppointment }) {
         <StatusChip status={appointment.trangThai} />
       </td>
       <td className={BODY_CELL}>
-        {/* Route chi tiết chưa có tới F2: nút vô hiệu như mục menu chưa có trang, không có liên kết nào dẫn tới 404 */}
-        <button
-          type="button"
-          disabled
-          title={LIST_TEXT.detailTitle}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 disabled:cursor-not-allowed"
+        {/* F2 bật liên kết tới trang chi tiết. Tên truy cập kèm mã lịch hẹn để các liên kết `Chi tiết` trong bảng phân biệt được với nhau */}
+        <Link
+          to={patientAppointmentDetailPath(appointment.maLichHen)}
+          className="inline-block rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           {LIST_TEXT.detail}
-          <span className="sr-only">{LIST_TEXT.detailHiddenNote}</span>
-        </button>
+          <span className="sr-only">
+            {detailLinkSuffix(appointment.maLichHen)}
+          </span>
+        </Link>
       </td>
     </tr>
   );

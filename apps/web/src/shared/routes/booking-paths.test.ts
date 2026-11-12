@@ -12,8 +12,11 @@ import {
   bookingInfoPath,
   bookingPaymentPath,
   doctorListPath,
+  PATIENT_APPOINTMENT_DETAIL_ROUTE,
+  PATIENT_APPOINTMENT_DETAIL_SEGMENT,
   PATIENT_APPOINTMENTS_PATH,
   PATIENT_APPOINTMENTS_SEGMENT,
+  patientAppointmentDetailPath,
   serviceListPath,
 } from './booking-paths';
 
@@ -133,5 +136,47 @@ describe('booking F1 — đường dẫn "Lịch hẹn của tôi"', () => {
     expect(PATIENT_APPOINTMENTS_PATH.startsWith(`${BOOKING_PATH}/`)).toBe(
       false,
     );
+  });
+});
+
+// booking F2. Mã ca BP-10 là [đề xuất] (PLAN booking mục 7.33 sau khi duyệt). Đường dẫn chi tiết nằm dưới danh sách; mẫu tương đối (cho route con) và mẫu
+// đầy đủ khớp nhau, hàm dựng mã hoá ký tự đặc biệt của mã lịch hẹn và không trùng đường dẫn nào đã có.
+describe('booking F2 — đường dẫn chi tiết lịch hẹn', () => {
+  it('BP-10 mẫu route khớp hàm dựng, mã được mã hoá, khác mọi đường dẫn đã có', () => {
+    expect(PATIENT_APPOINTMENT_DETAIL_SEGMENT).toBe(
+      'lich-hen-cua-toi/:maLichHen',
+    );
+    expect(PATIENT_APPOINTMENT_DETAIL_ROUTE).toBe(
+      `${PATIENT_APPOINTMENTS_PATH}/:maLichHen`,
+    );
+    // Mẫu đầy đủ = gốc khu Bệnh nhân + mẫu tương đối (cùng nếp BP-09)
+    expect(PATIENT_APPOINTMENT_DETAIL_ROUTE).toBe(
+      `${ROLE_HOME_PATHS.BenhNhan}/${PATIENT_APPOINTMENT_DETAIL_SEGMENT}`,
+    );
+
+    expect(patientAppointmentDetailPath('CP20261018001')).toBe(
+      '/benh-nhan/lich-hen-cua-toi/CP20261018001',
+    );
+    // Ca âm: ký tự đặc biệt không làm vỡ URL hay thoát khỏi đoạn đường (không có `/`, `?`, `#` trần)
+    const encoded = patientAppointmentDetailPath('A/B?c#d e');
+    expect(encoded).toBe('/benh-nhan/lich-hen-cua-toi/A%2FB%3Fc%23d%20e');
+    expect(patientAppointmentDetailPath('$&')).toBe(
+      '/benh-nhan/lich-hen-cua-toi/%24%26',
+    );
+
+    // Không trùng danh sách, gốc bốn khu hay đường dẫn của luồng đặt lịch
+    const taken = [
+      ...Object.values(ROLE_HOME_PATHS),
+      PATIENT_APPOINTMENTS_PATH,
+      BOOKING_PATH,
+      BOOKING_INFO_PATH,
+      BOOKING_CONFIRM_PATH,
+      BOOKING_PAYMENT_ROUTE,
+      BOOKING_DONE_ROUTE,
+    ];
+    expect(taken).not.toContain(PATIENT_APPOINTMENT_DETAIL_ROUTE);
+    expect(
+      PATIENT_APPOINTMENT_DETAIL_ROUTE.startsWith(`${BOOKING_PATH}/`),
+    ).toBe(false);
   });
 });

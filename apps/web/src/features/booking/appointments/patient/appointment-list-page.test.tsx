@@ -563,7 +563,8 @@ describe('dòng lịch hẹn', () => {
     expect(document.body.textContent).not.toContain('LEAK');
   });
 
-  it('LHL-24 nút `Chi tiết` vô hiệu (không phải liên kết, không dẫn tới 404); `Đặt lịch khám` trỏ /dat-lich', async () => {
+  // Phần "Chi tiết vô hiệu" của LHL-24 hết hiệu lực khi F2 bật liên kết (thay bằng LCT-08 dưới đây); phần `Đặt lịch khám` giữ nguyên
+  it('LHL-24 `Đặt lịch khám` trỏ /dat-lich', async () => {
     renderListPage({
       before: (api) => {
         api.appointments = makeAppointments(3);
@@ -571,19 +572,49 @@ describe('dòng lịch hẹn', () => {
     });
     await loaded();
 
-    const details = screen.getAllByRole('button', { name: /^Chi tiết/ });
-    expect(details).toHaveLength(3);
-    for (const button of details) expect(button).toBeDisabled();
-    expect(
-      screen
-        .queryAllByRole('link')
-        .filter((link) => link.textContent?.includes('Chi tiết')),
-    ).toEqual([]);
-    expect(document.querySelector('a[href*="lich-hen-cua-toi"]')).toBeNull();
     expect(screen.getByRole('link', { name: 'Đặt lịch khám' })).toHaveAttribute(
       'href',
       '/dat-lich',
     );
+  });
+
+  it('LCT-08 nút `Chi tiết` là liên kết tới trang chi tiết của ĐÚNG lịch, tên truy cập kèm mã để phân biệt; mã có ký tự đặc biệt được mã hoá; không còn nút vô hiệu', async () => {
+    renderListPage({
+      before: (api) => {
+        api.appointments = [
+          ...makeAppointments(2),
+          makeAppointment({ maLichHen: 'CP/X?1', trangThai: 'DaHuy' }),
+        ];
+      },
+    });
+    await loaded();
+
+    const links = screen.getAllByRole('link', { name: /^Chi tiết/ });
+    expect(links).toHaveLength(3);
+    const rows = within(
+      screen.getByRole('region', { name: LIST_TEXT.resultsRegion }),
+    )
+      .getAllByRole('row')
+      .slice(1);
+    expect(
+      links.map((link) => [link.getAttribute('href'), link.textContent]),
+    ).toEqual([
+      [
+        '/benh-nhan/lich-hen-cua-toi/CP20261000001',
+        'Chi tiết lịch hẹn CP20261000001',
+      ],
+      [
+        '/benh-nhan/lich-hen-cua-toi/CP20261000002',
+        'Chi tiết lịch hẹn CP20261000002',
+      ],
+      ['/benh-nhan/lich-hen-cua-toi/CP%2FX%3F1', 'Chi tiết lịch hẹn CP/X?1'],
+    ]);
+    // Mỗi liên kết nằm đúng ở dòng của lịch đó, và tên truy cập của chúng khác nhau
+    links.forEach((link, index) => expect(rows[index]).toContainElement(link));
+    expect(new Set(links.map((link) => link.getAttribute('href'))).size).toBe(
+      3,
+    );
+    expect(screen.queryByRole('button', { name: /^Chi tiết/ })).toBeNull();
   });
 });
 

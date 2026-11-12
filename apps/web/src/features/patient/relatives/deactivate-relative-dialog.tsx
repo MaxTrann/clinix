@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router';
 import { useModalDialog } from '../../../shared/hooks/use-modal-dialog';
+import { PATIENT_APPOINTMENTS_PATH } from '../../../shared/routes/booking-paths';
 import { FormAlert } from '../profile/profile-field';
 import { useMounted } from '../profile/use-mounted';
 import {
@@ -174,6 +176,13 @@ export function DeactivateRelativeDialog({
               >
                 {BLOCKED_MESSAGE}
               </p>
+              {/* booking F2: nối tới "Lịch hẹn của tôi" (TRACKING patient mục 5, Q11). Đường dẫn dùng chung ở `shared/routes`, nên `patient` không import `booking`. */}
+              <Link
+                to={PATIENT_APPOINTMENTS_PATH}
+                className="mt-2 inline-block text-sm font-medium text-brand-strong underline"
+              >
+                Mở Lịch hẹn của tôi
+              </Link>
               <ol
                 aria-label="Lịch hẹn đang chặn"
                 className="mt-4 flex flex-col gap-3"

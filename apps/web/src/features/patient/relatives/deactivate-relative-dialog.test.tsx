@@ -7,7 +7,9 @@ import {
   within,
 } from '@testing-library/react';
 import { StrictMode, useRef, useState } from 'react';
+import { MemoryRouter, useLocation } from 'react-router';
 import { GENERIC_ERROR_MESSAGE } from '../../../shared/api/error-message';
+import { PATIENT_APPOINTMENTS_PATH } from '../../../shared/routes/booking-paths';
 import { apiError } from '../../../test/fake-auth-api';
 import { logout } from '../../auth';
 import { getAuthState } from '../../auth/auth-store';
@@ -106,9 +108,19 @@ function Host({
   );
 }
 
+// booking F2: pha bị chặn có `<Link>` tới "Lịch hẹn của tôi" nên hộp thoại phải nằm trong Router. `Where` cho test đọc đường dẫn hiện tại.
+function Where() {
+  return <output data-testid="where">{useLocation().pathname}</output>;
+}
+
 async function openDialog(props: HostProps = {}, strict = false) {
   const api = await setUpApi({}, SAMPLE_RELATIVES);
-  const host = <Host {...props} />;
+  const host = (
+    <MemoryRouter>
+      <Host {...props} />
+      <Where />
+    </MemoryRouter>
+  );
   const view = render(strict ? <StrictMode>{host}</StrictMode> : host);
   const trigger = screen.getByRole('button', { name: 'Mở hộp thoại' });
   fireEvent.click(trigger);
@@ -513,6 +525,37 @@ describe('409: lý do và danh sách lịch hẹn đang chặn (NT-23; Q11)', ()
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(opened.trigger).toHaveFocus();
     expect(inertChildren()).toHaveLength(0);
+    expect(requests(opened.profile)).toHaveLength(1);
+  });
+
+  it('LCT-11 (booking F2, Q11) pha 409 có liên kết "Mở Lịch hẹn của tôi" trỏ danh sách lịch hẹn; pha xác nhận thì KHÔNG có; bấm liên kết đưa tới đường dẫn đó mà không gửi thêm yêu cầu', async () => {
+    const opened = await openDialog();
+    // Pha xác nhận: không có liên kết nào trong hộp thoại
+    expect(within(opened.dialog).queryByRole('link')).toBeNull();
+    opened.profile.relatives.blocking['1'] = [LICH_1, LICH_2];
+    fireEvent.click(confirmIn(opened.dialog));
+    await within(opened.dialog).findByRole('list', {
+      name: 'Lịch hẹn đang chặn',
+    });
+
+    const link = within(opened.dialog).getByRole('link', {
+      name: 'Mở Lịch hẹn của tôi',
+    });
+    expect(link).toHaveAttribute('href', PATIENT_APPOINTMENTS_PATH);
+    expect(link).toHaveAttribute('href', '/benh-nhan/lich-hen-cua-toi');
+    // Nút `Đóng` vẫn là nút duy nhất (liên kết không phải nút); Tab vẫn bị bẫy trong hộp thoại
+    expect(
+      within(opened.dialog)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Đóng']);
+    expect(opened.dialog).toContainElement(link);
+
+    expect(screen.getByTestId('where')).toHaveTextContent(/^\/$/);
+    fireEvent.click(link);
+    expect(screen.getByTestId('where')).toHaveTextContent(
+      PATIENT_APPOINTMENTS_PATH,
+    );
     expect(requests(opened.profile)).toHaveLength(1);
   });
 

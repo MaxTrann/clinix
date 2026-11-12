@@ -189,7 +189,8 @@ export function describeRelativeSaveError(
 // ---- Ngừng sử dụng (patient F7; TRACKING F7-E) ----
 // Thông báo thành công cố định, không có họ tên (F6-G: không đưa tên vào thông báo hay vùng `aria-live`)
 export const DEACTIVATE_DONE_MESSAGE = 'Đã ngừng sử dụng hồ sơ người thân.';
-// PLAN 5.9, `HO_SO_NGUOI_THAN_DANG_CO_LICH_HEN`: đã gồm gợi ý hủy lịch hẹn trước (liên kết tới "Lịch hẹn của tôi" chờ `booking`, Q11)
+// PLAN 5.9, `HO_SO_NGUOI_THAN_DANG_CO_LICH_HEN`: đã gồm gợi ý hủy lịch hẹn trước. Liên kết tới "Lịch hẹn của tôi" (Q11) do `booking` F2 nối: nằm ở
+// `deactivate-relative-dialog.tsx` (pha bị chặn), không ở file này vì đây chỉ là câu chữ.
 export const BLOCKED_MESSAGE =
   'Không thể ngừng sử dụng hồ sơ này vì đang có lịch hẹn chưa hoàn tất. Vui lòng hủy các lịch hẹn dưới đây trước.';
 // Khác POST tạo (F6): ngừng sử dụng idempotent nên bấm lại là an toàn, không cần nút "Tải lại danh sách"
