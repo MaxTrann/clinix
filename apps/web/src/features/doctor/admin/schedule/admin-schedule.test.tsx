@@ -18,6 +18,7 @@ import type {
   ReceptionShift,
 } from '../../api/reception-api';
 import { jsonResponse } from '../../testing/fetch-routing';
+import { ADMIN_LEAVE_APPROVALS_PATH } from '../approvals/approvals-paths';
 import { ADMIN_SCHEDULE_PATH } from './admin-schedule-paths';
 
 // doctor F6: WA-01 (lưới Admin: Toàn hệ thống lọc chi nhánh / Chi nhánh chip cố định), WA-14 (banner yêu cầu chờ duyệt). Hộp Phân công, ô "+" (WA-05)
@@ -298,7 +299,7 @@ describe('lưới Admin Chi nhánh (F6)', () => {
     expect(screen.getByRole('button', { name: 'Phân công ca' })).toBeVisible();
   });
 
-  it('WA-14 banner: "Có 1 yêu cầu nghỉ chờ duyệt trong phạm vi của bạn." + "Xem yêu cầu" (chưa dùng được tới F8); gọi đúng tham số', async () => {
+  it('WA-14 banner: "Có 1 yêu cầu nghỉ chờ duyệt trong phạm vi của bạn." + "Xem yêu cầu" dẫn tới trang Duyệt yêu cầu (F8); gọi đúng tham số', async () => {
     pendingResponse = () =>
       jsonResponse({ items: [], total: 1, page: 1, pageSize: 1 });
     await renderAdmin(BRANCH_ADMIN);
@@ -308,8 +309,8 @@ describe('lưới Admin Chi nhánh (F6)', () => {
     expect(banner).toHaveTextContent(
       'Có 1 yêu cầu nghỉ chờ duyệt trong phạm vi của bạn.',
     );
-    const action = within(banner).getByRole('button', { name: /Xem yêu cầu/ });
-    expect(action).toHaveAttribute('aria-disabled', 'true');
+    const action = within(banner).getByRole('link', { name: /Xem yêu cầu/ });
+    expect(action).toHaveAttribute('href', ADMIN_LEAVE_APPROVALS_PATH);
     const call = callsTo('/admin/leave-requests')[0];
     expect(call.searchParams.get('trangThai')).toBe('ChoDuyet');
     expect(call.searchParams.get('pageSize')).toBe('1');

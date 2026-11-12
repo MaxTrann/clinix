@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { CircleAlert, Plus } from 'lucide-react';
+import { Link } from 'react-router';
 import { useAdminScope } from '../../../admin';
+import { ADMIN_LEAVE_APPROVALS_PATH } from '../approvals/approvals-paths';
 import {
   countPendingLeaveRequests,
   type ReceptionDoctor,
@@ -18,14 +20,6 @@ import {
   type AssignFormValues,
 } from './assign/assign-form';
 import { RemoveShiftAction } from './assign/remove-shift-action';
-
-// Nút "Xem yêu cầu" dẫn tới trang chưa có (Duyệt yêu cầu: doctor F8). Dùng `aria-disabled` thay cho `disabled` để trình đọc màn hình vẫn đọc được lý do
-// và phím Tab vẫn dừng ở đó; bấm không làm gì.
-const DEFERRED = {
-  'aria-disabled': true,
-  title: 'Chưa được triển khai',
-  onClick: (event: { preventDefault: () => void }) => event.preventDefault(),
-} as const;
 
 // Trang "Lịch làm việc bác sĩ" của Quản trị viên (doctor F6 lưới, F7 phân công; Figma `515:2` Toàn hệ thống, `622:2` Chi nhánh, `516:2` hộp Phân công).
 // Toàn hệ thống: lọc chi nhánh, tên chi nhánh ở từng bác sĩ. Chi nhánh: chip chi nhánh cố định (server ép phạm vi), banner số yêu cầu nghỉ chờ duyệt.
@@ -164,14 +158,12 @@ function PendingLeaveBanner() {
         Có <strong>{state.data}</strong> yêu cầu nghỉ chờ duyệt trong phạm vi
         của bạn.
       </span>
-      <button
-        type="button"
-        {...DEFERRED}
+      <Link
+        to={ADMIN_LEAVE_APPROVALS_PATH}
         className="ml-auto text-xs font-semibold text-warning underline"
       >
         Xem yêu cầu
-        <span className="sr-only"> (chưa được triển khai)</span>
-      </button>
+      </Link>
     </p>
   );
 }
