@@ -8,6 +8,14 @@ export const APPROVAL_ERROR_CODES = {
   EXPIRED: 'YEU_CAU_NGHI_DA_QUA_HAN',
 } as const;
 
+// Chạy lại huỷ lịch hẹn sau khi duyệt (B16; PLAN doctor 5.8, Q29): sweeper và nút "Xử lý lại" dùng cùng `LeaveCancellationRunner`.
+export const LEAVE_SWEEPER_JOB_NAME = 'doctor-leave-cancellation-sweeper';
+/** Mỗi 5 phút, lệch giây 40 để không trùng nhịp với job hết hạn giữ chỗ của booking (giây 20). `[đề xuất]` */
+export const LEAVE_SWEEPER_CRON = '40 */5 * * * *';
+/** Số yêu cầu `DaDuyet` mỗi lô và số lô tối đa mỗi lượt (Q29): lượt sau quét tiếp phần còn lại. */
+export const LEAVE_SWEEPER_BATCH_SIZE = 50;
+export const LEAVE_SWEEPER_MAX_BATCHES = 5;
+
 /** Lý do từ chối 1–255 điểm mã (Q27c). Không có cột riêng: lý do chỉ vào nhật ký và thông báo cho Bác sĩ. */
 export const REJECT_REASON_MIN_LENGTH = 1;
 export const REJECT_REASON_MAX_LENGTH = 255;

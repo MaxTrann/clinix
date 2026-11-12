@@ -18,6 +18,15 @@ export interface AdminLeaveFilter {
   to?: string;
 }
 
+/** Một yêu cầu `DaDuyet` mà sweeper cần chạy lại (đủ để tìm lịch bị ảnh hưởng). */
+export interface ApprovedLeaveRow {
+  yeuCauNghiPhepId: string;
+  bacSiId: string;
+  tuNgay: string;
+  denNgay: string;
+  ca: CaLamViec | null;
+}
+
 export interface AdminLeaveRow {
   yeuCauNghiPhepId: string;
   trangThai: TrangThaiYeuCauNghiPhep;
@@ -125,6 +134,24 @@ export class AdminLeaveRepository {
         base.parameters,
       );
     return Object.fromEntries(rows.map((r) => [r.trangThai, Number(r.so)]));
+  }
+
+  /**
+   * Yêu cầu `DaDuyet` còn hiệu lực (`ngay_ket_thuc >= today`) cho sweeper, theo `yeu_cau_nghi_phep_id` tăng dần, sau con trỏ `after` (id của hàng cuối lô trước).
+   * Con trỏ để yêu cầu nào cũng lỗi mãi không chặn các yêu cầu sau nó. Chỉ đọc, không khoá; cột DATE đọc bằng `DATE_FORMAT`; không có lý do nghỉ của Bác sĩ.
+   */
+  async findApprovedActive(
+    em: EntityManager,
+    input: { today: string; after: string | null; limit: number },
+  ): Promise<ApprovedLeaveRow[]> {
+    return em.query(
+      `SELECT CAST(yeu_cau_nghi_phep_id AS CHAR) AS yeuCauNghiPhepId, CAST(bac_si_id AS CHAR) AS bacSiId,
+              DATE_FORMAT(ngay_bat_dau, '%Y-%m-%d') AS tuNgay, DATE_FORMAT(ngay_ket_thuc, '%Y-%m-%d') AS denNgay, ca
+         FROM yeu_cau_nghi_phep
+        WHERE trang_thai = 'DaDuyet' AND ngay_ket_thuc >= ? AND yeu_cau_nghi_phep_id > ?
+        ORDER BY yeu_cau_nghi_phep_id LIMIT ?`,
+      [input.today, input.after ?? '0', input.limit],
+    );
   }
 
   /** `EntityManager` tự commit, cho một câu đọc thường ngoài giao dịch (Duyệt đọc trước `bac_si_id` để biết khoá hàng nào). */

@@ -3,12 +3,9 @@ import { vi } from 'vitest';
 import { AdminFixtures } from '../../admin/testing/admin-fixtures.js';
 import { KhungGio } from '../../admin/entities/khung-gio.entity.js';
 import { LEAVE_CANCEL_REASON } from '../../appointments/appointments.constants.js';
-import { AppointmentQueries } from '../../appointments/queries/appointment-queries.js';
 import { BookingFixtures } from '../../appointments/testing/booking-fixtures.js';
 import {
   atRemaining,
-  cancelWorld,
-  createCancelStack,
   HOUR_MS,
   type CancelWorld,
 } from '../../appointments/testing/cancel-world.js';
@@ -18,28 +15,26 @@ import {
   isLockingStatement,
 } from '../../appointments/testing/query-spy.js';
 import { recordStatements } from '../../appointments/testing/statement-recorder.js';
-import { AuditRepository } from '../../audit/audit.repository.js';
 import { AuditService } from '../../audit/audit.service.js';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
 import { AppException } from '../../common/errors/app.exception.js';
-import type { AdminScope } from '../../rbac/admin-scope.js';
-import { BranchAccessPolicy } from '../../rbac/branch-access.policy.js';
 import { LeaveReader } from '../../scheduling/leave/leave.reader.js';
-import { LeaveNotifier } from '../notifications/leave-notifier.js';
-import { AdminLeaveApproveService } from './admin-leave-approve.service.js';
-import { AdminLeaveRejectService } from './admin-leave-reject.service.js';
-import { AdminLeaveRepository } from './admin-leave.repository.js';
+import {
+  appointmentRow as appointmentRowOf,
+  countRows,
+  createLeaveServices,
+  errorCodeOf,
+  LEAVE_DAY,
+  leaveSetup,
+  requestRow as requestRowOf,
+  SYSTEM,
+} from '../testing/leave-approval-world.js';
 import type { AppointmentCancellationPort } from './appointment-cancellation.port.js';
-import { BookingCancellationAdapter } from './booking-cancellation.adapter.js';
-import { LeaveCancellationRunner } from './leave-cancellation.runner.js';
 
 // Doctor B15 — Duyệt yêu cầu nghỉ trên MySQL 8.4 THẬT, mức dịch vụ (PLAN doctor 5.8, 5.9, 7): PD-06, PD-09, PD-17, DH-06, DH-08, và một ca nối `booking` THẬT
 // (`findAffectedByLeave` B11 + `cancel` B10; cổng hoàn tiền, mời chờ, thông báo của booking là bản giả của booking). PD-07, PD-08, PD-10, HD-07: leave-cancellation.runner.spec.ts.
 // Phần HTTP (vai trò, phạm vi, mã lỗi qua bộ lọc): test/doctor-admin-leave-approve.e2e-spec.ts.
 // Đồng hồ giả: T0 = 08:00 ngày 02/11/2026 (giờ VN). Ca sáng của bác sĩ ngày 10/11/2026 có 8 khung giờ từ 08:00, mỗi ô 30 phút.
-const LEAVE_DAY = '2026-11-10';
-const SYSTEM: AdminScope = { kind: 'ToanHeThong' };
-
 let db: DataSource;
 let fx: BookingFixtures;
 useIntegrationHooks((d) => {
@@ -47,79 +42,12 @@ useIntegrationHooks((d) => {
   fx = new BookingFixtures(d);
 });
 
-/** Dịch vụ Duyệt/Từ chối dựng bằng tay; mặc định cổng là bản thật nối `booking` (cổng sau commit của booking là bản giả). */
-function createServices(port?: AppointmentCancellationPort) {
-  const { service: cancellation } = createCancelStack(db);
-  const realPort = new BookingCancellationAdapter(
-    db,
-    new AppointmentQueries(),
-    cancellation,
-  );
-  const repository = new AdminLeaveRepository(db);
-  const policy = new BranchAccessPolicy();
-  const audit = new AuditService(new AuditRepository());
-  const notifier = new LeaveNotifier();
-  return {
-    approval: new AdminLeaveApproveService(
-      repository,
-      policy,
-      audit,
-      notifier,
-      new LeaveCancellationRunner(port ?? realPort),
-    ),
-    rejection: new AdminLeaveRejectService(repository, policy, audit, notifier),
-  };
-}
-
-async function setup() {
-  const w = await cancelWorld(db, fx);
-  const doctorId = w.doctor.account.taiKhoanId;
-  const adminId = w.systemAdmin.account.taiKhoanId;
-  const leave = (
-    input: {
-      batDau?: string;
-      ketThuc?: string;
-      ca?: 'CaSang' | 'CaChieu';
-    } = {},
-  ) =>
-    fx.doctor.leaveRequest({
-      bacSiId: doctorId,
-      batDau: input.batDau ?? LEAVE_DAY,
-      ...(input.ketThuc ? { ketThuc: input.ketThuc } : {}),
-      ...(input.ca ? { hinhThuc: 'TheoCa' as const, ca: input.ca } : {}),
-    });
-  return { w, doctorId, adminId, leave };
-}
-
-const requestRow = async (id: string) =>
-  (
-    await db.query(
-      `SELECT trang_thai AS trangThai, CAST(nguoi_xu_ly_id AS CHAR) AS nguoi, thoi_diem_xu_ly AS luc FROM yeu_cau_nghi_phep WHERE yeu_cau_nghi_phep_id = ?`,
-      [id],
-    )
-  )[0] as { trangThai: string; nguoi: string | null; luc: Date | null };
-
-const appointmentRow = async (lichHenId: string) =>
-  (
-    await db.query(
-      `SELECT trang_thai AS trangThai, ly_do_huy AS lyDo FROM lich_hen WHERE lich_hen_id = ?`,
-      [lichHenId],
-    )
-  )[0] as { trangThai: string; lyDo: string | null };
-
-const count = async (sql: string) =>
-  Number((await db.query(`SELECT COUNT(*) AS so ${sql}`))[0].so);
-
-/** Mã lỗi của một lời hứa bị từ chối bằng `AppException` (ném lại mọi lỗi khác). */
-async function errorCodeOf(promise: Promise<unknown>): Promise<string> {
-  try {
-    await promise;
-  } catch (error) {
-    if (error instanceof AppException) return error.maLoi;
-    throw error;
-  }
-  throw new Error('Mong đợi lỗi nhưng thành công');
-}
+const createServices = (port?: AppointmentCancellationPort) =>
+  createLeaveServices(db, port);
+const setup = () => leaveSetup(db, fx);
+const requestRow = (id: string) => requestRowOf(db, id);
+const appointmentRow = (id: string) => appointmentRowOf(db, id);
+const count = (sql: string) => countRows(db, sql);
 
 describe('B15 — Duyệt yêu cầu nghỉ phép (mức dịch vụ, MySQL thật)', () => {
   it('PD-06 bước 1: DaDuyet + người/thời điểm xử lý, nhật ký DuyetNghiPhep, thông báo NghiPhepDaDuyet; khoá bac_si TRƯỚC hàng yêu cầu', async () => {
