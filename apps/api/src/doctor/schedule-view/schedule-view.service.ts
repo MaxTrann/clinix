@@ -2,6 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AppException } from '../../common/errors/app.exception.js';
 import { BranchHoursReader } from '../../scheduling/branch-hours/branch-hours.reader.js';
 import { LeaveReader } from '../../scheduling/leave/leave.reader.js';
+import {
+  APPOINTMENT_LEAVE_READ_PORT,
+  type AppointmentLeaveReadPort,
+} from '../leave-approval/appointment-leave-read.port.js';
 import { ShiftQueries } from '../../scheduling/shifts/shift-queries.js';
 import { SHIFT_ERROR_CODES } from '../shifts/shift-assignment.constants.js';
 import type { ScheduleQueryDto } from './schedule-view.dto.js';
@@ -25,6 +29,8 @@ export class ScheduleViewService {
     @Inject(ShiftQueries) private readonly shifts: ShiftQueries,
     @Inject(LeaveReader) private readonly leaves: LeaveReader,
     @Inject(BranchHoursReader) private readonly branchHours: BranchHoursReader,
+    @Inject(APPOINTMENT_LEAVE_READ_PORT)
+    private readonly appointments: AppointmentLeaveReadPort,
   ) {}
 
   async getSchedule(bacSiId: string, query: ScheduleQueryDto) {
@@ -64,10 +70,16 @@ export class ScheduleViewService {
         ]),
       ).values(),
     ];
-    const ca: DoctorScheduleShift[] = allShifts
+    const shown = allShifts
       .filter((s) => !query.ca || s.ca === query.ca)
-      .filter((s) => !query.chiNhanhId || s.chiNhanhId === query.chiNhanhId)
-      .map((s) => toShiftView(s, { leaves, hours }));
+      .filter((s) => !query.chiNhanhId || s.chiNhanhId === query.chiNhanhId);
+    // D14 (B17, Q18): một lần đếm cho mọi ca hiển thị
+    const activeCounts = await this.appointments.countByShifts(
+      shown.map((s) => s.lichLamViecId),
+    );
+    const ca: DoctorScheduleShift[] = shown.map((s) =>
+      toShiftView(s, { activeCounts, leaves, hours }),
+    );
 
     return {
       tuNgay,

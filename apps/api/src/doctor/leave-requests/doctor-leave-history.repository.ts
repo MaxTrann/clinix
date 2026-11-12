@@ -57,6 +57,24 @@ export class DoctorLeaveHistoryRepository {
     return Number(rows[0]?.so ?? 0);
   }
 
+  /** Mã các ca của bác sĩ trong [tuNgay, denNgay] (đã chặn dưới ở hôm nay) để đếm lịch hẹn (D14); `ca` lọc thêm khi nghỉ theo ca. */
+  async findShiftIds(
+    em: EntityManager,
+    input: {
+      bacSiId: string;
+      tuNgay: string;
+      denNgay: string;
+      ca: CaLamViec | null;
+    },
+  ): Promise<string[]> {
+    const rows: { id: string }[] = await em.query(
+      `SELECT CAST(lich_lam_viec_id AS CHAR) AS id FROM lich_lam_viec
+        WHERE bac_si_id = ? AND ngay >= ? AND ngay <= ? AND (? IS NULL OR ca = ?)`,
+      [input.bacSiId, input.tuNgay, input.denNgay, input.ca, input.ca],
+    );
+    return rows.map((row) => row.id);
+  }
+
   /** Lọc `bac_si_id` ngay trong câu: yêu cầu của người khác và yêu cầu không có cho cùng kết quả rỗng (404 cùng thân). */
   async findOne(
     em: EntityManager,

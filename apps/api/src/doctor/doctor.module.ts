@@ -16,6 +16,7 @@ import { DoctorLeaveController } from './leave-requests/doctor-leave.controller.
 import { AdminLeaveApproveService } from './leave-approval/admin-leave-approve.service.js';
 import { AdminLeaveController } from './leave-approval/admin-leave.controller.js';
 import { APPOINTMENT_CANCELLATION_PORT } from './leave-approval/appointment-cancellation.port.js';
+import { APPOINTMENT_LEAVE_READ_PORT } from './leave-approval/appointment-leave-read.port.js';
 import { BookingCancellationAdapter } from './leave-approval/booking-cancellation.adapter.js';
 import { LeaveCancellationRunner } from './leave-approval/leave-cancellation.runner.js';
 import { LeaveCancellationSweeper } from './leave-approval/leave-cancellation.sweeper.job.js';
@@ -76,6 +77,11 @@ import { ShiftRemovalService } from './shifts/shift-removal.service.js';
     // Chỉ một bản thật, không Noop (Q26); test thay token này bằng bản giả.
     {
       provide: APPOINTMENT_CANCELLATION_PORT,
+      useExisting: BookingCancellationAdapter,
+    },
+    // Cổng ĐỌC D13, D14 (B17): cùng bản thật, cũng không Noop.
+    {
+      provide: APPOINTMENT_LEAVE_READ_PORT,
       useExisting: BookingCancellationAdapter,
     },
   ],
