@@ -18,6 +18,8 @@ import { AdminLeaveController } from './leave-approval/admin-leave.controller.js
 import { APPOINTMENT_CANCELLATION_PORT } from './leave-approval/appointment-cancellation.port.js';
 import { BookingCancellationAdapter } from './leave-approval/booking-cancellation.adapter.js';
 import { LeaveCancellationRunner } from './leave-approval/leave-cancellation.runner.js';
+import { LeaveCancellationSweeper } from './leave-approval/leave-cancellation.sweeper.job.js';
+import { AdminLeaveRetryService } from './leave-approval/admin-leave-retry.service.js';
 import { AdminLeaveRejectService } from './leave-approval/admin-leave-reject.service.js';
 import { AdminLeaveRepository } from './leave-approval/admin-leave.repository.js';
 import { AdminLeaveService } from './leave-approval/admin-leave.service.js';
@@ -66,7 +68,10 @@ import { ShiftRemovalService } from './shifts/shift-removal.service.js';
     AdminLeaveService,
     AdminLeaveRejectService,
     AdminLeaveApproveService,
+    AdminLeaveRetryService,
     LeaveCancellationRunner,
+    // Job `@Cron`: ScheduleModule.forRoot() đã có ở app.module.ts, KHÔNG thêm ở đây.
+    LeaveCancellationSweeper,
     BookingCancellationAdapter,
     // Chỉ một bản thật, không Noop (Q26); test thay token này bằng bản giả.
     {

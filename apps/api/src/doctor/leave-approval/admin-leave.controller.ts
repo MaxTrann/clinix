@@ -20,13 +20,14 @@ import { AdminScopeCtx } from '../../rbac/decorators/admin-scope-ctx.decorator.j
 import { RequireAdminScope } from '../../rbac/decorators/require-admin-scope.decorator.js';
 import { ParseRecordIdPipe } from '../common/parse-record-id.pipe.js';
 import { AdminLeaveApproveService } from './admin-leave-approve.service.js';
+import { AdminLeaveRetryService } from './admin-leave-retry.service.js';
 import { RejectLeaveRequestDto } from './admin-leave-reject.dto.js';
 import { AdminLeaveRejectService } from './admin-leave-reject.service.js';
 import { AdminLeaveListDto } from './admin-leave.dto.js';
 import { AdminLeaveService } from './admin-leave.service.js';
 
 // Quản trị viên xem yêu cầu nghỉ phép của bác sĩ (B13). Toàn hệ thống: mọi chi nhánh; Chi nhánh: chỉ bác sĩ có chi nhánh HIỆN TẠI là chi nhánh mình,
-// ngoài phạm vi ⇒ 404 cùng thân (Q28). Từ chối (B14), Duyệt (B15).
+// ngoài phạm vi ⇒ 404 cùng thân (Q28). Từ chối (B14), Duyệt (B15), Xử lý lại (B16).
 @Controller('admin/leave-requests')
 @Roles('QuanTriVien')
 @RequireAdminScope('Any')
@@ -37,6 +38,8 @@ export class AdminLeaveController {
     private readonly rejection: AdminLeaveRejectService,
     @Inject(AdminLeaveApproveService)
     private readonly approval: AdminLeaveApproveService,
+    @Inject(AdminLeaveRetryService)
+    private readonly retrying: AdminLeaveRetryService,
   ) {}
 
   @Get()
@@ -85,5 +88,17 @@ export class AdminLeaveController {
   ) {
     res.setHeader('Cache-Control', 'no-store');
     return this.approval.approve(scope, user.accountId, id);
+  }
+
+  // Xử lý lại (B16): chạy lại bước huỷ lịch hẹn của yêu cầu đã duyệt. 200 kèm kết quả huỷ; không có thân yêu cầu.
+  @Post(':id/retry-cancellations')
+  @HttpCode(200)
+  retry(
+    @AdminScopeCtx() scope: AdminScope,
+    @Param('id', ParseRecordIdPipe) id: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    res.setHeader('Cache-Control', 'no-store');
+    return this.retrying.retry(scope, id);
   }
 }
