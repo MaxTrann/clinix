@@ -35,7 +35,13 @@ const file = (path: string, source: string): SourceFile => ({ path, source });
 describe('AR-07 phương thức công khai của AppointmentTransitionService (đọc từ nguồn)', () => {
   it('thấy đủ phương thức công khai hiện có và KHÔNG thấy phương thức private, constructor (nếu bộ đọc hỏng thì luật bên dưới vô nghĩa)', () => {
     expect(methods).toEqual(
-      expect.arrayContaining(['expire', 'confirmPaid', 'complete']),
+      expect.arrayContaining([
+        'expire',
+        'confirmPaid',
+        'complete',
+        'checkIn',
+        'markNoShow',
+      ]),
     );
     for (const name of [
       'constructor',

@@ -5,9 +5,9 @@ import { AppException } from '../../common/errors/app.exception.js';
 import { COMMON_ERROR_CODES } from '../../common/errors/error-codes.js';
 import { nowVN, toSecond } from '../../common/time/time.js';
 import { runReadOnly } from '../../common/transaction/read-only-tx.js';
-import type { AdminScope } from '../../rbac/admin-scope.js';
 import type { ReceptionScope } from '../../rbac/reception-scope.js';
 import { ReceptionScopeService } from '../../rbac/reception-scope.service.js';
+import { resolveReceptionBranch } from '../reception-branch.js';
 import {
   PAYMENT_SUMMARY_PORT,
   type PaymentSummaryPort,
@@ -43,16 +43,9 @@ export class ReceptionAppointmentsService {
     @Inject(SystemConfigService) private readonly configs: SystemConfigService,
   ) {}
 
-  /**
-   * Phạm vi chi nhánh của Lễ tân, kiểm LẠI lúc chạy. Với `chiNhanhId = undefined` thì phần dùng chung hiểu là "không lọc chi nhánh" (dành cho Quản trị viên Toàn hệ thống, B4): nếu một
-   * ngày `ReceptionScopeService` trả nhầm `ToanHeThong` hay thiếu `chiNhanhId`, danh sách Lễ tân sẽ mở toàn hệ thống mà không ai biết. Nên chỉ nhận đúng `ChiNhanh` có `chiNhanhId` là chuỗi,
-   * còn lại 403 `KHONG_DU_QUYEN` như chính `ReceptionScopeService` (một mã chung cho mọi nhánh từ chối, không lộ lý do). Gán vào biến kiểu `AdminScope` để kiểm được kiểu lúc chạy.
-   */
-  private async receptionScope(accountId: string): Promise<ReceptionScope> {
-    const scope: AdminScope = await this.scopes.resolve(accountId);
-    if (scope.kind !== 'ChiNhanh' || typeof scope.chiNhanhId !== 'string')
-      throw new AppException(403, 'KHONG_DU_QUYEN');
-    return scope;
+  // Phạm vi chi nhánh kiểm LẠI lúc chạy: hàm dùng chung với route GHI của B12 (`reception-branch.ts`), nên route ghi không yếu hơn route đọc
+  private receptionScope(accountId: string): Promise<ReceptionScope> {
+    return resolveReceptionBranch(this.scopes, accountId);
   }
 
   /** Lễ tân xem theo `thoi_gian` TĂNG dần (chip "Hôm nay" là mặc định của giao diện: lịch sớm nhất trước), rồi `lich_hen_id` tăng. */
