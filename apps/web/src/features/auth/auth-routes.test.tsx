@@ -224,6 +224,15 @@ describe('đăng xuất trên trang giữ chỗ', () => {
           headers: { 'Content-Type': 'application/json' },
         }),
     );
+    // Cùng lý do: lịch sử yêu cầu nghỉ (doctor F4) trả danh sách rỗng
+    api.failNext(
+      '/doctor/leave-requests',
+      () =>
+        new Response(
+          JSON.stringify({ items: [], total: 0, page: 1, pageSize: 5 }),
+          { headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
     const router = renderAt('/bac-si-portal');
     await doctorShell();
 

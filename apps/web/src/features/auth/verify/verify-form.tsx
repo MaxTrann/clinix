@@ -19,6 +19,7 @@ import {
   resendRegisterOtp,
   verifyRegisterOtp,
 } from '../register/register-service';
+import { withReturnTo } from '../return-to';
 import { REGISTER_PATH, VERIFY_EMAIL_PATH } from '../roles';
 import { usePageActive } from '../use-page-active';
 import {
@@ -49,6 +50,8 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
   const active = usePageActive();
 
   const { email, draft } = initial;
+  // `initial` đã mang `from` (nếu có) qua mọi lần `persist`; ba chỗ dựng state mới dưới đây chuyển tiếp nó (booking F3)
+  const from = initial.from ?? null;
   const [verifyId, setVerifyId] = useState(initial.verifyId);
   const [resendId, setResendId] = useState(initial.resendId);
   const [hasExpiry, setHasExpiry] = useState(initial.hetHanLuc !== null);
@@ -102,7 +105,7 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
     if (next.kind === 'reregister') {
       navigate(REGISTER_PATH, {
         replace: true,
-        state: { ...draft, email, notice: next.message },
+        state: withReturnTo({ ...draft, email, notice: next.message }, from),
       });
       return;
     }
@@ -138,7 +141,7 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
       if (!active.current) return;
       navigate(VERIFY_EMAIL_PATH, {
         replace: true,
-        state: { verified: true, email },
+        state: withReturnTo({ verified: true, email }, from),
       });
     } catch (error) {
       if (active.current) applyFailure(describeVerifyError(error));
@@ -244,7 +247,7 @@ export function VerifyForm({ initial }: { initial: PendingVerification }) {
       <div className="mt-3 text-center">
         <Link
           to={REGISTER_PATH}
-          state={draft ?? { email }}
+          state={withReturnTo(draft ?? { email }, from)}
           className="text-xs font-medium text-gray-500 hover:text-gray-700"
         >
           ← Quay lại đăng ký

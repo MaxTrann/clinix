@@ -16,6 +16,7 @@ import {
 import { resetAuthForTest } from '../features/auth/auth-session';
 import { setAuthState } from '../features/auth/auth-store';
 import { DOCTOR_PATHS } from '../features/doctor';
+import { withEmptyLeaveHistory } from '../features/doctor/testing/fetch-routing';
 import { apiError, createFakeAuthApi } from '../test/fake-auth-api';
 import { fakeMatchMedia } from '../test/fake-match-media';
 import { createAppRoutes } from './routes';
@@ -65,20 +66,22 @@ beforeEach(() => {
   // Trang Lịch làm việc gọi GET /api/doctor/schedule: trả tuần trống để trang tải xong, mọi đường dẫn khác chuyển cho fake auth
   vi.stubGlobal(
     'fetch',
-    vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
-      String(input).startsWith('/api/doctor/schedule')
-        ? Promise.resolve(
-            new Response(
-              JSON.stringify({
-                tuNgay: '',
-                denNgay: '',
-                ca: [],
-                chiNhanhLoc: [],
-              }),
-              { headers: { 'Content-Type': 'application/json' } },
-            ),
-          )
-        : api.fetch(input, init),
+    vi.fn(
+      withEmptyLeaveHistory((input: RequestInfo | URL, init?: RequestInit) =>
+        String(input).startsWith('/api/doctor/schedule')
+          ? Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  tuNgay: '',
+                  denNgay: '',
+                  ca: [],
+                  chiNhanhLoc: [],
+                }),
+                { headers: { 'Content-Type': 'application/json' } },
+              ),
+            )
+          : api.fetch(input, init),
+      ),
     ),
   );
   Object.defineProperty(navigator, 'locks', {

@@ -4,13 +4,20 @@ import { AuthCard } from '../../../shared/ui/auth-card';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { PRIMARY_LINK, SuccessPanel } from '../auth-form-parts';
 import { useAuth } from '../auth-store';
+import { readReturnTo, withReturnTo } from '../return-to';
 import { textFrom } from '../route-state';
 import { LOGIN_PATH, REGISTER_PATH, homePathFor } from '../roles';
 import { VerifyForm } from './verify-form';
 import { parseVerifyState } from './verify-state';
 
 // Frame `649:2`. Xác minh xong KHÔNG có phiên (ĐK b10): người dùng phải đăng nhập.
-function VerifySuccess({ email }: { email: string }) {
+function VerifySuccess({
+  email,
+  from,
+}: {
+  email: string;
+  from: string | null;
+}) {
   return (
     <AuthCard
       title="Xác minh thành công"
@@ -21,7 +28,11 @@ function VerifySuccess({ email }: { email: string }) {
           Email đã xác minh. Đăng nhập bằng email và mật khẩu đã chọn để đặt
           lịch.
         </p>
-        <Link to={LOGIN_PATH} state={{ email }} className={PRIMARY_LINK}>
+        <Link
+          to={LOGIN_PATH}
+          state={withReturnTo({ email }, from)}
+          className={PRIMARY_LINK}
+        >
           Đăng nhập
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
@@ -44,11 +55,16 @@ export function VerifyEmailPage() {
       <Navigate
         to={REGISTER_PATH}
         replace
-        state={email === null ? undefined : { email }}
+        state={withReturnTo(
+          email === null ? undefined : { email },
+          readReturnTo(location.state),
+        )}
       />
     );
   }
-  if ('verified' in state) return <VerifySuccess email={state.email} />;
+  if ('verified' in state) {
+    return <VerifySuccess email={state.email} from={state.from ?? null} />;
+  }
 
   return (
     <AuthCard

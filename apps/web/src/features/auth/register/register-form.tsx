@@ -4,6 +4,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { ALERT_BOX, FormAlert } from '../auth-form-parts';
 import { formatCountdown, useLockCountdown } from '../login/use-lock-countdown';
+import { withReturnTo } from '../return-to';
 import { LOGIN_PATH, VERIFY_EMAIL_PATH } from '../roles';
 import { usePageActive } from '../use-page-active';
 import { trimAsciiWhitespace } from '../validation/account-policy';
@@ -31,9 +32,11 @@ export interface RegisterPrefill {
 
 interface RegisterFormProps {
   prefill: RegisterPrefill;
+  // Trang cần đăng nhập người dùng vừa rời (booking F3): chuyển tiếp sang xác minh và đăng nhập để quay lại sau đó
+  returnTo?: string | null;
 }
 
-export function RegisterForm({ prefill }: RegisterFormProps) {
+export function RegisterForm({ prefill, returnTo = null }: RegisterFormProps) {
   const navigate = useNavigate();
   const alertRef = useRef<HTMLDivElement>(null);
   const hoTenRef = useRef<HTMLInputElement>(null);
@@ -103,6 +106,7 @@ export function RegisterForm({ prefill }: RegisterFormProps) {
       email,
       fresh: true,
       draft: { hoTen, email, soDienThoai },
+      ...(returnTo === null ? {} : { from: returnTo }),
     };
     // `replace`: Back không quay về biểu mẫu đã gửi
     navigate(VERIFY_EMAIL_PATH, { replace: true, state });
@@ -170,7 +174,10 @@ export function RegisterForm({ prefill }: RegisterFormProps) {
               {failure.message}{' '}
               <Link
                 to={LOGIN_PATH}
-                state={{ email: trimAsciiWhitespace(values.email) }}
+                state={withReturnTo(
+                  { email: trimAsciiWhitespace(values.email) },
+                  returnTo,
+                )}
                 className="font-medium underline"
               >
                 Đăng nhập
@@ -265,6 +272,7 @@ export function RegisterForm({ prefill }: RegisterFormProps) {
         Đã có tài khoản?{' '}
         <Link
           to={LOGIN_PATH}
+          state={withReturnTo(undefined, returnTo)}
           className="font-medium text-brand-strong hover:underline"
         >
           Đăng nhập
