@@ -10,16 +10,18 @@ import {
   DEPOSIT,
   HOUR_MS,
   REFUND_POLICY,
-  runAfterStatement,
   T0_TEXT,
-  throwAfterStatement,
   type CancelWorld,
 } from '../testing/cancel-world.js';
 import { assertBookingInvariants } from '../testing/invariants.js';
+import {
+  failAfterStatement,
+  interceptStatements,
+} from '../testing/statement-recorder.js';
 
 // Task B10 — chèn lỗi GIỮA CHỪNG vào huỷ lịch hẹn trên MySQL 8.4 THẬT: HL-16 (hoàn tác trọn khi lỗi ở từng bước ghi), CNL-08 (thân chạy lại với 1213, hết lượt ⇒ 503) và CNL-05 (kiểm LẠI dưới khoá)
-// (PLAN booking 5.3, 7.3, 7.29; TRACKING 3.23 B10-I). Dùng `throwAfterStatement` và `runAfterStatement` (`testing/cancel-world.ts`): câu SQL chạy THẬT rồi mới ném, hoặc có việc xen vào GIỮA hai câu.
-// Hai hàm này là bản TẠM cùng ý với `failAfterStatement` và `interceptStatements` của B8 (B8 chưa vào `main`, chưa có PR; quyết định (k) của Đại 12/11/2026): khi B8 merge thì thay bằng hàm của B8 và xoá hai hàm tạm (TECH_DEBT dòng 106).
+// (PLAN booking 5.3, 7.3, 7.29; TRACKING 3.23 B10-I). Dùng `failAfterStatement` và `interceptStatements` của B8 (`testing/statement-recorder.ts`): câu SQL chạy THẬT rồi mới ném, hoặc có việc xen vào GIỮA hai câu.
+// (B8 vào `main` ngày 12/11/2026, PR #359; bản đầu của file này dùng hai hàm tạm cùng ý, đã bỏ.)
 let db: DataSource;
 let fx: BookingFixtures;
 useIntegrationHooks((d) => {
@@ -51,12 +53,12 @@ describe('HL-16 hoàn tác trọn khi lỗi ở từng bước ghi: lịch và k
     [
       'sau UPDATE lich_hen',
       (_ports: ReturnType<typeof createCancelStack>['ports']) =>
-        throwAfterStatement(db, /^\s*UPDATE lich_hen/i, BOOM),
+        failAfterStatement(db, /^\s*UPDATE lich_hen/i, BOOM),
     ],
     [
       'sau UPDATE khung_gio (khung giờ đã ConTrong trong giao dịch)',
       (_ports: ReturnType<typeof createCancelStack>['ports']) =>
-        throwAfterStatement(db, /^\s*UPDATE khung_gio/i, BOOM),
+        failAfterStatement(db, /^\s*UPDATE khung_gio/i, BOOM),
     ],
     [
       'cổng đọc tiền đã thu lỗi (sau cả hai UPDATE)',
@@ -98,7 +100,7 @@ describe('HL-16 hoàn tác trọn khi lỗi ở từng bước ghi: lịch và k
     const lich = await paidAppointment(w);
     const { service, ports } = createCancelStack(db);
     ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
-    const matched = throwAfterStatement(db, /^\s*UPDATE khung_gio/i, BOOM);
+    const matched = failAfterStatement(db, /^\s*UPDATE khung_gio/i, BOOM);
 
     await expect(
       service.cancel(cancelInput(w, 'BenhNhan', lich.maLichHen)),
@@ -118,11 +120,7 @@ describe('CNL-08 thân chạy lại khi 1213: kết quả như chạy một lầ
     const lich = await paidAppointment(w);
     const { service, ports } = createCancelStack(db);
     ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
-    const matched = throwAfterStatement(
-      db,
-      /^\s*UPDATE khung_gio/i,
-      deadlock(),
-    );
+    const matched = failAfterStatement(db, /^\s*UPDATE khung_gio/i, deadlock());
 
     await expect(
       service.cancel(cancelInput(w, 'BenhNhan', lich.maLichHen)),
@@ -173,7 +171,7 @@ describe('CNL-08 thân chạy lại khi 1213: kết quả như chạy một lầ
     const before = await w.snapshot(lich, 0);
     const { service, ports } = createCancelStack(db);
     ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
-    const matched = throwAfterStatement(
+    const matched = failAfterStatement(
       db,
       /^\s*UPDATE khung_gio/i,
       deadlock(),
@@ -197,10 +195,19 @@ describe('CNL-08 thân chạy lại khi 1213: kết quả như chạy một lầ
 describe('CNL-05 kiểm LẠI dưới khoá: người khác đổi lịch giữa lần đọc thường và lần khoá', () => {
   /**
    * Chạy `effect` bằng một kết nối KHÁC (pool, tự commit) NGAY SAU câu đọc thường theo `ma_lich_hen` của lần huỷ, tức là trước khi `cancel` xin khoá khung giờ: mô phỏng một giao dịch khác đã xong
-   * trong khe hở giữa đọc thường và khoá.
+   * trong khe hở giữa đọc thường và khoá. Chỉ chạy một lần: cờ `done` đặt TRƯỚC khi chạy `effect`, để câu của chính `effect` (cũng đi qua bộ chen này) không kích hoạt lại.
    */
-  const afterPlainRead = (effect: () => Promise<unknown>): void =>
-    runAfterStatement(db, /FROM lich_hen WHERE ma_lich_hen = \?/, effect);
+  function afterPlainRead(effect: () => Promise<unknown>): void {
+    let done = false;
+    interceptStatements(db, async (call, run) => {
+      const result = await run();
+      if (!done && /FROM lich_hen WHERE ma_lich_hen = \?/.test(call.sql)) {
+        done = true;
+        await effect();
+      }
+      return result;
+    });
+  }
 
   it.each([
     [

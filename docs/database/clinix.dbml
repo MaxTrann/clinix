@@ -555,7 +555,7 @@ Table khung_gio {
   khung_gio_id bigint [pk, increment]
   lich_lam_viec_id bigint [not null, ref: > lich_lam_viec.lich_lam_viec_id]
   ngay_gio datetime [not null]
-  trang_thai trang_thai_khung_gio_enum [not null, default: 'ConTrong']
+  trang_thai trang_thai_khung_gio_enum [not null, default: 'ConTrong', note: 'HetHan là trạng thái SUY RA khi đọc (khung giờ đã qua giờ bắt đầu, Q3): booking KHÔNG bao giờ ghi giá trị này. Khung giờ DangGiuCho đã quá giu_cho_den được coi là trống: lúc đặt lịch booking ghi nhận hết hạn lười (huỷ lịch cũ, đặt lại ConTrong) trong cùng giao dịch, và job quét mỗi phút làm phần còn lại']
   giu_cho_den datetime [note: 'Hạn giữ chỗ tạm; để trống khi không giữ']
 
   indexes {
@@ -591,7 +591,7 @@ Table yeu_cau_nghi_phep {
 
 Table lich_hen {
   lich_hen_id bigint [pk, increment]
-  ma_lich_hen varchar(20) [not null, unique]
+  ma_lich_hen varchar(20) [not null, unique, note: 'Mã công khai dạng CLX-yyyyMMdd-XXXXX: yyyyMMdd là ngày Việt Nam lúc đặt, XXXXX là 5 ký tự Crockford base32 chữ hoa (không có I, L, O, U) từ bộ sinh ngẫu nhiên an toàn (Q13). Cột utf8mb4_unicode_ci nên tra cứu không phân biệt hoa thường, dấu và khoảng trắng cuối: service chuẩn hoá chữ hoa trước khi tra. Trùng mã (lỗi 1062 trên khoá này) thì sinh mã khác rồi chèn lại']
   khung_gio_id bigint [not null, ref: > khung_gio.khung_gio_id, note: 'KHÔNG unique: lịch đã hủy hoặc đã đổi vẫn giữ khung_gio_id để truy vết']
   khung_gio_dang_giu bigint [unique, note: 'Bằng khung_gio_id khi lịch còn hiệu lực (ChoThanhToan, DaXacNhan, DaTiepDon, HoanThanh, VangMat); NULL khi DaHuy hoặc DaDoiLich. Cột sinh STORED + UNIQUE: mỗi slot chỉ có 1 lịch còn hiệu lực.']
   lich_hen_truoc_id bigint [unique, ref: - lich_hen.lich_hen_id, note: 'Lịch cũ bị thay thế khi đổi lịch. UNIQUE: 1 lịch cũ chỉ sinh tối đa 1 lịch mới. Chỉ tạo lịch mới trong cùng giao dịch với việc chuyển lịch cũ sang DaDoiLich. Lịch không tự trỏ chính nó: kiểm tra ở service (không có CHECK vì MySQL cấm CHECK tham chiếu cột AUTO_INCREMENT). Chi tiết xem tài liệu quy tắc nghiệp vụ.']
@@ -603,11 +603,11 @@ Table lich_hen {
   thoi_gian datetime [not null, note: 'Sao chép từ khung_gio.ngay_gio, không đổi']
   gia_snapshot decimal(12,2) [not null, note: 'Giá cuối = giá mặc định + phụ phí lúc đặt; lịch mới do đổi lịch sao chép từ lịch trước']
   tien_coc_snapshot decimal(12,2) [not null, default: 0, note: 'Lịch mới do đổi lịch sao chép từ lịch trước']
-  chinh_sach_hoan_snapshot json [note: 'Bản sao các mốc hoàn tiền lúc đặt (chính sách không hồi tố); lịch mới do đổi lịch sao chép từ lịch trước']
+  chinh_sach_hoan_snapshot json [note: 'Bản sao các mốc hoàn tiền lúc đặt (chính sách không hồi tố); lịch mới do đổi lịch sao chép từ lịch trước. Dạng: mảng JSON [{"so_gio_truoc_toi_thieu": 24, "ty_le_hoan": 100}, ...] sắp GIẢM DẦN theo so_gio_truoc_toi_thieu (Q15). NULL (SQL NULL, không phải chuỗi JSON null) khi tien_coc_snapshot = 0; mảng rỗng [] khi cọc > 0 mà dịch vụ chưa có mốc nào (không hoàn gì). Ghi bằng chuỗi JSON, đọc ra mảng đã parse']
   trang_thai trang_thai_lich_hen_enum [not null]
-  han_thanh_toan datetime [note: 'Quá hạn mà chưa thanh toán thì tự hủy']
-  thoi_diem_huy datetime
-  ly_do_huy varchar(255)
+  han_thanh_toan datetime [note: 'Quá hạn mà chưa thanh toán thì tự hủy. Chỉ có giá trị khi ChoThanhToan: bằng toSecond(thời điểm đặt) + thoi_gian_giu_cho phút và bằng khung_gio.giu_cho_den (một giá trị duy nhất); đúng mốc này là hết hạn (nửa mở). NULL khi DaXacNhan (cọc 0đ xác nhận ngay lúc tạo, hoặc đã thanh toán) để lịch đã xác nhận không bị quét hết hạn']
+  thoi_diem_huy datetime [note: 'Lúc huỷ: bằng MỘT mốc toSecond(now) của lượt huỷ (booking B10), cũng là mốc tính bậc hoàn cọc. Hết hạn giữ chỗ (B9) ghi mốc đầu lượt quét']
+  ly_do_huy varchar(255) [note: 'Chữ theo lý do huỷ (booking B10, Q27): Bệnh nhân = Bệnh nhân hủy lịch hẹn (hoặc lý do tuỳ chọn tối đa 255 ký tự do họ nhập); Lễ tân và Quản trị viên override = lý do nhập, bắt buộc; hệ thống huỷ vì bác sĩ nghỉ phép = Bác sĩ nghỉ phép (lý do nghỉ của bác sĩ là dữ liệu riêng tư, không đi vào cột này); hết hạn giữ chỗ = Hết thời gian giữ chỗ. Chữ tự do, KHÔNG có mã lý do (TECH_DEBT dòng 106)']
   ly_do_kham text
   thoi_diem_tao datetime [not null, default: `now()`, note: 'Thời điểm đặt lịch']
   cap_nhat_lan_cuoi datetime [not null, default: `now()`, note: 'Tự cập nhật mỗi khi dòng thay đổi (ON UPDATE trong SQL)']

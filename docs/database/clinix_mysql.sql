@@ -1261,6 +1261,67 @@ ALTER TABLE `thong_tin_phong_kham` ADD CONSTRAINT `chk_phong_kham_mot_dong` CHEC
 -- ============================================================================
 -- UPDATE lich_hen SET trang_thai = 'DaTiepDon' WHERE lich_hen_id = :lich_hen_hien_tai AND trang_thai = 'DaXacNhan';
 
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): TẠO LỊCH HẸN (booking B8), bước 1 — khóa theo THỨ TỰ CỐ ĐỊNH trong MỘT giao dịch READ COMMITTED
+-- Thứ tự khóa toàn cục (từ ngoài vào trong; luồng ghi nào cũng chỉ xin theo chiều này, bỏ qua tầng không cần): tai_khoan (1) -> benh_nhan (2) -> ho_so_nguoi_than (3) -> bac_si (4)
+-- -> khung_gio (5) -> lich_hen THEO KHÓA CHÍNH lich_hen_id hoặc ma_lich_hen (6; KHÔNG BAO GIỜ WHERE khung_gio_id = ? FOR UPDATE: deadlock với gỡ ca của bác sĩ) -> giao_dich_thanh_toan, vi_noi_bo, bảng chỉ-thêm (7).
+-- Tạo lịch hẹn xin tầng 2, 3 (chỉ khi đặt cho người thân), 4 (FOR SHARE) và 5; mọi kiểm tra (no-show, hồ sơ còn hiệu lực, trạng thái khung giờ, bác sĩ khả dụng, giờ nhận khám, nghỉ phép,
+-- số lịch tối đa, trùng giờ) chạy SAU các khóa này. Tham số: :benh_nhan_id, :ho_so_nguoi_than_id, :bac_si_id (suy từ khung giờ), :khung_gio_id.
+-- ============================================================================
+-- SELECT khoa_dat_lich_do_no_show FROM benh_nhan WHERE tai_khoan_id = :benh_nhan_id FOR UPDATE;
+-- SELECT trang_thai_hieu_luc FROM ho_so_nguoi_than WHERE ho_so_nguoi_than_id = :ho_so_nguoi_than_id AND benh_nhan_id = :benh_nhan_id FOR UPDATE;
+-- SELECT chi_nhanh_id, dich_vu_kham_id FROM bac_si WHERE tai_khoan_id = :bac_si_id FOR SHARE;
+-- SELECT khung_gio_id, lich_lam_viec_id, ngay_gio, trang_thai, giu_cho_den FROM khung_gio WHERE khung_gio_id = :khung_gio_id FOR UPDATE;
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): TẠO LỊCH HẸN (booking B8), bước 2 — chèn lịch hẹn và giữ chỗ khung giờ (cùng giao dịch với bước 1)
+-- bac_si_id, chi_nhanh_id, dich_vu_kham_id, thoi_gian lấy từ khung giờ và bác sĩ đọc DƯỚI khóa (không từ client). :han = toSecond(now) + cau_hinh_he_thong.thoi_gian_giu_cho phút: MỘT giá trị cho cả
+-- han_thanh_toan và khung_gio.giu_cho_den. Cọc > 0: trang_thai = 'ChoThanhToan', han_thanh_toan = :han. Cọc 0đ: trang_thai = 'DaXacNhan' (INSERT thẳng), han_thanh_toan = NULL, chinh_sach_hoan_snapshot = NULL.
+-- chinh_sach_hoan_snapshot là CHUỖI JSON (mảng truyền thẳng bị MySQL từ chối), sắp giảm dần theo so_gio_truoc_toi_thieu; cọc > 0 chưa có mốc ghi '[]'; cọc 0đ ghi SQL NULL, không ghi chuỗi 'null'.
+-- Lỗi 1062: khóa lich_hen.ma_lich_hen => sinh mã khác rồi chèn lại (tối đa 5 lần chèn); khóa lich_hen.khung_gio_dang_giu => khung giờ đã có lịch còn hiệu lực (KHUNG_GIO_DA_DAT), hoàn tác cả giao dịch.
+-- ============================================================================
+-- INSERT INTO lich_hen (ma_lich_hen, khung_gio_id, benh_nhan_id, ho_so_nguoi_than_id, bac_si_id, chi_nhanh_id, dich_vu_kham_id, thoi_gian, gia_snapshot, tien_coc_snapshot, chinh_sach_hoan_snapshot, trang_thai, han_thanh_toan, ly_do_kham, thoi_diem_tao)
+-- VALUES (:ma_lich_hen, :khung_gio_id, :benh_nhan_id, :ho_so_nguoi_than_id, :bac_si_id, :chi_nhanh_id, :dich_vu_kham_id, :ngay_gio, :gia_ap_dung, :muc_dat_coc, :chinh_sach_json_hoac_null, :trang_thai, :han_hoac_null, :ly_do_kham_hoac_null, :now);
+-- UPDATE khung_gio SET trang_thai = 'DangGiuCho', giu_cho_den = :han WHERE khung_gio_id = :khung_gio_id AND trang_thai = 'ConTrong';   -- phải ảnh hưởng đúng 1 dòng
+-- UPDATE khung_gio SET trang_thai = 'DaDat', giu_cho_den = NULL WHERE khung_gio_id = :khung_gio_id AND trang_thai = 'DangGiuCho';   -- chỉ cọc 0đ (cùng giao dịch); cọc > 0 do bước xác nhận thanh toán làm
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): TẠO LỊCH HẸN (booking B8) — hết hạn LƯỜI của khung giờ DangGiuCho đã quá hạn (giu_cho_den <= :now), chạy sau bước 1 và TRƯỚC bước 2
+-- Tìm lịch đang giữ khung giờ bằng ĐỌC THƯỜNG (đang dưới khóa khung_gio), rồi khóa lịch đó THEO KHÓA CHÍNH, kiểm lại còn ChoThanhToan và han_thanh_toan <= :now, huỷ, rồi đặt khung giờ về ConTrong (có điều kiện giu_cho_den).
+-- ============================================================================
+-- SELECT lich_hen_id FROM lich_hen WHERE khung_gio_dang_giu = :khung_gio_id;
+-- SELECT trang_thai, han_thanh_toan FROM lich_hen WHERE lich_hen_id = :lich_hen_id FOR UPDATE;
+-- UPDATE lich_hen SET trang_thai = 'DaHuy', thoi_diem_huy = :now, ly_do_huy = 'Hết thời gian giữ chỗ' WHERE lich_hen_id = :lich_hen_id AND trang_thai = 'ChoThanhToan';
+-- UPDATE khung_gio SET trang_thai = 'ConTrong', giu_cho_den = NULL WHERE khung_gio_id = :khung_gio_id AND trang_thai = 'DangGiuCho' AND giu_cho_den <=> :giu_cho_den_da_doc;
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): tra lịch hẹn theo mã công khai (cột utf8mb4_unicode_ci: không phân biệt hoa thường, dấu, khoảng trắng cuối; service chuẩn hoá chữ hoa trước khi tra)
+-- ============================================================================
+-- SELECT lich_hen_id, trang_thai FROM lich_hen WHERE ma_lich_hen = :ma_lich_hen;
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): HUỶ LỊCH HẸN dùng chung (booking B10) — MỘT giao dịch READ COMMITTED; thứ tự khóa: khung_gio (5) rồi lich_hen THEO KHÓA CHÍNH (6)
+-- (KHÔNG BAO GIỜ WHERE khung_gio_id = ? FOR UPDATE: deadlock 1213 với gỡ ca của bác sĩ, doctor M12). Bệnh nhân, Lễ tân, Quản trị viên override và hệ thống (bác sĩ nghỉ phép) đi CÙNG chuỗi:
+-- đọc thường theo ma_lich_hen để biết lich_hen_id và khung_gio_id (cột bất biến), rồi khóa, rồi KIỂM LẠI sở hữu/phạm vi và trạng thái dưới khóa (ma trận trạng thái 5.2 theo vai trò).
+-- ============================================================================
+-- SELECT lich_hen_id, khung_gio_id, benh_nhan_id, chi_nhanh_id, trang_thai FROM lich_hen WHERE ma_lich_hen = :ma_lich_hen;
+-- SELECT khung_gio_id, trang_thai, giu_cho_den FROM khung_gio WHERE khung_gio_id = :khung_gio_id FOR UPDATE;
+-- SELECT benh_nhan_id, chi_nhanh_id, trang_thai, thoi_gian, chinh_sach_hoan_snapshot FROM lich_hen WHERE lich_hen_id = :lich_hen_id FOR UPDATE;
+-- UPDATE lich_hen SET trang_thai = 'DaHuy', thoi_diem_huy = :now, ly_do_huy = :ly_do WHERE lich_hen_id = :lich_hen_id AND trang_thai = :trang_thai_nguon_da_doc;   -- đúng 1 dòng
+-- UPDATE khung_gio SET trang_thai = 'ConTrong', giu_cho_den = NULL WHERE khung_gio_id = :khung_gio_id AND trang_thai = :DangGiuCho_hoac_DaDat AND giu_cho_den <=> :giu_cho_den_da_doc;   -- DangGiuCho khi lịch ChoThanhToan, DaDat (giu_cho_den NULL) với các trạng thái còn lại
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): MỐC HOÀN áp dụng khi Bệnh nhân hay Lễ tân huỷ lúc :now (booking B10; RefundCalculator đọc CHỈ chinh_sach_hoan_snapshot của lịch, không đọc moc_hoan_tien hiện hành: không hồi tố)
+-- Lấy mốc có so_gio_truoc_toi_thieu LỚN NHẤT mà thời gian còn lại >= số giờ x 3600 giây (nửa đóng: đúng 24 giờ được mốc 24); đã quá giờ hẹn (thoi_gian < :now) hoặc không mốc nào: không có dòng = 0%.
+-- Tiền hoàn = số tiền ĐÃ THU x ty_le_hoan / 100, làm tròn XUỐNG 0,01 (ứng dụng tính bằng BigInt đơn vị 0,01, không số thực). Quản trị viên override và bác sĩ nghỉ phép: 100%, bỏ qua bậc.
+-- ============================================================================
+-- SELECT m.so_gio_truoc_toi_thieu, m.ty_le_hoan
+--   FROM lich_hen lh,
+--        JSON_TABLE(lh.chinh_sach_hoan_snapshot, '$[*]' COLUMNS (so_gio_truoc_toi_thieu INT PATH '$.so_gio_truoc_toi_thieu', ty_le_hoan INT PATH '$.ty_le_hoan')) AS m
+--  WHERE lh.ma_lich_hen = :ma_lich_hen AND lh.thoi_gian >= :now
+--    AND TIMESTAMPDIFF(SECOND, :now, lh.thoi_gian) >= m.so_gio_truoc_toi_thieu * 3600
+--  ORDER BY m.so_gio_truoc_toi_thieu DESC LIMIT 1;
+
 
 -- P7 (28/10/2026): bổ sung quản lý ảnh Cloudinary; giữ URL chuyên khoa cũ.
 CREATE TABLE `anh_tai_len` (

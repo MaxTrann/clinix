@@ -3,7 +3,11 @@ import type { EntityManager } from 'typeorm';
 import type { ChucDanhBacSi } from '../../admin/entities/enums.js';
 import { ExamPriceReader } from '../../pricing/exam-price.reader.js';
 import type { BookingSummary } from './booking-checks.dto.js';
-import { RefundPolicyReader, toRefundPolicyView } from './refund-policy.js';
+import {
+  RefundPolicyReader,
+  toRefundPolicyView,
+  type RefundTierSnapshot,
+} from './refund-policy.js';
 
 // Dựng `tomTat` của Bước 5 (task B7; PLAN booking 5.9; TRACKING booking 3.18 B7-E). Chỉ ĐỌC, chỉ gọi khi `evaluateBookability` đã đạt, trong CÙNG giao dịch `READ ONLY` với các câu đọc của luật
 // (cùng một ảnh chụp). MỘT câu SELECT theo bác sĩ của khung giờ (không join lại thứ luật đã kiểm), cộng quy tắc phụ phí (`ExamPriceReader`) và mốc hoàn (`RefundPolicyReader`).
@@ -51,6 +55,29 @@ JOIN tai_khoan tbn ON tbn.tai_khoan_id = ?
 LEFT JOIN ho_so_nguoi_than hs ON hs.ho_so_nguoi_than_id = ? AND hs.benh_nhan_id = ?
 WHERE bs.tai_khoan_id = ?`;
 
+// Giá và cọc của bác sĩ cho BƯỚC TẠO (task B8; TRACKING 3.21 B8-D, câu (b2)): cùng nguồn với `read` nhưng chỉ 5 cột, không tên chi nhánh hay người khám. Chi nhánh và dịch vụ GHI vào `lich_hen`
+// không lấy ở đây mà từ `facts.doctor` (đọc dưới khoá `bac_si`), nên câu này không trả id chi nhánh.
+const READ_PRICING_SQL = `SELECT CAST(bs.dich_vu_kham_id AS CHAR) AS dichVuKhamId, bs.chuc_danh AS chucDanh, bs.so_nam_kinh_nghiem AS soNamKinhNghiem,
+  CAST(dv.gia_mac_dinh AS CHAR) AS giaMacDinh, CAST(dv.muc_dat_coc AS CHAR) AS mucDatCoc
+FROM bac_si bs
+JOIN dich_vu_kham dv ON dv.dich_vu_kham_id = bs.dich_vu_kham_id
+WHERE bs.tai_khoan_id = ?`;
+
+type PricingRow = Pick<
+  SummaryRow,
+  'dichVuKhamId' | 'chucDanh' | 'soNamKinhNghiem' | 'giaMacDinh' | 'mucDatCoc'
+>;
+
+/** Giá và chính sách hoàn để GHI vào `lich_hen` (`gia_snapshot`, `tien_coc_snapshot`, `chinh_sach_hoan_snapshot`). Chuỗi decimal, không số thực. */
+export interface AppointmentPricing {
+  /** `giaApDung` = giá dịch vụ + phụ phí hiện hành (`computeExamPrice`) */
+  giaApDung: string;
+  /** `dich_vu_kham.muc_dat_coc` */
+  tienCoc: string;
+  /** `null` khi cọc 0; `[]` khi cọc > 0 chưa có mốc; mảng giảm dần khi có mốc (dạng snake_case của snapshot) */
+  chinhSachHoan: RefundTierSnapshot[] | null;
+}
+
 @Injectable()
 export class BookingSummaryReader {
   constructor(
@@ -85,16 +112,7 @@ export class BookingSummaryReader {
         'Không đọc được hồ sơ người thân đã kiểm trong cùng ảnh chụp',
       );
 
-    const rules = await this.prices.loadRules(em);
-    const price = this.prices.priceFor(row.giaMacDinh, rules, {
-      chucDanh: row.chucDanh,
-      soNamKinhNghiem: Number(row.soNamKinhNghiem),
-    });
-    const snapshot = await this.refunds.read(
-      em,
-      row.dichVuKhamId,
-      row.mucDatCoc,
-    );
+    const { price, snapshot } = await this.priceAndPolicy(em, row);
 
     return {
       dichVu: { ten: row.dichVu, thoiLuongPhut: Number(row.thoiLuong) },
@@ -109,5 +127,41 @@ export class BookingSummaryReader {
       tienCoc: row.mucDatCoc,
       chinhSachHoan: toRefundPolicyView(snapshot),
     };
+  }
+
+  /**
+   * Giá, cọc và chính sách hoàn để ghi `lich_hen` (B8), trong CÙNG giao dịch và dưới khoá `bac_si` của người gọi. Dùng đúng `priceAndPolicy` của `read`, nên giá lúc tạo luôn bằng
+   * giá `checks` đã hiển thị cho cùng bác sĩ (một chỗ định nghĩa, TAO-09). Bác sĩ không có hàng là điều không thể xảy ra (luật vừa đọc đúng bác sĩ đó dưới khoá): ném lỗi.
+   */
+  async readPricing(
+    em: EntityManager,
+    input: { bacSiId: string },
+  ): Promise<AppointmentPricing> {
+    const row = (
+      await em.query<PricingRow[]>(READ_PRICING_SQL, [input.bacSiId])
+    )[0];
+    if (row === undefined)
+      throw new Error('Không đọc được giá của bác sĩ của khung giờ');
+    const { price, snapshot } = await this.priceAndPolicy(em, row);
+    return {
+      giaApDung: price.giaKham,
+      tienCoc: row.mucDatCoc,
+      chinhSachHoan: snapshot,
+    };
+  }
+
+  // Phần chung của `read` và `readPricing`: quy tắc phụ phí → giá (hàm chung của `pricing/`, không công thức thứ hai, H3) → snapshot hoàn (cọc 0 không đọc `moc_hoan_tien`).
+  private async priceAndPolicy(em: EntityManager, row: PricingRow) {
+    const rules = await this.prices.loadRules(em);
+    const price = this.prices.priceFor(row.giaMacDinh, rules, {
+      chucDanh: row.chucDanh,
+      soNamKinhNghiem: Number(row.soNamKinhNghiem),
+    });
+    const snapshot = await this.refunds.read(
+      em,
+      row.dichVuKhamId,
+      row.mucDatCoc,
+    );
+    return { price, snapshot };
   }
 }

@@ -1,4 +1,4 @@
-import type { DataSource, QueryRunner } from 'typeorm';
+import type { DataSource } from 'typeorm';
 import { vi } from 'vitest';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import type { LichHen } from '../../admin/entities/lich-hen.entity.js';
@@ -209,83 +209,4 @@ export function changeStatusLikeStaff(
     },
     { label: 'fake-staff-status-change' },
   );
-}
-
-/** Một câu SQL đã gửi lên MySQL: nội dung và tham số. */
-export interface SentStatement {
-  sql: string;
-  params: unknown[] | undefined;
-}
-
-// Chen vào MỌI câu của MỌI `QueryRunner` do `db` tạo (kể cả của `db.transaction` và `db.query`): mỗi câu đi qua `handler(call, run)`, `run()` chạy câu thật. Dùng `vi.spyOn`, nên `vi.restoreAllMocks()` (có sẵn trong
-// `useIntegrationHooks`) tự gỡ sau mỗi test. Hai hàm bên dưới cùng thay `createQueryRunner`: MỘT test chỉ dùng một trong hai (và không dùng chung với `recordStatements`).
-function interceptRunners(
-  db: DataSource,
-  handler: (
-    call: SentStatement,
-    run: () => Promise<unknown>,
-  ) => Promise<unknown>,
-): void {
-  const create = db.createQueryRunner.bind(db);
-  vi.spyOn(db, 'createQueryRunner').mockImplementation((...args) => {
-    const runner: QueryRunner = create(...args);
-    const run = runner.query.bind(runner) as (
-      sql: string,
-      params?: unknown[],
-      structured?: boolean,
-    ) => Promise<unknown>;
-    runner.query = ((sql: string, params?: unknown[], structured?: boolean) =>
-      handler({ sql, params }, () =>
-        run(sql, params, structured),
-      )) as unknown as QueryRunner['query'];
-    return runner;
-  });
-}
-
-/**
- * Cho câu khớp `pattern` chạy THẬT rồi mới ném `error` (tối đa `times` lần đầu): giao dịch đã làm việc rồi mới hỏng (HL-16 "hoàn tác trọn", CNL-08 "thân chạy lại với 1213"). Trả MẢNG các lần khớp (kể cả lần không
- * ném) để test đối chiếu giữa các lần chạy lại. TẠM THỜI (quyết định (k) của Đại, 12/11/2026): cùng ý với `failAfterStatement` của B8 (B8 chưa vào `main`, chưa có PR); khi B8 merge thì thay bằng hàm đó
- * và xoá hàm này (TECH_DEBT dòng 106).
- */
-export function throwAfterStatement(
-  db: DataSource,
-  pattern: RegExp,
-  error: unknown,
-  times = 1,
-): SentStatement[] {
-  const matched: SentStatement[] = [];
-  let thrown = 0;
-  interceptRunners(db, async (call, run) => {
-    const result = await run();
-    if (pattern.test(call.sql)) {
-      matched.push(call);
-      if (thrown < times) {
-        thrown += 1;
-        throw error;
-      }
-    }
-    return result;
-  });
-  return matched;
-}
-
-/**
- * Chạy `effect` (thường bằng một kết nối KHÁC của pool, tự commit) đúng MỘT lần, NGAY SAU câu đầu tiên khớp `pattern` đã chạy xong, rồi trả kết quả của câu đó: mô phỏng một giao dịch khác xong trong khe hở giữa hai
- * câu của lần huỷ (CNL-05 "kiểm lại dưới khoá"). Cờ `done` đặt TRƯỚC khi chạy `effect` để câu của chính `effect` (cũng đi qua bộ chen này) không kích hoạt lại. Tạm thời như `throwAfterStatement` (cùng ý với
- * `interceptStatements` của B8; TECH_DEBT dòng 106).
- */
-export function runAfterStatement(
-  db: DataSource,
-  pattern: RegExp,
-  effect: () => Promise<unknown>,
-): void {
-  let done = false;
-  interceptRunners(db, async (call, run) => {
-    const result = await run();
-    if (!done && pattern.test(call.sql)) {
-      done = true;
-      await effect();
-    }
-    return result;
-  });
 }

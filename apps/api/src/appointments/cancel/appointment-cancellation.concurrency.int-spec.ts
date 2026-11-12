@@ -44,11 +44,69 @@ const ROUNDS = 40;
 
 let db: DataSource;
 let fx: BookingFixtures;
-useIntegrationHooks((d) => {
+let logs: string[] = [];
+useIntegrationHooks((d, captured) => {
   db = d;
   fx = new BookingFixtures(d);
+  logs = captured;
 });
 const world = () => cancelWorld(db, fx);
+
+// BỘ ĐẾM (yêu cầu của Đại 12/11/2026; KHÔNG có mức tối thiểu, chỉ báo số thật, 0 cũng báo): `withBookingTransaction` ghi một cảnh báo mỗi lần thử lại hay hết lượt
+// (`<nhãn>: MySQL 1213|1205 ở lần chạy n/3, thử lại|hết lượt thử lại`); `useIntegrationHooks` đã gom mọi dòng Logger của Nest từ đầu test vào `logs`.
+const RETRY_WARNING =
+  /^(\S+): MySQL (1213|1205) ở lần chạy \d+\/\d+, (thử lại|hết lượt thử lại)$/;
+
+/** Số lần thử lại theo `nhãn + mã lỗi` và số lần hết lượt (503), từ đầu test tới giờ. */
+function retryStats(): { retries: Record<string, number>; exhausted: number } {
+  const retries: Record<string, number> = {};
+  let exhausted = 0;
+  for (const line of logs) {
+    const match = RETRY_WARNING.exec(line);
+    if (match === null) continue;
+    if (match[3] === 'hết lượt thử lại') exhausted += 1;
+    else {
+      const key = `${match[1] ?? '?'} MySQL ${match[2] ?? '?'}`;
+      retries[key] = (retries[key] ?? 0) + 1;
+    }
+  }
+  return { retries, exhausted };
+}
+
+/** Bên thắng mỗi vòng: tăng bộ đếm theo nhãn. */
+function winnerTally() {
+  const winners: Record<string, number> = {};
+  return {
+    winners,
+    add: (label: string) => {
+      winners[label] = (winners[label] ?? 0) + 1;
+    },
+  };
+}
+
+/** In MỘT dòng số liệu của ca (vào log của vitest, tiền tố `[B10-DT]`); báo cáo giai đoạn 2 lấy số ở đây. */
+function report(
+  name: string,
+  rounds: number,
+  winners: Record<string, number>,
+): void {
+  const { retries, exhausted } = retryStats();
+  const total = Object.values(retries).reduce((sum, n) => sum + n, 0);
+  console.info(
+    `[B10-DT] ${name}: ${String(rounds)} vòng; bên thắng ${JSON.stringify(winners)}; thử lại ${JSON.stringify(retries)} (tổng ${String(total)}); hết lượt (503) ${String(exhausted)}`,
+  );
+}
+
+/** Vị trí 1451 của gỡ ca: câu `DELETE khung_gio` vướng `lich_hen` (cancel đã xong trước, khung giờ đã ConTrong) hay `DELETE lich_lam_viec` vướng `khung_gio` (gỡ ca giữ khoá trước, khung giờ còn DaDat). */
+function blockedAt(reason: unknown): string {
+  const driver = (reason as { driverError?: { sqlMessage?: string } })
+    .driverError;
+  const text =
+    driver?.sqlMessage ?? (reason instanceof Error ? reason.message : '');
+  return text.includes('`lich_hen`')
+    ? 'cancel xong trước (1451 ở DELETE khung_gio)'
+    : 'gỡ ca giữ khoá trước (1451 ở DELETE lich_lam_viec)';
+}
 
 const resetAll = async () => {
   await db.query('DELETE FROM lich_hen');
@@ -96,6 +154,7 @@ describe('HL-18 cancel đồng thời với DELETE khung_gio của gỡ ca của
       lichLamViecId: w.shift.lichLamViecId,
       bacSiId: w.doctor.profile.taiKhoanId,
     };
+    const tally = winnerTally();
     await runRounds({
       rounds: ROUNDS,
       setup: async () => ({
@@ -131,8 +190,10 @@ describe('HL-18 cancel đồng thời với DELETE khung_gio của gỡ ca của
           expect(isDeadlockError(result.reason)).toBe(false);
           expect(isLockWaitTimeoutError(result.reason)).toBe(false);
         }
-        if (removed?.status === 'rejected')
+        if (removed?.status === 'rejected') {
           expect(isForeignKeyError(removed.reason)).toBe(true);
+          tally.add(blockedAt(removed.reason));
+        }
         // gỡ ca bị hoàn tác: ca và đủ 8 khung giờ còn nguyên
         const [{ slots }] = await db.query<{ slots: string | number }[]>(
           'SELECT COUNT(*) AS slots FROM khung_gio WHERE lich_lam_viec_id = ?',
@@ -147,12 +208,14 @@ describe('HL-18 cancel đồng thời với DELETE khung_gio của gỡ ca của
         await assertBookingInvariants(db);
       },
     });
+    report('HL-18', ROUNDS, tally.winners);
   });
 });
 
 describe('DT-07 hai huỷ cùng lúc (Bệnh nhân và Lễ tân), cùng bộ cổng (≥ 30 vòng)', () => {
   it(`${String(ROUNDS)} vòng: một Cancelled và một AlreadyCancelled; hoàn tiền, mời danh sách chờ và thông báo đúng MỘT lần; không deadlock; INV`, async () => {
     const w = await world();
+    const tally = winnerTally();
     await runRounds({
       rounds: ROUNDS,
       setup: async () => {
@@ -178,10 +241,11 @@ describe('DT-07 hai huỷ cùng lúc (Bệnh nhân và Lễ tân), cùng bộ c�
         ];
       },
       check: async ({ lich, ports }, results) => {
-        const kinds = valuesOf(results)
-          .map((outcome) => outcome.kind)
-          .sort();
+        const outcomes = valuesOf(results);
+        const kinds = outcomes.map((outcome) => outcome.kind).sort();
         expect(kinds).toEqual(['AlreadyCancelled', 'Cancelled']);
+        // kết quả giữ đúng thứ tự tác vụ: [0] Bệnh nhân, [1] Lễ tân
+        tally.add(outcomes[0]?.kind === 'Cancelled' ? 'Bệnh nhân' : 'Lễ tân');
         expect(ports.refund.refundCall.count).toBe(1);
         expect(ports.waitlist.onSlotReleasedCall.count).toBe(1);
         expect(ports.notifier.notifyCall.count).toBe(1);
@@ -191,6 +255,7 @@ describe('DT-07 hai huỷ cùng lúc (Bệnh nhân và Lễ tân), cùng bộ c�
         await assertBookingInvariants(db);
       },
     });
+    report('DT-07', ROUNDS, tally.winners);
   });
 });
 
@@ -200,8 +265,9 @@ describe('DT-05, DT-06 (một phần B10) huỷ cùng lúc tiếp đón hay job 
     ['DT-06 job Vắng mặt (DaXacNhan → VangMat)', 'VangMat'],
   ] as const)(
     '%s: đúng MỘT bên thắng; huỷ thắng ⇒ DaHuy và khung giờ ConTrong, bên kia thấy trạng thái đã đổi; bên kia thắng ⇒ huỷ nhận NotCancellable, khung giờ giữ DaDat (không giải phóng sai, không mời chờ)',
-    async (_name, to) => {
+    async (name, to) => {
       const w = await world();
+      const tally = winnerTally();
       await runRounds({
         rounds: ROUNDS,
         setup: async () => ({
@@ -233,6 +299,11 @@ describe('DT-05, DT-06 (một phần B10) huỷ cùng lúc tiếp đón hay job 
           const [cancelResult, staffResult] = valuesOf(results);
           const state = await readAppointment(db, lich.lichHenId);
           const slot = await w.slotState(0);
+          tally.add(
+            staffResult === 'Changed'
+              ? 'tiếp đón hoặc job Vắng mặt thắng'
+              : 'huỷ thắng',
+          );
           if (staffResult === 'Changed') {
             expect(cancelResult).toStrictEqual({
               kind: 'NotCancellable',
@@ -252,6 +323,7 @@ describe('DT-05, DT-06 (một phần B10) huỷ cùng lúc tiếp đón hay job 
           await assertBookingInvariants(db);
         },
       });
+      report(name.slice(0, 5), ROUNDS, tally.winners);
     },
   );
 });
@@ -261,6 +333,7 @@ describe('DT-08 job hết hạn cùng lúc Bệnh nhân huỷ (phần cancel th�
     const w = await world();
     // đồng hồ ứng dụng = giờ của lượt hết hạn (09:00 ngày 02/11, sau hạn 08:15 của lịch ChoThanhToan): `cancel` đọc đồng hồ này, `expire` nhận `now` tường minh
     vi.setSystemTime(FLOW_NOW);
+    const tally = winnerTally();
     await runRounds({
       rounds: ROUNDS,
       setup: async () => ({
@@ -295,6 +368,9 @@ describe('DT-08 job hết hạn cùng lúc Bệnh nhân huỷ (phần cancel th�
         const state = await readAppointment(db, lich.lichHenId);
         expect(state.trangThai).toBe('DaHuy');
         const cancelledByPatient = cancelResult.kind === 'Cancelled';
+        tally.add(
+          cancelledByPatient ? 'Bệnh nhân huỷ thắng' : 'job hết hạn thắng',
+        );
         if (cancelledByPatient) {
           expect(expireResult).toEqual({
             kind: 'NotDue',
@@ -311,5 +387,6 @@ describe('DT-08 job hết hạn cùng lúc Bệnh nhân huỷ (phần cancel th�
         await assertBookingInvariants(db);
       },
     });
+    report('DT-08', ROUNDS, tally.winners);
   });
 });

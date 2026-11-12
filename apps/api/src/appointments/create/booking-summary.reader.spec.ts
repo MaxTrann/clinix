@@ -336,3 +336,119 @@ describe('BookingSummaryReader: dữ liệu hỏng', () => {
     ).rejects.toThrow();
   });
 });
+
+// Task B8 — `readPricing`: giá, cọc và chính sách hoàn để GHI vào `lich_hen` (TAO-09, DL-20, DL-21 phần đơn vị; TRACKING 3.21 B8-D, câu (b2)). Dùng chung `priceAndPolicy` với `read`, nên giá lúc tạo
+// luôn bằng giá `checks` đã hiển thị. Mã TAO-nn là [đề xuất].
+describe('BookingSummaryReader.readPricing (B8)', () => {
+  const RULES = [
+    { chucDanh: 'BS_CKI', soNamKinhNghiemTu: 5, phuPhi: '50000.00', apDung: 1 },
+  ];
+
+  it('TAO-09 cọc 0: giaApDung = giá dịch vụ + phụ phí, tienCoc nguyên chuỗi DB, chinhSachHoan null và KHÔNG đọc moc_hoan_tien', async () => {
+    const { reader, em, query } = build({
+      rules: RULES,
+      tiers: [{ soGioTruocToiThieu: 24, tyLeHoan: 100 }],
+    });
+
+    const pricing = await reader.readPricing(em, { bacSiId: '5' });
+
+    expect(pricing).toStrictEqual({
+      giaApDung: '200000.00',
+      tienCoc: '0.00',
+      chinhSachHoan: null,
+    });
+    expect(
+      query.mock.calls.some(([sql]) => sql.includes('moc_hoan_tien')),
+    ).toBe(false);
+  });
+
+  it('DL-21 cọc > 0 chưa có mốc ⇒ [] (không hoàn gì), khác null', async () => {
+    const { reader, em } = build({
+      summary: { mucDatCoc: '50000.00' },
+      tiers: [],
+    });
+
+    expect(
+      (await reader.readPricing(em, { bacSiId: '5' })).chinhSachHoan,
+    ).toStrictEqual([]);
+  });
+
+  it('DL-21 cọc > 0 có mốc ⇒ dạng SNAKE_CASE của snapshot (không phải camelCase của API), giảm dần dù DB trả lộn thứ tự, đọc đúng dịch vụ', async () => {
+    const { reader, em, query } = build({
+      summary: { mucDatCoc: '50000.00', dichVuKhamId: '9007199254740993' },
+      tiers: [
+        { soGioTruocToiThieu: 2, tyLeHoan: 50 },
+        { soGioTruocToiThieu: 24, tyLeHoan: 100 },
+      ],
+    });
+
+    const pricing = await reader.readPricing(em, { bacSiId: '5' });
+
+    expect(pricing.tienCoc).toBe('50000.00');
+    expect(pricing.chinhSachHoan).toStrictEqual([
+      { so_gio_truoc_toi_thieu: 24, ty_le_hoan: 100 },
+      { so_gio_truoc_toi_thieu: 2, ty_le_hoan: 50 },
+    ]);
+    const tierCall = query.mock.calls.find(([sql]) =>
+      sql.includes('moc_hoan_tien'),
+    );
+    expect(tierCall?.[1]).toStrictEqual(['9007199254740993']);
+  });
+
+  it('TAO-09 một chỗ định nghĩa giá: giaApDung của readPricing bằng giaApDung của read cho cùng bác sĩ (checks và tạo không thể lệch nhau)', async () => {
+    const { reader, em } = build({ rules: RULES });
+
+    const summary = await reader.read(em, INPUT);
+    const pricing = await reader.readPricing(em, { bacSiId: '5' });
+
+    expect(pricing.giaApDung).toBe(summary.giaApDung);
+    expect(pricing.giaApDung).toBe('200000.00');
+    expect(pricing.tienCoc).toBe(summary.tienCoc);
+  });
+
+  it('DL-20 tiền giữ chuỗi decimal chính xác, không qua số thực (0.1 + 0.2 không thành 0.30000000000000004)', async () => {
+    const { reader, em } = build({
+      summary: { giaMacDinh: '100000.10' },
+      rules: [
+        { chucDanh: 'BS_CKI', soNamKinhNghiemTu: 0, phuPhi: '0.20', apDung: 1 },
+      ],
+    });
+
+    expect((await reader.readPricing(em, { bacSiId: '5' })).giaApDung).toBe(
+      '100000.30',
+    );
+  });
+
+  it('quy tắc đã tắt (apDung = 0) bị loại: giaApDung = giá dịch vụ', async () => {
+    const { reader, em } = build({
+      rules: [
+        {
+          chucDanh: 'BS_CKI',
+          soNamKinhNghiemTu: 0,
+          phuPhi: '99000.00',
+          apDung: 0,
+        },
+      ],
+    });
+
+    expect((await reader.readPricing(em, { bacSiId: '5' })).giaApDung).toBe(
+      '150000.00',
+    );
+  });
+
+  it('câu SELECT theo ĐÚNG bác sĩ (tham số là chuỗi id), không có tham số nào khác', async () => {
+    const { reader, em, query } = build();
+
+    await reader.readPricing(em, { bacSiId: '9007199254740993' });
+
+    const call = query.mock.calls.find(([sql]) => sql.includes('FROM bac_si'));
+    expect(call?.[0]).toContain('bs.tai_khoan_id = ?');
+    expect(call?.[1]).toStrictEqual(['9007199254740993']);
+  });
+
+  it('không có hàng bác sĩ trong cùng giao dịch (không thể xảy ra) ⇒ ném lỗi, không trả giá rỗng', async () => {
+    const { reader, em } = build({ summary: null });
+
+    await expect(reader.readPricing(em, { bacSiId: '5' })).rejects.toThrow();
+  });
+});

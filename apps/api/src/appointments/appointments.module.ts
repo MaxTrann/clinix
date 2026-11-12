@@ -3,6 +3,10 @@ import { SystemConfigModule } from '../admin/system-config/system-config.module.
 import { ExamPriceReader } from '../pricing/exam-price.reader.js';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
+import {
+  APPOINTMENT_CODE_RANDOM,
+  randomCodeSuffix,
+} from './appointment-code.js';
 import { AppointmentCancellationService } from './cancel/appointment-cancellation.service.js';
 import { CancelPreviewService } from './cancel/cancel-preview.service.js';
 import { PatientCancelController } from './cancel/patient-cancel.controller.js';
@@ -10,6 +14,8 @@ import { BookingChecksController } from './create/booking-checks.controller.js';
 import { BookingChecksService } from './create/booking-checks.service.js';
 import { BookingEligibilityService } from './create/booking-eligibility.service.js';
 import { BookingSummaryReader } from './create/booking-summary.reader.js';
+import { CreateAppointmentController } from './create/create-appointment.controller.js';
+import { CreateAppointmentService } from './create/create-appointment.service.js';
 import { RefundPolicyReader } from './create/refund-policy.js';
 import { HoldExpiryJob } from './expiry/hold-expiry.job.js';
 import { DoctorAppointmentsController } from './lists/doctor-appointments.controller.js';
@@ -49,6 +55,8 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
 //   B6b (đã làm) `SlotHoldService` (`slots/`; NƠI DUY NHẤT ghi `khung_gio`: `hold`, `markBooked`, `release`, `expireLapsedHold`, `holdForInvitation`, `releaseInvitationHold`; không tiêm gì, nhận `em` của người gọi), `state/lapsed-hold.ts` (`cancelLapsedHold`, hàm thuần SQL, không phải provider)
 //   B7 (đã làm) `BookingChecksController` (`create/`; `GET /booking/eligibility` và `POST /booking/checks`, chỉ đọc), `BookingEligibilityService`, `BookingChecksService`, `BookingSummaryReader`, `RefundPolicyReader`;
 //       dùng lại `SystemConfigModule` mà B3 đã nhập vào `imports` (không nhập lần hai) và thêm `ExamPriceReader` của `pricing/` vào `providers` (chỉ `search/` khai nó; chưa có `PricingModule`; TECH_DEBT)
+//   B8 (đã làm) `CreateAppointmentController` + `CreateAppointmentService` (`create/`; `POST /booking/appointments`: ĐƯỜNG GHI đầu tiên chèn `lich_hen`; tiêm `SlotHoldService`, `BookabilityReader`, `BookingSummaryReader.readPricing`,
+//       `PAYMENT_PORT`, `APPOINTMENT_NOTIFIER`) và token `APPOINTMENT_CODE_RANDOM` (bộ sinh phần đuôi mã lịch, `useValue: randomCodeSuffix`; test thay bằng `overrideProvider`). Không thêm `imports`.
 //   B9 (đã làm) `AppointmentTransitionService` (`state/`; khung của mọi phương thức đổi trạng thái, mới có `expire`; tiêm `DataSource`, `SlotHoldService`, `WAITLIST_PORT`) và `HoldExpiryJob` (`expiry/`; `@Cron` mỗi phút,
 //       tắt ở NODE_ENV=test; chỉ `@Cron`, không `ScheduleModule.forRoot()`). `AppointmentTransitionService` CHƯA `exports`: chưa module nào ngoài `appointments` gọi `expire` (B11 xuất khi payment, doctor cần `confirmPaid`, `complete`).
 // `exports` hiện chỉ có `AppointmentCancellationService` (B10: `doctor` duyệt nghỉ phép gọi `cancel` với `HeThong`). Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…);
@@ -72,11 +80,14 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
     PatientAppointmentsController,
     ReceptionAppointmentsController,
     BookingChecksController,
+    CreateAppointmentController,
     DoctorAppointmentsController,
     PatientCancelController,
   ],
   providers: [
     ...BOOKING_PORT_PROVIDERS,
+    { provide: APPOINTMENT_CODE_RANDOM, useValue: randomCodeSuffix },
+    CreateAppointmentService,
     DoctorAppointmentsService,
     DoctorAppointmentsRepository,
     PatientAppointmentsService,

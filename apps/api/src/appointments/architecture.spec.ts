@@ -163,7 +163,7 @@ describe('AR-01 chỉ appointments/ ghi lich_hen và khung_gio (H7)', () => {
 });
 
 describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots/, UPDATE lich_hen chỉ ở state/, INSERT INTO lich_hen chỉ ở create/, không INSERT/DELETE khung_gio (D7)', () => {
-  it('cây src/ thật đạt, và bộ quét THẤY hai nơi ghi thật (bỏ mọi chỗ được phép thì lộ đúng slots/ và state/)', () => {
+  it('cây src/ thật đạt, và bộ quét THẤY ba nơi ghi thật (bỏ mọi chỗ được phép thì lộ đúng slots/, state/ và, từ B8, create/)', () => {
     expect(findInternalWriteViolations(files)).toEqual([]);
     const noneAllowed = INTERNAL_WRITE_RULES.map((entry) => ({
       ...entry,
@@ -181,6 +181,24 @@ describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots
       exposed.some((line) =>
         line.startsWith('appointments/state/lapsed-hold.ts: UPDATE lich_hen'),
       ),
+    ).toBe(true);
+    // B8 (TRACKING 3.21 câu (b)): `INSERT INTO lich_hen` thật đã nằm ở create/ (nơi DUY NHẤT; ngoại lệ `INTERNAL_WRITE_RULES` có sẵn từ P1), và KHÔNG có `UPDATE lich_hen` nào ngoài state/
+    expect(
+      exposed.some((line) =>
+        line.startsWith(
+          'appointments/create/lich-hen-insert.query.ts: INSERT INTO lich_hen',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      exposed
+        .filter((line) => line.includes('INSERT INTO lich_hen'))
+        .every((line) => line.startsWith('appointments/create/')),
+    ).toBe(true);
+    expect(
+      exposed
+        .filter((line) => line.includes('UPDATE lich_hen'))
+        .every((line) => line.startsWith('appointments/state/')),
     ).toBe(true);
     // CG-10: ngoài slots/ không file nào của appointments/ có UPDATE khung_gio
     expect(
