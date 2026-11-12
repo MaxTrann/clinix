@@ -5,7 +5,7 @@ import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { getServices } from '../api/search-service';
 import { serviceListPath } from '../search-paths';
-import { useRemote } from '../use-remote';
+import { useRemote } from '../../../shared/hooks/use-remote';
 import { DoctorFilters } from './doctor-filters';
 import {
   DOCTOR_EMPTY_HINT_WITH_SERVICE,
