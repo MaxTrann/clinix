@@ -6,6 +6,11 @@ export const BOOKING_ERROR_CODES = {
   LOCKED_NO_SHOW: 'DAT_LICH_BI_KHOA_NO_SHOW',
   FORBIDDEN: 'KHONG_DU_QUYEN',
   NOT_CONFIGURED: 'HE_THONG_CHUA_CAU_HINH',
+  // Chi tiết và huỷ lịch hẹn của Bệnh nhân (F2). `CHUA_DANG_NHAP` là 401 mà `request()` đã thử làm mới token mà không được.
+  UNAUTHENTICATED: 'CHUA_DANG_NHAP',
+  NOT_FOUND: 'KHONG_TIM_THAY',
+  NOT_CANCELLABLE: 'LICH_HEN_KHONG_CHO_HUY',
+  SYSTEM_BUSY: 'HE_THONG_DANG_BAN',
 } as const;
 
 // Câu của A4 lấy từ PLAN 5.14. Ba câu còn lại là [đề xuất], chờ nhóm duyệt (Figma không có frame cho các trạng thái này, PLAN 4.5).
