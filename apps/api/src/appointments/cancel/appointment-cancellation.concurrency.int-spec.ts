@@ -22,11 +22,13 @@ import {
   REFUND_POLICY,
   type CancelWorld,
 } from '../testing/cancel-world.js';
+import { createGate, runRounds } from '../testing/concurrency-harness.js';
 import {
-  createGate,
-  runRounds,
-  summarize,
-} from '../testing/concurrency-harness.js';
+  reportRounds,
+  sleep,
+  valuesOf,
+  winnerTally,
+} from '../testing/concurrency-report.js';
 import {
   createExpiryStack,
   readAppointment,
@@ -52,57 +54,14 @@ useIntegrationHooks((d, captured) => {
 });
 const world = () => cancelWorld(db, fx);
 
-// BỘ ĐẾM (yêu cầu của Đại 12/11/2026; ban đầu CHỈ báo số thật, 0 cũng báo; từ giai đoạn 3 thêm khẳng định `thử lại = 0`, xem `report`): `withBookingTransaction` ghi một cảnh báo mỗi lần thử lại hay hết lượt
-// (`<nhãn>: MySQL 1213|1205 ở lần chạy n/3, thử lại|hết lượt thử lại`); `useIntegrationHooks` đã gom mọi dòng Logger của Nest từ đầu test vào `logs`.
-const RETRY_WARNING =
-  /^(\S+): MySQL (1213|1205) ở lần chạy \d+\/\d+, (thử lại|hết lượt thử lại)$/;
-
-/** Số lần thử lại theo `nhãn + mã lỗi` và số lần hết lượt (503), từ đầu test tới giờ. */
-function retryStats(): { retries: Record<string, number>; exhausted: number } {
-  const retries: Record<string, number> = {};
-  let exhausted = 0;
-  for (const line of logs) {
-    const match = RETRY_WARNING.exec(line);
-    if (match === null) continue;
-    if (match[3] === 'hết lượt thử lại') exhausted += 1;
-    else {
-      const key = `${match[1] ?? '?'} MySQL ${match[2] ?? '?'}`;
-      retries[key] = (retries[key] ?? 0) + 1;
-    }
-  }
-  return { retries, exhausted };
-}
-
-/** Bên thắng mỗi vòng: tăng bộ đếm theo nhãn. */
-function winnerTally() {
-  const winners: Record<string, number> = {};
-  return {
-    winners,
-    add: (label: string) => {
-      winners[label] = (winners[label] ?? 0) + 1;
-    },
-  };
-}
-
-/** In MỘT dòng số liệu của ca (vào log của vitest, tiền tố `[B10-DT]`); báo cáo giai đoạn 2 lấy số ở đây. */
-function report(
+// BỘ ĐẾM và báo cáo (yêu cầu của Đại 12/11/2026) nay ở `testing/concurrency-report.ts` (B12 gom về đó để jscpd không thấy cùng một đoạn ở hai int-spec đồng thời); ở đây chỉ gắn nhãn `[B10-DT]` và mảng `logs`.
+const report = (
   name: string,
   rounds: number,
   winners: Record<string, number>,
-): void {
-  const { retries, exhausted } = retryStats();
-  const total = Object.values(retries).reduce((sum, n) => sum + n, 0);
-  console.info(
-    `[B10-DT] ${name}: ${String(rounds)} vòng; bên thắng ${JSON.stringify(winners)}; thử lại ${JSON.stringify(retries)} (tổng ${String(total)}); hết lượt (503) ${String(exhausted)}`,
-  );
-  // TĂNG CƯỜNG sau đột biến M2 (giai đoạn 3, 12/11/2026): đảo thứ tự khoá cho 10 đến 40 lần 1213 mỗi ca mà ca vẫn XANH vì `withBookingTransaction` thử lại và chạy lại thân. Với thứ tự khoá đúng
-  // (5.3: khung_gio rồi lich_hen theo khoá chính) không có deadlock nào, kể cả trước khi thử lại: đo 0 ở mọi lượt chạy trước khi thêm dòng này. Số khác 0 là THỨ TỰ KHOÁ SAI, không phải nhiễu.
-  expect(
-    total,
-    `${name}: có ${String(total)} lần thử lại 1213/1205 ${JSON.stringify(retries)}`,
-  ).toBe(0);
-  expect(exhausted, `${name}: có yêu cầu hết lượt thử lại (503)`).toBe(0);
-}
+): void => {
+  reportRounds('B10-DT', name, rounds, winners, logs);
+};
 
 /** Vị trí 1451 của gỡ ca: câu `DELETE khung_gio` vướng `lich_hen` (cancel đã xong trước, khung giờ đã ConTrong) hay `DELETE lich_lam_viec` vướng `khung_gio` (gỡ ca giữ khoá trước, khung giờ còn DaDat). */
 function blockedAt(reason: unknown): string {
@@ -120,17 +79,6 @@ const resetAll = async () => {
   await db.query(
     "UPDATE khung_gio SET trang_thai = 'ConTrong', giu_cho_den = NULL",
   );
-};
-
-const sleep = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-/** Mọi yêu cầu của vòng phải XONG (kết quả có kiểu, không ném): lỗi sót là deadlock, hết giờ chờ khoá hay lỗi lạ. */
-const valuesOf = <T>(results: readonly PromiseSettledResult<T>[]): T[] => {
-  const { values, reasons } = summarize(results);
-  if (reasons.length > 0)
-    throw new Error(`yêu cầu ném lỗi: ${String(reasons[0])}`);
-  return values;
 };
 
 /** Dữ liệu dựng lại SẠCH rồi một lịch ở khung giờ số 0 có cọc và chính sách hoàn minh hoạ (đã thu bao nhiêu do cổng giả quyết). */

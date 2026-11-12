@@ -34,6 +34,8 @@ import { AppointmentQueries } from './queries/appointment-queries.js';
 import { BookabilityReader } from './slots/bookability.reader.js';
 import { SlotHoldService } from './slots/slot-hold.service.js';
 import { AppointmentTransitionService } from './state/appointment-transition.service.js';
+import { ReceptionStatusController } from './status/reception-status.controller.js';
+import { ReceptionStatusService } from './status/reception-status.service.js';
 
 // Module `booking` (PLAN booking 5.1, 5.10; TRACKING 3.3 P1-B, 3.6 P2-B, P2-D). P1 dựng vỏ; P2 thêm TÁM cổng sang module khác, mỗi cổng gắn bản `Noop` mặc định
 // (`ports/ports.providers.ts`). Mọi thứ khác P1 làm ra (ma trận trạng thái, hằng và mã lỗi, `withBookingTransaction`, `lock-order`) là hàm hoặc hằng thuần mà nơi
@@ -45,6 +47,9 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
 //   B10 (đã làm) `AppointmentCancellationService` (`cancel/`; MỘT nơi huỷ cho Bệnh nhân, Lễ tân, Quản trị viên và `doctor`; EXPORT cho `doctor`, hướng `doctor → appointments` đúng H20), `CancelPreviewService`,
 //       `PatientCancelController` (`GET …/cancel-preview`, `POST …/cancel`); tiêm `BranchAccessPolicy` của `RbacModule` đã nhập.
 //   B11 (đã làm) `AppointmentQueries` (`queries/`; D5, D13, D14) và `confirmPaid`, `complete` của `AppointmentTransitionService`
+//   B12 (đã làm) `ReceptionStatusController` + `ReceptionStatusService` (`status/`; `POST /reception/appointments/:maLichHen/status`: ĐƯỜNG GHI của Lễ tân; huỷ qua `AppointmentCancellationService`, tiếp đón và Vắng mặt qua hai
+//       phương thức mới `checkIn` và `markNoShow` của `AppointmentTransitionService`; dùng lại `RbacModule`, `SystemConfigModule` và cổng `PAYMENT_SUMMARY_PORT` đã có, không thêm `imports`). `checkIn` còn có người gọi
+//       ngoài module là `payment` B17 (thêm tên vào AR-07 khi đó), `markNoShow` cho job B13 và Quản trị viên B14.
 //   B14 thêm AuditModule; controller và service của B1 đến B14 (B3 đã thêm RbacModule và SystemConfigModule)
 //   B1 (đã làm) `PatientAppointmentsController`, `PatientAppointmentsService`, `PatientAppointmentsRepository` (`lists/`; `GET /patient/appointments`, chỉ đọc)
 //   B2 (đã làm) `PatientAppointmentDetailService` (`lists/`; `GET /patient/appointments/:maLichHen`, chỉ đọc; cùng controller và repository của B1)
@@ -88,6 +93,7 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
     CreateAppointmentController,
     DoctorAppointmentsController,
     PatientCancelController,
+    ReceptionStatusController,
   ],
   providers: [
     ...BOOKING_PORT_PROVIDERS,
@@ -101,6 +107,7 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
     OperationsAppointmentsRepository,
     OperationsAppointmentsService,
     ReceptionAppointmentsService,
+    ReceptionStatusService,
     BookabilityReader,
     SlotHoldService,
     BookingEligibilityService,

@@ -281,8 +281,8 @@ Table tai_khoan {
 
 Table benh_nhan {
   tai_khoan_id bigint [pk, ref: - tai_khoan.tai_khoan_id]
-  khoa_dat_lich_do_no_show boolean [not null, default: false, note: 'Quản trị viên mở khóa thủ công nên là trạng thái độc lập']
-  so_lan_no_show int [not null, default: 0]
+  khoa_dat_lich_do_no_show boolean [not null, default: false, note: 'Quản trị viên mở khóa thủ công nên là trạng thái độc lập. Bật bởi markNoShow (booking B12) khi so_lan_no_show mới >= nguong_no_show (đạt hoặc vượt, Q25) và cờ đang tắt, đúng một lần; cờ đã bật thì chỉ tăng số, không cảnh báo lặp; sau khi mở khóa mà số vẫn >= ngưỡng thì lần Vắng mặt kế tiếp khóa lại ngay']
+  so_lan_no_show int [not null, default: 0, note: 'Số lần Vắng mặt của các lịch do tài khoản này ĐẶT, kể cả lịch của hồ sơ người thân (Q14: schema không có cột đếm theo hồ sơ người thân). Cộng 1 trong SQL (so_lan_no_show = so_lan_no_show + 1) bởi markNoShow (booking B12) dưới khóa benh_nhan FOR UPDATE; chuyển lịch từ VangMat về DaXacNhan (Quản trị viên override) KHÔNG trừ lại, đó là việc của use case Điều chỉnh số lần no-show']
 
   Note: 'Dòng này chỉ được tạo khi OTP đăng ký đúng, cùng giao dịch với vi_noi_bo; Bệnh nhân chưa xác minh email chưa có dòng này (quy tắc 7). Cố ý KHÔNG có chi_nhanh_id. Quản trị viên Chi nhánh chỉ XEM Bệnh nhân có ít nhất 1 lich_hen (mọi trạng thái) với lich_hen.chi_nhanh_id = chi nhánh được gán (snapshot lúc đặt); lọc qua lich_hen.benh_nhan_id + lich_hen.chi_nhanh_id, không thêm cột chi nhánh vào bảng này.'
 }

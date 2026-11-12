@@ -155,8 +155,13 @@ export function findRouteRoleViolations(
  * `DELETE FROM khung_gio` KHÔNG ở đâu cả (D7: booking không chèn, không xoá khung giờ). Tên mẫu lấy từ `WRITE_RULES` (một chỗ định nghĩa mẫu); thêm ngoại lệ là sửa mảng này kèm lý do.
  */
 export interface InternalWriteRule {
-  /** Tên mẫu trong `WRITE_RULES` */
+  /** Tên mẫu trong `WRITE_RULES`, hoặc tên tuỳ ý khi có `patterns` riêng */
   rule: string;
+  /**
+   * Mẫu RIÊNG của luật nội bộ, cho bảng KHÔNG thuộc quyền riêng của booking (task B12: `benh_nhan` thuộc auth và patient): không đưa vào `WRITE_RULES`, vì AR-01 sẽ cấm các module đó ghi bảng của chính họ.
+   * Vắng thì tra `WRITE_RULES` theo `rule` (sai tên ⇒ ném lỗi, không im lặng bỏ qua).
+   */
+  patterns?: readonly RegExp[];
   /** Thư mục (kết thúc bằng `/`, tính từ `src/`) được dùng mẫu này; rỗng = không nơi nào */
   allowedDirs: readonly string[];
   /** Vì sao, và nếu hợp lệ thì làm gì */
@@ -178,6 +183,13 @@ export const INTERNAL_WRITE_RULES: readonly InternalWriteRule[] = [
     rule: 'INSERT INTO lich_hen',
     allowedDirs: ['appointments/create/'],
     lyDo: 'chỉ luồng tạo lịch (appointments/create/, task B8) chèn lich_hen',
+  },
+  {
+    // B12 (TRACKING 3.26 câu (i)): bộ đếm no-show có đúng MỘT nơi ghi trong booking (`state/no-show-counter.query.ts`)
+    rule: 'UPDATE benh_nhan',
+    patterns: [/\bUPDATE\s+(?:IGNORE\s+)?`?benh_nhan`?(?!\w)/i],
+    allowedDirs: ['appointments/state/'],
+    lyDo: 'chỉ lớp trạng thái (appointments/state/no-show-counter.query.ts) ghi so_lan_no_show và khoa_dat_lich_do_no_show của benh_nhan (Q14, Q25; bảng thuộc auth và patient)',
   },
   {
     rule: 'INSERT INTO khung_gio',
@@ -203,14 +215,15 @@ export function findInternalWriteViolations(
     if (!file.path.startsWith(OWN_DIR)) continue;
     const code = stripComments(file.source);
     for (const entry of rules) {
-      const write = WRITE_RULES.find(
-        (candidate) => candidate.name === entry.rule,
-      );
-      if (write === undefined)
+      const patterns =
+        entry.patterns ??
+        WRITE_RULES.find((candidate) => candidate.name === entry.rule)
+          ?.patterns;
+      if (patterns === undefined)
         throw new Error(
           `INTERNAL_WRITE_RULES: không có mẫu "${entry.rule}" trong WRITE_RULES`,
         );
-      if (!write.patterns.some((pattern) => pattern.test(code))) continue;
+      if (!patterns.some((pattern) => pattern.test(code))) continue;
       if (entry.allowedDirs.some((dir) => file.path.startsWith(dir))) continue;
       found.push(
         `${file.path}: ${entry.rule} — ${entry.lyDo}. Chỗ được phép: ${entry.allowedDirs.length === 0 ? 'không nơi nào' : entry.allowedDirs.join(', ')}`,
