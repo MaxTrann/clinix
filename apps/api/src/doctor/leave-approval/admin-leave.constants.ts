@@ -4,6 +4,8 @@ export const APPROVAL_ERROR_CODES = {
   ALREADY_HANDLED: 'YEU_CAU_DA_XU_LY',
   /** Lý do từ chối thiếu, quá dài hoặc có ký tự điều khiển (Q27c). */
   REJECT_REASON_INVALID: 'LY_DO_TU_CHOI_KHONG_HOP_LE',
+  /** Duyệt yêu cầu có ngày kết thúc đã qua (trước hôm nay): chỉ còn Từ chối được (Q30). */
+  EXPIRED: 'YEU_CAU_NGHI_DA_QUA_HAN',
 } as const;
 
 /** Lý do từ chối 1–255 điểm mã (Q27c). Không có cột riêng: lý do chỉ vào nhật ký và thông báo cho Bác sĩ. */

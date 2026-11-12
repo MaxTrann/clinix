@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AppointmentsModule } from '../appointments/appointments.module.js';
 import { AuditModule } from '../audit/audit.module.js';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
@@ -12,7 +13,11 @@ import { ScheduleGridService } from './schedule-view/schedule-grid.service.js';
 import { ScheduleViewRepository } from './schedule-view/schedule-view.repository.js';
 import { ScheduleViewService } from './schedule-view/schedule-view.service.js';
 import { DoctorLeaveController } from './leave-requests/doctor-leave.controller.js';
+import { AdminLeaveApproveService } from './leave-approval/admin-leave-approve.service.js';
 import { AdminLeaveController } from './leave-approval/admin-leave.controller.js';
+import { APPOINTMENT_CANCELLATION_PORT } from './leave-approval/appointment-cancellation.port.js';
+import { BookingCancellationAdapter } from './leave-approval/booking-cancellation.adapter.js';
+import { LeaveCancellationRunner } from './leave-approval/leave-cancellation.runner.js';
 import { AdminLeaveRejectService } from './leave-approval/admin-leave-reject.service.js';
 import { AdminLeaveRepository } from './leave-approval/admin-leave.repository.js';
 import { AdminLeaveService } from './leave-approval/admin-leave.service.js';
@@ -31,7 +36,8 @@ import { ShiftRemovalService } from './shifts/shift-removal.service.js';
 // Cây phụ thuộc một chiều (H20): doctor → scheduling; scheduling KHÔNG import appointments/ hay doctor/.
 // KHÔNG gọi ScheduleModule.forRoot() ở đây: app.module.ts đã đăng ký một lần (sweeper B16 chỉ dùng @Cron).
 @Module({
-  imports: [SchedulingModule, RbacModule, AuditModule],
+  // AppointmentsModule (booking B10, B11): `cancel` và `findAffectedByLeave` cho Duyệt (B15). Chiều phụ thuộc chỉ doctor → appointments (H20).
+  imports: [SchedulingModule, RbacModule, AuditModule, AppointmentsModule],
   controllers: [
     ShiftAssignmentController,
     DoctorScheduleController,
@@ -59,6 +65,14 @@ import { ShiftRemovalService } from './shifts/shift-removal.service.js';
     AdminLeaveRepository,
     AdminLeaveService,
     AdminLeaveRejectService,
+    AdminLeaveApproveService,
+    LeaveCancellationRunner,
+    BookingCancellationAdapter,
+    // Chỉ một bản thật, không Noop (Q26); test thay token này bằng bản giả.
+    {
+      provide: APPOINTMENT_CANCELLATION_PORT,
+      useExisting: BookingCancellationAdapter,
+    },
   ],
 })
 export class DoctorModule {}
