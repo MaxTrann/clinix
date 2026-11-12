@@ -5,11 +5,13 @@ import { BookingFixtures } from '../testing/booking-fixtures.js';
 import {
   atRemaining,
   cancelInput,
+  cancelledOutcome,
   cancelWorld,
   createCancelStack,
-  DEPOSIT,
+  expectNoGateCalls,
+  HALF_REFUND,
   HOUR_MS,
-  REFUND_POLICY,
+  paidCancelCase,
   T0_TEXT,
   type CancelWorld,
 } from '../testing/cancel-world.js';
@@ -38,14 +40,11 @@ const deadlock = () =>
     code: 'ER_LOCK_DEADLOCK',
   });
 
-/** Lịch DaXacNhan đã thu cọc, còn 5 giờ (mốc 2 giờ ⇒ hoàn 50%) với chính sách minh hoạ. */
-async function paidAppointment(w: CancelWorld) {
-  const lich = await w.booked('DaXacNhan', 0, {
-    coc: DEPOSIT,
-    policy: REFUND_POLICY,
-  });
+/** Lịch DaXacNhan đã thu cọc (kèm bộ huỷ và cổng giả), còn 5 giờ (mốc 2 giờ ⇒ hoàn 50%) với chính sách minh hoạ. */
+async function paidAtFiveHours(w: CancelWorld) {
+  const paidCase = await paidCancelCase(db, w);
   atRemaining(5 * HOUR_MS);
-  return lich;
+  return paidCase;
 }
 
 describe('HL-16 hoàn tác trọn khi lỗi ở từng bước ghi: lịch và khung giờ giữ nguyên, KHÔNG gọi RefundPort và WaitlistPort', () => {
@@ -76,10 +75,8 @@ describe('HL-16 hoàn tác trọn khi lỗi ở từng bước ghi: lịch và k
     ],
   ])('%s', async (_name, inject) => {
     const w = await world();
-    const lich = await paidAppointment(w);
+    const { lich, service, ports } = await paidAtFiveHours(w);
     const before = await w.snapshot(lich, 0);
-    const { service, ports } = createCancelStack(db);
-    ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
     inject(ports);
 
     // lỗi đi nguyên ra ngoài (không thành kết quả nghiệp vụ, không thử lại)
@@ -97,9 +94,7 @@ describe('HL-16 hoàn tác trọn khi lỗi ở từng bước ghi: lịch và k
 
   it('câu ghi chạy THẬT rồi mới ném (đối chứng dương): ngay trước khi hoàn tác, lịch đã DaHuy trong giao dịch; sau khi hoàn tác thì không còn', async () => {
     const w = await world();
-    const lich = await paidAppointment(w);
-    const { service, ports } = createCancelStack(db);
-    ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
+    const { lich, service } = await paidAtFiveHours(w);
     const matched = failAfterStatement(db, /^\s*UPDATE khung_gio/i, BOOM);
 
     await expect(
@@ -117,18 +112,12 @@ describe('HL-16 hoàn tác trọn khi lỗi ở từng bước ghi: lịch và k
 describe('CNL-08 thân chạy lại khi 1213: kết quả như chạy một lần; hết lượt thử lại ⇒ 503 HE_THONG_DANG_BAN', () => {
   it('1213 một lần SAU khi đã ghi cả hai bảng: giao dịch hoàn tác rồi thân chạy lại từ đầu, kết quả Cancelled; hoàn tiền, mời chờ đúng MỘT lần; lịch và khung giờ đúng', async () => {
     const w = await world();
-    const lich = await paidAppointment(w);
-    const { service, ports } = createCancelStack(db);
-    ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
+    const { lich, service, ports } = await paidAtFiveHours(w);
     const matched = failAfterStatement(db, /^\s*UPDATE khung_gio/i, deadlock());
 
     await expect(
       service.cancel(cancelInput(w, 'BenhNhan', lich.maLichHen)),
-    ).resolves.toStrictEqual({
-      kind: 'Cancelled',
-      maLichHen: lich.maLichHen,
-      hoanCoc: { tyLe: 50, soTien: '50000.00' },
-    });
+    ).resolves.toStrictEqual(cancelledOutcome(lich.maLichHen, HALF_REFUND));
 
     // hai lần chạy thân (cùng một câu UPDATE khung_gio, cùng tham số), chỉ lần hai commit
     expect(matched).toHaveLength(2);
@@ -149,9 +138,7 @@ describe('CNL-08 thân chạy lại khi 1213: kết quả như chạy một lầ
 
   it('1213 ở bước ghi thông báo lần 1 (sau cả hai UPDATE và sau khi đã gọi notify): lần chạy lại gọi notify với CÙNG sự kiện; cổng sau commit vẫn một lần', async () => {
     const w = await world();
-    const lich = await paidAppointment(w);
-    const { service, ports } = createCancelStack(db);
-    ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
+    const { lich, service, ports } = await paidAtFiveHours(w);
     ports.notifier.notifyCall.throwsOnce(deadlock());
 
     await expect(
@@ -167,10 +154,8 @@ describe('CNL-08 thân chạy lại khi 1213: kết quả như chạy một lầ
 
   it('1213 ở CẢ BA lần chạy: NÉM 503 HE_THONG_DANG_BAN (không phải kết quả nghiệp vụ), hoàn tác trọn, không cổng', async () => {
     const w = await world();
-    const lich = await paidAppointment(w);
+    const { lich, service, ports } = await paidAtFiveHours(w);
     const before = await w.snapshot(lich, 0);
-    const { service, ports } = createCancelStack(db);
-    ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
     const matched = failAfterStatement(
       db,
       /^\s*UPDATE khung_gio/i,
@@ -253,12 +238,7 @@ describe('CNL-05 kiểm LẠI dưới khoá: người khác đổi lịch giữa
     ],
   ])('%s', async (_name, effect, expectedOutcome, expectedAfter) => {
     const w = await world();
-    const lich = await w.booked('DaXacNhan', 0, {
-      coc: DEPOSIT,
-      policy: REFUND_POLICY,
-    });
-    const { service, ports } = createCancelStack(db);
-    ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
+    const { lich, service, ports } = await paidCancelCase(db, w);
     afterPlainRead(() => effect(w, lich.lichHenId));
 
     await expect(
@@ -270,9 +250,7 @@ describe('CNL-05 kiểm LẠI dưới khoá: người khác đổi lịch giữa
     expect(after.row.lyDo).toBe(expectedAfter.lyDo);
     expect(after.slot.trangThai).toBe(expectedAfter.slot);
     // lần huỷ này không ghi gì, nên không hoàn, không mời chờ, không thông báo
-    expect(ports.refund.refundCall.count).toBe(0);
-    expect(ports.waitlist.onSlotReleasedCall.count).toBe(0);
-    expect(ports.notifier.notifyCall.count).toBe(0);
+    expectNoGateCalls(ports);
     await assertBookingInvariants(db);
   });
 
@@ -293,8 +271,7 @@ describe('CNL-05 kiểm LẠI dưới khoá: người khác đổi lịch giữa
     ).resolves.toStrictEqual({ kind: 'NotFound' });
 
     expect((await w.snapshot(lich, 0)).row.trangThai).toBe('DaXacNhan');
-    expect(ports.waitlist.onSlotReleasedCall.count).toBe(0);
-    expect(ports.notifier.notifyCall.count).toBe(0);
+    expectNoGateCalls(ports, ['waitlist', 'notifier']);
     await assertBookingInvariants(db);
   });
 });

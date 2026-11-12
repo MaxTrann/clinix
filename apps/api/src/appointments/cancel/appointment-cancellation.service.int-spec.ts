@@ -16,10 +16,14 @@ import { FLOW_NOW } from '../testing/booking-flow.js';
 import {
   atRemaining,
   cancelInput,
+  cancelledOutcome,
   cancelWorld,
   createCancelStack,
   DEPOSIT,
+  expectNoGateCalls,
+  HALF_REFUND,
   HOUR_MS,
+  paidCancelCase,
   REFUND_POLICY,
   T0_TEXT,
   type CancelRole,
@@ -38,7 +42,7 @@ import {
 import { cancelOutcomeException } from './cancel-failure.js';
 import type { CancelInput } from './cancel.types.js';
 
-// Task B10 — huỷ lịch hẹn dùng chung trên MySQL 8.4 THẬT (PLAN booking 5.3, 5.6, 7.3, 7.29; TRACKING 3.23 B10-I): CNL-03, CNL-04, CNL-06, CNL-07, CNL-09, CNL-10 (phần tích hợp) và HL-01…HL-08, HL-10, HL-12,
+// Task B10 — huỷ lịch hẹn dùng chung trên MySQL 8.4 THẬT (PLAN booking 5.3, 5.6, 7.3, 7.29; TRACKING 3.23 B10-I): CNL-03, CNL-04, CNL-06, CNL-07, CNL-09, CNL-10 (phần tích hợp), CNL-11, CNL-12 và HL-01…HL-08, HL-10, HL-12,
 // HL-14, HL-15, HL-17 ở MỨC DỊCH VỤ (dịch vụ huỷ thật, cổng là bản `Fake`; B17 chạy lại với cổng thật). Phần có chèn lỗi giữa chừng (HL-16, CNL-05, CNL-08): appointment-cancellation.failure.int-spec.ts; phần đồng thời
 // (HL-18, DT-05…DT-08): appointment-cancellation.concurrency.int-spec.ts; phần HTTP: test/booking-patient-cancel.e2e-spec.ts. Phần đơn vị (điều phối, kiểu, hàm thuần): các `*.spec.ts` cạnh mã.
 // Đồng hồ ứng dụng giả mặc định là T0 (08:00 ngày 02/11/2026, giờ VN); khung giờ số 0 bắt đầu 08:00 ngày 10/11/2026 (còn 192 giờ). Ca cần mốc khác đặt bằng `atRemaining`.
@@ -65,6 +69,13 @@ const REASON_TEXT: Record<CancelRole, string> = {
   HeThong: LEAVE_CANCEL_REASON,
 };
 
+/** Bảng của các câu CÓ mệnh đề khoá, theo thứ tự câu chạy. */
+const lockedTablesOf = (statements: readonly string[]): string[] =>
+  statements
+    .filter(isLockingStatement)
+    .map(firstTableOf)
+    .filter((name): name is string => name !== undefined);
+
 describe('CNL-03 chuỗi khoá thật của cancel: khung giờ rồi lịch theo khoá chính (5.3 tầng 5 rồi 6, quy tắc 7)', () => {
   it('đọc thường theo ma_lich_hen (không khoá), khung_gio FOR UPDATE, lich_hen FOR UPDATE theo lich_hen_id, rồi UPDATE lich_hen và UPDATE khung_gio; không đụng bac_si, benh_nhan, ho_so_nguoi_than; không vi phạm thứ tự 5.3', async () => {
     const w = await world();
@@ -85,29 +96,30 @@ describe('CNL-03 chuỗi khoá thật của cancel: khung giờ rồi lịch the
         ),
     );
     expect(body).toHaveLength(5);
-    const [readKeys, lockSlotSql, lockLich, cancel, release] = body as [
-      string,
-      string,
-      string,
-      string,
-      string,
-    ];
-    expect(firstTableOf(readKeys)).toBe('lich_hen');
-    expect(isLockingStatement(readKeys)).toBe(false);
+    const statementAt = (index: number): string => body[index] ?? '';
+    const readKeys = statementAt(0);
+    const lockSlotSql = statementAt(1);
+    const lockLich = statementAt(2);
+    const cancelSql = statementAt(3);
+    const releaseSql = statementAt(4);
+    // bảng đầu của câu và có mệnh đề khoá hay không (cùng hai điều kiện đã kiểm từng câu một ở bản đầu của ca này)
+    const traitsOf = (sql: string) => ({
+      table: firstTableOf(sql),
+      locking: isLockingStatement(sql),
+    });
+    expect(traitsOf(readKeys)).toEqual({ table: 'lich_hen', locking: false });
     expect(readKeys).toMatch(/WHERE ma_lich_hen = \?/);
-    expect(firstTableOf(lockSlotSql)).toBe('khung_gio');
-    expect(isLockingStatement(lockSlotSql)).toBe(true);
-    expect(firstTableOf(lockLich)).toBe('lich_hen');
-    expect(isLockingStatement(lockLich)).toBe(true);
+    expect(traitsOf(lockSlotSql)).toEqual({
+      table: 'khung_gio',
+      locking: true,
+    });
+    expect(traitsOf(lockLich)).toEqual({ table: 'lich_hen', locking: true });
     // khoá lich_hen CHỈ theo khoá chính (quy tắc 7): không khung_gio_id, không khung_gio_dang_giu
     expect(lockLich).toMatch(/WHERE lich_hen_id = \?/);
     expect(lockLich).not.toMatch(/khung_gio_id|khung_gio_dang_giu/);
-    expect(cancel).toMatch(/^UPDATE lich_hen/);
-    expect(release).toMatch(/^UPDATE khung_gio/);
-    const lockedTables = body
-      .filter(isLockingStatement)
-      .map(firstTableOf)
-      .filter((table): table is string => table !== undefined);
+    expect(cancelSql).toMatch(/^UPDATE lich_hen/);
+    expect(releaseSql).toMatch(/^UPDATE khung_gio/);
+    const lockedTables = lockedTablesOf(body);
     expect(lockedTables).toEqual(['khung_gio', 'lich_hen']);
     expect(findLockOrderViolation(lockedTables)).toBeNull();
     // huỷ không phụ thuộc điều kiện nào của bác sĩ, tài khoản hay hồ sơ: không xin tầng 2, 3, 4
@@ -118,6 +130,31 @@ describe('CNL-03 chuỗi khoá thật của cancel: khung giờ rồi lịch the
         ),
       ),
     ).toBe(false);
+    await assertBookingInvariants(db);
+  });
+});
+
+// CNL-12 [đề xuất mã, TRACKING 3.23 B10-Q]: ca "hai lịch cùng một khung giờ" mà CNL-03 không phủ. Một khung giờ vừa được huỷ rồi đặt lại có HAI hàng `lich_hen` (lịch cũ `DaHuy` vẫn giữ `khung_gio_id`, lịch mới còn
+// hiệu lực). Khoá lịch theo `khung_gio_id` (đột biến M1) sẽ trả hàng đầu tiên là lịch CŨ và báo `AlreadyCancelled` cho lịch mới; khoá theo khoá chính thì đúng lịch cần huỷ. Lịch mới được tạo SAU nên có khoá chính lớn hơn.
+describe('CNL-12 khung giờ có HAI lịch (một DaHuy cũ, một lịch mới): huỷ lịch mới thì đúng lịch đó bị huỷ, lịch cũ giữ nguyên', () => {
+  it('lịch mới ⇒ Cancelled, khung giờ ConTrong, mời chờ một lần; lịch cũ DaHuy y nguyên từng cột (trạng thái, mốc huỷ, lý do)', async () => {
+    const w = await world();
+    const earlier = await w.booked('DaHuy', 0);
+    const lich = await w.booked('DaXacNhan', 0);
+    const earlierBefore = await readAppointment(db, earlier.lichHenId);
+    const { service, ports } = createCancelStack(db);
+
+    await expect(
+      service.cancel(cancelInput(w, 'BenhNhan', lich.maLichHen)),
+    ).resolves.toStrictEqual(cancelledOutcome(lich.maLichHen, null));
+
+    expect((await readAppointment(db, lich.lichHenId)).trangThai).toBe('DaHuy');
+    expect(await readAppointment(db, earlier.lichHenId)).toEqual(earlierBefore);
+    expect(await w.slotState(0)).toEqual({
+      trangThai: 'ConTrong',
+      giuChoDen: null,
+    });
+    expect(ports.waitlist.releasedSlotIds).toEqual([w.slotId(0)]);
     await assertBookingInvariants(db);
   });
 });
@@ -334,8 +371,7 @@ describe('HL-04, HL-05, HL-06 sở hữu và bấm đúp', () => {
       ).resolves.toStrictEqual({ kind: 'NotFound' });
       expect(await w.snapshot(lich, index)).toEqual(before);
     }
-    expect(ports.waitlist.onSlotReleasedCall.count).toBe(0);
-    expect(ports.notifier.notifyCall.count).toBe(0);
+    expectNoGateCalls(ports, ['waitlist', 'notifier']);
     // mã không tồn tại: cùng kết quả
     await expect(
       service.cancel(cancelInput(w, 'BenhNhan', 'CLX-20261110-ZZZZZ')),
@@ -344,12 +380,7 @@ describe('HL-04, HL-05, HL-06 sở hữu và bấm đúp', () => {
 
   it('HL-06 bấm đúp huỷ: lần hai AlreadyCancelled (409 DaHuy ở HTTP); hoàn tiền, mời chờ và thông báo đúng MỘT lần', async () => {
     const w = await world();
-    const lich = await w.booked('DaXacNhan', 0, {
-      coc: DEPOSIT,
-      policy: REFUND_POLICY,
-    });
-    const { service, ports } = createCancelStack(db);
-    ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
+    const { lich, service, ports } = await paidCancelCase(db, w);
     const input = cancelInput(w, 'BenhNhan', lich.maLichHen);
 
     expect((await service.cancel(input)).kind).toBe('Cancelled');
@@ -476,12 +507,7 @@ describe('HL-07, HL-08 cancel-preview trên MySQL thật', () => {
 describe('HL-10, CNL-07, CNL-09 cọc đã thu > 0: RefundPort một lần SAU commit; thông báo TRONG giao dịch', () => {
   it('còn 5 giờ (mốc 2 giờ ⇒ 50%): refund đúng tham số, lúc cổng được gọi lịch đã DaHuy và khung giờ đã ConTrong (đã commit); lúc ghi thông báo lịch còn DaXacNhan (chưa commit)', async () => {
     const w = await world();
-    const lich = await w.booked('DaXacNhan', 0, {
-      coc: DEPOSIT,
-      policy: REFUND_POLICY,
-    });
-    const { service, ports } = createCancelStack(db);
-    ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
+    const { lich, service, ports } = await paidCancelCase(db, w);
     atRemaining(5 * HOUR_MS);
     // đọc bằng kết nối KHÁC (pool) ngay lúc từng cổng bị gọi: READ COMMITTED chỉ thấy phần đã commit
     const seen: Record<string, string> = {};
@@ -501,11 +527,7 @@ describe('HL-10, CNL-07, CNL-09 cọc đã thu > 0: RefundPort một lần SAU c
 
     await expect(
       service.cancel(cancelInput(w, 'BenhNhan', lich.maLichHen)),
-    ).resolves.toStrictEqual({
-      kind: 'Cancelled',
-      maLichHen: lich.maLichHen,
-      hoanCoc: { tyLe: 50, soTien: '50000.00' },
-    });
+    ).resolves.toStrictEqual(cancelledOutcome(lich.maLichHen, HALF_REFUND));
 
     expect(seen).toEqual({
       'luc thong bao': 'DaXacNhan',
@@ -691,6 +713,49 @@ describe('HL-14, HL-15 hệ thống (nghỉ phép), Lễ tân và Quản trị v
   });
 });
 
+// CNL-11 [đề xuất mã, TRACKING 3.23 B10-Q]: số hoàn lấy ĐÚNG `chinh_sach_hoan_snapshot` của chính lịch, không phải chính sách mặc định `REFUND_POLICY` mà các ca khác dùng. Hai dòng sau chỉ đúng khi dùng snapshot:
+// với chính sách mặc định, còn 30 giờ được 100% (mốc 24) và còn 5 giờ được 50% (mốc 2). Đột biến M7 (bỏ snapshot, dùng chính sách cố định) bị bắt gián tiếp ở giai đoạn 3 vì chỉ ca snapshot hỏng (CNL-10) đỏ; ca này bắt trực tiếp.
+const SNAPSHOT_48 = [
+  { so_gio_truoc_toi_thieu: 48, ty_le_hoan: 100 },
+  { so_gio_truoc_toi_thieu: 0, ty_le_hoan: 0 },
+];
+
+describe('CNL-11 số hoàn lấy ĐÚNG snapshot chính sách của lịch (48→100, 0→0), không phải chính sách mặc định', () => {
+  it.each([
+    [
+      'còn 60 giờ (đủ mốc 48) ⇒ 100%: RefundPort đúng một lần, 100.000',
+      60,
+      { tyLe: 100, soTien: DEPOSIT },
+      1,
+    ],
+    [
+      'còn 30 giờ (chính sách mặc định sẽ cho 100%) ⇒ 0% theo snapshot: không gọi RefundPort',
+      30,
+      { tyLe: 0, soTien: '0.00' },
+      0,
+    ],
+    [
+      'còn 5 giờ (chính sách mặc định sẽ cho 50%) ⇒ 0% theo snapshot: không gọi RefundPort',
+      5,
+      { tyLe: 0, soTien: '0.00' },
+      0,
+    ],
+  ] as const)('%s', async (_name, hours, hoanCoc, refundCalls) => {
+    const w = await world();
+    const { lich, service, ports } = await paidCancelCase(db, w, {
+      policy: SNAPSHOT_48,
+    });
+    atRemaining(hours * HOUR_MS);
+
+    await expect(
+      service.cancel(cancelInput(w, 'BenhNhan', lich.maLichHen)),
+    ).resolves.toStrictEqual(cancelledOutcome(lich.maLichHen, hoanCoc));
+
+    expect(ports.refund.refundCall.count).toBe(refundCalls);
+    await assertBookingInvariants(db);
+  });
+});
+
 describe('HL-17 hết hạn giữ chỗ KHÔNG hoàn và KHÔNG thông báo (Q6): chạy expire qua module thật có đủ tám cổng Fake', () => {
   it('lịch ChoThanhToan cọc > 0 quá hạn: Expired, ly_do_huy là chữ hết hạn; RefundPort 0 lần, AppointmentNotifier 0 lần, WaitlistPort 1 lần', async () => {
     const w = await world();
@@ -768,8 +833,7 @@ describe('CNL-06 sở hữu và phạm vi theo actor trên MySQL thật; NotFoun
         });
       expect(await w.snapshot(lich, index)).toEqual(before);
     }
-    expect(ports.waitlist.onSlotReleasedCall.count).toBe(0);
-    expect(ports.notifier.notifyCall.count).toBe(0);
+    expectNoGateCalls(ports, ['waitlist', 'notifier']);
 
     // Quản trị viên Chi nhánh ĐÚNG chi nhánh của lịch
     await expect(
@@ -810,21 +874,16 @@ describe('CNL-06 sở hữu và phạm vi theo actor trên MySQL thật; NotFoun
 describe('CNL-10 lỗi dữ liệu SAU lần ghi: ném, hoàn tác trọn, không cổng; lỗi dữ liệu không liên quan thì không chặn', () => {
   it('snapshot chính sách hoàn HỎNG khi đã thu > 0: dịch vụ ném, lịch và khung giờ y nguyên (UPDATE đã chạy rồi hoàn tác), 0 lần gọi cổng', async () => {
     const w = await world();
-    const lich = await w.booked('DaXacNhan', 0, {
-      coc: DEPOSIT,
+    const { lich, service, ports } = await paidCancelCase(db, w, {
       policy: 'hỏng',
     });
     const before = await w.snapshot(lich, 0);
-    const { service, ports } = createCancelStack(db);
-    ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
 
     await expect(
       service.cancel(cancelInput(w, 'BenhNhan', lich.maLichHen)),
     ).rejects.toThrow(/hoàn/);
     expect(await w.snapshot(lich, 0)).toEqual(before);
-    expect(ports.refund.refundCall.count).toBe(0);
-    expect(ports.waitlist.onSlotReleasedCall.count).toBe(0);
-    expect(ports.notifier.notifyCall.count).toBe(0);
+    expectNoGateCalls(ports);
     await assertBookingInvariants(db);
   });
 

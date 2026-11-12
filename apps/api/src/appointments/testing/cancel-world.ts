@@ -1,5 +1,5 @@
 import type { DataSource } from 'typeorm';
-import { vi } from 'vitest';
+import { expect, vi } from 'vitest';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import type { LichHen } from '../../admin/entities/lich-hen.entity.js';
 import { BranchAccessPolicy } from '../../rbac/branch-access.policy.js';
@@ -130,6 +130,64 @@ export async function cancelWorld(db: DataSource, fx: BookingFixtures) {
 }
 
 export type CancelWorld = Awaited<ReturnType<typeof cancelWorld>>;
+
+export type FakePorts = ReturnType<typeof createFakePorts>;
+
+export interface PaidCaseOptions {
+  /** Trạng thái của lịch; mặc định `DaXacNhan` */
+  state?: TrangThaiLichHen;
+  /** Chỉ số khung giờ; mặc định 0 */
+  slot?: number;
+  /** `chinh_sach_hoan_snapshot` của lịch; mặc định `REFUND_POLICY` */
+  policy?: unknown;
+}
+
+/**
+ * Nơi dựng CHUNG của mọi ca "đã thu cọc": một lịch có cọc `DEPOSIT` ĐÃ THU (cổng giả `paid`), chính sách hoàn `REFUND_POLICY` (hay `options.policy`) và bộ huỷ dùng cổng giả RIÊNG của ca.
+ * Gom về đây (TRACKING 3.23 B10-Q) để jscpd không thấy cùng một đoạn dựng dữ liệu ở nhiều ca của ba int-spec huỷ.
+ */
+export async function paidCancelCase(
+  db: DataSource,
+  w: CancelWorld,
+  options: PaidCaseOptions = {},
+) {
+  const lich = await w.booked(options.state ?? 'DaXacNhan', options.slot ?? 0, {
+    coc: DEPOSIT,
+    policy: options.policy ?? REFUND_POLICY,
+  });
+  const stack = createCancelStack(db);
+  stack.ports.paymentSummary.paid({ [lich.lichHenId]: DEPOSIT });
+  return { lich, ...stack };
+}
+
+/** Hoàn 50% của `DEPOSIT` (mốc 2 giờ của `REFUND_POLICY`). */
+export const HALF_REFUND = { tyLe: 50, soTien: '50000.00' };
+
+/** Kết quả `Cancelled` mong đợi của dịch vụ huỷ (đủ ba khoá; dùng với `toStrictEqual`). */
+export function cancelledOutcome(
+  maLichHen: string,
+  hoanCoc: { tyLe: number; soTien: string } | null,
+) {
+  return { kind: 'Cancelled' as const, maLichHen, hoanCoc };
+}
+
+export type GateName = 'refund' | 'waitlist' | 'notifier';
+
+/**
+ * Lần huỷ không ghi gì (từ chối có kiểu, hoàn tác) thì các cổng sau commit và thông báo KHÔNG được gọi. Mặc định kiểm cả ba cổng; truyền `gates` khi ca chỉ kiểm một phần (ví dụ ca không dựng
+ * cọc đã thu thì chỉ kiểm `waitlist` và `notifier`), để không đổi kỳ vọng của ca.
+ */
+export function expectNoGateCalls(
+  ports: FakePorts,
+  gates: readonly GateName[] = ['refund', 'waitlist', 'notifier'],
+): void {
+  const counts: Record<GateName, number> = {
+    refund: ports.refund.refundCall.count,
+    waitlist: ports.waitlist.onSlotReleasedCall.count,
+    notifier: ports.notifier.notifyCall.count,
+  };
+  for (const gate of gates) expect(counts[gate], gate).toBe(0);
+}
 
 export type CancelRole = 'BenhNhan' | 'LeTan' | 'QuanTriVien' | 'HeThong';
 

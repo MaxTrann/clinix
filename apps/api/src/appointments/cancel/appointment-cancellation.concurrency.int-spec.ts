@@ -52,7 +52,7 @@ useIntegrationHooks((d, captured) => {
 });
 const world = () => cancelWorld(db, fx);
 
-// BỘ ĐẾM (yêu cầu của Đại 12/11/2026; KHÔNG có mức tối thiểu, chỉ báo số thật, 0 cũng báo): `withBookingTransaction` ghi một cảnh báo mỗi lần thử lại hay hết lượt
+// BỘ ĐẾM (yêu cầu của Đại 12/11/2026; ban đầu CHỈ báo số thật, 0 cũng báo; từ giai đoạn 3 thêm khẳng định `thử lại = 0`, xem `report`): `withBookingTransaction` ghi một cảnh báo mỗi lần thử lại hay hết lượt
 // (`<nhãn>: MySQL 1213|1205 ở lần chạy n/3, thử lại|hết lượt thử lại`); `useIntegrationHooks` đã gom mọi dòng Logger của Nest từ đầu test vào `logs`.
 const RETRY_WARNING =
   /^(\S+): MySQL (1213|1205) ở lần chạy \d+\/\d+, (thử lại|hết lượt thử lại)$/;
@@ -95,6 +95,13 @@ function report(
   console.info(
     `[B10-DT] ${name}: ${String(rounds)} vòng; bên thắng ${JSON.stringify(winners)}; thử lại ${JSON.stringify(retries)} (tổng ${String(total)}); hết lượt (503) ${String(exhausted)}`,
   );
+  // TĂNG CƯỜNG sau đột biến M2 (giai đoạn 3, 12/11/2026): đảo thứ tự khoá cho 10 đến 40 lần 1213 mỗi ca mà ca vẫn XANH vì `withBookingTransaction` thử lại và chạy lại thân. Với thứ tự khoá đúng
+  // (5.3: khung_gio rồi lich_hen theo khoá chính) không có deadlock nào, kể cả trước khi thử lại: đo 0 ở mọi lượt chạy trước khi thêm dòng này. Số khác 0 là THỨ TỰ KHOÁ SAI, không phải nhiễu.
+  expect(
+    total,
+    `${name}: có ${String(total)} lần thử lại 1213/1205 ${JSON.stringify(retries)}`,
+  ).toBe(0);
+  expect(exhausted, `${name}: có yêu cầu hết lượt thử lại (503)`).toBe(0);
 }
 
 /** Vị trí 1451 của gỡ ca: câu `DELETE khung_gio` vướng `lich_hen` (cancel đã xong trước, khung giờ đã ConTrong) hay `DELETE lich_lam_viec` vướng `khung_gio` (gỡ ca giữ khoá trước, khung giờ còn DaDat). */
@@ -274,9 +281,11 @@ describe('DT-05, DT-06 (một phần B10) huỷ cùng lúc tiếp đón hay job 
           lich: await freshAppointment(w, 'DaXacNhan'),
           ports: createFakePorts(),
         }),
-        race: ({ lich, ports }) => {
+        race: ({ lich, ports }, round) => {
           const gate = createGate(2);
           const stack = createCancelStack(db, ports);
+          // Lần chạy đầu (12/11/2026) đo 40/40 vòng bên tiếp đón thắng: `cancel` đọc thường trước khi mở giao dịch nên luôn đến khoá sau. Vòng lẻ: tiếp đón chờ vài mili giây để huỷ đi trước
+          // (nhánh "huỷ thắng" được chạy THẬT); vòng chẵn: không chờ (nhánh "bên kia thắng"). Không đổi kỳ vọng nào.
           return [
             async (): Promise<CancelOutcome | 'Changed' | 'Stale'> => {
               await gate.arrive();
@@ -286,6 +295,7 @@ describe('DT-05, DT-06 (một phần B10) huỷ cùng lúc tiếp đón hay job 
             },
             async (): Promise<CancelOutcome | 'Changed' | 'Stale'> => {
               await gate.arrive();
+              if (round % 2 === 1) await sleep(8);
               return changeStatusLikeStaff(db, {
                 lichHenId: lich.lichHenId,
                 khungGioId: w.slotId(0),
