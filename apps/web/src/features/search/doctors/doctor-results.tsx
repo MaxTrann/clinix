@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import type { DoctorItem, Paged } from '../api/search-types';
-import type { RemoteState } from '../use-remote';
+import type { RemoteState } from '../../../shared/hooks/use-remote';
 import { DoctorCard } from './doctor-card';
 
 export const DOCTOR_EMPTY_MESSAGE = 'Không tìm thấy bác sĩ phù hợp';

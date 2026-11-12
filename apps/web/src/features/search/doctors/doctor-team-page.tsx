@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from 'react-router';
 import { getSpecialties } from '../api/search-service';
-import { useRemote } from '../use-remote';
+import { useRemote } from '../../../shared/hooks/use-remote';
 import { DoctorFilters } from './doctor-filters';
 import { DoctorResults } from './doctor-results';
 import { useDoctorSearch } from './use-doctor-search';

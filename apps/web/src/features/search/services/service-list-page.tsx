@@ -8,7 +8,7 @@ import { getServiceGroups, getServices } from '../api/search-service';
 import type { ServiceItem } from '../api/search-types';
 import { formatMoney, isNoDeposit } from '../format/money';
 import { BOOKING_PATH, doctorListPath } from '../search-paths';
-import { useRemote } from '../use-remote';
+import { useRemote } from '../../../shared/hooks/use-remote';
 
 export const SERVICE_EMPTY_MESSAGE = 'Nhóm này chưa có dịch vụ nào.';
 export const SURCHARGE_NOTE =

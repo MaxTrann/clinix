@@ -7,7 +7,7 @@ import { getBranchDetail } from '../api/search-service';
 import type { BranchDetail, WeekdayHours } from '../api/search-types';
 import { formatDayHours } from '../format/weekly-hours';
 import { doctorCountLabel } from '../specialties/doctor-count-label';
-import { useRemote } from '../use-remote';
+import { useRemote } from '../../../shared/hooks/use-remote';
 
 export const BRANCH_NOT_FOUND_MESSAGE = 'Không tìm thấy chi nhánh này.';
 export const CHOOSE_BRANCH_LABEL = 'Chọn làm chi nhánh của tôi';

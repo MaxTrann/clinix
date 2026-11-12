@@ -8,7 +8,7 @@ import { doctorCountLabel } from './doctor-count-label';
 import { formatVnd } from './format-vnd';
 import { SpecialtyImage } from './specialty-image';
 import { SpecialtyDoctors } from '../doctors/specialty-doctors';
-import { useRemote } from '../use-remote';
+import { useRemote } from '../../../shared/hooks/use-remote';
 
 export const SPECIALTY_NOT_FOUND_MESSAGE = 'Không tìm thấy chuyên khoa này.';
 

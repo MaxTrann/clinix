@@ -13,7 +13,7 @@ import {
   getSpecialties,
 } from '../api/search-service';
 import { BOOKING_PATH, DOCTOR_TEAM_PATH } from '../search-paths';
-import { useRemote } from '../use-remote';
+import { useRemote } from '../../../shared/hooks/use-remote';
 import {
   HomeDoctorCard,
   HomeServiceCard,
