@@ -7,6 +7,9 @@ import {
   APPOINTMENT_CODE_RANDOM,
   randomCodeSuffix,
 } from './appointment-code.js';
+import { AppointmentCancellationService } from './cancel/appointment-cancellation.service.js';
+import { CancelPreviewService } from './cancel/cancel-preview.service.js';
+import { PatientCancelController } from './cancel/patient-cancel.controller.js';
 import { BookingChecksController } from './create/booking-checks.controller.js';
 import { BookingChecksService } from './create/booking-checks.service.js';
 import { BookingEligibilityService } from './create/booking-eligibility.service.js';
@@ -39,7 +42,9 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
 //
 // Task nào thêm gì (providers; exports là các dịch vụ DÙNG CHUNG cho doctor, payment, wallet, waitlist):
 //   B6  `SlotHoldService` (imports: SchedulingModule)          B9 (đã làm) `AppointmentTransitionService` (nơi DUY NHẤT ghi `lich_hen.trang_thai`, H7; `expire`), `HoldExpiryJob`
-//   B10 `AppointmentCancellationService`                        B11 (đã làm) `AppointmentQueries` (`queries/`; D5, D13, D14) và `confirmPaid`, `complete` của `AppointmentTransitionService`
+//   B10 (đã làm) `AppointmentCancellationService` (`cancel/`; MỘT nơi huỷ cho Bệnh nhân, Lễ tân, Quản trị viên và `doctor`; EXPORT cho `doctor`, hướng `doctor → appointments` đúng H20), `CancelPreviewService`,
+//       `PatientCancelController` (`GET …/cancel-preview`, `POST …/cancel`); tiêm `BranchAccessPolicy` của `RbacModule` đã nhập.
+//   B11 (đã làm) `AppointmentQueries` (`queries/`; D5, D13, D14) và `confirmPaid`, `complete` của `AppointmentTransitionService`
 //   B14 thêm AuditModule; controller và service của B1 đến B14 (B3 đã thêm RbacModule và SystemConfigModule)
 //   B1 (đã làm) `PatientAppointmentsController`, `PatientAppointmentsService`, `PatientAppointmentsRepository` (`lists/`; `GET /patient/appointments`, chỉ đọc)
 //   B2 (đã làm) `PatientAppointmentDetailService` (`lists/`; `GET /patient/appointments/:maLichHen`, chỉ đọc; cùng controller và repository của B1)
@@ -57,8 +62,9 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
 //   B9 (đã làm) `AppointmentTransitionService` (`state/`; khung của mọi phương thức đổi trạng thái, mới có `expire`; tiêm `DataSource`, `SlotHoldService`, `WAITLIST_PORT`) và `HoldExpiryJob` (`expiry/`; `@Cron` mỗi phút,
 //       tắt ở NODE_ENV=test; chỉ `@Cron`, không `ScheduleModule.forRoot()`).
 //   B11 (đã làm) `AppointmentQueries` (`queries/`; CHỈ ĐỌC: `findAffectedByLeave` D5, `listAffectedByLeave` D13, `countActiveByShifts` D14) và hai phương thức mới của `AppointmentTransitionService`
-//       (`confirmPaid` cho `payment`, `complete` cho `doctor`; lớp này giờ tiêm thêm `APPOINTMENT_NOTIFIER`). `exports: [AppointmentTransitionService, AppointmentQueries]`: bề mặt DUY NHẤT module khác
-//       gọi vào (TRACKING 3.24.1). Người gọi import kiểu kết quả và `withBookingTransaction` theo đường dẫn file, không qua provider.
+//       (`confirmPaid` cho `payment`, `complete` cho `doctor`; lớp này giờ tiêm thêm `APPOINTMENT_NOTIFIER`). Người gọi import kiểu kết quả và `withBookingTransaction` theo đường dẫn file, không qua provider.
+// `exports: [AppointmentTransitionService, AppointmentQueries, AppointmentCancellationService]`: CẢ BA là bề mặt DUY NHẤT module khác gọi vào (TRACKING 3.23, 3.24.1): `AppointmentTransitionService` cho `confirmPaid` và
+// `complete` (B11), `AppointmentQueries` cho truy vấn lịch bị ảnh hưởng (B11), `AppointmentCancellationService` cho `cancel` (B10: `doctor` duyệt nghỉ phép gọi `cancel` với `HeThong`).
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
 //
 // THAY `Noop` BẰNG BẢN THẬT (B16, B17) — đã kiểm bằng script Nest (TRACKING 3.6 P2-D): provider khai ngay trong module này THẮNG provider cùng token của module được
@@ -81,6 +87,7 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
     BookingChecksController,
     CreateAppointmentController,
     DoctorAppointmentsController,
+    PatientCancelController,
   ],
   providers: [
     ...BOOKING_PORT_PROVIDERS,
@@ -104,7 +111,13 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
     AppointmentTransitionService,
     AppointmentQueries,
     HoldExpiryJob,
+    AppointmentCancellationService,
+    CancelPreviewService,
   ],
-  exports: [AppointmentTransitionService, AppointmentQueries],
+  exports: [
+    AppointmentTransitionService,
+    AppointmentQueries,
+    AppointmentCancellationService,
+  ],
 })
 export class AppointmentsModule {}

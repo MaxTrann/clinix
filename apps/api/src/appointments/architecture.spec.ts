@@ -15,6 +15,7 @@ import {
 } from '../doctor/testing/architecture-scan.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import { AppointmentsModule } from './appointments.module.js';
+import { PatientCancelController } from './cancel/patient-cancel.controller.js';
 import { DoctorAppointmentsController } from './lists/doctor-appointments.controller.js';
 import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
 import { ReceptionAppointmentsController } from './lists/reception-appointments.controller.js';
@@ -453,6 +454,7 @@ describe('AR-02, QB-07 mọi route của appointments/ có @Roles, không @Publi
     expect([...controllers]).toContain(PatientAppointmentsController);
     expect([...controllers]).toContain(ReceptionAppointmentsController);
     expect([...controllers]).toContain(DoctorAppointmentsController);
+    expect([...controllers]).toContain(PatientCancelController);
     expect(findRouteRoleViolations(controllers)).toEqual([]);
   });
 

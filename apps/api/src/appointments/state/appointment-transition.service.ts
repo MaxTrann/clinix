@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
+import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { toSecond } from '../../common/time/time.js';
 import {
@@ -16,6 +17,15 @@ import { WAITLIST_PORT, type WaitlistPort } from '../ports/waitlist.port.js';
 import { SlotHoldService } from '../slots/slot-hold.service.js';
 import { lockSlot } from '../slots/slot-lock.js';
 import {
+  canTransition,
+  type TransitionActor,
+} from './appointment-state.matrix.js';
+import {
+  lockAppointment,
+  markCancelled,
+  type LockedAppointment,
+} from './cancel-appointment.query.js';
+import {
   completeWithin,
   type CompleteInput,
   type CompleteOutcome,
@@ -29,8 +39,8 @@ import { cancelLapsedHold } from './lapsed-hold.js';
 import { readLichHenKeys } from './lich-hen-keys.query.js';
 
 // `AppointmentTransitionService`: NƠI DUY NHẤT đổi `lich_hen.trang_thai` của module booking (PLAN booking 5.2, 5.5, 5.10 D6; luật H7 và AR-06: `UPDATE lich_hen` chỉ ở `appointments/state/`).
-// B9 dựng KHUNG và phương thức đầu tiên `expire`; B11 thêm `confirmPaid` (payment gọi) và `complete` (doctor gọi), thân ở `confirm-paid.ts` và `complete-appointment.ts`; B10 (`cancel`), B12 (`checkIn`,
-// `markNoShow`), B14 (override) THÊM phương thức vào đúng lớp này (TRACKING 3.19.1, 3.24). Không dựng trước thứ chưa có người dùng.
+// B9 dựng KHUNG và phương thức đầu tiên `expire`; B10 (`cancel`, đã làm) và B11 (`confirmPaid` do `payment` gọi, `complete` do `doctor` gọi, đã làm; thân ở `confirm-paid.ts` và `complete-appointment.ts`)
+// đã thêm vào đúng lớp này; B12 (`checkIn`, `markNoShow`), B14 (override) thêm tiếp (TRACKING 3.19.1, 3.23, 3.24). Không dựng trước thứ chưa có người dùng.
 //
 // KHUÔN BẢY BƯỚC của mọi phương thức:
 //  1. ĐỌC THƯỜNG các khoá bất biến của lịch (`readLichHenKeys`: `khung_gio_id`, sau này thêm `benh_nhan_id`…), chưa khoá gì.
@@ -44,8 +54,10 @@ import { readLichHenKeys } from './lich-hen-keys.query.js';
 //  7. Tác dụng phụ (cổng sang module khác) SAU commit, ĐÚNG MỘT LẦN; lỗi cổng không đổi kết quả đã commit. `withBookingTransaction` có thể CHẠY LẠI thân từ đầu (1213, 1205),
 //     nên không gọi cổng trong thân.
 //
-// HAI HỌ phương thức trong MỘT lớp: (A) TỰ MỞ giao dịch (`expire`, `cancel`, `markNoShow`, override): vỏ ngoài `withBookingTransaction` + thân nhận `em`; (B) NHẬN `em` CỦA NGƯỜI GỌI
+// HAI HỌ phương thức trong MỘT lớp: (A) TỰ MỞ giao dịch (`expire`, `markNoShow`, override): vỏ ngoài `withBookingTransaction` + thân nhận `em`; (B) NHẬN `em` CỦA NGƯỜI GỌI
 // và không mở giao dịch (`confirmPaid` trong giao dịch của `payment`, `complete` trong giao dịch của `doctor`, `checkIn`, `markReplaced`): chỉ có thân nhận `em`. Viết thân nhận `em` trước.
+// `cancel` (B10) thuộc họ B: nó là phần GHI của huỷ (khoá, kiểm lại, ma trận, `UPDATE`, khung giờ); vỏ giao dịch, tính hoàn, thông báo và cổng sau commit nằm ở `AppointmentCancellationService`
+// (`cancel/`), vì chúng cần ví, thanh toán và thông báo mà lớp ghi trạng thái này không nên tiêm (TRACKING 3.23 B10-D; chú thích cũ xếp `cancel` vào họ A).
 
 // Kiểu của hai hàm gọi vào (B11): người gọi (`payment`, `doctor`) import cùng chỗ với lớp dịch vụ
 export type { CompleteInput, CompleteOutcome } from './complete-appointment.js';
@@ -79,6 +91,34 @@ export interface ExpireInput {
 type ExpireWork =
   | { kind: 'Expired'; khungGioId: string; ngayGio: Date }
   | Extract<ExpireOutcome, { kind: 'NotDue' }>;
+
+/** Vai trò được huỷ qua `cancel` (đúng bốn người gọi của B10, B12, B14 và `doctor`): trùng khoá `CancelActor.kind` và tên vai trò trong ma trận. */
+export type CancelWriteActor = Extract<
+  TransitionActor,
+  'BenhNhan' | 'LeTan' | 'QuanTriVien' | 'HeThong'
+>;
+
+export interface CancelWriteInput {
+  lichHenId: string;
+  /** Đọc thường từ trước khi khoá (cột bất biến): để khoá `khung_gio` TRƯỚC `lich_hen` */
+  khungGioId: string;
+  actor: CancelWriteActor;
+  /** Phạm vi và sở hữu kiểm LẠI dưới khoá (5.3 quy tắc 2); `false` ⇒ `NotFound` (404 cùng thân), được hỏi TRƯỚC mọi kiểm tra trạng thái */
+  canAct: (row: LockedAppointment) => boolean;
+  /** `ly_do_huy` đã chuẩn hoá (`resolveCancelReason`) */
+  lyDo: string;
+  /** Mốc của lượt (đã `toSecond(nowVN())`): `thoi_diem_huy`; hàm KHÔNG tự đọc đồng hồ (H8) */
+  now: Date;
+}
+
+export type CancelWriteOutcome =
+  /** Lịch `DaHuy`, khung giờ `ConTrong`; `before` là hàng đọc dưới khoá TRƯỚC khi đổi (trạng thái nguồn, giờ hẹn, snapshot chính sách hoàn) */
+  | { kind: 'Cancelled'; before: LockedAppointment }
+  | { kind: 'NotFound' }
+  /** Lịch đã `DaHuy` dưới khoá (người khác vừa huỷ, hoặc hết hạn): không ghi gì */
+  | { kind: 'AlreadyCancelled' }
+  /** Ma trận không cho `actor` đi từ trạng thái này sang `DaHuy` (HLH A1): không ghi gì */
+  | { kind: 'NotCancellable'; trangThai: TrangThaiLichHen };
 
 const EXPIRE_LABEL = 'expire-hold';
 
@@ -156,6 +196,56 @@ export class AppointmentTransitionService {
     if (work.kind !== 'Expired') return work;
     await this.notifyWaitlist(work.khungGioId, work.ngayGio, now);
     return { kind: 'Expired', khungGioId: work.khungGioId };
+  }
+
+  /**
+   * Huỷ MỘT lịch (PLAN 5.6, HLH; họ B: nhận `em`, KHÔNG mở giao dịch, KHÔNG ném `AppException`). Chuỗi khoá (5.3): `khung_gio FOR UPDATE` (tầng 5) rồi `lich_hen FOR UPDATE` theo KHOÁ CHÍNH (tầng 6,
+   * quy tắc 7; không bao giờ theo `khung_gio_id`: HL-18). Dưới khoá, theo thứ tự: phạm vi (`NotFound`) → `DaHuy` (`AlreadyCancelled`) → ma trận `canTransition` với trạng thái nguồn ĐỌC DƯỚI KHOÁ
+   * (`NotCancellable`; khác `expire`, trạng thái nguồn ở đây đổi được và phụ thuộc `actor`: Quản trị viên đi được từ `DaTiepDon`, `VangMat`, Q24). Từ chối có kiểu xảy ra TRƯỚC lần ghi đầu tiên.
+   * Sau đó `UPDATE` có điều kiện trạng thái nguồn rồi đặt khung giờ `ConTrong` bằng `SlotHoldService` (nơi DUY NHẤT ghi `khung_gio`). Lệch dữ liệu SAU lần ghi (khung giờ không còn đúng trạng thái dưới
+   * khoá, `UPDATE` không trúng 1 hàng) NÉM `Error` để người gọi hoàn tác trọn, như `expire`. Không gọi cổng nào: tính hoàn, thông báo và cổng sau commit là việc của người gọi.
+   */
+  async cancel(
+    em: EntityManager,
+    input: CancelWriteInput,
+  ): Promise<CancelWriteOutcome> {
+    const slot = await lockSlot(em, input.khungGioId);
+    if (slot === null)
+      throw new Error(`khung giờ ${input.khungGioId} của lịch không tồn tại`);
+    const row = await lockAppointment(em, input.lichHenId);
+    if (row === null || !input.canAct(row)) return { kind: 'NotFound' };
+    if (row.trangThai === 'DaHuy') return { kind: 'AlreadyCancelled' };
+    const decision = canTransition({
+      actor: input.actor,
+      from: row.trangThai,
+      to: 'DaHuy',
+    });
+    if (!decision.ok)
+      return { kind: 'NotCancellable', trangThai: row.trangThai };
+
+    const updated = await markCancelled(em, {
+      lichHenId: input.lichHenId,
+      from: row.trangThai,
+      now: input.now,
+      lyDo: input.lyDo,
+    });
+    if (!updated)
+      throw new Error(
+        `lịch ${input.lichHenId} không còn ${row.trangThai} dưới khoá khi huỷ`,
+      );
+    // Lịch chờ thanh toán giữ khung giờ `DangGiuCho` với hạn đúng bằng `giu_cho_den` (INV-2); các trạng thái còn lại giữ `DaDat` (INV-3). `Stale` là dữ liệu lệch: hoàn tác.
+    const released = await this.slotHolds.release(
+      em,
+      slot,
+      row.trangThai === 'ChoThanhToan'
+        ? { from: 'DangGiuCho', den: slot.giuChoDen }
+        : { from: 'DaDat', den: null },
+    );
+    if (released.kind !== 'Done')
+      throw new Error(
+        `khung giờ ${slot.khungGioId} không đúng trạng thái giữ lịch ${row.trangThai} dưới khoá khi huỷ`,
+      );
+    return { kind: 'Cancelled', before: row };
   }
 
   // Thân của `expire` (họ A: nhận `em` của vỏ `withBookingTransaction`). Có thể chạy lại từ đầu: không giữ trạng thái, không tác dụng phụ.

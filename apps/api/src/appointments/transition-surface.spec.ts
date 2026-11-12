@@ -62,9 +62,10 @@ describe('AR-07 ngoài appointments/ chỉ gọi confirmPaid và complete', () =
     (method) => {
       const source = `import { AppointmentTransitionService } from '../appointments/state/appointment-transition.service.js';
 class X { constructor(private readonly t: AppointmentTransitionService) {} run() { return this.t.${method}({}); } }`;
+      // `new Set`: từ khi B10 vào `main`, `cancel` đã nằm trong `methods` (đọc từ nguồn lớp); cộng tay thêm lần nữa sẽ báo cùng một lỗi hai lần.
       const found = findTransitionSurfaceViolations(
         [file('payment/x.service.ts', source)],
-        [...methods, 'cancel', 'checkIn', 'markNoShow'],
+        [...new Set([...methods, 'cancel', 'checkIn', 'markNoShow'])],
       );
       expect(found).toHaveLength(1);
       expect(found[0]).toContain('payment/x.service.ts');
