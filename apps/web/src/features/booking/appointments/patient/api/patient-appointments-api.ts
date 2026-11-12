@@ -19,7 +19,8 @@ import type {
 // Gọi và kiểm hình dạng `GET /patient/appointments` (booking F1; PLAN 5.9, TRACKING 3.13). Route của Bệnh nhân nên GẮN access token
 // (mặc định của `request()`); phạm vi `benh_nhan_id` do backend lấy từ token, không tham số nào từ client là chủ sở hữu.
 
-function parseAppointment(raw: unknown): PatientAppointment {
+// Xuất cho `patient-appointment-detail-api.ts` (F2): chi tiết có đúng mười hai khoá này cộng bốn khoá riêng
+export function parseAppointment(raw: unknown): PatientAppointment {
   const row = readRecord(raw);
   const person = readRecord(row.nguoiKham);
   return {

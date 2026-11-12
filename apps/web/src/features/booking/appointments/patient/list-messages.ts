@@ -42,8 +42,6 @@ export const LIST_TEXT = {
   ownPerson: 'Bản thân',
   relativePerson: 'Người thân',
   detail: 'Chi tiết',
-  detailHiddenNote: ' (chưa được triển khai)',
-  detailTitle: 'Chưa được triển khai',
   paginationLabel: 'Phân trang lịch hẹn',
   previousPage: 'Trang trước',
   nextPage: 'Trang sau',
@@ -52,6 +50,9 @@ export const LIST_TEXT = {
   sessionExpired: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
   forbidden: 'Bạn không có quyền xem danh sách này.',
 } as const;
+
+// Chữ ẩn sau `Chi tiết` (booking F2): "Chi tiết lịch hẹn CP…", để người dùng trình đọc màn hình phân biệt các liên kết cùng tên trong bảng
+export const detailLinkSuffix = (maLichHen: string) => ` lịch hẹn ${maLichHen}`;
 
 export const shownLabel = (shown: number, total: number) =>
   `Hiển thị ${shown} / ${total} lịch hẹn`;

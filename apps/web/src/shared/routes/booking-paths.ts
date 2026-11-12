@@ -31,3 +31,14 @@ export const bookingDonePath = (maLichHen: string) =>
 // không dấu, như `ho-so-nguoi-kham` của patient.
 export const PATIENT_APPOINTMENTS_SEGMENT = 'lich-hen-cua-toi';
 export const PATIENT_APPOINTMENTS_PATH = `/benh-nhan/${PATIENT_APPOINTMENTS_SEGMENT}`;
+
+// Chi tiết một lịch hẹn của Bệnh nhân (booking F2, BP-10; tên đường dẫn là [đề xuất]). `*_SEGMENT` là mẫu TƯƠNG ĐỐI với `/benh-nhan` cho route con
+// của khung Bệnh nhân (`PATIENT_APPOINTMENT_ROUTES`), `*_ROUTE` là mẫu đầy đủ, hàm `patientAppointmentDetailPath` dựng liên kết: cùng một file để không lệch
+// nhau. Mã lịch hẹn nằm trên đường dẫn là chấp nhận được (đã nằm ở đường dẫn API); `encodeURIComponent` để mã có ký tự đặc biệt không làm vỡ URL.
+export const PATIENT_APPOINTMENT_DETAIL_SEGMENT = `${PATIENT_APPOINTMENTS_SEGMENT}/:maLichHen`;
+export const PATIENT_APPOINTMENT_DETAIL_ROUTE = `/benh-nhan/${PATIENT_APPOINTMENT_DETAIL_SEGMENT}`;
+export const patientAppointmentDetailPath = (maLichHen: string) =>
+  PATIENT_APPOINTMENT_DETAIL_ROUTE.replace(
+    ':maLichHen',
+    encodeURIComponent(maLichHen),
+  );
