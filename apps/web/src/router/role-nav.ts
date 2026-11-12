@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { DOCTOR_PATHS, RECEPTION_SCHEDULE_PATH } from '../features/doctor';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
+import { PATIENT_APPOINTMENTS_PATH } from '../shared/routes/booking-paths';
 import type { RoleNavItem } from '../shared/ui/role-shell';
 
 // Menu của các khung theo vai trò (Q21d). Module có trang mới chỉ thêm `to` cho mục của mình ở đây và ghép route ở role-routes.tsx;
@@ -23,7 +24,12 @@ export const PATIENT_NAV: { items: RoleNavItem[]; footerItems: RoleNavItem[] } =
   {
     items: [
       { label: 'Tổng quan', icon: LayoutDashboard },
-      { label: 'Lịch hẹn của tôi', icon: Calendar },
+      // booking F1: không `end`, để trang con của F2 (chi tiết lịch hẹn) vẫn làm sáng mục này
+      {
+        label: 'Lịch hẹn của tôi',
+        icon: Calendar,
+        to: PATIENT_APPOINTMENTS_PATH,
+      },
       { label: 'Hồ sơ khám bệnh', icon: ClipboardList },
       { label: 'Ví của tôi', icon: Wallet },
       { label: 'Danh sách chờ', icon: ListOrdered },

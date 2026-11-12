@@ -739,8 +739,8 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 08/11/2026: *
 
 | ☐ | ID | Việc (file; chạm ngoài module) | Phụ thuộc | Truy vết | Thẻ / PR gợi ý |
 |---|---|---|---|---|---|
-| ☐ | F1 | "Lịch hẹn của tôi" — danh sách (Figma `411:2`): `features/booking/appointments/patient/` (trang, `api/`, kiểu), thẻ lọc có số đếm, ô tìm, bộ lọc, chuyển trang, rỗng/lỗi/loading; `router/role-nav.ts` (`to`) và `router/role-routes.tsx` (route con `BenhNhan`) `[ĐỤNG router]` | B1, P5 (và PR riêng chuyển `use-remote.ts` lên `shared/hooks/` ngay trước F1, báo Trung; TRACKING P5-C) | TCLS b1–b4, A1 | `[CHỜ Q31, Q35]` `[ĐỤNG router]` · `feat(booking)` · LH-01, LH-05 |
-| ☐ | F2 | Chi tiết lịch hẹn theo trạng thái (Figma `420:2`, `426:2`, `691:2`) + **hộp huỷ** (`421:2`: hoàn dự kiến từ `cancel-preview`, `Giữ lịch`/`Xác nhận hủy`, kết quả số thực tế; nút huỷ cả ở `ChoThanhToan` theo Q45); nối liên kết "Lịch hẹn của tôi" trong `relative-errors.ts` `[ĐỤNG patient]` (một dòng) | F1, B2, B10 | TCLS b5–b6; HLH b1–b8, A2 | `[CHỜ Q18, Q27, Q45]` `[ĐỤNG patient]` · `feat(booking)` · LH-02, LH-03, LH-04 |
+| ☑ | F1 | "Lịch hẹn của tôi" — danh sách (Figma `411:2`): **F1 đã làm và đo 12/11/2026 (đợt nặng tự đo: `npm test` cả bộ web 137 file / 2385 ca xanh trên nền 123 / 2219; `npm run build`, lint, `tsc -b`, Prettier đạt; jscpd 1,44% và 0 cặp mới; gitleaks sạch; còn kiểm tay X2 cho bố cục và LHL-22) (issue 251; Đại duyệt kế hoạch 3.25: (a) đến (l) như đề xuất, kèm bổ sung ở 3.25.5; thiết kế, kết quả chạy thật và đột biến: [`TRACKING.md`](TRACKING.md) mục 3.25 và mục 1):** `features/booking/appointments/{common,patient}/` (trang; thẻ lọc có số đếm lấy từ `demTheoTrangThai`; ô tìm 2 đến 100 điểm mã, hẹn giờ 300 ms, không tìm khi đang ghép dấu; năm bộ lọc người khám, bác sĩ, chuyên khoa, từ ngày, đến ngày; chuyển trang; rỗng hai loại; lỗi chọn câu theo `maLoi`; **giữ dữ liệu cũ khi đổi trang hay bộ lọc** bằng hook bọc `useRemote`; bộ lọc chỉ ở bộ nhớ, không URL và không kho trình duyệt); nút `Chi tiết` **vô hiệu tới F2** (không có liên kết dẫn tới 404); `features/booking/index.ts` xuất `PATIENT_APPOINTMENT_ROUTES`; `shared/routes/booking-paths.ts` thêm `PATIENT_APPOINTMENTS_PATH`; `[ĐỤNG router]`: `to` ở `role-nav.ts` và một dòng route (cùng một dòng import) ở `role-routes.tsx`; Figma chưa có Sắp tới/Lịch sử và phân trang: **không** thêm `nhom` vào giao diện (Đại, 12/11/2026) | B1, P5, PR #360 (`useRemote` đã ở `shared/hooks/`) | TCLS b1–b4, A1 | `[ĐỤNG router]` · `feat(booking)` · LH-01 (Pass); **LH-05 chuyển sang F2** (F1 không có hộp xác nhận); mã mới LHL-01…LHL-24 (mục 7.31), BP-09 (mục 7.18); LHL-22 còn phần kiểm tay `M` |
+| ☐ | F2 | Chi tiết lịch hẹn theo trạng thái (Figma `420:2`, `426:2`, `691:2`) + **hộp huỷ** (`421:2`: hoàn dự kiến từ `cancel-preview`, `Giữ lịch`/`Xác nhận hủy`, kết quả số thực tế; nút huỷ cả ở `ChoThanhToan` theo Q45); nối liên kết "Lịch hẹn của tôi" trong `relative-errors.ts` `[ĐỤNG patient]` (một dòng) | F1, B2, B10 | TCLS b5–b6; HLH b1–b8, A2 | `[CHỜ Q18, Q27, Q45]` `[ĐỤNG patient]` · `feat(booking)` · LH-02, LH-03, LH-04, **LH-05** (chuyển từ F1 ngày 12/11/2026: hộp xác nhận là của F2; F1 không có hộp nào) |
 | ☑ | F3 | **Khung trang đặt lịch:** `wizard/` (khung, `BookingStepper` 6 nhãn Figma, context bộ nhớ, đọc `khungGioId` từ URL), cổng A4 bằng `GET /booking/eligibility`, `RequireAuth` `BenhNhan` và quay lại sau đăng nhập (**M10 đã đo ở X1: auth chưa có cơ chế quay lại, F3 thêm `from` vào `RequireAuth` và các trang đăng nhập `[ĐỤNG auth]`**); route Bước 4–6 trong `PublicLayout` `[ĐỤNG router]`. **F3 đã làm 11/11/2026 (issue 253; Đại duyệt kế hoạch 3.22: (a) đến (k) như đề xuất kèm bốn bổ sung; thiết kế, kết quả chạy thật và đột biến: [`TRACKING.md`](TRACKING.md) mục 3.22 và mục 1):** `features/booking/` lần đầu có mặt (`index.ts` xuất đúng `BOOKING_WIZARD_ROUTES`; `api/`; `wizard/` với thân tạm `steps/*-step.tsx` của F4 đến F7; `testing/fake-booking-api.ts`; `architecture.test.ts` khoá luật không import chéo); thanh bước 6 nhãn Figma ("Nhóm dịch vụ", "Dịch vụ khám", "Bác sĩ & giờ", "Người khám", "Xác nhận", "Hoàn tất"; Thanh toán vẫn là bước 5); cổng A4 chỉ ở Bước 4, chọn câu theo `maLoi`, đóng khi lỗi; context bộ nhớ gắn `khungGioId`; `shared/routes/booking-paths.ts` thêm hằng và hàm Bước 4–6; `[ĐỤNG auth]`: tám file và `features/auth/return-to.ts` (`from` đi bằng `location.state`, chống mở chuyển hướng, chỉ Bệnh nhân vào `/dat-lich/...`; quên mật khẩu không giữ `from`, TECH_DEBT dòng 102); `[ĐỤNG router]`: một khối trong `PublicLayout`; liên kết "Quay lại" chỉ nối Bước 1 (và Bước 4 ở Xác nhận), chờ nhóm quyết cách có id Bước 2–3 (3.22 (k)) | B7, P5 | ĐLK b1, A1, A4 | `[ĐỤNG router]` `[ĐỤNG auth]` · `feat(booking)` · WZ-01 (Pass); WZ-08, WZ-09, WZ-14 **một phần (F3)** (phần còn lại ở F4, F6 và kiểm tay `M`); mã mới BWZ-01…BWZ-08, BRT-01…BRT-11 (mục 7.27), BP-05…BP-08 (mục 7.18) |
 | ☐ | F4 | **Bước 4 "Thông tin"** (Figma `449:2`, `450:2`): chọn hồ sơ đi khám (bản thân + người thân đang hiệu lực; gọi `GET /patient/relatives` bằng API client của module, không import `features/patient`), "Lý do khám (không bắt buộc)", khối "Lịch hẹn đang chọn" | F3 | ĐLK b9–b11, A3 | `[CHỜ Q9]` · `feat(booking)` · WZ-02, WZ-03 |
 | ☐ | F5 | **Bước 5 "Xác nhận"** (Figma `451:2`): tóm tắt từ `POST /booking/checks` (giá, phụ phí, cọc, chính sách hoàn: dòng bổ sung theo Q46), nút gọi `POST /booking/appointments`, xử lý A2/A3/A6 bằng `maLoi`, chống bấm đúp, `usePageActive` | F4, B8 | ĐLK b12–b14, A2, A3, A6 | `[CHỜ Q46]` · `feat(booking)` · WZ-04…WZ-07, WZ-12, WZ-13 |
@@ -1083,9 +1083,11 @@ Loại: **U** = thuần (`*.spec.ts`), **I** = tích hợp MySQL thật (`*.int-
 | TB-07 | Ba biến thể huỷ theo `reason` | Đúng chữ biến thể | Figma `676:2` | U |
 | TB-08 | `FakeMailService` | Không gửi thật (test không có thư thật) | AGENTS mục 3 | U |
 
-### 7.15 Giao diện (WZ, LH, LTN, QT, BSI) — F3 (11/11/2026): WZ-01 đã Pass; WZ-08, WZ-09, WZ-14 mới phần của F3 nên chưa tính Pass
+### 7.15 Giao diện (WZ, LH, LTN, QT, BSI) — F3 (11/11/2026): WZ-01 đã Pass; WZ-08, WZ-09, WZ-14 mới phần của F3 nên chưa tính Pass; F1 (12/11/2026): LH-01 đã Pass, LH-05 chuyển sang F2
 
 **F3 (11/11/2026):** WZ-01 **Pass** (cổng A4, `eligibility-gate.test.tsx`). **WZ-08 một phần (F3):** đã đăng nhập mở `?khungGioId=` ở lại đúng URL; đăng nhập rồi quay lại đúng URL (cả query); không lời gọi ghi nào khi vào và khi chuyển trang (`wizard-routes.test.tsx`, `features/auth/return-flow.test.tsx` BRT-07); chưa làm "điền sẵn" (F4). **WZ-09 một phần (F3):** Bước 5 mở thẳng, tải lại, bản nháp của khung giờ khác hay rời wizard ⇒ về Bước 4; storage và cookie không chứa lý do khám hay hồ sơ khi bản nháp được ghi; ô gõ thật là F4. **WZ-14 một phần (F3):** thanh bước (`aria-current`, thứ tự Tab, nhãn đọc được); `aria-live` theo mốc thuộc đếm ngược (F6); máy đọc màn hình thật là kiểm tay (M). WZ-02…WZ-07, WZ-10…WZ-13 chưa làm.
+
+**F1 (12/11/2026):** LH-01 **Pass** (mức W: trang "Lịch hẹn của tôi" với API giả, tổng của LHL-01…LHL-24 ở mục 7.31; bố cục 1440 và 390 px, tương phản thật và trình đọc màn hình là kiểm tay `M`, chưa làm). **LH-05 không phủ ở F1:** hộp xác nhận huỷ là của F2 (F1 chỉ có nút `Chi tiết` vô hiệu), đã thêm vào dòng F2 ở 6.4. LH-02, LH-03, LH-04 chưa làm (F2).
 
 | ID | Kịch bản | Mong đợi | Phủ | Loại |
 |---|---|---|---|---|
@@ -1107,7 +1109,7 @@ Loại: **U** = thuần (`*.spec.ts`), **I** = tích hợp MySQL thật (`*.int-
 | LH-02 | Chi tiết theo từng trạng thái (Chờ thanh toán, Đã xác nhận, Hoàn thành, Đã hủy); `thanhToan` null | Đúng khối | TCLS b6 | W |
 | LH-03 | Hộp huỷ: hoàn dự kiến, `Giữ lịch`, `Xác nhận hủy`, kết quả số thực tế, lỗi 409 | Đúng | HLH b3–b5 | W |
 | LH-04 | Nút huỷ ở `ChoThanhToan` | Có (Q45) | HLH TĐK | W |
-| LH-05 | Đóng hộp xác nhận không gọi API | 0 lời gọi | HLH A2 | W |
+| LH-05 | Đóng hộp xác nhận không gọi API (thuộc F2: hộp huỷ) | 0 lời gọi | HLH A2 | W |
 | LTN-01 | Danh sách Lễ tân: chip ngày, lọc, nút theo `chuyenDuoc[]` | Đúng | CNTT b2 | W |
 | LTN-02 | Hộp Hủy: `Lý do hủy *` bắt buộc | Chặn khi rỗng | Q27 | W |
 | LTN-03 | Hộp Vắng mặt: xác nhận | Gọi đúng | CNTT b3 | W |
@@ -1163,7 +1165,7 @@ Mã mới của task P1 (grep `apps`, `docs`, `AGENTS.md` ngày 09/11/2026: `BCS
 | LOK-03 | `findLockOrderViolation` với chuỗi ngược | Bắt: `lich_hen` trước `khung_gio`; `ho_so_nguoi_than` trước `benh_nhan`; `khung_gio` trước `bac_si`; `vi_noi_bo` trước `lich_hen` | H2, doctor M12 | U |
 | LOK-04 | Hằng quy tắc 7 | Khoá hợp lệ của `lich_hen` là `lich_hen_id`, `ma_lich_hen`; cột cấm là `khung_gio_id`, `khung_gio_dang_giu` | 5.3 quy tắc 7 | U |
 
-### 7.18 Đường dẫn dùng chung (BP) — BP-01…BP-04 (P5), BP-05…BP-08 (F3, 11/11/2026)
+### 7.18 Đường dẫn dùng chung (BP) — BP-01…BP-04 (P5), BP-05…BP-08 (F3, 11/11/2026), BP-09 (F1, 12/11/2026)
 
 Ở `apps/web/src/shared/routes/booking-paths.test.ts` (task P5). Mục 7.17 dành cho P1 đang tạo, nên mục này đánh số 7.18. Khoá chuỗi để liên kết (`search`, `booking`) và route không lệch nhau. F3 thêm BP-05…BP-08 cho đường dẫn Bước 4–6 (cùng file test; tên đường dẫn là `[đề xuất]` ở 5.13).
 
@@ -1177,6 +1179,7 @@ Mã mới của task P1 (grep `apps`, `docs`, `AGENTS.md` ngày 09/11/2026: `BCS
 | BP-06 | `bookingPaymentPath('CP20261018001')`, `bookingDonePath('CP20261018001')` | `/dat-lich/thanh-toan/CP20261018001`, `/dat-lich/hoan-tat/CP20261018001` | F3; 5.13 | U |
 | BP-07 | Giá trị có `/`, `?`, `#`, `&`, dấu cách, tiếng Việt đưa vào cả bốn hàm (ca biên) | Mã hoá từng giá trị, không vỡ cấu trúc đường dẫn, không sinh query hay hash lạ | F3 | U |
 | BP-08 | Mẫu route `BOOKING_PAYMENT_ROUTE`, `BOOKING_DONE_ROUTE` và bốn đường dẫn Bước 4–6 | Nằm dưới `BOOKING_PATH`; thay `:maLichHen` cho ra đúng đường dẫn của hàm dựng | F3 | U |
+| BP-09 | `PATIENT_APPOINTMENTS_PATH` ("Lịch hẹn của tôi" của Bệnh nhân; `[đề xuất]` `/benh-nhan/lich-hen-cua-toi`) | Bằng `ROLE_HOME_PATHS.BenhNhan` + `/lich-hen-cua-toi` (giữ khớp, nếp ca `AQ-` của patient vì `shared/routes` không import `features/`); khác gốc của bốn khu và mọi đường dẫn đặt lịch | F1 | U |
 
 ### 7.19 Cổng, bản giả và hạ tầng test (BPO, BHT) — P2, duyệt 10/11/2026
 
@@ -1441,6 +1444,37 @@ Mã mới của task B11 (`grep` trên `apps`, `docs`, `AGENTS.md` ngày 12/11/2
 | AFL-04 | Chỉ đọc và số câu trên MySQL thật | `find` MỘT câu, `list` hai câu (một câu khi rỗng hay `limit = 0`), `countActiveByShifts` MỘT câu `GROUP BY` ở 1 và 60 id; không câu khoá hay ghi | D14, CG-16 | I |
 | AFL-05 | `limit` ở biên và thứ tự | `limit` 0, 1, 2, `tong`, `tong + 1`, 1000; `tong` không đổi; sắp `thoi_gian` tăng rồi `lich_hen_id` (lịch tạo theo thứ tự id ngược giờ; hai lịch cùng giờ ở hai ca) | D13 | I |
 | AR-07 | Bề mặt gọi vào của `AppointmentsModule` (cũng ở 7.11) | Ngoài `appointments/` chỉ được gọi `confirmPaid` và `complete` của `AppointmentTransitionService` (danh sách phương thức cấm đọc từ nguồn lớp: `cancel` của B10 và phương thức B12, B14 sau này tự được phủ); đột biến `.expire()`, `.cancel()`, `.checkIn()`, `.markNoShow()` bị bắt; không bắt nhầm (hai tên được phép, file không nhắc lớp, comment, file trong `appointments/`); `exports` có `AppointmentTransitionService` và `AppointmentQueries` | 5.10, H7 | U |
+
+### 7.31 "Lịch hẹn của tôi": danh sách (LHL) — đã duyệt 12/11/2026, làm và chạy 12/11/2026 (task F1)
+
+Mã mới của task F1 (`grep` trên `docs`, `apps`, `AGENTS.md` ngày 12/11/2026: tiền tố `LHL` chưa có; 7.28 là B8, 7.29 và 7.30 dành cho B10, B11, sắp lại theo thứ tự merge khi gộp). Test `vitest` (happy-dom) ở `apps/web/src/features/booking/appointments/{common,patient}/` (`*.test.ts(x)`) với API giả `testing/fake-appointment-list-api.ts`, **không gọi backend thật**; đồng hồ giả cho hẹn giờ 300 ms và 15 giây. U = hàm thuần, W = trang với API giả, M = kiểm tay. **LH-01 (7.15) Pass khi LHL-01…LHL-24 Pass**; LH-05 thuộc F2 (hộp xác nhận), không phải F1.
+
+| ID | Kịch bản | Mong đợi | Phủ | Loại |
+|---|---|---|---|---|
+| LHL-01 | Số đếm thẻ lọc khi `demTheoTrangThai` khác số dòng của `items` | Giao diện theo `demTheoTrangThai`, không đếm lại từ `items`; `Tất cả` là tổng sáu số; số 0 vẫn hiện | TCLS A1, Q31 | W |
+| LHL-02 | Nhãn sáu trạng thái, chip, mã lạ và `DaDoiLich` | Đúng chữ Figma `411:2` (Chờ thanh toán, Đã xác nhận, Đã tiếp đón, Hoàn thành, Đã hủy, Vắng mặt); chip luôn có chữ; mã lạ ⇒ "Chưa xác định", không lộ mã thô | Q31, Q33, 4.4 | U, W |
+| LHL-03 | Chọn thẻ lọc | Gửi `trangThai=<mã>` (một khoá) và `page=1`; `aria-pressed`; `Tất cả` không gửi `trangThai`; số đếm không đổi | Q31 | U, W |
+| LHL-04 | Đổi từng bộ lọc (thẻ, người khám, bác sĩ, chuyên khoa, từ ngày, đến ngày, từ khoá) khi đang ở trang 3 | Yêu cầu kế tiếp có `page=1`; từ khoá giống từ khoá đã áp dụng thì không đổi gì | Q31 | U, W |
+| LHL-05 | Giữ dữ liệu cũ khi đổi trang hay bộ lọc | Chỉ lần tải đầu hiện "Đang tải"; sau đó bảng và số đếm của truy vấn trước vẫn hiện (`aria-busy`) tới khi truy vấn mới về | 5.13 | W |
+| LHL-06 | Ô tìm: 2 đến 100 điểm mã, NFC, cắt khoảng trắng ASCII (không cắt U+00A0), hẹn giờ 300 ms, Enter, ghép dấu (`isComposing`, keyCode 229), bỏ từ khoá ngay khi còn dưới 2 ký tự | Đúng từng biên; đếm theo điểm mã (100 điểm mã mà 199 đơn vị UTF-16 vẫn hợp lệ); `q` rỗng không bao giờ được gửi | Q35 | U, W |
+| LHL-07 | 400 `TU_KHOA_KHONG_HOP_LE` | Câu dưới ô tìm (`aria-describedby`), giữ danh sách, không `Thử lại`; 400 khác không phải lỗi từ khoá | Q35 | U, W |
+| LHL-08 | Lỗi theo `maLoi` | `CHUA_DANG_NHAP`, `KHONG_DU_QUYEN` có câu riêng và không `Thử lại`, kể cả khi mã HTTP khác; `maLoi` lạ ở mọi mã HTTP, mạng, quá giờ, HTML ⇒ câu chung hoặc câu mạng kèm `Thử lại` gọi lại ĐÚNG truy vấn | 5.13 | U, W |
+| LHL-09 | Rỗng hai loại và `Xóa bộ lọc` | "Bạn chưa có lịch hẹn nào" kèm `Đặt lịch khám`; "Không có lịch hẹn nào khớp bộ lọc" kèm `Xóa bộ lọc` (về mặc định, trang 1, xoá cả chữ trong ô tìm) | 5.13 | U, W |
+| LHL-10 | Chuyển trang, biên `total` = 0, chia hết `pageSize`, dư 1, `pageSize` = 1 | "Trang X / Y" đúng; chỉ hiện từ hai trang; Trước và Sau vô hiệu ở biên; gửi đúng `page`; "Hiển thị X / Y lịch hẹn" | Q31 | W |
+| LHL-11 | Trang vượt cuối (200 rỗng, `total` > 0); `total` = 0 | Về trang cuối còn dữ liệu, đúng một yêu cầu thêm, không lặp; trang vượt cuối không được giữ làm dữ liệu cũ; `total` = 0 thì chỉ hiện câu rỗng | LSH-18 | W |
+| LHL-12 | Giờ Việt Nam | 17:30 UTC ⇒ 00:30 ngày hôm sau (đổi thứ, ngày, giờ); "Chủ nhật" như Figma; biên nửa đêm (00:00, không phải 24:00); không phụ thuộc `TZ` của máy | H1 | U, W |
+| LHL-13 | Tiền là chuỗi decimal | "300000.00" ⇒ "300.000đ"; chỉ bỏ phần thập phân, không làm tròn; số lớn hơn 2^53 đúng từng chữ số; chuỗi sai dạng ném lỗi | H4 | U, W |
+| LHL-14 | Dòng lịch hẹn: người khám, danh sách trắng | `Bản thân` hoặc `Người thân`; khoá thừa của API (kể cả khoá nhạy cảm) không lọt ra bộ đọc và màn hình | LSH-14 | U, W |
+| LHL-15 | Phản hồi 200 sai hình dạng | Không dùng được (`UnexpectedResponseError`), thiếu từng khoá của dòng và thân đều bị chặn; trang hiện câu chung kèm `Thử lại`, không vỡ | nếp patient F8 | U, W |
+| LHL-16 | Lọc người khám; danh sách người thân | Gửi `BanThan` hoặc id chuỗi (id lớn hơn 2^53 giữ chữ số); gồm hồ sơ đã ngừng (có nhãn, đứng sau hồ sơ đang dùng); lỗi tải không chặn bảng, có `Thử lại` | Q31 | U, W |
+| LHL-17 | Lọc bác sĩ, chuyên khoa (hai route công khai, `pageSize=100`) | Gửi đúng `bacSiId`, `chuyenKhoaId`; hai route không gắn token; `total` lớn hơn số mục nhận được ⇒ ghi chú "danh sách rút gọn" (không cắt âm thầm); lỗi tải không chặn bảng | Q31, Đại duyệt 12/11/2026 | U, W |
+| LHL-18 | Khoảng ngày | Chuỗi `YYYY-MM-DD` nguyên vẹn; `Đến ngày` trước `Từ ngày` ⇒ không gọi API và có câu; hai ngày bằng nhau hợp lệ | Q31 | U, W |
+| LHL-19 | Không kho trình duyệt, không URL | Lọc, tìm, chuyển trang không ghi `localStorage`, `sessionStorage`, cookie; URL không đổi, không có `q` hay bộ lọc trên URL | Q38, H5 | W |
+| LHL-20 | Chỉ đọc; token | Mọi lời gọi là GET; hai route của Bệnh nhân gắn token, hai route công khai không | 5.13 | U, W |
+| LHL-21 | Mất mạng | Lỗi mạng ⇒ câu mạng và `Thử lại` thành công khi có mạng lại; sự kiện `offline` ⇒ dải của gốc router hiện đúng một bản, trang và dữ liệu còn | 5.13 | W |
+| LHL-22 | Trợ năng | Thẻ lọc là nút thật có `aria-pressed`, tên gồm số đếm; ô tìm và bộ lọc có nhãn; "Hiển thị X / Y" trong `aria-live`; thứ tự Tab theo thứ tự nhìn; vùng cuộn của bảng nhận Tab; **trình đọc màn hình thật, bố cục 1440 và 390 px là kiểm tay (M, X2)** | WCAG 2.2 AA | W, M |
+| LHL-23 | Router | Bệnh nhân vào `/benh-nhan/lich-hen-cua-toi` thấy trang trong khung, mục menu có `href` đúng và `aria-current`; Lễ tân, Bác sĩ, Quản trị viên ⇒ 404 và không gọi API; khách ⇒ `/dang-nhap` (replace) | KG, Q36 | W |
+| LHL-24 | Nút `Chi tiết` và `Đặt lịch khám` | `Chi tiết` vô hiệu (không phải liên kết, không dẫn tới 404; F2 bật); `Đặt lịch khám` trỏ `/dat-lich` | F1-F | W |
 
 ## 8. Đề xuất gom cụm (chỉ đề xuất — nhóm chốt)
 

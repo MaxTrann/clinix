@@ -2,3 +2,5 @@
 // F3 xuất đúng một tên. Task web sau (F1, F2, F8 đến F11) thêm tên của mình vào CHÍNH file này, mỗi task một dòng.
 // Đường dẫn của luồng đặt lịch KHÔNG xuất ở đây: nằm ở `shared/routes/booking-paths.ts` để `search` và `router/` dùng được.
 export { BOOKING_WIZARD_ROUTES } from './wizard/wizard-routes';
+// F1: route "Lịch hẹn của tôi" của Bệnh nhân, ghép vào khối `BenhNhan` ở `router/role-routes.tsx` cạnh `PATIENT_ROUTES`.
+export { PATIENT_APPOINTMENT_ROUTES } from './appointments/patient/patient-appointment-routes';

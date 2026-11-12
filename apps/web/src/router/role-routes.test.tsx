@@ -13,6 +13,7 @@ import {
 } from '../features/auth/auth-session';
 import { getAuthState, setAuthState } from '../features/auth/auth-store';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
+import { PATIENT_APPOINTMENTS_PATH } from '../shared/routes/booking-paths';
 import { createFakeProfileApi } from '../features/patient/testing/fake-profile-api';
 import { apiError, createFakeAuthApi } from '../test/fake-auth-api';
 import { fakeMatchMedia } from '../test/fake-match-media';
@@ -97,11 +98,14 @@ describe('khung Bệnh nhân', () => {
     expect(
       within(menu).getByRole('link', { name: 'Hồ sơ người khám' }),
     ).toHaveAttribute('href', PATIENT_PATHS.profile);
-    // Chỉ "Hồ sơ người khám" có trang ở F1; bảy mục còn lại vô hiệu (KG-04)
-    expect(within(menu).getAllByRole('link')).toHaveLength(1);
-    for (const button of within(menu).getAllByRole('button')) {
-      expect(button).toBeDisabled();
-    }
+    // "Hồ sơ người khám" (patient F1) và "Lịch hẹn của tôi" (booking F1) có trang; sáu mục còn lại vô hiệu (KG-04). Đổi có duyệt ở booking F1.
+    expect(within(menu).getAllByRole('link')).toHaveLength(2);
+    expect(
+      within(menu).getByRole('link', { name: 'Lịch hẹn của tôi' }),
+    ).toHaveAttribute('href', PATIENT_APPOINTMENTS_PATH);
+    const disabledItems = within(menu).getAllByRole('button');
+    expect(disabledItems).toHaveLength(6);
+    for (const button of disabledItems) expect(button).toBeDisabled();
     expect(
       within(aside).getByRole('link', { name: 'Về trang chủ' }),
     ).toHaveAttribute('href', '/');

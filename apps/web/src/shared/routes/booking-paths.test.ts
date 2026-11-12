@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ROLE_HOME_PATHS } from '../../features/auth';
 import {
   BOOKING_CONFIRM_PATH,
   BOOKING_DONE_ROUTE,
@@ -11,6 +12,8 @@ import {
   bookingInfoPath,
   bookingPaymentPath,
   doctorListPath,
+  PATIENT_APPOINTMENTS_PATH,
+  PATIENT_APPOINTMENTS_SEGMENT,
   serviceListPath,
 } from './booking-paths';
 
@@ -102,6 +105,33 @@ describe('booking F3 — đường dẫn Bước 4–6', () => {
     );
     expect(BOOKING_DONE_ROUTE.replace(':maLichHen', 'X1')).toBe(
       bookingDonePath('X1'),
+    );
+  });
+});
+
+// booking F1. Mã ca BP-09 là [đề xuất] (PLAN booking mục 7.18 sau khi duyệt). `shared/routes` không import `features/` nên gốc `/benh-nhan` viết
+// chữ ở `booking-paths.ts`; ca này giữ nó khớp `ROLE_HOME_PATHS.BenhNhan` (nếp ca `AQ-` của patient) và không trùng đường dẫn nào đã có.
+describe('booking F1 — đường dẫn "Lịch hẹn của tôi"', () => {
+  it('BP-09 nằm dưới gốc khu Bệnh nhân, đoạn đường là nhãn menu không dấu, khác mọi đường dẫn đã có', () => {
+    expect(PATIENT_APPOINTMENTS_SEGMENT).toBe('lich-hen-cua-toi');
+    expect(PATIENT_APPOINTMENTS_PATH).toBe('/benh-nhan/lich-hen-cua-toi');
+    // Khớp gốc khu Bệnh nhân của auth: đổi `ROLE_HOME_PATHS.BenhNhan` mà quên file này thì ca đỏ
+    expect(PATIENT_APPOINTMENTS_PATH).toBe(
+      `${ROLE_HOME_PATHS.BenhNhan}/${PATIENT_APPOINTMENTS_SEGMENT}`,
+    );
+
+    // Ca âm: không trùng gốc của bốn khu, không nằm trong luồng đặt lịch, không trùng Bước 4–6
+    const taken = [
+      ...Object.values(ROLE_HOME_PATHS),
+      BOOKING_PATH,
+      BOOKING_INFO_PATH,
+      BOOKING_CONFIRM_PATH,
+      BOOKING_PAYMENT_ROUTE,
+      BOOKING_DONE_ROUTE,
+    ];
+    expect(taken).not.toContain(PATIENT_APPOINTMENTS_PATH);
+    expect(PATIENT_APPOINTMENTS_PATH.startsWith(`${BOOKING_PATH}/`)).toBe(
+      false,
     );
   });
 });
