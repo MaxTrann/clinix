@@ -586,6 +586,35 @@ describe('booking F4 — khối "Lịch hẹn đang chọn" và lỗi của `che
     },
   );
 
+  // booking F5 đổi có chủ ý hành vi nhỏ của Bước 4: 404 `KHONG_TIM_THAY` (hồ sơ không có hay của người khác, cùng một thân; PLAN 5.14 chưa có câu) vào bảng câu lỗi chung. Trước đây
+  // rơi về câu chung + `Thử lại` vô ích (thử lại cùng yêu cầu cùng kết quả). Câu TRUNG TÍNH: 404 có thể do hồ sơ hay do khung giờ, nên không đổ riêng cho hồ sơ.
+  it('BIS-07 F5 404 `KHONG_TIM_THAY` ⇒ câu TRUNG TÍNH dưới thẻ hồ sơ (không phải câu chung, không đổ riêng cho hồ sơ), không `Thử lại`, Tiếp tục tắt; chọn người thân thì kiểm lại và đi tiếp được', async () => {
+    const message =
+      'Không tìm thấy thông tin để đặt lịch. Vui lòng chọn lại hồ sơ đi khám hoặc khung giờ.';
+    renderInfoStep({
+      before: (api) => {
+        api.onCheck = (body) =>
+          body.hoSoNguoiThanId === null
+            ? failure(404, 'KHONG_TIM_THAY')
+            : undefined;
+      },
+    });
+    expect(
+      await within(profileRegion()).findByText(message),
+    ).toBeInTheDocument();
+    expect(message).not.toMatch(/ngừng|đã có|của người khác/);
+    expect(screen.queryByText(GENERIC_ERROR_MESSAGE)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).toBeNull();
+    expect(continueButton()).toBeDisabled();
+
+    const group = await openPanel();
+    fireEvent.click(
+      within(group).getByRole('radio', { name: /Nguyễn Thị Bích/ }),
+    );
+    await ready();
+    expect(screen.queryByText(message)).toBeNull();
+  });
+
   it.each([
     [
       'mất mạng',
