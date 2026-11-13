@@ -26,23 +26,52 @@ function featureTarget(
   return { feature, rest: rest.filter(Boolean) };
 }
 
+// Module ngoài booking được import, CHỈ qua `index.ts` của nó (dừng ở tên thư mục, không đi sâu vào file): `auth` (đăng nhập, vai trò) và `admin` (booking F10: `AdminScopeGuard` bọc route và
+// `useAdminScope` cho trang Lịch hẹn của Quản trị viên, đúng tiền lệ module `doctor`; Đại duyệt 13/11/2026). Mọi module khác vẫn cấm.
+const THROUGH_INDEX_ONLY = ['auth', 'admin'];
+
+function isAllowedImport(
+  target: { feature: string; rest: string[] } | null,
+): boolean {
+  if (target === null || target.feature === 'booking') return true;
+  return (
+    THROUGH_INDEX_ONLY.includes(target.feature) && target.rest.length === 0
+  );
+}
+
 describe('booking F3 — features/booking không import chéo', () => {
-  it('BWZ-08 chỉ import trong chính booking, shared/ và features/auth qua index.ts', () => {
+  it('BWZ-08 chỉ import trong chính booking, shared/, features/auth và features/admin qua index.ts', () => {
     const files = Object.keys(SOURCES);
     expect(files.length).toBeGreaterThan(10);
 
     const violations: string[] = [];
     for (const file of files) {
       for (const match of SOURCES[file].matchAll(IMPORT_PATTERN)) {
-        const target = featureTarget(file, match[1]);
-        if (target === null || target.feature === 'booking') continue;
-        // Chỉ `features/auth` và chỉ qua `index.ts` (dừng ở tên thư mục, không đi sâu vào file)
-        const throughIndex =
-          target.feature === 'auth' && target.rest.length === 0;
-        if (!throughIndex) violations.push(`${file} → ${match[1]}`);
+        if (!isAllowedImport(featureTarget(file, match[1]))) {
+          violations.push(`${file} → ${match[1]}`);
+        }
       }
     }
     expect(violations).toEqual([]);
+  });
+
+  it('BWZ-08 (F10) luật nhận admin qua index.ts và cấm mọi thứ khác (đối chứng)', () => {
+    const file = './appointments/admin/x.ts';
+    const allowed = (specifier: string) =>
+      isAllowedImport(featureTarget(file, specifier));
+    // Cho phép: chính booking, shared/, thư viện, auth và admin chỉ qua index.ts
+    expect(allowed('./detail/y')).toBe(true);
+    expect(allowed('../../../../shared/api/client')).toBe(true);
+    expect(allowed('react')).toBe(true);
+    expect(allowed('../../../auth')).toBe(true);
+    expect(allowed('../../../admin')).toBe(true);
+    // Cấm: đi sâu vào admin hay auth, và mọi module khác
+    expect(allowed('../../../admin/admin-layout')).toBe(false);
+    expect(allowed('../../../admin/components/admin-sidebar')).toBe(false);
+    expect(allowed('../../../auth/use-page-active')).toBe(false);
+    expect(allowed('../../../search')).toBe(false);
+    expect(allowed('../../../doctor')).toBe(false);
+    expect(allowed('../../../patient')).toBe(false);
   });
 
   it('BWZ-08 bộ quét có tác dụng: nhận ra import chéo và import sâu vào auth (đối chứng)', () => {

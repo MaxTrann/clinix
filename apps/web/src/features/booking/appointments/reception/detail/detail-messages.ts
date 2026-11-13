@@ -1,3 +1,4 @@
+import { COMMON_ACTION_TEXT } from '../../common/action-text';
 import { COMMON_LIST_TEXT } from '../../common/list-text';
 
 // Chữ của ngăn chi tiết lịch hẹn của Lễ tân (booking F8). Chữ của Figma `488:2`, `495:2` đến `497:2` khi có (tiêu đề ba khối, nhãn dòng, `Danh sách`, tên nút); còn lại là
@@ -8,7 +9,7 @@ export const DETAIL_TEXT = {
   // Figma không có nút đóng (chỉ có liên kết `Danh sách`): nút X và Esc là [đề xuất] cho trợ năng (Đại duyệt 12/11/2026)
   close: 'Đóng',
   loading: 'Đang tải chi tiết lịch hẹn...',
-  notFound: 'Không tìm thấy lịch hẹn này.',
+  notFound: COMMON_ACTION_TEXT.notFound,
   sessionExpired: COMMON_LIST_TEXT.sessionExpired,
   forbidden: 'Bạn không có quyền xem lịch hẹn này.',
   sections: {
@@ -63,7 +64,7 @@ export const ACTION_TEXT = {
     confirm: 'Xác nhận hủy',
     confirming: 'Đang hủy…',
     // PLAN 5.14 `LY_DO_BAT_BUOC`
-    reasonRequired: 'Vui lòng nhập lý do (tối đa 255 ký tự).',
+    reasonRequired: COMMON_ACTION_TEXT.reasonRequired,
     reasonTooLong: 'Lý do hủy tối đa 255 ký tự.',
     done: 'Đã hủy lịch hẹn.',
   },
@@ -81,20 +82,17 @@ export const ACTION_TEXT = {
     confirming: 'Đang tiếp đón…',
     done: 'Đã tiếp đón bệnh nhân.',
   },
-  reload: 'Tải lại chi tiết',
-  close: 'Đóng',
-  forbidden: 'Bạn không có quyền thực hiện thao tác này.',
-  // PLAN 5.14 `CHI_BAC_SI_HOAN_THANH`, `CHUA_QUA_GIO_HEN`
-  onlyDoctorCompletes:
-    'Trạng thái Hoàn thành chỉ do Bác sĩ chuyển sau khi hoàn tất ca khám.',
+  reload: COMMON_ACTION_TEXT.reload,
+  close: COMMON_ACTION_TEXT.close,
+  forbidden: COMMON_ACTION_TEXT.forbidden,
+  // PLAN 5.14 `CHI_BAC_SI_HOAN_THANH` (chung, ở `common/action-text.ts`) và `CHUA_QUA_GIO_HEN` (riêng của Lễ tân)
+  onlyDoctorCompletes: COMMON_ACTION_TEXT.onlyDoctorCompletes,
   windowNotOver: 'Chưa hết thời gian tiếp đón nên chưa thể đánh dấu vắng mặt.',
-  notConfigured:
-    'Hệ thống chưa được cấu hình nên chưa thể thực hiện thao tác này.',
+  notConfigured: COMMON_ACTION_TEXT.notConfigured,
   // `CON_PHAN_CHUA_THANH_TOAN`: bỏ vế "Vui lòng thu tiền tại quầy trước khi tiếp đón." của PLAN 5.14 tới B17, vì nút `Thu tiền & tiếp đón` còn vô hiệu (Đại duyệt 13/11/2026)
   unpaidUnknown: 'Lịch hẹn còn khoản chưa thanh toán nên chưa thể tiếp đón.',
   windowUnknown: 'Hiện chưa trong khung giờ tiếp đón của lịch hẹn này.',
-  transitionUnknown:
-    'Không thể thực hiện thao tác này với trạng thái hiện tại của lịch hẹn.',
+  transitionUnknown: COMMON_ACTION_TEXT.transitionUnknown,
   // POST không biết kết quả khi mất mạng, quá giờ hay phản hồi lạ: máy chủ có thể đã xử lý xong (nếp F2). Bấm lại thủ công an toàn: lần hai ra 409 cùng đích.
   unsure: {
     DaHuy: 'Mất kết nối khi đang hủy, chưa rõ lịch hẹn đã được hủy hay chưa.',
@@ -118,7 +116,5 @@ export const windowTwoDaysLabel = (
   toDate: string,
 ) => `Chỉ tiếp đón từ ${from} ngày ${fromDate} đến ${to} ngày ${toDate}.`;
 
-export const transitionLabel = (from: string, to: string) =>
-  `Không thể chuyển lịch hẹn từ ${from} sang ${to}.`;
-export const alreadyInStateLabel = (state: string) =>
-  `Lịch hẹn đã ở trạng thái ${state}.`;
+// Hai câu chuyển trạng thái dùng chung ở `common/action-text.ts` (F10); xuất lại để các chỗ import cũ vẫn chạy
+export { alreadyInStateLabel, transitionLabel } from '../../common/action-text';

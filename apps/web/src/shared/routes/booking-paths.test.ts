@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { ROLE_HOME_PATHS } from '../../features/auth';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../../features/patient';
 import {
+  ADMIN_APPOINTMENT_DETAIL_ROUTE,
+  ADMIN_APPOINTMENT_DETAIL_SEGMENT,
+  ADMIN_APPOINTMENTS_PATH,
+  ADMIN_APPOINTMENTS_SEGMENT,
+  adminAppointmentDetailPath,
   BOOKING_CONFIRM_PATH,
   BOOKING_DONE_ROUTE,
   BOOKING_INFO_PATH,
@@ -234,5 +239,40 @@ describe('booking F4 — đường dẫn trang hồ sơ người thân', () => {
     ];
     expect(taken).not.toContain(PATIENT_PROFILE_PATH);
     expect(PATIENT_PROFILE_PATH.startsWith(`${BOOKING_PATH}/`)).toBe(false);
+  });
+});
+
+// booking F10. Mã ca BP-13 là [đề xuất] (PLAN booking mục 7.18 và 7.41). Cùng nếp BP-11: gốc `/admin` viết chữ ở `booking-paths.ts` nên ca này giữ nó khớp `ROLE_HOME_PATHS.QuanTriVien`;
+// mục menu `Lịch hẹn` ở `features/admin/components/admin-sidebar.tsx` ghi đường dẫn bằng chữ (không import chéo) nên AQR-01 (router thật) giữ hai nơi khớp nhau.
+describe('booking F10 — đường dẫn "Lịch hẹn" của Quản trị viên', () => {
+  it('BP-13 nằm dưới gốc khu Quản trị viên, đoạn đường là nhãn menu không dấu, chi tiết dùng mã lịch trên đường dẫn (có mã hoá), khác mọi đường dẫn đã có', () => {
+    expect(ADMIN_APPOINTMENTS_SEGMENT).toBe('lich-hen');
+    expect(ADMIN_APPOINTMENTS_PATH).toBe('/admin/lich-hen');
+    // Khớp gốc khu Quản trị viên của auth: đổi `ROLE_HOME_PATHS.QuanTriVien` mà quên file này thì ca đỏ
+    expect(ADMIN_APPOINTMENTS_PATH).toBe(
+      `${ROLE_HOME_PATHS.QuanTriVien}/${ADMIN_APPOINTMENTS_SEGMENT}`,
+    );
+    expect(ADMIN_APPOINTMENT_DETAIL_SEGMENT).toBe('lich-hen/:maLichHen');
+    expect(ADMIN_APPOINTMENT_DETAIL_ROUTE).toBe('/admin/lich-hen/:maLichHen');
+    expect(adminAppointmentDetailPath('CP20261018001')).toBe(
+      '/admin/lich-hen/CP20261018001',
+    );
+    expect(adminAppointmentDetailPath('a/b?c#d')).toBe(
+      '/admin/lich-hen/a%2Fb%3Fc%23d',
+    );
+
+    // Ca âm: không trùng gốc của bốn khu, các mục menu Admin đã có, không nằm trong luồng đặt lịch
+    const taken = [
+      ...Object.values(ROLE_HOME_PATHS),
+      '/admin/lich-lam-viec-bac-si',
+      '/admin/duyet-yeu-cau',
+      '/admin/chuyen-khoa',
+      '/admin/thong-tin-phong-kham',
+      '/admin/dich-vu-kham',
+      '/admin/thong-tin-ca-nhan',
+      BOOKING_PATH,
+    ];
+    expect(taken).not.toContain(ADMIN_APPOINTMENTS_PATH);
+    expect(ADMIN_APPOINTMENTS_PATH.startsWith(`${BOOKING_PATH}/`)).toBe(false);
   });
 });
