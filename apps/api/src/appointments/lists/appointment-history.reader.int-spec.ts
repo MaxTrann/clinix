@@ -1,5 +1,8 @@
 import type { DataSource } from 'typeorm';
+import { AuditRepository } from '../../audit/audit.repository.js';
+import { AuditService } from '../../audit/audit.service.js';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
+import { T0 } from '../../auth/testing/otp-int-helpers.js';
 import { runReadOnly } from '../../common/transaction/read-only-tx.js';
 import {
   AdminListFixtures,
@@ -389,5 +392,105 @@ describe('chỉ đọc và hình dạng dữ liệu thật', () => {
       sau: { trang_thai: 'VangMat' },
       ly_do: 'kiểm hình dạng',
     });
+  });
+});
+
+// LSD-10 (task B4, thêm sau khi gộp `main` có B14; `[đề xuất]`): HỢP ĐỒNG THẬT giữa đường GHI của B14 và bộ ĐỌC. Mọi ca trên dựng dòng nhật ký bằng SQL thô (`testing/admin-list-fixtures.ts`), nên chỉ chứng minh bộ đọc
+// đọc đúng hình dạng MÀ FIXTURE GIẢ ĐỊNH. Ở đây dòng được ghi bằng CHÍNH `AuditService.record` với đúng các khoá của `status/admin-override.service.ts` (`actorId`, `branchId` là chi nhánh của LỊCH, `action`,
+// `targetType`, `targetId`, `result`, `changes`), trong một giao dịch thật như B14, rồi đọc lại bằng `AppointmentHistoryReader`. Nếu B14 hay `audit/` đổi hình dạng dòng thì ca này đỏ (không sửa kỳ vọng: sửa reader).
+// Giờ ghi là `toSecond(nowVN())` của đồng hồ ứng dụng giả `T0`.
+describe('LSD-10 hợp đồng thật: dòng ghi bằng AuditService.record (đường mã của B14) đọc ra đúng mục OverrideLichHen', () => {
+  const record = (
+    w: Awaited<ReturnType<typeof world>>,
+    lichHenId: string,
+    from: 'DaXacNhan' | 'DaTiepDon' | 'VangMat',
+    to: 'DaHuy' | 'DaXacNhan' | 'VangMat',
+    lyDo: string,
+  ) =>
+    db.transaction((manager) =>
+      new AuditService(new AuditRepository()).record(manager, {
+        actorId: actorOf(w),
+        branchId: w.branchA.chiNhanhId,
+        action: 'OverrideLichHen',
+        targetType: 'lich_hen',
+        targetId: lichHenId,
+        result: 'ThanhCong',
+        changes: {
+          truoc: { trang_thai: from },
+          sau: { trang_thai: to },
+          ly_do: lyDo,
+        },
+      }),
+    );
+
+  it('LSD-10 mục OverrideLichHen ra đúng `tuTrangThai`, `denTrangThai`, `lyDo`, `thoiDiem` (giờ ghi của dịch vụ audit); cột thật khớp hình dạng của fixture `overrideChanges`', async () => {
+    const w = await world();
+    const lyDo = 'Bệnh nhân không đến, đã báo qua điện thoại';
+    await record(w, w.apps.a1.lichHenId, 'DaXacNhan', 'VangMat', lyDo);
+    // Dòng thật trong bảng: đúng các cột và JSON mà fixture SQL thô giả định (khoá hợp đồng giữa fixture và đường ghi thật)
+    const rows = await db.query<
+      {
+        hanhDong: string;
+        loaiDoiTuong: string;
+        maDoiTuong: string;
+        ketQua: string;
+        chiNhanhId: string;
+        taiKhoanId: string;
+        changes: unknown;
+      }[]
+    >(
+      `SELECT hanh_dong AS hanhDong, loai_doi_tuong AS loaiDoiTuong, ma_doi_tuong AS maDoiTuong, ket_qua AS ketQua,
+              chi_nhanh_id AS chiNhanhId, tai_khoan_id AS taiKhoanId, chi_tiet_thay_doi AS changes
+       FROM nhat_ky_hanh_dong`,
+    );
+    expect(rows).toStrictEqual([
+      {
+        hanhDong: 'OverrideLichHen',
+        loaiDoiTuong: 'lich_hen',
+        maDoiTuong: w.apps.a1.lichHenId,
+        ketQua: 'ThanhCong',
+        chiNhanhId: w.branchA.chiNhanhId,
+        taiKhoanId: actorOf(w),
+        changes: overrideChanges('DaXacNhan', 'VangMat', lyDo),
+      },
+    ]);
+    expect(await read(w.apps.a1.lichHenId)).toStrictEqual([
+      TAO,
+      {
+        thoiDiem: T0.toISOString(),
+        loai: 'OverrideLichHen',
+        tuTrangThai: 'DaXacNhan',
+        denTrangThai: 'VangMat',
+        lyDo,
+      },
+    ]);
+  });
+
+  it('LSD-10 huỷ qua override ghi bằng đường thật: chỉ MỘT mục dù lịch có cả `thoi_diem_huy` và `ly_do_huy` (khử trùng); lần khôi phục sau đó (VangMat sang DaXacNhan) ra đúng thứ tự', async () => {
+    const w = await world();
+    const id = w.apps.a4.lichHenId;
+    await record(w, id, 'DaXacNhan', 'DaHuy', 'Trùng lịch');
+    await afx.setMilestones(id, {
+      huy: '2026-11-02 08:00:00',
+      lyDoHuy: 'Trùng lịch',
+    });
+    expect(await read(id)).toStrictEqual([
+      TAO,
+      {
+        thoiDiem: T0.toISOString(),
+        loai: 'OverrideLichHen',
+        tuTrangThai: 'DaXacNhan',
+        denTrangThai: 'DaHuy',
+        lyDo: 'Trùng lịch',
+      },
+    ]);
+    // Hai lần ghi liên tiếp (cùng giây của đồng hồ giả): thứ tự theo id nhật ký, mục sau là lần ghi sau
+    const lich = w.apps.a6.lichHenId;
+    await record(w, lich, 'DaXacNhan', 'VangMat', 'lần một');
+    await record(w, lich, 'VangMat', 'DaXacNhan', 'lần hai');
+    const reasons = (await read(lich)).map((entry) =>
+      'lyDo' in entry ? entry.lyDo : 'TaoLich',
+    );
+    expect(reasons).toStrictEqual(['TaoLich', 'lần một', 'lần hai']);
   });
 });
