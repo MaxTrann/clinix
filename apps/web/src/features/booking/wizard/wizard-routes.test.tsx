@@ -113,20 +113,45 @@ describe('booking F3 — khung wizard trong ứng dụng', () => {
     expect(bookingCalls()).toEqual([]);
   });
 
-  it('WZ-08 đã đăng nhập mở ?khungGioId= ⇒ ở lại đúng URL, đúng khung giờ, Bước 4 đang chọn; chỉ GET cổng, KHÔNG giữ chỗ', async () => {
+  it('WZ-08 đã đăng nhập mở ?khungGioId= ⇒ ở lại đúng URL, đúng khung giờ, Bước 4 đang chọn; chỉ GET cổng và `checks` CHỈ ĐỌC, KHÔNG giữ chỗ', async () => {
     const router = renderApp(bookingInfoPath('5'));
     const body = await screen.findByTestId('booking-step-4-body');
     expect(body).toHaveAttribute('data-reference', '5');
     expect(here(router)).toBe('/dat-lich/thong-tin?khungGioId=5');
     expect(currentStep()).toBe(4);
-    // Bước 1 bấm được để chọn lại; mọi lời gọi booking chỉ là GET cổng
+    // Bước 1 bấm được để chọn lại; mọi lời gọi booking chỉ là GET cổng và (từ F4) `POST checks` của khối "Lịch hẹn đang chọn": B7 chỉ ĐỌC, không khoá, không ghi
     expect(
       screen.getByRole('link', { name: 'Quay lại bước 1: Nhóm dịch vụ' }),
     ).toHaveAttribute('href', '/dat-lich');
+    await waitFor(() =>
+      expect(booking.count('POST', '/booking/checks')).toBe(1),
+    );
     expect(bookingCalls()).toEqual([
       { method: 'GET', path: '/booking/eligibility' },
+      { method: 'POST', path: '/booking/checks' },
     ]);
     expect(booking.bookingWrites()).toEqual([]);
+  });
+
+  it('BIS-12 qua ứng dụng thật (khung, cổng A4, bản nháp): Bước 4 ⇒ Tiếp tục ⇒ Bước 5 đúng khung giờ, thanh bước sang bước 5; lý do khám không vào kho nào; không tạo lịch', async () => {
+    const router = renderApp(bookingInfoPath('5'));
+    await screen.findByTestId('booking-step-4-body');
+    const next = screen.getByRole('button', { name: 'Tiếp tục' });
+    await waitFor(() => expect(next).toBeEnabled());
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Lý do khám (không bắt buộc)' }),
+      { target: { value: LYDO_BI_MAT } },
+    );
+    fireEvent.click(next);
+
+    const body = await screen.findByTestId('booking-step-5-body');
+    expect(body).toHaveAttribute('data-reference', '5');
+    expect(here(router)).toBe('/dat-lich/xac-nhan?khungGioId=5');
+    expect(currentStep()).toBe(5);
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+    expect(booking.bookingWrites()).toEqual([]);
+    expect(booking.count('POST', '/booking/appointments')).toBe(0);
   });
 
   it('WZ-08 chuyển trang không giữ chỗ: sang Bước 5 khi chưa có bản nháp ⇒ về Bước 4 (thay mục lịch sử), vẫn không có lời gọi ghi', async () => {
@@ -140,9 +165,9 @@ describe('booking F3 — khung wizard trong ứng dụng', () => {
     await screen.findByTestId('booking-step-4-body');
     expect(router.state.historyAction).toBe('REPLACE');
     expect(booking.bookingWrites()).toEqual([]);
+    // F4: `POST /booking/checks` được phép (chỉ đọc); KHÔNG có lời gọi tạo lịch
     for (const request of booking.requests) {
       expect(request.path).not.toBe('/booking/appointments');
-      expect(request.path).not.toBe('/booking/checks');
     }
   });
 

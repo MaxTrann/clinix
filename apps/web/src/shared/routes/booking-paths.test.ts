@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ROLE_HOME_PATHS } from '../../features/auth';
-import { RECEPTION_PATHS } from '../../features/patient';
+import { PATIENT_PATHS, RECEPTION_PATHS } from '../../features/patient';
 import {
   BOOKING_CONFIRM_PATH,
   BOOKING_DONE_ROUTE,
@@ -17,6 +17,7 @@ import {
   PATIENT_APPOINTMENT_DETAIL_SEGMENT,
   PATIENT_APPOINTMENTS_PATH,
   PATIENT_APPOINTMENTS_SEGMENT,
+  PATIENT_PROFILE_PATH,
   patientAppointmentDetailPath,
   RECEPTION_APPOINTMENTS_PATH,
   RECEPTION_APPOINTMENTS_SEGMENT,
@@ -210,5 +211,28 @@ describe('booking F8 — đường dẫn "Quản lý lịch hẹn" của Lễ t�
     expect(RECEPTION_APPOINTMENTS_PATH.startsWith(`${BOOKING_PATH}/`)).toBe(
       false,
     );
+  });
+});
+
+// booking F4. Mã ca BP-12 là [đề xuất] (PLAN booking mục 7.38). Đường dẫn trang hồ sơ và người thân của Bệnh nhân viết chữ ở `booking-paths.ts` (không import `features/`);
+// ca này giữ nó khớp `PATIENT_PATHS.profile` và không trùng đường dẫn nào của luồng đặt lịch.
+describe('booking F4 — đường dẫn trang hồ sơ người thân', () => {
+  it('BP-12 khớp `PATIENT_PATHS.profile`, nằm dưới gốc khu Bệnh nhân, khác mọi đường dẫn của luồng đặt lịch', () => {
+    expect(PATIENT_PROFILE_PATH).toBe('/benh-nhan/ho-so-nguoi-kham');
+    expect(PATIENT_PROFILE_PATH).toBe(PATIENT_PATHS.profile);
+    expect(
+      PATIENT_PROFILE_PATH.startsWith(`${ROLE_HOME_PATHS.BenhNhan}/`),
+    ).toBe(true);
+    const taken = [
+      ...Object.values(ROLE_HOME_PATHS),
+      BOOKING_PATH,
+      BOOKING_INFO_PATH,
+      BOOKING_CONFIRM_PATH,
+      BOOKING_PAYMENT_ROUTE,
+      BOOKING_DONE_ROUTE,
+      PATIENT_APPOINTMENTS_PATH,
+    ];
+    expect(taken).not.toContain(PATIENT_PROFILE_PATH);
+    expect(PATIENT_PROFILE_PATH.startsWith(`${BOOKING_PATH}/`)).toBe(false);
   });
 });
