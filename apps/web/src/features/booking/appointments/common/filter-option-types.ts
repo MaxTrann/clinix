@@ -10,6 +10,17 @@ export interface DoctorOption {
   hoTen: string;
 }
 
+// F10: hai ô lọc của Quản trị viên (`Chi nhánh` chỉ với Toàn hệ thống; `Loại dịch vụ`)
+export interface BranchOption {
+  chiNhanhId: string;
+  ten: string;
+}
+
+export interface ServiceOption {
+  dichVuKhamId: string;
+  ten: string;
+}
+
 export interface OptionList<T> {
   options: T[];
   truncated: boolean;

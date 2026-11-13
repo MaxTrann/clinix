@@ -21,6 +21,7 @@ import {
   ReceptionLayout,
 } from '../features/patient';
 import {
+  ADMIN_APPOINTMENT_ROUTES,
   PATIENT_APPOINTMENT_ROUTES,
   RECEPTION_APPOINTMENT_ROUTES,
 } from '../features/booking';
@@ -100,6 +101,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
       ...ADMIN_PROFILE_ROUTES,
       ...ADMIN_SCHEDULE_ROUTES,
       ...ADMIN_APPROVALS_ROUTES,
+      // booking F10: Lịch hẹn của Quản trị viên (đã bọc AdminScopeGuard)
+      ...ADMIN_APPOINTMENT_ROUTES,
     ],
     errorElement: <AdminErrorBoundary />,
   },

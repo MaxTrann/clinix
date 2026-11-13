@@ -53,3 +53,17 @@ export const RECEPTION_APPOINTMENTS_PATH = `/le-tan/${RECEPTION_APPOINTMENTS_SEG
 // `features/booking` không import `features/patient` nên đường dẫn của patient (`PATIENT_PATHS.profile`) viết chữ ở đây; file này không import gì nên gốc khu Bệnh nhân viết
 // thẳng `/benh-nhan`; ca BP-12 khoá nó khớp `PATIENT_PATHS.profile` (đổi một nơi mà quên nơi kia thì ca đỏ).
 export const PATIENT_PROFILE_PATH = '/benh-nhan/ho-so-nguoi-kham';
+
+// "Lịch hẹn" của Quản trị viên (booking F10, BP-13; tên đường dẫn là [đề xuất], Đại duyệt 13/11/2026). `*_SEGMENT` là mẫu TƯƠNG ĐỐI với `/admin` cho route con của khung Admin
+// (`ADMIN_APPOINTMENT_ROUTES`), `*_PATH` và `*_ROUTE` là đường dẫn đầy đủ (mục menu, liên kết). File này không import gì nên gốc khu Quản trị viên viết thẳng `/admin`; ca BP-13 khoá nó khớp
+// `ROLE_HOME_PATHS.QuanTriVien`. Mục menu `Lịch hẹn` ở `features/admin/components/admin-sidebar.tsx` ghi đường dẫn này bằng chữ (không import chéo). Chi tiết một lịch là TRANG
+// (Figma `512:2`), mã lịch nằm trên đường dẫn như ở đường dẫn API; `encodeURIComponent` để mã có ký tự đặc biệt không làm vỡ URL.
+export const ADMIN_APPOINTMENTS_SEGMENT = 'lich-hen';
+export const ADMIN_APPOINTMENTS_PATH = `/admin/${ADMIN_APPOINTMENTS_SEGMENT}`;
+export const ADMIN_APPOINTMENT_DETAIL_SEGMENT = `${ADMIN_APPOINTMENTS_SEGMENT}/:maLichHen`;
+export const ADMIN_APPOINTMENT_DETAIL_ROUTE = `/admin/${ADMIN_APPOINTMENT_DETAIL_SEGMENT}`;
+export const adminAppointmentDetailPath = (maLichHen: string) =>
+  ADMIN_APPOINTMENT_DETAIL_ROUTE.replace(
+    ':maLichHen',
+    encodeURIComponent(maLichHen),
+  );

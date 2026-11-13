@@ -6,14 +6,15 @@ import {
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { useInertBackground } from '../../common/use-inert-background';
-import { ACTION_TEXT } from './detail-messages';
+import { COMMON_ACTION_TEXT } from './action-text';
 import type { StatusActionState } from './use-status-action';
+import { useInertBackground } from './use-inert-background';
 
-// Khung của hộp thoại thao tác của Lễ tân (booking F9; Figma `490:2`, `489:2`): lớp phủ đen 45%, hộp trắng căn giữa rộng 360 px, tiêu đề, thân, hàng hai nút. Dùng chung cho hộp
+// Khung của hộp thoại thao tác đổi trạng thái (booking F9 viết ở reception/detail, chuyển lên common/ ở F10 cho hộp override của Quản trị viên; Figma `490:2`, `489:2`): lớp phủ đen 45%, hộp trắng căn giữa rộng 360 px, tiêu đề, thân, hàng hai nút. Dùng chung cho hộp
 // `Hủy lịch hẹn` và hộp `Đánh dấu vắng mặt` (hai hộp chỉ khác thân và chữ nút) nên lỗi, đang gửi, nút đóng chỉ viết MỘT lần.
 //
-// Đây là modal THỨ HAI chồng lên ngăn chi tiết (TRACKING 3.30 F9-K). Khung KHÔNG gọi `useModalDialog`: hook đó nghe `keydown` ở `document`, nên hai hook lồng nhau làm Esc đóng cả hai
+// Ở Lễ tân đây là modal THỨ HAI chồng lên ngăn chi tiết (TRACKING 3.30 F9-K); ở Quản trị viên (F10) là modal DUY NHẤT trên trang chi tiết, nơi dùng khung gọi MỘT `useModalDialog` gắn vào
+// `panelRef`. Khung KHÔNG gọi `useModalDialog`: hook đó nghe `keydown` ở `document`, nên hai hook lồng nhau làm Esc đóng cả hai
 // lớp và hai bẫy Tab giằng co. Ngăn giữ MỘT hook duy nhất và đổi phần tử bẫy sang `panelRef` của khung này khi hộp mở (`reception-drawer.tsx`). Khung chỉ lo phần của mình:
 //  - nền `inert` (`useInertBackground`: ngăn chi tiết, và mọi thứ chưa `inert`; gỡ ĐÚNG phần đã đặt khi hộp đóng);
 //  - tiêu điểm đầu tiên khi mở (`focusRef` của thân, hoặc nút đóng: nút an toàn như `Giữ lịch` của F2);
@@ -21,7 +22,7 @@ import type { StatusActionState } from './use-status-action';
 // Không đóng khi đang gửi: nút vô hiệu, bấm lớp phủ không làm gì, Esc do ngăn chặn (`isSending`).
 interface ActionDialogProps {
   title: string;
-  state: StatusActionState;
+  state: StatusActionState<unknown>;
   // Ngăn đọc phần tử này làm vùng bẫy Tab khi hộp mở
   panelRef: RefObject<HTMLDivElement | null>;
   // Phần tử trong thân nhận tiêu điểm khi mở; vắng thì nút đóng
@@ -110,7 +111,7 @@ export function ActionDialog({
                 onClick={onReload}
                 className="mt-2 block font-medium underline"
               >
-                {ACTION_TEXT.reload}
+                {COMMON_ACTION_TEXT.reload}
               </button>
             )}
           </div>
@@ -124,7 +125,7 @@ export function ActionDialog({
             onClick={onDismiss}
             className={`${BUTTON} ${DIALOG_FIELD_BORDER} bg-white text-gray-600 hover:bg-gray-50`}
           >
-            {stopped ? ACTION_TEXT.close : dismissLabel}
+            {stopped ? COMMON_ACTION_TEXT.close : dismissLabel}
           </button>
           {!stopped && (
             <button
