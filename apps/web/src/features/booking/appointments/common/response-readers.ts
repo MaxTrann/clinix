@@ -1,5 +1,6 @@
 import { UnexpectedResponseError } from '../../../../shared/api/errors';
 import { isDecimalAmount, isIsoDateTime } from './appointment-format';
+import type { RefundAmount } from './refund-types';
 
 // Bộ đọc phản hồi JSON cho các danh sách lịch hẹn của booking (F1; F2, F8, F10, F11 dùng lại). Mỗi hàm trả đúng kiểu hoặc ném
 // `UnexpectedResponseError`: phản hồi 200 mà sai hình dạng cùng loại với HTML 502 (không dùng được), vì vẽ dữ liệu sai là trang trắng.
@@ -57,4 +58,12 @@ export function readIsoDateTime(value: unknown): string {
 export function readAmount(value: unknown): string {
   const text = readText(value);
   return isDecimalAmount(text) ? text : unusableResponse();
+}
+
+// Số hoàn của một lần huỷ (B10, B12): `tyLe` nguyên 0 đến 100, `soTien` chuỗi decimal. Chuyển lên `common/` ở F9 để bộ đọc của Bệnh nhân và của Lễ tân dùng chung.
+export function readRefund(raw: unknown): RefundAmount {
+  const row = readRecord(raw);
+  const tyLe = readCount(row.tyLe);
+  if (tyLe > 100) return unusableResponse();
+  return { tyLe, soTien: readAmount(row.soTien) };
 }

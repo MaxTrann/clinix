@@ -34,6 +34,8 @@ export interface FakeRequest {
   path: string;
   query: Record<string, string>;
   hasToken: boolean;
+  // Thân JSON đã gửi (chỉ lời gọi ghi; F9): để test khẳng định đúng khoá, đúng giá trị
+  body?: unknown;
 }
 
 export function jsonResponse(body: unknown, status = 200): Response {
@@ -48,8 +50,18 @@ export function apiErrorResponse(
   status: number,
   maLoi: string,
   loi?: { truong: string; ma: string }[],
+  // `chiTiet` của lỗi nghiệp vụ (F9: `conPhaiThu`, `tu`, `den`, `trangThai`…); vắng thì thân không có khoá này
+  chiTiet?: unknown,
 ): Response {
-  return jsonResponse({ maLoi, thongBao: 'Lỗi giả của test', loi }, status);
+  return jsonResponse(
+    {
+      maLoi,
+      thongBao: 'Lỗi giả của test',
+      loi,
+      ...(chiTiet === undefined ? {} : { chiTiet }),
+    },
+    status,
+  );
 }
 
 // Một lịch hẹn mẫu: dữ liệu giả, không phải của ai (dự án chỉ dùng dữ liệu mẫu)

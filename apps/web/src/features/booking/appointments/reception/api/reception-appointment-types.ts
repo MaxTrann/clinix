@@ -1,5 +1,6 @@
 import type { AppointmentCore } from '../../common/appointment-core';
 import type { AppointmentState } from '../../common/appointment-status';
+import type { RefundAmount } from '../../common/refund-types';
 
 // Kiểu dữ liệu của "Quản lý lịch hẹn" của Lễ tân (booking F8; hợp đồng đọc từ mã backend B3: TRACKING 3.17.1 và 3.28 F8-D).
 
@@ -43,3 +44,17 @@ export interface ReceptionListQuery {
   q?: string;
   page: number;
 }
+
+// ---- Route ghi `POST /reception/appointments/:maLichHen/status` (booking F9; hợp đồng B12: TRACKING 3.26 B12-E, 3.30 F9-D) ----
+
+// Ba đích mà Lễ tân làm được (`allowedTargets('LeTan', …)` của backend); giao diện CHỈ gửi ba giá trị này (backend nhận đủ bảy để trả 409 đúng mã).
+export type ReceptionTarget = 'DaTiepDon' | 'VangMat' | 'DaHuy';
+
+// Thân gửi đi: `lyDo` CHỈ có ở `DaHuy` (bắt buộc, đã cắt khoảng trắng, 1 đến 255 đơn vị UTF-16); `VangMat` và `DaTiepDon` KHÔNG có `lyDo` (Q27).
+export type StatusChangeBody =
+  { trangThai: 'DaHuy'; lyDo: string } | { trangThai: 'VangMat' | 'DaTiepDon' };
+
+// 200: `DaHuy` thêm `hoanCoc` = số hoàn THỰC TẾ (chuỗi decimal, KHÔNG tính ở client; `null` khi chưa thu đồng nào). Không có số lần no-show hay cờ khoá (Figma `489:2` không có).
+export type StatusChangeResult =
+  | { maLichHen: string; trangThai: 'DaHuy'; hoanCoc: RefundAmount | null }
+  | { maLichHen: string; trangThai: 'VangMat' | 'DaTiepDon' };

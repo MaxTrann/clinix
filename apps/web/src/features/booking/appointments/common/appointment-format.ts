@@ -55,6 +55,12 @@ export function formatVietnamShortDate(iso: string): string {
   return `${day}/${month}`;
 }
 
+// ISO UTC ⇒ "18/10/2026" theo NGÀY giờ Việt Nam (F9: câu `NGOAI_KHUNG_GIO_TIEP_DON` cần ngày đầy đủ vì hai mốc có thể khác ngày). Cùng cách lấy ngày như trên.
+export function formatVietnamDate(iso: string): string {
+  const { year, month, day } = vietnamParts(iso);
+  return `${day}/${month}/${year}`;
+}
+
 // ISO UTC ⇒ "08:00" theo giờ Việt Nam (00:00 đến 23:59)
 export function formatVietnamTime(iso: string): string {
   const { hour, minute } = vietnamParts(iso);

@@ -1,10 +1,10 @@
 import { request } from '../../../../../shared/api/client';
 import {
-  readAmount,
   readCode,
   readCount,
   readFlag,
   readRecord,
+  readRefund,
   readText,
   unusableResponse,
 } from '../../common/response-readers';
@@ -12,20 +12,11 @@ import { appointmentApiPath } from './patient-appointment-detail-api';
 import type {
   CancelPreview,
   CancelResult,
-  RefundAmount,
   RefundPreview,
 } from './patient-appointment-types';
 
 // Hai route huỷ của Bệnh nhân (booking F2; PLAN 5.6, 5.9; hợp đồng B10: TRACKING 3.23 B10-G, 3.27 F2-D). Cả hai GẮN access token. Số tiền luôn là chuỗi
 // decimal của máy chủ: client chỉ kiểm dạng và hiện, không bao giờ tính.
-
-// Số hoàn: `tyLe` nguyên 0 đến 100 (B10), `soTien` chuỗi decimal
-function readRefund(raw: unknown): RefundAmount {
-  const row = readRecord(raw);
-  const tyLe = readCount(row.tyLe);
-  if (tyLe > 100) return unusableResponse();
-  return { tyLe, soTien: readAmount(row.soTien) };
-}
 
 function readRefundPreview(raw: unknown): RefundPreview {
   const row = readRecord(raw);

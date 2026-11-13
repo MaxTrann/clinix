@@ -1,5 +1,5 @@
 import { ChevronLeft, X } from 'lucide-react';
-import { useId, useRef, type RefObject } from 'react';
+import { useId, useLayoutEffect, useRef, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { useModalDialog } from '../../../../../shared/hooks/use-modal-dialog';
 import { ErrorState } from '../../../../../shared/ui/error-state';
@@ -11,17 +11,14 @@ import {
 import { classifyDetailError } from '../../common/error-kinds';
 import { StatusChip } from '../../common/status-chip';
 import { useInertBackground } from '../../common/use-inert-background';
+import { ActionNotice } from './action-notice';
+import { CancelDialog } from './cancel-dialog';
 import { DETAIL_TEXT, whenLabel } from './detail-messages';
 import { DetailSections } from './detail-sections';
-import {
-  ReceptionActions,
-  type ReceptionActionHandlers,
-} from './reception-actions';
+import { NoShowDialog } from './no-show-dialog';
+import { ReceptionActions } from './reception-actions';
+import { useReceptionActions } from './use-reception-actions';
 import { useReceptionDetail } from './use-reception-detail';
-
-// F9 thay bằng handler thật ở ĐÚNG chỗ này (xem `reception-actions.tsx`): `DaHuy` mở hộp `Hủy lịch hẹn`, `VangMat` mở hộp `Đánh dấu vắng mặt`, `DaTiepDon` gọi tiếp đón.
-// Sau thao tác thành công F9 gọi `reload` (chi tiết) và `onReloadList` (danh sách) cho khớp máy chủ. F8 chưa có B12 nên không có handler nào.
-const ACTION_HANDLERS: ReceptionActionHandlers = {};
 
 // Lỗi tải chi tiết chọn câu theo `maLoi`, KHÔNG theo mã HTTP: `KHONG_TIM_THAY` là MỘT câu cho mọi lý do (không có, chi nhánh khác, mã sai dạng: cùng thân 404, không lộ lịch có
 // tồn tại hay không); phiên hết hạn và không đủ quyền có câu riêng, không `Thử lại`; còn lại (mạng, quá giờ, phản hồi lạ, 5xx, `maLoi` lạ) dùng `ErrorState` kèm `Thử lại`.
@@ -66,27 +63,74 @@ export function ReceptionDrawer(props: {
   const dialogRef = useRef<HTMLDivElement>(null);
   const backRef = useRef<HTMLButtonElement>(null);
   const { view, reload } = useReceptionDetail(maLichHen);
+  const ready = view.kind === 'ready' ? view : null;
+
+  // Ba thao tác ghi của Lễ tân (booking F9): hộp `Hủy lịch hẹn`, hộp `Đánh dấu vắng mặt`, lời gọi `Tiếp đón`; sau thao tác thành công tải lại chi tiết (`reload`) và danh sách
+  const actions = useReceptionActions({
+    maLichHen,
+    patientName: ready?.data.nguoiKham.hoTen ?? '',
+    detailRefreshing: ready?.refreshing ?? false,
+    reload,
+    onReloadList,
+    fallbackFocusRef: backRef,
+  });
+  const submitting = actions.state.kind === 'submitting';
 
   const stale =
     view.kind === 'error' && classifyDetailError(view.error) === 'notFound';
+  // Đang gửi thì không đóng ngăn: đóng giữa chừng làm mất kết quả và danh sách không được tải lại
   const close = () => {
+    if (actions.isSending()) return;
     if (stale) onReloadList();
     onClose();
   };
+
+  // Esc đóng đúng MỘT lớp: có hộp thì đóng riêng hộp, không thì đóng ngăn. Ngăn giữ MỘT `useModalDialog` duy nhất (hai hook lồng nhau cùng nghe `keydown` ở `document`
+  // nên Esc đóng cả hai lớp và hai bẫy Tab giằng co: TRACKING 3.30 F9-F (2)). `trapRef` là MỘT ref object ổn định (hook có `dialogRef` trong danh sách phụ thuộc của effect,
+  // nên đổi danh tính sẽ chạy lại cleanup: trả focus, gỡ khoá cuộn); chỉ gán `.current` theo lớp trên cùng: hộp khi mở, panel ngăn khi không. Hook đọc `dialogRef.current`
+  // ở MỖI lần nhấn phím nên bẫy Tab theo lớp trên cùng.
+  const requestClose = () => {
+    if (actions.dialog !== null) actions.closeDialog();
+    else close();
+  };
+  const trapRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    trapRef.current = actions.dialogPanelRef.current ?? dialogRef.current;
+  });
 
   // Khai báo TRƯỚC `useModalDialog`: cleanup chạy theo thứ tự khai báo, nên `inert` được gỡ trước khi hook trả focus về nút đã mở (phần tử `inert` không nhận focus)
   useInertBackground(overlayRef);
   useModalDialog({
     open: true,
-    dialogRef,
+    dialogRef: trapRef,
     initialFocusRef: backRef,
     returnFocusRef: props.returnFocusRef,
-    onClose: close,
+    onClose: requestClose,
   });
 
-  const ready = view.kind === 'ready' ? view : null;
+  // Hộp đang mở (modal thứ hai): dựng ở cấp ngăn, KHÔNG phụ thuộc `ready` (chi tiết có thể đang tải lại hay lỗi 404 trong lúc hộp còn hiện câu lỗi)
+  const dialog = actions.dialog;
+  const dialogs =
+    dialog === null ? null : dialog.target === 'DaHuy' ? (
+      <CancelDialog
+        state={actions.state}
+        panelRef={actions.dialogPanelRef}
+        onSubmit={(lyDo) => void actions.submit({ trangThai: 'DaHuy', lyDo })}
+        onDismiss={actions.closeDialog}
+        onReload={actions.reloadAndClose}
+      />
+    ) : (
+      <NoShowDialog
+        patientName={dialog.patientName}
+        state={actions.state}
+        panelRef={actions.dialogPanelRef}
+        onSubmit={() => void actions.submit({ trangThai: 'VangMat' })}
+        onDismiss={actions.closeDialog}
+        onReload={actions.reloadAndClose}
+      />
+    );
 
-  return createPortal(
+  const drawer = createPortal(
     <div
       ref={overlayRef}
       onClick={(event) => {
@@ -106,8 +150,9 @@ export function ReceptionDrawer(props: {
           <button
             ref={backRef}
             type="button"
+            disabled={submitting}
             onClick={close}
-            className="inline-flex min-h-7 items-center gap-1.5 rounded-lg pr-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            className="inline-flex min-h-7 items-center gap-1.5 rounded-lg pr-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             <ChevronLeft aria-hidden="true" className="size-4" />
             {DETAIL_TEXT.back}
@@ -117,8 +162,9 @@ export function ReceptionDrawer(props: {
           <button
             type="button"
             aria-label={DETAIL_TEXT.close}
+            disabled={submitting}
             onClick={close}
-            className="inline-flex size-7 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50"
+            className="inline-flex size-7 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-50"
           >
             <X aria-hidden="true" className="size-4" />
           </button>
@@ -150,9 +196,19 @@ export function ReceptionDrawer(props: {
           {ready !== null && (
             <>
               <DetailSections detail={ready.data} />
+              {/* Kết quả hay lỗi của thao tác sau khi hộp đã đóng (và của `Tiếp đón`, không có hộp); hộp mở thì lỗi hiện trong hộp */}
+              {dialog === null && (
+                <ActionNotice
+                  state={actions.state}
+                  noticeRef={actions.noticeRef}
+                  onReload={actions.reloadFromNotice}
+                />
+              )}
               <ReceptionActions
                 detail={ready.data}
-                handlers={ACTION_HANDLERS}
+                handlers={actions.handlers}
+                busy={actions.busy}
+                sending={actions.sendingCheckIn}
               />
             </>
           )}
@@ -160,5 +216,12 @@ export function ReceptionDrawer(props: {
       </div>
     </div>,
     document.body,
+  );
+
+  return (
+    <>
+      {drawer}
+      {dialogs}
+    </>
   );
 }
