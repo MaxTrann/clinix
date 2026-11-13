@@ -7,17 +7,21 @@ import {
   type TransitionDecision,
 } from './appointment-state.matrix.js';
 import { lockAppointment } from './cancel-appointment.query.js';
+import type { OnChanged } from './on-changed.js';
 import { setStatus } from './set-status.query.js';
 import { windowOf, type StatusConfig } from './status-config.js';
 
-// `AppointmentTransitionService.checkIn` (task B12; PLAN booking 5.2, 5.7, 5.10 B; Q21, Q22; quy tắc 40, 46, 47; TRACKING 3.26 B12-C): `DaXacNhan` thành `DaTiepDon`. Hai người gọi: route của LỄ TÂN
-// (`ReceptionStatusService`, mở giao dịch riêng) và `payment` B17 (thu tiền mặt tại quầy, gọi TRONG giao dịch của nó). Họ B của khuôn bảy bước (chú thích đầu `appointment-transition.service.ts`): nhận `em`
+// `AppointmentTransitionService.checkIn` (task B12; PLAN booking 5.2, 5.7, 5.10 B; Q21, Q22; quy tắc 40, 46, 47; TRACKING 3.26 B12-C): `DaXacNhan` thành `DaTiepDon`. Ba người gọi: route của LỄ TÂN
+// (`ReceptionStatusService`, mở giao dịch riêng), `payment` B17 (thu tiền mặt tại quầy, gọi TRONG giao dịch của nó) và QUẢN TRỊ VIÊN override (B14, `AdminOverrideService`; nguồn `DaXacNhan` hoặc `VangMat`). Họ B của khuôn bảy bước (chú thích đầu `appointment-transition.service.ts`): nhận `em`
 // của NGƯỜI GỌI, KHÔNG mở giao dịch, KHÔNG bắt lỗi DB, KHÔNG ném `AppException`; kết quả là giá trị có kiểu, người gọi đổi sang lỗi API SAU commit.
 //
 // `actor` là union gắn với dữ liệu riêng của từng người gọi (như `CancelInput` của B10), thay cờ `requireFullyPaid` của PLAN: cờ boolean để người gọi `LeTan` tắt được kiểm tiền, union thì không biên dịch.
 //  - `LeTan`: phạm vi chi nhánh (kiểm LẠI dưới khoá, 404) và `remainingToCollect` (đọc DƯỚI khoá lịch, đúng chỗ quy tắc 46 đòi); đòi `conPhaiThu = 0` (A2) và cửa sổ.
 //  - `ThanhToan`: `payment` tự ghi tiền trong giao dịch của nó nên KHÔNG đòi `conPhaiThu = 0` (quy tắc 46, ô `ThanhToan` của ma trận) nhưng VẪN đòi cửa sổ (quy tắc 40). Phạm vi chi nhánh là việc của
 //    `payment` (quy tắc 45 b).
+//  - `QuanTriVien` (B14, CỘNG THÊM vào union, không đổi chữ ký của hai người gọi trên): `canAct` theo `BranchAccessPolicy` (ngoài phạm vi ⇒ `NotFound`, kiểm DƯỚI khoá), KHÔNG cửa sổ và KHÔNG đòi `conPhaiThu = 0`
+//    (quy tắc 40 và 47: override không bị giới hạn; `remainingToCollect` không bao giờ được hỏi), nên `config` không được dùng và `null` vẫn chạy được (CT-21); nguồn do ma trận Q24 quyết (`DaXacNhan` hoặc
+//    `VangMat`). `onChanged` (tuỳ chọn) là điểm cắm audit: `on-changed.ts`.
 // Luật nằm ở `canTransition` (một nơi, dùng cả cho `chuyenDuoc[]` của B3); ở đây chỉ dựng ngữ cảnh rồi đổi từ chối của ma trận thành kết quả có kiểu.
 //
 // KHOÁ: chỉ `lich_hen` theo khoá chính (tầng 6, quy tắc 7). KHÔNG khoá `khung_gio` (khung giờ giữ `DaDat`, INV-3) và KHÔNG khoá `benh_nhan`. KHÔNG thông báo (PLAN 5.12 không có sự kiện tiếp đón) và không
@@ -47,14 +51,22 @@ export type CheckInInput = {
       /** Thanh toán offline tại quầy (B17): tự ghi tiền nên không đòi `conPhaiThu = 0`; vẫn đòi cửa sổ */
       actor: 'ThanhToan';
     }
+  | {
+      /** Quản trị viên override (B14): không cửa sổ, không `conPhaiThu`; `config` không được dùng */
+      actor: 'QuanTriVien';
+      /** Phạm vi theo `BranchAccessPolicy.canAccessBranch`; `false` ⇒ `NotFound`. Kiểm DƯỚI khoá lịch (5.3 quy tắc 2) */
+      canAct: (target: { chiNhanhId: string }) => boolean;
+      /** Điểm cắm audit: gọi một lần sau khi đã đổi, dưới khoá, kèm trạng thái nguồn (`on-changed.ts`) */
+      onChanged?: OnChanged;
+    }
 );
 
 export type CheckInOutcome =
-  /** `DaXacNhan` thành `DaTiepDon`; khung giờ giữ `DaDat`; không thông báo */
+  /** `DaXacNhan` (Quản trị viên: hoặc `VangMat`) thành `DaTiepDon`; khung giờ giữ `DaDat`; không thông báo */
   | { kind: 'CheckedIn' }
-  /** Không có lịch đó, hoặc (`LeTan`) lịch ngoài chi nhánh: cùng một 404 */
+  /** Không có lịch đó, hoặc (`LeTan`, `QuanTriVien`) lịch ngoài phạm vi: cùng một 404 */
   | { kind: 'NotFound' }
-  /** Lịch không còn `DaXacNhan` dưới khoá (kể cả đã `DaTiepDon`: bấm đúp là `InvalidState`, không có `AlreadyCheckedIn`) */
+  /** Lịch không còn ở nguồn mà ma trận cho phép dưới khoá (kể cả đã `DaTiepDon`: bấm đúp là `InvalidState`, không có `AlreadyCheckedIn`) */
   | { kind: 'InvalidState'; trangThai: TrangThaiLichHen }
   /** Chưa có `cau_hinh_he_thong` (quy tắc 35): không đoán số phút */
   | { kind: 'ConfigMissing' }
@@ -102,6 +114,11 @@ export async function checkInWithin(
   if (row === null) return { kind: 'NotFound' };
   if (input.actor === 'LeTan' && row.chiNhanhId !== input.chiNhanhId)
     return { kind: 'NotFound' };
+  if (
+    input.actor === 'QuanTriVien' &&
+    !input.canAct({ chiNhanhId: row.chiNhanhId })
+  )
+    return { kind: 'NotFound' };
 
   // Bước 4: ngữ cảnh cho ma trận. Số còn phải thu CHỈ được hỏi khi ma trận sẽ dùng đến nó (`LeTan`, lịch `DaXacNhan`, đã có cấu hình), và hỏi DƯỚI khoá lịch (quy tắc 46).
   const ctx: TransitionContext = {};
@@ -132,5 +149,8 @@ export async function checkInWithin(
     throw new Error(
       `lịch hẹn ${input.lichHenId} không còn ${row.trangThai} dưới khoá khi tiếp đón`,
     );
+  // Điểm cắm audit của Quản trị viên (B14): sau lần ghi, dưới khoá, một lần; ném ⇒ người gọi hoàn tác trọn
+  if (input.actor === 'QuanTriVien')
+    await input.onChanged?.(em, { from: row.trangThai });
   return { kind: 'CheckedIn' };
 }

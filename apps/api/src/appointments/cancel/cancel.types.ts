@@ -1,5 +1,6 @@
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import type { AdminScope } from '../../rbac/admin-scope.js';
+import type { OnChanged } from '../state/on-changed.js';
 
 // HỢP ĐỒNG của huỷ lịch hẹn dùng chung (PLAN booking 5.6; TRACKING 3.23 B10-C, đã duyệt 12/11/2026). Chỉ KIỂU và hằng, không dịch vụ: module `doctor` (duyệt nghỉ phép, B15 đến B17),
 // Lễ tân (B12) và Quản trị viên (B14) `import type` từ đây mà không kéo theo `AppointmentCancellationService`.
@@ -32,7 +33,13 @@ type ActorOf<K extends CancelActor['kind']> = Extract<CancelActor, { kind: K }>;
 export type CancelInput = { maLichHen: string } & (
   | { actor: ActorOf<'BenhNhan'>; reason: 'BenhNhanHuy'; lyDo?: string }
   | { actor: ActorOf<'LeTan'>; reason: 'LeTanHuy'; lyDo: string }
-  | { actor: ActorOf<'QuanTriVien'>; reason: 'QtvOverride'; lyDo: string }
+  // `onChanged` (B14, tuỳ chọn, CHỈ biến thể này): điểm cắm audit `OverrideLichHen`, gọi một lần SAU thông báo, dưới khoá, TRONG giao dịch của lần huỷ (thử lại 1213, 1205 chạy lại cả nó), kèm trạng thái nguồn; ném ⇒ hoàn tác TẤT CẢ. Không đổi `CancelOutcome`.
+  | {
+      actor: ActorOf<'QuanTriVien'>;
+      reason: 'QtvOverride';
+      lyDo: string;
+      onChanged?: OnChanged;
+    }
   // `lyDo?: never`: người gọi `HeThong` KHÔNG được truyền lý do (Q27: nghỉ phép là chữ hằng; lý do nghỉ của bác sĩ là dữ liệu riêng tư). `never` làm cả `{ …, lyDo: 'x' }` lẫn một biến có kiểu `lyDo: string` bị tsc từ chối.
   | { actor: ActorOf<'HeThong'>; reason: 'BacSiNghiPhep'; lyDo?: never }
 );

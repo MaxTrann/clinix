@@ -47,10 +47,15 @@ import {
   type MarkNoShowInput,
   type MarkNoShowOutcome,
 } from './mark-no-show.js';
+import {
+  restoreConfirmedWithin,
+  type RestoreConfirmedInput,
+  type RestoreConfirmedOutcome,
+} from './restore-confirmed.js';
 
 // `AppointmentTransitionService`: NƠI DUY NHẤT đổi `lich_hen.trang_thai` của module booking (PLAN booking 5.2, 5.5, 5.10 D6; luật H7 và AR-06: `UPDATE lich_hen` chỉ ở `appointments/state/`).
 // B9 dựng KHUNG và phương thức đầu tiên `expire`; B10 (`cancel`, đã làm), B11 (`confirmPaid` do `payment` gọi, `complete` do `doctor` gọi, đã làm; thân ở `confirm-paid.ts` và `complete-appointment.ts`) và
-// B12 (`checkIn`, `markNoShow`, đã làm; thân ở `check-in.ts` và `mark-no-show.ts`) đã thêm vào đúng lớp này; B14 (override) thêm tiếp (TRACKING 3.19.1, 3.23, 3.24, 3.26). Không dựng trước thứ chưa có người dùng.
+// B12 (`checkIn`, `markNoShow`, đã làm; thân ở `check-in.ts` và `mark-no-show.ts`) đã thêm vào đúng lớp này; B14 (override) thêm tiếp `restoreConfirmed` (thân ở `restore-confirmed.ts`) và biến thể Quản trị viên của `checkIn` (TRACKING 3.19.1, 3.23, 3.24, 3.26, 3.31). Không dựng trước thứ chưa có người dùng.
 //
 // KHUÔN BẢY BƯỚC của mọi phương thức:
 //  1. ĐỌC THƯỜNG các khoá bất biến của lịch (`readLichHenKeys`: `khung_gio_id`, `benh_nhan_id`, `chi_nhanh_id`), chưa khoá gì.
@@ -65,7 +70,7 @@ import {
 //     nên không gọi cổng trong thân.
 //
 // HAI HỌ phương thức trong MỘT lớp: (A) TỰ MỞ giao dịch (`expire`): vỏ ngoài `withBookingTransaction` + thân nhận `em`; (B) NHẬN `em` CỦA NGƯỜI GỌI
-// và không mở giao dịch (`confirmPaid` trong giao dịch của `payment`, `complete` trong giao dịch của `doctor`, `checkIn` và `markNoShow` của B12, `markReplaced`): chỉ có thân nhận `em`. Viết thân nhận `em` trước.
+// và không mở giao dịch (`confirmPaid` trong giao dịch của `payment`, `complete` trong giao dịch của `doctor`, `checkIn` và `markNoShow` của B12, `restoreConfirmed` của B14, `markReplaced`): chỉ có thân nhận `em`. Viết thân nhận `em` trước.
 // `markNoShow` có ba người gọi (Lễ tân, Quản trị viên B14, job B13) nên là họ B: mỗi người gọi tự mở giao dịch của mình (B13 một giao dịch riêng mỗi lịch, B14 cùng giao dịch với audit).
 // `cancel` (B10) thuộc họ B: nó là phần GHI của huỷ (khoá, kiểm lại, ma trận, `UPDATE`, khung giờ); vỏ giao dịch, tính hoàn, thông báo và cổng sau commit nằm ở `AppointmentCancellationService`
 // (`cancel/`), vì chúng cần ví, thanh toán và thông báo mà lớp ghi trạng thái này không nên tiêm (TRACKING 3.23 B10-D; chú thích cũ xếp `cancel` vào họ A).
@@ -76,6 +81,12 @@ export type { ConfirmPaidInput, ConfirmPaidOutcome } from './confirm-paid.js';
 // Kiểu của hai phương thức của B12 (Lễ tân, `payment` B17, job B13, Quản trị viên B14)
 export type { CheckInInput, CheckInOutcome } from './check-in.js';
 export type { MarkNoShowInput, MarkNoShowOutcome } from './mark-no-show.js';
+// Kiểu của phương thức của B14 (khôi phục `DaXacNhan` do Quản trị viên override) và điểm cắm audit của biến thể Quản trị viên
+export type {
+  RestoreConfirmedInput,
+  RestoreConfirmedOutcome,
+} from './restore-confirmed.js';
+export type { OnChanged } from './on-changed.js';
 export type { StatusConfig } from './status-config.js';
 
 export type ExpireNotDueReason =
@@ -212,6 +223,18 @@ export class AppointmentTransitionService {
     input: MarkNoShowInput,
   ): Promise<MarkNoShowOutcome> {
     return markNoShowWithin(em, input, { notifier: this.notifier });
+  }
+
+  /**
+   * Khôi phục `DaXacNhan` (họ B, PLAN 5.2, 5.7, Q24; TRACKING 3.31 B14-C): Quản trị viên override đưa lịch `VangMat` hoặc `DaTiepDon` về `DaXacNhan`. Nhận `em`, KHÔNG mở giao dịch, KHÔNG ném `AppException`.
+   * Chỉ khoá `lich_hen` theo khoá chính (tầng 6); KHÔNG đụng khung giờ (vẫn `DaDat`), KHÔNG đụng `benh_nhan` (không trừ `so_lan_no_show`, CT-20), không thông báo. Chi tiết: chú thích đầu `restore-confirmed.ts`.
+   * Phương thức này là PHẦN GHI của luồng override (audit cùng giao dịch ở `AdminOverrideService`): AR-07 cấm gọi từ ngoài `appointments/`.
+   */
+  restoreConfirmed(
+    em: EntityManager,
+    input: RestoreConfirmedInput,
+  ): Promise<RestoreConfirmedOutcome> {
+    return restoreConfirmedWithin(em, input);
   }
 
   /**
