@@ -1,7 +1,15 @@
-import { request } from '../../../shared/api/client';
-import { parseCheckSummary, parseRelatives } from './booking-readers';
+import { LONG_TIMEOUT_MS, request } from '../../../shared/api/client';
+import {
+  parseCheckConfirmation,
+  parseCheckSummary,
+  parseCreatedAppointment,
+  parseRelatives,
+} from './booking-readers';
 import type {
+  BookingConfirmation,
   BookingSummary,
+  CreateAppointmentBody,
+  CreatedAppointment,
   EligibilityResult,
   VisitRelative,
 } from './booking-types';
@@ -34,10 +42,49 @@ export async function postCheck(
   signal?: AbortSignal,
 ): Promise<BookingSummary> {
   return parseCheckSummary(
-    await request<unknown>('booking/checks', {
+    await requestCheck(khungGioId, hoSoNguoiThanId, signal),
+  );
+}
+
+// Cùng lời gọi `checks` cho Bước 5 (booking F5): đọc ĐỦ 12 khoá của `tomTat` (giá, cọc, chính sách hoàn, chi nhánh…) thay vì ba khoá của Bước 4.
+export async function postCheckConfirmation(
+  khungGioId: string,
+  hoSoNguoiThanId: string | null,
+  signal?: AbortSignal,
+): Promise<BookingConfirmation> {
+  return parseCheckConfirmation(
+    await requestCheck(khungGioId, hoSoNguoiThanId, signal),
+  );
+}
+
+function requestCheck(
+  khungGioId: string,
+  hoSoNguoiThanId: string | null,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  return request<unknown>('booking/checks', {
+    method: 'POST',
+    json: { khungGioId, hoSoNguoiThanId },
+    signal,
+  });
+}
+
+// TẠO lịch hẹn và giữ chỗ (B8; booking F5). KHÔNG idempotent: mỗi lần gọi là đúng một `fetch`, không bao giờ tự gửi lại (nơi gọi quyết định, và chỉ khi người dùng bấm).
+// Thân đúng ba khoá, `null` giữ `null` (backend nhận cả hai; không `''`). KHÔNG truyền `signal`: rời trang không huỷ một `POST` ghi mà máy chủ vẫn xử lý, nên việc "không kéo
+// người dùng quay lại" do nơi gọi lo bằng `usePageActive`. Chờ tối đa `LONG_TIMEOUT_MS` (45 giây, nhỏ hơn `proxy_read_timeout` 60 giây của nginx) thay vì 15 giây: hết giờ
+// giả biến một lần thành công chậm thành "chưa rõ" [đề xuất; độ trễ thật của route này chưa đo, X3]. 201 sai hình dạng ném `UnexpectedResponseError` (nơi gọi coi là "chưa rõ").
+export async function createAppointment(
+  body: CreateAppointmentBody,
+): Promise<CreatedAppointment> {
+  return parseCreatedAppointment(
+    await request<unknown>('booking/appointments', {
       method: 'POST',
-      json: { khungGioId, hoSoNguoiThanId },
-      signal,
+      json: {
+        khungGioId: body.khungGioId,
+        hoSoNguoiThanId: body.hoSoNguoiThanId,
+        lyDoKham: body.lyDoKham,
+      },
+      timeoutMs: LONG_TIMEOUT_MS,
     }),
   );
 }

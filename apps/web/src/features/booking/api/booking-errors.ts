@@ -60,7 +60,8 @@ function readDetail(chiTiet: unknown): Record<string, unknown> {
 }
 
 const OPENING_TIME = /^\d{2}:\d{2}$/;
-const APPOINTMENT_CODE = /^[A-Za-z0-9_-]{1,40}$/;
+// Dạng mã lịch hẹn mà web chấp nhận (an toàn khi đưa vào câu và URL); bộ đọc 201 của Bước 5 (F5) dùng lại đúng mẫu này
+export const APPOINTMENT_CODE = /^[A-Za-z0-9_-]{1,40}$/;
 
 // Câu cố định (không cần `chiTiet`)
 const fixed =
@@ -195,6 +196,16 @@ const KNOWN_ERRORS = new Map<string, (chiTiet: unknown) => KnownBookingError>([
   [
     BOOKING_ERROR_CODES.RELATIVE_DEACTIVATED,
     fixed('profile', 'Hồ sơ này đã ngừng sử dụng. Vui lòng chọn hồ sơ khác.'),
+  ],
+  // 404 của `checks` và tạo lịch: hồ sơ người thân của người khác hay không tồn tại (cùng một thân, H10). Nhóm `profile` (chọn hồ sơ khác thì đi tiếp được) nhưng câu TRUNG TÍNH:
+  // 404 có thể do hồ sơ hay do khung giờ nên không đổ riêng cho hồ sơ (phiên kiểm, 13/11/2026). Đổi có chủ ý hành vi nhỏ của Bước 4 (trước đây rơi về câu chung kèm `Thử lại`
+  // vô ích), có test BIS-07 F5. Câu là [đề xuất], PLAN 5.14 chưa có.
+  [
+    BOOKING_ERROR_CODES.NOT_FOUND,
+    fixed(
+      'profile',
+      'Không tìm thấy thông tin để đặt lịch. Vui lòng chọn lại hồ sơ đi khám hoặc khung giờ.',
+    ),
   ],
 ]);
 

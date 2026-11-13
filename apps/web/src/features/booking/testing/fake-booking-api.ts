@@ -1,9 +1,9 @@
 import type { EligibilityResult } from '../api/booking-types';
 
-// API giả của booking cho test web (F3; F4 thêm danh sách người thân và `checks`; F5 đến F7 thêm các đường dẫn của mình). Bọc `fetch` của fake auth
-// (`src/test/fake-auth-api.ts`): CHỈ trả lời `GET /api/booking/eligibility`, `GET /api/patient/relatives` và `POST /api/booking/checks`, mọi đường dẫn khác chuyển cho
-// `delegate`. KHÔNG gọi backend thật. Ghi MỌI lời gọi vào `requests` (kể cả các đường dẫn chuyển đi) để test khẳng định "không giữ chỗ khi chuyển trang": không có lời gọi
-// ghi nào tới `/booking/*`. `POST /booking/checks` là POST nhưng CHỈ ĐỌC (B7), nên không tính là lời gọi ghi.
+// API giả của booking cho test web (F3; F4 thêm danh sách người thân và `checks`; F5 thêm `POST /booking/appointments`; F6, F7 thêm đường dẫn của mình). Bọc `fetch` của fake auth
+// (`src/test/fake-auth-api.ts`): CHỈ trả lời `GET /api/booking/eligibility`, `GET /api/patient/relatives`, `POST /api/booking/checks` và `POST /api/booking/appointments`, mọi
+// đường dẫn khác chuyển cho `delegate`. KHÔNG gọi backend thật. Ghi MỌI lời gọi vào `requests` (kể cả các đường dẫn chuyển đi) để test khẳng định "không giữ chỗ khi chuyển trang":
+// không có lời gọi ghi nào tới `/booking/*`. `POST /booking/checks` là POST nhưng CHỈ ĐỌC (B7), nên không tính là lời gọi ghi; `POST /booking/appointments` TẠO lịch (B8), là lời gọi ghi.
 
 type FetchLike = (
   input: RequestInfo | URL,
@@ -25,6 +25,34 @@ export const LOCKED: EligibilityResult = {
 export interface FakeCheckBody {
   khungGioId: string;
   hoSoNguoiThanId: string | null;
+}
+
+// Thân yêu cầu của `POST /booking/appointments` (đúng ba khoá; `lyDoKham` giữ nguyên `null` hay chuỗi)
+export interface FakeCreateBody extends FakeCheckBody {
+  lyDoKham: string | null;
+}
+
+// 201 của `POST /booking/appointments` ĐÚNG 7 khoá (B8). Mặc định là lịch cọc > 0 (`ChoThanhToan`, có hạn thanh toán); `makeCreatedDone()` là cọc 0đ (`DaXacNhan` ngay)
+export function makeCreatedResult(overrides: Record<string, unknown> = {}) {
+  return {
+    maLichHen: 'CLX-20261019-7K3M9',
+    trangThai: 'ChoThanhToan',
+    hanThanhToan: '2026-10-19T03:15:00.000Z',
+    giaApDung: '300000.00',
+    tienCoc: '100000.00',
+    canThanhToan: true,
+    thoiGianMayChu: '2026-10-19T03:00:00.000Z',
+    ...overrides,
+  };
+}
+export function makeCreatedDone(overrides: Record<string, unknown> = {}) {
+  return makeCreatedResult({
+    trangThai: 'DaXacNhan',
+    hanThanhToan: null,
+    tienCoc: '0.00',
+    canThanhToan: false,
+    ...overrides,
+  });
 }
 
 // Một phần tử của `GET /patient/relatives` ĐÚNG bảy khoá thật (patient B3: có cả giới tính, ngày sinh, SĐT mà bộ đọc của Bước 4 KHÔNG được chép)
@@ -95,9 +123,9 @@ function describeRequest(input: RequestInfo | URL, init?: RequestInit) {
   };
 }
 
-const jsonResponse = (body: unknown) =>
+const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
-    status: 200,
+    status,
     headers: { 'Content-Type': 'application/json' },
   });
 
@@ -105,6 +133,7 @@ export function createFakeBookingApi(delegate: FetchLike) {
   const overrides: Override[] = [];
   const relativesOverrides: Override[] = [];
   const checkOverrides: Override[] = [];
+  const createOverrides: Override[] = [];
 
   const api = {
     // Thân 200 của `GET /booking/eligibility`; kiểu `unknown` để test đặt cả thân sai hợp đồng
@@ -119,6 +148,14 @@ export function createFakeBookingApi(delegate: FetchLike) {
     requests: [] as { method: string; path: string }[],
     // Thân JSON của từng lần `POST /booking/checks`, theo thứ tự
     checkBodies: [] as FakeCheckBody[],
+    // Thân 201 của `POST /booking/appointments` (kiểu `unknown` để test đặt cả thân sai hình dạng); `onCreate` trả lời theo từng thân: trả `Response` thì dùng nó,
+    // trả `undefined` thì dùng `created`
+    created: makeCreatedResult() as unknown,
+    onCreate: null as
+      | ((body: FakeCreateBody) => Response | Promise<Response> | undefined)
+      | null,
+    // Thân JSON của từng lần `POST /booking/appointments`, theo thứ tự (đếm số lần TẠO lịch)
+    createBodies: [] as FakeCreateBody[],
 
     // Lần gọi `eligibility` kế tiếp dùng phản hồi này (có thể ném lỗi mạng hoặc treo)
     failNext(override: Override) {
@@ -129,6 +166,10 @@ export function createFakeBookingApi(delegate: FetchLike) {
     },
     failCheckNext(override: Override) {
       checkOverrides.push(override);
+    },
+    // Lần gọi tạo lịch kế tiếp dùng phản hồi này (lỗi `maLoi`, ném lỗi mạng, hay treo cho tới khi test cho chạy)
+    failCreateNext(override: Override) {
+      createOverrides.push(override);
     },
     // Các lời gọi KHÔNG phải GET tới `/booking/*` (giữ chỗ, đặt lịch…); `POST /booking/checks` chỉ đọc nên không tính
     bookingWrites() {
@@ -165,6 +206,16 @@ export function createFakeBookingApi(delegate: FetchLike) {
         const override = checkOverrides.shift();
         if (override) return override(init);
         return (await api.onCheck?.(body)) ?? jsonResponse(api.check);
+      }
+      if (
+        request.method === 'POST' &&
+        request.path === '/booking/appointments'
+      ) {
+        const body = JSON.parse(String(init?.body)) as FakeCreateBody;
+        api.createBodies.push(body);
+        const override = createOverrides.shift();
+        if (override) return override(init);
+        return (await api.onCreate?.(body)) ?? jsonResponse(api.created, 201);
       }
       return delegate(input, init);
     },
