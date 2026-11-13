@@ -19,6 +19,9 @@ import { CreateAppointmentController } from './create/create-appointment.control
 import { CreateAppointmentService } from './create/create-appointment.service.js';
 import { RefundPolicyReader } from './create/refund-policy.js';
 import { HoldExpiryJob } from './expiry/hold-expiry.job.js';
+import { AdminAppointmentsController } from './lists/admin-appointments.controller.js';
+import { AdminAppointmentsService } from './lists/admin-appointments.service.js';
+import { AppointmentHistoryReader } from './lists/appointment-history.reader.js';
 import { DoctorAppointmentsController } from './lists/doctor-appointments.controller.js';
 import { DoctorAppointmentsRepository } from './lists/doctor-appointments.repository.js';
 import { DoctorAppointmentsService } from './lists/doctor-appointments.service.js';
@@ -63,6 +66,8 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 //   B3 (đã làm) `ReceptionAppointmentsController` + `ReceptionAppointmentsService` (`GET /reception/appointments` và `/:maLichHen`, chỉ đọc, phạm vi chi nhánh của Lễ tân) trên lớp dùng chung
 //       `OperationsAppointmentsService` + `OperationsAppointmentsRepository` (cũng là nền của B4 Quản trị viên). `imports: [RbacModule` (phạm vi `ReceptionScopeService`, `BranchAccessPolicy`),
 //       `SystemConfigModule` (khung giờ check-in cho `chuyenDuoc` của chi tiết)`]`: cả hai là module lá, không import ngược `AppointmentsModule` nên không tạo vòng.
+//   B4 (đã làm) `AdminAppointmentsController` + `AdminAppointmentsService` + `AppointmentHistoryReader` (`lists/`; `GET /admin/appointments` và `/:maLichHen`, chỉ đọc, phạm vi Quản trị viên qua `AdminScopeCtx`; trên nền
+//       `OperationsAppointmentsService` của B3, sắp GIẢM dần; chi tiết kèm panel "Lịch sử trạng thái" đọc `nhat_ky_hanh_dong` bằng SQL chỉ đọc ở MỘT file, AR-08). Không thêm `imports`: `RbacModule` đã nhập ở B3 và đã export `AdminScopeGuard`.
 //   B5 (đã làm) `DoctorAppointmentsController` + `DoctorAppointmentsService` + `DoctorAppointmentsRepository` (`GET /doctor/appointments` và `/:maLichHen`, chỉ đọc, chỉ lịch của chính bác sĩ; dùng nền
 //       `list-query.*` của B1, B3, KHÔNG dùng `OperationsAppointmentsService`: không có JOIN hay cột giá, phạm vi là `bac_si_id` thay vì chi nhánh). Không thêm `imports`.
 //   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới)
@@ -98,6 +103,7 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
   controllers: [
     PatientAppointmentsController,
     ReceptionAppointmentsController,
+    AdminAppointmentsController,
     BookingChecksController,
     CreateAppointmentController,
     DoctorAppointmentsController,
@@ -117,6 +123,8 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
     OperationsAppointmentsRepository,
     OperationsAppointmentsService,
     ReceptionAppointmentsService,
+    AdminAppointmentsService,
+    AppointmentHistoryReader,
     ReceptionStatusService,
     AdminOverrideService,
     BookabilityReader,
