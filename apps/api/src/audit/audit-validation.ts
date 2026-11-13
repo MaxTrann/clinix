@@ -1,4 +1,5 @@
 import { isISO8601 } from 'class-validator';
+import { TRANG_THAI_LICH_HEN } from '../admin/entities/enums.js';
 import { TRANG_THAI_TAI_KHOAN } from '../auth/entities/enums.js';
 import type { AuditEntry } from './audit-entry.js';
 import { AuditError } from './audit-error.js';
@@ -309,6 +310,22 @@ function validateChanges(entry: Record<string, unknown>): void {
       reason(changes.ly_do_tu_choi);
       requireValid(String(changes.ly_do_tu_choi).length <= 255);
       break;
+    case 'OverrideLichHen': {
+      requireValid(entry.targetType === 'lich_hen');
+      // Chi nhánh của LỊCH (không phải của Quản trị viên): luôn có, để Quản trị viên phạm vi Chi nhánh lọc nhật ký.
+      id(branch);
+      fields(changes, ['truoc', 'sau', 'ly_do']);
+      const { before, after } = snapshots(changes, 'trang_thai');
+      requireValid(
+        TRANG_THAI_LICH_HEN.some((value) => value === before) &&
+          TRANG_THAI_LICH_HEN.some((value) => value === after) &&
+          before !== after,
+      );
+      reason(changes.ly_do);
+      // Lý do của Quản trị viên 1–255 ký tự (Q24, Q27), như `ly_do_huy` của lịch.
+      requireValid(String(changes.ly_do).length <= 255);
+      break;
+    }
     default:
       throw new AuditError('AUDIT_ACTION_UNSUPPORTED');
   }

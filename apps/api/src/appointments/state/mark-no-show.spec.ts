@@ -525,3 +525,92 @@ describe('NSH-08 khung giờ và danh sách chờ: Vắng mặt KHÔNG giải ph
     },
   );
 });
+
+// Task B14 — OVR-03 (phần `markNoShow`; PLAN booking 7.37 `[đề xuất]`; TRACKING 3.31 B14-E): điểm cắm `onChanged` CHỈ ở biến thể Quản trị viên. CỘNG THÊM: mọi ca NSH-01…NSH-08 ở trên giữ nguyên (không sửa kỳ vọng nào).
+describe('OVR-03 (phần markNoShow) onChanged: một lần, SAU thông báo, dưới khoá, kèm trạng thái nguồn; từ chối thì không gọi; ném thì lõi ném', () => {
+  type AdminInput = Extract<MarkNoShowInput, { actor: 'QuanTriVien' }>;
+  const withHook = (
+    s: ReturnType<typeof setup>,
+    onChanged: (em: unknown, change: { from: TrangThaiLichHen }) => unknown,
+  ): AdminInput => ({
+    // `quanTriVien()` luôn dựng biến thể QuanTriVien; spread trên union làm TS không nhận trường riêng của biến thể
+    ...(s.quanTriVien() as AdminInput),
+    onChanged: onChanged as NonNullable<AdminInput['onChanged']>,
+  });
+
+  it.each(['DaXacNhan', 'DaTiepDon'] as const)(
+    'nguồn %s: gọi ĐÚNG MỘT LẦN với em của người gọi và { from } đọc dưới khoá, SAU câu UPDATE lịch, UPDATE bộ đếm và cả thông báo (audit là tầng 7, cuối cùng)',
+    async (from) => {
+      const s = setup({ locked: lockedRows(from) });
+      const seenAfter: number[] = [];
+      const onChanged = vi.fn((_em: unknown, _change: unknown) => {
+        seenAfter.push(s.em.queries.length);
+        return Promise.resolve();
+      });
+      expect((await s.run(withHook(s, onChanged))).kind).toBe('NoShowed');
+      expect(onChanged).toHaveBeenCalledTimes(1);
+      expect(onChanged).toHaveBeenCalledWith(s.em.em, { from });
+      // Số câu SQL lúc gọi bằng đúng TỔNG số câu của lõi (đã ghi xong mọi thứ) và thông báo đã được ghi trước đó
+      expect(seenAfter).toEqual([s.em.queries.length]);
+      expect(s.notifier.notifyCall.count).toBe(1);
+      expect(s.notifiedAfter[0]).toBeLessThanOrEqual(seenAfter[0] as number);
+    },
+  );
+
+  it('cờ khoá vừa bật: onChanged vẫn gọi MỘT lần, sau CẢ HAI thông báo (LichHenVangMat rồi KhoaDatLichNoShow)', async () => {
+    const s = setup({}, { soLan: 2, khoa: false });
+    const onChanged = vi.fn((_em: unknown, _change: unknown) =>
+      Promise.resolve(),
+    );
+    const outcome = await s.run(withHook(s, onChanged));
+    expect(outcome).toEqual({
+      kind: 'NoShowed',
+      soLanNoShow: 3,
+      khoaDatLich: true,
+    });
+    expect(s.notifier.notifyCall.count).toBe(2);
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(statesExcept('DaXacNhan', 'DaTiepDon'))(
+    'lõi từ chối (nguồn %s: InvalidState): KHÔNG gọi onChanged',
+    async (trangThai: TrangThaiLichHen) => {
+      const s = setup({ locked: lockedRows(trangThai) });
+      const onChanged = vi.fn((_em: unknown, _change: unknown) =>
+        Promise.resolve(),
+      );
+      expect((await s.run(withHook(s, onChanged))).kind).toBe('InvalidState');
+      expect(onChanged).not.toHaveBeenCalled();
+    },
+  );
+
+  it('chưa có cấu hình (ConfigMissing) và ngoài phạm vi (NotFound): KHÔNG gọi onChanged', async () => {
+    const noConfig = setup();
+    const never = vi.fn((_em: unknown, _change: unknown) => Promise.resolve());
+    expect(
+      (
+        await noConfig.run({
+          ...withHook(noConfig, never),
+          config: null,
+        })
+      ).kind,
+    ).toBe('ConfigMissing');
+    const outside = setup();
+    outside.canAct.mockReturnValue(false);
+    expect((await outside.run(withHook(outside, never))).kind).toBe('NotFound');
+    expect(never).not.toHaveBeenCalled();
+  });
+
+  it('onChanged ném: lõi ném tiếp nguyên lỗi (người gọi hoàn tác lịch, bộ đếm, cờ và thông báo), không nuốt', async () => {
+    const s = setup();
+    const boom = new Error('audit giả lỗi');
+    await expect(s.run(withHook(s, () => Promise.reject(boom)))).rejects.toBe(
+      boom,
+    );
+  });
+
+  it('không có onChanged (Lễ tân, job, hay Quản trị viên không cần audit): hành vi cũ nguyên vẹn', async () => {
+    const s = setup();
+    expect((await s.run(s.quanTriVien())).kind).toBe('NoShowed');
+  });
+});
