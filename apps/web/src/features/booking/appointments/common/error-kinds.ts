@@ -5,8 +5,10 @@ import { BOOKING_ERROR_CODES } from '../../api/booking-errors';
 // `thongBao` (CODING_CONVENTION). Hàm thuần; chữ hiển thị do từng trang quyết.
 
 // Mã `maLoi` mà danh sách xử lý riêng. `DU_LIEU_KHONG_HOP_LE` là mã chung của mọi lỗi kiểm dữ liệu: chỉ coi là lỗi từ khoá khi có `loi[].ma` tương ứng
-const CODE_INVALID_INPUT = 'DU_LIEU_KHONG_HOP_LE';
+export const CODE_INVALID_INPUT = 'DU_LIEU_KHONG_HOP_LE';
 const FIELD_CODE_INVALID_KEYWORD = 'TU_KHOA_KHONG_HOP_LE';
+// Mã TRƯỜNG của ô lý do huỷ (F9): 400 `DU_LIEU_KHONG_HOP_LE` với `loi[].ma` này khi `lyDo` rỗng, chỉ khoảng trắng hay quá 255
+export const FIELD_CODE_REASON_REQUIRED = 'LY_DO_BAT_BUOC';
 
 // ---- Lỗi tải danh sách ----
 // `other`: mạng, quá giờ, phản hồi lạ, 5xx, `maLoi` lạ (kể cả 400 và 409 mà API không có): câu chung của `ErrorState` kèm `Thử lại`.

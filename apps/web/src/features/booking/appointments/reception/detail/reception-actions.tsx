@@ -1,6 +1,9 @@
 import { UserCheck } from 'lucide-react';
 import { isPositiveAmount } from '../../common/appointment-format';
-import type { ReceptionAppointmentDetail } from '../api/reception-appointment-types';
+import type {
+  ReceptionAppointmentDetail,
+  ReceptionTarget,
+} from '../api/reception-appointment-types';
 import { DETAIL_TEXT } from './detail-messages';
 
 // Nút hành động của Lễ tân trong ngăn chi tiết (booking F8; Figma `488:2`, `495:2`, `497:2`) và ĐIỂM CẮM CHO F9.
@@ -8,11 +11,13 @@ import { DETAIL_TEXT } from './detail-messages';
 //  - Hiện nút nào CHỈ KHI đích có trong `chuyenDuoc[]` của chi tiết (backend tính bằng `allowedTargets('LeTan', …)`, đã gồm cửa sổ tiếp đón và còn phải thu). Web KHÔNG có ma
 //    trận thứ hai: không có chỗ nào ở đây so trạng thái với đích. Mã khác ba đích dưới (ví dụ `HoanThanh`) bị bỏ qua.
 //  - F8 chưa gọi route ghi nào (B12 chưa merge): `handlers` rỗng nên mọi nút VÔ HIỆU kèm chữ ẩn "(chưa được triển khai)". Nút nào có handler thì bật.
-//  - F9 chỉ cần truyền `handlers` từ `reception-drawer.tsx` (hộp `Hủy lịch hẹn` `490:2`, hộp `Đánh dấu vắng mặt` `489:2`, và lời gọi `Tiếp đón bệnh nhân` kèm lỗi
-//    `CON_PHAN_CHUA_THANH_TOAN`, `NGOAI_KHUNG_GIO_TIEP_DON`: LTN-04), rồi gọi `reload` và `onReloadList` sau thao tác thành công. Không phải sửa file này.
-export type ReceptionTarget = 'DaTiepDon' | 'VangMat' | 'DaHuy';
+//  - F9 truyền `handlers` từ `reception-drawer.tsx` (hộp `Hủy lịch hẹn` `490:2`, hộp `Đánh dấu vắng mặt` `489:2`, lời gọi `Tiếp đón bệnh nhân` kèm lỗi
+//    `CON_PHAN_CHUA_THANH_TOAN`, `NGOAI_KHUNG_GIO_TIEP_DON`: LTN-04). F9 chỉ thêm HAI thứ vào file này (Đại duyệt 13/11/2026), hành vi khi `handlers` rỗng không đổi:
+//    (1) handler nhận chính phần tử nút đã bấm để hộp trả tiêu điểm về đúng nút (Safari không focus nút khi bấm nên không dựa vào `document.activeElement`);
+//    (2) prop `busy` vô hiệu cả nhóm khi đang gửi hay chi tiết đang tải lại (chi tiết giữ bản cũ lúc tải lại, nên nút cũ vẫn hiện).
+export type { ReceptionTarget };
 export type ReceptionActionHandlers = Partial<
-  Record<ReceptionTarget, () => void>
+  Record<ReceptionTarget, (trigger: HTMLButtonElement) => void>
 >;
 
 // Thứ tự hiện của Figma: dòng đầu là tiếp đón, dòng sau là `Vắng mặt` và `Hủy lịch`
@@ -46,18 +51,22 @@ const BUTTON =
 
 function ActionButton(props: {
   target: ReceptionTarget;
-  onClick?: () => void;
+  onClick?: (trigger: HTMLButtonElement) => void;
+  busy: boolean;
+  // Chữ thay nhãn khi nút này đang gửi (chỉ `Tiếp đón` gọi thẳng, không có hộp)
+  busyLabel?: string;
 }) {
   const { label, className } = ACTIONS[props.target];
-  const enabled = props.onClick !== undefined;
+  const { onClick } = props;
+  const enabled = onClick !== undefined;
   return (
     <button
       type="button"
-      disabled={!enabled}
-      onClick={props.onClick}
+      disabled={!enabled || props.busy}
+      onClick={onClick && ((event) => onClick(event.currentTarget))}
       className={`${BUTTON} ${className}`}
     >
-      {label}
+      {props.busy && props.busyLabel !== undefined ? props.busyLabel : label}
       {!enabled && (
         <span className="sr-only"> {DETAIL_TEXT.notImplementedHidden}</span>
       )}
@@ -88,9 +97,13 @@ function CollectButton() {
 export function ReceptionActions(props: {
   detail: ReceptionAppointmentDetail;
   handlers?: ReceptionActionHandlers;
+  busy?: boolean;
+  // Đích đang được gửi (kèm chữ đổi trên nút đó)
+  sending?: { target: ReceptionTarget; label: string } | null;
 }) {
   const { detail } = props;
   const handlers = props.handlers ?? {};
+  const busy = props.busy ?? false;
   const targets = TARGET_ORDER.filter((target) =>
     detail.chuyenDuoc.includes(target),
   );
@@ -110,7 +123,16 @@ export function ReceptionActions(props: {
     >
       {showCollect && <CollectButton />}
       {checkIn && (
-        <ActionButton target="DaTiepDon" onClick={handlers.DaTiepDon} />
+        <ActionButton
+          target="DaTiepDon"
+          onClick={handlers.DaTiepDon}
+          busy={busy}
+          busyLabel={
+            props.sending?.target === 'DaTiepDon'
+              ? props.sending.label
+              : undefined
+          }
+        />
       )}
       {others.length > 0 && (
         <div className={`grid gap-2 ${others.length > 1 ? 'grid-cols-2' : ''}`}>
@@ -119,6 +141,7 @@ export function ReceptionActions(props: {
               key={target}
               target={target}
               onClick={handlers[target]}
+              busy={busy}
             />
           ))}
         </div>

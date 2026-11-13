@@ -1,9 +1,10 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import { formatVnd } from '../../common/appointment-format';
+import { isZeroAmount } from '../../common/refund-text';
 import type { PatientAppointmentDetail } from '../api/patient-appointment-types';
 import { CancelBox } from './cancel-box';
 import { CANCEL_TEXT, DETAIL_TEXT } from './detail-messages';
-import { isZeroAmount } from './refund-text';
+
 import type { CancelBoxController } from './use-cancel-box';
 
 // Khu huỷ ở cuối cột phải: nút `Hủy lịch hẹn` (chỉ khi `choPhepHuy` của chi tiết, nghĩa là theo CHÍNH ma trận backend, Q45) hay hộp huỷ nội tuyến khi đã mở.
