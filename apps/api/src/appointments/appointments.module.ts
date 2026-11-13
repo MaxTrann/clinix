@@ -30,6 +30,8 @@ import { PatientAppointmentsRepository } from './lists/patient-appointments.repo
 import { PatientAppointmentsService } from './lists/patient-appointments.service.js';
 import { ReceptionAppointmentsController } from './lists/reception-appointments.controller.js';
 import { ReceptionAppointmentsService } from './lists/reception-appointments.service.js';
+import { NoShowSweepService } from './noshow/no-show-sweep.service.js';
+import { NoShowJob } from './noshow/no-show.job.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 import { AppointmentQueries } from './queries/appointment-queries.js';
 import { BookabilityReader } from './slots/bookability.reader.js';
@@ -71,6 +73,8 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 //       `PAYMENT_PORT`, `APPOINTMENT_NOTIFIER`) và token `APPOINTMENT_CODE_RANDOM` (bộ sinh phần đuôi mã lịch, `useValue: randomCodeSuffix`; test thay bằng `overrideProvider`). Không thêm `imports`.
 //   B9 (đã làm) `AppointmentTransitionService` (`state/`; khung của mọi phương thức đổi trạng thái, mới có `expire`; tiêm `DataSource`, `SlotHoldService`, `WAITLIST_PORT`) và `HoldExpiryJob` (`expiry/`; `@Cron` mỗi phút,
 //       tắt ở NODE_ENV=test; chỉ `@Cron`, không `ScheduleModule.forRoot()`).
+//   B13 (đã làm) `NoShowSweepService` + `NoShowJob` (`noshow/`; job tự Vắng mặt: `@Cron` mỗi 5 phút, tắt ở NODE_ENV=test, chỉ `@Cron`, không `ScheduleModule.forRoot()`; mỗi lịch một giao dịch qua `markNoShow` với `actor: 'HeThong'`;
+//       tiêm `DataSource`, `AppointmentTransitionService`, `SystemConfigService` đã có sẵn: không thêm `imports`, không `exports`).
 //   B11 (đã làm) `AppointmentQueries` (`queries/`; CHỈ ĐỌC: `findAffectedByLeave` D5, `listAffectedByLeave` D13, `countActiveByShifts` D14) và hai phương thức mới của `AppointmentTransitionService`
 //       (`confirmPaid` cho `payment`, `complete` cho `doctor`; lớp này giờ tiêm thêm `APPOINTMENT_NOTIFIER`). Người gọi import kiểu kết quả và `withBookingTransaction` theo đường dẫn file, không qua provider.
 // `exports: [AppointmentTransitionService, AppointmentQueries, AppointmentCancellationService]`: CẢ BA là bề mặt DUY NHẤT module khác gọi vào (TRACKING 3.23, 3.24.1): `AppointmentTransitionService` cho `confirmPaid` và
@@ -125,6 +129,8 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
     AppointmentTransitionService,
     AppointmentQueries,
     HoldExpiryJob,
+    NoShowSweepService,
+    NoShowJob,
     AppointmentCancellationService,
     CancelPreviewService,
   ],
