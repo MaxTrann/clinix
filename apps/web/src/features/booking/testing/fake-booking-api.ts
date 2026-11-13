@@ -1,8 +1,9 @@
 import type { EligibilityResult } from '../api/booking-types';
+import { createFakeAppointmentDetailApi } from './fake-appointment-detail-api';
 
 // API giả của booking cho test web (F3; F4 thêm danh sách người thân và `checks`; F5 thêm `POST /booking/appointments`; F6, F7 thêm đường dẫn của mình). Bọc `fetch` của fake auth
-// (`src/test/fake-auth-api.ts`): CHỈ trả lời `GET /api/booking/eligibility`, `GET /api/patient/relatives`, `POST /api/booking/checks` và `POST /api/booking/appointments`, mọi
-// đường dẫn khác chuyển cho `delegate`. KHÔNG gọi backend thật. Ghi MỌI lời gọi vào `requests` (kể cả các đường dẫn chuyển đi) để test khẳng định "không giữ chỗ khi chuyển trang":
+// (`src/test/fake-auth-api.ts`): CHỈ trả lời `GET /api/booking/eligibility`, `GET /api/patient/relatives`, `POST /api/booking/checks` và `POST /api/booking/appointments`; chi tiết lịch hẹn `GET /api/patient/appointments/:maLichHen` (F7: Bước 6 tải từ đó) do API giả của F2
+// (`api.detailApi`, đặt dữ liệu ở `api.detailApi.detail`) trả lời; mọi đường dẫn khác chuyển cho `delegate`. KHÔNG gọi backend thật. Ghi MỌI lời gọi vào `requests` (kể cả các đường dẫn chuyển đi) để test khẳng định "không giữ chỗ khi chuyển trang":
 // không có lời gọi ghi nào tới `/booking/*`. `POST /booking/checks` là POST nhưng CHỈ ĐỌC (B7), nên không tính là lời gọi ghi; `POST /booking/appointments` TẠO lịch (B8), là lời gọi ghi.
 
 type FetchLike = (
@@ -129,13 +130,18 @@ const jsonResponse = (body: unknown, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-export function createFakeBookingApi(delegate: FetchLike) {
+export function createFakeBookingApi(rawDelegate: FetchLike) {
+  // Chi tiết lịch hẹn (F7): không có câu trả lời thì API xác thực giả coi là 401 và phiên bị đưa về đăng nhập, nên đường dẫn lạ đi qua API giả của F2 TRƯỚC khi tới `rawDelegate`
+  const detailApi = createFakeAppointmentDetailApi(rawDelegate);
+  const delegate = detailApi.fetch;
   const overrides: Override[] = [];
   const relativesOverrides: Override[] = [];
   const checkOverrides: Override[] = [];
   const createOverrides: Override[] = [];
 
   const api = {
+    // API giả của chi tiết lịch hẹn mà Bước 6 gọi: test đặt `detailApi.detail` hay `detailApi.failNext('detail', …)`
+    detailApi,
     // Thân 200 của `GET /booking/eligibility`; kiểu `unknown` để test đặt cả thân sai hợp đồng
     eligibility: ELIGIBLE as unknown,
     // Thân 200 của `GET /patient/relatives` và `POST /booking/checks`
