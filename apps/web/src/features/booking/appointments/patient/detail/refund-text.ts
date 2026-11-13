@@ -1,23 +1,10 @@
-import { formatVnd } from '../../common/appointment-format';
-import type {
-  RefundAmount,
-  RefundPreview,
-} from '../api/patient-appointment-types';
-import { CANCEL_TEXT, cutoffLabel } from './detail-messages';
+import type { RefundPreview } from '../api/patient-appointment-types';
+import type { RefundAmount } from '../../common/refund-types';
+import { isZeroAmount } from '../../common/refund-text';
+import { cutoffLabel } from './detail-messages';
 
-// Hiển thị số hoàn của hộp huỷ (booking F2). Hàm thuần. Mọi số tiền là chuỗi decimal của máy chủ: chỉ định dạng và so sánh CHUỖI, KHÔNG cộng, trừ,
-// nhân tiền hay phần trăm ở client (H4; lệch tiền hiển thị so với backend là lỗi nghiêm trọng).
-
-// "0", "0.00", "000.000": không có khoản nào. Dạng đã được bộ đọc kiểm (`readAmount`) nên chỉ cần nhận ra số 0.
-const ZERO_AMOUNT = /^0+(\.0+)?$/;
-export const isZeroAmount = (amount: string): boolean =>
-  ZERO_AMOUNT.test(amount);
-
-// `null` hay `soTien` bằng 0 ⇒ `null` (không hoàn); ngược lại "100.000đ (100%)"
-export function refundLine(refund: RefundAmount | null): string | null {
-  if (refund === null || isZeroAmount(refund.soTien)) return null;
-  return `${formatVnd(refund.soTien)} (${refund.tyLe}%)`;
-}
+// Phần của hiển thị số hoàn chỉ dành cho hộp huỷ CÓ XEM TRƯỚC của Bệnh nhân (booking F2). `isZeroAmount`, `refundLine`, `refundResultLine` chuyển lên
+// `common/refund-text.ts` ở F9 (hộp huỷ của Lễ tân dùng chung). Vẫn chỉ so sánh CHUỖI, KHÔNG tính tiền ở client (H4).
 
 // Dòng mốc chỉ khi có khoản hoàn VÀ `mocApDung` khác `null` (Đại duyệt 12/11/2026)
 export function cutoffLine(refund: RefundPreview | null): string | null {
@@ -36,12 +23,4 @@ export function sameRefund(
       ? 'none'
       : `${refund.tyLe}/${refund.soTien}`;
   return key(expected) === key(actual);
-}
-
-// Dòng kết quả sau khi huỷ: số THỰC TẾ
-export function refundResultLine(actual: RefundAmount | null): string {
-  const line = refundLine(actual);
-  return line === null
-    ? CANCEL_TEXT.noRefundPaid
-    : `${CANCEL_TEXT.refundPaid}: ${line}`;
 }

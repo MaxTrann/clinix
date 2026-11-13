@@ -10,9 +10,11 @@ import {
 } from '../../../../../shared/api/errors';
 import { BOOKING_ERROR_CODES } from '../../../api/booking-errors';
 import {
-  appointmentStateLabel,
-  isAppointmentState,
-} from '../../common/appointment-status';
+  BUSY_MESSAGE,
+  cannotCancelMessage,
+  notCancellableMessage,
+} from '../../common/failure-text';
+import { REFUND_TEXT } from '../../common/refund-text';
 import { LIST_TEXT } from '../list-messages';
 
 // Chữ của trang chi tiết lịch hẹn và hộp huỷ (booking F2). Chữ của Figma `420:2`, `426:2`, `691:2`, `421:2` khi có (đã bỏ các chuỗi mô phỏng, PLAN 4.4); còn lại
@@ -76,8 +78,9 @@ export const CANCEL_TEXT = {
   reload: 'Tải lại chi tiết',
   close: 'Đóng',
   cancelled: 'Đã hủy lịch hẹn.',
-  refundPaid: 'Số tiền hoàn',
-  noRefundPaid: 'Không có khoản hoàn.',
+  // Chuyển lên `common/refund-text.ts` ở F9 (hộp huỷ của Lễ tân dùng chung); giữ khoá cũ để mọi chỗ đọc `CANCEL_TEXT.x` vẫn chạy
+  refundPaid: REFUND_TEXT.paid,
+  noRefundPaid: REFUND_TEXT.none,
   differs: 'Số tiền hoàn thực tế khác số dự kiến vì đã qua mốc thời gian hoàn.',
 } as const;
 
@@ -85,16 +88,13 @@ export const CANCEL_TEXT = {
 export const cutoffLabel = (hours: number) =>
   `Áp dụng khi hủy trước giờ khám từ ${hours} giờ`;
 
-const CANNOT_CANCEL = 'Lịch hẹn này hiện không thể hủy.';
-const ALREADY_CANCELLED = 'Lịch hẹn này đã được hủy.';
-const BUSY =
-  'Hệ thống đang xử lý nhiều yêu cầu cùng lúc. Vui lòng thử lại sau ít giây.';
 const FORBIDDEN_CANCEL = 'Bạn không có quyền hủy lịch hẹn này.';
 // POST huỷ không biết kết quả khi mất mạng hay quá giờ: máy chủ có thể đã huỷ xong (nếp patient F6)
 const UNSURE =
   'Mất kết nối khi đang hủy, chưa rõ lịch hẹn đã được hủy hay chưa.';
 
-export const cannotCancelMessage = () => CANNOT_CANCEL;
+// `cannotCancelMessage`, `notCancellableMessage` và câu bận chuyển lên `common/failure-text.ts` ở F9 (Lễ tân dùng chung)
+export { cannotCancelMessage };
 
 // ---- Lỗi của hộp huỷ ----
 // `final`: không thử lại được (cùng yêu cầu cùng kết quả): chỉ còn đóng. `retry`: bấm lại được (503 hoàn tác trọn; xem trước chỉ đọc). `uncertain`: gửi huỷ mà
@@ -104,19 +104,6 @@ export interface CancelFailure {
   message: string;
   kind: 'final' | 'retry' | 'uncertain';
   reloadDetail: boolean;
-}
-
-// `chiTiet` của 409 `LICH_HEN_KHONG_CHO_HUY` là `{ trangThai }` (B10). Vắng, sai hình hay mã lạ ⇒ câu chung, không lộ mã thô.
-function conflictMessage(chiTiet: unknown): string {
-  const state =
-    typeof chiTiet === 'object' && chiTiet !== null
-      ? (chiTiet as { trangThai?: unknown }).trangThai
-      : undefined;
-  if (state === 'DaHuy') return ALREADY_CANCELLED;
-  if (typeof state === 'string' && isAppointmentState(state)) {
-    return `Lịch hẹn đang ở trạng thái ${appointmentStateLabel(state)} nên không thể hủy.`;
-  }
-  return CANNOT_CANCEL;
 }
 
 function describeApiFailure(error: ApiError): CancelFailure {
@@ -137,12 +124,12 @@ function describeApiFailure(error: ApiError): CancelFailure {
       };
     case BOOKING_ERROR_CODES.NOT_CANCELLABLE:
       return {
-        message: conflictMessage(error.chiTiet),
+        message: notCancellableMessage(error.chiTiet),
         kind: 'final',
         reloadDetail: true,
       };
     case BOOKING_ERROR_CODES.SYSTEM_BUSY:
-      return { message: BUSY, kind: 'retry', reloadDetail: false };
+      return { message: BUSY_MESSAGE, kind: 'retry', reloadDetail: false };
     default:
       return {
         message: GENERIC_ERROR_MESSAGE,

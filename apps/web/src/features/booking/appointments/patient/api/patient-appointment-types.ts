@@ -1,5 +1,6 @@
 import type { AppointmentCore } from '../../common/appointment-core';
 import type { AppointmentState } from '../../common/appointment-status';
+import type { RefundAmount } from '../../common/refund-types';
 
 // Kiểu dữ liệu của "Lịch hẹn của tôi" (booking F1; hợp đồng `GET /patient/appointments` ở PLAN 5.9, TRACKING 3.13.2).
 
@@ -72,11 +73,8 @@ export interface PatientAppointmentDetail extends PatientAppointment {
   thoiGianMayChu: string;
 }
 
-// Số hoàn: `tyLe` nguyên 0 đến 100, `soTien` chuỗi decimal của máy chủ. Client KHÔNG tính ra số này, chỉ hiện.
-export interface RefundAmount {
-  tyLe: number;
-  soTien: string;
-}
+// Số hoàn: kiểu chuyển lên `common/refund-types.ts` ở F9 (hộp huỷ của Lễ tân dùng chung); xuất lại ở đây để các import cũ vẫn chạy
+export type { RefundAmount };
 
 // `mocApDung` là `so_gio_truoc_toi_thieu` của mốc đã áp dụng, `null` khi không có mốc hay đã quá giờ hẹn
 export interface RefundPreview extends RefundAmount {

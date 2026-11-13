@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  formatVietnamDate,
   formatVietnamShortDate,
   formatVietnamTime,
   formatVietnamWeekdayDate,
@@ -191,5 +192,16 @@ describe('booking F8 — ngày ngắn và số tiền dương', () => {
     for (const value of ['', 'abc', '-5000.00', '1e6', ' 5', '5 ', '1,5']) {
       expect(isPositiveAmount(value)).toBe(false);
     }
+  });
+});
+
+// booking F9 (Lễ tân): ngày đầy đủ cho câu `NGOAI_KHUNG_GIO_TIEP_DON`. Mã LTA là [đề xuất] (PLAN booking mục 7.36).
+describe('booking F9 — ngày đầy đủ giờ Việt Nam', () => {
+  it('LTA-18 formatVietnamDate theo NGÀY giờ Việt Nam: 17:00 UTC đã là ngày hôm sau, qua tháng, qua năm, năm nhuận', () => {
+    expect(formatVietnamDate('2026-10-18T01:00:00.000Z')).toBe('18/10/2026');
+    expect(formatVietnamDate('2026-10-19T16:59:59.999Z')).toBe('19/10/2026');
+    expect(formatVietnamDate('2026-10-19T17:00:00.000Z')).toBe('20/10/2026');
+    expect(formatVietnamDate('2026-12-31T17:00:00.000Z')).toBe('01/01/2027');
+    expect(formatVietnamDate('2028-02-28T17:00:00.000Z')).toBe('29/02/2028');
   });
 });

@@ -2,10 +2,16 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { setApiAuthHooks } from '../../../shared/api/auth-hooks';
 import { RECEPTION_APPOINTMENTS_PATH } from '../../../shared/routes/booking-paths';
+import type { ReceptionAppointmentDetail } from '../appointments/reception/api/reception-appointment-types';
+import { DETAIL_TEXT } from '../appointments/reception/detail/detail-messages';
 import { LIST_TEXT } from '../appointments/reception/list-messages';
 import { ReceptionListPage } from '../appointments/reception/reception-list-page';
 import type { FakeRequest } from './fake-appointment-list-api';
-import { createFakeReceptionApi } from './fake-reception-api';
+import {
+  createFakeReceptionApi,
+  makeReceptionAppointment,
+  makeReceptionDetail,
+} from './fake-reception-api';
 import { LocationProbe } from './location-probe';
 
 // Dựng trang "Quản lý lịch hẹn" của Lễ tân với API giả (booking F8). Không có ở bộ xuất của module: chỉ test dùng. Hai route của Lễ tân (danh sách, chi tiết) phải gắn access
@@ -80,3 +86,25 @@ export const detailButton = (maLichHen: string) =>
   screen.getByRole('button', {
     name: `${LIST_TEXT.detail} lịch hẹn ${maLichHen}`,
   });
+
+// Mã của lịch mẫu mà các test thao tác (F9) mở
+export const RECEPTION_CODE = 'CP20261018001';
+
+// Dựng trang với MỘT lịch và chi tiết cho trước, mở ngăn bằng nút `Chi tiết` của hàng (booking F9; dùng chung cho các test thao tác của Lễ tân). `before` chạy sau khi dữ liệu mẫu đã đặt.
+export async function openReceptionDetail(
+  detail: Partial<ReceptionAppointmentDetail> = {},
+  before?: (api: ReturnType<typeof createFakeReceptionApi>) => void,
+) {
+  const view = renderReceptionPage({
+    before: (api) => {
+      api.appointments = [makeReceptionAppointment()];
+      api.details[RECEPTION_CODE] = makeReceptionDetail(detail);
+      before?.(api);
+    },
+  });
+  await loaded();
+  fireEvent.click(detailButton(RECEPTION_CODE));
+  const drawer = await screen.findByRole('dialog');
+  await within(drawer).findByText(DETAIL_TEXT.sections.patient);
+  return { ...view, drawer };
+}

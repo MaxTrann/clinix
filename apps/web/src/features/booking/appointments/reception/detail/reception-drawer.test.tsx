@@ -20,7 +20,9 @@ import type { ReceptionAppointmentDetail } from '../api/reception-appointment-ty
 import { DETAIL_TEXT } from './detail-messages';
 
 // booking F8: ngăn chi tiết của Lễ tân. Mã LTC là [đề xuất] (PLAN booking mục 7.34); LTN-01 (nút theo `chuyenDuoc[]`) là LTC-02 và LTN-05 (`Thu tiền` vô hiệu) là LTC-03.
-// API giả; F8 chưa gọi route ghi nào (B12 chưa merge). Chữ lấy từ Figma `488:2`, `495:2` đến `497:2` đã đối chiếu trực tiếp ngày 12/11/2026.
+// API giả. Chữ lấy từ Figma `488:2`, `495:2` đến `497:2` đã đối chiếu trực tiếp ngày 12/11/2026.
+// F9 (13/11/2026) sửa ĐÚNG hai chỗ mã hoá "F8 chưa có B12": LTC-02 (phần "mọi nút vô hiệu kèm chữ ẩn" thành "nút theo `chuyenDuoc[]` bật, không còn chữ ẩn; `Thu tiền` vẫn vô hiệu")
+// và LTC-04 ("không POST" thu hẹp về việc xem chi tiết và bấm nút `Thu tiền` vô hiệu; POST của ba nút thao tác do LTA-* ở `reception-actions.test.tsx` kiểm). Mọi kỳ vọng khác giữ nguyên.
 afterEach(cleanUpReceptionPage);
 
 const CODE = 'CP20261018001';
@@ -360,16 +362,14 @@ describe('nút theo chuyenDuoc[] (LTN-01)', () => {
       : item.labels;
     expect(labels).toEqual(expected);
 
-    // F8 chưa có hành động: mọi nút vô hiệu; nút theo `chuyenDuoc` có chữ ẩn, nút `Thu tiền` có chữ hiện
-    const buttons = group(dialog)
-      ? within(group(dialog)!).getAllByRole('button')
-      : [];
-    for (const button of buttons) expect(button).toBeDisabled();
+    // F9 đã gắn hành động cho cả ba nút theo `chuyenDuoc[]`: nút BẬT và tên truy cập chính xác là nhãn (không còn chữ ẩn "(chưa được triển khai)" của F8).
+    // `Thu tiền & tiếp đón` thuộc `payment` nên VẪN vô hiệu (LTC-03).
     for (const label of item.labels) {
+      expect(within(dialog).getByRole('button', { name: label })).toBeEnabled();
+    }
+    if (item.collect) {
       expect(
-        within(dialog).getByRole('button', {
-          name: `${label} ${DETAIL_TEXT.notImplementedHidden}`,
-        }),
+        within(dialog).getByRole('button', { name: /Thu tiền & tiếp đón/ }),
       ).toBeDisabled();
     }
   });
@@ -415,14 +415,14 @@ describe('nút theo chuyenDuoc[] (LTN-01)', () => {
     ).toBeNull();
   });
 
-  it('LTC-04 F8 không gọi route ghi nào: bấm mọi nút (đều vô hiệu) không phát sinh POST; chỉ có GET', async () => {
+  it('LTC-04 xem chi tiết không gọi route ghi nào: bấm nút `Thu tiền & tiếp đón` (vô hiệu, thuộc `payment`) không phát sinh POST; chỉ có GET', async () => {
     const { dialog, api } = await openDetail({
-      chuyenDuoc: ['DaHuy', 'DaTiepDon', 'VangMat'],
+      chuyenDuoc: ['DaHuy'],
       conPhaiThu: '200000.00',
     });
-    for (const button of within(group(dialog)!).getAllByRole('button')) {
-      fireEvent.click(button);
-    }
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /Thu tiền & tiếp đón/ }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(api.writes()).toEqual([]);
     expect(api.requests.every((request) => request.method === 'GET')).toBe(

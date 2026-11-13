@@ -16,7 +16,10 @@ import {
 //                                  `chuyenKhoaId`, `bacSiId`, `tuNgay`, `denNgay` CHỈ được ghi vào `requests` (không lọc): test khẳng định truy vấn đã gửi.
 //   /reception/appointments/:ma    chi tiết: lấy từ `api.details[ma]`; chưa đặt thì dựng từ dòng danh sách cùng mã; không có ⇒ 404 `KHONG_TIM_THAY` (như B3).
 //   /public/specialties, /public/doctors  trả `api.specialties`, `api.doctors`.
-// Ghi MỌI lời gọi vào `requests` (kể cả đường dẫn chuyển đi), kèm query và việc có gắn Authorization hay không.
+//   POST /reception/appointments/:ma/status  (F9) route ghi của Lễ tân: mặc định 200 `{ maLichHen, trangThai }` (`DaHuy` thêm `hoanCoc` = `api.cancelRefund`) và ĐỔI trạng thái của
+//                          lịch trong `details` và `appointments` (nên lần GET chi tiết và danh sách sau đó thấy trạng thái mới, `chuyenDuoc` rỗng); `failNext('status', …)` thay phản hồi
+//                          (lỗi `apiErrorResponse`, 502, ném lỗi mạng, hay treo bằng `holdResponse`). Mã không có ⇒ 404 `KHONG_TIM_THAY` như B12. Thân đã gửi ghi vào `requests[].body`.
+// Ghi MỌI lời gọi vào `requests` (kể cả đường dẫn chuyển đi), kèm query, thân (lời gọi ghi) và việc có gắn Authorization hay không.
 
 type FetchLike = (
   input: RequestInfo | URL,
@@ -24,10 +27,12 @@ type FetchLike = (
 ) => Promise<Response>;
 type Override = (init?: RequestInit) => Response | Promise<Response>;
 
-export type ReceptionFakeRoute = 'list' | 'detail' | 'specialties' | 'doctors';
+export type ReceptionFakeRoute =
+  'list' | 'detail' | 'specialties' | 'doctors' | 'status';
 
 const LIST_PATH = '/reception/appointments';
 const DETAIL_PREFIX = `${LIST_PATH}/`;
+const STATUS_SUFFIX = '/status';
 const PUBLIC_PATHS: Readonly<Record<string, 'specialties' | 'doctors'>> = {
   '/public/specialties': 'specialties',
   '/public/doctors': 'doctors',
@@ -117,6 +122,7 @@ export function createFakeReceptionApi(delegate: FetchLike) {
     detail: [],
     specialties: [],
     doctors: [],
+    status: [],
   };
 
   const api = {
@@ -129,6 +135,11 @@ export function createFakeReceptionApi(delegate: FetchLike) {
     specialties: { items: [], total: 0, page: 1, pageSize: 100 } as unknown,
     doctors: { items: [], total: 0, page: 1, pageSize: 100 } as unknown,
     requests: [] as FakeRequest[],
+    // Số hoàn THỰC TẾ mà 200 của `DaHuy` trả (chuỗi decimal; `null` = chưa thu đồng nào)
+    cancelRefund: { tyLe: 100, soTien: '100000.00' } as {
+      tyLe: number;
+      soTien: string;
+    } | null,
 
     // Lần gọi kế tiếp tới `route` dùng phản hồi này (lỗi `apiErrorResponse`, `Response` 502, ném lỗi mạng, hoặc treo)
     failNext(route: ReceptionFakeRoute, override: Override) {
@@ -138,9 +149,13 @@ export function createFakeReceptionApi(delegate: FetchLike) {
     callsTo(path: string) {
       return api.requests.filter((request) => request.path === path);
     },
-    // Mọi lời gọi KHÔNG phải GET (F8 chỉ đọc: phải rỗng)
+    // Mọi lời gọi KHÔNG phải GET (lời gọi ghi)
     writes() {
       return api.requests.filter((request) => request.method !== 'GET');
+    },
+    // Thân của các POST tới route ghi, theo thứ tự
+    statusBodies() {
+      return api.writes().map((request) => request.body);
     },
 
     fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -150,8 +165,13 @@ export function createFakeReceptionApi(delegate: FetchLike) {
         path: url.pathname.replace(/^\/api/, ''),
         query: Object.fromEntries(url.searchParams),
         hasToken: new Headers(init?.headers).has('Authorization'),
+        ...(typeof init?.body === 'string'
+          ? { body: JSON.parse(init.body) as unknown }
+          : {}),
       };
       api.requests.push(request);
+
+      if (isStatusCall(request)) return api.serveStatus(request, init);
 
       const route: ReceptionFakeRoute | undefined =
         request.path === LIST_PATH
@@ -191,6 +211,52 @@ export function createFakeReceptionApi(delegate: FetchLike) {
       }
       return jsonResponse(api[route]);
     },
+
+    // Route ghi: kết quả do `failNext('status', …)` nếu có, không thì thành công và ĐỔI trạng thái của lịch
+    serveStatus(request: FakeRequest, init?: RequestInit) {
+      const override = overrides.status.shift();
+      if (override) return override(init);
+      const code = statusCode(request.path);
+      const body = request.body as { trangThai: string; lyDo?: string };
+      const row = (api.appointments as ReceptionAppointment[]).find(
+        (item) => item.maLichHen === code,
+      );
+      if (row === undefined && api.details[code] === undefined) {
+        return apiErrorResponse(404, 'KHONG_TIM_THAY');
+      }
+      const current = (api.details[code] ??
+        makeReceptionDetail(row)) as ReceptionAppointmentDetail;
+      api.details[code] = {
+        ...current,
+        trangThai: body.trangThai,
+        chuyenDuoc: [],
+        conPhaiThu: null,
+        ...(body.trangThai === 'DaHuy' ? { lyDoHuy: body.lyDo ?? null } : {}),
+      };
+      if (row !== undefined) row.trangThai = body.trangThai;
+      return jsonResponse(
+        body.trangThai === 'DaHuy'
+          ? { maLichHen: code, trangThai: 'DaHuy', hoanCoc: api.cancelRefund }
+          : { maLichHen: code, trangThai: body.trangThai },
+      );
+    },
   };
   return api;
+}
+
+// `POST /reception/appointments/:ma/status`: đúng một đoạn mã rồi `/status`
+function isStatusCall(request: FakeRequest): boolean {
+  return (
+    request.method === 'POST' &&
+    request.path.startsWith(DETAIL_PREFIX) &&
+    request.path.endsWith(STATUS_SUFFIX) &&
+    !statusCode(request.path).includes('/')
+  );
+}
+
+// Mã lịch (đã giải mã, chữ hoa) từ đường dẫn của route ghi
+function statusCode(path: string): string {
+  return decodeURIComponent(
+    path.slice(DETAIL_PREFIX.length, -STATUS_SUFFIX.length),
+  ).toUpperCase();
 }
