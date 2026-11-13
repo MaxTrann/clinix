@@ -7,6 +7,7 @@ import {
 } from '../appointments.constants.js';
 import type { CheckInOutcome } from '../state/check-in.js';
 import type { MarkNoShowOutcome } from '../state/mark-no-show.js';
+import type { RestoreConfirmedOutcome } from '../state/restore-confirmed.js';
 
 // MỘT ánh xạ duy nhất từ kết quả KHÔNG thành công của `checkIn` và `markNoShow` (cùng đường chỉ-từ-chối của route Lễ tân) sang `AppException` (task B12; TRACKING 3.26 B12-E). Bên trong giao dịch chỉ
 // trả KẾT QUẢ CÓ KIỂU; đổi sang lỗi API ở đây, SAU khi giao dịch đã đóng (nếp A8, `cancel-failure.ts` của B10). Huỷ KHÔNG đi qua đây: dùng `cancelOutcomeException` của B10 (cùng mã
@@ -14,7 +15,9 @@ import type { MarkNoShowOutcome } from '../state/mark-no-show.js';
 
 export type StatusFailure =
   | Exclude<CheckInOutcome, { kind: 'CheckedIn' }>
-  | Exclude<MarkNoShowOutcome, { kind: 'NoShowed' }>;
+  | Exclude<MarkNoShowOutcome, { kind: 'NoShowed' }>
+  // B14: `restoreConfirmed` của Quản trị viên chỉ có hai kết quả không thành công (`NotFound`, `InvalidState`), đã có nhánh dưới đây
+  | Exclude<RestoreConfirmedOutcome, { kind: 'Restored' }>;
 
 /** 409 `CHUYEN_TRANG_THAI_KHONG_HOP_LE` kèm `chiTiet` `{ tuTrangThai, denTrangThai }` `[đề xuất]` (câu chữ 5.14: "Không thể chuyển lịch hẹn từ {…} sang {…}"). */
 export function invalidTransitionException(

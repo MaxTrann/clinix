@@ -48,3 +48,8 @@ export const patientAppointmentDetailPath = (maLichHen: string) =>
 // nó khớp `ROLE_HOME_PATHS.LeTan`. Đoạn đường là nhãn menu không dấu (như `tra-cuu-benh-nhan` của patient). Chi tiết một lịch là ngăn kéo trên cùng trang, không có đường dẫn riêng.
 export const RECEPTION_APPOINTMENTS_SEGMENT = 'quan-ly-lich-hen';
 export const RECEPTION_APPOINTMENTS_PATH = `/le-tan/${RECEPTION_APPOINTMENTS_SEGMENT}`;
+
+// Trang hồ sơ và người thân của Bệnh nhân (booking F4, BP-12; Đại duyệt 13/11/2026): đích của hàng "Thêm hồ sơ người thân mới" trong hộp chọn hồ sơ ở Bước 4, mở ở TAB MỚI.
+// `features/booking` không import `features/patient` nên đường dẫn của patient (`PATIENT_PATHS.profile`) viết chữ ở đây; file này không import gì nên gốc khu Bệnh nhân viết
+// thẳng `/benh-nhan`; ca BP-12 khoá nó khớp `PATIENT_PATHS.profile` (đổi một nơi mà quên nơi kia thì ca đỏ).
+export const PATIENT_PROFILE_PATH = '/benh-nhan/ho-so-nguoi-kham';

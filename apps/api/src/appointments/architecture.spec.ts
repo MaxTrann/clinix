@@ -20,6 +20,7 @@ import { AdminAppointmentsController } from './lists/admin-appointments.controll
 import { DoctorAppointmentsController } from './lists/doctor-appointments.controller.js';
 import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
 import { ReceptionAppointmentsController } from './lists/reception-appointments.controller.js';
+import { AdminOverrideController } from './status/admin-override.controller.js';
 import { ReceptionStatusController } from './status/reception-status.controller.js';
 import {
   ALLOWED_WRITES,
@@ -593,6 +594,8 @@ describe('AR-02, QB-07 mọi route của appointments/ có @Roles, không @Publi
     expect([...controllers]).toContain(PatientCancelController);
     // B12: route GHI của Lễ tân tự bị quét (danh sách controller lấy từ metadata của module, không viết tay)
     expect([...controllers]).toContain(ReceptionStatusController);
+    // B14 (OVR-16): route GHI của Quản trị viên cũng tự bị quét, nên bỏ `@Roles('QuanTriVien')` khỏi route là ca này đỏ (e2e KHÔNG bắt: `AdminScopeGuard` đã trả 403 cho vai trò khác)
+    expect([...controllers]).toContain(AdminOverrideController);
     // B4: hai route đọc của Quản trị viên cũng tự bị quét
     expect([...controllers]).toContain(AdminAppointmentsController);
     expect(findRouteRoleViolations(controllers)).toEqual([]);

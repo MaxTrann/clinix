@@ -1,14 +1,10 @@
-import { Transform } from 'class-transformer';
-import { IsIn, ValidateBy, ValidateIf } from 'class-validator';
+import { IsIn, ValidateIf } from 'class-validator';
 import {
   TRANG_THAI_LICH_HEN,
   type TrangThaiLichHen,
 } from '../../admin/entities/enums.js';
-import {
-  BOOKING_FIELD_ERROR_CODES,
-  CANCEL_REASON_MAX_LENGTH,
-} from '../appointments.constants.js';
 import type { RefundAmount } from '../cancel/cancel.types.js';
+import { RequiredReason } from './required-reason.decorator.js';
 
 // Thân và kết quả của `POST /reception/appointments/:maLichHen/status` (task B12; PLAN booking 5.7, 5.9, Q27; TRACKING 3.26 B12-E, đã duyệt 12/11/2026).
 
@@ -23,20 +19,9 @@ export class ReceptionStatusDto {
   @IsIn(TRANG_THAI_LICH_HEN)
   trangThai!: TrangThaiLichHen;
 
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  // Bộ kiểm `lyDo` dùng chung với `AdminOverrideDto` (`required-reason.decorator.ts`, B14): cùng cắt khoảng trắng, 1 đến 255, mã `LY_DO_BAT_BUOC`; Lễ tân KHÔNG bật `rejectSecrets` (không ghi audit), hành vi không đổi
   @ValidateIf((dto: ReceptionStatusDto) => dto.trangThai === 'DaHuy')
-  @ValidateBy({
-    name: 'isCancelReason',
-    validator: {
-      validate: (value: unknown) =>
-        typeof value === 'string' &&
-        value.length >= 1 &&
-        value.length <= CANCEL_REASON_MAX_LENGTH,
-      defaultMessage: () => BOOKING_FIELD_ERROR_CODES.REASON_REQUIRED,
-    },
-  })
+  @RequiredReason()
   lyDo?: string;
 }
 

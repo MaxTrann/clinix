@@ -39,6 +39,16 @@ const WEEKDAY_LABELS = [
   'Thứ 7',
 ] as const;
 
+// Thứ theo quy ước ISO của API (A6: `chiTiet.thuTrongTuan`, 1 = Thứ 2 … 7 = Chủ nhật) ⇒ "Thứ 2" … "Chủ nhật"; ngoài 1 đến 7 ⇒ null. Dùng chung bảng nhãn ở trên (booking F4).
+export function isoWeekdayLabel(iso: unknown): string | null {
+  return typeof iso === 'number' &&
+    Number.isInteger(iso) &&
+    iso >= 1 &&
+    iso <= 7
+    ? WEEKDAY_LABELS[iso % 7]
+    : null;
+}
+
 // ISO UTC ⇒ "Thứ 3, 20/10/2026" theo NGÀY giờ Việt Nam, KHÔNG theo múi giờ của máy và KHÔNG cắt 10 ký tự đầu: 17:30 UTC đã là 00:30 ngày hôm sau
 // ở Việt Nam. Thứ trong tuần tính từ ngày Việt Nam (dựng ở UTC trên ba số năm, tháng, ngày) nên cũng không lệch theo múi giờ.
 export function formatVietnamWeekdayDate(iso: string): string {
