@@ -10,6 +10,7 @@ import {
 } from './appointment-state.matrix.js';
 import { lockAppointment } from './cancel-appointment.query.js';
 import { readLichHenKeys } from './lich-hen-keys.query.js';
+import type { OnChanged } from './on-changed.js';
 import {
   incrementNoShow,
   lockNoShowCounter,
@@ -22,7 +23,8 @@ import { windowOf, type StatusConfig } from './status-config.js';
 // `AppointmentTransitionService.markNoShow` (task B12; PLAN booking 5.2, 5.3, 5.7, 5.12; Q14, Q22, Q24, Q25; TRACKING 3.26 B12-D): lịch thành `VangMat`, cộng `so_lan_no_show` của TÀI KHOẢN ĐẶT, bật cờ khoá
 // đặt lịch khi đạt ngưỡng. MỘT thân cho BA người gọi, nên họ B (nhận `em`, KHÔNG mở giao dịch, KHÔNG bắt lỗi DB, KHÔNG ném `AppException`):
 //  - `LeTan` (route của B12): phạm vi chi nhánh và cửa sổ `now > thoi_gian + check_in_sau_phut` (Q22; `NotDue` = `CHUA_QUA_GIO_HEN`).
-//  - `QuanTriVien` (override, B14): `canAct` theo `BranchAccessPolicy`, KHÔNG điều kiện thời gian (quy tắc 40); nguồn do ma trận Q24 quyết nên gồm cả `DaTiepDon`; B14 ghi audit SAU lời gọi này, cùng giao dịch.
+//  - `QuanTriVien` (override, B14): `canAct` theo `BranchAccessPolicy`, KHÔNG điều kiện thời gian (quy tắc 40); nguồn do ma trận Q24 quyết nên gồm cả `DaTiepDon`; B14 ghi audit trong `onChanged` (tuỳ chọn, `on-changed.ts`), gọi SAU
+//    thông báo, dưới khoá, cùng giao dịch (cộng thêm vào biến thể này, kết quả trả về không đổi).
 //  - `HeThong` (job B13): `isDue(em)` là mệnh đề "ca đã kết thúc" của job, kiểm LẠI dưới khoá lịch (cùng hằng SQL với câu chọn ứng viên); B13 mở MỘT giao dịch riêng mỗi lịch và đổi lỗi ném thành `Failed` bằng
 //    `failureOf`. Thêm biến thể cho người gọi mới là CỘNG THÊM vào union, không đổi chữ ký cũ.
 // Nguồn hợp lệ do `canTransition` quyết (không cứng `DaXacNhan`). `now` và `config` do người gọi đọc NGOÀI giao dịch một lần (thân chạy lại được); `config === null` ⇒ `ConfigMissing`, không đoán ngưỡng (quy tắc 35).
@@ -54,6 +56,8 @@ export type MarkNoShowInput = {
       actor: 'QuanTriVien';
       /** Phạm vi theo `BranchAccessPolicy.canAccessBranch`; `false` ⇒ `NotFound`. Gọi hai lần: lần đọc thường và LẠI dưới khoá */
       canAct: (target: { chiNhanhId: string }) => boolean;
+      /** Điểm cắm audit của override (B14): gọi một lần SAU thông báo, dưới khoá, kèm trạng thái nguồn đọc dưới khoá (`on-changed.ts`); ném ⇒ người gọi hoàn tác TẤT CẢ */
+      onChanged?: OnChanged;
     }
   | {
       actor: 'HeThong';
@@ -201,6 +205,9 @@ export async function markNoShowWithin(
       lichHenId: input.lichHenId,
       taiKhoanId: row.benhNhanId,
     });
+  // Điểm cắm audit của Quản trị viên (B14): SAU thông báo (audit là tầng 7, bảng chỉ-thêm), dưới khoá, một lần; ném ⇒ người gọi hoàn tác trọn (lịch, bộ đếm, cờ, thông báo)
+  if (input.actor === 'QuanTriVien')
+    await input.onChanged?.(em, { from: row.trangThai });
   return {
     kind: 'NoShowed',
     soLanNoShow: after.soLan,

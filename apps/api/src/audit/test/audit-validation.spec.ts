@@ -378,3 +378,123 @@ describe('TD-06 / P4 — 4 hành động phân công và nghỉ phép', () => {
     expect(validateAuditEntry(wholeDays)).toEqual(wholeDays);
   });
 });
+
+// Task B14 (booking, OVR-04 phần schema; PLAN booking 5.7, Q24; TRACKING 3.31 B14-F): hành động `OverrideLichHen`. Mẫu nằm TRONG describe này, KHÔNG thêm vào `auditEntries()`: ba ca chung của C2
+// còn giả định mọi hành động có đối tượng khác `lich_hen` (ca "mapping action/target không được lệch" dùng `lich_hen` làm đối tượng SAI) và `audit.int-spec.ts` ghim số hành động, nên thêm vào fixture buộc đổi cả hai.
+describe('B14 — OverrideLichHen: chi nhánh của lịch, hai trạng thái khác nhau, lý do 1–255', () => {
+  const entry = () => ({
+    actorId: '1',
+    branchId: '2',
+    action: 'OverrideLichHen' as const,
+    targetType: 'lich_hen' as const,
+    targetId: '3',
+    result: 'ThanhCong' as const,
+    changes: {
+      truoc: { trang_thai: 'VangMat' },
+      sau: { trang_thai: 'DaXacNhan' },
+      ly_do: 'Bệnh nhân đã có mặt tại quầy',
+    },
+  });
+  const withChanges = (patch: Record<string, unknown>) => ({
+    ...entry(),
+    changes: { ...entry().changes, ...patch },
+  });
+
+  it('nhận đúng schema và trả bản sao (không phải chính đối tượng vào)', () => {
+    const valid = entry();
+    expect(validateAuditEntry(valid)).toEqual(valid);
+    expect(validateAuditEntry(valid)).not.toBe(valid);
+  });
+
+  it('từ chối field thừa và thiếu ở entry và ở changes', () => {
+    expect(() => validateAuditEntry({ ...entry(), extra: 1 })).toThrow(
+      'AUDIT_ENTRY_INVALID',
+    );
+    expect(() => validateAuditEntry(withChanges({ extra: 1 }))).toThrow(
+      'AUDIT_ENTRY_INVALID',
+    );
+    for (const key of Object.keys(entry().changes)) {
+      const changes: Record<string, unknown> = { ...entry().changes };
+      delete changes[key];
+      expect(() => validateAuditEntry({ ...entry(), changes })).toThrow(
+        'AUDIT_ENTRY_INVALID',
+      );
+    }
+  });
+
+  it('chỉ nhận đối tượng lich_hen và BẮT BUỘC có chi nhánh của lịch (null bị từ chối)', () => {
+    expect(() =>
+      validateAuditEntry({ ...entry(), targetType: 'benh_nhan' }),
+    ).toThrow('AUDIT_ENTRY_INVALID');
+    expect(() => validateAuditEntry({ ...entry(), branchId: null })).toThrow(
+      'AUDIT_ENTRY_INVALID',
+    );
+    expect(() => validateAuditEntry({ ...entry(), branchId: '0' })).toThrow(
+      'AUDIT_ENTRY_INVALID',
+    );
+  });
+
+  it.each([
+    ['trạng thái trước ngoài enum', { truoc: { trang_thai: 'DaXong' } }],
+    ['trạng thái sau ngoài enum', { sau: { trang_thai: 'DaXong' } }],
+    ['trước bằng sau (không phải chuyển)', { sau: { trang_thai: 'VangMat' } }],
+    ['trước thiếu khóa trang_thai', { truoc: {} }],
+    ['sau thừa khóa', { sau: { trang_thai: 'DaXacNhan', them: 1 } }],
+    ['trạng thái không phải chuỗi', { truoc: { trang_thai: 5 } }],
+  ])('%s ⇒ AUDIT_ENTRY_INVALID', (_name, patch) => {
+    expect(() => validateAuditEntry(withChanges(patch))).toThrow(
+      'AUDIT_ENTRY_INVALID',
+    );
+  });
+
+  it('mọi cặp trạng thái khác nhau trong TRANG_THAI_LICH_HEN đều nhận (audit không quyết ma trận: đó là việc của canTransition)', () => {
+    const states = [
+      'ChoThanhToan',
+      'DaXacNhan',
+      'DaTiepDon',
+      'HoanThanh',
+      'DaHuy',
+      'VangMat',
+      'DaDoiLich',
+    ];
+    for (const from of states)
+      for (const to of states)
+        if (from !== to)
+          expect(() =>
+            validateAuditEntry(
+              withChanges({
+                truoc: { trang_thai: from },
+                sau: { trang_thai: to },
+              }),
+            ),
+          ).not.toThrow();
+  });
+
+  it('lý do 1–255 ký tự, không rỗng, không chỉ khoảng trắng, phải là chuỗi', () => {
+    for (const reason of ['', '   ', 'a'.repeat(256), 5, null]) {
+      expect(() => validateAuditEntry(withChanges({ ly_do: reason }))).toThrow(
+        'AUDIT_ENTRY_INVALID',
+      );
+    }
+    const ok = withChanges({ ly_do: 'a'.repeat(255) });
+    expect(validateAuditEntry(ok)).toEqual(ok);
+  });
+
+  it('lý do giống bí mật (token, băm, khóa=giá trị) bị từ chối là AUDIT_SENSITIVE_DATA và lỗi không chứa giá trị (cùng bộ kiểm với DTO của route override, OVR-05)', () => {
+    const marker = randomBytes(8).toString('hex');
+    for (const reason of [
+      `token=${marker}`,
+      `Bearer ${marker}${marker}`,
+      `mã băm ${'a'.repeat(64)}`,
+    ]) {
+      let caught: unknown;
+      try {
+        validateAuditEntry(withChanges({ ly_do: reason }));
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toMatchObject({ code: 'AUDIT_SENSITIVE_DATA' });
+      expect(JSON.stringify(caught).includes(marker)).toBe(false);
+    }
+  });
+});
