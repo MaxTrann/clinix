@@ -7,7 +7,13 @@ import {
   type DayHours,
   type NoShowWorld,
 } from '../testing/no-show-world.js';
+import {
+  auditRow,
+  insertAuditRows,
+  type AuditRowInput,
+} from '../testing/no-show-override-world.js';
 import { db, fx, useStatusWorldHooks } from '../testing/status-int-kit.js';
+import { AFTER_ALL_WINDOWS } from '../testing/status-world.js';
 import {
   countUnattended,
   findNoShowCandidates,
@@ -386,5 +392,96 @@ describe('NSQ-04 (phần dữ liệu) câu đếm ca không có khoảng chỉ �
     expect(
       await countUnattended(db.manager, new Date('2026-11-13T12:00:00+07:00')),
     ).toBe(3);
+  });
+});
+
+// Task B18 — NSO-03 (PLAN booking 7.46 `[đề xuất]`; TRACKING 3.40 B18-F): lịch ĐÃ TỪNG được Quản trị viên override thành công không đến hạn; các dòng nhật ký "gần giống" thì KHÔNG miễn lịch. Nếp NSQ-02: ba cách (câu ứng viên
+// đọc theo lô nhỏ, câu kiểm lại dưới khoá, hàm thuần ĐỘC LẬP viết ngay đây, không dùng SQL) phải cho CÙNG một tập.
+/** Hàm thuần ĐỘC LẬP: dòng nhật ký miễn lịch `lichHenId` khi và chỉ khi đúng hành động, đúng loại đối tượng, đúng mã đối tượng và kết quả thành công (không xét thời điểm, không xét nội dung). */
+const exempts = (row: AuditRowInput, lichHenId: string): boolean =>
+  row.hanhDong === 'OverrideLichHen' &&
+  row.loaiDoiTuong === 'lich_hen' &&
+  row.maDoiTuong === lichHenId &&
+  row.ketQua === 'ThanhCong';
+
+/** Mọi id ứng viên của mốc `now`, đọc theo lô `batch` (nhỏ để cả con trỏ được kiểm). */
+async function candidatesInBatches(
+  em: EntityManager,
+  now: Date,
+  batch: number,
+): Promise<string[]> {
+  const ids: string[] = [];
+  let after: string | null = null;
+  for (;;) {
+    const page = await findNoShowCandidates(em, {
+      now,
+      afterId: after,
+      limit: batch,
+    });
+    ids.push(...page);
+    if (page.length < batch) return ids;
+    after = page[page.length - 1] ?? null;
+  }
+}
+
+describe('NSO-03 loại trừ lịch đã override trên MySQL thật: ba cách cho CÙNG một tập; dòng "gần giống" không miễn lịch; câu đếm ca không có khoảng không đổi', () => {
+  it('tám lịch DaXacNhan đã quá hạn với các kiểu dòng nhật ký khác nhau: chỉ lịch có dòng ĐÚNG (kể cả dòng rất cũ, kể cả khi có thêm dòng ThatBai) bị loại', async () => {
+    const w = await noShowWorld(db, fx);
+    const lich: Awaited<ReturnType<NoShowWorld['booked']>>[] = [];
+    for (let slot = 0; slot < 8; slot++)
+      lich.push(await w.booked('DaXacNhan', slot));
+    const idOf = (index: number): string => lich[index]?.lichHenId ?? '';
+    const rows: AuditRowInput[] = [
+      auditRow(idOf(0)), // đúng ⇒ miễn
+      // lịch 1: KHÔNG có dòng nào (đối chứng: dòng của lịch 0 không được miễn lịch 1)
+      auditRow(idOf(2), { ketQua: 'ThatBai' }), // thất bại ⇒ KHÔNG miễn
+      auditRow(idOf(3), { hanhDong: 'ChinhNoShow' }), // hành động khác của cùng lịch ⇒ KHÔNG miễn
+      auditRow(idOf(4), { loaiDoiTuong: 'benh_nhan' }), // cùng số nhưng là hàng của BẢNG khác ⇒ KHÔNG miễn
+      auditRow(idOf(5), { ketQua: 'ThatBai' }), // lịch 5: một dòng ThatBai
+      auditRow(idOf(5)), //   cộng hai dòng đúng ⇒ miễn
+      auditRow(idOf(5), { thoiDiem: '2026-11-10 12:00:01' }),
+      // lịch 6: chỉ có dòng ĐÚNG của một lịch KHÁC không tồn tại ⇒ KHÔNG miễn
+      auditRow(String(BigInt(idOf(7)) + 1000n)),
+      auditRow(idOf(7), { thoiDiem: '2019-01-01 00:00:00' }), // dòng rất CŨ ⇒ vẫn miễn (không xét thời điểm)
+    ];
+    await insertAuditRows(db, w, rows);
+
+    const expected = lich
+      .map((l) => l.lichHenId)
+      .filter((id) => !rows.some((row) => exempts(row, id)))
+      .sort(byId);
+    expect(expected).toEqual([1, 2, 3, 4, 6].map(idOf).sort(byId)); // phép thử không rỗng và đúng kiểu mong đợi
+    expect(expected.length).toBeLessThan(lich.length);
+
+    const now = AFTER_ALL_WINDOWS;
+    for (const batch of [2, 3, 100])
+      expect(
+        await candidatesInBatches(db.manager, now, batch),
+        `ứng viên, lô ${String(batch)}`,
+      ).toEqual(expected);
+    const viaDue: string[] = [];
+    for (const l of lich)
+      if (await isNoShowDue(db.manager, l.lichHenId, now))
+        viaDue.push(l.lichHenId);
+    expect(viaDue.sort(byId), 'kiểm lại dưới khoá').toEqual(expected);
+  });
+
+  it('câu đếm ca không có khoảng KHÔNG áp dụng điều kiện override: hai lịch CaToi quá giờ hẹn (một đã override, một chưa) đều được đếm; cả hai không bao giờ là ứng viên', async () => {
+    const w = await noShowWorld(db, fx);
+    const overridden = await w.lichAt({
+      ngay: '2026-11-10',
+      ca: 'CaToi',
+      gio: '19:00:00',
+    });
+    const plain = await w.lichAt({
+      ngay: '2026-11-10',
+      ca: 'CaToi',
+      gio: '19:30:00',
+    });
+    await insertAuditRows(db, w, [auditRow(overridden.lichHenId)]);
+    const now = new Date('2026-11-10T20:00:00+07:00');
+    expect(await countUnattended(db.manager, now)).toBe(2);
+    expect(await candidatesInBatches(db.manager, now, 100)).toEqual([]);
+    expect(await isNoShowDue(db.manager, plain.lichHenId, now)).toBe(false);
   });
 });

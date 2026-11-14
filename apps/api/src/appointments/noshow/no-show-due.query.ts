@@ -1,4 +1,5 @@
 import type { EntityManager } from 'typeorm';
+import { notOverriddenSql } from '../lists/appointment-history.reader.js';
 
 // Mệnh đề "CA ĐÃ KẾT THÚC" của job tự Vắng mặt (task B13; PLAN booking 5.7, Q23, VM-01…VM-04, VM-11; số đo X1 M6, TRACKING 3.9.4; kế hoạch TRACKING 3.29 B13-D). MỘT hằng, DÙNG CHUNG cho hai câu:
 //  - `findNoShowCandidates`: DANH SÁCH ứng viên của job (đọc thường, theo lô);
@@ -10,6 +11,12 @@ import type { EntityManager } from 'typeorm';
 // `TIMESTAMP(ngày, giờ kết thúc) <= :now` NỬA MỞ: đúng giờ kết thúc là đã kết thúc (VM-02). `:now` luôn TRUYỀN VÀO (`toSecond(nowVN())` của người gọi), KHÔNG `NOW()` (AR-04, H8).
 // Ca không có khoảng (`CaToi`, buổi không có khoảng, chi nhánh nghỉ thứ đó): `CASE` ra NULL, `TIMESTAMP(ngày, NULL)` là NULL, `NULL <= ?` không thoả WHERE nên KHÔNG tự đánh (VM-11, quy tắc 44).
 // Cắt sớm `lh.thoi_gian <= :now` (X1 M6: một lô rẻ hơn khoảng 25%) còn là luật nghiệp vụ: không bao giờ đánh Vắng mặt TRƯỚC giờ hẹn của chính lịch đó, kể cả khi chi nhánh thu hẹp giờ làm sau khi khung giờ đã sinh (NSQ-03).
+//
+// Task B18 (TECH_DEBT 120, TRACKING 3.40; NSO-01…NSO-08): lịch ĐÃ TỪNG được Quản trị viên override thành công (có dòng nhật ký `OverrideLichHen`) KHÔNG đến hạn tự Vắng mặt, vì lịch đang `DaXacNhan` mà có dòng đó chắc chắn đã
+// được khôi phục (Q24: không ô nào đi ra từ `DaHuy`, từ `DaXacNhan` chỉ đi `DaHuy`, `DaTiepDon`, `VangMat`), và job sẽ đánh Vắng mặt LẠI ngay rồi cộng `so_lan_no_show` lần hai. Điều kiện là MỘT mảnh `NOT EXISTS` của reader
+// (`lists/appointment-history.reader.ts`: nơi duy nhất được đọc bảng nhật ký, AR-08) nằm TRONG `DUE_WHERE_SQL`, nên (1) nó lọc TRƯỚC `LIMIT` (lịch được miễn vẫn `DaXacNhan` mãi: lọc sau `LIMIT` thì chúng chiếm lô vĩnh viễn) và
+// (2) `isNoShowDue`, chạy DƯỚI khoá `benh_nhan` rồi `lich_hen`, tính lại đúng điều kiện đó mà KHÔNG xin khoá nào (đọc thường; giao dịch `READ COMMITTED` thấy mọi lần commit, và override ghi dòng nhật ký cùng giao dịch với lần đổi
+// trạng thái dưới khoá `lich_hen`). Lịch bị miễn ở bước kiểm lại ra `NotDue`. `countUnattended` KHÔNG áp dụng điều kiện này (nó chỉ đếm ca không có giờ kết thúc).
 
 /** Giờ kết thúc của ca của lịch theo lịch hoạt động của chi nhánh; `CaToi` (và ca không có khoảng) ra NULL. */
 export const SHIFT_END_SQL = `CASE llv.ca WHEN 'CaSang' THEN cn.gio_ket_thuc_sang WHEN 'CaChieu' THEN cn.gio_ket_thuc_chieu END`;
@@ -26,9 +33,10 @@ export const DUE_FROM_SQL = `FROM lich_hen lh
 ${SHIFT_JOINS_SQL}
 JOIN chi_nhanh_lich_hoat_dong cn ON ${BRANCH_HOURS_ON_SQL}`;
 
-/** Điều kiện "đến hạn tự Vắng mặt" dùng chung: HAI dấu `?`, cả hai là `now` (xem `dueParams`). */
+/** Điều kiện "đến hạn tự Vắng mặt" dùng chung: HAI dấu `?`, cả hai là `now` (xem `dueParams`); mảnh "chưa từng override" (B18) không có dấu `?`. */
 export const DUE_WHERE_SQL = `${CONFIRMED_AND_PAST_SQL}
-AND TIMESTAMP(llv.ngay, ${SHIFT_END_SQL}) <= ?`;
+AND TIMESTAMP(llv.ngay, ${SHIFT_END_SQL}) <= ?
+AND ${notOverriddenSql('lh')}`;
 
 /** Tham số của `DUE_WHERE_SQL`: cùng một mốc cho cắt sớm và cho giờ kết thúc ca. */
 export const dueParams = (now: Date): [Date, Date] => [now, now];
