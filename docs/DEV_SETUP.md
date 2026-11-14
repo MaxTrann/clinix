@@ -299,6 +299,8 @@ Bốn chi nhánh CLINIX Mẫu 1…4 dùng địa chỉ minh họa, tọa độ N
 | receptionist@example.invalid | LeTan | Chi nhánh mẫu 1 |
 | patient@example.invalid | BenhNhan | Hồ sơ và ví 0 đồng, không bệnh án |
 
+**Lịch làm việc mẫu (doctor-demo, B18):** sau `catalog` → `dev-accounts` → `search-demo`, chạy `npm run seed:doctor-demo` (không cần mật khẩu seed). Phân công 14 ngày kể từ ngày mai cho 8 bác sĩ `search-demo` đang hoạt động và `doctor@example.invalid` (ca nào tồn tại theo giờ chi nhánh), sinh khung giờ bằng mã sản xuất, thêm 2 yêu cầu nghỉ mẫu (`ChoDuyet`, `DaDuyet`). Chạy lại chỉ thêm phần còn thiếu. Lỗi: `SEED_DOCTORS_REQUIRED` (chưa có bác sĩ mẫu), `SEED_DEV_ACCOUNTS_REQUIRED` (chưa có `admin.system@example.invalid`).
+
 Tất cả tài khoản mới DangHoatDong/đã xác minh; tên và số điện thoại là dữ liệu giả đã duyệt, không dùng để liên lạc. Không gửi OTP/email và không tạo phiên trong seed. Đăng nhập qua ứng dụng/API auth hiện hữu sau khi chạy; cần kiểm manual từng vai trò cho SD-05, HTTP test tự động không thay thế manual acceptance.
 
 Config-dev chỉ tạo khi chưa có id=1: giữ chỗ 15 phút; nhắc [72,24,2] giờ; tối đa 3 lịch/hồ sơ; tự đổi lịch 2; check-in trước/sau 30/15 phút; phản hồi lời mời 60 phút; danh sách chờ 2; no-show 3; báo trước 3 ngày; w1/w2=0,60/0,40. **Đây là dữ liệu thử, không phải quyết định chính thức**. Cấu hình nghiệp vụ chính thức đi qua B5 khi có; seed không tạo audit actor giả.
