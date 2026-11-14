@@ -26,7 +26,7 @@ export type NoShowItemOutcome =
   | Extract<MarkNoShowOutcome, { kind: 'NoShowed' }>
   /** Không còn `DaXacNhan` dưới khoá (Lễ tân vừa tiếp đón hay huỷ, bên kia đã đánh) hoặc không còn lịch */
   | { kind: 'NotConfirmed' }
-  /** Còn `DaXacNhan` nhưng ca chưa kết thúc (hoặc giờ hẹn chưa tới) khi kiểm lại dưới khoá */
+  /** Còn `DaXacNhan` nhưng không còn đến hạn khi kiểm lại dưới khoá: ca chưa kết thúc, giờ hẹn chưa tới, hoặc (B18) lịch đã được Quản trị viên override (cùng một mệnh đề `DUE_WHERE_SQL`) */
   | Extract<MarkNoShowOutcome, { kind: 'NotDue' }>
   /** Giao dịch của lịch đã hoàn tác trọn; lịch vẫn `DaXacNhan` nên lượt sau chọn lại. `Busy`: hết lượt thử lại 1213/1205; `Error`: lỗi khác */
   | Extract<ExpireOutcome, { kind: 'Failed' }>;
@@ -36,7 +36,7 @@ export interface NoShowSummary {
   noShowed: number;
   /** Lịch đã đổi trạng thái giữa lúc quét và lúc khoá */
   notConfirmed: number;
-  /** Lịch còn `DaXacNhan` nhưng chưa đến hạn khi kiểm lại dưới khoá */
+  /** Lịch còn `DaXacNhan` nhưng không còn đến hạn khi kiểm lại dưới khoá (ca chưa kết thúc, hoặc đã được Quản trị viên override: B18) */
   notDue: number;
   /** Hết lượt thử lại do tranh chấp khoá (tạm thời) */
   failedBusy: number;

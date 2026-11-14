@@ -12,6 +12,18 @@ import {
   noShowWorld,
   setDayHours,
 } from '../testing/no-show-world.js';
+import {
+  auditRow,
+  createNoShowOverrideStack,
+  insertAuditRows,
+  overrideChain,
+} from '../testing/no-show-override-world.js';
+import {
+  expectedAudit,
+  overrideBy,
+  readAudit,
+  settle,
+} from '../testing/override-world.js';
 import { notificationRows } from '../testing/payment-doctor-fakes.js';
 import {
   failAfterStatement,
@@ -651,4 +663,213 @@ describe('VM-16 NODE_ENV=test: job không tự chạy; test gọi run(now) (ph�
       createNoShowStack(db).job.run(AFTER_ALL_WINDOWS),
     ).resolves.toEqual({ ...ZERO, noShowed: 1 });
   });
+});
+
+// Task B18 — NSO-04…NSO-08 (PLAN booking 7.46 `[đề xuất]`; TRACKING 3.40 B18-F; TECH_DEBT 120): lịch ĐÃ TỪNG được Quản trị viên override thành công không bị job đánh Vắng mặt LẠI. Override qua `AdminOverrideService` THẬT
+// (một giao dịch, một dòng `nhat_ky_hanh_dong` thật mỗi lần), job THẬT, MySQL thật. `AFTER_ALL_WINDOWS` là 12:00 ngày 10/11/2026 (đúng giờ kết thúc ca sáng): mọi lịch ca sáng đã quá hạn.
+const overrideEvents = async () => (await notificationRows(db)).length;
+
+describe('NSO-04 "khôi phục rồi job" VangMat → DaXacNhan (đúng ca TECH_DEBT 120): job KHÔNG đánh lại, so_lan_no_show không tăng thêm', () => {
+  it('job đánh Vắng mặt (+1), Quản trị viên khôi phục, job chạy lại hai lượt: lịch DaXacNhan, so_lan_no_show giữ 1, một dòng nhật ký, không thông báo mới, khung giờ DaDat', async () => {
+    const w = await noShowWorld(db, fx);
+    const stack = createNoShowOverrideStack(db);
+    const lich = await w.booked('DaXacNhan', 0);
+    await expect(stack.job.run(AFTER_ALL_WINDOWS)).resolves.toEqual({
+      ...ZERO,
+      noShowed: 1,
+    });
+    expect(await readNoShow(db, w.patientId)).toEqual({
+      soLan: 1,
+      khoa: false,
+    });
+
+    await overrideChain(w, stack, lich.maLichHen, ['DaXacNhan']);
+    // Từ đây lịch là DaXacNhan, giờ hẹn và ca đã qua: TRƯỚC B18 hai lượt dưới đây đánh Vắng mặt LẠI (+1) ngay lượt đầu
+    for (let pass = 1; pass <= 2; pass++)
+      await expect(
+        stack.job.run(AFTER_ALL_WINDOWS),
+        `lượt ${String(pass)}`,
+      ).resolves.toEqual(ZERO);
+
+    expect((await readAppointment(db, lich.lichHenId)).trangThai).toBe(
+      'DaXacNhan',
+    );
+    expect(await readNoShow(db, w.patientId)).toEqual({
+      soLan: 1,
+      khoa: false,
+    });
+    expect(await events()).toEqual([NO_SHOW]); // chỉ thông báo của lần đánh đầu
+    expect(await readAudit(db)).toMatchObject([
+      expectedAudit(w, 'Toan', lich.lichHenId, 'VangMat', 'DaXacNhan'),
+    ]);
+    expect((await fx.slotState(w.slotId(0))).trangThai).toBe('DaDat');
+    await assertBookingInvariants(db);
+  });
+});
+
+describe('NSO-05 lùi DaTiepDon → DaXacNhan rồi job: job KHÔNG đánh Vắng mặt', () => {
+  it('hai lần override (tiếp đón rồi lùi): lịch DaXacNhan, hai dòng nhật ký nối tiếp, so_lan_no_show 0, không thông báo; job hai lượt đều trống', async () => {
+    const w = await noShowWorld(db, fx);
+    const stack = createNoShowOverrideStack(db);
+    const lich = await w.booked('DaXacNhan', 0);
+    await overrideChain(w, stack, lich.maLichHen, ['DaTiepDon', 'DaXacNhan']);
+
+    for (let pass = 1; pass <= 2; pass++)
+      await expect(
+        stack.job.run(AFTER_ALL_WINDOWS),
+        `lượt ${String(pass)}`,
+      ).resolves.toEqual(ZERO);
+
+    expect((await readAppointment(db, lich.lichHenId)).trangThai).toBe(
+      'DaXacNhan',
+    );
+    expect(await readNoShow(db, w.patientId)).toEqual({
+      soLan: 0,
+      khoa: false,
+    });
+    expect(await overrideEvents()).toBe(0);
+    expect(await readAudit(db)).toMatchObject([
+      expectedAudit(w, 'Toan', lich.lichHenId, 'DaXacNhan', 'DaTiepDon'),
+      expectedAudit(w, 'Toan', lich.lichHenId, 'DaTiepDon', 'DaXacNhan'),
+    ]);
+    await assertBookingInvariants(db);
+  });
+});
+
+describe('NSO-06 không làm yếu B13: lịch chưa từng override vẫn bị đánh như cũ; override bị từ chối không để lại dòng nên không miễn', () => {
+  it('ba lịch cùng ca: một đã lùi rồi khôi phục (được miễn), một chưa từng override, một bị override từ chối bởi ma trận (409, không dòng): job đánh đúng hai lịch sau', async () => {
+    const w = await noShowWorld(db, fx);
+    const stack = createNoShowOverrideStack(db);
+    const exempt = await w.booked('DaXacNhan', 0);
+    const plain = await w.booked('DaXacNhan', 1);
+    const refused = await w.booked('DaXacNhan', 2);
+    await overrideChain(w, stack, exempt.maLichHen, ['DaTiepDon', 'DaXacNhan']);
+    // DaXacNhan → DaXacNhan không có trong ma trận Q24: bị từ chối, KHÔNG dòng nhật ký, lịch không đổi
+    await expect(
+      settle(overrideBy(w, stack, 'Toan', refused.maLichHen, 'DaXacNhan')),
+    ).resolves.toMatchObject({
+      kind: 'refused',
+      maLoi: 'CHUYEN_TRANG_THAI_KHONG_HOP_LE',
+    });
+    expect(await readAudit(db)).toHaveLength(2); // chỉ hai dòng của lịch được miễn
+
+    await expect(stack.job.run(AFTER_ALL_WINDOWS)).resolves.toEqual({
+      ...ZERO,
+      noShowed: 2,
+    });
+    const state = async (lichHenId: string) =>
+      (await readAppointment(db, lichHenId)).trangThai;
+    expect(await state(exempt.lichHenId)).toBe('DaXacNhan');
+    expect(await state(plain.lichHenId)).toBe('VangMat');
+    expect(await state(refused.lichHenId)).toBe('VangMat');
+    expect(await readNoShow(db, w.patientId)).toEqual({
+      soLan: 2,
+      khoa: false,
+    });
+    expect(await events()).toEqual([NO_SHOW, NO_SHOW]);
+    await assertBookingInvariants(db);
+  });
+});
+
+describe('NSO-07 lô lớn: lịch được miễn nằm ở id NHỎ NHẤT và nhiều hơn một lô không làm đói lịch thường phía sau (lọc TRƯỚC LIMIT)', () => {
+  it(
+    '110 lịch được miễn (id nhỏ nhất) rồi 120 lịch thường: MỘT lượt đánh đủ 120 lịch thường (hai lô 100 và 20), more = false; 110 lịch được miễn vẫn DaXacNhan',
+    async () => {
+      const w = await noShowWorld(db, fx);
+      const stack = createNoShowOverrideStack(db);
+      const doctor = w.doctor.profile;
+      const slots = await bulkSlots(db, fx, doctor, '2026-11-11', 230);
+      const lich = [];
+      for (const khungGioId of slots)
+        lich.push(
+          await fx.appointmentIn('DaXacNhan', {
+            doctor,
+            khungGioId,
+            patientId: w.patientId,
+          }),
+        );
+      const exempt = lich.slice(0, 110);
+      const ordinary = lich.slice(110);
+      await insertAuditRows(
+        db,
+        w,
+        exempt.map((l) => auditRow(l.lichHenId)),
+      );
+      const now = at('2026-11-11T12:00:00'); // đúng giờ kết thúc ca sáng thứ Tư
+
+      await expect(stack.job.run(now)).resolves.toEqual({
+        ...ZERO,
+        noShowed: 120,
+      });
+      const counts: { trangThai: string; n: string }[] = await db.query(
+        'SELECT trang_thai AS trangThai, COUNT(*) AS n FROM lich_hen GROUP BY trang_thai',
+      );
+      expect(
+        Object.fromEntries(counts.map((c) => [c.trangThai, Number(c.n)])),
+      ).toEqual({ DaXacNhan: 110, VangMat: 120 });
+      const ordinaryIds = new Set(ordinary.map((l) => l.lichHenId));
+      const marked: { id: string }[] = await db.query(
+        "SELECT CAST(lich_hen_id AS CHAR) AS id FROM lich_hen WHERE trang_thai = 'VangMat'",
+      );
+      expect(marked.every((row) => ordinaryIds.has(row.id))).toBe(true);
+      expect(await readNoShow(db, w.patientId)).toEqual({
+        soLan: 120,
+        khoa: true,
+      });
+      await expect(stack.job.run(now)).resolves.toEqual(ZERO);
+      await assertBookingInvariants(db);
+    },
+    SLOW,
+  );
+});
+
+describe('NSO-08 kiểm LẠI dưới khoá, xác định: Quản trị viên lùi rồi khôi phục giữa lúc job chọn và lúc job khoá ⇒ job không đánh (notDue), không cộng no-show', () => {
+  // Hai điểm chèn: (a) ngay SAU câu chọn ứng viên (không còn kiểm lại thì lịch vẫn bị đánh); (b) ngay SAU lần đọc đầu của giao dịch của job, TRƯỚC khi xin khoá (kiểm NGOÀI khoá, làm trước giao dịch, sẽ không thấy)
+  it.each([
+    ['ngay sau câu chọn ứng viên', 'SELECT CAST(lh.lich_hen_id'],
+    [
+      'ngay sau lần đọc đầu của giao dịch job, trước khi xin khoá',
+      'SELECT CAST(khung_gio_id AS CHAR) AS khungGioId',
+    ],
+  ] as const)(
+    'Admin lùi (DaTiepDon) rồi khôi phục (DaXacNhan) bằng hai lời gọi THẬT %s: notDue 1, lịch DaXacNhan, so_lan_no_show 0, không thông báo, hai dòng nhật ký',
+    async (_point, statementStart) => {
+      const w = await noShowWorld(db, fx);
+      const stack = createNoShowOverrideStack(db);
+      const lich = await w.booked('DaXacNhan', 0);
+      let injected = false;
+      interceptStatements(db, async (call, run) => {
+        const result = await run();
+        if (!injected && call.sql.startsWith(statementStart)) {
+          injected = true; // đặt TRƯỚC: các lời gọi của Quản trị viên cũng đi qua bộ chen này
+          await overrideChain(w, stack, lich.maLichHen, [
+            'DaTiepDon',
+            'DaXacNhan',
+          ]);
+        }
+        return result;
+      });
+
+      await expect(stack.job.run(AFTER_ALL_WINDOWS)).resolves.toEqual({
+        ...ZERO,
+        notDue: 1,
+      });
+      expect(injected).toBe(true);
+      expect((await readAppointment(db, lich.lichHenId)).trangThai).toBe(
+        'DaXacNhan',
+      );
+      expect(await readNoShow(db, w.patientId)).toEqual({
+        soLan: 0,
+        khoa: false,
+      });
+      expect(await overrideEvents()).toBe(0);
+      expect(await readAudit(db)).toMatchObject([
+        expectedAudit(w, 'Toan', lich.lichHenId, 'DaXacNhan', 'DaTiepDon'),
+        expectedAudit(w, 'Toan', lich.lichHenId, 'DaTiepDon', 'DaXacNhan'),
+      ]);
+      expect((await fx.slotState(w.slotId(0))).trangThai).toBe('DaDat');
+      await assertBookingInvariants(db);
+    },
+    SLOW,
+  );
 });
