@@ -226,6 +226,27 @@ describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots
         .filter((line) => line.includes('UPDATE khung_gio'))
         .every((line) => line.startsWith('appointments/slots/')),
     ).toBe(true);
+    // B15 (TRACKING 3.37 B15-G): hai câu INSERT thật của thông báo chỉ ở notifications/thong-bao-insert.query.ts; không có UPDATE email_thong_bao nào cho tới giai đoạn worker
+    for (const rule of ['INSERT INTO thong_bao', 'INSERT INTO email_thong_bao'])
+      expect(
+        exposed.some((line) =>
+          line.startsWith(
+            `appointments/notifications/thong-bao-insert.query.ts: ${rule}`,
+          ),
+        ),
+        rule,
+      ).toBe(true);
+    for (const rule of [
+      'INSERT INTO thong_bao',
+      'INSERT INTO email_thong_bao',
+      'UPDATE email_thong_bao',
+    ])
+      expect(
+        exposed
+          .filter((line) => line.includes(`: ${rule} `))
+          .every((line) => line.startsWith('appointments/notifications/')),
+        rule,
+      ).toBe(true);
   });
 
   it.each([
@@ -289,6 +310,27 @@ describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots
       'appointments/cancel/x.ts',
       "q('UPDATE IGNORE benh_nhan SET a = 1')",
     ],
+    // B15 (TRACKING 3.37 B15-G): thong_bao và hộp thư đi của booking chỉ ghi ở notifications/ (lõi tự ghi thông báo là vi phạm)
+    [
+      'INSERT INTO thong_bao',
+      'appointments/state/x.ts',
+      "q('INSERT INTO thong_bao (a) VALUES (1)')",
+    ],
+    [
+      'INSERT INTO thong_bao',
+      'appointments/cancel/x.ts',
+      'q(`insert ignore into `thong_bao` (a) values (1)`)',
+    ],
+    [
+      'INSERT INTO email_thong_bao',
+      'appointments/create/x.ts',
+      "q('INSERT INTO email_thong_bao (thong_bao_id) VALUES (1)')",
+    ],
+    [
+      'UPDATE email_thong_bao',
+      'appointments/status/x.ts',
+      "q('UPDATE email_thong_bao SET trang_thai = ?')",
+    ],
     [
       'UPDATE benh_nhan',
       'appointments/slots/x.ts',
@@ -343,6 +385,24 @@ describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots
       file('appointments/cancel/h.ts', "q('UPDATE benh_nhan_phu SET a = 1')"),
       file('patient/i.ts', "q('UPDATE benh_nhan SET a = 1')"),
       file('auth/j.ts', "q('UPDATE benh_nhan SET a = 1')"),
+      // B15: ghi thong_bao và email_thong_bao đúng chỗ (notifications/); đọc ở nơi khác; bảng tiền tố giống tên; doctor/ ghi thong_bao của nghỉ phép (không thuộc AR-06)
+      file(
+        'appointments/notifications/n.ts',
+        "q('INSERT INTO thong_bao (a) VALUES (1)'); q('INSERT INTO email_thong_bao (a) VALUES (1)'); q('UPDATE email_thong_bao SET a = 1')",
+      ),
+      file(
+        'appointments/lists/k.ts',
+        "q('SELECT * FROM thong_bao WHERE a = 1'); q('SELECT * FROM email_thong_bao')",
+      ),
+      file(
+        'appointments/state/l.ts',
+        "q('INSERT INTO thong_bao_phu (a) VALUES (1)'); q('UPDATE email_thong_bao_log SET a = 1')",
+      ),
+      file(
+        'appointments/state/m.ts',
+        '// INSERT INTO thong_bao ở comment không tính\n/* UPDATE email_thong_bao */',
+      ),
+      file('doctor/leave/o.ts', "q('INSERT INTO thong_bao (a) VALUES (1)')"),
     ];
     expect(findInternalWriteViolations(clean)).toEqual([]);
   });

@@ -191,8 +191,12 @@ export async function snapshotState(
   };
 }
 
-/** Dọn giữa các vòng đua: dòng `thong_bao` (khoá ngoại tới `lich_hen`) trước, rồi lịch, rồi đưa mọi khung giờ về `ConTrong`. */
+/**
+ * Dọn giữa các vòng đua: dòng `email_thong_bao` (khoá ngoại tới `thong_bao`; B15, notifier THẬT ghi dòng này) rồi `thong_bao` (khoá ngoại tới `lich_hen`) trước, rồi lịch, rồi đưa mọi khung giờ về `ConTrong`.
+ * Với bản `Fake` hay `Recording` của thông báo, bảng `email_thong_bao` rỗng nên dòng đầu không đổi hành vi nào.
+ */
 export async function resetBookingRound(db: DataSource): Promise<void> {
+  await db.query('DELETE FROM email_thong_bao');
   await db.query('DELETE FROM thong_bao');
   await db.query('DELETE FROM lich_hen');
   await db.query(
