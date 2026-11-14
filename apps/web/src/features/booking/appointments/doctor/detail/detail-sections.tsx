@@ -1,17 +1,10 @@
-import {
-  CalendarDays,
-  MapPin,
-  Stethoscope,
-  User,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
+import { CalendarDays, MapPin, Stethoscope, User, Users } from 'lucide-react';
 import {
   formatVietnamTime,
   formatVietnamWeekdayDate,
 } from '../../common/appointment-format';
 import { DetailCard, DetailFact, DetailFacts } from '../../common/detail-card';
-import { StatusChip } from '../../common/status-chip';
+import { DetailHero } from '../../common/detail-frame';
 import type { DoctorAppointmentDetail } from '../api/doctor-appointment-types';
 import { shiftLabel } from '../list-messages';
 import {
@@ -20,33 +13,6 @@ import {
   genderLabel,
   relationLabel,
 } from './detail-messages';
-
-// Một hàng của thẻ đầu (Figma `458:2`: biểu tượng tròn, dòng chính đậm, dòng phụ nhỏ)
-function HeroRow(props: {
-  icon: LucideIcon;
-  title: string;
-  note?: string | null;
-}) {
-  const Icon = props.icon;
-  return (
-    <div className="flex items-start gap-3">
-      <span
-        aria-hidden="true"
-        className="flex size-[1.875rem] shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-strong"
-      >
-        <Icon className="size-4" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold break-words text-gray-900">
-          {props.title}
-        </p>
-        {props.note != null && (
-          <p className="text-xs text-gray-600">{props.note}</p>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // "08:00 · Ca sáng" (Figma): giờ Việt Nam rồi tên ca; mã ca lạ thì chỉ có giờ (không lộ mã thô)
 function timeAndShift(detail: DoctorAppointmentDetail): string {
@@ -57,39 +23,40 @@ function timeAndShift(detail: DoctorAppointmentDetail): string {
 
 // Thẻ đầu của trang (Figma `458:2`): mã lịch chữ đơn cách, chip trạng thái, tên dịch vụ, người khám kèm quan hệ, ngày và "giờ · ca", chuyên khoa, chi nhánh. Bỏ hàng tên chính bác sĩ (B5 không trả và người xem
 // chính là bác sĩ, Q33): hàng đó chỉ còn chuyên khoa [đề xuất]. Tên dịch vụ làm tiêu đề thay "Khám {chuyên khoa}" của Figma [đề xuất].
+// F12 (UI-12, Đại 14/11/2026): dựng bằng `DetailHero` dùng chung với Bệnh nhân và Admin (bốn ô một hàng, nhãn nhỏ trên giá trị đậm) thay lưới hai cột của Figma `458:2`; bốn ô là Người khám, Ngày khám, Chuyên khoa, Chi nhánh.
 export function AppointmentHero({
   detail,
 }: {
   detail: DoctorAppointmentDetail;
 }) {
+  const { rows } = DETAIL_TEXT;
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-5">
-      <div className="flex items-start justify-between gap-3">
-        <p className="font-mono text-sm text-gray-600">{detail.maLichHen}</p>
-        <StatusChip status={detail.trangThai} />
-      </div>
-      <h2 className="pt-2 text-lg font-bold break-words text-gray-900">
-        {detail.dichVu}
-      </h2>
-      <div className="grid gap-4 pt-4 sm:grid-cols-2">
-        <HeroRow
-          icon={User}
-          title={detail.nguoiKham.hoTen}
-          note={relationLabel(detail.nguoiKham.quanHe)}
-        />
-        <HeroRow
-          icon={CalendarDays}
-          title={formatVietnamWeekdayDate(detail.thoiGian)}
-          note={timeAndShift(detail)}
-        />
-        <HeroRow
-          icon={Stethoscope}
-          title={detail.chuyenKhoa}
-          note={DETAIL_TEXT.rows.specialty}
-        />
-        <HeroRow icon={MapPin} title={detail.chiNhanh} />
-      </div>
-    </section>
+    <DetailHero
+      ariaLabel={DETAIL_TEXT.summary}
+      code={detail.maLichHen}
+      status={detail.trangThai}
+      title={detail.dichVu}
+      cells={[
+        {
+          icon: User,
+          label: rows.person,
+          value: detail.nguoiKham.hoTen,
+          note: relationLabel(detail.nguoiKham.quanHe),
+        },
+        {
+          icon: CalendarDays,
+          label: rows.date,
+          value: formatVietnamWeekdayDate(detail.thoiGian),
+          note: timeAndShift(detail),
+        },
+        {
+          icon: Stethoscope,
+          label: rows.specialty,
+          value: detail.chuyenKhoa,
+        },
+        { icon: MapPin, label: rows.branch, value: detail.chiNhanh },
+      ]}
+    />
   );
 }
 

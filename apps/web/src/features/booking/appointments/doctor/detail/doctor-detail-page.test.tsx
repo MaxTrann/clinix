@@ -73,6 +73,30 @@ describe('booking F11 — chi tiết ca khám của Bác sĩ: tải và nội du
     expect(screen.getAllByText('Đã xác nhận').length).toBeGreaterThanOrEqual(1);
   });
 
+  // booking F12 (UI-12; Đại 14/11/2026). Mã UIF là [đề xuất] (PLAN booking mục 7.48). jsdom không đo bố cục: bằng chứng CẤU TRÚC; bề rộng thật đo bằng trình duyệt ở TRACKING 3.42.
+  it('UIF-12 khung chung như trang Bệnh nhân: căn giữa `max-w-[64rem]` (không còn 67,5rem lệch trái); thẻ đầu bốn ô Người khám, Ngày khám, Chuyên khoa, Chi nhánh; hai cột: Thông tin người khám và Hồ sơ khám bệnh bên trái, Thông tin lịch hẹn và Trạng thái ca khám bên phải', async () => {
+    await openDoctorDetail();
+    const page = screen
+      .getByRole('heading', { level: 1, name: 'Chi tiết ca khám' })
+      .closest('section') as HTMLElement;
+    expect(page).toHaveClass('mx-auto', 'max-w-[64rem]');
+    expect(page).not.toHaveClass('max-w-[67.5rem]');
+
+    const hero = screen.getByRole('region', { name: 'Tóm tắt ca khám' });
+    expect(
+      within(hero)
+        .getAllByText(/^(Người khám|Ngày khám|Chuyên khoa|Chi nhánh)$/)
+        .map((label) => label.textContent),
+    ).toEqual(['Người khám', 'Ngày khám', 'Chuyên khoa', 'Chi nhánh']);
+
+    const left = card('Thông tin người khám').parentElement as HTMLElement;
+    const right = card('Thông tin lịch hẹn').parentElement as HTMLElement;
+    expect(left).not.toBe(right);
+    expect(left.parentElement).toBe(right.parentElement);
+    expect(left).toContainElement(card('Hồ sơ khám bệnh'));
+    expect(right).toContainElement(card('Trạng thái ca khám'));
+  });
+
   it('DAD-03 quan hệ: mã của `moi_quan_he` ⇒ nhãn, `BanThan` ⇒ "Bản thân", mã lạ ⇒ "Người thân" (không lộ mã thô)', async () => {
     const quanHe = async (code: string) => {
       const { unmount } = await openDoctorDetail({

@@ -109,6 +109,50 @@ describe('trang chi tiết theo trạng thái', () => {
     },
   );
 
+  // booking F12 (UI-05, UI-07; Đại 14/11/2026). Mã UIF là [đề xuất] (PLAN booking mục 7.48). jsdom không đo khoảng cách nên đây là bằng chứng CẤU TRÚC (mọi hàng cùng dạng ⇒ đoạn nối đều);
+  // số đo thật của đoạn nối (đo bằng trình duyệt) ở TRACKING 3.42.
+  it.each(APPOINTMENT_STATES)(
+    'UIF-05 trạng thái %s ⇒ MỌI hàng của mốc có dòng phụ (chữ "Chưa đến" hay chỗ chừa trống) và đúng (số bước − 1) đoạn nối nên các đoạn nối đều nhau; không chữ "Chưa ghi nhận" (F2 đã bỏ)',
+    async (status) => {
+      renderDetailPage({
+        before: (api) => {
+          api.detail = makeDetail({ trangThai: status, choPhepHuy: false });
+        },
+      });
+      await detailLoaded();
+      const steps = within(timeline()).getAllByRole('listitem');
+      for (const step of steps) {
+        const reserved = step.querySelectorAll(
+          '[data-testid="timeline-reserved-line"]',
+        );
+        const hasUpcoming = within(step).queryByText('Chưa đến') !== null;
+        // Đúng MỘT trong hai: chỗ chừa trống hoặc chữ "Chưa đến"
+        expect(reserved.length + (hasUpcoming ? 1 : 0)).toBe(1);
+      }
+      expect(
+        within(timeline()).getAllByTestId('timeline-connector'),
+      ).toHaveLength(steps.length - 1);
+      expect(screen.queryByText('Chưa ghi nhận')).toBeNull();
+    },
+  );
+
+  it('UIF-07 tiêu đề khối "Trạng thái lịch hẹn" cùng kiểu ba khối còn lại: cùng một lớp CSS của `DetailCard` (đường kẻ dưới, `px-5 py-3.5`, chữ thường đậm), không CHỮ HOA, có biểu tượng', async () => {
+    renderDetailPage();
+    await detailLoaded();
+    const heads = [
+      'Thông tin lịch hẹn',
+      'Chi phí & Thanh toán',
+      'Hồ sơ khám bệnh',
+      'Trạng thái lịch hẹn',
+    ].map((name) => screen.getByRole('heading', { level: 2, name }));
+    for (const head of heads) {
+      expect(head.className).toBe(heads[0].className);
+      expect(head.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+      expect(head).not.toHaveClass('uppercase');
+    }
+    expect(heads[3]).toHaveClass('border-b', 'px-5', 'py-3.5', 'font-semibold');
+  });
+
   it('LCT-01 mã trạng thái lạ và DaDoiLich ⇒ chip "Chưa xác định", trang không vỡ, không lộ mã thô', async () => {
     renderDetailPage({
       before: (api) => {

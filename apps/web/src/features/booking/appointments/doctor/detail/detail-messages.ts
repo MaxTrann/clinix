@@ -8,6 +8,8 @@ export const DETAIL_TEXT = {
   back: 'Lịch hẹn',
   title: 'Chi tiết ca khám',
   loading: 'Đang tải ca khám...',
+  // Tên vùng của thẻ đầu (F12, như trang Bệnh nhân)
+  summary: 'Tóm tắt ca khám',
   notFound: 'Không tìm thấy ca khám này.',
   sessionExpired: COMMON_LIST_TEXT.sessionExpired,
   forbidden: 'Bạn không có quyền xem ca khám này.',
@@ -18,6 +20,8 @@ export const DETAIL_TEXT = {
     timeline: 'Trạng thái ca khám',
   },
   rows: {
+    // Nhãn ô `Người khám` của thẻ đầu (F12)
+    person: 'Người khám',
     name: 'Họ tên',
     relation: 'Quan hệ',
     phone: 'Điện thoại',
