@@ -2,12 +2,12 @@ import { ChevronLeft, X } from 'lucide-react';
 import { useId, useLayoutEffect, useRef, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { useModalDialog } from '../../../../../shared/hooks/use-modal-dialog';
-import { ErrorState } from '../../../../../shared/ui/error-state';
 import { LoadingState } from '../../../../../shared/ui/loading-state';
 import {
   formatVietnamShortDate,
   formatVietnamTime,
 } from '../../common/appointment-format';
+import { DetailFailure } from '../../common/detail-failure';
 import { classifyDetailError } from '../../common/error-kinds';
 import { StatusChip } from '../../common/status-chip';
 import { useInertBackground } from '../../common/use-inert-background';
@@ -19,31 +19,6 @@ import { NoShowDialog } from './no-show-dialog';
 import { ReceptionActions } from './reception-actions';
 import { useReceptionActions } from './use-reception-actions';
 import { useReceptionDetail } from './use-reception-detail';
-
-// Lỗi tải chi tiết chọn câu theo `maLoi`, KHÔNG theo mã HTTP: `KHONG_TIM_THAY` là MỘT câu cho mọi lý do (không có, chi nhánh khác, mã sai dạng: cùng thân 404, không lộ lịch có
-// tồn tại hay không); phiên hết hạn và không đủ quyền có câu riêng, không `Thử lại`; còn lại (mạng, quá giờ, phản hồi lạ, 5xx, `maLoi` lạ) dùng `ErrorState` kèm `Thử lại`.
-function DetailFailure(props: { error: unknown; onRetry: () => void }) {
-  const kind = classifyDetailError(props.error);
-  const message =
-    kind === 'notFound'
-      ? DETAIL_TEXT.notFound
-      : kind === 'session'
-        ? DETAIL_TEXT.sessionExpired
-        : kind === 'forbidden'
-          ? DETAIL_TEXT.forbidden
-          : null;
-  if (message === null) {
-    return <ErrorState error={props.error} onRetry={props.onRetry} />;
-  }
-  return (
-    <p
-      role="alert"
-      className="my-2 rounded-xl border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger-strong"
-    >
-      {message}
-    </p>
-  );
-}
 
 // Ngăn chi tiết một lịch hẹn của Lễ tân (booking F8; Figma `488:2`: ngăn 420 px bên phải, lớp phủ đen 40%, liên kết `Danh sách`). Là hộp thoại MODAL: `role="dialog"`,
 // `aria-modal`, nền `inert` (`useInertBackground`), focus vào `Danh sách` khi mở, Tab bẫy trong ngăn, Esc đóng, trả focus về nút `Chi tiết` của đúng hàng
@@ -191,7 +166,11 @@ export function ReceptionDrawer(props: {
             <LoadingState message={DETAIL_TEXT.loading} />
           )}
           {view.kind === 'error' && (
-            <DetailFailure error={view.error} onRetry={reload} />
+            <DetailFailure
+              error={view.error}
+              onRetry={reload}
+              texts={DETAIL_TEXT}
+            />
           )}
           {ready !== null && (
             <>

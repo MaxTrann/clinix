@@ -7,8 +7,10 @@ import {
   readText,
 } from './response-readers';
 import type {
+  BranchOption,
   DoctorOption,
   OptionList,
+  ServiceOption,
   SpecialtyOption,
 } from './filter-option-types';
 
@@ -74,5 +76,43 @@ export async function getDoctorOptions(
   return {
     ...page,
     options: page.options.sort((a, b) => byName(a.hoTen, b.hoTen)),
+  };
+}
+
+// F10: hai ô lọc của Quản trị viên, cùng cách gọi với hai ô trên (route công khai, không gắn token, `pageSize` 100).
+// `public/branches` có phân trang như hai route trên; `public/services` chỉ trả `{ items }` (không phân trang, chỉ dịch vụ ĐANG cung cấp) nên không bao giờ "rút gọn".
+export async function getBranchOptions(
+  signal?: AbortSignal,
+): Promise<OptionList<BranchOption>> {
+  const page = parseOptionPage(
+    await request<unknown>('public/branches', {
+      ...PUBLIC_OPTIONS,
+      query: { pageSize: OPTION_PAGE_SIZE },
+      signal,
+    }),
+    (item): BranchOption => ({
+      chiNhanhId: readId(item.chiNhanhId),
+      ten: readText(item.ten),
+    }),
+  );
+  return {
+    ...page,
+    options: page.options.sort((a, b) => byName(a.ten, b.ten)),
+  };
+}
+
+export async function getServiceOptions(
+  signal?: AbortSignal,
+): Promise<OptionList<ServiceOption>> {
+  const body = readRecord(
+    await request<unknown>('public/services', { ...PUBLIC_OPTIONS, signal }),
+  );
+  const options = readList(body.items).map((raw): ServiceOption => {
+    const item = readRecord(raw);
+    return { dichVuKhamId: readId(item.dichVuKhamId), ten: readText(item.ten) };
+  });
+  return {
+    options: options.sort((a, b) => byName(a.ten, b.ten)),
+    truncated: false,
   };
 }

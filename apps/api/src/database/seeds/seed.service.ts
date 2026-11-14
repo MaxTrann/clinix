@@ -6,6 +6,7 @@ import { isValidFullName } from '../../auth/validation/full-name-policy.js';
 import { normalizePhone } from '../../auth/validation/phone-policy.js';
 import { CONFIG_DEMO } from './catalog-data.js';
 import { DEV_ACCOUNTS } from './dev-account-data.js';
+import { DoctorDemoRepository } from './doctor-demo.repository.js';
 import { DEMO_DOCTORS } from './search-demo-data.js';
 import { SearchDemoRepository } from './search-demo.repository.js';
 import type { SeedConfig } from './seed-config.js';
@@ -79,6 +80,11 @@ export async function runSeed(
   }
   if (config.command === 'config-dev') validateDemoConfig();
   return seedTransaction(db, async (manager) => {
+    if (config.command === 'doctor-demo') {
+      const demo = new DoctorDemoRepository(manager);
+      await demo.run();
+      return demo.counts;
+    }
     if (config.command === 'search-demo') {
       const demo = new SearchDemoRepository(manager);
       await demo.run(hash!);

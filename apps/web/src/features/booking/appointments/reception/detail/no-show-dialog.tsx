@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { ActionDialog } from './action-dialog';
+import { ActionDialog } from '../../common/action-dialog';
 import { ACTION_TEXT } from './detail-messages';
 import type { StatusActionState } from './use-status-action';
 

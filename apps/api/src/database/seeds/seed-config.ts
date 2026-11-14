@@ -17,6 +17,7 @@ export const SEED_COMMANDS = [
   'first-admin',
   'config-dev',
   'search-demo',
+  'doctor-demo',
 ] as const;
 export type SeedCommand = (typeof SEED_COMMANDS)[number];
 export type SeedEnv = Record<string, string | undefined>;
