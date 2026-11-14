@@ -119,14 +119,15 @@ describe('khung Bác sĩ', () => {
     expect(logoutButtons()).toHaveLength(2);
   });
 
-  it('WK-02 mục chưa có trang là nút vô hiệu (chỉ "Lịch làm việc" là liên kết)', async () => {
+  // booking F11 (Đại duyệt 14/11/2026): mục "Lịch hẹn" nay có `to` nên là liên kết; còn bốn mục chưa có trang vẫn là nút vô hiệu
+  it('WK-02 mục chưa có trang là nút vô hiệu (chỉ "Lịch hẹn" và "Lịch làm việc" là liên kết)', async () => {
     signedInAs('BacSi');
     renderAt(DOCTOR_PATHS.schedule);
     const aside = await shell();
     const menu = within(aside).getByRole('navigation', { name: 'Menu chính' });
-    expect(within(menu).getAllByRole('link')).toHaveLength(1);
+    expect(within(menu).getAllByRole('link')).toHaveLength(2);
     const buttons = within(menu).getAllByRole('button');
-    expect(buttons).toHaveLength(5);
+    expect(buttons).toHaveLength(4);
     for (const button of buttons) expect(button).toBeDisabled();
   });
 

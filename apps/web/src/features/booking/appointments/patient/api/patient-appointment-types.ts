@@ -1,6 +1,7 @@
 import type { AppointmentCore } from '../../common/appointment-core';
 import type { AppointmentState } from '../../common/appointment-status';
 import type { RefundAmount } from '../../common/refund-types';
+import type { StatusCounts } from '../../common/status-counts';
 
 // Kiểu dữ liệu của "Lịch hẹn của tôi" (booking F1; hợp đồng `GET /patient/appointments` ở PLAN 5.9, TRACKING 3.13.2).
 
@@ -12,8 +13,8 @@ export interface PatientAppointment extends AppointmentCore {
   choPhepHuy: boolean;
 }
 
-// Số lịch theo từng trạng thái: đủ sáu khoá, áp mọi bộ lọc TRỪ `trangThai[]` (B1), không có `DaDoiLich`. KHÔNG tự đếm lại từ `items`.
-export type StatusCounts = Record<AppointmentState, number>;
+// Số lịch theo từng trạng thái: kiểu chuyển lên `common/status-counts.ts` ở F11 (Bác sĩ cũng có `demTheoTrangThai`); xuất lại để các import cũ vẫn chạy.
+export type { StatusCounts };
 
 export interface PatientAppointmentPage {
   items: PatientAppointment[];

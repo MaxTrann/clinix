@@ -47,3 +47,34 @@ export function DetailRow({
     </div>
   );
 }
+
+// Một cặp "nhãn, giá trị" của thẻ chi tiết kiểu Figma `512:2`, `458:2` (nhãn nhỏ xám ở trên, giá trị đậm vừa ở dưới, hai cột): booking F10 viết trong `admin/detail/detail-sections.tsx`, chuyển lên `common/` ở F11
+// (Quản trị viên và Bác sĩ cùng dùng). Màu chữ phụ theo thang chuẩn của ADR 0004 (`gray-600`), không chép `#6a7282` của Figma. `wide` chiếm cả hai cột (câu dài như lý do khám).
+export function DetailFact(props: {
+  label: string;
+  children: ReactNode;
+  wide?: boolean;
+  note?: string;
+}) {
+  return (
+    <div className={props.wide ? 'sm:col-span-2' : undefined}>
+      <dt className="text-xs text-gray-600">{props.label}</dt>
+      <dd className="pt-0.5 text-sm font-medium break-words text-gray-900">
+        {props.children}
+        {props.note !== undefined && (
+          <span className="block text-xs font-normal text-gray-600">
+            {props.note}
+          </span>
+        )}
+      </dd>
+    </div>
+  );
+}
+
+export function DetailFacts({ children }: { children: ReactNode }) {
+  return (
+    <dl className="grid gap-x-4 gap-y-3 px-5 py-4 sm:grid-cols-2">
+      {children}
+    </dl>
+  );
+}

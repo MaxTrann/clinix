@@ -15,6 +15,7 @@ import {
 import { DOCTOR_PATHS, RECEPTION_SCHEDULE_PATH } from '../features/doctor';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
 import {
+  DOCTOR_APPOINTMENTS_PATH,
   PATIENT_APPOINTMENTS_PATH,
   RECEPTION_APPOINTMENTS_PATH,
 } from '../shared/routes/booking-paths';
@@ -73,7 +74,7 @@ export const RECEPTION_NAV: { items: RoleNavItem[] } = {
 export const DOCTOR_NAV: { items: RoleNavItem[] } = {
   items: [
     { label: 'Tổng quan', icon: LayoutDashboard },
-    { label: 'Lịch hẹn', icon: Calendar },
+    { label: 'Lịch hẹn', icon: Calendar, to: DOCTOR_APPOINTMENTS_PATH },
     { label: 'Lịch làm việc', icon: ClipboardList, to: DOCTOR_PATHS.schedule },
     { label: 'Tin nhắn', icon: MessageCircle },
     { label: 'Thông báo', icon: Bell },

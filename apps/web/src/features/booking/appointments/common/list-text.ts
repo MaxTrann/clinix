@@ -22,6 +22,10 @@ export const COMMON_LIST_TEXT = {
 export const pageLabel = (page: number, pageCount: number) =>
   `Trang ${page} / ${pageCount}`;
 
+// Dòng "Hiển thị X / Y lịch hẹn" dưới thẻ lọc trạng thái (booking F1 viết ở `patient/list-messages.ts`, chuyển lên `common/` ở F11): `shown` là số dòng của trang, `total` của API
+export const shownLabel = (shown: number, total: number) =>
+  `Hiển thị ${shown} / ${total} lịch hẹn`;
+
 export const optionsFailedLabel = (what: string) =>
   `Không tải được danh sách ${what}.`;
 

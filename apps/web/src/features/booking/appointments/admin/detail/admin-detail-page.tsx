@@ -6,6 +6,7 @@ import { LoadingState } from '../../../../../shared/ui/loading-state';
 import { ActionNotice } from '../../common/action-notice';
 import { appointmentStateLabel } from '../../common/appointment-status';
 import { DetailFailure } from '../../common/detail-failure';
+import { readListSearch } from '../../common/list-search';
 import { refundResultLine } from '../../common/refund-text';
 import { StatusChip } from '../../common/status-chip';
 import { DETAIL_TEXT, doneLabel } from './detail-messages';
@@ -15,18 +16,6 @@ import { OverrideActions } from './override-actions';
 import { OverrideDialog } from './override-dialog';
 import { useAdminDetail } from './use-admin-detail';
 import { useOverride } from './use-override';
-
-// `search` của danh sách lúc bấm `Chi tiết` (`location.state.listSearch`; chỉ bộ lọc không cá nhân, KHÔNG có `q`). Giá trị từ lịch sử trình duyệt nên kiểm lại: chỉ nhận chuỗi rỗng hay bắt
-// đầu bằng `?`; vào thẳng chi tiết (không có state) thì về danh sách trơn.
-function readListSearch(state: unknown): string {
-  const value =
-    typeof state === 'object' && state !== null
-      ? (state as { listSearch?: unknown }).listSearch
-      : undefined;
-  return typeof value === 'string' && (value === '' || value.startsWith('?'))
-    ? value
-    : '';
-}
 
 // Trang chi tiết một lịch hẹn của Quản trị viên (booking F10; Figma `512:2`): `Quay lại danh sách`, h1 `Chi tiết lịch hẹn`, mã, chip trạng thái; lưới ba cột: hai thẻ thông tin (hai cột) và, bên phải,
 // panel `Lịch sử trạng thái` cùng thẻ `Thao tác` (nhóm nút override theo `chuyenDuoc[]`, chỗ Figma dành cho thẻ `Thanh toán` đang ẩn: [đề xuất]). Nội dung từ MỘT nguồn là chi tiết. Hộp override là modal

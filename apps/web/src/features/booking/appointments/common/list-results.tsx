@@ -6,7 +6,8 @@ import type { ListView, PagedData } from './use-list-view';
 
 // Phần dưới ô lọc của trang danh sách lịch hẹn có phân trang (booking F8 viết ở `reception/reception-results.tsx`, chuyển lên `common/` ở F10: Lễ tân và Quản trị viên cùng dùng):
 // đang tải lần đầu, lỗi theo `maLoi`, hoặc bảng + chuyển trang. Khi đổi trang hay bộ lọc, bảng của truy vấn trước vẫn hiện (`aria-busy`, mờ đi) tới khi truy vấn mới về, không
-// nhấp nháy về "Đang tải". Rỗng: MỘT câu do nơi gọi chọn (`emptyMessage`: không có lịch trong khoảng ngày, hay không khớp bộ lọc), kèm `Xóa lọc` khi nơi gọi đưa `clear`.
+// nhấp nháy về "Đang tải". Phần đầu tuỳ chọn (`renderHeader`, F11: thẻ lọc trạng thái có số đếm và dòng "Hiển thị" của Bác sĩ) vẽ trong khung `aria-busy`, trên phần mờ, KỂ CẢ khi bảng rỗng
+// (để chip còn bấm được khi lọc ra 0 dòng); trang không truyền thì không đổi. Rỗng: MỘT câu do nơi gọi chọn (`emptyMessage`: không có lịch trong khoảng ngày, hay không khớp bộ lọc), kèm `Xóa lọc` khi nơi gọi đưa `clear`.
 function EmptyList(props: {
   message: string;
   clear: { label: string; onClick: () => void } | null;
@@ -36,6 +37,7 @@ export function ListResults<T extends PagedData>(props: {
   emptyMessage: string;
   clear: { label: string; onClick: () => void } | null;
   renderTable: (data: T) => ReactNode;
+  renderHeader?: (data: T) => ReactNode;
 }) {
   const { view } = props;
   if (view.kind === 'loading') {
@@ -48,6 +50,7 @@ export function ListResults<T extends PagedData>(props: {
   const { data, refreshing } = view;
   return (
     <div aria-busy={refreshing} className="mt-4">
+      {props.renderHeader?.(data)}
       <div className={refreshing ? 'opacity-60' : undefined}>
         {data.items.length === 0 ? (
           <EmptyList message={props.emptyMessage} clear={props.clear} />

@@ -22,6 +22,7 @@ import {
 } from '../features/patient';
 import {
   ADMIN_APPOINTMENT_ROUTES,
+  DOCTOR_APPOINTMENT_ROUTES,
   PATIENT_APPOINTMENT_ROUTES,
   RECEPTION_APPOINTMENT_ROUTES,
 } from '../features/booking';
@@ -66,6 +67,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
             element: <Navigate to={DOCTOR_PATHS.schedule} replace />,
           },
           ...DOCTOR_ROUTES,
+          // booking F11: Lịch hẹn của Bác sĩ
+          ...DOCTOR_APPOINTMENT_ROUTES,
         ],
       },
     ],

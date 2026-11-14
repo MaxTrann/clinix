@@ -2,7 +2,10 @@ import {
   isAppointmentState,
   type AppointmentState,
 } from '../common/appointment-status';
-import { isDateRangeValid } from '../common/date-range';
+import { isCalendarDate, isDateRangeValid } from '../common/date-range';
+
+// Hàm kiểm ngày đã chuyển lên `common/date-range.ts` ở F11; xuất lại tên cũ cho test của F10
+export { isCalendarDate };
 
 // Bộ lọc KHÔNG cá nhân của "Lịch hẹn" của Quản trị viên (booking F10; trả lời (c) của phiên kiểm 13/11/2026: giữ bộ lọc trên URL để quay lại từ trang chi tiết không mất). Hàm thuần: đọc từ
 // và ghi vào `URLSearchParams`. CHỈ trạng thái, chi nhánh, chuyên khoa, bác sĩ, dịch vụ, khoảng ngày và trang nằm trên URL (id số, mã trạng thái, ngày: không phải dữ liệu cá nhân);
@@ -36,21 +39,8 @@ export const EMPTY_FILTERS: AdminFilters = {
 
 // Id BIGINT dạng chuỗi số dương không có số 0 đứng đầu (như `readId`): giữ chuỗi, KHÔNG bao giờ `Number`
 const ID = /^[1-9][0-9]*$/;
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
 // Trang: số nguyên dương nhiều nhất 5 chữ số `[đề xuất]` (URL tự gõ `page=99999999999` không được đẩy lên API)
 const PAGE = /^[1-9][0-9]{0,4}$/;
-
-// Ngày lịch có thật (không `2026-13-45`, không `2026-02-30`); dựng ở UTC trên ba số năm-tháng-ngày, không đọc múi giờ của máy
-export function isCalendarDate(value: string): boolean {
-  if (!DATE.test(value)) return false;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
 
 export function readFilters(
   params: URLSearchParams,

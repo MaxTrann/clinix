@@ -39,6 +39,17 @@ const WEEKDAY_LABELS = [
   'Thứ 7',
 ] as const;
 
+// Cùng chỉ số: 0 = Chủ nhật. Chữ như Figma Bác sĩ `457:2` ("T3, 20/10/2026", "CN, 18/10/2026")
+const SHORT_WEEKDAY_LABELS = [
+  'CN',
+  'T2',
+  'T3',
+  'T4',
+  'T5',
+  'T6',
+  'T7',
+] as const;
+
 // Thứ theo quy ước ISO của API (A6: `chiTiet.thuTrongTuan`, 1 = Thứ 2 … 7 = Chủ nhật) ⇒ "Thứ 2" … "Chủ nhật"; ngoài 1 đến 7 ⇒ null. Dùng chung bảng nhãn ở trên (booking F4).
 export function isoWeekdayLabel(iso: unknown): string | null {
   return typeof iso === 'number' &&
@@ -57,6 +68,16 @@ export function formatVietnamWeekdayDate(iso: string): string {
     Date.UTC(Number(year), Number(month) - 1, Number(day)),
   ).getUTCDay();
   return `${WEEKDAY_LABELS[weekday]}, ${day}/${month}/${year}`;
+}
+
+// ISO UTC ⇒ "T3, 20/10/2026", "CN, 18/10/2026" theo NGÀY giờ Việt Nam (Figma Bác sĩ `457:2`: ô "Ngày / Giờ" của danh sách; booking F11): thứ viết tắt T2 đến T7 và CN, cùng cách lấy ngày như trên
+// (không cắt chuỗi, không theo múi giờ máy).
+export function formatVietnamShortWeekdayDate(iso: string): string {
+  const { year, month, day } = vietnamParts(iso);
+  const weekday = new Date(
+    Date.UTC(Number(year), Number(month) - 1, Number(day)),
+  ).getUTCDay();
+  return `${SHORT_WEEKDAY_LABELS[weekday]}, ${day}/${month}/${year}`;
 }
 
 // ISO UTC ⇒ "18/10" theo NGÀY giờ Việt Nam, không năm (Figma Lễ tân `479:2`: ô "Ngày & Giờ" ghi giờ rồi ngày ngắn). Cùng cách lấy ngày như trên: không cắt chuỗi, không theo múi giờ máy.

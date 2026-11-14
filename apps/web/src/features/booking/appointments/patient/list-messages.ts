@@ -39,5 +39,4 @@ export const LIST_TEXT = {
 // Chữ ẩn sau `Chi tiết` (booking F2): "Chi tiết lịch hẹn CP…", để người dùng trình đọc màn hình phân biệt các liên kết cùng tên trong bảng
 export const detailLinkSuffix = (maLichHen: string) => ` lịch hẹn ${maLichHen}`;
 
-export const shownLabel = (shown: number, total: number) =>
-  `Hiển thị ${shown} / ${total} lịch hẹn`;
+export { shownLabel } from '../common/list-text';

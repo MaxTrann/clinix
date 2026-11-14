@@ -67,3 +67,16 @@ export const adminAppointmentDetailPath = (maLichHen: string) =>
     ':maLichHen',
     encodeURIComponent(maLichHen),
   );
+
+// "Lịch hẹn" của Bác sĩ (booking F11, BP-14; tên đường dẫn là [đề xuất], Đại duyệt 14/11/2026). `*_SEGMENT` là mẫu TƯƠNG ĐỐI với `/bac-si-portal` cho route con của khung Bác sĩ
+// (`DOCTOR_APPOINTMENT_ROUTES`), `*_PATH` và `*_ROUTE` là đường dẫn đầy đủ (mục menu, liên kết). File này không import gì nên gốc khu Bác sĩ viết thẳng `/bac-si-portal`; ca BP-14 khoá nó khớp
+// `ROLE_HOME_PATHS.BacSi`. Chi tiết một lịch là TRANG (Figma `458:2`), mã lịch nằm trên đường dẫn như ở đường dẫn API; `encodeURIComponent` để mã có ký tự đặc biệt không làm vỡ URL.
+export const DOCTOR_APPOINTMENTS_SEGMENT = 'lich-hen';
+export const DOCTOR_APPOINTMENTS_PATH = `/bac-si-portal/${DOCTOR_APPOINTMENTS_SEGMENT}`;
+export const DOCTOR_APPOINTMENT_DETAIL_SEGMENT = `${DOCTOR_APPOINTMENTS_SEGMENT}/:maLichHen`;
+export const DOCTOR_APPOINTMENT_DETAIL_ROUTE = `/bac-si-portal/${DOCTOR_APPOINTMENT_DETAIL_SEGMENT}`;
+export const doctorAppointmentDetailPath = (maLichHen: string) =>
+  DOCTOR_APPOINTMENT_DETAIL_ROUTE.replace(
+    ':maLichHen',
+    encodeURIComponent(maLichHen),
+  );
