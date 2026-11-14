@@ -58,6 +58,8 @@ const OPERATIONS_TABLES = [
 const NGHI_PHEP_TABLES = ['yeu_cau_nghi_phep'];
 // booking P6: mốc hoàn tiền
 const MOC_HOAN_TIEN_TABLES = ['moc_hoan_tien'];
+// doctor-exam P1: hồ sơ khám và đánh giá bác sĩ
+const EXAM_TABLES = ['ho_so_kham', 'danh_gia_bac_si'];
 const MIGRATED_TABLES = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
@@ -66,6 +68,7 @@ const MIGRATED_TABLES = [
   'anh_tai_len',
   ...NGHI_PHEP_TABLES,
   ...MOC_HOAN_TIEN_TABLES,
+  ...EXAM_TABLES,
 ];
 let migrated: DataSource;
 let reference: DataSource;
@@ -103,6 +106,7 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
 
   // TBLH-10: gồm cả thong_bao.lich_hen_id (thứ tự cột, COMMENT, chỉ mục thong_bao_index_lich_hen, thong_bao_ibfk_3).
   // MHT-03: gồm cả moc_hoan_tien (COMMENT, UNIQUE moc_hoan_tien_index_1, khóa ngoại moc_hoan_tien_ibfk_1, CHECK chk_moc_hoan_ty_le).
+  // MGK-05: gồm cả ho_so_kham và danh_gia_bac_si (UNIQUE lich_hen_id, khóa ngoại *_ibfk_1, COMMENT bảng và cột, hai CHECK chk_danh_gia_*).
   it('SHOW CREATE TABLE của DB dựng bằng migration giống hệt DB dựng thẳng từ file SQL chính thức', async () => {
     const tables = (await listTables(migrated)).filter(
       (table) => table !== 'migrations' && table !== 'typeorm_metadata',
@@ -122,6 +126,21 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
         await showCreateTable(reference, table),
       );
     }
+
+    // MGK-05: hai bảng của doctor-exam P1 có mặt thật và mang đủ ràng buộc/ghi chú, để phép so ở trên không rỗng
+    const danhGia = await showCreateTable(migrated, 'danh_gia_bac_si');
+    for (const part of [
+      'UNIQUE KEY `lich_hen_id`',
+      'CONSTRAINT `chk_danh_gia_so_sao` CHECK',
+      'CONSTRAINT `chk_danh_gia_an` CHECK',
+      'Tối đa 1 đánh giá cho mỗi lịch hẹn',
+      'COMMENT=',
+    ]) {
+      expect(danhGia, part).toContain(part);
+    }
+    expect(await showCreateTable(migrated, 'ho_so_kham')).toContain(
+      'UNIQUE KEY `lich_hen_id`',
+    );
   });
 
   it('mọi câu lệnh trong migration thuộc đúng 5 bảng auth', () => {
