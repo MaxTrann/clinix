@@ -16,24 +16,25 @@ function AppointmentRow({ appointment }: { appointment: PatientAppointment }) {
   const { nguoiKham } = appointment;
   return (
     <tr className="border-t border-gray-100">
+      {/* F12 (UI-02, UI-03; Đại 14/11/2026): thứ, ngày và giờ CÙNG một hàng (lệch Figma `411:2` có chủ ý: Figma để giờ ở dòng riêng); dòng chính (bác sĩ, người khám) `font-medium`
+          để cân với hàng ngày giờ đậm; dòng phụ `text-gray-700` (đậm hơn `gray-600`, thêm tương phản; đo ở TRACKING 3.42) */}
       <td className={BODY_CELL}>
         <p className="font-semibold text-gray-900">
-          {formatVietnamWeekdayDate(appointment.thoiGian)}
+          <span>{formatVietnamWeekdayDate(appointment.thoiGian)}</span>
+          <span aria-hidden="true"> · </span>
+          <span>{formatVietnamTime(appointment.thoiGian)}</span>
         </p>
-        <p className="text-gray-900">
-          {formatVietnamTime(appointment.thoiGian)}
-        </p>
-        <p className="font-mono text-xs text-gray-600">
+        <p className="font-mono text-xs text-gray-700">
           {appointment.maLichHen}
         </p>
       </td>
       <td className={BODY_CELL}>
-        <p className="text-gray-900">{appointment.bacSi}</p>
-        <p className="text-gray-600">{appointment.chuyenKhoa}</p>
+        <p className="font-medium text-gray-900">{appointment.bacSi}</p>
+        <p className="text-gray-700">{appointment.chuyenKhoa}</p>
       </td>
       <td className={BODY_CELL}>
-        <p className="text-gray-900">{nguoiKham.hoTen}</p>
-        <p className="text-gray-600">
+        <p className="font-medium text-gray-900">{nguoiKham.hoTen}</p>
+        <p className="text-gray-700">
           {nguoiKham.laBanThan ? LIST_TEXT.ownPerson : LIST_TEXT.relativePerson}
         </p>
       </td>

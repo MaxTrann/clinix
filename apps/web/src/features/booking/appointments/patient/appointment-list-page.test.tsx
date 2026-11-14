@@ -520,6 +520,15 @@ describe('dòng lịch hẹn', () => {
 
     expect(within(rows[0]).getByText('Thứ 3, 20/10/2026')).toBeInTheDocument();
     expect(within(rows[0]).getByText('08:00')).toBeInTheDocument();
+    // UIF-02 (F12, UI-02): thứ, ngày và giờ CÙNG MỘT hàng ("Thứ 3, 20/10/2026 · 08:00"); mã lịch ở hàng dưới
+    const dateText = within(rows[0]).getByText('Thứ 3, 20/10/2026');
+    expect(dateText.parentElement).toBe(
+      within(rows[0]).getByText('08:00').parentElement,
+    );
+    expect(dateText.parentElement).toHaveTextContent(
+      'Thứ 3, 20/10/2026 · 08:00',
+    );
+    expect(dateText.parentElement).not.toHaveTextContent('CP20261020001');
     expect(within(rows[0]).getByText('CP20261020001')).toBeInTheDocument();
     expect(within(rows[0]).getByText('300.000đ')).toBeInTheDocument();
     expect(

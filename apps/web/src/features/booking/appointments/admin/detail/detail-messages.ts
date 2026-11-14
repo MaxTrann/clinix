@@ -12,8 +12,12 @@ export const DETAIL_TEXT = {
   notFound: COMMON_ACTION_TEXT.notFound,
   sessionExpired: COMMON_LIST_TEXT.sessionExpired,
   forbidden: 'Bạn không có quyền xem lịch hẹn này.',
+  // Tên vùng của thẻ đầu (F12, như trang Bệnh nhân)
+  summary: 'Tóm tắt lịch hẹn',
   sections: {
     appointment: 'Thông tin lịch hẹn',
+    // F12: tiền đi cùng nhau trong một thẻ như trang Bệnh nhân (chỗ của thẻ `Thanh toán` ở Figma `512:2`)
+    cost: 'Chi phí & Thanh toán',
     patient: 'Thông tin bệnh nhân',
     history: 'Lịch sử trạng thái',
     actions: 'Thao tác',
@@ -30,6 +34,7 @@ export const DETAIL_TEXT = {
     paymentDeadline: 'Hạn thanh toán',
     cancelReason: 'Lý do hủy',
     due: 'Còn phải thu',
+    person: 'Người khám',
     name: 'Họ tên',
     booker: 'Người đặt',
     phone: 'Số điện thoại',
@@ -82,9 +87,9 @@ export const OVERRIDE_TEXT = {
     VangMat:
       'Lịch hẹn sẽ được ghi nhận vắng mặt và cộng một lần vắng mặt cho bệnh nhân.',
     DaTiepDon: 'Bỏ qua cửa sổ tiếp đón và khoản còn phải thu.',
-    // TECH_DEBT 120: lịch khôi phục mà ca khám đã kết thúc bị job tự Vắng mặt đánh lại trong tối đa 5 phút (và cộng vắng mặt lần hai)
+    // Sau B18 job tự Vắng mặt BỎ QUA lịch đã được override (TECH_DEBT 138): lịch khôi phục mà bệnh nhân vẫn vắng không bao giờ tự Vắng mặt, nên hộp phải nói đúng điều đó (booking F12, UI-13)
     DaXacNhan:
-      'Khôi phục không trừ lần vắng mặt đã ghi. Nếu ca khám đã kết thúc, hệ thống sẽ tự đánh Vắng mặt lại trong tối đa 5 phút. Nếu bệnh nhân đã đến, hãy chọn Đã tiếp đón.',
+      'Khôi phục không trừ lần vắng mặt đã ghi. Hệ thống sẽ không tự đánh Vắng mặt lại lịch đã khôi phục: nếu bệnh nhân vẫn không đến, hãy đổi sang Vắng mặt thủ công. Nếu bệnh nhân đã đến, hãy chọn Đã tiếp đón.',
   } satisfies Record<OverrideTarget, string>,
   // POST không biết kết quả khi mất mạng, quá giờ hay phản hồi lạ: máy chủ có thể đã xử lý xong (nếp F2, F9). Bấm lại thủ công an toàn: lần hai ra 409 cùng đích.
   unsure: {

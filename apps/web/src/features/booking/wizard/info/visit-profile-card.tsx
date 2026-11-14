@@ -40,7 +40,7 @@ const SELF_LABEL = 'Bản thân';
 
 // Thẻ "Người đi khám" (Figma `449:2`, `450:2`): thẻ hồ sơ `Đang chọn` (mặc định là bản thân) và nút `Chọn người thân khác` mở HỘP CHỌN. Figma vẽ hộp là nhóm radio
 // (vòng tròn) nên dùng `<input type="radio">` gốc: Tab vào nhóm, mũi tên đổi lựa chọn, bàn phím và trình đọc màn hình tự có. Chọn là ÁP DỤNG NGAY (thẻ phía trên đổi);
-// hộp ở yên cho tới khi đóng (nút "Đóng, giữ lựa chọn hiện tại", nút ✕ hay `Esc`) để mũi tên không đóng hộp giữa lúc duyệt danh sách. Đóng thì tiêu điểm về nút mở.
+// hộp ở yên cho tới khi đóng (nút ✕ "Đóng danh sách" hay `Esc`; F12 bỏ dòng "Đóng, giữ lựa chọn hiện tại") để mũi tên không đóng hộp giữa lúc duyệt danh sách. Đóng thì tiêu điểm về nút mở.
 // Hồ sơ người thân do `relatives` cấp (đã lọc hồ sơ ngừng sử dụng ở bộ đọc). Lỗi tải chỉ ảnh hưởng hộp: bản thân luôn chọn được.
 export function VisitProfileCard({
   selfName,
@@ -185,13 +185,14 @@ export function VisitProfileCard({
               Bạn chưa có hồ sơ người thân.
             </p>
           )}
-          {/* Thêm hồ sơ ở TAB MỚI (Đại duyệt 13/11/2026): bản nháp nằm trong bộ nhớ của trang này nên rời trang cùng tab sẽ mất lý do đã gõ. Quay lại tab này rồi bấm "Làm mới danh sách" */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-4">
+          {/* Thêm hồ sơ ở TAB MỚI (Đại duyệt 13/11/2026): bản nháp nằm trong bộ nhớ của trang này nên rời trang cùng tab sẽ mất lý do đã gõ. Quay lại tab này rồi bấm "Làm mới danh sách".
+              F12 (UI-01, Đại 14/11/2026): "Thêm hồ sơ người thân mới" là nút chính, "Làm mới danh sách" chỉ còn biểu tượng (vẫn có tên truy cập), bỏ dòng "Đóng, giữ lựa chọn hiện tại" vì đã có ✕ và Esc (lệch Figma `450:2` có chủ ý). */}
+          <div className="flex items-center justify-between gap-3 border-t border-gray-200 px-4 py-3">
             <Link
               to={PATIENT_PROFILE_PATH}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-13 items-center gap-2 font-semibold text-brand-strong"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand-strong px-4 text-sm font-semibold text-white hover:bg-cyan-800"
             >
               <Plus aria-hidden="true" className="size-4" />
               Thêm hồ sơ người thân mới
@@ -201,19 +202,13 @@ export function VisitProfileCard({
               type="button"
               onClick={onRetryRelatives}
               disabled={refreshing}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-gray-500 px-3 text-sm font-medium text-gray-800 disabled:border-gray-300 disabled:text-gray-600"
+              aria-label="Làm mới danh sách"
+              title="Làm mới danh sách"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-gray-500 text-gray-800 disabled:border-gray-300 disabled:text-gray-600"
             >
               <RefreshCw aria-hidden="true" className="size-4" />
-              Làm mới danh sách
             </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="block min-h-11 w-full border-t border-gray-200 px-4 py-2 font-medium text-gray-800"
-          >
-            Đóng, giữ lựa chọn hiện tại
-          </button>
         </div>
       ) : (
         <button

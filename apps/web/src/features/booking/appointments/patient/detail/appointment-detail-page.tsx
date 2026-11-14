@@ -1,4 +1,3 @@
-import { ArrowLeft } from 'lucide-react';
 import { useRef, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { PATIENT_APPOINTMENTS_PATH } from '../../../../../shared/routes/booking-paths';
@@ -10,6 +9,7 @@ import {
 } from '../../common/error-kinds';
 import { LIST_TEXT } from '../list-messages';
 import { CancelSection } from './cancel-section';
+import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
 import { DetailCostCard } from './detail-cost';
 import { DetailInfoCard, RecordCard } from './detail-info';
 import { DETAIL_TEXT } from './detail-messages';
@@ -68,22 +68,12 @@ function AppointmentDetail({ maLichHen }: { maLichHen: string }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   return (
-    <section className="mx-auto max-w-[64rem]">
-      <Link
-        to={PATIENT_APPOINTMENTS_PATH}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900"
-      >
-        <ArrowLeft aria-hidden="true" className="size-4" />
-        {DETAIL_TEXT.backToList}
-      </Link>
-      <h1
-        ref={headingRef}
-        tabIndex={-1}
-        className="pt-2 text-2xl font-bold text-gray-900 outline-none"
-      >
-        {DETAIL_TEXT.title}
-      </h1>
-
+    <DetailPageFrame
+      backTo={PATIENT_APPOINTMENTS_PATH}
+      backLabel={DETAIL_TEXT.backToList}
+      title={DETAIL_TEXT.title}
+      headingRef={headingRef}
+    >
       {view.kind === 'loading' && (
         <LoadingState message={DETAIL_TEXT.loading} />
       )}
@@ -97,25 +87,29 @@ function AppointmentDetail({ maLichHen }: { maLichHen: string }) {
       {view.kind === 'ready' && (
         <div aria-busy={view.refreshing} className="mt-5 flex flex-col gap-4">
           <DetailSummary detail={view.detail} />
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start">
-            <div className="flex flex-col gap-4">
-              <DetailInfoCard detail={view.detail} />
-              <RecordCard />
-            </div>
-            <div className="flex flex-col gap-4">
-              <DetailCostCard detail={view.detail} />
-              <DetailTimeline status={view.detail.trangThai} />
-              <CancelSection
-                detail={view.detail}
-                box={box}
-                onReload={reload}
-                fallbackFocusRef={headingRef}
-              />
-            </div>
-          </div>
+          <DetailColumns
+            main={
+              <>
+                <DetailInfoCard detail={view.detail} />
+                <RecordCard />
+              </>
+            }
+            side={
+              <>
+                <DetailCostCard detail={view.detail} />
+                <DetailTimeline status={view.detail.trangThai} />
+                <CancelSection
+                  detail={view.detail}
+                  box={box}
+                  onReload={reload}
+                  fallbackFocusRef={headingRef}
+                />
+              </>
+            }
+          />
         </div>
       )}
-    </section>
+    </DetailPageFrame>
   );
 }
 
