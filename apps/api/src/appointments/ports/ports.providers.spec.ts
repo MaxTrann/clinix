@@ -17,6 +17,7 @@ import {
   PENDING_BRANCH_CHANGES_PORT,
 } from './pending-branch-changes.port.js';
 import { BookingNotifier } from '../notifications/booking-notifier.js';
+import { LeaveReader } from '../../scheduling/leave/leave.reader.js';
 import {
   BOOKING_PORT_PROVIDERS,
   BOOKING_PORT_TOKENS,
@@ -41,12 +42,18 @@ const EXPECTED = [
   [APPOINTMENT_NOTIFIER, NoopAppointmentNotifier],
 ] as const;
 
-// B15 (TRACKING 3.37 B15-J): trong `AppointmentsModule` cổng thông báo là BẢN THẬT (`BookingNotifier`), bảy cổng còn lại vẫn là `Noop`. Mảng `BOOKING_PORT_PROVIDERS` và lớp `Noop` giữ nguyên (test dựng riêng dùng chúng).
-const EXPECTED_IN_MODULE = EXPECTED.map(([token, noop]) =>
-  token === APPOINTMENT_NOTIFIER
-    ? ([token, BookingNotifier] as const)
-    : ([token, noop] as const),
-);
+// B15 (TRACKING 3.37 B15-J): trong `AppointmentsModule` cổng thông báo là BẢN THẬT (`BookingNotifier`). B16a (TRACKING 3.39 B16a-C): cổng nghỉ phép cũng là BẢN THẬT (`LeaveReader` của `SchedulingModule`, `useExisting`), sáu cổng
+// còn lại vẫn là `Noop`. Mảng `BOOKING_PORT_PROVIDERS` và lớp `Noop` giữ nguyên (test dựng riêng dùng chúng).
+const REAL_IN_MODULE = new Map<symbol, new (...args: never[]) => unknown>([
+  [APPOINTMENT_NOTIFIER, BookingNotifier],
+  [DOCTOR_LEAVE_PORT, LeaveReader],
+]);
+const EXPECTED_IN_MODULE = EXPECTED.map(([token, noop]) => {
+  const real = REAL_IN_MODULE.get(token);
+  return real === undefined
+    ? ([token, noop] as const)
+    : ([token, real] as const);
+});
 
 // AppointmentsModule có service đọc DB (task B1) nên đòi `DataSource`; app thật có sẵn toàn cục từ DatabaseModule, còn test dựng riêng module cấp một DataSource GIẢ
 // (không DB, không ai gọi tới nó trong các ca này) bằng `useMocker`, như `doctor-leave.port.int-spec.ts`. Token nào khác vẫn thiếu thì Nest báo lỗi như cũ.
@@ -71,7 +78,7 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
     ).toEqual(EXPECTED.map(([token, noop]) => [token, noop]));
   });
 
-  it('AppointmentsModule cấp đủ tám token: bảy bản Noop và BookingNotifier THẬT cho AppointmentNotifier (không cần DB)', async () => {
+  it('AppointmentsModule cấp đủ tám token: sáu bản Noop, BookingNotifier THẬT cho AppointmentNotifier và LeaveReader THẬT (đúng thể hiện của SchedulingModule) cho DoctorLeavePort (không cần DB)', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppointmentsModule],
     })
@@ -82,10 +89,14 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
     expect(
       moduleRef.get(APPOINTMENT_NOTIFIER, { strict: false }),
     ).not.toBeInstanceOf(NoopAppointmentNotifier);
+    const leave = moduleRef.get(DOCTOR_LEAVE_PORT, { strict: false });
+    expect(leave).not.toBeInstanceOf(NoopDoctorLeavePort);
+    // `useExisting`: cùng MỘT thể hiện với `LeaveReader` của SchedulingModule, không phải bản sao
+    expect(leave).toBe(moduleRef.get(LeaveReader, { strict: false }));
     await moduleRef.close();
   });
 
-  it('overrideProvider(token).useValue(fake) thay đúng MỘT cổng; bảy cổng còn lại vẫn là Noop', async () => {
+  it('overrideProvider(token).useValue(fake) thay đúng MỘT cổng; bảy cổng còn lại giữ bản của module', async () => {
     const fake = { findBlockingLeave: () => Promise.resolve(null) };
     const moduleRef = await Test.createTestingModule({
       imports: [AppointmentsModule],
