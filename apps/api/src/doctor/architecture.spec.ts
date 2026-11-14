@@ -1,6 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AuditModule } from '../audit/audit.module.js';
 import { RbacModule } from '../rbac/rbac.module.js';
@@ -82,14 +82,80 @@ describe('HD-08 quét mã doctor/ và scheduling/', () => {
   });
 });
 
+// E8 (doctor-exam P3, HDK-04): đúng MỘT file của doctor/ được nhắc AppointmentTransitionService, để gọi `complete` (booking D6; task B1 viết file này). Đường dẫn tính từ doctor/.
+const ALLOWED_TRANSITION_FILES = [
+  'examination/completion/exam-completion.service.ts',
+];
+
+/** Đường dẫn các file vi phạm PD-19. File trong `allowed` chỉ được bỏ riêng token AppointmentTransitionService; RefundPort, WaitlistPort… vẫn cấm ở chính file đó. */
+function pd19Violations(
+  files: readonly { path: string; source: string }[],
+  allowed: readonly string[] = ALLOWED_TRANSITION_FILES,
+): string[] {
+  const forbidden =
+    /\b(RefundPort|REFUND_PORT|WaitlistPort|WAITLIST_PORT|AppointmentTransitionService)\b/;
+  return files
+    .filter(({ path, source }) => {
+      const code = stripComments(source);
+      return forbidden.test(
+        allowed.includes(path)
+          ? code.replace(/\bAppointmentTransitionService\b/g, '')
+          : code,
+      );
+    })
+    .map(({ path }) => path);
+}
+
 describe('PD-19 Duyệt chỉ huỷ lịch qua cancel của booking (H6)', () => {
-  it('mã doctor/ không dùng RefundPort, WaitlistPort hay AppointmentTransitionService: hoàn tiền, mời chờ, đổi trạng thái lịch đều nằm trong cancel của booking', () => {
-    const forbidden =
-      /\b(RefundPort|REFUND_PORT|WaitlistPort|WAITLIST_PORT|AppointmentTransitionService)\b/;
-    const found = listSourceFiles(DOCTOR_DIR).filter((file) =>
-      forbidden.test(stripComments(readSource(file))),
-    );
-    expect(found).toEqual([]);
+  it('mã doctor/ không dùng RefundPort, WaitlistPort hay AppointmentTransitionService (trừ đúng một file ngoại lệ của E8): hoàn tiền, mời chờ, đổi trạng thái lịch đều nằm trong cancel của booking', () => {
+    const files = listSourceFiles(DOCTOR_DIR).map((file) => ({
+      path: relative(DOCTOR_DIR, file).split(sep).join('/'),
+      source: readSource(file),
+    }));
+    expect(files.length).toBeGreaterThan(5);
+    expect(pd19Violations(files)).toEqual([]);
+  });
+
+  it('E8, HDK-04: ngoại lệ là đúng MỘT file examination/completion/exam-completion.service.ts (thêm phần tử hay gõ sai đường dẫn là đỏ)', () => {
+    expect(ALLOWED_TRANSITION_FILES).toEqual([
+      'examination/completion/exam-completion.service.ts',
+    ]);
+  });
+
+  it('E8, HDK-04 (đột biến tổng hợp): đặt AppointmentTransitionService ở file khác của doctor/ bị bắt; đúng file ngoại lệ thì sạch; tên file gần giống vẫn bị bắt', () => {
+    const named = "import { AppointmentTransitionService } from 'x';";
+    const [exception] = ALLOWED_TRANSITION_FILES as [string];
+    expect(pd19Violations([{ path: exception, source: named }])).toEqual([]);
+    for (const path of [
+      'examination/exam-record/exam-record.service.ts',
+      'examination/completion/other.service.ts',
+      'examination/completion/exam-completion.service.tsx',
+      'examination/exam-completion.service.ts',
+      'leave-approval/booking-cancellation.adapter.ts',
+    ])
+      expect(pd19Violations([{ path, source: named }]), path).toEqual([path]);
+  });
+
+  it('E8 (đột biến tổng hợp): file ngoại lệ chỉ được nhắc AppointmentTransitionService, RefundPort và WaitlistPort vẫn cấm ở chính file đó; comment thì bỏ qua', () => {
+    const [exception] = ALLOWED_TRANSITION_FILES as [string];
+    for (const token of ['RefundPort', 'REFUND_PORT', 'WaitlistPort'])
+      expect(
+        pd19Violations([
+          {
+            path: exception,
+            source: `class A { constructor(a: AppointmentTransitionService, b: ${token}) {} }`,
+          },
+        ]),
+        token,
+      ).toEqual([exception]);
+    expect(
+      pd19Violations([
+        {
+          path: 'shifts/x.ts',
+          source: '// không dùng AppointmentTransitionService ở đây',
+        },
+      ]),
+    ).toEqual([]);
   });
 
   it('DoctorModule import AppointmentsModule (một chiều doctor → appointments), cây vẫn không có chu trình', async () => {

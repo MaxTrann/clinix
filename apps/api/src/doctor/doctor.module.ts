@@ -3,6 +3,7 @@ import { AppointmentsModule } from '../appointments/appointments.module.js';
 import { AuditModule } from '../audit/audit.module.js';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
+import { ExaminationModule } from './examination/examination.module.js';
 import { AdminScheduleController } from './schedule-view/admin-schedule.controller.js';
 import { AdminScheduleRepository } from './schedule-view/admin-schedule.repository.js';
 import { AdminScheduleService } from './schedule-view/admin-schedule.service.js';
@@ -40,7 +41,13 @@ import { ShiftRemovalService } from './shifts/shift-removal.service.js';
 // KHÔNG gọi ScheduleModule.forRoot() ở đây: app.module.ts đã đăng ký một lần (sweeper B16 chỉ dùng @Cron).
 @Module({
   // AppointmentsModule (booking B10, B11): `cancel` và `findAffectedByLeave` cho Duyệt (B15). Chiều phụ thuộc chỉ doctor → appointments (H20).
-  imports: [SchedulingModule, RbacModule, AuditModule, AppointmentsModule],
+  imports: [
+    SchedulingModule,
+    RbacModule,
+    AuditModule,
+    AppointmentsModule,
+    ExaminationModule,
+  ],
   controllers: [
     ShiftAssignmentController,
     DoctorScheduleController,
