@@ -3,6 +3,7 @@ import { SystemConfigModule } from '../admin/system-config/system-config.module.
 import { AuditModule } from '../audit/audit.module.js';
 import { ExamPriceReader } from '../pricing/exam-price.reader.js';
 import { RbacModule } from '../rbac/rbac.module.js';
+import { LeaveReader } from '../scheduling/leave/leave.reader.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import {
   APPOINTMENT_CODE_RANDOM,
@@ -37,6 +38,7 @@ import { NoShowSweepService } from './noshow/no-show-sweep.service.js';
 import { NoShowJob } from './noshow/no-show.job.js';
 import { BookingNotifier } from './notifications/booking-notifier.js';
 import { APPOINTMENT_NOTIFIER } from './ports/appointment-notifier.port.js';
+import { DOCTOR_LEAVE_PORT } from './ports/doctor-leave.port.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 import { AppointmentQueries } from './queries/appointment-queries.js';
 import { BookabilityReader } from './slots/bookability.reader.js';
@@ -90,10 +92,10 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 //
 // THAY `Noop` BẰNG BẢN THẬT (B16, B17) — đã kiểm bằng script Nest (TRACKING 3.6 P2-D): provider khai ngay trong module này THẮNG provider cùng token của module được
 // import, nên module thật KHÔNG tự ghi đè từ ngoài. Cách làm: sửa đúng MỘT dòng của cổng đó (thay `useClass: Noop…` bằng `useExisting: <lớp thật>`) và thêm module nguồn
-// vào `imports`; module nguồn phải EXPORT CẢ LỚP thật (không chỉ token), nếu không Nest báo không tiêm được. Ví dụ nghỉ phép (B16):
+// vào `imports`; module nguồn phải EXPORT CẢ LỚP thật (không chỉ token), nếu không Nest báo không tiêm được. Nghỉ phép (B16a, ĐÃ LÀM) là ví dụ chuẩn:
 //   imports: [SchedulingModule],  providers: [{ provide: DOCTOR_LEAVE_PORT, useExisting: LeaveReader }, …]   (SchedulingModule đã xuất LeaveReader)
 // `SchedulingModule` đòi `DataSource` (doctor B6: `AvailableSlotsReader`); app thật có sẵn toàn cục, còn test dựng riêng module phải cấp bằng `useMocker` (xem `doctor-leave.port.int-spec.ts`).
-// `PendingBranchChangesPort` cần adapter `useClass` (admin chỉ có `getPendingEffectiveChanges(chiNhanhId)`). Cảnh báo cho payment, wallet, waitlist (suy ra, chưa đo): các module
+// `PendingBranchChangesPort` (B16b, CHƯA làm) cần adapter `useClass` (admin chỉ có `getPendingEffectiveChanges(chiNhanhId)`). Cảnh báo cho payment, wallet, waitlist (suy ra, chưa đo): các module
 // đó `import AppointmentsModule` (gọi `confirmPaid`, `RefundCalculator`, `SlotHoldService`) nên nếu module này cũng import lại họ sẽ thành vòng import module (Nest đòi
 // `forwardRef`): đặt bản thật của cổng trong một module nhỏ KHÔNG import `AppointmentsModule`. Test thay cổng bằng bản giả: `overrideProvider(TOKEN).useValue(fake)`.
 //
@@ -104,9 +106,16 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 // bằng `filter` rồi khai lại một lần với `BookingNotifier` (`notifications/`), nên không dựa vào thứ tự "provider sau thắng": P2-D chỉ kiểm provider của module so với provider của module được import, không kiểm hai provider
 // cùng token trong cùng một mảng. `BookingNotifier` không có phụ thuộc nào (nhận `em` của người gọi) nên cả bốn spec dựng riêng module này vẫn dựng được mà không cần `MailModule` hay `ConfigService`; worker gửi thư nằm
 // ở `NotificationsModule` (giai đoạn sau) vì lý do đó.
-const PORT_PROVIDERS_EXCEPT_NOTIFIER = BOOKING_PORT_PROVIDERS.filter(
+// B16a (đã làm; nửa `doctor` của B16, TRACKING 3.39): cổng nghỉ phép hết là `Noop` ở ĐÂY. `imports` đã có `SchedulingModule` từ B6a nên chỉ đổi phần `providers`: token `DOCTOR_LEAVE_PORT` cũng bị LOẠI khỏi phần trải rồi khai lại
+// bằng `useExisting: LeaveReader` (một thể hiện duy nhất, của `SchedulingModule`; `LeaveReader` không có phụ thuộc constructor nên không cần thêm `useMocker` ở các spec dựng riêng module). Nửa `admin` (B16b) CHƯA làm:
+// `PendingBranchChangesPort` vẫn là `Noop` cho tới khi `admin` có `getPendingEffectiveChanges` (B10).
+const REAL_PORT_TOKENS: readonly unknown[] = [
+  APPOINTMENT_NOTIFIER,
+  DOCTOR_LEAVE_PORT,
+];
+const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
   (provider) =>
-    !('provide' in provider && provider.provide === APPOINTMENT_NOTIFIER),
+    !('provide' in provider && REAL_PORT_TOKENS.includes(provider.provide)),
 );
 
 @Module({
@@ -123,8 +132,9 @@ const PORT_PROVIDERS_EXCEPT_NOTIFIER = BOOKING_PORT_PROVIDERS.filter(
     AdminOverrideController,
   ],
   providers: [
-    ...PORT_PROVIDERS_EXCEPT_NOTIFIER,
+    ...PORT_PROVIDERS_STILL_NOOP,
     { provide: APPOINTMENT_NOTIFIER, useClass: BookingNotifier },
+    { provide: DOCTOR_LEAVE_PORT, useExisting: LeaveReader },
     { provide: APPOINTMENT_CODE_RANDOM, useValue: randomCodeSuffix },
     CreateAppointmentService,
     DoctorAppointmentsService,

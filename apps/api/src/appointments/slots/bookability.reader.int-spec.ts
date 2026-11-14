@@ -576,7 +576,7 @@ describe('BKR-07 readNoShowLock (A4, PLAN 5.3 tầng 2)', () => {
 });
 
 describe('BKR-08 nối module (PLAN 5.1, AR-03)', () => {
-  it('AppointmentsModule cung cấp BookabilityReader (imports: SchedulingModule, hai cổng Noop mặc định) và tiêm được', async () => {
+  it('AppointmentsModule cung cấp BookabilityReader (imports: SchedulingModule, cổng nghỉ phép thật, cổng đổi chi nhánh Noop) và tiêm được', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppointmentsModule],
     })

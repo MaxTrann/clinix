@@ -14,6 +14,7 @@ import { BookingSummaryReader } from '../create/booking-summary.reader.js';
 import { CreateAppointmentService } from '../create/create-appointment.service.js';
 import { RefundPolicyReader } from '../create/refund-policy.js';
 import { withBookingTransaction } from '../locking/booking-transaction.js';
+import type { DoctorLeavePort } from '../ports/doctor-leave.port.js';
 import { BookabilityReader } from '../slots/bookability.reader.js';
 import { SlotHoldService } from '../slots/slot-hold.service.js';
 import { AppointmentTransitionService } from '../state/appointment-transition.service.js';
@@ -249,6 +250,8 @@ export function simulateConfirmPaid(
 export interface CreateWorldOptions {
   /** Bộ sinh phần đuôi mã lịch; mặc định là bản thật (`crypto.randomInt`) */
   random?: CodeSuffixSource;
+  /** B16a: cổng nghỉ phép THẬT (ví dụ `new LeaveReader()`) đưa vào `BookabilityReader` thay cho `w.leave`; vắng thì dùng bản `Fake` `w.leave` như cũ */
+  leave?: DoctorLeavePort;
 }
 
 /** Thế giới đặt được của `BookingFixtures.world()` cộng `CreateAppointmentService` thật, `BookingChecksService` thật và các cổng `Fake`. */
@@ -264,7 +267,11 @@ export async function createAppointmentWorld(
   const notifier = new FakeAppointmentNotifier();
   const wallet = new FakeWalletBalancePort();
   const config = new SystemConfigService(new SystemConfigRepository(db));
-  const reader = new BookabilityReader(new BranchHoursReader(), leave, pending);
+  const reader = new BookabilityReader(
+    new BranchHoursReader(),
+    options.leave ?? leave,
+    pending,
+  );
   const summaries = new BookingSummaryReader(
     new ExamPriceReader(db),
     new RefundPolicyReader(),
