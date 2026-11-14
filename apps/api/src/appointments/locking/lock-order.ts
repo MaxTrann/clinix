@@ -11,6 +11,8 @@
 //   5     khung_gio        FOR UPDATE                         tạo, huỷ, hết hạn, xác nhận thanh toán
 //   6     lich_hen         FOR UPDATE theo khoá chính         mọi luồng đổi trạng thái (xem quy tắc 7)
 //         (lich_hen_id) hoặc ma_lich_hen
+//   6b    ho_so_kham,      FOR UPDATE theo khoá chính         CHỈ doctor (phần khám bệnh: ghi hồ sơ khám, ẩn đánh giá), SAU `lich_hen` và TRƯỚC tầng 7;
+//         danh_gia_bac_si  hoặc `lich_hen_id` (UNIQUE)        booking KHÔNG xin khoá nào trên hai bảng này (doctor-exam P2; PLAN doctor-exam 5.3)
 //   7     giao_dich_thanh_toan → vi_noi_bo → bảng chỉ-thêm    payment, wallet, thông báo, audit; SAU `lich_hen` (payment khoá `lich_hen` TRƯỚC `vi_noi_bo`)
 //         (lich_su_hoan_tien, giao_dich_vi, thong_bao, nhat_ky_hanh_dong)
 //
@@ -33,7 +35,7 @@
 // câu khoá đó. Giao dịch ngừng sử dụng hồ sơ (patient) không bao giờ xin `bac_si` hay `khung_gio` nên không có chu trình chờ với luồng tạo.
 // Lưu ý: `ACTIVE_APPOINTMENT_STATES` (3 trạng thái) khác tập của cột sinh `khung_gio_dang_giu` (5 trạng thái) CÓ CHỦ ĐÍCH (5.2): đừng "sửa cho khớp".
 
-export type LockTierId = '1' | '2' | '3' | '4' | '4b' | '5' | '6' | '7';
+export type LockTierId = '1' | '2' | '3' | '4' | '4b' | '5' | '6' | '6b' | '7';
 
 /** Một HẠNG khoá: các bảng cùng hạng không có thứ tự bắt buộc với nhau; hạng nhỏ khoá trước. Tầng 7 gồm ba hạng liền nhau (đúng chữ của bảng 5.3). */
 export interface LockRank {
@@ -49,6 +51,8 @@ export const LOCK_ORDER: readonly LockRank[] = [
   { tang: '4b', bang: ['dich_vu_kham'] },
   { tang: '5', bang: ['khung_gio'] },
   { tang: '6', bang: ['lich_hen'] },
+  // Hai bảng con của `lich_hen` (khoá ngoại): hàng con khoá SAU hàng cha, TRƯỚC thông báo và nhật ký ở tầng 7. Cùng một hạng: không luồng nào xin cả hai.
+  { tang: '6b', bang: ['ho_so_kham', 'danh_gia_bac_si'] },
   { tang: '7', bang: ['giao_dich_thanh_toan'] },
   { tang: '7', bang: ['vi_noi_bo'] },
   {

@@ -7,7 +7,8 @@ import {
 
 // Task P1 — LOK-01…LOK-04 (PLAN booking 7.17; TRACKING 3.3 P1-F). Danh sách mong đợi viết RIÊNG theo bảng 5.3.
 describe('LOK-01 bảng tầng khoá của 5.3', () => {
-  it('tầng 1, 2, 3, 4, 4b, 5, 6, 7 đúng thứ tự (tầng 7 gồm ba hạng liền nhau) và đúng bảng', () => {
+  // doctor-exam P2: thêm hạng 6b giữa 6 và 7 nên danh sách liệt kê đổi (tầng 7 lùi từ vị trí 7 sang 8); hành vi các hạng cũ không đổi.
+  it('tầng 1, 2, 3, 4, 4b, 5, 6, 6b, 7 đúng thứ tự (tầng 7 gồm ba hạng liền nhau) và đúng bảng', () => {
     expect(LOCK_ORDER.map((rank) => rank.tang)).toEqual([
       '1',
       '2',
@@ -16,11 +17,12 @@ describe('LOK-01 bảng tầng khoá của 5.3', () => {
       '4b',
       '5',
       '6',
+      '6b',
       '7',
       '7',
       '7',
     ]);
-    expect(LOCK_ORDER.slice(0, 7).map((rank) => rank.bang)).toEqual([
+    expect(LOCK_ORDER.slice(0, 8).map((rank) => rank.bang)).toEqual([
       ['tai_khoan'],
       ['benh_nhan'],
       ['ho_so_nguoi_than'],
@@ -28,8 +30,9 @@ describe('LOK-01 bảng tầng khoá của 5.3', () => {
       ['dich_vu_kham'],
       ['khung_gio'],
       ['lich_hen'],
+      ['ho_so_kham', 'danh_gia_bac_si'],
     ]);
-    expect(LOCK_ORDER.slice(7).map((rank) => rank.bang)).toEqual([
+    expect(LOCK_ORDER.slice(8).map((rank) => rank.bang)).toEqual([
       ['giao_dich_thanh_toan'],
       ['vi_noi_bo'],
       ['lich_su_hoan_tien', 'giao_dich_vi', 'thong_bao', 'nhat_ky_hanh_dong'],
@@ -127,5 +130,107 @@ describe('LOK-04 quy tắc 7: khoá lich_hen', () => {
     // Không cột nào vừa hợp lệ vừa bị cấm
     for (const column of LICH_HEN_FORBIDDEN_LOCK_COLUMNS)
       expect(LICH_HEN_LOCK_KEYS as readonly string[]).not.toContain(column);
+  });
+});
+
+// doctor-exam P2 (#392) — HDK-05: tầng 6b (`ho_so_kham`, `danh_gia_bac_si`) nằm giữa `lich_hen` (6) và tầng 7 (PLAN doctor-exam 5.3, E5).
+// Phạm vi ở đây: bảng thứ tự và `findLockOrderViolation`. Chuỗi khoá bằng câu SQL THẬT của HSK, DGB, KDD kiểm ở B2, B6, B8 (`testing/lock-chain.ts`).
+describe('HDK-05 tầng 6b của doctor (hồ sơ khám, đánh giá)', () => {
+  it('6b đứng ngay sau lich_hen và ngay trước tầng 7 đầu tiên; hai bảng cùng một hạng', () => {
+    const tiers = LOCK_ORDER.map((rank) => rank.tang);
+    expect(tiers.indexOf('6b')).toBe(tiers.indexOf('6') + 1);
+    expect(tiers.indexOf('7')).toBe(tiers.indexOf('6b') + 1);
+    expect(LOCK_ORDER[tiers.indexOf('6b')]?.bang).toEqual([
+      'ho_so_kham',
+      'danh_gia_bac_si',
+    ]);
+  });
+
+  it.each([
+    [
+      'HSK sửa sau Hoàn thành: khoá lịch, khoá hồ sơ, ghi nhật ký',
+      ['lich_hen', 'ho_so_kham', 'nhat_ky_hanh_dong'],
+    ],
+    ['HSK ghi lần đầu (không nhật ký)', ['lich_hen', 'ho_so_kham']],
+    ['DGB: lịch rồi đánh giá', ['lich_hen', 'danh_gia_bac_si']],
+    [
+      'KDD ẩn: khoá đánh giá rồi ghi nhật ký',
+      ['danh_gia_bac_si', 'nhat_ky_hanh_dong'],
+    ],
+    [
+      'HTK: complete rồi thông báo (chuỗi cũ, không đổi)',
+      ['lich_hen', 'thong_bao'],
+    ],
+    [
+      'hai bảng của 6b theo thứ tự nào cũng được',
+      ['ho_so_kham', 'danh_gia_bac_si', 'ho_so_kham'],
+    ],
+    ['lặp cùng bảng', ['lich_hen', 'lich_hen', 'ho_so_kham', 'ho_so_kham']],
+    [
+      'từ ngoài vào: khung_gio, lich_hen, ho_so_kham',
+      ['khung_gio', 'lich_hen', 'ho_so_kham'],
+    ],
+    [
+      '6b trước toàn bộ tầng 7',
+      [
+        'lich_hen',
+        'ho_so_kham',
+        'giao_dich_thanh_toan',
+        'vi_noi_bo',
+        'nhat_ky_hanh_dong',
+      ],
+    ],
+  ])('%s ⇒ null', (_name, steps) => {
+    expect(findLockOrderViolation(steps)).toBeNull();
+  });
+
+  it.each([
+    [
+      'ho_so_kham trước lich_hen (hàng con khoá trước hàng cha)',
+      ['ho_so_kham', 'lich_hen'],
+      { index: 1, truoc: 'ho_so_kham', sau: 'lich_hen' },
+    ],
+    [
+      'danh_gia_bac_si trước lich_hen',
+      ['danh_gia_bac_si', 'lich_hen'],
+      { index: 1, truoc: 'danh_gia_bac_si', sau: 'lich_hen' },
+    ],
+    [
+      'nhật ký trước khi khoá hồ sơ',
+      ['nhat_ky_hanh_dong', 'ho_so_kham'],
+      { index: 1, truoc: 'nhat_ky_hanh_dong', sau: 'ho_so_kham' },
+    ],
+    [
+      'thông báo trước khi khoá đánh giá',
+      ['thong_bao', 'danh_gia_bac_si'],
+      { index: 1, truoc: 'thong_bao', sau: 'danh_gia_bac_si' },
+    ],
+    [
+      'giao_dich_thanh_toan trước ho_so_kham',
+      ['giao_dich_thanh_toan', 'ho_so_kham'],
+      { index: 1, truoc: 'giao_dich_thanh_toan', sau: 'ho_so_kham' },
+    ],
+    [
+      'vi_noi_bo trước danh_gia_bac_si',
+      ['vi_noi_bo', 'danh_gia_bac_si'],
+      { index: 1, truoc: 'vi_noi_bo', sau: 'danh_gia_bac_si' },
+    ],
+    [
+      'ho_so_kham trước khung_gio (scope này không bao giờ xin tầng 1 đến 5, nhưng chiều ngược vẫn bị bắt)',
+      ['ho_so_kham', 'khung_gio'],
+      { index: 1, truoc: 'ho_so_kham', sau: 'khung_gio' },
+    ],
+    [
+      'danh_gia_bac_si trước bac_si',
+      ['danh_gia_bac_si', 'bac_si'],
+      { index: 1, truoc: 'danh_gia_bac_si', sau: 'bac_si' },
+    ],
+    [
+      'vi phạm đầu tiên, cách vài bước (bảng ngoài thứ tự bị bỏ qua)',
+      ['lich_hen', 'ho_so_kham', 'chi_nhanh', 'khung_gio'],
+      { index: 3, truoc: 'ho_so_kham', sau: 'khung_gio' },
+    ],
+  ])('%s', (_name, steps, expected) => {
+    expect(findLockOrderViolation(steps)).toEqual(expected);
   });
 });
