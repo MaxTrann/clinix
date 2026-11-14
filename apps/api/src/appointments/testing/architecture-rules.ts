@@ -191,6 +191,30 @@ export const INTERNAL_WRITE_RULES: readonly InternalWriteRule[] = [
     allowedDirs: ['appointments/state/'],
     lyDo: 'chỉ lớp trạng thái (appointments/state/no-show-counter.query.ts) ghi so_lan_no_show và khoa_dat_lich_do_no_show của benh_nhan (Q14, Q25; bảng thuộc auth và patient)',
   },
+  // B15 (TRACKING 3.37 B15-G): thông báo của booking và hộp thư đi của nó có đúng MỘT thư mục ghi (`appointments/notifications/`). Mẫu riêng vì `thong_bao` và `email_thong_bao` thuộc admin, và `doctor/` (nghỉ phép) cũng ghi
+  // `thong_bao` hợp lệ: AR-01 không được cấm các module khác ghi bảng của chính họ (nên không đưa vào `WRITE_RULES`), chỉ AR-06 giữ phần của booking cho gọn: không lõi nào (`state/`, `cancel/`, `create/`…) tự ghi thông báo.
+  {
+    rule: 'INSERT INTO thong_bao',
+    patterns: [
+      /\b(?:INSERT|REPLACE)\s+(?:IGNORE\s+)?INTO\s+`?thong_bao`?(?!\w)/i,
+    ],
+    allowedDirs: ['appointments/notifications/'],
+    lyDo: 'chỉ appointments/notifications/ (BookingNotifier, B15) ghi thong_bao của booking; lõi đổi trạng thái chỉ gọi AppointmentNotifier.notify',
+  },
+  {
+    rule: 'INSERT INTO email_thong_bao',
+    patterns: [
+      /\b(?:INSERT|REPLACE)\s+(?:IGNORE\s+)?INTO\s+`?email_thong_bao`?(?!\w)/i,
+    ],
+    allowedDirs: ['appointments/notifications/'],
+    lyDo: 'chỉ appointments/notifications/ xếp dòng hộp thư đi email_thong_bao của booking (cùng giao dịch với thong_bao)',
+  },
+  {
+    rule: 'UPDATE email_thong_bao',
+    patterns: [/\bUPDATE\s+(?:IGNORE\s+)?`?email_thong_bao`?(?!\w)/i],
+    allowedDirs: ['appointments/notifications/'],
+    lyDo: 'chỉ appointments/notifications/ (worker gửi thư, B15) đổi trạng thái email_thong_bao: một nơi giữ điều kiện nhận việc để không gửi trùng',
+  },
   {
     rule: 'INSERT INTO khung_gio',
     allowedDirs: [],

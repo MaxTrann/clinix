@@ -16,7 +16,11 @@ import {
   NoopPendingBranchChangesPort,
   PENDING_BRANCH_CHANGES_PORT,
 } from './pending-branch-changes.port.js';
-import { BOOKING_PORT_TOKENS } from './ports.providers.js';
+import { BookingNotifier } from '../notifications/booking-notifier.js';
+import {
+  BOOKING_PORT_PROVIDERS,
+  BOOKING_PORT_TOKENS,
+} from './ports.providers.js';
 import {
   NoopRefundPort,
   NoopWalletBalancePort,
@@ -37,6 +41,13 @@ const EXPECTED = [
   [APPOINTMENT_NOTIFIER, NoopAppointmentNotifier],
 ] as const;
 
+// B15 (TRACKING 3.37 B15-J): trong `AppointmentsModule` cổng thông báo là BẢN THẬT (`BookingNotifier`), bảy cổng còn lại vẫn là `Noop`. Mảng `BOOKING_PORT_PROVIDERS` và lớp `Noop` giữ nguyên (test dựng riêng dùng chúng).
+const EXPECTED_IN_MODULE = EXPECTED.map(([token, noop]) =>
+  token === APPOINTMENT_NOTIFIER
+    ? ([token, BookingNotifier] as const)
+    : ([token, noop] as const),
+);
+
 // AppointmentsModule có service đọc DB (task B1) nên đòi `DataSource`; app thật có sẵn toàn cục từ DatabaseModule, còn test dựng riêng module cấp một DataSource GIẢ
 // (không DB, không ai gọi tới nó trong các ca này) bằng `useMocker`, như `doctor-leave.port.int-spec.ts`. Token nào khác vẫn thiếu thì Nest báo lỗi như cũ.
 const noDatabase = (token: unknown) =>
@@ -50,14 +61,27 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
     expect([...BOOKING_PORT_TOKENS]).toEqual(EXPECTED.map(([token]) => token));
   });
 
-  it('AppointmentsModule cấp đủ tám token bằng đúng bản Noop (không cần DB)', async () => {
+  it('mảng BOOKING_PORT_PROVIDERS vẫn gắn Noop cho đủ tám token (test dựng riêng dùng nó), kể cả AppointmentNotifier', () => {
+    expect(
+      BOOKING_PORT_PROVIDERS.map((provider) =>
+        'provide' in provider && 'useClass' in provider
+          ? [provider.provide, provider.useClass]
+          : null,
+      ),
+    ).toEqual(EXPECTED.map(([token, noop]) => [token, noop]));
+  });
+
+  it('AppointmentsModule cấp đủ tám token: bảy bản Noop và BookingNotifier THẬT cho AppointmentNotifier (không cần DB)', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppointmentsModule],
     })
       .useMocker(noDatabase)
       .compile();
-    for (const [token, noop] of EXPECTED)
-      expect(moduleRef.get(token, { strict: false })).toBeInstanceOf(noop);
+    for (const [token, expected] of EXPECTED_IN_MODULE)
+      expect(moduleRef.get(token, { strict: false })).toBeInstanceOf(expected);
+    expect(
+      moduleRef.get(APPOINTMENT_NOTIFIER, { strict: false }),
+    ).not.toBeInstanceOf(NoopAppointmentNotifier);
     await moduleRef.close();
   });
 
@@ -70,10 +94,10 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
       .useValue(fake)
       .useMocker(noDatabase)
       .compile();
-    for (const [token, noop] of EXPECTED) {
+    for (const [token, expected] of EXPECTED_IN_MODULE) {
       const resolved = moduleRef.get(token, { strict: false });
       if (token === DOCTOR_LEAVE_PORT) expect(resolved).toBe(fake);
-      else expect(resolved).toBeInstanceOf(noop);
+      else expect(resolved).toBeInstanceOf(expected);
     }
     await moduleRef.close();
   });

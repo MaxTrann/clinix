@@ -35,6 +35,8 @@ import { ReceptionAppointmentsController } from './lists/reception-appointments.
 import { ReceptionAppointmentsService } from './lists/reception-appointments.service.js';
 import { NoShowSweepService } from './noshow/no-show-sweep.service.js';
 import { NoShowJob } from './noshow/no-show.job.js';
+import { BookingNotifier } from './notifications/booking-notifier.js';
+import { APPOINTMENT_NOTIFIER } from './ports/appointment-notifier.port.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 import { AppointmentQueries } from './queries/appointment-queries.js';
 import { BookabilityReader } from './slots/bookability.reader.js';
@@ -98,6 +100,15 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 // Chiều phụ thuộc DUY NHẤT: doctor → appointments → scheduling (doctor H20). Module này KHÔNG BAO GIỜ import `DoctorModule`, KHÔNG import `ScheduleModule` và KHÔNG gọi
 // `ScheduleModule.forRoot()` (app.module.ts đã đăng ký một lần; gọi thêm thì mọi job `@Cron` chạy gấp đôi, TECH_DEBT dòng 33; job B9, B13 chỉ dùng `@Cron`).
 // `DataSource` có sẵn toàn cục từ `DatabaseModule` (như `PatientModule`) nên chưa cần `imports`.
+// B15 (đã làm): cổng `AppointmentNotifier` hết là `Noop` ở ĐÂY (module thật chạy trong app; `ports.providers.ts`, bản `Noop` và mảng `BOOKING_PORT_PROVIDERS` giữ nguyên cho test dựng riêng). Token đó bị LOẠI khỏi phần trải
+// bằng `filter` rồi khai lại một lần với `BookingNotifier` (`notifications/`), nên không dựa vào thứ tự "provider sau thắng": P2-D chỉ kiểm provider của module so với provider của module được import, không kiểm hai provider
+// cùng token trong cùng một mảng. `BookingNotifier` không có phụ thuộc nào (nhận `em` của người gọi) nên cả bốn spec dựng riêng module này vẫn dựng được mà không cần `MailModule` hay `ConfigService`; worker gửi thư nằm
+// ở `NotificationsModule` (giai đoạn sau) vì lý do đó.
+const PORT_PROVIDERS_EXCEPT_NOTIFIER = BOOKING_PORT_PROVIDERS.filter(
+  (provider) =>
+    !('provide' in provider && provider.provide === APPOINTMENT_NOTIFIER),
+);
+
 @Module({
   imports: [SchedulingModule, RbacModule, SystemConfigModule, AuditModule],
   controllers: [
@@ -112,7 +123,8 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
     AdminOverrideController,
   ],
   providers: [
-    ...BOOKING_PORT_PROVIDERS,
+    ...PORT_PROVIDERS_EXCEPT_NOTIFIER,
+    { provide: APPOINTMENT_NOTIFIER, useClass: BookingNotifier },
     { provide: APPOINTMENT_CODE_RANDOM, useValue: randomCodeSuffix },
     CreateAppointmentService,
     DoctorAppointmentsService,
