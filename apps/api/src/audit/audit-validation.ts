@@ -20,6 +20,20 @@ const CONFIG_KEYS = [
   'trong_so_w1',
   'trong_so_w2',
 ] as const;
+// Giới hạn của hai hành động doctor-exam P2, đơn vị UTF-16 (`String.length`). `[đề xuất]` chờ Q2 (hồ sơ khám) và Q8 (lý do ẩn): đổi MỘT chỗ ở đây.
+// Xuất ra để DTO của B2, B8 viết ca buộc "trần của DTO ≤ trần của audit": nếu DTO nhận dài hơn thì `record` ném AUDIT_ENTRY_INVALID ngay trong giao dịch.
+export const AUDIT_EXAM_LIMITS = {
+  examTextMax: 2000,
+  hideReasonMin: 10,
+  hideReasonMax: 255,
+} as const;
+// Bốn trường hồ sơ khám được ghi vào SuaGhiChuKham; khoá khác (kể cả tên, SĐT, email) bị từ chối.
+const EXAM_RECORD_KEYS = [
+  'trieu_chung',
+  'chan_doan_so_bo',
+  'huong_xu_ly',
+  'ngay_tai_kham_du_kien',
+] as const;
 
 function requireValid(condition: unknown): asserts condition {
   if (!condition) throw new AuditError('AUDIT_ENTRY_INVALID');
@@ -149,6 +163,34 @@ function uniqueList(
       new Set(value).size === value.length,
   );
   value.forEach(each);
+}
+
+function examRecordValue(key: string, value: unknown): void {
+  if (value === null) return;
+  requireValid(
+    typeof value === 'string' && value.length <= AUDIT_EXAM_LIMITS.examTextMax,
+  );
+  // Ngày tái khám là DATE: chỉ nhận ngày YYYY-MM-DD có thật (quyết định của Đại 14/11/2026, ngoài PLAN); ba trường văn bản nhận cả chuỗi rỗng.
+  if (key === 'ngay_tai_kham_du_kien') calendarDate(value);
+}
+// `truoc`/`sau` cùng tập khoá (1 đến 4 khoá, ⊂ bốn trường); mỗi khoá phải thật sự đổi để khoá không đổi không đưa nội dung khám vào nhật ký (Q15).
+function examRecordChanges(changes: unknown): void {
+  fields(changes, ['truoc', 'sau']);
+  object(changes.truoc);
+  object(changes.sau);
+  const keys = Object.keys(changes.truoc).sort();
+  requireValid(
+    keys.length > 0 &&
+      JSON.stringify(keys) === JSON.stringify(Object.keys(changes.sau).sort()),
+  );
+  for (const key of keys) {
+    requireValid(EXAM_RECORD_KEYS.some((allowed) => allowed === key));
+    const before = changes.truoc[key];
+    const after = changes.sau[key];
+    examRecordValue(key, before);
+    examRecordValue(key, after);
+    requireValid(before !== after);
+  }
 }
 
 function validateChanges(entry: Record<string, unknown>): void {
@@ -324,6 +366,29 @@ function validateChanges(entry: Record<string, unknown>): void {
       reason(changes.ly_do);
       // Lý do của Quản trị viên 1–255 ký tự (Q24, Q27), như `ly_do_huy` của lịch.
       requireValid(String(changes.ly_do).length <= 255);
+      break;
+    }
+    case 'SuaGhiChuKham':
+      requireValid(entry.targetType === 'ho_so_kham');
+      // Chi nhánh của LỊCH (không phải của Bác sĩ): luôn có.
+      id(branch);
+      examRecordChanges(changes);
+      break;
+    case 'AnDanhGia': {
+      requireValid(entry.targetType === 'danh_gia_bac_si');
+      // Chi nhánh của LỊCH được đánh giá (không phải của Quản trị viên): luôn có.
+      id(branch);
+      fields(changes, ['truoc', 'sau', 'ly_do', 'bac_si_id']);
+      const { before, after } = snapshots(changes, 'bi_an');
+      requireValid(before === false && after === true);
+      reason(changes.ly_do);
+      // Lý do ẩn của Quản trị viên 10–255 ký tự (Q8): cận dưới tính sau trim, cận trên tính nguyên chuỗi (cột varchar(255)).
+      requireValid(
+        String(changes.ly_do).trim().length >=
+          AUDIT_EXAM_LIMITS.hideReasonMin &&
+          String(changes.ly_do).length <= AUDIT_EXAM_LIMITS.hideReasonMax,
+      );
+      id(changes.bac_si_id);
       break;
     }
     default:

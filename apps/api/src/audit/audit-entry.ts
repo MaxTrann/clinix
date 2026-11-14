@@ -20,6 +20,13 @@ type LeaveRequestFacts = {
   ngay_ket_thuc: string;
   ca: ShiftName | null;
 };
+// Bốn trường hồ sơ khám được phép nằm trong nhật ký sửa hồ sơ (doctor-exam P2; PLAN doctor-exam 5.12). Chỉ trường CÓ ĐỔI mới được ghi (Q15).
+type ExamRecordFacts = Partial<
+  Record<
+    'trieu_chung' | 'chan_doan_so_bo' | 'huong_xu_ly' | 'ngay_tai_kham_du_kien',
+    string | null
+  >
+>;
 
 interface ChangeMap {
   TaoTaiKhoanNhanSu: {
@@ -91,6 +98,18 @@ interface ChangeMap {
     sau: AppointmentState;
     ly_do: string;
   };
+  // Bác sĩ sửa lại hồ sơ khám SAU khi lịch Hoàn thành (doctor-exam P2; Q3, Q15): chỉ các trường có đổi, hai bên cùng tập khoá; không tên, SĐT, email.
+  // CÓ NỘI DUNG KHÁM (dữ liệu sức khoẻ, L3): màn "Nhật ký hành động" của `admin` [SAU] phải che nội dung này hoặc chỉ cho Toàn hệ thống.
+  // `branchId` của entry là chi nhánh của LỊCH (để Quản trị viên chi nhánh lọc), `targetId` là `ho_so_kham_id`.
+  SuaGhiChuKham: { truoc: ExamRecordFacts; sau: ExamRecordFacts };
+  // Quản trị viên ẩn đánh giá bác sĩ (doctor-exam P2; Q8): lý do 10–255 ký tự; KHÔNG nhận xét, không tên người đánh giá.
+  // `branchId` là chi nhánh của LỊCH được đánh giá, `targetId` là `danh_gia_bac_si_id`, `bac_si_id` là bác sĩ được đánh giá.
+  AnDanhGia: {
+    truoc: { bi_an: false };
+    sau: { bi_an: true };
+    ly_do: string;
+    bac_si_id: string;
+  };
 }
 
 export type AuditAction = keyof ChangeMap;
@@ -115,6 +134,8 @@ interface TargetMap {
   DuyetNghiPhep: 'yeu_cau_nghi_phep';
   TuChoiNghiPhep: 'yeu_cau_nghi_phep';
   OverrideLichHen: 'lich_hen';
+  SuaGhiChuKham: 'ho_so_kham';
+  AnDanhGia: 'danh_gia_bac_si';
 }
 type TargetFor<A extends AuditAction> = TargetMap[A];
 
