@@ -7,11 +7,11 @@ import {
   readList,
   readRecord,
 } from '../../common/response-readers';
+import { parseStatusCounts } from '../../common/status-counts';
 import type {
   AppointmentListQuery,
   PatientAppointment,
   PatientAppointmentPage,
-  StatusCounts,
 } from './patient-appointment-types';
 
 // Gọi và kiểm hình dạng `GET /patient/appointments` (booking F1; PLAN 5.9, TRACKING 3.13). Route của Bệnh nhân nên GẮN access token
@@ -25,19 +25,6 @@ export function parseAppointment(raw: unknown): PatientAppointment {
     hanThanhToan:
       row.hanThanhToan === null ? null : readIsoDateTime(row.hanThanhToan),
     choPhepHuy: readFlag(row.choPhepHuy),
-  };
-}
-
-// Đủ sáu khoá (viết từng khoá: thêm một trạng thái vào `APPOINTMENT_STATES` thì `tsc` báo thiếu khoá ở đây). Khoá thừa, như `DaDoiLich`, bị bỏ.
-function parseStatusCounts(raw: unknown): StatusCounts {
-  const counts = readRecord(raw);
-  return {
-    ChoThanhToan: readCount(counts.ChoThanhToan),
-    DaXacNhan: readCount(counts.DaXacNhan),
-    DaTiepDon: readCount(counts.DaTiepDon),
-    HoanThanh: readCount(counts.HoanThanh),
-    DaHuy: readCount(counts.DaHuy),
-    VangMat: readCount(counts.VangMat),
   };
 }
 

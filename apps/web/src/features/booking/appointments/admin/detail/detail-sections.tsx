@@ -1,44 +1,16 @@
 import { CalendarDays, Users } from 'lucide-react';
-import type { ReactNode } from 'react';
 import {
   formatVietnamDate,
   formatVietnamTime,
   formatVnd,
 } from '../../common/appointment-format';
-import { DetailCard } from '../../common/detail-card';
+import {
+  DetailCard,
+  DetailFact as Fact,
+  DetailFacts as Facts,
+} from '../../common/detail-card';
 import type { OperationsAppointmentDetail } from '../../common/operations-appointment';
 import { DETAIL_TEXT, historyWhen } from './detail-messages';
-
-// Một cặp "nhãn, giá trị" của thẻ (Figma `512:2`: nhãn nhỏ xám ở trên, giá trị đậm vừa ở dưới, hai cột). Màu chữ phụ theo thang chuẩn của ADR 0004 (`gray-600`), không chép `#6a7282` của Figma.
-// `wide` chiếm cả hai cột (câu dài như lý do khám).
-function Fact(props: {
-  label: string;
-  children: ReactNode;
-  wide?: boolean;
-  note?: string;
-}) {
-  return (
-    <div className={props.wide ? 'sm:col-span-2' : undefined}>
-      <dt className="text-xs text-gray-600">{props.label}</dt>
-      <dd className="pt-0.5 text-sm font-medium break-words text-gray-900">
-        {props.children}
-        {props.note !== undefined && (
-          <span className="block text-xs font-normal text-gray-600">
-            {props.note}
-          </span>
-        )}
-      </dd>
-    </div>
-  );
-}
-
-function Facts({ children }: { children: ReactNode }) {
-  return (
-    <dl className="grid gap-x-4 gap-y-3 px-5 py-4 sm:grid-cols-2">
-      {children}
-    </dl>
-  );
-}
 
 // Hai thẻ của Figma `512:2`: `Thông tin lịch hẹn` và `Thông tin bệnh nhân`. Giá trị lấy từ MỘT nguồn là chi tiết. Tiền là chuỗi decimal đưa nguyên ra `formatVnd`: không cộng, trừ, nhân,
 // và `Còn phải thu` CHỈ khi `conPhaiThu` khác `null` (B4: chỉ `DaXacNhan`; không tự tính ở client). Bỏ `Kênh đặt`, `Email`, `Giới tính`, `Ngày sinh` (Q32, B4) và thẻ `Thanh toán`; thêm `Giá khám`,

@@ -17,6 +17,11 @@ import {
   bookingDonePath,
   bookingInfoPath,
   bookingPaymentPath,
+  DOCTOR_APPOINTMENT_DETAIL_ROUTE,
+  DOCTOR_APPOINTMENT_DETAIL_SEGMENT,
+  DOCTOR_APPOINTMENTS_PATH,
+  DOCTOR_APPOINTMENTS_SEGMENT,
+  doctorAppointmentDetailPath,
   doctorListPath,
   PATIENT_APPOINTMENT_DETAIL_ROUTE,
   PATIENT_APPOINTMENT_DETAIL_SEGMENT,
@@ -274,5 +279,38 @@ describe('booking F10 — đường dẫn "Lịch hẹn" của Quản trị viê
     ];
     expect(taken).not.toContain(ADMIN_APPOINTMENTS_PATH);
     expect(ADMIN_APPOINTMENTS_PATH.startsWith(`${BOOKING_PATH}/`)).toBe(false);
+  });
+});
+
+// booking F11. Mã ca BP-14 là [đề xuất] (PLAN booking mục 7.18 và 7.44). Cùng nếp BP-11, BP-13: gốc `/bac-si-portal` viết chữ ở `booking-paths.ts` nên ca này giữ nó khớp `ROLE_HOME_PATHS.BacSi`;
+// mục menu `Lịch hẹn` ở `router/role-nav.ts` import hằng này nên DAR-01 (router thật) giữ route và menu khớp nhau.
+describe('booking F11 — đường dẫn "Lịch hẹn" của Bác sĩ', () => {
+  it('BP-14 nằm dưới gốc khu Bác sĩ, đoạn đường là nhãn menu không dấu, chi tiết dùng mã lịch trên đường dẫn (có mã hoá), khác mọi đường dẫn đã có', () => {
+    expect(DOCTOR_APPOINTMENTS_SEGMENT).toBe('lich-hen');
+    expect(DOCTOR_APPOINTMENTS_PATH).toBe('/bac-si-portal/lich-hen');
+    // Khớp gốc khu Bác sĩ của auth: đổi `ROLE_HOME_PATHS.BacSi` mà quên file này thì ca đỏ
+    expect(DOCTOR_APPOINTMENTS_PATH).toBe(
+      `${ROLE_HOME_PATHS.BacSi}/${DOCTOR_APPOINTMENTS_SEGMENT}`,
+    );
+    expect(DOCTOR_APPOINTMENT_DETAIL_SEGMENT).toBe('lich-hen/:maLichHen');
+    expect(DOCTOR_APPOINTMENT_DETAIL_ROUTE).toBe(
+      '/bac-si-portal/lich-hen/:maLichHen',
+    );
+    expect(doctorAppointmentDetailPath('CP20261018001')).toBe(
+      '/bac-si-portal/lich-hen/CP20261018001',
+    );
+    expect(doctorAppointmentDetailPath('a/b?c#d')).toBe(
+      '/bac-si-portal/lich-hen/a%2Fb%3Fc%23d',
+    );
+
+    // Ca âm: không trùng gốc của bốn khu, mục menu Bác sĩ đã có ("Lịch làm việc" của doctor), không nằm trong luồng đặt lịch
+    const taken = [
+      ...Object.values(ROLE_HOME_PATHS),
+      '/bac-si-portal/lich-lam-viec',
+      '/bac-si-portal/lich-lam-viec/nghi-phep',
+      BOOKING_PATH,
+    ];
+    expect(taken).not.toContain(DOCTOR_APPOINTMENTS_PATH);
+    expect(DOCTOR_APPOINTMENTS_PATH.startsWith(`${BOOKING_PATH}/`)).toBe(false);
   });
 });

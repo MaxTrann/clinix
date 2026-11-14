@@ -8,3 +8,5 @@ export { PATIENT_APPOINTMENT_ROUTES } from './appointments/patient/patient-appoi
 export { RECEPTION_APPOINTMENT_ROUTES } from './appointments/reception/reception-appointment-routes';
 // F10: route "Lịch hẹn" của Quản trị viên (danh sách và trang chi tiết, đã bọc `AdminScopeGuard`), ghép vào khối `QuanTriVien` ở `router/role-routes.tsx` cạnh `ADMIN_APPROVALS_ROUTES`.
 export { ADMIN_APPOINTMENT_ROUTES } from './appointments/admin/admin-appointment-routes';
+// F11: route "Lịch hẹn" của Bác sĩ (danh sách và trang chi tiết), ghép vào khối `BacSi` ở `router/role-routes.tsx` cạnh `DOCTOR_ROUTES`. Chỉ xuất mảng route, không xuất trang (route đã `lazy`; Đại duyệt 14/11/2026).
+export { DOCTOR_APPOINTMENT_ROUTES } from './appointments/doctor/doctor-appointment-routes';
