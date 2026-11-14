@@ -1,6 +1,6 @@
 # Kế hoạch module `patient`
 
-> **Trạng thái hiện tại (09/11/2026, task X2): module `patient` hoàn tất trừ F9 (quét QR CCCD, hoãn theo quyết định của Đại ngày 09/11/2026) và X3 (chờ `booking`).** B8 và F10 (ảnh đại diện) vẫn hoãn theo Q4 = A. Kết quả chạy tay X1 và việc còn lại ở [`TRACKING.md`](TRACKING.md) mục 1, 3, 5; giải thích luồng cho vấn đáp ở [`GIAI_THICH_LUONG.md`](GIAI_THICH_LUONG.md). Khối bên dưới ghi lại bản nháp 2 (03/11/2026).
+> **Trạng thái hiện tại (09/11/2026, task X2): module `patient` hoàn tất trừ F9 (quét QR CCCD, hoãn theo quyết định của Đại ngày 09/11/2026) và X3 (đã làm 14/11/2026, chờ merge: chạy lại NT-10…NT-17, NT-24 với lịch hẹn tạo qua API `booking` thật; kết quả ở [`TRACKING.md`](TRACKING.md) mục 1 và `docs/features/booking/TRACKING.md` mục 3.41).** B8 và F10 (ảnh đại diện) vẫn hoãn theo Q4 = A. Kết quả chạy tay X1 và việc còn lại ở [`TRACKING.md`](TRACKING.md) mục 1, 3, 5; giải thích luồng cho vấn đáp ở [`GIAI_THICH_LUONG.md`](GIAI_THICH_LUONG.md). Khối bên dưới ghi lại bản nháp 2 (03/11/2026).
 > **Trạng thái: bản nháp 2 (03/11/2026).** Nhóm đã duyệt độc lập ("đạt, duyệt có chỉnh") và trả lời **đủ 27 câu** Q1–Q27: đồng ý đề xuất trừ **Q1 (đổi: Bác sĩ được dùng
 > `GET/PUT /profile`)**, kèm 4 chỉnh nhỏ (Q21c, Q13, mục 5.3, Q3). Quyết định cuối ở [`TRACKING.md`](TRACKING.md) mục 3 và tóm tắt ở mục 4.2a; bảng 4.2 giữ làm lịch sử.
 > Phiên kiểm độc lập bản nháp 2 (03/11/2026): **đạt**, sửa 4 chỗ nhỏ (mục 8, X1 thêm F11, B6 ghi rõ Q42 của admin, bất biến "không đọc thường trước khoá" ở 5.3/B5/NT-17 + ca NT-24).
@@ -597,13 +597,13 @@ Chỉ sửa **ghi chú/quy tắc** (không đổi DDL) thì giữ nguyên COMMEN
 |---|---|---|---|
 | ☑ | X1 | Chạy tay 3 use case trên `docker compose up --build` với 5 tài khoản seed (đúng/sai vai trò, sở hữu, tra cứu rỗng, lỗi dữ liệu); điền kết quả vào `TRACKING.md`; kiểm độ phủ test của module (mục tiêu ≥ 70% — `docs/PLAN.md` Phase 4) | B1–B7, F1–F8, F11 (để KG-08 được chạy) |
 | ☑ | X2 | Tổng kết: D6; kiểm mọi dòng `AI_USAGE_LOG.md`; chuẩn bị giải thích luồng cho vấn đáp (mục 9.6) | X1 |
-| ☐ | X3 | Khi `booking` có đặt lịch thật: chạy lại NT-10…NT-17 và NT-24 với lịch hẹn tạo qua API thật; xác nhận `booking` tuân hợp đồng khoá (mục 5.3) và chặn đặt lịch cho hồ sơ đã ngừng (NT-18) | X1; `booking`; **PLAN `booking` đã xác nhận hợp đồng khoá** (Q13) |
+| ☑ | X3 | **(đã làm 14/11/2026, chờ merge; PR chung với `booking` X3, nhánh `feat/booking-x3`; kết quả ở `booking` TRACKING 3.41; mã KTH-01…KTH-08 ở `booking` PLAN 7.47)** Khi `booking` có đặt lịch thật: chạy lại NT-10…NT-17 và NT-24 với lịch hẹn tạo qua API thật; xác nhận `booking` tuân hợp đồng khoá (mục 5.3) và chặn đặt lịch cho hồ sơ đã ngừng (NT-18) | X1; `booking`; **PLAN `booking` đã xác nhận hợp đồng khoá** (Q13) |
 
 ### 6.7 Việc nào bắt đầu ngay, việc nào phải chờ
 
 - **Bắt đầu ngay (mọi câu hỏi đã trả lời 03/11/2026):** F1 → F2 → F11 (khung — làm sớm vì `booking`/`doctor` cắm vào), B1, P2, P1; sau đó theo phụ thuộc trong bảng. Toàn bộ HSCN và TCBN không phụ thuộc module chưa có.
 - **Làm được trước, kiểm lại sau:** B5, F7 — bảng và entity `lich_hen` đã có nên code + test bằng dữ liệu tự dựng; **dữ liệu thật** phải chờ `booking` và PLAN `booking` xác nhận hợp đồng khoá (X3).
-- **Phải chờ người/module khác:** F5 (báo Trung trước khi sửa một dòng `admin-sidebar.tsx`), F9 (nhóm cung cấp frame + mẫu QR giả), trang Bác sĩ dùng `/profile` (module `doctor`). Form đổi mật khẩu trong các trang hồ sơ: chờ auth F5. **Cập nhật 09/11/2026 (X2):** F5 đã xong (PR 310); F9 hoãn theo quyết định của Đại; form đổi mật khẩu của auth F5 đã gắn vào các trang hồ sơ. Còn chờ: trang Bác sĩ dùng `/profile` (module `doctor`) và X3 (chờ `booking`).
+- **Phải chờ người/module khác:** F5 (báo Trung trước khi sửa một dòng `admin-sidebar.tsx`), F9 (nhóm cung cấp frame + mẫu QR giả), trang Bác sĩ dùng `/profile` (module `doctor`). Form đổi mật khẩu trong các trang hồ sơ: chờ auth F5. **Cập nhật 09/11/2026 (X2):** F5 đã xong (PR 310); F9 hoãn theo quyết định của Đại; form đổi mật khẩu của auth F5 đã gắn vào các trang hồ sơ. Còn chờ: trang Bác sĩ dùng `/profile` (module `doctor`). **Cập nhật 14/11/2026:** X3 đã làm (chờ merge).
 - **Hoãn / không làm:** B8, F10 (Q4 = A); B9, D5 (Q20 = A).
 
 ## 7. Test case dự kiến
