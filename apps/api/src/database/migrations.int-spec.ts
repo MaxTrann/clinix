@@ -6,6 +6,7 @@ import {
 } from './migration-runner.js';
 import { MIGRATIONS } from './migrations/index.js';
 import { TaoBangDanhMuc1793024340000 } from './migrations/1793024340000-tao-bang-danh-muc.js';
+import { TaoBangHoSoKham1793620800000 } from './migrations/1793620800000-tao-bang-ho-so-kham.js';
 import { TaoBangMocHoanTien1793534400000 } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -55,15 +56,19 @@ const OPERATIONS_TABLES = [
 ];
 const NGHI_PHEP_TABLES = ['yeu_cau_nghi_phep'];
 const MOC_HOAN_TIEN_TABLES = ['moc_hoan_tien'];
-const MIGRATED_TABLES = [
+const EXAM_TABLES = ['ho_so_kham', 'danh_gia_bac_si'];
+// Bảng có trước từng migration cuối: ca down/up của MHT-09 và MGK-06 chỉ khẳng định các bảng này còn nguyên, nên thêm
+// migration mới ở cuối sổ chỉ cần thêm một dòng vào cuối chuỗi này, không phải sửa hai ca đó.
+const TABLES_BEFORE_P6 = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
   ...STAFF_TABLES,
   ...OPERATIONS_TABLES,
   'anh_tai_len',
   ...NGHI_PHEP_TABLES,
-  ...MOC_HOAN_TIEN_TABLES,
 ];
+const TABLES_BEFORE_EXAM = [...TABLES_BEFORE_P6, ...MOC_HOAN_TIEN_TABLES];
+const MIGRATED_TABLES = [...TABLES_BEFORE_EXAM, ...EXAM_TABLES];
 // 20 hành động đã có trước P4 (đúng thứ tự trong migration vận hành).
 const HANH_DONG_TRUOC_P4 = [
   'DoiQuyen',
@@ -91,6 +96,7 @@ const NGHI_PHEP_NAME = TaoBangNghiPhep1793275200000.name;
 const P4_NAME = NhatKyPhanCongNghiPhep1793361600000.name;
 const BOOKING_P7_NAME = ThongBaoLichHen1793448000000.name;
 const BOOKING_P6_NAME = TaoBangMocHoanTien1793534400000.name;
+const EXAM_NAME = TaoBangHoSoKham1793620800000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -280,8 +286,8 @@ describe('vòng đời migration', () => {
   });
 
   it('MHT-09: down của booking P6 xóa bảng moc_hoan_tien kể cả khi còn dòng (không chặn); up lại cho bảng RỖNG, cùng cấu trúc', async () => {
-    // P6 là migration cuối trong sổ nên không có gì phải hoàn tác trước nó
-    expect(await revertAfter(BOOKING_P6_NAME)).toEqual([]);
+    // Hoàn tác các migration đứng sau P6 (hiện là doctor-exam P1) để P6 thành migration cuối đã áp dụng; up lại ở cuối ca
+    const later = await revertAfter(BOOKING_P6_NAME);
     const showCreate = async (): Promise<string> => {
       const rows = (await dataSource.query(
         'SHOW CREATE TABLE `moc_hoan_tien`',
@@ -314,11 +320,7 @@ describe('vòng đời migration', () => {
       expect(await revertLastMigration(dataSource)).toBe(BOOKING_P6_NAME);
       const tables = await listTables(dataSource);
       expect(tables).not.toContain('moc_hoan_tien');
-      expect(tables).toEqual(
-        expect.arrayContaining(
-          MIGRATED_TABLES.filter((table) => table !== 'moc_hoan_tien'),
-        ),
-      );
+      expect(tables).toEqual(expect.arrayContaining(TABLES_BEFORE_P6));
       expect(
         (await listMigrations(dataSource)).find(
           (item) => item.name === BOOKING_P6_NAME,
@@ -326,9 +328,74 @@ describe('vòng đời migration', () => {
       ).toBe(false);
 
       // up lại: đúng một migration, bảng trở lại RỖNG với cùng cấu trúc (cột, COMMENT, UNIQUE, khóa ngoại, CHECK)
-      expect(await runPendingMigrations(dataSource)).toEqual([BOOKING_P6_NAME]);
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        BOOKING_P6_NAME,
+        ...later,
+      ]);
       expect(await showCreate()).toBe(installed);
       expect(await countRows()).toBe(0);
+    } finally {
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+      await queryRunner.release();
+    }
+  });
+
+  it('MGK-06: down của doctor-exam P1 xóa cả hai bảng kể cả khi còn dòng (không để lại bảng nào); up lại cho hai bảng RỖNG, cùng cấu trúc', async () => {
+    // Tính theo tên: thêm migration mới sau P1 không làm ca này vỡ (chúng được hoàn tác trước và up lại ở cuối)
+    const later = await revertAfter(EXAM_NAME);
+    const showCreate = async (table: string): Promise<string> => {
+      const rows = (await dataSource.query(
+        `SHOW CREATE TABLE \`${table}\``,
+      )) as Record<string, string>[];
+      return (rows[0]?.['Create Table'] ?? '').replace(
+        / AUTO_INCREMENT=\d+/,
+        '',
+      );
+    };
+    const installed = {
+      hoSoKham: await showCreate('ho_so_kham'),
+      danhGia: await showCreate('danh_gia_bac_si'),
+    };
+    expect(installed.hoSoKham).toContain('UNIQUE KEY `lich_hen_id`');
+    expect(installed.danhGia).toContain('chk_danh_gia_so_sao');
+
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      // lich_hen để trống: tắt kiểm khóa ngoại trên MỘT kết nối để dựng dòng (như MHT-09)
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+      await queryRunner.query(
+        'INSERT INTO ho_so_kham (lich_hen_id, cap_nhat_lan_cuoi) VALUES (900001, NOW())',
+      );
+      await queryRunner.query(
+        'INSERT INTO danh_gia_bac_si (lich_hen_id, so_sao, thoi_diem_tao) VALUES (900001, 5, NOW())',
+      );
+
+      // Còn dòng: down VẪN chạy (theo PLAN, mất luôn hồ sơ khám và đánh giá), các bảng khác còn nguyên
+      expect(await revertLastMigration(dataSource)).toBe(EXAM_NAME);
+      const tables = await listTables(dataSource);
+      expect(tables).not.toContain('ho_so_kham');
+      expect(tables).not.toContain('danh_gia_bac_si');
+      expect(tables).toEqual(expect.arrayContaining(TABLES_BEFORE_EXAM));
+      expect(
+        (await listMigrations(dataSource)).find(
+          (item) => item.name === EXAM_NAME,
+        )?.executed,
+      ).toBe(false);
+
+      // up lại: đúng migration này (cộng các migration sau nó), hai bảng trở lại RỖNG với cùng cấu trúc
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        EXAM_NAME,
+        ...later,
+      ]);
+      expect(await showCreate('ho_so_kham')).toBe(installed.hoSoKham);
+      expect(await showCreate('danh_gia_bac_si')).toBe(installed.danhGia);
+      const counts = (await queryRunner.query(
+        'SELECT (SELECT COUNT(*) FROM ho_so_kham) AS hoSoKham, (SELECT COUNT(*) FROM danh_gia_bac_si) AS danhGia',
+      )) as { hoSoKham: string | number; danhGia: string | number }[];
+      expect(
+        counts.map((row) => [Number(row.hoSoKham), Number(row.danhGia)]),
+      ).toEqual([[0, 0]]);
     } finally {
       await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
       await queryRunner.release();

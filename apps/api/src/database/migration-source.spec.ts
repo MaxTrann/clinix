@@ -1,5 +1,10 @@
 import { TAO_BANG_ANH_SQL } from './migrations/1793188800000-tao-bang-anh.js';
 import { TAO_BANG_DANH_MUC_SQL } from './migrations/1793024340000-tao-bang-danh-muc.js';
+import {
+  TAO_BANG_HO_SO_KHAM_SQL,
+  TaoBangHoSoKham1793620800000,
+} from './migrations/1793620800000-tao-bang-ho-so-kham.js';
+import { MIGRATIONS } from './migrations/index.js';
 import { TAO_BANG_MOC_HOAN_TIEN_SQL } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-su.js';
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
@@ -238,6 +243,84 @@ describe('migration booking P6 (moc_hoan_tien) khớp schema SQL chính thức',
     expect(addCheck).toContain('`ty_le_hoan` BETWEEN 0 AND 100');
     for (const statement of TAO_BANG_MOC_HOAN_TIEN_SQL) {
       expect(targetTable(statement)).toBe('moc_hoan_tien');
+    }
+  });
+});
+
+// doctor-exam P1 (#391): MGK-01 và MGK-02 phần chữ DDL (không cần DB). Phần cột/chỉ mục/CHECK thật ở
+// doctor/entities/exam-tables.int-spec.ts, MGK-05 (SHOW CREATE TABLE) ở schema-parity.int-spec.ts.
+describe('migration doctor-exam P1 (ho_so_kham, danh_gia_bac_si) khớp schema SQL chính thức', () => {
+  const EXAM_TABLES = ['ho_so_kham', 'danh_gia_bac_si'];
+  const officialOf = (tables: string[]): string[] =>
+    officialStatementsFor(tables).map(normalizeStatement);
+  const migrationOf = (table: string): string[] =>
+    TAO_BANG_HO_SO_KHAM_SQL.filter((sql) => targetTable(sql) === table).map(
+      normalizeStatement,
+    );
+
+  it('MGK-01: ho_so_kham có 3 câu (bảng, COMMENT bảng, khóa ngoại) trùng từng câu, cùng thứ tự, với clinix_mysql.sql', () => {
+    const official = officialOf(['ho_so_kham']);
+    expect(official).toHaveLength(3);
+    expect(migrationOf('ho_so_kham')).toEqual(official);
+    const [createTable = '', comment = '', foreignKey = ''] = official;
+    expect(createTable).toContain('`lich_hen_id` bigint UNIQUE NOT NULL');
+    expect(createTable).toContain('`cap_nhat_lan_cuoi` datetime NOT NULL');
+    expect(foreignKey).toBe(
+      'ALTER TABLE `ho_so_kham` ADD FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen` (`lich_hen_id`)',
+    );
+    // Ca âm: chỉ khác cách gõ chữ ở COMMENT bảng cũng làm lệch văn bản
+    expect(comment).toContain('xác nhận');
+    expect(
+      [createTable, comment.replace('xác nhận', 'xac nhận'), foreignKey].map(
+        normalizeStatement,
+      ),
+    ).not.toEqual(migrationOf('ho_so_kham'));
+  });
+
+  it('MGK-02: danh_gia_bac_si có 5 câu (bảng, COMMENT bảng, khóa ngoại, hai CHECK) trùng từng câu, cùng thứ tự, với clinix_mysql.sql', () => {
+    const official = officialOf(['danh_gia_bac_si']);
+    expect(official).toHaveLength(5);
+    expect(migrationOf('danh_gia_bac_si')).toEqual(official);
+    const [createTable = '', , , checkStars = '', checkHidden = ''] = official;
+    expect(createTable).toContain('`lich_hen_id` bigint UNIQUE NOT NULL');
+    expect(createTable).toContain('`bi_an` boolean NOT NULL DEFAULT false');
+    expect(checkStars).toContain('`so_sao` BETWEEN 1 AND 5');
+    expect(checkHidden).toContain(
+      '(`bi_an` = 0 AND `ly_do_an` IS NULL) OR (`bi_an` = 1 AND `ly_do_an` IS NOT NULL)',
+    );
+    // Ca âm: COMMENT cột (ghi chú dài) lệch một dấu tiếng Việt thì không còn trùng
+    expect(createTable).toContain('Ràng buộc: 1 đến 5');
+    expect(
+      [createTable.replace('Ràng buộc', 'Rang buộc'), ...official.slice(1)].map(
+        normalizeStatement,
+      ),
+    ).not.toEqual(migrationOf('danh_gia_bac_si'));
+  });
+
+  it('MGK-01, MGK-02: đúng 8 câu, cùng thứ tự file chính thức (xen kẽ hai bảng), chỉ tác động hai bảng này', () => {
+    expect(TAO_BANG_HO_SO_KHAM_SQL).toHaveLength(8);
+    expect(TAO_BANG_HO_SO_KHAM_SQL.map(normalizeStatement)).toEqual(
+      officialOf(EXAM_TABLES),
+    );
+    for (const statement of TAO_BANG_HO_SO_KHAM_SQL) {
+      expect(EXAM_TABLES).toContain(targetTable(statement));
+    }
+  });
+
+  // registry.spec.ts đọc tên LỚP (Function.name); TypeORM lại đọc thuộc tính `name` của migration để xếp thứ tự chạy và ghi vào
+  // bảng migrations. Hai tên này phải trùng nhau, nếu không thứ tự áp dụng khác sổ đăng ký mà registry.spec vẫn xanh (M7 đã đo).
+  it('MGK-07: thuộc tính name của migration trùng tên lớp, kết thúc bằng timestamp 13 chữ số và lớn hơn mọi migration đứng trước nó trong sổ đăng ký', () => {
+    const timestampOf = (name: string): number =>
+      Number(/(\d{13})$/.exec(name)?.[1]);
+    const migration = new TaoBangHoSoKham1793620800000();
+    expect(migration.name).toBe(TaoBangHoSoKham1793620800000.name);
+    expect(Number.isFinite(timestampOf(migration.name))).toBe(true);
+    const index = MIGRATIONS.findIndex((item) => item.name === migration.name);
+    expect(index, 'đã đăng ký ở MIGRATIONS').toBeGreaterThan(0);
+    for (const earlier of MIGRATIONS.slice(0, index)) {
+      expect(timestampOf(earlier.name), earlier.name).toBeLessThan(
+        timestampOf(migration.name),
+      );
     }
   });
 });
