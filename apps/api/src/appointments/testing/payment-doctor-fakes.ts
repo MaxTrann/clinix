@@ -70,12 +70,13 @@ export interface FakePaymentInput {
 
 export function insertFakePaymentRow(
   em: EntityManager,
-  input: { lichHenId: string; taiKhoanId: string },
+  input: { lichHenId: string; taiKhoanId: string; loaiSuKien?: string },
 ): Promise<unknown> {
+  // UNIQUE (lịch, tài khoản, loại sự kiện): hai bên cùng ghi MỘT lịch (CKI-08, hai lần thu tiền) phải dùng loại KHÁC nhau, không thì bên thứ hai bị chặn ngay ở INSERT và không còn giữ khoá chia sẻ của khoá ngoại
   return em.query(INSERT_THONG_BAO_SQL, [
     input.taiKhoanId,
     'Giao dịch thanh toán giả',
-    FAKE_PAYMENT_EVENT,
+    input.loaiSuKien ?? FAKE_PAYMENT_EVENT,
     input.lichHenId,
     new Date(),
   ]);

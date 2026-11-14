@@ -35,7 +35,14 @@ const file = (path: string, source: string): SourceFile => ({ path, source });
 describe('AR-07 phương thức công khai của AppointmentTransitionService (đọc từ nguồn)', () => {
   it('thấy đủ phương thức công khai hiện có và KHÔNG thấy phương thức private, constructor (nếu bộ đọc hỏng thì luật bên dưới vô nghĩa)', () => {
     expect(methods).toEqual(
-      expect.arrayContaining(['expire', 'confirmPaid', 'complete']),
+      expect.arrayContaining([
+        'expire',
+        'confirmPaid',
+        'complete',
+        'checkIn',
+        'markNoShow',
+        'restoreConfirmed',
+      ]),
     );
     for (const name of [
       'constructor',
@@ -57,15 +64,24 @@ describe('AR-07 ngoài appointments/ chỉ gọi confirmPaid và complete', () =
     expect(findTransitionSurfaceViolations(files, methods)).toEqual([]);
   });
 
-  it.each(['expire', 'cancel', 'checkIn', 'markNoShow'])(
-    'đột biến: file của module lạ gọi .%s() của AppointmentTransitionService bị bắt (kể cả phương thức B10, B12 sắp thêm)',
+  // B14 (OVR-16): `restoreConfirmed` là PHẦN GHI của override (audit cùng giao dịch ở AdminOverrideService), nên module khác gọi thẳng cũng bị bắt; phương thức được đọc từ nguồn lớp nên tự được phủ, ca này chứng minh
+  it.each(['expire', 'cancel', 'checkIn', 'markNoShow', 'restoreConfirmed'])(
+    'đột biến: file của module lạ gọi .%s() của AppointmentTransitionService bị bắt (kể cả phương thức B10, B12, B14 sắp thêm)',
     (method) => {
       const source = `import { AppointmentTransitionService } from '../appointments/state/appointment-transition.service.js';
 class X { constructor(private readonly t: AppointmentTransitionService) {} run() { return this.t.${method}({}); } }`;
       // `new Set`: từ khi B10 vào `main`, `cancel` đã nằm trong `methods` (đọc từ nguồn lớp); cộng tay thêm lần nữa sẽ báo cùng một lỗi hai lần.
       const found = findTransitionSurfaceViolations(
         [file('payment/x.service.ts', source)],
-        [...new Set([...methods, 'cancel', 'checkIn', 'markNoShow'])],
+        [
+          ...new Set([
+            ...methods,
+            'cancel',
+            'checkIn',
+            'markNoShow',
+            'restoreConfirmed',
+          ]),
+        ],
       );
       expect(found).toHaveLength(1);
       expect(found[0]).toContain('payment/x.service.ts');

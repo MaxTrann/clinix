@@ -1,13 +1,11 @@
 import { request } from '../../../../../shared/api/client';
+import { parseAppointmentCore } from '../../common/appointment-core';
 import {
-  readAmount,
-  readCode,
   readCount,
   readFlag,
   readIsoDateTime,
   readList,
   readRecord,
-  readText,
 } from '../../common/response-readers';
 import type {
   AppointmentListQuery,
@@ -19,23 +17,11 @@ import type {
 // Gọi và kiểm hình dạng `GET /patient/appointments` (booking F1; PLAN 5.9, TRACKING 3.13). Route của Bệnh nhân nên GẮN access token
 // (mặc định của `request()`); phạm vi `benh_nhan_id` do backend lấy từ token, không tham số nào từ client là chủ sở hữu.
 
-function parseAppointment(raw: unknown): PatientAppointment {
+// Xuất cho `patient-appointment-detail-api.ts` (F2): chi tiết có đúng mười hai khoá này cộng bốn khoá riêng
+export function parseAppointment(raw: unknown): PatientAppointment {
   const row = readRecord(raw);
-  const person = readRecord(row.nguoiKham);
   return {
-    maLichHen: readCode(row.maLichHen),
-    trangThai: readText(row.trangThai),
-    thoiGian: readIsoDateTime(row.thoiGian),
-    bacSi: readText(row.bacSi),
-    chuyenKhoa: readText(row.chuyenKhoa),
-    chiNhanh: readText(row.chiNhanh),
-    dichVu: readText(row.dichVu),
-    nguoiKham: {
-      hoTen: readText(person.hoTen),
-      laBanThan: readFlag(person.laBanThan),
-    },
-    giaSnapshot: readAmount(row.giaSnapshot),
-    tienCoc: readAmount(row.tienCoc),
+    ...parseAppointmentCore(row),
     hanThanhToan:
       row.hanThanhToan === null ? null : readIsoDateTime(row.hanThanhToan),
     choPhepHuy: readFlag(row.choPhepHuy),

@@ -131,6 +131,9 @@ export class AppointmentCancellationService {
       taiKhoanId: written.before.benhNhanId,
       huy: { reason: input.reason, hoanCoc },
     });
+    // Điểm cắm audit của Quản trị viên override (B14): SAU thông báo (audit là tầng 7), dưới khoá, cùng giao dịch, một lần; ném ⇒ hoàn tác trọn (lịch, khung giờ, thông báo)
+    if (input.reason === 'QtvOverride')
+      await input.onChanged?.(em, { from: written.before.trangThai });
     return {
       kind: 'Cancelled',
       lichHenId: keys.lichHenId,

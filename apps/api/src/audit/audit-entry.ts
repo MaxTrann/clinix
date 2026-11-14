@@ -2,10 +2,14 @@ import type {
   LoaiTaiKhoan,
   TrangThaiTaiKhoan,
 } from '../auth/entities/enums.js';
-import type { PhamViQuanTri } from '../admin/entities/enums.js';
+import type {
+  PhamViQuanTri,
+  TrangThaiLichHen,
+} from '../admin/entities/enums.js';
 
 type ConfigValue = number | number[];
 type AccountState = { trang_thai: TrangThaiTaiKhoan };
+type AppointmentState = { trang_thai: TrangThaiLichHen };
 type BranchState = { chi_nhanh_id: string };
 type EffectiveState = { hieu_luc_tu: string };
 type ShiftName = 'CaSang' | 'CaChieu';
@@ -80,6 +84,13 @@ interface ChangeMap {
   };
   DuyetNghiPhep: LeaveRequestFacts;
   TuChoiNghiPhep: LeaveRequestFacts & { ly_do_tu_choi: string };
+  // Quản trị viên override trạng thái lịch hẹn (booking B14, Q24): chỉ trạng thái trước và sau cùng lý do của Admin (1–255);
+  // không tên, SĐT, email bệnh nhân; khung giờ, số hoàn, no-show là hệ quả suy ra nên không ghi.
+  OverrideLichHen: {
+    truoc: AppointmentState;
+    sau: AppointmentState;
+    ly_do: string;
+  };
 }
 
 export type AuditAction = keyof ChangeMap;
@@ -103,6 +114,7 @@ interface TargetMap {
   GoLichLamViec: 'lich_lam_viec';
   DuyetNghiPhep: 'yeu_cau_nghi_phep';
   TuChoiNghiPhep: 'yeu_cau_nghi_phep';
+  OverrideLichHen: 'lich_hen';
 }
 type TargetFor<A extends AuditAction> = TargetMap[A];
 

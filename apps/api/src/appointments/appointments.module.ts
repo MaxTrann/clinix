@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SystemConfigModule } from '../admin/system-config/system-config.module.js';
+import { AuditModule } from '../audit/audit.module.js';
 import { ExamPriceReader } from '../pricing/exam-price.reader.js';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
@@ -18,6 +19,9 @@ import { CreateAppointmentController } from './create/create-appointment.control
 import { CreateAppointmentService } from './create/create-appointment.service.js';
 import { RefundPolicyReader } from './create/refund-policy.js';
 import { HoldExpiryJob } from './expiry/hold-expiry.job.js';
+import { AdminAppointmentsController } from './lists/admin-appointments.controller.js';
+import { AdminAppointmentsService } from './lists/admin-appointments.service.js';
+import { AppointmentHistoryReader } from './lists/appointment-history.reader.js';
 import { DoctorAppointmentsController } from './lists/doctor-appointments.controller.js';
 import { DoctorAppointmentsRepository } from './lists/doctor-appointments.repository.js';
 import { DoctorAppointmentsService } from './lists/doctor-appointments.service.js';
@@ -29,11 +33,17 @@ import { PatientAppointmentsRepository } from './lists/patient-appointments.repo
 import { PatientAppointmentsService } from './lists/patient-appointments.service.js';
 import { ReceptionAppointmentsController } from './lists/reception-appointments.controller.js';
 import { ReceptionAppointmentsService } from './lists/reception-appointments.service.js';
+import { NoShowSweepService } from './noshow/no-show-sweep.service.js';
+import { NoShowJob } from './noshow/no-show.job.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 import { AppointmentQueries } from './queries/appointment-queries.js';
 import { BookabilityReader } from './slots/bookability.reader.js';
 import { SlotHoldService } from './slots/slot-hold.service.js';
 import { AppointmentTransitionService } from './state/appointment-transition.service.js';
+import { AdminOverrideController } from './status/admin-override.controller.js';
+import { AdminOverrideService } from './status/admin-override.service.js';
+import { ReceptionStatusController } from './status/reception-status.controller.js';
+import { ReceptionStatusService } from './status/reception-status.service.js';
 
 // Module `booking` (PLAN booking 5.1, 5.10; TRACKING 3.3 P1-B, 3.6 P2-B, P2-D). P1 dựng vỏ; P2 thêm TÁM cổng sang module khác, mỗi cổng gắn bản `Noop` mặc định
 // (`ports/ports.providers.ts`). Mọi thứ khác P1 làm ra (ma trận trạng thái, hằng và mã lỗi, `withBookingTransaction`, `lock-order`) là hàm hoặc hằng thuần mà nơi
@@ -45,12 +55,19 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
 //   B10 (đã làm) `AppointmentCancellationService` (`cancel/`; MỘT nơi huỷ cho Bệnh nhân, Lễ tân, Quản trị viên và `doctor`; EXPORT cho `doctor`, hướng `doctor → appointments` đúng H20), `CancelPreviewService`,
 //       `PatientCancelController` (`GET …/cancel-preview`, `POST …/cancel`); tiêm `BranchAccessPolicy` của `RbacModule` đã nhập.
 //   B11 (đã làm) `AppointmentQueries` (`queries/`; D5, D13, D14) và `confirmPaid`, `complete` của `AppointmentTransitionService`
-//   B14 thêm AuditModule; controller và service của B1 đến B14 (B3 đã thêm RbacModule và SystemConfigModule)
+//   B12 (đã làm) `ReceptionStatusController` + `ReceptionStatusService` (`status/`; `POST /reception/appointments/:maLichHen/status`: ĐƯỜNG GHI của Lễ tân; huỷ qua `AppointmentCancellationService`, tiếp đón và Vắng mặt qua hai
+//       phương thức mới `checkIn` và `markNoShow` của `AppointmentTransitionService`; dùng lại `RbacModule`, `SystemConfigModule` và cổng `PAYMENT_SUMMARY_PORT` đã có, không thêm `imports`). `checkIn` còn có người gọi
+//       ngoài module là `payment` B17 (thêm tên vào AR-07 khi đó), `markNoShow` cho job B13 và Quản trị viên B14.
+//   B14 (đã làm) `AdminOverrideController` + `AdminOverrideService` (`status/`; `POST /admin/appointments/:maLichHen/override-status`: ĐƯỜNG GHI của Quản trị viên; rẽ theo đích sang `AppointmentCancellationService` (`QtvOverride`),
+//       `markNoShow`, `checkIn` (biến thể Quản trị viên) và `restoreConfirmed` (mới) của `AppointmentTransitionService`, ghi audit `OverrideLichHen` CÙNG giao dịch qua `onChanged` của lõi) và `imports: [AuditModule]` (không import ngược: không vòng).
+//       Controller và service của B1 đến B14 (B3 đã thêm RbacModule và SystemConfigModule)
 //   B1 (đã làm) `PatientAppointmentsController`, `PatientAppointmentsService`, `PatientAppointmentsRepository` (`lists/`; `GET /patient/appointments`, chỉ đọc)
 //   B2 (đã làm) `PatientAppointmentDetailService` (`lists/`; `GET /patient/appointments/:maLichHen`, chỉ đọc; cùng controller và repository của B1)
 //   B3 (đã làm) `ReceptionAppointmentsController` + `ReceptionAppointmentsService` (`GET /reception/appointments` và `/:maLichHen`, chỉ đọc, phạm vi chi nhánh của Lễ tân) trên lớp dùng chung
 //       `OperationsAppointmentsService` + `OperationsAppointmentsRepository` (cũng là nền của B4 Quản trị viên). `imports: [RbacModule` (phạm vi `ReceptionScopeService`, `BranchAccessPolicy`),
 //       `SystemConfigModule` (khung giờ check-in cho `chuyenDuoc` của chi tiết)`]`: cả hai là module lá, không import ngược `AppointmentsModule` nên không tạo vòng.
+//   B4 (đã làm) `AdminAppointmentsController` + `AdminAppointmentsService` + `AppointmentHistoryReader` (`lists/`; `GET /admin/appointments` và `/:maLichHen`, chỉ đọc, phạm vi Quản trị viên qua `AdminScopeCtx`; trên nền
+//       `OperationsAppointmentsService` của B3, sắp GIẢM dần; chi tiết kèm panel "Lịch sử trạng thái" đọc `nhat_ky_hanh_dong` bằng SQL chỉ đọc ở MỘT file, AR-08). Không thêm `imports`: `RbacModule` đã nhập ở B3 và đã export `AdminScopeGuard`.
 //   B5 (đã làm) `DoctorAppointmentsController` + `DoctorAppointmentsService` + `DoctorAppointmentsRepository` (`GET /doctor/appointments` và `/:maLichHen`, chỉ đọc, chỉ lịch của chính bác sĩ; dùng nền
 //       `list-query.*` của B1, B3, KHÔNG dùng `OperationsAppointmentsService`: không có JOIN hay cột giá, phạm vi là `bac_si_id` thay vì chi nhánh). Không thêm `imports`.
 //   B6a (đã làm) `BookabilityReader` (`slots/`; đọc dữ kiện cho `evaluateBookability`, chỉ đọc; cần `BranchHoursReader` của SchedulingModule và hai cổng bên dưới)
@@ -61,6 +78,8 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
 //       `PAYMENT_PORT`, `APPOINTMENT_NOTIFIER`) và token `APPOINTMENT_CODE_RANDOM` (bộ sinh phần đuôi mã lịch, `useValue: randomCodeSuffix`; test thay bằng `overrideProvider`). Không thêm `imports`.
 //   B9 (đã làm) `AppointmentTransitionService` (`state/`; khung của mọi phương thức đổi trạng thái, mới có `expire`; tiêm `DataSource`, `SlotHoldService`, `WAITLIST_PORT`) và `HoldExpiryJob` (`expiry/`; `@Cron` mỗi phút,
 //       tắt ở NODE_ENV=test; chỉ `@Cron`, không `ScheduleModule.forRoot()`).
+//   B13 (đã làm) `NoShowSweepService` + `NoShowJob` (`noshow/`; job tự Vắng mặt: `@Cron` mỗi 5 phút, tắt ở NODE_ENV=test, chỉ `@Cron`, không `ScheduleModule.forRoot()`; mỗi lịch một giao dịch qua `markNoShow` với `actor: 'HeThong'`;
+//       tiêm `DataSource`, `AppointmentTransitionService`, `SystemConfigService` đã có sẵn: không thêm `imports`, không `exports`).
 //   B11 (đã làm) `AppointmentQueries` (`queries/`; CHỈ ĐỌC: `findAffectedByLeave` D5, `listAffectedByLeave` D13, `countActiveByShifts` D14) và hai phương thức mới của `AppointmentTransitionService`
 //       (`confirmPaid` cho `payment`, `complete` cho `doctor`; lớp này giờ tiêm thêm `APPOINTMENT_NOTIFIER`). Người gọi import kiểu kết quả và `withBookingTransaction` theo đường dẫn file, không qua provider.
 // `exports: [AppointmentTransitionService, AppointmentQueries, AppointmentCancellationService]`: CẢ BA là bề mặt DUY NHẤT module khác gọi vào (TRACKING 3.23, 3.24.1): `AppointmentTransitionService` cho `confirmPaid` và
@@ -80,14 +99,17 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
 // `ScheduleModule.forRoot()` (app.module.ts đã đăng ký một lần; gọi thêm thì mọi job `@Cron` chạy gấp đôi, TECH_DEBT dòng 33; job B9, B13 chỉ dùng `@Cron`).
 // `DataSource` có sẵn toàn cục từ `DatabaseModule` (như `PatientModule`) nên chưa cần `imports`.
 @Module({
-  imports: [SchedulingModule, RbacModule, SystemConfigModule],
+  imports: [SchedulingModule, RbacModule, SystemConfigModule, AuditModule],
   controllers: [
     PatientAppointmentsController,
     ReceptionAppointmentsController,
+    AdminAppointmentsController,
     BookingChecksController,
     CreateAppointmentController,
     DoctorAppointmentsController,
     PatientCancelController,
+    ReceptionStatusController,
+    AdminOverrideController,
   ],
   providers: [
     ...BOOKING_PORT_PROVIDERS,
@@ -101,6 +123,10 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
     OperationsAppointmentsRepository,
     OperationsAppointmentsService,
     ReceptionAppointmentsService,
+    AdminAppointmentsService,
+    AppointmentHistoryReader,
+    ReceptionStatusService,
+    AdminOverrideService,
     BookabilityReader,
     SlotHoldService,
     BookingEligibilityService,
@@ -111,6 +137,8 @@ import { AppointmentTransitionService } from './state/appointment-transition.ser
     AppointmentTransitionService,
     AppointmentQueries,
     HoldExpiryJob,
+    NoShowSweepService,
+    NoShowJob,
     AppointmentCancellationService,
     CancelPreviewService,
   ],

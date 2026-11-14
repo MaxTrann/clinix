@@ -65,7 +65,12 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Vận hành',
     items: [
-      { label: 'Lịch hẹn', icon: 'appointments' },
+      {
+        label: 'Lịch hẹn',
+        icon: 'appointments',
+        // booking F10; trang do module `booking` làm, ghi bằng chữ để không import chéo features/
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/lich-hen`,
+      },
       {
         label: 'Lịch làm việc bác sĩ',
         icon: 'schedule',

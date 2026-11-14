@@ -77,7 +77,7 @@ describe('mục menu và đường dẫn của Quản trị viên (KG-04, KG-06)
     ).toHaveAttribute('href', '/admin/thong-tin-phong-kham');
   });
 
-  it('AQ-03 KG-04 chỉ mục này đổi từ nút vô hiệu thành liên kết: bảy liên kết, mọi nút còn lại vô hiệu, "Thông báo" ngay trên vẫn vô hiệu; nhãn và thứ tự nhóm "Tài khoản" không đổi', async () => {
+  it('AQ-03 KG-04 chỉ mục này đổi từ nút vô hiệu thành liên kết: tám liên kết, mọi nút còn lại vô hiệu, "Thông báo" ngay trên vẫn vô hiệu; nhãn và thứ tự nhóm "Tài khoản" không đổi', async () => {
     await renderAdminProfilePage();
     const menu = menuOf(await adminSidebar());
 
@@ -85,8 +85,10 @@ describe('mục menu và đường dẫn của Quản trị viên (KG-04, KG-06)
       .getAllByRole('link')
       .map((link) => link.textContent);
     // Đổi có duyệt ở doctor F6, F8: "Lịch làm việc bác sĩ" và "Duyệt yêu cầu" (nhóm Vận hành) có trang nên là liên kết, đứng sau "Tổng quan" theo thứ tự menu
+    // Đổi có duyệt ở booking F10 (Đại duyệt 13/11/2026): "Lịch hẹn" (nhóm Vận hành, đầu nhóm) có trang nên là liên kết
     expect(links).toEqual([
       'Tổng quan',
+      'Lịch hẹn',
       'Lịch làm việc bác sĩ',
       'Duyệt yêu cầu',
       'Chuyên khoa',

@@ -14,7 +14,10 @@ import {
 } from 'lucide-react';
 import { DOCTOR_PATHS, RECEPTION_SCHEDULE_PATH } from '../features/doctor';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
-import { PATIENT_APPOINTMENTS_PATH } from '../shared/routes/booking-paths';
+import {
+  PATIENT_APPOINTMENTS_PATH,
+  RECEPTION_APPOINTMENTS_PATH,
+} from '../shared/routes/booking-paths';
 import type { RoleNavItem } from '../shared/ui/role-shell';
 
 // Menu của các khung theo vai trò (Q21d). Module có trang mới chỉ thêm `to` cho mục của mình ở đây và ghép route ở role-routes.tsx;
@@ -46,7 +49,12 @@ export const PATIENT_NAV: { items: RoleNavItem[]; footerItems: RoleNavItem[] } =
 export const RECEPTION_NAV: { items: RoleNavItem[] } = {
   items: [
     { label: 'Tổng quan', icon: LayoutDashboard },
-    { label: 'Quản lý lịch hẹn', icon: Calendar },
+    // booking F8: không `end` (nếp mục menu khác); chi tiết là ngăn kéo trên cùng trang nên không có trang con
+    {
+      label: 'Quản lý lịch hẹn',
+      icon: Calendar,
+      to: RECEPTION_APPOINTMENTS_PATH,
+    },
     { label: 'Tra cứu bệnh nhân', icon: Users, to: RECEPTION_PATHS.lookup },
     {
       label: 'Lịch làm việc bác sĩ',

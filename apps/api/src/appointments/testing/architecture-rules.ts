@@ -155,8 +155,13 @@ export function findRouteRoleViolations(
  * `DELETE FROM khung_gio` KHÔNG ở đâu cả (D7: booking không chèn, không xoá khung giờ). Tên mẫu lấy từ `WRITE_RULES` (một chỗ định nghĩa mẫu); thêm ngoại lệ là sửa mảng này kèm lý do.
  */
 export interface InternalWriteRule {
-  /** Tên mẫu trong `WRITE_RULES` */
+  /** Tên mẫu trong `WRITE_RULES`, hoặc tên tuỳ ý khi có `patterns` riêng */
   rule: string;
+  /**
+   * Mẫu RIÊNG của luật nội bộ, cho bảng KHÔNG thuộc quyền riêng của booking (task B12: `benh_nhan` thuộc auth và patient): không đưa vào `WRITE_RULES`, vì AR-01 sẽ cấm các module đó ghi bảng của chính họ.
+   * Vắng thì tra `WRITE_RULES` theo `rule` (sai tên ⇒ ném lỗi, không im lặng bỏ qua).
+   */
+  patterns?: readonly RegExp[];
   /** Thư mục (kết thúc bằng `/`, tính từ `src/`) được dùng mẫu này; rỗng = không nơi nào */
   allowedDirs: readonly string[];
   /** Vì sao, và nếu hợp lệ thì làm gì */
@@ -178,6 +183,13 @@ export const INTERNAL_WRITE_RULES: readonly InternalWriteRule[] = [
     rule: 'INSERT INTO lich_hen',
     allowedDirs: ['appointments/create/'],
     lyDo: 'chỉ luồng tạo lịch (appointments/create/, task B8) chèn lich_hen',
+  },
+  {
+    // B12 (TRACKING 3.26 câu (i)): bộ đếm no-show có đúng MỘT nơi ghi trong booking (`state/no-show-counter.query.ts`)
+    rule: 'UPDATE benh_nhan',
+    patterns: [/\bUPDATE\s+(?:IGNORE\s+)?`?benh_nhan`?(?!\w)/i],
+    allowedDirs: ['appointments/state/'],
+    lyDo: 'chỉ lớp trạng thái (appointments/state/no-show-counter.query.ts) ghi so_lan_no_show và khoa_dat_lich_do_no_show của benh_nhan (Q14, Q25; bảng thuộc auth và patient)',
   },
   {
     rule: 'INSERT INTO khung_gio',
@@ -203,14 +215,15 @@ export function findInternalWriteViolations(
     if (!file.path.startsWith(OWN_DIR)) continue;
     const code = stripComments(file.source);
     for (const entry of rules) {
-      const write = WRITE_RULES.find(
-        (candidate) => candidate.name === entry.rule,
-      );
-      if (write === undefined)
+      const patterns =
+        entry.patterns ??
+        WRITE_RULES.find((candidate) => candidate.name === entry.rule)
+          ?.patterns;
+      if (patterns === undefined)
         throw new Error(
           `INTERNAL_WRITE_RULES: không có mẫu "${entry.rule}" trong WRITE_RULES`,
         );
-      if (!write.patterns.some((pattern) => pattern.test(code))) continue;
+      if (!patterns.some((pattern) => pattern.test(code))) continue;
       if (entry.allowedDirs.some((dir) => file.path.startsWith(dir))) continue;
       found.push(
         `${file.path}: ${entry.rule} — ${entry.lyDo}. Chỗ được phép: ${entry.allowedDirs.length === 0 ? 'không nơi nào' : entry.allowedDirs.join(', ')}`,
@@ -283,6 +296,73 @@ export function findIndexAndLockViolations(
           );
       }
     }
+  }
+  return found;
+}
+
+// AR-08 (task B4; TRACKING 3.33 B4-E, câu (f)): bảng `nhat_ky_hanh_dong` thuộc `audit/` (module của Trung). Trong `appointments/` mã sản xuất chỉ được ĐỌC nó (`FROM`/`JOIN`) ở MỘT file, `lists/appointment-history.reader.ts`
+// (panel "Lịch sử trạng thái" của Quản trị viên), và KHÔNG có câu ghi nào: mọi ghi đi qua `AuditService.record`. AR-01 và AR-06 chỉ cấm GHI `lich_hen`, `khung_gio`, `benh_nhan`; AR-04 chỉ cấm hàm giờ của DB; nên chưa
+// luật nào chặn việc đọc bảng của module khác từ rải rác nhiều file. Chỉ bắt câu SQL, không bắt tên bảng đứng một mình (`locking/lock-order.ts` liệt kê tên bảng trong danh sách thứ tự khoá).
+export const AUDIT_TABLE_READER =
+  'appointments/lists/appointment-history.reader.ts';
+
+const AUDIT_TABLE = 'nhat_ky_hanh_dong';
+// Tên bảng khớp theo ranh giới từ (`nhat_ky_hanh_dong_id`, `nhat_ky_hanh_dong_cu` KHÔNG bị bắt nhầm)
+const AUDIT_READ = /\b(?:FROM|JOIN)\s+`?nhat_ky_hanh_dong`?(?!\w)/i;
+const AUDIT_WRITES: readonly Rule[] = [
+  {
+    name: `INSERT INTO ${AUDIT_TABLE}`,
+    patterns: [
+      /\b(?:INSERT|REPLACE)\s+(?:IGNORE\s+)?INTO\s+`?nhat_ky_hanh_dong`?(?!\w)/i,
+    ],
+  },
+  {
+    name: `UPDATE ${AUDIT_TABLE}`,
+    patterns: [/\bUPDATE\s+(?:IGNORE\s+)?`?nhat_ky_hanh_dong`?(?!\w)/i],
+  },
+  {
+    name: `DELETE FROM ${AUDIT_TABLE}`,
+    patterns: [/\bDELETE\s+(?:IGNORE\s+)?FROM\s+`?nhat_ky_hanh_dong`?(?!\w)/i],
+  },
+  {
+    name: `TRUNCATE ${AUDIT_TABLE}`,
+    patterns: [/\bTRUNCATE\s+(?:TABLE\s+)?`?nhat_ky_hanh_dong`?(?!\w)/i],
+  },
+  {
+    name: 'ghi thực thể NhatKyHanhDong',
+    patterns: [
+      new RegExp(
+        String.raw`\.\s*(?:${ENTITY_WRITE_METHODS})\s*\(\s*NhatKyHanhDong\b`,
+      ),
+      new RegExp(
+        String.raw`getRepository\s*(?:<[^>]*>)?\s*\(\s*NhatKyHanhDong\s*\)\s*\.\s*(?:${ENTITY_WRITE_METHODS})\b`,
+      ),
+    ],
+  },
+];
+
+/**
+ * AR-08: câu ghi `nhat_ky_hanh_dong` ở BẤT KỲ đâu trong `appointments/`, và câu ĐỌC (`FROM`/`JOIN`) ngoài `readerPath`. Trả danh sách thông điệp (rỗng = đạt). Cùng giới hạn đã biết của AR-01 (văn bản,
+ * không bắt SQL ghép chuỗi từ nhiều biến). File ngoài `appointments/` không bị quét (đó là bảng của chính `audit/`).
+ */
+export function findAuditTableViolations(
+  files: readonly SourceFile[],
+  readerPath: string = AUDIT_TABLE_READER,
+): string[] {
+  const found: string[] = [];
+  for (const file of files) {
+    if (!file.path.startsWith(OWN_DIR)) continue;
+    const code = stripComments(file.source);
+    for (const rule of AUDIT_WRITES) {
+      if (rule.patterns.some((pattern) => pattern.test(code)))
+        found.push(
+          `${file.path}: ${rule.name} — booking không ghi nhật ký hành động bằng SQL: ghi qua AuditService.record (audit/)`,
+        );
+    }
+    if (file.path !== readerPath && AUDIT_READ.test(code))
+      found.push(
+        `${file.path}: đọc ${AUDIT_TABLE} — chỉ ${readerPath} được đọc bảng này (bảng của audit/); dùng AppointmentHistoryReader`,
+      );
   }
   return found;
 }

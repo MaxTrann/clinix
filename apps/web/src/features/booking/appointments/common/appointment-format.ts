@@ -39,6 +39,16 @@ const WEEKDAY_LABELS = [
   'Thứ 7',
 ] as const;
 
+// Thứ theo quy ước ISO của API (A6: `chiTiet.thuTrongTuan`, 1 = Thứ 2 … 7 = Chủ nhật) ⇒ "Thứ 2" … "Chủ nhật"; ngoài 1 đến 7 ⇒ null. Dùng chung bảng nhãn ở trên (booking F4).
+export function isoWeekdayLabel(iso: unknown): string | null {
+  return typeof iso === 'number' &&
+    Number.isInteger(iso) &&
+    iso >= 1 &&
+    iso <= 7
+    ? WEEKDAY_LABELS[iso % 7]
+    : null;
+}
+
 // ISO UTC ⇒ "Thứ 3, 20/10/2026" theo NGÀY giờ Việt Nam, KHÔNG theo múi giờ của máy và KHÔNG cắt 10 ký tự đầu: 17:30 UTC đã là 00:30 ngày hôm sau
 // ở Việt Nam. Thứ trong tuần tính từ ngày Việt Nam (dựng ở UTC trên ba số năm, tháng, ngày) nên cũng không lệch theo múi giờ.
 export function formatVietnamWeekdayDate(iso: string): string {
@@ -47,6 +57,18 @@ export function formatVietnamWeekdayDate(iso: string): string {
     Date.UTC(Number(year), Number(month) - 1, Number(day)),
   ).getUTCDay();
   return `${WEEKDAY_LABELS[weekday]}, ${day}/${month}/${year}`;
+}
+
+// ISO UTC ⇒ "18/10" theo NGÀY giờ Việt Nam, không năm (Figma Lễ tân `479:2`: ô "Ngày & Giờ" ghi giờ rồi ngày ngắn). Cùng cách lấy ngày như trên: không cắt chuỗi, không theo múi giờ máy.
+export function formatVietnamShortDate(iso: string): string {
+  const { month, day } = vietnamParts(iso);
+  return `${day}/${month}`;
+}
+
+// ISO UTC ⇒ "18/10/2026" theo NGÀY giờ Việt Nam (F9: câu `NGOAI_KHUNG_GIO_TIEP_DON` cần ngày đầy đủ vì hai mốc có thể khác ngày). Cùng cách lấy ngày như trên.
+export function formatVietnamDate(iso: string): string {
+  const { year, month, day } = vietnamParts(iso);
+  return `${day}/${month}/${year}`;
 }
 
 // ISO UTC ⇒ "08:00" theo giờ Việt Nam (00:00 đến 23:59)
@@ -69,4 +91,10 @@ export function formatVnd(amount: string): string {
   if (match === null) throw new RangeError(`Số tiền không hợp lệ: ${amount}`);
   const integerPart = match[1].replace(/^0+(?=\d)/, '');
   return `${integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}đ`;
+}
+
+// Số tiền decimal có lớn hơn 0 không, kiểm trên CHUỖI (không qua `Number`): chuỗi đã đúng dạng `DECIMAL_AMOUNT` nên chỉ cần có một chữ số khác 0 ("0", "0.00" là
+// không còn gì; "0.10" và "200000.00" là còn). Dùng cho "còn phải thu" của Lễ tân: nơi gọi KHÔNG tính tiền, chỉ hỏi còn hay hết.
+export function isPositiveAmount(value: string): boolean {
+  return DECIMAL_AMOUNT.test(value) && /[1-9]/.test(value);
 }

@@ -572,3 +572,101 @@ describe('CNL-10, HL-16 (mức đơn vị) lỗi SAU lần ghi: ném, hoàn tác
     expect(s.db.runs).toBe(0);
   });
 });
+
+// Task B14 — OVR-03 (phần `cancel`; PLAN booking 7.37 `[đề xuất]`; TRACKING 3.31 B14-E): điểm cắm `onChanged` CHỈ ở biến thể `QtvOverride`. CỘNG THÊM: mọi ca CNL, HL ở trên giữ nguyên (không sửa kỳ vọng nào) và
+// `CancelOutcome` không đổi. Hook chạy TRONG giao dịch của lần huỷ, SAU thông báo, TRƯỚC commit; cổng hoàn tiền và danh sách chờ vẫn chỉ chạy SAU commit, đúng một lần.
+describe('OVR-03 (phần cancel) onChanged của QtvOverride: trong giao dịch, sau thông báo, trước commit; thử lại chạy lại cả nó; từ chối thì không gọi; ném thì hoàn tác trọn', () => {
+  const withHook = (
+    onChanged: NonNullable<
+      Extract<CancelInput, { reason: 'QtvOverride' }>['onChanged']
+    >,
+  ): CancelInput => ({ ...(qtvInput as object), onChanged }) as CancelInput;
+  const record = () =>
+    vi.fn((_em: EntityManager, change: { from: string }) => {
+      s.db.events.push(`onChanged:${change.from}`);
+      return Promise.resolve();
+    });
+
+  it('thứ tự: begin, ghi huỷ, thông báo, onChanged, commit; RỒI hoàn tiền, danh sách chờ (sau commit); kèm trạng thái NGUỒN đọc dưới khoá và đúng manager của giao dịch; CancelOutcome không đổi (hoàn 100%)', async () => {
+    s.transitionReturns({
+      kind: 'Cancelled',
+      before: lockedRow({ trangThai: 'VangMat' }),
+    });
+    const onChanged = record();
+    const outcome = await s.service.cancel(withHook(onChanged));
+    expect(outcome).toEqual({
+      kind: 'Cancelled',
+      maLichHen: CODE,
+      hoanCoc: { tyLe: 100, soTien: '100000.00' },
+    });
+    expect(s.db.events).toEqual([
+      'begin',
+      'transition.cancel',
+      'notify',
+      'onChanged:VangMat',
+      'commit',
+      'refund',
+      'waitlist',
+    ]);
+    expect(onChanged).toHaveBeenCalledTimes(1);
+    expect(onChanged.mock.calls[0]?.[0]).toBe(s.db.managers[0]);
+  });
+
+  it.each([
+    ['NotCancellable', { kind: 'NotCancellable', trangThai: 'HoanThanh' }],
+    ['AlreadyCancelled', { kind: 'AlreadyCancelled' }],
+    ['NotFound', { kind: 'NotFound' }],
+  ] as const)(
+    'bước ghi từ chối (%s): KHÔNG gọi onChanged, không thông báo, không cổng',
+    async (_name, refusal) => {
+      s.transitionReturns(refusal);
+      const onChanged = record();
+      expect((await s.service.cancel(withHook(onChanged))).kind).toBe(
+        refusal.kind,
+      );
+      expect(onChanged).not.toHaveBeenCalled();
+      expect(s.ports.notifier.notifyCall.count).toBe(0);
+      noPortCalls();
+    },
+  );
+
+  it('onChanged ném: NÉM tiếp, giao dịch rollback (không commit), cổng hoàn tiền và danh sách chờ KHÔNG chạy; thông báo đã ghi trong giao dịch bị hoàn tác theo', async () => {
+    const boom = new Error('audit giả lỗi');
+    const failing = vi.fn(() => Promise.reject(boom));
+    await expect(s.service.cancel(withHook(failing))).rejects.toBe(boom);
+    expect(s.db.events).toEqual([
+      'begin',
+      'transition.cancel',
+      'notify',
+      'rollback',
+    ]);
+    noPortCalls();
+  });
+
+  it('1213 ngay trong onChanged (câu INSERT audit bị deadlock) ở lần chạy đầu: vỏ chạy lại CẢ THÂN gồm onChanged; hook gọi hai lần, cổng đúng một lần sau commit', async () => {
+    let calls = 0;
+    const flaky = vi.fn((_em: EntityManager, _change: { from: string }) => {
+      calls += 1;
+      return calls === 1 ? Promise.reject(mysqlError(1213)) : Promise.resolve();
+    });
+    await expect(s.service.cancel(withHook(flaky))).resolves.toMatchObject({
+      kind: 'Cancelled',
+    });
+    expect(s.db.runs).toBe(2);
+    expect(flaky).toHaveBeenCalledTimes(2);
+    expect(s.ports.refund.refundCall.count).toBe(1);
+    expect(s.ports.waitlist.onSlotReleasedCall.count).toBe(1);
+  });
+
+  it('không có onChanged (hành vi cũ của QtvOverride): thứ tự begin, ghi huỷ, thông báo, commit, hoàn tiền, danh sách chờ', async () => {
+    await s.service.cancel(qtvInput);
+    expect(s.db.events).toEqual([
+      'begin',
+      'transition.cancel',
+      'notify',
+      'commit',
+      'refund',
+      'waitlist',
+    ]);
+  });
+});

@@ -13,7 +13,10 @@ import {
 } from '../features/auth/auth-session';
 import { getAuthState, setAuthState } from '../features/auth/auth-store';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
-import { PATIENT_APPOINTMENTS_PATH } from '../shared/routes/booking-paths';
+import {
+  PATIENT_APPOINTMENTS_PATH,
+  RECEPTION_APPOINTMENTS_PATH,
+} from '../shared/routes/booking-paths';
 import { createFakeProfileApi } from '../features/patient/testing/fake-profile-api';
 import { apiError, createFakeAuthApi } from '../test/fake-auth-api';
 import { fakeMatchMedia } from '../test/fake-match-media';
@@ -343,15 +346,21 @@ describe('khung Lễ tân', () => {
     });
     expect(lookup).toHaveAttribute('aria-current', 'page');
     expect(lookup).toHaveAttribute('href', RECEPTION_PATHS.lookup);
-    // "Tra cứu bệnh nhân" (F2), "Thông tin cá nhân" (F4) và "Lịch làm việc bác sĩ" (doctor F5) có trang; sáu mục còn lại vô hiệu (KG-04). Đổi có duyệt ở patient F4, doctor F5.
-    expect(within(menu).getAllByRole('link')).toHaveLength(3);
+    // "Tra cứu bệnh nhân" (F2), "Thông tin cá nhân" (F4), "Lịch làm việc bác sĩ" (doctor F5) và "Quản lý lịch hẹn" (booking F8) có trang; năm mục còn lại vô hiệu (KG-04).
+    // Đổi có duyệt ở patient F4, doctor F5, booking F8.
+    expect(within(menu).getAllByRole('link')).toHaveLength(4);
+    const appointments = within(menu).getByRole('link', {
+      name: 'Quản lý lịch hẹn',
+    });
+    expect(appointments).toHaveAttribute('href', RECEPTION_APPOINTMENTS_PATH);
+    expect(appointments).not.toHaveAttribute('aria-current');
     const profile = within(menu).getByRole('link', {
       name: 'Thông tin cá nhân',
     });
     expect(profile).toHaveAttribute('href', RECEPTION_PATHS.profile);
     expect(profile).not.toHaveAttribute('aria-current');
     const disabled = within(menu).getAllByRole('button');
-    expect(disabled).toHaveLength(6);
+    expect(disabled).toHaveLength(5);
     for (const button of disabled) expect(button).toBeDisabled();
     // Figma `483:2`: cuối thanh bên chỉ có nút Đăng xuất
     expect(screen.queryByRole('link', { name: 'Về trang chủ' })).toBeNull();
@@ -537,6 +546,8 @@ describe('khung Lễ tân', () => {
     // Đổi có duyệt ở patient F4: "Thông tin cá nhân" nay là liên kết nhận focus, đứng sau "Tra cứu bệnh nhân" như thứ tự menu Figma
     expect(focusable).toEqual([
       'CLINIX',
+      // Đổi có duyệt ở booking F8: "Quản lý lịch hẹn" có trang, đứng đầu danh sách mục theo thứ tự menu Figma
+      'Quản lý lịch hẹn',
       'Tra cứu bệnh nhân',
       // Đổi có duyệt ở doctor F5: "Lịch làm việc bác sĩ" có trang, đứng giữa hai mục trên theo thứ tự menu Figma
       'Lịch làm việc bác sĩ',

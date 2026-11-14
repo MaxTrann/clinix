@@ -15,6 +15,8 @@ export { RolePlaceholderPage } from './role-placeholder-page';
 export { ChangePasswordForm } from './change-password/change-password-form';
 export type { ChangePasswordFormProps } from './change-password/change-password-form';
 export { LOGOUT_FAILED_MESSAGE, useLogout } from './use-logout';
+// booking F5 (Đại duyệt 13/11/2026): cờ "trang còn gắn" để lời gọi `POST` tạo lịch hẹn không kéo người dùng đã rời trang quay lại; kiểm sau mỗi `await`
+export { usePageActive } from './use-page-active';
 // patient P2: trang hồ sơ (F3, F6) kiểm họ tên, SĐT đúng luật đăng ký; `trimAsciiWhitespace` để nhận ra ô rỗng hoặc chỉ có
 // khoảng trắng và cắt giống API (không cắt U+00A0). Email ở hồ sơ chỉ đọc nên không xuất `isPlausibleEmail`.
 export {

@@ -1,12 +1,8 @@
 import type { AppointmentState } from '../common/appointment-status';
+import { isDateRangeValid, type DateRange } from '../common/date-range';
 
 // Bộ lọc và trang của "Lịch hẹn của tôi" (booking F1), gom MỘT chỗ để quy tắc "đổi bộ lọc thì về trang 1" không thể bị bỏ sót ở một ô nào.
 // Chỉ ở bộ nhớ của trang: không `localStorage`, `sessionStorage` và không đưa vào URL (`q` có thể là mã lịch hay tên người thân; Đại duyệt 12/11/2026).
-
-export interface DateRange {
-  from: string;
-  to: string;
-}
 
 export interface ListQueryState {
   // Thẻ lọc đang chọn; null = `Tất cả`
@@ -33,11 +29,6 @@ export const INITIAL_QUERY: ListQueryState = {
   q: '',
   page: 1,
 };
-
-// Ngày là chuỗi `YYYY-MM-DD` nên so sánh chuỗi chính là so sánh ngày; ô trống thì không ràng buộc
-export function isDateRangeValid(range: DateRange): boolean {
-  return range.from === '' || range.to === '' || range.to >= range.from;
-}
 
 export type QueryAction =
   | { type: 'status'; value: AppointmentState | null }

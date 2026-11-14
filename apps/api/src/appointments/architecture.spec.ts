@@ -16,11 +16,16 @@ import {
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import { AppointmentsModule } from './appointments.module.js';
 import { PatientCancelController } from './cancel/patient-cancel.controller.js';
+import { AdminAppointmentsController } from './lists/admin-appointments.controller.js';
 import { DoctorAppointmentsController } from './lists/doctor-appointments.controller.js';
 import { PatientAppointmentsController } from './lists/patient-appointments.controller.js';
 import { ReceptionAppointmentsController } from './lists/reception-appointments.controller.js';
+import { AdminOverrideController } from './status/admin-override.controller.js';
+import { ReceptionStatusController } from './status/reception-status.controller.js';
 import {
   ALLOWED_WRITES,
+  AUDIT_TABLE_READER,
+  findAuditTableViolations,
   findClockViolations,
   findIndexAndLockViolations,
   findInternalWriteViolations,
@@ -33,6 +38,8 @@ import {
 // Task P1 — AR-01, AR-04, AR-05 (quét mã nguồn) và phần không cần AppModule của AR-03 (PLAN booking 7.11; TRACKING 3.3 P1-I). Phần cây AppModule của AR-03: architecture.int-spec.ts.
 // Task B1 — AR-02 và QB-07 (quét metadata route; TRACKING 3.13).
 // Task B6b — AR-06 và CG-10 (luật nội bộ: mỗi bảng chỉ MỘT nơi ghi trong appointments/; TRACKING 3.14 B6-G).
+// Task B12 — AR-02 cho route đổi trạng thái của Lễ tân; AR-06 thêm mẫu `UPDATE benh_nhan` chỉ ở state/ (TRACKING 3.26 câu (i)).
+// Task B4 — AR-02 cho hai route đọc của Quản trị viên; AR-08 (bảng `nhat_ky_hanh_dong` của audit/ chỉ được ĐỌC ở MỘT file, không câu ghi nào; TRACKING 3.33 B4-E).
 // Bộ quét dùng lại hàm của doctor (TECH_DEBT dòng 88); luật riêng ở testing/architecture-rules.ts, nhận `{ path, source }[]` nên test bằng dữ liệu tổng hợp.
 const SRC_DIR = fileURLToPath(new URL('..', import.meta.url));
 
@@ -200,6 +207,19 @@ describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots
         .filter((line) => line.includes('UPDATE lich_hen'))
         .every((line) => line.startsWith('appointments/state/')),
     ).toBe(true);
+    // B12 (TRACKING 3.26 câu (i)): `UPDATE benh_nhan` thật chỉ ở state/no-show-counter.query.ts (bộ đếm no-show có đúng MỘT nơi ghi trong booking)
+    expect(
+      exposed.some((line) =>
+        line.startsWith(
+          'appointments/state/no-show-counter.query.ts: UPDATE benh_nhan',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      exposed
+        .filter((line) => line.includes('UPDATE benh_nhan'))
+        .every((line) => line.startsWith('appointments/state/')),
+    ).toBe(true);
     // CG-10: ngoài slots/ không file nào của appointments/ có UPDATE khung_gio
     expect(
       exposed
@@ -259,6 +279,21 @@ describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots
       'appointments/state/x.ts',
       "q('DELETE FROM khung_gio WHERE a = 1')",
     ],
+    [
+      'UPDATE benh_nhan',
+      'appointments/create/x.ts',
+      "q('UPDATE benh_nhan SET so_lan_no_show = 0 WHERE tai_khoan_id = ?')",
+    ],
+    [
+      'UPDATE benh_nhan',
+      'appointments/cancel/x.ts',
+      "q('UPDATE IGNORE benh_nhan SET a = 1')",
+    ],
+    [
+      'UPDATE benh_nhan',
+      'appointments/slots/x.ts',
+      'q(`update `benh_nhan` set a = 1`)',
+    ],
   ])('đột biến: mẫu "%s" sai chỗ (%s) bị bắt', (rule, path, source) => {
     const found = findInternalWriteViolations([file(path, source)]);
     expect(found).toHaveLength(1);
@@ -296,8 +331,36 @@ describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots
         'scheduling/slots/f.ts',
         "q('INSERT INTO khung_gio (a) VALUES (1)')",
       ),
+      // B12: `UPDATE benh_nhan` đúng chỗ; đọc có khoá ở create/ (khoá `benh_nhan` là tầng 2); bảng có tiền tố giống tên; module khác ghi bảng của chính họ
+      file(
+        'appointments/state/counter.ts',
+        "q('UPDATE benh_nhan SET so_lan_no_show = so_lan_no_show + 1')",
+      ),
+      file(
+        'appointments/create/g.ts',
+        "q('SELECT * FROM benh_nhan WHERE tai_khoan_id = ? FOR UPDATE')",
+      ),
+      file('appointments/cancel/h.ts', "q('UPDATE benh_nhan_phu SET a = 1')"),
+      file('patient/i.ts', "q('UPDATE benh_nhan SET a = 1')"),
+      file('auth/j.ts', "q('UPDATE benh_nhan SET a = 1')"),
     ];
     expect(findInternalWriteViolations(clean)).toEqual([]);
+  });
+
+  it('`UPDATE benh_nhan` KHÔNG nằm trong WRITE_RULES của AR-01 (bảng thuộc auth và patient): AR-01 không cấm module khác ghi bảng của chính họ, chỉ AR-06 giữ bộ đếm trong appointments/state/', () => {
+    expect(
+      findWriteViolations(
+        [
+          file('patient/x.ts', "q('UPDATE benh_nhan SET a = 1')"),
+          file('auth/y.ts', "q('UPDATE benh_nhan SET a = 1')"),
+          file('admin/z.ts', "q('UPDATE benh_nhan SET a = 1')"),
+        ],
+        [],
+      ),
+    ).toEqual([]);
+    expect(
+      INTERNAL_WRITE_RULES.some((entry) => entry.rule === 'UPDATE benh_nhan'),
+    ).toBe(true);
   });
 
   it('mỗi luật nội bộ đều có mẫu thật trong WRITE_RULES, lý do và thư mục (nếu có) kết thúc bằng "/"; sai tên mẫu thì báo lỗi chứ không im lặng bỏ qua', () => {
@@ -312,6 +375,80 @@ describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots
         [{ rule: 'không có mẫu này', allowedDirs: [], lyDo: 'thử' }],
       ),
     ).toThrow(/không có mẫu/);
+  });
+});
+
+describe('AR-08 bảng nhat_ky_hanh_dong của audit/: trong appointments/ chỉ ĐỌC ở MỘT file, không câu ghi nào', () => {
+  const reader = AUDIT_TABLE_READER;
+
+  it('cây src/ thật đạt, và bộ quét THẤY câu đọc thật (đổi nơi được phép thì lộ đúng appointment-history.reader.ts)', () => {
+    expect(findAuditTableViolations(files)).toEqual([]);
+    expect(files.some((f) => f.path === reader)).toBe(true);
+    const exposed = findAuditTableViolations(files, 'appointments/khac.ts');
+    expect(exposed).toHaveLength(1);
+    expect(exposed[0]).toMatch(
+      /^appointments\/lists\/appointment-history\.reader\.ts: đọc nhat_ky_hanh_dong/,
+    );
+  });
+
+  it.each([
+    ['INSERT INTO', 'INSERT INTO nhat_ky_hanh_dong (tai_khoan_id) VALUES (1)'],
+    [
+      'INSERT IGNORE INTO',
+      'INSERT IGNORE INTO `nhat_ky_hanh_dong` () VALUES ()',
+    ],
+    ['REPLACE INTO', 'REPLACE INTO nhat_ky_hanh_dong () VALUES ()'],
+    ['UPDATE', 'UPDATE nhat_ky_hanh_dong SET ket_qua = 1'],
+    ['DELETE FROM', 'DELETE FROM nhat_ky_hanh_dong WHERE 1 = 1'],
+    ['TRUNCATE', 'TRUNCATE TABLE nhat_ky_hanh_dong'],
+    [
+      'manager.insert(NhatKyHanhDong',
+      'await manager.insert(NhatKyHanhDong, {})',
+    ],
+    [
+      'getRepository(NhatKyHanhDong).save',
+      'em.getRepository(NhatKyHanhDong).save(x)',
+    ],
+  ])(
+    'đột biến: câu ghi "%s" bị bắt dù ở chính file được phép đọc',
+    (_name, sql) => {
+      const found = findAuditTableViolations([file(reader, `q(\`${sql}\`)`)]);
+      expect(found).toHaveLength(1);
+      expect(found[0]).toContain('AuditService.record');
+    },
+  );
+
+  it.each(['FROM nhat_ky_hanh_dong', 'JOIN `nhat_ky_hanh_dong` n ON 1 = 1'])(
+    'đột biến: câu ĐỌC "%s" ở file khác bị bắt',
+    (sql) => {
+      const found = findAuditTableViolations([
+        file('appointments/queries/x.ts', `q('SELECT 1 ${sql}')`),
+      ]);
+      expect(found).toHaveLength(1);
+      expect(found[0]).toContain(`chỉ ${reader} được đọc`);
+    },
+  );
+
+  it('không bắt nhầm: comment, tên bảng đứng một mình (lock-order), tên cột có tiền tố giống, file test, và nơi ngoài appointments/ (audit/ ghi bảng của chính nó)', () => {
+    expect(
+      findAuditTableViolations([
+        file(
+          'appointments/a.ts',
+          '// SELECT FROM nhat_ky_hanh_dong, INSERT INTO nhat_ky_hanh_dong',
+        ),
+        file(
+          'appointments/locking/b.ts',
+          "const order = ['nhat_ky_hanh_dong']",
+        ),
+        file('appointments/c.ts', 'SELECT nhat_ky_hanh_dong_id AS id'),
+        file('appointments/d.ts', 'SELECT 1 FROM nhat_ky_hanh_dong_cu'),
+        file(
+          'audit/audit.repository.ts',
+          'INSERT INTO nhat_ky_hanh_dong () VALUES ()',
+        ),
+        file(reader, "q('SELECT 1 FROM nhat_ky_hanh_dong WHERE 1 = 1')"),
+      ]),
+    ).toEqual([]);
   });
 });
 
@@ -455,6 +592,12 @@ describe('AR-02, QB-07 mọi route của appointments/ có @Roles, không @Publi
     expect([...controllers]).toContain(ReceptionAppointmentsController);
     expect([...controllers]).toContain(DoctorAppointmentsController);
     expect([...controllers]).toContain(PatientCancelController);
+    // B12: route GHI của Lễ tân tự bị quét (danh sách controller lấy từ metadata của module, không viết tay)
+    expect([...controllers]).toContain(ReceptionStatusController);
+    // B14 (OVR-16): route GHI của Quản trị viên cũng tự bị quét, nên bỏ `@Roles('QuanTriVien')` khỏi route là ca này đỏ (e2e KHÔNG bắt: `AdminScopeGuard` đã trả 403 cho vai trò khác)
+    expect([...controllers]).toContain(AdminOverrideController);
+    // B4: hai route đọc của Quản trị viên cũng tự bị quét
+    expect([...controllers]).toContain(AdminAppointmentsController);
     expect(findRouteRoleViolations(controllers)).toEqual([]);
   });
 
