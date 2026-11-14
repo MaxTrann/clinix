@@ -32,8 +32,23 @@ describe('search P2 — cấu hình lệnh search-demo', () => {
   });
 });
 
+describe('doctor B18 — cấu hình lệnh doctor-demo', () => {
+  it('HD-11g doctor-demo không cần mật khẩu seed (không tạo tài khoản)', () => {
+    const env = { ...environment(), SEED_DEV_PASSWORD: undefined };
+    const config = readSeedConfig('doctor-demo', env);
+    expect(config.command).toBe('doctor-demo');
+    expect(config.password).toBeUndefined();
+  });
+});
+
 describe('C5 SD-03/04 — validation và lỗi CLI trước khi kết nối', () => {
-  it.each(['catalog', 'dev-accounts', 'config-dev', 'search-demo'])(
+  it.each([
+    'catalog',
+    'dev-accounts',
+    'config-dev',
+    'search-demo',
+    'doctor-demo',
+  ])(
     'SD-03 chặn production %s ngay cả khi chưa có cấu hình DB',
     async (command) => {
       const output = { log: vi.fn(), error: vi.fn() };

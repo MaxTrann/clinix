@@ -31,7 +31,8 @@
     "seed:dev-accounts": "nest build && node dist/database/seeds/seed.js dev-accounts",
     "seed:first-admin": "nest build && node dist/database/seeds/seed.js first-admin",
     "seed:config-dev": "nest build && node dist/database/seeds/seed.js config-dev",
-    "seed:search-demo": "nest build && node dist/database/seeds/seed.js search-demo"
+    "seed:search-demo": "nest build && node dist/database/seeds/seed.js search-demo",
+    "seed:doctor-demo": "nest build && node dist/database/seeds/seed.js doctor-demo"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
