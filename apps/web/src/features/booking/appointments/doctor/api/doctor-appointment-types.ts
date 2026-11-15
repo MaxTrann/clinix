@@ -34,9 +34,18 @@ export interface DoctorAppointment {
   lyDoKham: string | null;
 }
 
-// Chi tiết: ĐÚNG mười một khoá = tám khoá của dòng cộng `ghiChuKham` (LUÔN `null` tới khi `doctor` có `ho_so_kham`: bộ đọc nhận đúng `null`), `chiNhanh` và `ngayDat` (ISO 8601 UTC). KHÔNG `lyDoHuy`.
+// Hồ sơ khám của lịch (doctor-exam F2; hình dạng nguồn `ExamRecordView` của B2, B3 trả ở `ghiChuKham`): ĐÚNG năm khoá. `ngayTaiKhamDuKien` là `YYYY-MM-DD` hoặc `null` (tuỳ chọn), `capNhatLanCuoi` là ISO 8601 UTC.
+export interface DoctorExamRecord {
+  trieuChung: string;
+  chanDoanSoBo: string;
+  huongXuLy: string;
+  ngayTaiKhamDuKien: string | null;
+  capNhatLanCuoi: string;
+}
+
+// Chi tiết: ĐÚNG mười một khoá = tám khoá của dòng cộng `ghiChuKham` (`null` khi chưa có hồ sơ hoặc lịch không ở `DaTiepDon`/`HoanThanh` (Q16); khác `null` là đối tượng `DoctorExamRecord`, bộ đọc kiểm hình dạng), `chiNhanh` và `ngayDat` (ISO 8601 UTC). KHÔNG `lyDoHuy`.
 export interface DoctorAppointmentDetail extends DoctorAppointment {
-  ghiChuKham: null;
+  ghiChuKham: DoctorExamRecord | null;
   chiNhanh: string;
   ngayDat: string;
 }
