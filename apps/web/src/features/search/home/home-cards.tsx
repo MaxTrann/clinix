@@ -1,15 +1,9 @@
-import { ArrowRight, Briefcase, Clock, Star } from 'lucide-react';
+import { Briefcase, Clock, Star } from 'lucide-react';
 import { Link } from 'react-router';
-import type {
-  DoctorItem,
-  ServiceGroupItem,
-  SpecialtySummary,
-} from '../api/search-types';
-import { doctorInitials, doctorTitleLabel } from '../format/doctor-title';
+import type { DoctorItem, ServiceGroupItem } from '../api/search-types';
+import { doctorDisplayName, doctorInitials } from '../format/doctor-title';
 import { formatMoney } from '../format/money';
 import { doctorDetailPath, serviceListPath } from '../search-paths';
-import { DoctorCountChip } from '../specialties/doctor-count-chip';
-import { SpecialtyImage } from '../specialties/specialty-image';
 import { NO_RATING_LABEL } from '../doctors/doctor-card';
 
 export function HomeServiceCard({
@@ -84,34 +78,6 @@ export function HomeServiceCard({
   );
 }
 
-export function HomeSpecialtyCard({ item }: { item: SpecialtySummary }) {
-  return (
-    <li>
-      <Link
-        to={`/chuyen-khoa/${encodeURIComponent(item.chuyenKhoaId)}`}
-        className="block h-full overflow-hidden rounded-2xl border border-gray-200 bg-white hover:shadow-md"
-      >
-        <SpecialtyImage
-          src={item.anhDaiDien}
-          name={item.ten}
-          className="h-40 w-full object-cover"
-        />
-        <div className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900">{item.ten}</h3>
-          {/* Figma 257:214: luôn chừa 30 px (hai dòng 11,25 px) để chip "N bác sĩ" không nhảy lên khi mô tả trống */}
-          <p className="mt-1 line-clamp-2 min-h-8 text-xs leading-4 text-gray-600">
-            {item.moTa}
-          </p>
-          <div className="mt-3 flex items-center justify-between">
-            <DoctorCountChip count={item.soBacSi} />
-            <ArrowRight className="size-4 text-gray-300" aria-hidden="true" />
-          </div>
-        </div>
-      </Link>
-    </li>
-  );
-}
-
 // Q14: API không có ảnh bác sĩ; giữ chữ viết tắt như F5/F6, không gán ảnh mẫu cho người thật.
 // Thẻ này của Figma dùng lưới 4 px (chữ 10/11/13/14 px, đệm 16/14 px, bo 8 px), không nằm trên thang 15 px của gốc `html`:
 // nên ghi số px thật bằng `[Npx]` cho khớp Figma (ADR 0004 mục `[...]`; search F14, UIS-06).
@@ -146,7 +112,7 @@ export function HomeDoctorCard({ doctor }: { doctor: DoctorItem }) {
           {doctor.chuyenKhoa.ten}
         </p>
         <h3 className="pt-0.5 text-[14px] font-bold leading-[21px] text-gray-900">
-          {doctorTitleLabel(doctor.chucDanh)}. {doctor.hoTen}
+          {doctorDisplayName(doctor.chucDanh, doctor.hoTen)}
         </h3>
         {rating === null && (
           <p className="pt-1 text-[11px] leading-[16.5px] text-gray-700">

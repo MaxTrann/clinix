@@ -14,12 +14,9 @@ import {
 } from '../api/search-service';
 import { BOOKING_PATH, DOCTOR_TEAM_PATH } from '../search-paths';
 import { useRemote } from '../../../shared/hooks/use-remote';
-import {
-  HomeDoctorCard,
-  HomeServiceCard,
-  HomeSpecialtyCard,
-} from './home-cards';
+import { HomeDoctorCard, HomeServiceCard } from './home-cards';
 import { HomeProcess } from './home-process';
+import { SpecialtyCard } from '../specialties/specialty-card';
 import { GlobalSearch } from './global-search';
 import { PUBLIC_CONTAINER } from '../layout';
 import { HeroSuggestions } from './hero-suggestions';
@@ -184,7 +181,7 @@ export function HomePage() {
                   {specialties.state.data.items
                     .slice(0, HOME_PREVIEW_SIZE)
                     .map((item) => (
-                      <HomeSpecialtyCard key={item.chuyenKhoaId} item={item} />
+                      <SpecialtyCard key={item.chuyenKhoaId} item={item} />
                     ))}
                 </ul>
               ) : (

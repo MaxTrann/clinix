@@ -1,5 +1,6 @@
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { getSpecialties } from '../api/search-service';
+import { Breadcrumb } from '../breadcrumb';
 import { useRemote } from '../../../shared/hooks/use-remote';
 import { DoctorFilters } from './doctor-filters';
 import { DoctorResults } from './doctor-results';
@@ -7,7 +8,8 @@ import { useDoctorSearch } from './use-doctor-search';
 import { PUBLIC_CONTAINER } from '../layout';
 
 // Trang "Đội ngũ bác sĩ" (Figma 260:2): không bắt chọn dịch vụ (Q11). Bỏ dải "Ngày khám" và khung giờ (`[SAU]`);
-// thêm lọc giá/đánh giá/sắp xếp theo Q12 (chưa có frame Figma).
+// thêm lọc giá/đánh giá/sắp xếp theo Q12 (chưa có frame Figma). Nhịp dọc theo Figma 260:52 đến 260:158 (search F14, B1):
+// đường dẫn → H1 18,75; H1 → dòng mô tả 5,625; mô tả → bộ lọc 22,5.
 export function DoctorTeamPage() {
   const [params] = useSearchParams();
   const query = (params.get('q') ?? '').trim().slice(0, 100);
@@ -38,21 +40,15 @@ function DoctorTeamContent({
 
   return (
     <main className={`${PUBLIC_CONTAINER} py-8`}>
-      <nav aria-label="Đường dẫn" className="text-sm text-gray-600">
-        <Link to="/" className="hover:underline">
-          Trang chủ
-        </Link>
-        <span aria-hidden="true"> / </span>
-        <span aria-current="page">Bác sĩ</span>
-      </nav>
-      <h1 className="mt-3 text-3xl font-semibold text-gray-900">
-        Đội ngũ bác sĩ
-      </h1>
-      <p className="mt-1 text-gray-600">
+      <Breadcrumb
+        items={[{ label: 'Trang chủ', to: '/' }, { label: 'Bác sĩ' }]}
+      />
+      <h1 className="mt-5 text-3xl font-bold text-gray-900">Đội ngũ bác sĩ</h1>
+      <p className="mt-1.5 text-gray-600">
         Tìm bác sĩ phù hợp với nhu cầu thăm khám của bạn.
       </p>
 
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5">
+      <div className="mt-6">
         <DoctorFilters
           values={search.values}
           errors={search.errors}

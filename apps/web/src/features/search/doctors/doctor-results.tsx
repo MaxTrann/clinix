@@ -53,8 +53,8 @@ export function DoctorResults({
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
   return (
     <div>
-      <p className="mb-3 text-sm text-gray-600">{total} bác sĩ</p>
-      <ul className="flex flex-col gap-4">
+      <p className="mb-4 text-sm text-gray-600">{total} bác sĩ</p>
+      <ul className="flex flex-col gap-5">
         {items.map((doctor) => (
           <DoctorCard key={doctor.bacSiId} doctor={doctor} />
         ))}

@@ -1,65 +1,132 @@
-import { ArrowRight, MapPin, Star } from 'lucide-react';
+import {
+  ArrowRight,
+  Briefcase,
+  MapPin,
+  MessageSquare,
+  Star,
+} from 'lucide-react';
 import { Link } from 'react-router';
 import type { DoctorItem } from '../api/search-types';
-import { doctorInitials, doctorTitleLabel } from '../format/doctor-title';
+import { doctorDisplayName, doctorInitials } from '../format/doctor-title';
 import { formatMoney, isNoDeposit } from '../format/money';
 import { doctorDetailPath } from '../search-paths';
 
 export const NO_RATING_LABEL = 'Chưa có đánh giá';
 export const SCHEDULE_PLACEHOLDER = 'Lịch khám sẽ hiển thị ở bước đặt lịch';
 
-// Thẻ bác sĩ (Figma 446:2 phần thông tin; không khung giờ — đợt này chỉ chừa vùng, K2 thay sau). Ảnh là chữ viết tắt (Q14).
-// Dùng chung cho F5, F6 và chi tiết chuyên khoa.
-export function DoctorCard({ doctor }: { doctor: DoctorItem }) {
-  const rating = doctor.danhGia.diemTrungBinh;
+// Dòng điểm đánh giá của thẻ (Figma 260:172: sao 13,125 + "4.3" đậm + "(7 đánh giá)" nhạt, chữ 11,25) và của đầu chi tiết bác sĩ
+// (Figma 653:75: sao 15 + "4.3" đậm + "(7 đánh giá)", chữ 13,125; `large`). Hai phần có kiểu chữ khác nhau nên tách phần tử;
+// câu đầy đủ "4.3 (7 đánh giá)" vẫn có một lần cho trình đọc màn hình (`sr-only`). Chưa có điểm ⇒ sao xám + "Chưa có đánh giá" (Figma 259:256).
+export function DoctorRating({
+  rating,
+  count,
+  large = false,
+}: {
+  rating: string | null;
+  count: number;
+  large?: boolean;
+}) {
+  const score = rating !== null ? Number(rating).toFixed(1) : null;
   return (
-    <li className="rounded-xl border border-gray-200 bg-white p-5">
-      <div className="flex flex-col gap-4 md:flex-row md:justify-between">
-        <div className="flex gap-4">
+    <span
+      className={`flex items-center ${large ? 'gap-1.5 text-sm' : 'gap-1 text-xs'}`}
+    >
+      <Star
+        className={`${large ? 'size-4' : 'size-3.5'} ${
+          score !== null ? 'fill-amber-400 text-amber-400' : 'text-gray-300'
+        }`}
+        aria-hidden="true"
+      />
+      {score !== null ? (
+        <>
+          <span
+            aria-hidden="true"
+            className={
+              large ? 'font-bold text-gray-900' : 'font-semibold text-gray-600'
+            }
+          >
+            {score}
+          </span>
+          <span aria-hidden="true" className="text-gray-500">
+            ({count} đánh giá)
+          </span>
+          <span className="sr-only">
+            {score} ({count} đánh giá)
+          </span>
+        </>
+      ) : (
+        <span className="text-gray-500">{NO_RATING_LABEL}</span>
+      )}
+    </span>
+  );
+}
+
+// Thẻ bác sĩ NGANG (Figma 260:162; search F14, UIS-10): hai cột 517 : 621, cột trái đệm 18,75 chứa ảnh chữ 72 px, tên, điểm, kinh nghiệm, chi nhánh,
+// giá + chip cọc và hai nút NẰM NGANG cao 45; cột phải chừa vùng khung giờ (`[SAU]`, K2 thay sau). Ảnh là chữ viết tắt (Q14).
+// Dùng chung cho F5, F6 và chi tiết chuyên khoa. Đệm, khe, cỡ chữ theo lưới 15 px của gốc `html` (`p-5` = 18,75; `gap-4` = 15).
+export function DoctorCard({ doctor }: { doctor: DoctorItem }) {
+  return (
+    <li className="grid overflow-hidden rounded-[15px] border border-gray-200 bg-white md:grid-cols-[517fr_621fr]">
+      <div className="p-5 md:border-r md:border-gray-100">
+        <div className="flex items-start gap-4">
           <div
             aria-hidden="true"
-            className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-lg font-semibold text-brand-strong"
+            className="flex size-[72px] shrink-0 items-center justify-center rounded-[15px] border border-gray-200 bg-brand-soft text-xl font-semibold text-brand-strong"
           >
             {doctorInitials(doctor.hoTen)}
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              {doctorTitleLabel(doctor.chucDanh)}. {doctor.hoTen}
-            </h2>
-            <p className="text-sm text-gray-700">{doctor.chuyenKhoa.ten}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-700">
-              <span className="flex items-center gap-1">
-                <Star className="size-4 text-amber-500" aria-hidden="true" />
-                {rating !== null
-                  ? `${Number(rating).toFixed(1)} (${doctor.danhGia.soDanhGia} đánh giá)`
-                  : NO_RATING_LABEL}
-              </span>
-              <span>{doctor.soNamKinhNghiem} năm kinh nghiệm</span>
-              <span className="flex items-center gap-1">
-                <MapPin className="size-4" aria-hidden="true" />
-                {doctor.chiNhanh.ten}
-              </span>
-            </div>
-            <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-              <strong className="text-brand-strong">
-                {formatMoney(doctor.gia.giaKham)}
-              </strong>
-              {isNoDeposit(doctor.gia.mucDatCoc) ? (
-                <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs text-success">
-                  Không cần cọc
-                </span>
-              ) : (
-                <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning">
-                  Cọc {formatMoney(doctor.gia.mucDatCoc)}
-                </span>
-              )}
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium leading-[15px] text-brand-strong">
+              {doctor.chuyenKhoa.ten}
             </p>
+            <h2 className="text-lg font-semibold leading-snug text-gray-900">
+              {doctorDisplayName(doctor.chucDanh, doctor.hoTen)}
+            </h2>
+            <div className="pt-1">
+              <DoctorRating
+                rating={doctor.danhGia.diemTrungBinh}
+                count={doctor.danhGia.soDanhGia}
+              />
+            </div>
           </div>
         </div>
-        <div className="flex flex-col items-start gap-2 md:items-end">
+        <div className="pt-4 text-sm text-gray-600">
+          <p className="flex items-start gap-2">
+            <Briefcase
+              className="mt-0.5 size-4 shrink-0 text-gray-400"
+              aria-hidden="true"
+            />
+            {doctor.soNamKinhNghiem} năm kinh nghiệm
+          </p>
+          <p className="flex items-start gap-2 pt-1.5">
+            <MapPin
+              className="mt-0.5 size-4 shrink-0 text-gray-400"
+              aria-hidden="true"
+            />
+            {doctor.chiNhanh.ten}
+          </p>
+        </div>
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <p className="text-[11px] leading-[16.5px] text-gray-500">Giá khám</p>
+          <p className="flex items-center gap-2 pt-1">
+            <strong className="text-base font-semibold text-brand-strong">
+              {formatMoney(doctor.gia.giaKham)}
+            </strong>
+            {isNoDeposit(doctor.gia.mucDatCoc) ? (
+              <span className="rounded-full border border-transparent bg-success-soft px-2 py-0.5 text-[11px] font-medium leading-[16.5px] text-success">
+                Không cần cọc
+              </span>
+            ) : (
+              <span className="rounded-full border border-amber-200 bg-warning-soft px-2 py-0.5 text-[11px] font-medium leading-[16.5px] text-warning">
+                Cọc {formatMoney(doctor.gia.mucDatCoc)}
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex gap-2 pt-4">
           <Link
             to={doctorDetailPath(doctor.bacSiId)}
-            className="inline-flex items-center gap-1 rounded-lg bg-brand-soft px-3 py-1.5 text-sm font-medium text-brand-strong hover:underline"
+            className="inline-flex h-12 items-center gap-1.5 rounded-[0.625rem] bg-brand-soft px-4 text-sm font-medium text-brand-strong hover:underline"
           >
             Xem hồ sơ <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
@@ -68,14 +135,15 @@ export function DoctorCard({ doctor }: { doctor: DoctorItem }) {
             type="button"
             disabled
             title="Chưa được triển khai"
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-500"
+            className="inline-flex h-12 items-center gap-1.5 rounded-[0.625rem] border border-gray-200 px-4 text-sm font-medium text-gray-500"
           >
+            <MessageSquare className="size-4" aria-hidden="true" />
             Nhắn tin
           </button>
-          <p className="max-w-56 text-sm text-gray-600 md:text-right">
-            {SCHEDULE_PLACEHOLDER}
-          </p>
         </div>
+      </div>
+      <div className="border-t border-gray-100 bg-gray-50/60 p-5 md:border-t-0">
+        <p className="text-sm text-gray-600">{SCHEDULE_PLACEHOLDER}</p>
       </div>
     </li>
   );
