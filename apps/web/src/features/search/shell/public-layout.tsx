@@ -7,13 +7,21 @@ import {
   useAuth,
   useLogout,
 } from '../../auth';
-import { getBranchDetail, getClinicInfo } from '../api/search-service';
-import type { BranchDetail, ClinicInfo } from '../api/search-types';
+import {
+  getBranchDetail,
+  getClinicInfo,
+  getSpecialties,
+} from '../api/search-service';
+import type {
+  BranchDetail,
+  ClinicInfo,
+  SpecialtySummary,
+} from '../api/search-types';
 import { groupWeeklyHours } from '../format/weekly-hours';
 import { useSelectedBranch } from '../../../shared/branch-selection';
 import { BranchPicker } from './branch-picker';
 import type { PublicNavConfig } from './public-nav-types';
-import { PublicFooter } from './public-footer';
+import { FOOTER_SPECIALTY_COUNT, PublicFooter } from './public-footer';
 import { PublicShell } from './public-shell';
 import { usePublicBranches } from './use-public-branches';
 
@@ -28,6 +36,7 @@ export function PublicLayout({ nav }: PublicLayoutProps) {
   // MỘT hook cho nút Đăng xuất trong menu tài khoản
   const { run, pending, failed } = useLogout();
   const [clinicInfo, setClinicInfo] = useState<ClinicInfo | null>(null);
+  const [specialties, setSpecialties] = useState<SpecialtySummary[]>([]);
   const branchList = usePublicBranches();
   const { selection } = useSelectedBranch();
   const selectedId = selection?.chiNhanhId ?? null;
@@ -38,6 +47,18 @@ export function PublicLayout({ nav }: PublicLayoutProps) {
     const controller = new AbortController();
     getClinicInfo(controller.signal)
       .then(setClinicInfo)
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  // Cột "Chuyên khoa" của chân trang: tải một lần, không theo chi nhánh đang chọn; lỗi ⇒ ẩn cột (không báo lỗi)
+  useEffect(() => {
+    const controller = new AbortController();
+    getSpecialties(
+      { chiNhanhId: null, pageSize: FOOTER_SPECIALTY_COUNT },
+      controller.signal,
+    )
+      .then((result) => setSpecialties(result.items))
       .catch(() => undefined);
     return () => controller.abort();
   }, []);
@@ -101,6 +122,7 @@ export function PublicLayout({ nav }: PublicLayoutProps) {
           links={nav.footerLinks}
           legalLinks={nav.legalLinks}
           clinicInfo={clinicInfo}
+          specialties={specialties}
           hours={
             hoursSource
               ? {

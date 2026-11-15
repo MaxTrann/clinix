@@ -9,6 +9,7 @@ import { searchBranches } from '../api/search-service';
 import type { BranchSummary } from '../api/search-types';
 import { selectedFirst } from './selected-first';
 import { useRemote } from '../../../shared/hooks/use-remote';
+import { PUBLIC_CONTAINER } from '../layout';
 
 export const BRANCH_SEARCH_DEBOUNCE_MS = 300;
 export const BRANCH_EMPTY_MESSAGE = 'Không tìm thấy kết quả phù hợp.';
@@ -72,7 +73,7 @@ export function BranchListPage() {
   };
 
   return (
-    <main className="mx-auto max-w-300 px-7.5 py-8">
+    <main className={`${PUBLIC_CONTAINER} py-8`}>
       <nav aria-label="Đường dẫn" className="text-sm text-gray-600">
         <Link to="/" className="hover:underline">
           Trang chủ

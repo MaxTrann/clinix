@@ -9,6 +9,7 @@ import type { ServiceItem } from '../api/search-types';
 import { formatMoney, isNoDeposit } from '../format/money';
 import { BOOKING_PATH, doctorListPath } from '../search-paths';
 import { useRemote } from '../../../shared/hooks/use-remote';
+import { PUBLIC_STEP_CONTAINER } from '../layout';
 
 export const SERVICE_EMPTY_MESSAGE = 'Nhóm này chưa có dịch vụ nào.';
 export const SURCHARGE_NOTE =
@@ -73,7 +74,7 @@ export function ServiceListPage() {
       : undefined;
 
   return (
-    <main className="mx-auto max-w-300 px-7.5 py-8">
+    <main className={PUBLIC_STEP_CONTAINER}>
       <Link
         to={BOOKING_PATH}
         className="inline-flex items-center gap-1 text-sm text-gray-700 hover:underline"

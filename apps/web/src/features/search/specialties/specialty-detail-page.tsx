@@ -9,6 +9,7 @@ import { formatVnd } from './format-vnd';
 import { SpecialtyImage } from './specialty-image';
 import { SpecialtyDoctors } from '../doctors/specialty-doctors';
 import { useRemote } from '../../../shared/hooks/use-remote';
+import { PUBLIC_CONTAINER } from '../layout';
 
 export const SPECIALTY_NOT_FOUND_MESSAGE = 'Không tìm thấy chuyên khoa này.';
 
@@ -28,7 +29,7 @@ export function SpecialtyDetailPage() {
     state.error.status === 404;
 
   return (
-    <main className="mx-auto max-w-300 px-7.5 py-8">
+    <main className={`${PUBLIC_CONTAINER} py-8`}>
       <nav aria-label="Đường dẫn" className="text-sm text-gray-600">
         <Link to="/" className="hover:underline">
           Trang chủ

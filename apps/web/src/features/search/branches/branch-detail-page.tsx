@@ -8,6 +8,7 @@ import type { BranchDetail, WeekdayHours } from '../api/search-types';
 import { formatDayHours } from '../format/weekly-hours';
 import { doctorCountLabel } from '../specialties/doctor-count-label';
 import { useRemote } from '../../../shared/hooks/use-remote';
+import { PUBLIC_CONTAINER } from '../layout';
 
 export const BRANCH_NOT_FOUND_MESSAGE = 'Không tìm thấy chi nhánh này.';
 export const CHOOSE_BRANCH_LABEL = 'Chọn làm chi nhánh của tôi';
@@ -49,7 +50,7 @@ export function BranchDetailPage() {
     state.error.status === 404;
 
   return (
-    <main className="mx-auto max-w-300 px-7.5 py-8">
+    <main className={`${PUBLIC_CONTAINER} py-8`}>
       <nav aria-label="Đường dẫn" className="text-sm text-gray-600">
         <Link to="/" className="hover:underline">
           Trang chủ

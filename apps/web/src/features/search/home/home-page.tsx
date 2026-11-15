@@ -21,9 +21,11 @@ import {
 } from './home-cards';
 import { HomeProcess } from './home-process';
 import { GlobalSearch } from './global-search';
+import { PUBLIC_CONTAINER } from '../layout';
+import { HeroSuggestions } from './hero-suggestions';
 
 export const HOME_PREVIEW_SIZE = 8;
-const container = 'mx-auto max-w-300 px-7.5';
+const container = PUBLIC_CONTAINER;
 
 export function HomePage() {
   const { user } = useAuth();
@@ -58,6 +60,10 @@ export function HomePage() {
     [branchId, sort],
   );
 
+  // Chip gợi ý của hero lấy từ nhóm dịch vụ đã tải cho khối "Chọn dịch vụ khám"; chưa tải, lỗi hoặc rỗng ⇒ không có chip nhóm.
+  const heroGroups =
+    groups.state.status === 'ready' ? groups.state.data.items : [];
+
   return (
     <main>
       {/* Q26: nền brand-strong giữ chữ trắng đủ tương phản; không dùng gradient sáng phía sau chữ. */}
@@ -69,11 +75,14 @@ export function HomePage() {
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 overflow-hidden"
         >
-          <div className="absolute right-20 top-10 size-72 rounded-full border border-white/20" />
+          {/* Figma 257:54, 257:55: hai vòng tròn ĐẶC trắng (270 px và 180 px sát đáy). Dùng trắng 8%, không phải 10% của Figma:
+              chữ trắng đè lên vòng nhỏ đạt 4,55:1 (10% chỉ 4,39:1), TRACKING search 6.3 CL-05. */}
+          <div className="absolute right-20 top-10 size-72 rounded-full bg-white/8" />
+          <div className="absolute bottom-0 left-10 size-48 rounded-full bg-white/8" />
         </div>
         <div className={`${container} relative py-20`}>
           <div className="max-w-168">
-            <p className="text-sm">Phòng khám CLINIX</p>
+            <p className="text-sm font-medium">Phòng khám CLINIX</p>
             <h1
               id="home-title"
               className="mt-3 text-4xl font-bold leading-tight md:text-5xl"
@@ -86,21 +95,7 @@ export function HomePage() {
               vài bước.
             </p>
             <GlobalSearch />
-            <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
-              <span>Gợi ý:</span>
-              <Link
-                to={BOOKING_PATH}
-                className="rounded-full border border-white px-3 py-1.5 hover:underline"
-              >
-                Chọn dịch vụ khám
-              </Link>
-              <Link
-                to="/chuyen-khoa"
-                className="rounded-full border border-white px-3 py-1.5 hover:underline"
-              >
-                Chuyên khoa
-              </Link>
-            </div>
+            <HeroSuggestions groups={heroGroups} />
             <div className="mt-10" aria-label="Số liệu phòng khám">
               {overview.state.status === 'loading' && (
                 <p role="status">Đang tải số liệu...</p>
@@ -119,7 +114,7 @@ export function HomePage() {
                     ['Dịch vụ khám', overview.state.data.soDichVu],
                   ].map(([label, count]) => (
                     <div key={label} className="flex flex-col">
-                      <dt className="order-2 mt-1 text-sm">{label}</dt>
+                      <dt className="order-2 text-sm">{label}</dt>
                       <dd className="order-1 text-3xl font-bold">{count}</dd>
                     </div>
                   ))}
@@ -224,7 +219,7 @@ export function HomePage() {
                 type="button"
                 aria-pressed={sort === value}
                 onClick={() => setSort(value)}
-                className={`rounded-full border px-4 py-2 text-sm ${sort === value ? 'border-brand-strong bg-brand-strong text-white' : 'border-gray-300 bg-white text-gray-700'}`}
+                className={`h-10 rounded-full border px-4 text-sm font-medium ${sort === value ? 'border-brand-strong bg-brand-strong text-white' : 'border-gray-300 bg-white text-gray-700'}`}
               >
                 {label}
               </button>
@@ -244,7 +239,7 @@ export function HomePage() {
                   behavior: 'smooth',
                 })
               }
-              className="rounded-full border border-gray-300 bg-white p-2 text-gray-700"
+              className="flex size-10 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700"
             >
               <ChevronLeft className="size-4" aria-hidden="true" />
             </button>
@@ -257,7 +252,7 @@ export function HomePage() {
                   behavior: 'smooth',
                 })
               }
-              className="rounded-full border border-gray-300 bg-white p-2 text-gray-700"
+              className="flex size-10 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700"
             >
               <ChevronRight className="size-4" aria-hidden="true" />
             </button>

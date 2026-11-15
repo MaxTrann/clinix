@@ -1,3 +1,4 @@
+import { ArrowRight, Briefcase, Clock, Star } from 'lucide-react';
 import { Link } from 'react-router';
 import type {
   DoctorItem,
@@ -7,7 +8,7 @@ import type {
 import { doctorInitials, doctorTitleLabel } from '../format/doctor-title';
 import { formatMoney } from '../format/money';
 import { doctorDetailPath, serviceListPath } from '../search-paths';
-import { doctorCountLabel } from '../specialties/doctor-count-label';
+import { DoctorCountChip } from '../specialties/doctor-count-chip';
 import { SpecialtyImage } from '../specialties/specialty-image';
 import { NO_RATING_LABEL } from '../doctors/doctor-card';
 
@@ -34,16 +35,20 @@ export function HomeServiceCard({
       </span>
       <h3 className="mt-4 text-lg font-semibold text-gray-900">{item.ten}</h3>
       {item.sapTrienKhai ? (
-        <p className="mt-3 text-sm text-gray-600">Sắp triển khai</p>
+        <p className="mt-3">
+          <span className="inline-block rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600">
+            Sắp triển khai
+          </span>
+        </p>
       ) : (
         <>
-          <p className="mt-3 text-sm text-gray-600">
+          <p className="mt-3 text-xs text-gray-600">
             {item.soDichVu} dịch vụ
             {item.giaTu !== null && (
               <>
                 {' '}
                 · từ{' '}
-                <strong className="text-gray-800">
+                <strong className="font-medium text-gray-800">
                   {formatMoney(item.giaTu)}
                 </strong>
               </>
@@ -64,7 +69,7 @@ export function HomeServiceCard({
   return (
     <li aria-disabled={item.sapTrienKhai || undefined}>
       {item.sapTrienKhai ? (
-        <div className="h-full rounded-2xl border border-gray-200 bg-gray-50 p-6">
+        <div className="h-full rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6">
           {body}
         </div>
       ) : (
@@ -93,14 +98,14 @@ export function HomeSpecialtyCard({ item }: { item: SpecialtySummary }) {
         />
         <div className="p-4">
           <h3 className="text-lg font-semibold text-gray-900">{item.ten}</h3>
-          {item.moTa && (
-            <p className="mt-1 line-clamp-2 text-sm text-gray-600">
-              {item.moTa}
-            </p>
-          )}
-          <p className="mt-3 text-sm font-medium text-brand-strong">
-            {doctorCountLabel(item.soBacSi)}
+          {/* Figma 257:214: luôn chừa 30 px (hai dòng 11,25 px) để chip "N bác sĩ" không nhảy lên khi mô tả trống */}
+          <p className="mt-1 line-clamp-2 min-h-8 text-xs leading-4 text-gray-600">
+            {item.moTa}
           </p>
+          <div className="mt-3 flex items-center justify-between">
+            <DoctorCountChip count={item.soBacSi} />
+            <ArrowRight className="size-4 text-gray-300" aria-hidden="true" />
+          </div>
         </div>
       </Link>
     </li>
@@ -108,41 +113,66 @@ export function HomeSpecialtyCard({ item }: { item: SpecialtySummary }) {
 }
 
 // Q14: API không có ảnh bác sĩ; giữ chữ viết tắt như F5/F6, không gán ảnh mẫu cho người thật.
+// Thẻ này của Figma dùng lưới 4 px (chữ 10/11/13/14 px, đệm 16/14 px, bo 8 px), không nằm trên thang 15 px của gốc `html`:
+// nên ghi số px thật bằng `[Npx]` cho khớp Figma (ADR 0004 mục `[...]`; search F14, UIS-06).
 export function HomeDoctorCard({ doctor }: { doctor: DoctorItem }) {
+  const rating = doctor.danhGia.diemTrungBinh;
   return (
-    <li className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div
-        aria-hidden="true"
-        className="flex h-48 items-center justify-center bg-brand-soft text-5xl font-semibold text-brand-strong"
-      >
-        {doctorInitials(doctor.hoTen)}
+    <li className="relative overflow-hidden rounded-[8px] border border-gray-200 bg-white shadow-sm">
+      <div className="relative">
+        <div
+          aria-hidden="true"
+          className="flex h-[192px] items-center justify-center bg-brand-soft text-5xl font-semibold text-brand-strong"
+        >
+          {doctorInitials(doctor.hoTen)}
+        </div>
+        {/* Figma 257:412: điểm sao là huy hiệu trắng ở góc trên phải ảnh; chưa có đánh giá thì không có huy hiệu (dòng chữ dưới tên) */}
+        {rating !== null && (
+          <span className="absolute right-2.5 top-2.5 flex items-center gap-[3px] rounded-full bg-white/90 px-2.5 py-[3px] text-[12px] font-semibold leading-[18px] text-gray-700">
+            <Star
+              className="size-3 fill-amber-500 text-amber-500"
+              aria-hidden="true"
+            />
+            {Number(rating).toFixed(1)}
+            <span className="sr-only">
+              {' '}
+              ({doctor.danhGia.soDanhGia} đánh giá)
+            </span>
+          </span>
+        )}
       </div>
-      <div className="p-4">
-        <p className="text-xs font-semibold text-brand-strong">
+      <div className="px-[16px] py-[14px]">
+        <p className="text-[11px] font-semibold leading-[16.5px] text-brand-strong">
           {doctor.chuyenKhoa.ten}
         </p>
-        <h3 className="mt-1 font-bold text-gray-900">
+        <h3 className="pt-0.5 text-[14px] font-bold leading-[21px] text-gray-900">
           {doctorTitleLabel(doctor.chucDanh)}. {doctor.hoTen}
         </h3>
-        <p className="mt-2 text-xs text-gray-700">
-          {doctor.danhGia.diemTrungBinh === null
-            ? NO_RATING_LABEL
-            : `${Number(doctor.danhGia.diemTrungBinh).toFixed(1)} (${doctor.danhGia.soDanhGia} đánh giá)`}
-        </p>
-        <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-600">
-          <span>{doctor.soNamKinhNghiem} năm KN</span>
-          <span>{doctor.dichVu.thoiLuong} phút/lần</span>
+        {rating === null && (
+          <p className="pt-1 text-[11px] leading-[16.5px] text-gray-700">
+            {NO_RATING_LABEL}
+          </p>
+        )}
+        <div className="flex gap-3 pt-1.5 text-[11px] leading-[16.5px] text-gray-600">
+          <span className="flex items-center gap-1">
+            <Briefcase className="size-[11px]" aria-hidden="true" />
+            {doctor.soNamKinhNghiem} năm KN
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock className="size-[11px]" aria-hidden="true" />
+            {doctor.dichVu.thoiLuong} phút/lần
+          </span>
         </div>
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-2">
-          <p className="text-xs text-gray-600">
+        <div className="flex items-center justify-between gap-2 pt-2.5">
+          <p className="text-[10px] leading-[15px] text-gray-600">
             Giá khám
-            <strong className="block text-base text-brand-strong">
+            <strong className="block text-[13px] font-bold leading-[19.5px] text-brand-strong">
               {formatMoney(doctor.gia.giaKham)}
             </strong>
           </p>
           <Link
             to={doctorDetailPath(doctor.bacSiId)}
-            className="rounded-lg bg-brand-strong px-3 py-2 text-xs font-medium text-white"
+            className="rounded-[6px] bg-brand-strong px-[14px] py-[6px] text-[12px] font-semibold leading-[18px] text-white"
           >
             Xem hồ sơ<span className="sr-only"> {doctor.hoTen}</span>
           </Link>

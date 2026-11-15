@@ -7,6 +7,7 @@ import {
   createFakeAuthApi,
   createFakeLocks,
 } from '../../../test/fake-auth-api';
+import { fakeMatchMedia } from '../../../test/fake-match-media';
 import { login, resetAuthForTest } from '../../auth/auth-session';
 import { setAuthState } from '../../auth/auth-store';
 
@@ -33,6 +34,8 @@ beforeEach(() => {
   api = createFakeAuthApi();
   publicCalls = [];
   clinicInfoResponse = () => jsonResponse(200, CLINIC_INFO);
+  // Điều hướng đầy đủ chỉ dựng từ 1280 px (search F14, M5); happy-dom mặc định rộng 1024 nên giả bề ngang cho các ca header
+  fakeMatchMedia(1280);
   vi.stubGlobal(
     'fetch',
     vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -227,5 +230,70 @@ describe('Phạm vi của khung', () => {
     ).toBeInTheDocument();
     expect(mainNav()).toBeInTheDocument();
     expect(screen.getByText(/Bảo lưu mọi quyền/)).toBeInTheDocument();
+  });
+});
+
+describe('PublicFooter trong khung công khai (search F14, G4)', () => {
+  const page = (names: string[]) => ({
+    items: names.map((ten, index) => ({
+      chuyenKhoaId: String(index + 1),
+      ten,
+      moTa: null,
+      anhDaiDien: null,
+      soBacSi: 1,
+    })),
+    total: names.length,
+    page: 1,
+    pageSize: 8,
+    soCoBacSi: names.length,
+  });
+
+  function stubSpecialties(respond: () => Response, calls: string[] = []) {
+    const base = globalThis.fetch;
+    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname === '/api/public/specialties') {
+        calls.push(url.search);
+        return Promise.resolve(respond());
+      }
+      return base(input, init);
+    });
+  }
+
+  it('UIS-08 chân trang có cột "Chuyên khoa" từ GET /public/specialties (8 tên đầu, không lọc chi nhánh; Figma 257:1057)', async () => {
+    setAuthState({ status: 'unauthenticated' });
+    const calls: string[] = [];
+    stubSpecialties(
+      () => jsonResponse(200, page(['Tim mạch', 'Nhi khoa'])),
+      calls,
+    );
+    renderAt('/khong-co-trang-nay');
+    const footer = within(await screen.findByRole('contentinfo'));
+    expect(
+      await footer.findByRole('link', { name: 'Tim mạch' }),
+    ).toHaveAttribute('href', '/chuyen-khoa/1');
+    expect(footer.getByRole('link', { name: 'Nhi khoa' })).toHaveAttribute(
+      'href',
+      '/chuyen-khoa/2',
+    );
+    expect(
+      footer.getByRole('heading', { name: 'Chuyên khoa' }),
+    ).toBeInTheDocument();
+    const query = new URLSearchParams(calls[0]);
+    expect(query.get('pageSize')).toBe('8');
+    expect(query.has('chiNhanhId')).toBe(false);
+  });
+
+  it('UIS-08 lỗi tải chuyên khoa ⇒ ẩn cột "Chuyên khoa", chân trang vẫn hiện liên hệ (KC-05)', async () => {
+    setAuthState({ status: 'unauthenticated' });
+    stubSpecialties(() =>
+      jsonResponse(400, { maLoi: 'BO_LOC_KHONG_HOP_LE', thongBao: 'Lỗi' }),
+    );
+    renderAt('/khong-co-trang-nay');
+    const footer = within(await screen.findByRole('contentinfo'));
+    expect(
+      await footer.findByText('12 Đường Mẫu, TP. Hồ Chí Minh'),
+    ).toBeInTheDocument();
+    expect(footer.queryByRole('heading', { name: 'Chuyên khoa' })).toBeNull();
   });
 });

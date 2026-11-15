@@ -11,6 +11,7 @@ import { formatMoney } from '../format/money';
 import { DOCTOR_TEAM_PATH } from '../search-paths';
 import { useRemote } from '../../../shared/hooks/use-remote';
 import { NO_RATING_LABEL } from './doctor-card';
+import { PUBLIC_CONTAINER } from '../layout';
 import {
   ClinicPanel,
   GuidePanel,
@@ -231,7 +232,7 @@ export function DoctorDetailPage() {
     state.error.status === 404;
 
   return (
-    <main className="mx-auto max-w-300 px-7.5 py-8">
+    <main className={`${PUBLIC_CONTAINER} py-8`}>
       <nav aria-label="Đường dẫn" className="text-sm text-gray-600">
         <Link to="/" className="hover:underline">
           Trang chủ

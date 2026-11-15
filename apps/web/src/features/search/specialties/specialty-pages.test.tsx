@@ -7,10 +7,12 @@ import {
   createFakeAuthApi,
   createFakeLocks,
 } from '../../../test/fake-auth-api';
+import { fakeMatchMedia } from '../../../test/fake-match-media';
 import { resetAuthForTest } from '../../auth/auth-session';
 import { setAuthState } from '../../auth/auth-store';
 import type { SpecialtyDetail, SpecialtySummary } from '../api/search-types';
 import { SPECIALTY_EMPTY_MESSAGE } from './specialty-list-page';
+import { FOOTER_SPECIALTY_COUNT } from '../shell/public-footer';
 import { SPECIALTY_NOT_FOUND_MESSAGE } from './specialty-detail-page';
 
 // search F4. Mã ca TCK-09 (danh sách), TCK-10 (chi tiết) lấy từ PLAN search mục 7.2.
@@ -51,6 +53,8 @@ const jsonResponse = (status: number, body: unknown) =>
   });
 
 beforeEach(() => {
+  // Điều hướng đầy đủ chỉ dựng từ 1280 px (search F14, M5); happy-dom mặc định rộng 1024 nên giả bề ngang
+  fakeMatchMedia(1280);
   resetAuthForTest();
   resetSelectedBranchForTest();
   window.localStorage.clear();
@@ -69,6 +73,22 @@ beforeEach(() => {
     vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (!url.includes('/public/')) return api.fetch(input, init);
+      // Chân trang (search F14, G4) tự tải 8 chuyên khoa đầu; ca của trang này không xét cột đó nên trả rỗng và không đếm
+      const footerUrl = new URL(url, 'http://localhost');
+      if (
+        footerUrl.pathname.endsWith('/public/specialties') &&
+        footerUrl.searchParams.get('pageSize') ===
+          String(FOOTER_SPECIALTY_COUNT)
+      )
+        return Promise.resolve(
+          jsonResponse(200, {
+            items: [],
+            total: 0,
+            page: 1,
+            pageSize: FOOTER_SPECIALTY_COUNT,
+            soCoBacSi: 0,
+          }),
+        );
       calls.push({ url, headers: new Headers(init?.headers) });
       if (url.includes('/public/clinic-info')) {
         return Promise.resolve(

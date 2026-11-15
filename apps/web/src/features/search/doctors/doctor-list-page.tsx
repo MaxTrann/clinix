@@ -12,6 +12,7 @@ import {
   DoctorResults,
 } from './doctor-results';
 import { useDoctorSearch } from './use-doctor-search';
+import { PUBLIC_STEP_CONTAINER } from '../layout';
 
 export const SERVICE_NOT_FOUND_MESSAGE = 'Không tìm thấy dịch vụ này.';
 
@@ -40,7 +41,7 @@ export function DoctorListPage() {
   );
 
   return (
-    <main className="mx-auto max-w-300 px-7.5 py-8">
+    <main className={PUBLIC_STEP_CONTAINER}>
       <Link
         to={serviceListPath(groupId)}
         className="inline-flex items-center gap-1 text-sm text-gray-700 hover:underline"
