@@ -206,3 +206,99 @@ describe('danh sách trắng cột (DSB-06, DSB-12)', () => {
     expect(await repo.findDetail(em, '5', 'CLX-20261110-ABCDE')).toBeNull();
   });
 });
+
+// Task B3 (doctor-exam; PLAN 5.10 E2; TRACKING 17): hồ sơ khám đọc bằng MỘT `LEFT JOIN ho_so_kham` ở MỘT chỗ, chỉ ở câu TRANG và câu CHI TIẾT; điều kiện trạng thái nằm TRONG `ON` (Q16) nên nội dung của lịch
+// ngoài `DaTiepDon`/`HoanThanh` không rời DB. Kết quả thật trên MySQL: doctor-appointments.int-spec.ts.
+describe('hồ sơ khám: LEFT JOIN ở MỘT chỗ, chỉ câu trang và câu chi tiết (HDK-14, HDK-01, HDK-02)', () => {
+  const RECORD_JOIN =
+    "LEFT JOIN ho_so_kham hk ON hk.lich_hen_id = lh.lich_hen_id\n  AND lh.trang_thai IN ('DaTiepDon', 'HoanThanh')";
+  const CONTENT_COLUMNS =
+    /trieu_chung|chan_doan_so_bo|huong_xu_ly|ngay_tai_kham_du_kien|cap_nhat_lan_cuoi/;
+
+  async function sqlOfAll() {
+    const count = setup([{ total: 0 }]);
+    await count.repo.count(count.em, '5', filter);
+    const status = setup();
+    await status.repo.countByStatus(status.em, '5', filter);
+    const page = setup();
+    await page.repo.findPage(page.em, '5', filter, 'DESC', 20, 0);
+    const detail = setup();
+    await detail.repo.findDetail(detail.em, '5', 'CLX-20261110-ABCDE');
+    return {
+      count: count.call().sql,
+      status: status.call().sql,
+      page: page.call().sql,
+      detail: detail.call().sql,
+    };
+  }
+
+  it('HDK-14 câu ĐẾM và câu THEO TRẠNG THÁI KHÔNG chứa `ho_so_kham` (không JOIN thừa, số đếm luôn đúng tập mà trang cắt ra)', async () => {
+    const { count, status } = await sqlOfAll();
+    expect(count).not.toContain('ho_so_kham');
+    expect(status).not.toContain('ho_so_kham');
+  });
+
+  it('HDK-14 câu TRANG và CHI TIẾT chứa đúng MỘT `LEFT JOIN ho_so_kham hk` (không INNER, không FROM), đứng sau hai JOIN lấy `ca` và TRƯỚC `WHERE`', async () => {
+    const { page, detail } = await sqlOfAll();
+    for (const sql of [page, detail]) {
+      expect(sql.split('JOIN ho_so_kham')).toHaveLength(2);
+      expect(sql.split('LEFT JOIN ho_so_kham hk')).toHaveLength(2);
+      expect(sql).not.toMatch(/INNER JOIN ho_so_kham|FROM ho_so_kham/);
+      expect(sql).toContain(RECORD_JOIN);
+      expect(sql.indexOf('INNER JOIN lich_lam_viec llv')).toBeLessThan(
+        sql.indexOf(RECORD_JOIN),
+      );
+      expect(sql.indexOf(RECORD_JOIN)).toBeLessThan(sql.indexOf('WHERE'));
+    }
+  });
+
+  it('HDK-01 điều kiện trạng thái hiển thị hồ sơ nằm TRONG `ON` (hằng, không tham số), không ở `WHERE`: lịch ngoài hai trạng thái vẫn hiện nhưng cột hồ sơ là NULL', async () => {
+    const { page, detail } = await sqlOfAll();
+    for (const sql of [page, detail]) {
+      const on = sql.slice(
+        sql.indexOf('LEFT JOIN ho_so_kham'),
+        sql.indexOf('WHERE'),
+      );
+      expect(on).toContain("lh.trang_thai IN ('DaTiepDon', 'HoanThanh')");
+      expect(sql.slice(sql.indexOf('WHERE'))).not.toMatch(/hk\./);
+    }
+  });
+
+  it('HDK-02 câu TRANG: đúng MỘT cột cờ `(hk.ho_so_kham_id IS NOT NULL) AS coHoSoKham` và KHÔNG cột nội dung nào của hồ sơ', async () => {
+    const { page } = await sqlOfAll();
+    const select = selectOf(page);
+    expect(select).toContain('(hk.ho_so_kham_id IS NOT NULL) AS coHoSoKham');
+    expect(select).not.toMatch(CONTENT_COLUMNS);
+    expect(select.match(/hk\./g)).toHaveLength(1);
+  });
+
+  it('HDK-01, HDK-15 câu CHI TIẾT: cờ và năm cột nội dung; ngày tái khám qua `DATE_FORMAT(…, %Y-%m-%d)`; `cap_nhat_lan_cuoi` đọc thẳng (Date)', async () => {
+    const { detail } = await sqlOfAll();
+    const select = selectOf(detail);
+    expect(select).toContain('(hk.ho_so_kham_id IS NOT NULL) AS coHoSo');
+    for (const column of [
+      'hk.trieu_chung AS trieuChung',
+      'hk.chan_doan_so_bo AS chanDoanSoBo',
+      'hk.huong_xu_ly AS huongXuLy',
+      "DATE_FORMAT(hk.ngay_tai_kham_du_kien, '%Y-%m-%d') AS ngayTaiKhamDuKien",
+      'hk.cap_nhat_lan_cuoi AS capNhatLanCuoi',
+    ])
+      expect(select).toContain(column);
+    expect(select).not.toContain('AS coHoSoKham');
+  });
+
+  it('HDK-14, AR-05 KHÔNG hàm nào bọc `thoi_gian` ở bất kỳ câu nào (DATE, MONTH, YEAR, DAY, DATE_FORMAT…): AR-05 chỉ bắt `DATE(`, nên ca này giữ khoảng hở cho SQL của B3', async () => {
+    const all = await sqlOfAll();
+    for (const sql of Object.values(all))
+      expect(sql).not.toMatch(/\b[A-Z_]+\s*\(\s*(?:lh\.)?thoi_gian\b/i);
+  });
+
+  it('HDK-14 vẫn bốn câu độc lập, một lần gọi mỗi câu (không câu thứ hai để đọc hồ sơ): `findPage` và `findDetail` mỗi hàm đúng MỘT lần `query`', async () => {
+    const page = setup();
+    await page.repo.findPage(page.em, '5', filter, 'DESC', 20, 0);
+    const detail = setup();
+    await detail.repo.findDetail(detail.em, '5', 'CLX-20261110-ABCDE');
+    expect(page.query).toHaveBeenCalledTimes(1);
+    expect(detail.query).toHaveBeenCalledTimes(1);
+  });
+});

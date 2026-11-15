@@ -31,3 +31,11 @@ export const FORBIDDEN_KEY =
  */
 export const DOCTOR_FORBIDDEN_KEY =
   /id$|email|mat_?khau|bam$|dia_?chi|gia_?snapshot|tien_?coc|(?<!cho_?)thanh_?toan|hoan_?tien|ly_?do_?huy|nguoi_?dat|may_?chu|^bac_?si$/i;
+
+/**
+ * Khoá của HỒ SƠ KHÁM (dữ liệu sức khoẻ) mà Lễ tân, Quản trị viên và Bệnh nhân KHÔNG được thấy ở bất kỳ API booking nào (doctor-exam B3; PLAN H10, QHK-08): chỉ Bác sĩ phụ trách đọc nội dung (`GET /doctor/appointments/*`),
+ * và `DOCTOR_FORBIDDEN_KEY` KHÔNG khớp các khoá này (hai regex bổ sung nhau, không chồng). Bốn khoá của PLAN H10 (`trieuChung`, `chanDoanSoBo`, `huongXuLy`, `ghiChuKham`) cộng ba khoá `[đề xuất]` cùng nhóm dữ liệu sức khoẻ:
+ * `ngayTaiKhamDuKien`, `capNhatLanCuoi`, `coHoSoKham` (cờ "có hồ sơ" cũng là thông tin sức khoẻ). Khớp cả camelCase và snake_case, không phân biệt hoa thường.
+ */
+export const HEALTH_RECORD_KEY =
+  /trieu_?chung|chan_?doan|huong_?xu_?ly|ghi_?chu_?kham|tai_?kham|cap_?nhat_?lan_?cuoi|co_?ho_?so_?kham/i;

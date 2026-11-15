@@ -27,6 +27,16 @@ export type DoctorVisibleState = PatientVisibleState;
 export const DOCTOR_VISIBLE_STATES: readonly DoctorVisibleState[] =
   PATIENT_VISIBLE_STATES;
 
+/**
+ * Hai trạng thái lịch mà API của Bác sĩ trả hồ sơ khám (doctor-exam B3; Q16; PLAN 5.10 E2). Lịch ở trạng thái khác (ví dụ Admin override đưa về `DaXacNhan`) GIỮ dòng `ho_so_kham` nhưng API trả
+ * `ghiChuKham: null` và `coHoSoKham: false`: điều kiện nằm TRONG `ON` của `LEFT JOIN` (repository) nên nội dung không rời DB; lịch về lại `DaTiepDon` thì hồ sơ hiện lại. CÙNG tập với `canWriteRecord` của
+ * `doctor/examination/exam-record` (booking không import mã của `doctor/`): HDK-01 (sáu trạng thái, mỗi trạng thái một hồ sơ mồ côi) và HDK-13 (PUT thật) giữ hai nơi khớp nhau.
+ */
+export const RECORD_VISIBLE_STATES = [
+  'DaTiepDon',
+  'HoanThanh',
+] as const satisfies readonly DoctorVisibleState[];
+
 /** `sapXep` của Q33: mặc định "Mới nhất trước". Chỉ ánh xạ sang `ListOrder` có sẵn, không viết SQL sắp xếp mới. */
 export const SAP_XEP = ['MoiNhat', 'CuNhat'] as const;
 export type SapXep = (typeof SAP_XEP)[number];
@@ -95,10 +105,10 @@ export interface DoctorExaminee {
 }
 
 /**
- * Một dòng danh sách: ĐÚNG tám khoá (danh sách trắng, Q33). Không giá, cọc, thanh toán, email, `lich_hen_id`, `benh_nhan_id`, `khung_gio_id`, `ho_so_nguoi_than_id`, người đặt, tên chính bác sĩ
- * (H10). `thoiGian`: ISO 8601 UTC.
+ * Tám khoá LÕI của MỘT lịch (danh sách trắng, Q33), dùng chung cho dòng danh sách và chi tiết. Không giá, cọc, thanh toán, email, `lich_hen_id`, `benh_nhan_id`, `khung_gio_id`, `ho_so_nguoi_than_id`,
+ * người đặt, tên chính bác sĩ (H10). `thoiGian`: ISO 8601 UTC.
  */
-export interface DoctorAppointmentItem {
+export interface DoctorAppointmentCore {
   maLichHen: string;
   thoiGian: string;
   ca: CaLamViec;
@@ -110,11 +120,31 @@ export interface DoctorAppointmentItem {
 }
 
 /**
- * Chi tiết MỘT lịch: ĐÚNG mười một khoá = tám khoá của dòng cộng `ghiChuKham` (LUÔN `null` tới khi module `doctor` có bảng `ho_so_kham`, TRACKING 3.20 B5-B), `chiNhanh` (chuỗi) và `ngayDat`
- * (ISO 8601 UTC, từ `thoi_diem_tao`). KHÔNG `lyDoHuy` (Figma `692:2` không hiện lý do huỷ; Q27).
+ * Một dòng danh sách: ĐÚNG chín khoá = tám khoá lõi cộng `coHoSoKham` (doctor-exam B3, Q24): `true` khi lịch ở `DaTiepDon`/`HoanThanh` VÀ có dòng `ho_so_kham`; KHÔNG có nội dung hồ sơ. Giao diện dùng cờ
+ * để hiện nhãn con ở dòng `Hoàn thành` (F4).
  */
-export interface DoctorAppointmentDetail extends DoctorAppointmentItem {
-  ghiChuKham: null;
+export interface DoctorAppointmentItem extends DoctorAppointmentCore {
+  coHoSoKham: boolean;
+}
+
+/**
+ * Hồ sơ khám trong chi tiết (doctor-exam B3, Q24): ba trường chữ NGUYÊN VĂN (chuỗi; cột NULL ⇒ chuỗi rỗng), `ngayTaiKhamDuKien` là `YYYY-MM-DD` hoặc `null`, `capNhatLanCuoi` là ISO 8601 UTC, CÙNG định
+ * dạng token mà `PUT /doctor/appointments/:maLichHen/exam-record` (B2) so để chống sửa chồng.
+ */
+export interface DoctorExamRecord {
+  trieuChung: string;
+  chanDoanSoBo: string;
+  huongXuLy: string;
+  ngayTaiKhamDuKien: string | null;
+  capNhatLanCuoi: string;
+}
+
+/**
+ * Chi tiết MỘT lịch: ĐÚNG mười một khoá = tám khoá lõi cộng `ghiChuKham` (`null` khi chưa có hồ sơ hoặc lịch ngoài `DaTiepDon`/`HoanThanh`; đối tượng năm khoá khi có), `chiNhanh` (chuỗi) và `ngayDat`
+ * (ISO 8601 UTC, từ `thoi_diem_tao`). KHÔNG `coHoSoKham` (cờ chỉ của danh sách), KHÔNG `lyDoHuy` (Figma `692:2` không hiện lý do huỷ; Q27).
+ */
+export interface DoctorAppointmentDetail extends DoctorAppointmentCore {
+  ghiChuKham: DoctorExamRecord | null;
   chiNhanh: string;
   ngayDat: string;
 }
