@@ -7,11 +7,11 @@ import {
 import {
   DateRangeFields,
   Field,
-  FIELD_CONTROL,
   KeywordSearchBox,
   SelectBox,
   SelectField,
 } from '../common/filter-controls';
+import { FIELD_HEIGHT, fieldControl } from '../common/field-style';
 import type { AdminFilterOptionsController } from './use-admin-filter-options';
 import type { AdminListController } from './use-admin-list';
 import { LIST_TEXT } from './list-messages';
@@ -35,7 +35,7 @@ function BranchField({ list, options }: AdminFiltersProps) {
           type="text"
           readOnly
           value={list.branchName}
-          className={`${FIELD_CONTROL} bg-gray-50`}
+          className={`${fieldControl(FIELD_HEIGHT.adminSelect)} bg-gray-50`}
         />
       </Field>
     );
@@ -43,6 +43,7 @@ function BranchField({ list, options }: AdminFiltersProps) {
   return (
     <SelectField
       id={selectId}
+      height={FIELD_HEIGHT.adminSelect}
       label={LIST_TEXT.branchLabel}
       what="chi nhánh"
       value={list.filters.branch}
@@ -88,6 +89,7 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
           </p>
           <KeywordSearchBox
             shape="soft"
+            height={FIELD_HEIGHT.adminInput}
             keyword={list.keyword}
             label={LIST_TEXT.searchLabel}
             placeholder={LIST_TEXT.searchPlaceholder}
@@ -95,6 +97,7 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
           />
         </div>
         <DateRangeFields
+          height={FIELD_HEIGHT.adminInput}
           from={list.fromDate}
           to={list.toDate}
           orderInvalid={list.dateOrderInvalid}
@@ -109,6 +112,7 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
 
         <SelectField
           id={specialtyId}
+          height={FIELD_HEIGHT.adminSelect}
           label={LIST_TEXT.specialtyLabel}
           what="chuyên khoa"
           value={list.filters.specialty}
@@ -132,6 +136,7 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
 
         <SelectField
           id={doctorId}
+          height={FIELD_HEIGHT.adminSelect}
           label={LIST_TEXT.doctorLabel}
           what="bác sĩ"
           value={list.filters.doctor}
@@ -150,6 +155,7 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
 
         <SelectField
           id={serviceId}
+          height={FIELD_HEIGHT.adminSelect}
           label={LIST_TEXT.serviceLabel}
           what="loại dịch vụ"
           value={list.filters.service}
@@ -170,6 +176,7 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
         <Field label={LIST_TEXT.statusLabel} htmlFor={statusId}>
           <SelectBox
             id={statusId}
+            className={fieldControl(FIELD_HEIGHT.adminSelect)}
             value={list.filters.status ?? ''}
             onChange={(event) =>
               list.setStatus(
@@ -202,7 +209,7 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
             id={paymentId}
             disabled
             aria-describedby={paymentNoteId}
-            className={`${FIELD_CONTROL} bg-gray-50`}
+            className={`${fieldControl(FIELD_HEIGHT.adminSelect)} bg-gray-50`}
           >
             <option value="">{LIST_TEXT.allStatuses}</option>
           </SelectBox>

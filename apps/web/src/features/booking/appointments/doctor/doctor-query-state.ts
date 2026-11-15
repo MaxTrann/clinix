@@ -2,7 +2,11 @@ import {
   isAppointmentState,
   type AppointmentState,
 } from '../common/appointment-status';
-import { type DatePreset } from '../common/date-presets';
+import {
+  PRESET_SLUGS,
+  presetFromSlug,
+  type DatePreset,
+} from '../common/date-presets';
 import { isCalendarDate, isDateRangeValid } from '../common/date-range';
 import {
   SHIFT_CODES,
@@ -39,21 +43,7 @@ export const EMPTY_FILTERS: DoctorFilters = {
   page: 1,
 };
 
-// Giá trị `khoang` trên URL cho các chip tính theo hôm nay (`range` không có: vắng khoá là `Tùy chọn`) [đề xuất]
-const PRESET_SLUGS: Readonly<Record<Exclude<DatePreset, 'range'>, string>> = {
-  today: 'hom-nay',
-  tomorrow: 'ngay-mai',
-  week: 'tuan-nay',
-  nextWeek: 'tuan-sau',
-  month: 'thang-nay',
-};
-
-function presetFromSlug(slug: string): DatePreset {
-  for (const [preset, value] of Object.entries(PRESET_SLUGS)) {
-    if (value === slug) return preset as DatePreset;
-  }
-  return 'range';
-}
+// `khoang` trên URL: slug của các chip tính theo hôm nay nằm ở `common/date-presets.ts` (dùng chung với Lễ tân từ F12b); vắng khoá hay slug lạ là `Tùy chọn` (`range`)
 
 // Trang: số nguyên dương nhiều nhất 5 chữ số (URL tự gõ `page=99999999999` không được đẩy lên API)
 const PAGE = /^[1-9][0-9]{0,4}$/;
@@ -61,7 +51,7 @@ const PAGE = /^[1-9][0-9]{0,4}$/;
 export function readFilters(params: URLSearchParams): DoctorFilters {
   const status = params.get('trangThai') ?? '';
   const shift = params.get('ca') ?? '';
-  const preset = presetFromSlug(params.get('khoang') ?? '');
+  const preset = presetFromSlug(params.get('khoang') ?? '', 'range');
   const page = params.get('page') ?? '';
   let from = '';
   let to = '';

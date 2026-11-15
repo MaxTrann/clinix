@@ -1,8 +1,8 @@
 import { ErrorState } from '../../../../shared/ui/error-state';
 import { classifyDetailError } from './error-kinds';
 
-// Lỗi tải chi tiết một lịch hẹn của vận hành (booking F8 viết trong `reception/detail/reception-drawer.tsx`, chuyển lên `common/` ở F10: ngăn của Lễ tân và TRANG của Quản trị viên cùng
-// dùng; chữ do nơi gọi truyền). Chọn câu theo `maLoi`, KHÔNG theo mã HTTP: `KHONG_TIM_THAY` là MỘT câu cho mọi lý do (không có, chi nhánh khác, mã sai dạng: cùng thân 404, không lộ lịch có tồn
+// Lỗi tải chi tiết một lịch hẹn của vận hành (booking F8 viết trong ngăn của Lễ tân, chuyển lên `common/` ở F10; từ F12b Lễ tân cũng là TRANG như Quản trị viên và hai trang dùng chung; chữ
+// do nơi gọi truyền). Chọn câu theo `maLoi`, KHÔNG theo mã HTTP: `KHONG_TIM_THAY` là MỘT câu cho mọi lý do (không có, chi nhánh khác, mã sai dạng: cùng thân 404, không lộ lịch có tồn
 // tại hay không); phiên hết hạn và không đủ quyền có câu riêng, không `Thử lại`; còn lại (mạng, quá giờ, phản hồi lạ, 5xx, `maLoi` lạ) dùng `ErrorState` kèm `Thử lại`.
 export interface DetailFailureTexts {
   notFound: string;

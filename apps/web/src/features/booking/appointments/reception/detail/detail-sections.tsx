@@ -1,51 +1,80 @@
-import { useId, type ReactNode } from 'react';
 import {
+  Calendar,
+  CalendarDays,
+  MapPin,
+  Stethoscope,
+  User,
+  Users,
+  Wallet,
+} from 'lucide-react';
+import {
+  formatVietnamDate,
   formatVietnamTime,
   formatVietnamWeekdayDate,
   formatVnd,
 } from '../../common/appointment-format';
-import { DetailRow } from '../../common/detail-card';
+import {
+  DetailCard,
+  DetailFact as Fact,
+  DetailFacts as Facts,
+  DetailRow,
+} from '../../common/detail-card';
+import { DetailHero } from '../../common/detail-frame';
 import type { ReceptionAppointmentDetail } from '../api/reception-appointment-types';
 import { DETAIL_TEXT, dateTimeLabel } from './detail-messages';
 
-// Khối thông tin của Figma `488:2`: nền xám nhạt, tiêu đề chữ hoa nhỏ, các dòng "nhãn, giá trị" (dùng lại `DetailRow` của `common/`). Màu chữ phụ theo thang chuẩn của
-// ADR 0004 (`gray-600`), không chép `#99a1af` của Figma (2,60:1).
-function InfoBlock(props: { title: string; children: ReactNode }) {
-  const titleId = useId();
+// Thẻ đầu và ba thẻ thông tin của trang chi tiết Lễ tân (booking F12b; F8 dựng ba khối nền xám trong NGĂN, Figma `488:2`, nay là TRANG cùng khung với Quản trị viên và Bệnh nhân, UI-12). Giá trị lấy
+// từ MỘT nguồn là chi tiết (không trộn dòng danh sách cũ: trạng thái có thể đã đổi ở nơi khác). Tiền là chuỗi decimal đưa nguyên ra `formatVnd`: không cộng, trừ, nhân, và `Còn phải thu` CHỈ khi
+// `conPhaiThu` khác `null` (B3: chỉ `DaXacNhan`; không tự tính ở client). Bỏ `Email` (API không trả, Q32) và `Kênh đặt` (Q37); thêm `Dịch vụ`, `Chi nhánh`, `Tiền cọc`, `Hạn thanh toán`, `Lý do hủy`
+// (API có, Figma thiếu) [đề xuất]. Ngày, giờ theo giờ Việt Nam.
+
+// Thẻ đầu (như trang Bệnh nhân, Figma `420:2`): mã, chip trạng thái, chuyên khoa và bốn ô Người khám, Ngày khám, Bác sĩ, Chi nhánh
+export function ReceptionHero({
+  detail,
+}: {
+  detail: ReceptionAppointmentDetail;
+}) {
+  const { rows } = DETAIL_TEXT;
   return (
-    <section
-      aria-labelledby={titleId}
-      className="mt-4 rounded-xl bg-gray-50 px-4 py-3.5"
-    >
-      <h3
-        id={titleId}
-        className="text-xs font-semibold tracking-wide text-gray-600"
-      >
-        {props.title}
-      </h3>
-      <dl className="mt-1.5">{props.children}</dl>
-    </section>
+    <DetailHero
+      ariaLabel={DETAIL_TEXT.summary}
+      code={detail.maLichHen}
+      status={detail.trangThai}
+      title={detail.chuyenKhoa}
+      cells={[
+        {
+          icon: User,
+          label: rows.person,
+          value: detail.nguoiKham.hoTen,
+          note: detail.nguoiKham.laBanThan
+            ? DETAIL_TEXT.ownPerson
+            : DETAIL_TEXT.relativePerson,
+        },
+        {
+          icon: Calendar,
+          label: rows.date,
+          value: formatVietnamWeekdayDate(detail.thoiGian),
+          note: formatVietnamTime(detail.thoiGian),
+        },
+        { icon: Stethoscope, label: rows.doctor, value: detail.bacSi },
+        { icon: MapPin, label: rows.branch, value: detail.chiNhanh },
+      ]}
+    />
   );
 }
 
-// Ba khối theo Figma và API. Bỏ `Email` (API không trả, Q32) và `Kênh đặt` (Q37); thêm `Dịch vụ`, `Chi nhánh`, `Tiền cọc` (API có, Figma thiếu). Giá trị lấy từ MỘT nguồn là chi
-// tiết (không trộn dòng danh sách cũ). Tiền là chuỗi decimal đưa nguyên ra `formatVnd`: không cộng, trừ, nhân.
-export function DetailSections({
+// Thẻ `Thông tin bệnh nhân`: họ tên kèm Bản thân hay Người thân, người đặt (khi khác người khám), SĐT của NGƯỜI ĐẶT (Q32), lý do khám
+export function ReceptionPatientCard({
   detail,
 }: {
   detail: ReceptionAppointmentDetail;
 }) {
   const { rows } = DETAIL_TEXT;
   const { nguoiKham, nguoiDat } = detail;
-  const when = dateTimeLabel(
-    formatVietnamWeekdayDate(detail.thoiGian),
-    formatVietnamTime(detail.thoiGian),
-  );
-
   return (
-    <>
-      <InfoBlock title={DETAIL_TEXT.sections.patient}>
-        <DetailRow
+    <DetailCard icon={Users} title={DETAIL_TEXT.sections.patient}>
+      <Facts>
+        <Fact
           label={rows.name}
           note={
             nguoiKham.laBanThan
@@ -54,36 +83,67 @@ export function DetailSections({
           }
         >
           {nguoiKham.hoTen}
-        </DetailRow>
+        </Fact>
         {!nguoiKham.laBanThan && (
-          <DetailRow label={rows.booker}>{nguoiDat.hoTen}</DetailRow>
+          <Fact label={rows.booker}>{nguoiDat.hoTen}</Fact>
         )}
-        <DetailRow
+        <Fact
           label={rows.phone}
           note={nguoiKham.laBanThan ? undefined : DETAIL_TEXT.bookerPhone}
         >
           {nguoiDat.soDienThoai}
-        </DetailRow>
-        <DetailRow label={rows.reason}>
-          {detail.lyDoKham ?? DETAIL_TEXT.noReason}
-        </DetailRow>
-      </InfoBlock>
+        </Fact>
+        <Fact label={rows.reason} wide>
+          <span className="whitespace-pre-line">
+            {detail.lyDoKham ?? DETAIL_TEXT.noReason}
+          </span>
+        </Fact>
+      </Facts>
+    </DetailCard>
+  );
+}
 
-      <InfoBlock title={DETAIL_TEXT.sections.doctor}>
-        <DetailRow label={rows.doctor}>{detail.bacSi}</DetailRow>
-        <DetailRow label={rows.specialty}>{detail.chuyenKhoa}</DetailRow>
-        <DetailRow label={rows.service}>{detail.dichVu}</DetailRow>
+// Thẻ `Thông tin lịch hẹn`: ngày, giờ, bác sĩ, chuyên khoa, dịch vụ, chi nhánh và, khi đã hủy, lý do hủy. Tiền ở `ReceptionCostCard`
+export function ReceptionAppointmentCard({
+  detail,
+}: {
+  detail: ReceptionAppointmentDetail;
+}) {
+  const { rows } = DETAIL_TEXT;
+  return (
+    <DetailCard icon={CalendarDays} title={DETAIL_TEXT.sections.appointment}>
+      <Facts>
+        <Fact label={rows.date}>{formatVietnamDate(detail.thoiGian)}</Fact>
+        <Fact label={rows.time}>{formatVietnamTime(detail.thoiGian)}</Fact>
+        <Fact label={rows.doctor}>{detail.bacSi}</Fact>
+        <Fact label={rows.specialty}>{detail.chuyenKhoa}</Fact>
+        <Fact label={rows.service}>{detail.dichVu}</Fact>
+        <Fact label={rows.branch}>{detail.chiNhanh}</Fact>
+        {detail.trangThai === 'DaHuy' && (
+          <Fact label={rows.cancelReason} wide>
+            <span className="whitespace-pre-line">
+              {detail.lyDoHuy ?? DETAIL_TEXT.noReason}
+            </span>
+          </Fact>
+        )}
+      </Facts>
+    </DetailCard>
+  );
+}
+
+// Thẻ `Chi phí & Thanh toán`: giá khám, tiền cọc, hạn thanh toán (khi có), còn phải thu (khi `conPhaiThu` khác `null`)
+export function ReceptionCostCard({
+  detail,
+}: {
+  detail: ReceptionAppointmentDetail;
+}) {
+  const { rows } = DETAIL_TEXT;
+  return (
+    <DetailCard icon={Wallet} title={DETAIL_TEXT.sections.cost}>
+      <dl className="px-5 py-1">
         <DetailRow label={rows.price}>
           {formatVnd(detail.giaSnapshot)}
         </DetailRow>
-      </InfoBlock>
-
-      <InfoBlock title={DETAIL_TEXT.sections.appointment}>
-        <DetailRow label={rows.code}>
-          <span className="font-mono">{detail.maLichHen}</span>
-        </DetailRow>
-        <DetailRow label={rows.date}>{when}</DetailRow>
-        <DetailRow label={rows.branch}>{detail.chiNhanh}</DetailRow>
         <DetailRow label={rows.deposit}>{formatVnd(detail.tienCoc)}</DetailRow>
         {detail.hanThanhToan !== null && (
           <DetailRow label={rows.paymentDeadline}>
@@ -93,27 +153,14 @@ export function DetailSections({
             )}
           </DetailRow>
         )}
-        {detail.trangThai === 'DaHuy' && (
-          <DetailRow label={rows.cancelReason}>
-            {detail.lyDoHuy ?? DETAIL_TEXT.noReason}
+        {detail.conPhaiThu !== null && (
+          <DetailRow label={rows.due}>
+            <span className="font-bold text-warning">
+              {formatVnd(detail.conPhaiThu)}
+            </span>
           </DetailRow>
         )}
-      </InfoBlock>
-
-      {detail.conPhaiThu !== null && (
-        <section className="mt-4 rounded-xl bg-gray-50 px-4 py-3">
-          <dl>
-            <DetailRow label={rows.price}>
-              {formatVnd(detail.giaSnapshot)}
-            </DetailRow>
-            <DetailRow label={rows.due}>
-              <span className="font-bold text-warning">
-                {formatVnd(detail.conPhaiThu)}
-              </span>
-            </DetailRow>
-          </dl>
-        </section>
-      )}
-    </>
+      </dl>
+    </DetailCard>
   );
 }

@@ -1,4 +1,5 @@
-import type { RefObject } from 'react';
+import { useRef, type RefObject } from 'react';
+import { useModalDialog } from '../../../../../shared/hooks/use-modal-dialog';
 import { ActionDialog } from '../../common/action-dialog';
 import { ACTION_TEXT } from './detail-messages';
 import type { StatusActionState } from './use-status-action';
@@ -6,6 +7,8 @@ import type { StatusActionState } from './use-status-action';
 // Hộp "Đánh dấu vắng mặt" của Lễ tân (booking F9; Figma `489:2`; LTN-03): tiêu đề, câu "Bệnh nhân **{tên}** sẽ được ghi nhận vắng mặt. Thao tác này không thể hoàn tác.", `Hủy`,
 // `Xác nhận`. Gửi đúng `{ trangThai: 'VangMat' }`, KHÔNG có lý do (Q27: Vắng mặt của Lễ tân không có lý do) và không hiện số no-show hay cờ khoá (Figma không có, backend không trả).
 // Tiêu điểm đầu tiên vào `Hủy` (nút an toàn, như `Giữ lịch` của F2). Tên là `nguoiKham.hoTen` (người được khám, như cột `Bệnh nhân` của danh sách), đã chụp lúc mở hộp.
+// F12b: modal DUY NHẤT của trang chi tiết, nên hộp gọi MỘT `useModalDialog` (Esc, bẫy Tab, khoá cuộn) như hộp override của Quản trị viên. Tiêu điểm đầu tiên do `ActionDialog` đặt (nút `Hủy`), nên hook nhận
+// một ref rỗng cho tiêu điểm đầu; tiêu điểm trả về nút đã mở do `use-reception-actions.ts` làm SAU khi hộp gỡ, nên hook cũng nhận một ref rỗng cho tiêu điểm trả về.
 interface NoShowDialogProps {
   patientName: string;
   state: StatusActionState;
@@ -23,6 +26,15 @@ export function NoShowDialog({
   onDismiss,
   onReload,
 }: NoShowDialogProps) {
+  const noInitialFocusRef = useRef<HTMLElement | null>(null);
+  const noReturnFocusRef = useRef<HTMLElement | null>(null);
+  useModalDialog({
+    open: true,
+    dialogRef: panelRef,
+    initialFocusRef: noInitialFocusRef,
+    returnFocusRef: noReturnFocusRef,
+    onClose: onDismiss,
+  });
   return (
     <ActionDialog
       title={ACTION_TEXT.noShow.title}

@@ -2,18 +2,25 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ModalDialogOptions } from '../../../../../shared/hooks/use-modal-dialog';
 import {
+  apiErrorResponse,
+  jsonResponse,
+} from '../../../testing/fake-appointment-list-api';
+import { makeReceptionDetail } from '../../../testing/fake-reception-api';
+import {
   cleanUpReceptionPage,
-  detailButton,
+  currentUrl,
   openReceptionDetail,
   RECEPTION_CODE,
 } from '../../../testing/reception-harness';
+import { receptionAppointmentDetailPath } from '../../../../../shared/routes/booking-paths';
 import { ACTION_TEXT, DETAIL_TEXT } from './detail-messages';
 
-// booking F9: MODAL LỒNG MODAL (hộp thao tác chồng lên ngăn chi tiết; TRACKING 3.30 F9-K). Mã LTA-15 là [đề xuất] (PLAN booking mục 7.36). Khoá: Esc đóng đúng MỘT lớp (hộp trước, ngăn sau),
-// Tab bị bẫy trong hộp, `inert` gỡ đúng phần đã đặt, tiêu điểm về đúng nút đã mở rồi về nút `Chi tiết`, và ngăn chỉ dùng MỘT ref object `dialogRef` ổn định cho `useModalDialog`.
+// booking F12b: hộp thao tác là modal DUY NHẤT của trang chi tiết (F9: MODAL LỒNG MODAL, hộp chồng lên ngăn; TRACKING 3.30 F9-K; F12b: TRACKING 3.44 F12b-D). Mã UIF-15 là [đề xuất] (PLAN booking mục 7.48); giữ mã LTA-15 của F9
+// cho các hành vi không đổi. Khoá: Esc đóng đúng MỘT lớp (hộp; trang không phải lớp), Tab bị bẫy trong hộp, `inert` gỡ đúng phần đã đặt, tiêu điểm về đúng nút đã mở (nút biến mất thì về h1), và MỘT hộp chỉ dùng MỘT
+// ref object ổn định cho `useModalDialog`. Mỗi hộp tự gọi MỘT `useModalDialog` (F9: ngăn gọi MỘT hook và đổi phần tử bẫy; xem `cancel-dialog.tsx`, `no-show-dialog.tsx`).
 
-// Bọc `useModalDialog` THẬT để ghi lại danh tính của `dialogRef` ở mỗi lần vẽ: hook phụ thuộc `[open, dialogRef, initialFocusRef, returnFocusRef]`, nên đổi danh tính sẽ chạy lại
-// cleanup (trả focus về nút mở, gỡ khoá cuộn) rồi `initialFocusRef.focus()` lại. Hai ref bên dưới cũng phải ổn định.
+// Bọc `useModalDialog` THẬT để ghi lại danh tính của `dialogRef` ở mỗi lần vẽ: hook phụ thuộc `[open, dialogRef, initialFocusRef, returnFocusRef]`, nên đổi danh tính trong lúc hộp mở sẽ chạy lại
+// cleanup (trả focus về nút mở, gỡ khoá cuộn) rồi `initialFocusRef.focus()` lại. Ba ref bên dưới phải ổn định suốt một lần mở hộp.
 const seen = vi.hoisted(() => ({
   options: [] as Array<{
     dialogRef: unknown;
@@ -48,8 +55,8 @@ const ALL = {
   chuyenDuoc: ['DaHuy', 'DaTiepDon', 'VangMat'],
   conPhaiThu: '0.00',
 };
-const inDrawer = (drawer: HTMLElement, name: string) =>
-  within(drawer).getByRole('button', { name });
+const inPage = (page: HTMLElement, name: string) =>
+  within(page).getByRole('button', { name });
 const press = (key: string, shiftKey = false) =>
   fireEvent.keyDown(document.activeElement ?? document.body, {
     key,
@@ -59,14 +66,19 @@ const cancelBox = () =>
   screen.queryByRole('dialog', { name: ACTION_TEXT.cancel.title });
 const noShowBox = () =>
   screen.queryByRole('dialog', { name: ACTION_TEXT.noShow.title });
-const drawerOf = () =>
-  screen.queryByRole('dialog', { name: new RegExp(DETAIL_TEXT.dialogPrefix) });
 const reason = (box: HTMLElement) =>
   within(box).getByRole('textbox', { name: ACTION_TEXT.cancel.reasonLabel });
+// Trang vẫn ở lại (h1 còn đó) và URL vẫn là trang chi tiết
+const pageStays = () => {
+  expect(
+    screen.getByRole('heading', { level: 1, name: DETAIL_TEXT.title }),
+  ).toBeInTheDocument();
+  expect(currentUrl()).toBe(receptionAppointmentDetailPath(RECEPTION_CODE));
+};
 
 async function openCancel() {
   const view = await openReceptionDetail(ALL);
-  const trigger = inDrawer(view.drawer, 'Hủy lịch');
+  const trigger = inPage(view.page, 'Hủy lịch');
   fireEvent.click(trigger);
   const box = await screen.findByRole('dialog', {
     name: ACTION_TEXT.cancel.title,
@@ -74,62 +86,44 @@ async function openCancel() {
   return { ...view, box, trigger };
 }
 
-describe('Esc đóng đúng MỘT lớp', () => {
-  it('LTA-15 hộp mở: Esc đóng RIÊNG hộp (ngăn còn nguyên), Esc lần hai mới đóng ngăn; không lớp nào bị đóng hai lần', async () => {
+describe('Esc đóng đúng MỘT lớp (hộp)', () => {
+  it('UIF-15 LTA-15 hộp mở: Esc đóng RIÊNG hộp, trang còn nguyên; Esc lần hai không đóng gì (trang không phải lớp hộp thoại); luôn đúng MỘT dialog khi hộp mở', async () => {
     await openCancel();
-    expect(cancelBox()).toBeInTheDocument();
-    expect(drawerOf()).toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
 
     press('Escape');
     await waitFor(() => expect(cancelBox()).toBeNull());
-    expect(drawerOf()).toBeInTheDocument();
+    pageStays();
 
     press('Escape');
-    await waitFor(() => expect(drawerOf()).toBeNull());
     expect(screen.queryAllByRole('dialog')).toHaveLength(0);
+    pageStays();
   });
 
-  it('LTA-15 không có hộp: Esc đóng ngăn như F8; mở lại, mở hộp, đóng hộp bằng nút rồi Esc ⇒ ngăn đóng (thứ tự ngược: hộp đóng bằng nút trước, ngăn bằng Esc sau)', async () => {
-    const first = await openReceptionDetail(ALL);
-    press('Escape');
-    await waitFor(() => expect(drawerOf()).toBeNull());
-    first.unmount();
-    cleanUpReceptionPage();
-
-    const view = await openCancel();
-    fireEvent.click(
-      within(view.box).getByRole('button', { name: ACTION_TEXT.cancel.close }),
-    );
-    await waitFor(() => expect(cancelBox()).toBeNull());
-    expect(drawerOf()).toBeInTheDocument();
-    press('Escape');
-    await waitFor(() => expect(drawerOf()).toBeNull());
-  });
-
-  it('LTA-15 mở hộp, Esc, mở lại hộp, Esc, mở hộp khác, Esc: mỗi Esc đóng đúng hộp, ngăn luôn còn cho tới Esc cuối', async () => {
-    const { drawer } = await openCancel();
+  it('UIF-15 LTA-15 mở hộp, Esc, mở lại hộp, Esc, mở hộp khác, Esc: mỗi Esc đóng đúng hộp, trang luôn còn', async () => {
+    const { page } = await openCancel();
     for (const open of ['Hủy lịch', 'Vắng mặt', 'Hủy lịch']) {
       press('Escape');
       await waitFor(() =>
-        expect(screen.queryAllByRole('dialog')).toHaveLength(1),
+        expect(screen.queryAllByRole('dialog')).toHaveLength(0),
       );
-      expect(drawerOf()).toBeInTheDocument();
-      fireEvent.click(inDrawer(drawer, open));
+      pageStays();
+      fireEvent.click(inPage(page, open));
       await waitFor(() =>
-        expect(screen.queryAllByRole('dialog')).toHaveLength(2),
+        expect(screen.queryAllByRole('dialog')).toHaveLength(1),
       );
     }
     expect(cancelBox()).toBeInTheDocument();
     press('Escape');
     await waitFor(() => expect(cancelBox()).toBeNull());
-    expect(drawerOf()).toBeInTheDocument();
+    pageStays();
   });
 
-  it('LTA-15 bấm lớp phủ của HỘP chỉ đóng hộp, ngăn còn nguyên', async () => {
+  it('LTA-15 bấm lớp phủ của HỘP chỉ đóng hộp, trang còn nguyên', async () => {
     const { box } = await openCancel();
     fireEvent.click(box.parentElement as HTMLElement);
     await waitFor(() => expect(cancelBox()).toBeNull());
-    expect(drawerOf()).toBeInTheDocument();
+    pageStays();
   });
 });
 
@@ -160,22 +154,22 @@ describe('Tab bị bẫy trong hộp', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it('LTA-15 tiêu điểm đang ở NGOÀI hộp (ví dụ nút của ngăn) thì Tab kéo về trong hộp, không rơi về ngăn', async () => {
-    const { box, drawer } = await openCancel();
-    inDrawer(drawer, 'Vắng mặt').focus();
+  it('LTA-15 tiêu điểm đang ở NGOÀI hộp (ví dụ nút của trang) thì Tab kéo về trong hộp, không rơi về trang', async () => {
+    const { box, page } = await openCancel();
+    inPage(page, 'Vắng mặt').focus();
     press('Tab');
     expect(box.contains(document.activeElement)).toBe(true);
     expect(reason(box)).toHaveFocus();
-    inDrawer(drawer, 'Vắng mặt').focus();
+    inPage(page, 'Vắng mặt').focus();
     press('Tab', true);
     expect(
       within(box).getByRole('button', { name: ACTION_TEXT.cancel.confirm }),
     ).toHaveFocus();
   });
 
-  it('LTA-15 hộp vắng mặt: `Hủy` và `Xác nhận` là hai điểm dừng, Tab và Shift+Tab xoay vòng trong hộp', async () => {
+  it('LTA-15 hộp vắng mặt: `Hủy` và `Xác nhận` là hai điểm dừng, `Hủy` nhận tiêu điểm đầu tiên, Tab và Shift+Tab xoay vòng trong hộp', async () => {
     const view = await openReceptionDetail(ALL);
-    fireEvent.click(inDrawer(view.drawer, 'Vắng mặt'));
+    fireEvent.click(inPage(view.page, 'Vắng mặt'));
     const box = await screen.findByRole('dialog', {
       name: ACTION_TEXT.noShow.title,
     });
@@ -200,124 +194,157 @@ describe('`inert` và khoá cuộn', () => {
       inert: element.hasAttribute('inert'),
     }));
 
-  it('LTA-15 hộp mở ⇒ ngăn bị `inert` (cùng gốc ứng dụng), hộp thì không; đóng hộp ⇒ gỡ ĐÚNG phần hộp đặt (ngăn hết `inert`, gốc ứng dụng VẪN `inert` vì ngăn còn mở); đóng ngăn ⇒ gỡ nốt', async () => {
+  it('UIF-15 LTA-15 hộp mở ⇒ gốc ứng dụng (trang) bị `inert`, hộp thì không; đóng hộp ⇒ gỡ ĐÚNG phần hộp đặt (trang hết `inert`; phần tử đã `inert` từ trước vẫn `inert`)', async () => {
     const pre = document.createElement('div');
     pre.setAttribute('inert', '');
     pre.id = 'da-inert-tu-truoc';
     document.body.append(pre);
 
-    const { box, drawer } = await openCancel();
-    const drawerOverlay = drawer.parentElement as HTMLElement;
+    const { box } = await openCancel();
     const boxOverlay = box.parentElement as HTMLElement;
-    expect(drawerOverlay).toHaveAttribute('inert');
     expect(boxOverlay).not.toHaveAttribute('inert');
-    const root = inertState().find((item) => item.element.id === '');
     // Mọi phần tử con khác của `body` đều `inert` trừ lớp phủ của hộp
     for (const { element, inert } of inertState()) {
       expect(inert, element.outerHTML.slice(0, 40)).toBe(
-        element === boxOverlay ? false : true,
+        element !== boxOverlay,
       );
     }
-    expect(root).toBeDefined();
 
     fireEvent.click(
       within(box).getByRole('button', { name: ACTION_TEXT.cancel.close }),
     );
     await waitFor(() => expect(cancelBox()).toBeNull());
-    // Ngăn dùng được lại; nền (gốc ứng dụng, phần tử có sẵn) vẫn `inert`
-    expect(drawerOverlay).not.toHaveAttribute('inert');
-    expect(document.getElementById('da-inert-tu-truoc')).toHaveAttribute(
-      'inert',
-    );
-    const stillInert = inertState().filter(
-      (item) => item.element !== drawerOverlay && item.element !== pre,
-    );
-    expect(stillInert.length).toBeGreaterThan(0);
-    for (const item of stillInert) expect(item.inert).toBe(true);
-
-    press('Escape');
-    await waitFor(() => expect(drawerOf()).toBeNull());
-    // Ngăn đóng: gốc ứng dụng hết `inert`; phần tử đã `inert` từ trước vẫn `inert`
+    // Trang dùng được lại; chỉ phần tử có sẵn `inert` từ trước còn `inert`
     for (const { element, inert } of inertState()) {
       expect(inert, element.outerHTML.slice(0, 40)).toBe(element === pre);
     }
   });
 
-  it('LTA-15 khoá cuộn của trang giữ nguyên suốt (không mở khoá giữa chừng khi hộp mở rồi đóng)', async () => {
+  it('UIF-15 khoá cuộn của trang: bật khi hộp mở, trả đúng giá trị cũ khi hộp đóng (hộp là modal duy nhất nên không còn lớp ngăn giữ khoá)', async () => {
+    expect(document.body.style.overflow).toBe('');
     const { box } = await openCancel();
     expect(document.body.style.overflow).toBe('hidden');
     fireEvent.click(
       within(box).getByRole('button', { name: ACTION_TEXT.cancel.close }),
     );
     await waitFor(() => expect(cancelBox()).toBeNull());
-    expect(document.body.style.overflow).toBe('hidden');
-    press('Escape');
-    await waitFor(() => expect(drawerOf()).toBeNull());
     expect(document.body.style.overflow).toBe('');
   });
 });
 
 describe('tiêu điểm', () => {
-  it('LTA-15 đóng hộp ⇒ tiêu điểm về ĐÚNG nút đã mở (KHÔNG nhảy về `Danh sách` như lúc mở ngăn); đóng ngăn ⇒ về nút `Chi tiết` của hàng', async () => {
-    const { drawer, trigger, box } = await openCancel();
+  it('UIF-15 LTA-15 đóng hộp ⇒ tiêu điểm về ĐÚNG nút đã mở (hộp vắng mặt về nút `Vắng mặt`, không phải nút `Hủy lịch`)', async () => {
+    const { page, trigger, box } = await openCancel();
     fireEvent.click(
       within(box).getByRole('button', { name: ACTION_TEXT.cancel.close }),
     );
     await waitFor(() => expect(cancelBox()).toBeNull());
     await waitFor(() => expect(trigger).toHaveFocus());
-    expect(
-      within(drawer).getByRole('button', { name: DETAIL_TEXT.back }),
-    ).not.toHaveFocus();
 
-    // Hộp vắng mặt trả về nút `Vắng mặt`, không phải nút `Hủy lịch`
-    const noShowTrigger = inDrawer(drawer, 'Vắng mặt');
+    const noShowTrigger = inPage(page, 'Vắng mặt');
     fireEvent.click(noShowTrigger);
     await screen.findByRole('dialog', { name: ACTION_TEXT.noShow.title });
     press('Escape');
     await waitFor(() => expect(noShowBox()).toBeNull());
     await waitFor(() => expect(noShowTrigger).toHaveFocus());
+  });
 
-    press('Escape');
-    await waitFor(() => expect(drawerOf()).toBeNull());
-    await waitFor(() => expect(detailButton(RECEPTION_CODE)).toHaveFocus());
+  it('UIF-15 nút đã mở hộp BIẾN MẤT (409: trạng thái đổi ở nơi khác, hết nút) ⇒ đóng hộp trả tiêu điểm về h1 của trang (không rơi về `body`)', async () => {
+    const { page, api, box } = await openCancel();
+    api.failNext('status', () =>
+      apiErrorResponse(409, 'LICH_HEN_KHONG_CHO_HUY', undefined, {
+        trangThai: 'DaTiepDon',
+      }),
+    );
+    api.failNext('detail', () =>
+      jsonResponse(
+        makeReceptionDetail({
+          trangThai: 'DaTiepDon',
+          chuyenDuoc: [],
+          conPhaiThu: null,
+        }),
+      ),
+    );
+    fireEvent.change(reason(box), { target: { value: 'Bận' } });
+    fireEvent.click(
+      within(box).getByRole('button', { name: ACTION_TEXT.cancel.confirm }),
+    );
+    expect(await within(box).findByRole('alert')).toBeInTheDocument();
+    await within(page).findByText('Đã tiếp đón');
+    expect(within(page).queryByRole('button', { name: 'Hủy lịch' })).toBeNull();
+
+    fireEvent.click(
+      within(box).getByRole('button', { name: ACTION_TEXT.close }),
+    );
+    await waitFor(() => expect(cancelBox()).toBeNull());
+    const heading = screen.getByRole('heading', {
+      level: 1,
+      name: DETAIL_TEXT.title,
+    });
+    await waitFor(() => expect(heading).toHaveFocus());
   });
 });
 
-describe('MỘT `dialogRef` ổn định', () => {
-  it('LTA-15 suốt mở hộp, đóng hộp, mở hộp khác, đóng ngăn: `useModalDialog` nhận cùng MỘT `dialogRef`, MỘT `initialFocusRef`, MỘT `returnFocusRef` (đổi danh tính sẽ chạy lại cleanup, trả focus và gỡ khoá cuộn)', async () => {
-    const { drawer, box } = await openCancel();
+describe('MỘT lần mở hộp dùng ref ổn định', () => {
+  it('UIF-15 LTA-15 suốt một lần mở hộp huỷ (gõ lý do, bấm xác nhận bị chặn ở client, vẽ lại nhiều lần): `useModalDialog` nhận cùng MỘT `dialogRef`, MỘT `initialFocusRef`, MỘT `returnFocusRef` (đổi danh tính sẽ chạy lại cleanup, trả focus và mở khoá cuộn giữa chừng)', async () => {
+    const { box } = await openCancel();
+    const from = seen.options.length;
+    fireEvent.change(reason(box), { target: { value: 'a' } });
+    fireEvent.change(reason(box), { target: { value: 'ab' } });
+    fireEvent.change(reason(box), { target: { value: '' } });
+    fireEvent.click(
+      within(box).getByRole('button', { name: ACTION_TEXT.cancel.confirm }),
+    );
+    expect(await within(box).findByRole('alert')).toBeInTheDocument();
+    // Chỉ có hộp huỷ gọi hook trong ca này; sau khi mở đã có lần gọi đầu, các lần gõ và báo lỗi thêm lần vẽ lại
+    const mine = seen.options;
+    expect(mine.length).toBeGreaterThan(from);
+    expect(new Set(mine.map((item) => item.dialogRef)).size).toBe(1);
+    expect(new Set(mine.map((item) => item.initialFocusRef)).size).toBe(1);
+    expect(new Set(mine.map((item) => item.returnFocusRef)).size).toBe(1);
+    // Khoá cuộn không bị mở giữa chừng
+    expect(document.body.style.overflow).toBe('hidden');
+  });
+
+  it('UIF-15 hai hộp (huỷ rồi vắng mặt) dùng CÙNG vùng bẫy Tab `dialogRef` của trang (một ref object ổn định); mỗi hộp một `useModalDialog` đang hoạt động tại một thời điểm', async () => {
+    const { box, page } = await openCancel();
     fireEvent.click(
       within(box).getByRole('button', { name: ACTION_TEXT.cancel.close }),
     );
     await waitFor(() => expect(cancelBox()).toBeNull());
-    fireEvent.click(inDrawer(drawer, 'Vắng mặt'));
+    fireEvent.click(inPage(page, 'Vắng mặt'));
     await screen.findByRole('dialog', { name: ACTION_TEXT.noShow.title });
     press('Escape');
     await waitFor(() => expect(noShowBox()).toBeNull());
 
-    expect(seen.options.length).toBeGreaterThan(3);
+    // Mỗi hộp mount gọi hook ít nhất một lần (hai hộp ⇒ ít nhất hai lần), và cả hai nhận CÙNG MỘT `dialogRef` của trang
+    expect(seen.options.length).toBeGreaterThanOrEqual(2);
     expect(new Set(seen.options.map((item) => item.dialogRef)).size).toBe(1);
-    expect(new Set(seen.options.map((item) => item.initialFocusRef)).size).toBe(
-      1,
-    );
-    expect(new Set(seen.options.map((item) => item.returnFocusRef)).size).toBe(
-      1,
-    );
   });
 });
 
 describe('thuộc tính hộp thoại', () => {
-  it('LTA-15 hộp có `role="dialog"`, `aria-modal`, tên là tiêu đề; ngăn vẫn là hộp thoại có tên là mã lịch', async () => {
-    const { box, drawer } = await openCancel();
+  it('UIF-15 LTA-15 hộp có `role="dialog"`, `aria-modal`, tên là tiêu đề; trang KHÔNG là hộp thoại (không `aria-modal` nào khác); hộp là lớp phủ duy nhất trong `body`', async () => {
+    const { box } = await openCancel();
     expect(box).toHaveAttribute('aria-modal', 'true');
     expect(box).toHaveAccessibleName(ACTION_TEXT.cancel.title);
-    expect(drawer).toHaveAccessibleName(
-      `${DETAIL_TEXT.dialogPrefix}${RECEPTION_CODE}`,
-    );
-    // Hộp nằm SAU ngăn trong `body` (chồng lên trên), cả hai là con trực tiếp của `body`
+    expect(document.querySelectorAll('[aria-modal="true"]')).toHaveLength(1);
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    // Hộp là con trực tiếp của `body` (portal), nằm sau gốc ứng dụng
     const overlays = Array.from(document.body.children);
-    expect(overlays.indexOf(box.parentElement as HTMLElement)).toBeGreaterThan(
-      overlays.indexOf(drawer.parentElement as HTMLElement),
+    expect(overlays.indexOf(box.parentElement as HTMLElement)).toBe(
+      overlays.length - 1,
     );
+  });
+
+  it('UIF-10 hộp rộng 360 px (`max-w-sm`; Figma 490:507 — F9 để `max-w-[22.5rem]` = 337,5 px vì chia 16 thay 15) và hai nút cao 39 px (`min-h-[2.6rem]`; Figma 490:518: 39,1 px)', async () => {
+    const { box } = await openCancel();
+    expect(box).toHaveClass('max-w-sm');
+    expect(box.className).not.toMatch(/22\.5rem/);
+    for (const name of [ACTION_TEXT.cancel.close, ACTION_TEXT.cancel.confirm]) {
+      const button = within(box).getByRole('button', { name });
+      expect(button).toHaveClass('min-h-[2.6rem]');
+      expect(button).not.toHaveClass('min-h-11');
+    }
   });
 });

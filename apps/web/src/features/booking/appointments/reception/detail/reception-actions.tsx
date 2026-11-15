@@ -1,4 +1,5 @@
 import { UserCheck } from 'lucide-react';
+import { useId } from 'react';
 import { isPositiveAmount } from '../../common/appointment-format';
 import type {
   ReceptionAppointmentDetail,
@@ -6,12 +7,13 @@ import type {
 } from '../api/reception-appointment-types';
 import { DETAIL_TEXT } from './detail-messages';
 
-// Nút hành động của Lễ tân trong ngăn chi tiết (booking F8; Figma `488:2`, `495:2`, `497:2`) và ĐIỂM CẮM CHO F9.
+// Thẻ `Thao tác` của trang chi tiết Lễ tân (booking F8 viết cho NGĂN; F12b: thẻ cùng kiểu `h2` có đường kẻ như thẻ `Thao tác` của Quản trị viên; Figma `488:2`, `495:2`, `497:2`) và ĐIỂM CẮM CHO F9.
+// Không có nút nào để hiện (lịch đã hoàn thành, đã hủy, vắng mặt) thì KHÔNG dựng thẻ.
 //
 //  - Hiện nút nào CHỈ KHI đích có trong `chuyenDuoc[]` của chi tiết (backend tính bằng `allowedTargets('LeTan', …)`, đã gồm cửa sổ tiếp đón và còn phải thu). Web KHÔNG có ma
 //    trận thứ hai: không có chỗ nào ở đây so trạng thái với đích. Mã khác ba đích dưới (ví dụ `HoanThanh`) bị bỏ qua.
 //  - F8 chưa gọi route ghi nào (B12 chưa merge): `handlers` rỗng nên mọi nút VÔ HIỆU kèm chữ ẩn "(chưa được triển khai)". Nút nào có handler thì bật.
-//  - F9 truyền `handlers` từ `reception-drawer.tsx` (hộp `Hủy lịch hẹn` `490:2`, hộp `Đánh dấu vắng mặt` `489:2`, lời gọi `Tiếp đón bệnh nhân` kèm lỗi
+//  - F9 truyền `handlers` từ trang chi tiết (F9 viết ở `reception-drawer.tsx`, F12b ở `reception-detail-page.tsx`; hộp `Hủy lịch hẹn` `490:2`, hộp `Đánh dấu vắng mặt` `489:2`, lời gọi `Tiếp đón bệnh nhân` kèm lỗi
 //    `CON_PHAN_CHUA_THANH_TOAN`, `NGOAI_KHUNG_GIO_TIEP_DON`: LTN-04). F9 chỉ thêm HAI thứ vào file này (Đại duyệt 13/11/2026), hành vi khi `handlers` rỗng không đổi:
 //    (1) handler nhận chính phần tử nút đã bấm để hộp trả tiêu điểm về đúng nút (Safari không focus nút khi bấm nên không dựa vào `document.activeElement`);
 //    (2) prop `busy` vô hiệu cả nhóm khi đang gửi hay chi tiết đang tải lại (chi tiết giữ bản cũ lúc tải lại, nên nút cũ vẫn hiện).
@@ -102,6 +104,7 @@ export function ReceptionActions(props: {
   sending?: { target: ReceptionTarget; label: string } | null;
 }) {
   const { detail } = props;
+  const headingId = useId();
   const handlers = props.handlers ?? {};
   const busy = props.busy ?? false;
   const targets = TARGET_ORDER.filter((target) =>
@@ -116,36 +119,49 @@ export function ReceptionActions(props: {
 
   if (!showCollect && targets.length === 0) return null;
   return (
-    <div
-      role="group"
-      aria-label={DETAIL_TEXT.actionsGroup}
-      className="mt-4 space-y-2"
+    <section
+      aria-labelledby={headingId}
+      className="overflow-hidden rounded-2xl border border-gray-200 bg-white"
     >
-      {showCollect && <CollectButton />}
-      {checkIn && (
-        <ActionButton
-          target="DaTiepDon"
-          onClick={handlers.DaTiepDon}
-          busy={busy}
-          busyLabel={
-            props.sending?.target === 'DaTiepDon'
-              ? props.sending.label
-              : undefined
-          }
-        />
-      )}
-      {others.length > 0 && (
-        <div className={`grid gap-2 ${others.length > 1 ? 'grid-cols-2' : ''}`}>
-          {others.map((target) => (
-            <ActionButton
-              key={target}
-              target={target}
-              onClick={handlers[target]}
-              busy={busy}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+      <h2
+        id={headingId}
+        className="border-b border-gray-100 px-5 py-3.5 text-sm font-semibold text-gray-900"
+      >
+        {DETAIL_TEXT.sections.actions}
+      </h2>
+      <div
+        role="group"
+        aria-labelledby={headingId}
+        className="space-y-2 px-5 py-4"
+      >
+        {showCollect && <CollectButton />}
+        {checkIn && (
+          <ActionButton
+            target="DaTiepDon"
+            onClick={handlers.DaTiepDon}
+            busy={busy}
+            busyLabel={
+              props.sending?.target === 'DaTiepDon'
+                ? props.sending.label
+                : undefined
+            }
+          />
+        )}
+        {others.length > 0 && (
+          <div
+            className={`grid gap-2 ${others.length > 1 ? 'grid-cols-2' : ''}`}
+          >
+            {others.map((target) => (
+              <ActionButton
+                key={target}
+                target={target}
+                onClick={handlers[target]}
+                busy={busy}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
