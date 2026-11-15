@@ -9,3 +9,4 @@ export { ADMIN_SCHEDULE_PATH } from './admin/schedule/admin-schedule-paths';
 export { ADMIN_SCHEDULE_ROUTES } from './admin/schedule/admin-schedule-routes';
 export { RECEPTION_SCHEDULE_PATH } from './reception/reception-paths';
 export { RECEPTION_SCHEDULE_ROUTES } from './reception/reception-routes';
+export * from './examination';

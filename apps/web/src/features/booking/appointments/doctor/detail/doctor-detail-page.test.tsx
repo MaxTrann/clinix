@@ -19,6 +19,9 @@ import {
   makeDoctorDetail,
 } from '../../../testing/fake-doctor-api';
 import { DETAIL_TEXT } from './detail-messages';
+// Nạp SỚM `features/doctor` (doctor-exam F1): nó kéo theo `auth-session`, nơi `setApiAuthHooks` chạy ở MỨC MODULE. Nếu để route `lazy` của trang chi tiết nạp nó lúc render đầu tiên thì nó ghi đè hook xác thực
+// giả của harness và ca đầu tiên (DAD-01) mất token. Nạp sớm thì module chạy trước khi harness đặt hook.
+import '../../../../doctor';
 
 // booking F11: trang chi tiết "Chi tiết ca khám" của Bác sĩ với API giả. Mã DAD là [đề xuất] (PLAN booking mục 7.44); BSI-01 (chi tiết) = DAD-01, DAD-03, DAD-06; BSI-02 (không giá, cọc, email) = DAD-05. Bộ đọc
 // ở `api/doctor-appointments-api.test.ts` (DAD-02), các bước timeline ở `timeline-steps.test.ts` (DAD-09 mức hàm).
@@ -235,7 +238,7 @@ describe('booking F11 — chi tiết của Bác sĩ: hồ sơ khám và trạng 
     ['DaHuy', 'Không có hồ sơ khám.'],
     ['VangMat', 'Không có hồ sơ khám.'],
   ])(
-    'DAD-08 %s: `ghiChuKham` null ⇒ MỘT câu theo trạng thái, không nội dung hồ sơ bịa, không nút của `doctor`',
+    'DAD-08 %s: `ghiChuKham` null ⇒ MỘT câu theo trạng thái, không nội dung hồ sơ bịa, không nút ghi hồ sơ; nút `Hoàn thành ca khám` CHỈ khi Đã tiếp đón (doctor-exam F1)',
     async (trangThai, sentence) => {
       await openDoctorDetail({ trangThai });
       const record = card('Hồ sơ khám bệnh');
@@ -243,16 +246,17 @@ describe('booking F11 — chi tiết của Bác sĩ: hồ sơ khám và trạng 
       expect(record.textContent).not.toMatch(
         /Triệu chứng|Chẩn đoán|Hướng xử lý|Tái khám/i,
       );
-      // F11 chỉ đọc: không nút đổi trạng thái hay ghi hồ sơ (việc của `doctor`)
+      // F11 chỉ đọc; doctor-exam F1 chỉ thêm nút `Hoàn thành ca khám` và CHỈ khi `DaTiepDon` (WHT-01, WHT-07); không nút ghi hồ sơ (việc của F2), chưa bấm thì chưa có `Xác nhận`
       for (const name of [
-        /Hoàn thành ca khám/,
         /Ghi hồ sơ khám/,
         /Chỉnh sửa ghi chú/,
         /^Xác nhận$/,
       ]) {
         expect(screen.queryByRole('button', { name })).toBeNull();
       }
-      expect(screen.queryAllByRole('button')).toEqual([]);
+      expect(
+        screen.queryAllByRole('button').map((button) => button.textContent),
+      ).toEqual(trangThai === 'DaTiepDon' ? ['Hoàn thành ca khám'] : []);
     },
   );
 

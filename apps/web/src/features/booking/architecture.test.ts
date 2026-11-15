@@ -26,9 +26,10 @@ function featureTarget(
   return { feature, rest: rest.filter(Boolean) };
 }
 
-// Module ngoài booking được import, CHỈ qua `index.ts` của nó (dừng ở tên thư mục, không đi sâu vào file): `auth` (đăng nhập, vai trò) và `admin` (booking F10: `AdminScopeGuard` bọc route và
-// `useAdminScope` cho trang Lịch hẹn của Quản trị viên, đúng tiền lệ module `doctor`; Đại duyệt 13/11/2026). Mọi module khác vẫn cấm.
-const THROUGH_INDEX_ONLY = ['auth', 'admin'];
+// Module ngoài booking được import, CHỈ qua `index.ts` của nó (dừng ở tên thư mục, không đi sâu vào file): `auth` (đăng nhập, vai trò), `admin` (booking F10: `AdminScopeGuard` bọc route và
+// `useAdminScope` cho trang Lịch hẹn của Quản trị viên; Đại duyệt 13/11/2026) và `doctor` (doctor-exam F1: `ExamHeaderActions` cắm vào `headerAside` của trang chi tiết Bác sĩ; Q20 phương án C, Đại 14/11/2026;
+// chiều ngược lại `features/doctor` KHÔNG import booking do WHT-10 khoá). Mọi module khác vẫn cấm.
+const THROUGH_INDEX_ONLY = ['auth', 'admin', 'doctor'];
 
 function isAllowedImport(
   target: { feature: string; rest: string[] } | null,
@@ -40,7 +41,7 @@ function isAllowedImport(
 }
 
 describe('booking F3 — features/booking không import chéo', () => {
-  it('BWZ-08 chỉ import trong chính booking, shared/, features/auth và features/admin qua index.ts', () => {
+  it('BWZ-08 chỉ import trong chính booking, shared/, features/auth, features/admin và features/doctor qua index.ts', () => {
     const files = Object.keys(SOURCES);
     expect(files.length).toBeGreaterThan(10);
 
@@ -55,22 +56,24 @@ describe('booking F3 — features/booking không import chéo', () => {
     expect(violations).toEqual([]);
   });
 
-  it('BWZ-08 (F10) luật nhận admin qua index.ts và cấm mọi thứ khác (đối chứng)', () => {
+  it('BWZ-08 (F10, doctor-exam F1) luật nhận admin và doctor qua index.ts và cấm mọi thứ khác (đối chứng)', () => {
     const file = './appointments/admin/x.ts';
     const allowed = (specifier: string) =>
       isAllowedImport(featureTarget(file, specifier));
-    // Cho phép: chính booking, shared/, thư viện, auth và admin chỉ qua index.ts
+    // Cho phép: chính booking, shared/, thư viện, auth, admin và doctor chỉ qua index.ts
     expect(allowed('./detail/y')).toBe(true);
     expect(allowed('../../../../shared/api/client')).toBe(true);
     expect(allowed('react')).toBe(true);
     expect(allowed('../../../auth')).toBe(true);
     expect(allowed('../../../admin')).toBe(true);
-    // Cấm: đi sâu vào admin hay auth, và mọi module khác
+    expect(allowed('../../../doctor')).toBe(true);
+    // Cấm: đi sâu vào admin, auth hay doctor, và mọi module khác
     expect(allowed('../../../admin/admin-layout')).toBe(false);
     expect(allowed('../../../admin/components/admin-sidebar')).toBe(false);
     expect(allowed('../../../auth/use-page-active')).toBe(false);
     expect(allowed('../../../search')).toBe(false);
-    expect(allowed('../../../doctor')).toBe(false);
+    expect(allowed('../../../doctor/examination')).toBe(false);
+    expect(allowed('../../../doctor/components/modal-frame')).toBe(false);
     expect(allowed('../../../patient')).toBe(false);
   });
 

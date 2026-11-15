@@ -1,0 +1,3 @@
+// Bề mặt công khai của phần khám bệnh (doctor-exam, phần web): `features/doctor/index.ts` xuất lại từ đây; `features/booking` chỉ được import qua `features/doctor/index.ts` (Q20).
+export { ExamHeaderActions } from './doctor/complete-action';
+export type { ExamHeaderActionsProps } from './doctor/complete-action';

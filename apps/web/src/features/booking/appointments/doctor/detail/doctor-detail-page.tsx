@@ -1,6 +1,7 @@
 import { useLocation, useParams } from 'react-router';
 import { DOCTOR_APPOINTMENTS_PATH } from '../../../../../shared/routes/booking-paths';
 import { LoadingState } from '../../../../../shared/ui/loading-state';
+import { ExamHeaderActions } from '../../../../doctor';
 import { DetailFailure } from '../../common/detail-failure';
 import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
 import { readListSearch } from '../../common/list-search';
@@ -11,8 +12,9 @@ import { StatusTimeline } from './status-timeline';
 import { useDoctorDetail } from './use-doctor-detail';
 
 // Trang chi tiết một ca khám của Bác sĩ (booking F11; Figma `458:2`; F12 dựng lại theo KHUNG CHUNG của Bệnh nhân, UI-12, Đại 14/11/2026): `← Lịch hẹn`, h1 `Chi tiết ca khám`, thẻ đầu (mã, chip, dịch vụ, bốn ô Người khám,
-// Ngày khám, Chuyên khoa, Chi nhánh); lưới hai cột: bên trái `Thông tin người khám` và `Hồ sơ khám bệnh`, bên phải `Thông tin lịch hẹn` và `Trạng thái ca khám`. Nội dung từ MỘT nguồn là chi tiết. Chỉ ĐỌC (GET): KHÔNG nút
-// đổi trạng thái hay ghi hồ sơ (`Hoàn thành ca khám`, `Ghi hồ sơ khám`, `Chỉnh sửa ghi chú` là của module `doctor`: chỗ thêm là `headerAside` của `DetailPageFrame` ở hàng tiêu đề trang này và thẻ `RecordCard`).
+// Ngày khám, Chuyên khoa, Chi nhánh); lưới hai cột: bên trái `Thông tin người khám` và `Hồ sơ khám bệnh`, bên phải `Thông tin lịch hẹn` và `Trạng thái ca khám`. Nội dung từ MỘT nguồn là chi tiết. Chi tiết chỉ ĐỌC (GET).
+// Nút `Hoàn thành ca khám` (doctor-exam F1, POST; Figma `459:2`, `461:2`) do module `doctor` cung cấp: `ExamHeaderActions` đặt ở `headerAside` của `DetailPageFrame`, import CHỈ qua `features/doctor/index.ts` (Q20 phương án C;
+// `trangThai` và `reload` đi qua props, không import kiểu của `doctor` hay của booking qua lại). `Ghi hồ sơ khám`, `Chỉnh sửa ghi chú` vẫn là việc của `doctor` (thẻ `RecordCard`).
 // Liên kết quay lại và h1 hiện ngay, kể cả khi đang tải hay lỗi.
 export function DoctorDetailPage({ maLichHen }: { maLichHen: string }) {
   const location = useLocation();
@@ -28,6 +30,15 @@ export function DoctorDetailPage({ maLichHen }: { maLichHen: string }) {
       backLabel={DETAIL_TEXT.back}
       title={DETAIL_TEXT.title}
       busy={ready?.refreshing ?? view.kind === 'loading'}
+      headerAside={
+        ready === null ? undefined : (
+          <ExamHeaderActions
+            maLichHen={maLichHen}
+            trangThai={ready.data.trangThai}
+            onChanged={reload}
+          />
+        )
+      }
     >
       {view.kind === 'loading' && (
         <LoadingState message={DETAIL_TEXT.loading} />
