@@ -105,7 +105,11 @@ describe('hộp override: nội dung, lý do bắt buộc (QT-03)', () => {
     ['DaHuy', 'DaXacNhan', ['hoàn 100% số tiền đã thu', 'không thể hoàn tác']],
     ['VangMat', 'DaXacNhan', ['cộng một lần vắng mặt']],
     ['DaTiepDon', 'VangMat', ['Bỏ qua cửa sổ tiếp đón']],
-    ['DaXacNhan', 'VangMat', ['5 phút', 'chọn Đã tiếp đón']],
+    [
+      'DaXacNhan',
+      'VangMat',
+      ['không tự đánh Vắng mặt lại', 'chọn Đã tiếp đón'],
+    ],
   ] as const)(
     'AQO-03 đích %s từ %s: hộp modal có tên, câu từ → đến, cảnh báo riêng, ô `Lý do` được focus, nút `Đóng` và `Xác nhận`',
     async (target, from, fragments) => {
@@ -130,11 +134,13 @@ describe('hộp override: nội dung, lý do bắt buộc (QT-03)', () => {
     },
   );
 
-  it('AQO-04 hộp `Đã xác nhận` nêu TECH_DEBT 120 (job tự Vắng mặt đánh lại trong tối đa 5 phút) và gợi ý `Đã tiếp đón` khi bệnh nhân đã đến; các đích khác không có câu đó', async () => {
+  it('AQO-04 (F12, UI-13) hộp `Đã xác nhận` nói đúng hành vi sau B18 (job KHÔNG tự Vắng mặt lại lịch đã khôi phục: đổi tay nếu vẫn vắng; không còn câu "tối đa 5 phút") và gợi ý `Đã tiếp đón` khi bệnh nhân đã đến; các đích khác không có câu đó', async () => {
     const restore = await openDialog('DaXacNhan', { trangThai: 'VangMat' });
     expect(restore.dialog).toHaveTextContent(
-      'hệ thống sẽ tự đánh Vắng mặt lại trong tối đa 5 phút',
+      'Hệ thống sẽ không tự đánh Vắng mặt lại lịch đã khôi phục',
     );
+    expect(restore.dialog).toHaveTextContent('đổi sang Vắng mặt thủ công');
+    expect(restore.dialog).not.toHaveTextContent('5 phút');
     expect(restore.dialog).toHaveTextContent('hãy chọn Đã tiếp đón');
     restore.unmount();
     cleanUpAdminAppointments();

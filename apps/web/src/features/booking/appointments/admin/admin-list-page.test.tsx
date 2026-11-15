@@ -52,7 +52,7 @@ describe('danh sách: tải đầu, đếm, cột', () => {
     expect(screen.getByText('5 lịch hẹn phù hợp')).toBeInTheDocument();
   });
 
-  it('AQL-02 bảng theo Figma `511:2`: sáu cột + cột `Chi tiết`; không cột `Thanh toán`, `Chi nhánh`, `Kênh`; ngày rồi giờ theo NGÀY Việt Nam; thứ tự dòng giữ NGUYÊN thứ tự API (giảm dần)', async () => {
+  it('AQL-02 bảng theo Figma `511:2`: bảy cột + cột `Chi tiết` (F12 thêm `Thanh toán`); không cột `Chi nhánh`, `Kênh`; ngày rồi giờ theo NGÀY Việt Nam; thứ tự dòng giữ NGUYÊN thứ tự API (giảm dần)', async () => {
     renderAdminAppointments(LIST_URL, {
       before: (fake) => {
         fake.appointments = [
@@ -80,9 +80,10 @@ describe('danh sách: tải đầu, đếm, cột', () => {
       'Bác sĩ',
       'Dịch vụ',
       'Trạng thái',
+      'Thanh toán',
       'Thao tác',
     ]);
-    expect(headers.join(' ')).not.toMatch(/Thanh toán|Chi nhánh|Kênh/);
+    expect(headers.join(' ')).not.toMatch(/Chi nhánh|Kênh/);
     expect(adminRowCodes()).toEqual([
       'CP20261020001',
       'CP20261018001',
@@ -127,6 +128,137 @@ describe('danh sách: tải đầu, đếm, cột', () => {
       name: 'Chi tiết lịch hẹn CP20261018001',
     });
     expect(link).toHaveAttribute('href', '/admin/lich-hen/CP20261018001');
+  });
+});
+
+// booking F12 (UI-04, UI-08, UI-09; Đại 14/11/2026): bộ lọc dựng lại theo hình học Figma `511:299` và cột `Thanh toán` SUY RA từ trạng thái và cọc. Mã UIF là [đề xuất] (PLAN booking mục 7.48).
+// jsdom không đo bố cục nên thứ tự và cấu trúc DOM là bằng chứng ở mức W; số đo thật (rộng, cao, khoảng cách) là kiểm bằng trình duyệt ở TRACKING 3.42.
+const follows = (before: HTMLElement, after: HTMLElement) =>
+  Boolean(
+    before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+
+describe('bộ lọc theo Figma 511:2 và cột Thanh toán (F12)', () => {
+  it('UIF-08 hàng 1 = ô tìm + `Từ ngày` + `Đến ngày`, hàng 2 = sáu ô chọn đúng thứ tự Figma (`Thanh toán` cuối); ô tìm bo vừa (không hình viên thuốc); mỗi ô chọn có mũi tên tự vẽ', async () => {
+    renderAdminAppointments(LIST_URL);
+    await listLoaded();
+    const row2 = [
+      'Chi nhánh',
+      'Chuyên khoa',
+      'Bác sĩ',
+      'Loại dịch vụ',
+      'Trạng thái lịch',
+      'Thanh toán',
+    ].map((name) => screen.getByRole('combobox', { name }));
+    // Đúng sáu ô chọn trên trang và đúng thứ tự (so bằng danh tính phần tử, không so cấu trúc)
+    const allBoxes = screen.getAllByRole('combobox');
+    expect(allBoxes).toHaveLength(row2.length);
+    allBoxes.forEach((box, index) => expect(box).toBe(row2[index]));
+    for (let i = 1; i < row2.length; i += 1) {
+      expect(follows(row2[i - 1], row2[i])).toBe(true);
+    }
+    // Hàng 1 đứng TRƯỚC mọi ô của hàng 2
+    const row1 = [searchBox(), field('Từ ngày'), field('Đến ngày')];
+    expect(follows(row1[0], row1[1])).toBe(true);
+    expect(follows(row1[1], row1[2])).toBe(true);
+    expect(follows(row1[2], row2[0])).toBe(true);
+    // Ô tìm và hai ô ngày chung MỘT hàng lưới; sáu ô chọn chung một hàng lưới khác
+    expect(row1[0].closest('.grid')).toBe(row1[1].closest('.grid'));
+    expect(row1[1].closest('.grid')).toBe(row1[2].closest('.grid'));
+    expect(row2[0].closest('.grid')).toBe(row2[5].closest('.grid'));
+    expect(row1[0].closest('.grid')).not.toBe(row2[0].closest('.grid'));
+    // Nhãn nhìn thấy "Tìm kiếm" đứng trên ô tìm
+    expect(screen.getByText('Tìm kiếm', { selector: 'p' })).toBeVisible();
+    // Ô tìm của Quản trị viên bo vừa, không phải hình viên thuốc của Bệnh nhân
+    expect(searchBox()).toHaveClass('rounded-xl');
+    expect(searchBox()).not.toHaveClass('rounded-full');
+    // Mũi tên tự vẽ: mỗi ô chọn có MỘT biểu tượng chỉ trang trí cạnh nó, và ô ẩn mũi tên gốc
+    for (const box of row2) {
+      expect(box).toHaveClass('appearance-none');
+      expect(
+        box.parentElement?.querySelectorAll('svg[aria-hidden="true"]'),
+      ).toHaveLength(1);
+    }
+  });
+
+  it('UIF-09 cột `Thanh toán` SUY RA từ trạng thái và cọc: `ChoThanhToan` ⇒ Chưa thanh toán; cọc lớn hơn 0 ⇒ Đã đặt cọc (kể cả `DaTiepDon`, `HoanThanh`, `VangMat`); cọc 0đ ⇒ Không cọc; `DaHuy` ⇒ dấu gạch; KHÔNG BAO GIỜ "Đã thanh toán đủ"', async () => {
+    renderAdminAppointments(LIST_URL, {
+      before: (fake) => {
+        fake.appointments = [
+          makeAdminAppointment({
+            maLichHen: 'CP1',
+            trangThai: 'ChoThanhToan',
+            tienCoc: '100000.00',
+          }),
+          makeAdminAppointment({
+            maLichHen: 'CP2',
+            trangThai: 'DaXacNhan',
+            tienCoc: '100000.00',
+          }),
+          makeAdminAppointment({
+            maLichHen: 'CP3',
+            trangThai: 'DaXacNhan',
+            tienCoc: '0.00',
+          }),
+          makeAdminAppointment({
+            maLichHen: 'CP4',
+            trangThai: 'DaHuy',
+            tienCoc: '100000.00',
+          }),
+          makeAdminAppointment({
+            maLichHen: 'CP5',
+            trangThai: 'HoanThanh',
+            tienCoc: '100000.00',
+          }),
+          makeAdminAppointment({
+            maLichHen: 'CP6',
+            trangThai: 'DaTiepDon',
+            tienCoc: '100000.00',
+          }),
+          makeAdminAppointment({
+            maLichHen: 'CP7',
+            trangThai: 'VangMat',
+            tienCoc: '100000.00',
+          }),
+        ];
+      },
+    });
+    const region = await listLoaded();
+    const payments = within(region)
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => within(row).getAllByRole('cell')[6].textContent);
+    expect(payments).toEqual([
+      'Chưa thanh toán',
+      'Đã đặt cọc',
+      'Không cọc',
+      '—Không áp dụng',
+      'Đã đặt cọc',
+      'Đã đặt cọc',
+      'Đã đặt cọc',
+    ]);
+    expect(screen.queryByText(/thanh toán đủ/i)).toBeNull();
+  });
+
+  it('UIF-09 ô lọc `Thanh toán` VÔ HIỆU kèm "Chưa được triển khai" (B4 không có tham số): không gửi `thanhToan`, đổi ô khác cũng không gửi', async () => {
+    const { api } = renderAdminAppointments(LIST_URL);
+    await listLoaded();
+    const payment = screen.getByRole('combobox', { name: 'Thanh toán' });
+    expect(payment).toBeDisabled();
+    expect(payment).toHaveAccessibleDescription('Chưa được triển khai');
+    expect(within(payment).getAllByRole('option')).toHaveLength(1);
+    fireEvent.change(
+      screen.getByRole('combobox', { name: 'Trạng thái lịch' }),
+      {
+        target: { value: 'DaXacNhan' },
+      },
+    );
+    await waitFor(() =>
+      expect(lastAdminListQuery(api)).toMatchObject({ trangThai: 'DaXacNhan' }),
+    );
+    for (const query of adminListQueries(api)) {
+      expect(query).not.toHaveProperty('thanhToan');
+    }
   });
 });
 

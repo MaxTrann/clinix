@@ -146,9 +146,7 @@ describe('booking F4 — chọn hồ sơ đi khám', () => {
     await ready();
     expect(api.checkBodies).toHaveLength(2);
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Đóng, giữ lựa chọn hiện tại' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng danh sách' }));
     expect(screen.queryByRole('radiogroup')).toBeNull();
     expect(toggle()).toHaveFocus();
     // Đóng không đổi lựa chọn
@@ -753,8 +751,8 @@ describe('booking F4 — điểm vào, điều hướng, trợ năng, đua', () 
     ).toBeNull();
 
     const group = await openPanel();
-    // Hộp mở: ✕ → các radio → Thêm hồ sơ → Làm mới → nút đóng → ô lý do
-    expect(stops().slice(0, 9)).toEqual([
+    // Hộp mở: ✕ → các radio → Thêm hồ sơ → Làm mới → ô lý do (F12, UI-01: không còn dòng "Đóng, giữ lựa chọn hiện tại")
+    expect(stops().slice(0, 8)).toEqual([
       'Chọn lại dịch vụ',
       'Đóng danh sách',
       'radio',
@@ -762,7 +760,6 @@ describe('booking F4 — điểm vào, điều hướng, trợ năng, đua', () 
       'radio',
       'Thêm hồ sơ người thân mới (mở trong tab mới)',
       'Làm mới danh sách',
-      'Đóng, giữ lựa chọn hiện tại',
       'textarea',
     ]);
     const names = within(group)
@@ -829,6 +826,31 @@ describe('booking F4 — điểm vào, điều hướng, trợ năng, đua', () 
       expect(api.bookingWrites()).toEqual([]);
     },
   );
+
+  it('UIF-01 (F12, UI-01) cụm cuối của hộp gọn: "Thêm hồ sơ người thân mới" là nút chính (liên kết), "Làm mới danh sách" chỉ là nút biểu tượng có tên truy cập và `title`, KHÔNG còn dòng "Đóng, giữ lựa chọn hiện tại"; đóng bằng ✕ vẫn trả tiêu điểm về nút mở', async () => {
+    renderInfoStep();
+    await ready();
+    const group = await openPanel();
+    const refresh = screen.getByRole('button', { name: 'Làm mới danh sách' });
+    expect(refresh).toHaveAttribute('title', 'Làm mới danh sách');
+    // Nút biểu tượng: không có chữ nhìn thấy, tên chỉ đến từ `aria-label`
+    expect(refresh.textContent).toBe('');
+    expect(
+      screen.queryByRole('button', { name: 'Đóng, giữ lựa chọn hiện tại' }),
+    ).toBeNull();
+    expect(screen.queryByText('Đóng, giữ lựa chọn hiện tại')).toBeNull();
+    // Liên kết chính và nút làm mới nằm CÙNG một hàng, sau nhóm radio
+    const link = screen.getByRole('link', {
+      name: /Thêm hồ sơ người thân mới/,
+    });
+    expect(link.parentElement).toBe(refresh.parentElement);
+    expect(
+      group.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng danh sách' }));
+    expect(screen.queryByRole('radiogroup')).toBeNull();
+    expect(toggle()).toHaveFocus();
+  });
 
   it('BIS-14 "Làm mới danh sách": người thân vừa thêm ở tab khác hiện ra; trong lúc tải lại danh sách cũ và thẻ đang chọn KHÔNG mất, nút tắt; hồ sơ đang chọn, lý do đã gõ giữ nguyên; không gọi lại `checks`', async () => {
     let releaseReload!: (response: Response) => void;

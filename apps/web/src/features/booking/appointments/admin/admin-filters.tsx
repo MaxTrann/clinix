@@ -9,6 +9,7 @@ import {
   Field,
   FIELD_CONTROL,
   KeywordSearchBox,
+  SelectBox,
   SelectField,
 } from '../common/filter-controls';
 import type { AdminFilterOptionsController } from './use-admin-filter-options';
@@ -60,30 +61,39 @@ function BranchField({ list, options }: AdminFiltersProps) {
   );
 }
 
-// Bộ lọc của "Lịch hẹn" của Quản trị viên (Figma `511:2`, `621:2`): ô tìm, `Từ ngày`, `Đến ngày` (luôn hiện, mặc định trống), `Chi nhánh`, `Chuyên khoa`, `Bác sĩ`, `Loại dịch vụ`,
-// `Trạng thái lịch`; KHÔNG có chip ngày (khác Lễ tân) và KHÔNG có ô `Thanh toán` (B4 không trả). Các ô dùng chung với hai trang danh sách khác ở `common/filter-controls.tsx`.
+// Bộ lọc của "Lịch hẹn" của Quản trị viên (Figma `511:2`, `621:2`; F12, UI-08 dựng lại theo hình học `511:299`): HÀNG 1 là ô tìm (rộng gấp đôi), `Từ ngày`, `Đến ngày` (luôn hiện, mặc định trống);
+// HÀNG 2 là sáu ô bằng nhau: `Chi nhánh`, `Chuyên khoa`, `Bác sĩ`, `Loại dịch vụ`, `Trạng thái lịch`, `Thanh toán`. KHÔNG có chip ngày (khác Lễ tân). Ô `Thanh toán` VÔ HIỆU kèm "Chưa được triển
+// khai" (nếp LTN-05): B4 không có tham số này (Đại duyệt 14/11/2026). Ô tìm bo vừa (`soft`), không hình viên thuốc như Bệnh nhân. Các ô dùng chung với ba trang danh sách khác ở `common/filter-controls.tsx`.
 export function AdminFilters({ list, options }: AdminFiltersProps) {
   const specialtyId = useId();
   const doctorId = useId();
   const serviceId = useId();
   const statusId = useId();
+  const paymentId = useId();
+  const paymentNoteId = useId();
   const specialties = options.specialties.state;
   const doctors = options.doctors.state;
   const services = options.services.state;
 
   return (
     <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
-      <p aria-hidden="true" className="mb-1 text-xs font-medium text-gray-700">
-        {LIST_TEXT.searchCaption}
-      </p>
-      <KeywordSearchBox
-        keyword={list.keyword}
-        label={LIST_TEXT.searchLabel}
-        placeholder={LIST_TEXT.searchPlaceholder}
-        rejected={list.view.kind === 'ready' && list.view.keywordRejected}
-      />
-
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Hàng 1 (Figma: 563,6 + 276,2 + 276,2 ⇒ 2,04 : 1 : 1) */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2.04fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="sm:col-span-2 lg:col-span-1">
+          <p
+            aria-hidden="true"
+            className="mb-1 text-xs font-medium text-gray-700"
+          >
+            {LIST_TEXT.searchCaption}
+          </p>
+          <KeywordSearchBox
+            shape="soft"
+            keyword={list.keyword}
+            label={LIST_TEXT.searchLabel}
+            placeholder={LIST_TEXT.searchPlaceholder}
+            rejected={list.view.kind === 'ready' && list.view.keywordRejected}
+          />
+        </div>
         <DateRangeFields
           from={list.fromDate}
           to={list.toDate}
@@ -91,6 +101,10 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
           onFromChange={list.setFromDate}
           onToChange={list.setToDate}
         />
+      </div>
+
+      {/* Hàng 2: sáu ô bằng nhau, đúng thứ tự Figma */}
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <BranchField list={list} options={options} />
 
         <SelectField
@@ -154,7 +168,7 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
 
         {/* Sáu trạng thái như F8; không có `Đã đổi lịch` (đổi lịch ngoài phạm vi module) */}
         <Field label={LIST_TEXT.statusLabel} htmlFor={statusId}>
-          <select
+          <SelectBox
             id={statusId}
             value={list.filters.status ?? ''}
             onChange={(event) =>
@@ -164,7 +178,6 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
                   : null,
               )
             }
-            className={FIELD_CONTROL}
           >
             <option value="">{LIST_TEXT.allStatuses}</option>
             {APPOINTMENT_STATES.map((state) => (
@@ -172,7 +185,27 @@ export function AdminFilters({ list, options }: AdminFiltersProps) {
                 {APPOINTMENT_STATE_LABELS[state]}
               </option>
             ))}
-          </select>
+          </SelectBox>
+        </Field>
+
+        {/* `Thanh toán` (Figma `511:2`): B4 không nhận tham số này nên ô VÔ HIỆU, không gửi gì. Câu giải thích hiện dưới ô và gắn bằng `aria-describedby` */}
+        <Field
+          label={LIST_TEXT.paymentLabel}
+          htmlFor={paymentId}
+          note={
+            <p id={paymentNoteId} className="mt-1 text-xs text-gray-600">
+              {LIST_TEXT.paymentFilterNotReady}
+            </p>
+          }
+        >
+          <SelectBox
+            id={paymentId}
+            disabled
+            aria-describedby={paymentNoteId}
+            className={`${FIELD_CONTROL} bg-gray-50`}
+          >
+            <option value="">{LIST_TEXT.allStatuses}</option>
+          </SelectBox>
         </Field>
       </div>
 

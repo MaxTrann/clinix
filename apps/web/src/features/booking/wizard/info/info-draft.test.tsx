@@ -40,9 +40,7 @@ async function chooseRelative(name: RegExp) {
     expect(within(group).getAllByRole('radio')).toHaveLength(3),
   );
   fireEvent.click(within(group).getByRole('radio', { name }));
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Đóng, giữ lựa chọn hiện tại' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng danh sách' }));
   await ready();
 }
 async function goToConfirm(router: Parameters<typeof here>[0]) {

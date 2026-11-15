@@ -3,8 +3,8 @@ import { DateChips } from '../common/date-chips';
 import {
   DateRangeFields,
   Field,
-  FIELD_CONTROL,
   KeywordSearchBox,
+  SelectBox,
 } from '../common/filter-controls';
 import {
   SHIFT_CODES,
@@ -60,7 +60,7 @@ export function DoctorFilters({ list }: { list: DoctorListController }) {
         />
 
         <Field label={LIST_TEXT.shiftLabel} htmlFor={shiftId}>
-          <select
+          <SelectBox
             id={shiftId}
             value={list.filters.shift ?? ''}
             onChange={(event) =>
@@ -70,7 +70,6 @@ export function DoctorFilters({ list }: { list: DoctorListController }) {
                   : null,
               )
             }
-            className={FIELD_CONTROL}
           >
             <option value="">{LIST_TEXT.allShifts}</option>
             {SHIFT_CODES.map((code) => (
@@ -78,11 +77,11 @@ export function DoctorFilters({ list }: { list: DoctorListController }) {
                 {shiftLabel(code)}
               </option>
             ))}
-          </select>
+          </SelectBox>
         </Field>
 
         <Field label={LIST_TEXT.sortLabel} htmlFor={sortId}>
-          <select
+          <SelectBox
             id={sortId}
             value={list.filters.sort}
             onChange={(event) =>
@@ -90,14 +89,13 @@ export function DoctorFilters({ list }: { list: DoctorListController }) {
                 event.target.value === 'CuNhat' ? 'CuNhat' : 'MoiNhat',
               )
             }
-            className={FIELD_CONTROL}
           >
             {SORT_ORDERS.map((order) => (
               <option key={order} value={order}>
                 {sortLabel(order)}
               </option>
             ))}
-          </select>
+          </SelectBox>
         </Field>
       </div>
 

@@ -1,8 +1,8 @@
 import { COMMON_LIST_TEXT } from '../common/list-text';
 
 // Chữ của trang "Lịch hẹn" của Quản trị viên (booking F10). Chữ của Figma `511:2`, `621:2` khi có (tiêu đề, nhãn `Tìm kiếm`, chữ mờ của ô tìm, nhãn năm ô lọc, `Tất cả`, tiêu đề cột,
-// `Chi tiết`, dòng đếm "{n} lịch hẹn phù hợp"); còn lại là [đề xuất], chờ nhóm duyệt (Figma chưa có frame cho rỗng, lỗi, đang tải, phân trang: PLAN 4.5). Đã bỏ cột và ô `Thanh toán`
-// (B4 không trả `thanhToan`). Chữ dùng chung với "Lịch hẹn của tôi" và "Quản lý lịch hẹn" ở `common/list-text.ts`.
+// `Chi tiết`, dòng đếm "{n} lịch hẹn phù hợp"); còn lại là [đề xuất], chờ nhóm duyệt (Figma chưa có frame cho rỗng, lỗi, đang tải, phân trang: PLAN 4.5). Cột `Thanh toán` (F12) là
+// giá trị SUY RA từ trạng thái và cọc vì B4 không trả `thanhToan`; ô lọc `Thanh toán` vô hiệu. Chữ dùng chung với "Lịch hẹn của tôi" và "Quản lý lịch hẹn" ở `common/list-text.ts`.
 export const LIST_TEXT = {
   ...COMMON_LIST_TEXT,
   title: 'Lịch hẹn',
@@ -15,6 +15,9 @@ export const LIST_TEXT = {
   doctorLabel: 'Bác sĩ',
   serviceLabel: 'Loại dịch vụ',
   statusLabel: 'Trạng thái lịch',
+  // Ô lọc `Thanh toán` của Figma `511:2`: B4 không có tham số này nên ô VÔ HIỆU kèm câu dưới (nếp LTN-05; F12, UI-09)
+  paymentLabel: 'Thanh toán',
+  paymentFilterNotReady: 'Chưa được triển khai',
   allStatuses: 'Tất cả',
   clearFilters: 'Xóa lọc',
   loading: 'Đang tải lịch hẹn...',
@@ -30,8 +33,16 @@ export const LIST_TEXT = {
     doctor: 'Bác sĩ',
     service: 'Dịch vụ',
     status: 'Trạng thái',
+    payment: 'Thanh toán',
     // Figma không có chữ cho cột cuối; giữ tiêu đề ẩn để bảng đủ tiêu đề cột
     actions: 'Thao tác',
+  },
+  // Giá trị SUY RA từ trạng thái và cọc, không phải bản ghi thanh toán (`payment-summary.ts`); không bao giờ có "Đã thanh toán đủ"
+  payment: {
+    ChuaThanhToan: 'Chưa thanh toán',
+    DaDatCoc: 'Đã đặt cọc',
+    KhongCoc: 'Không cọc',
+    KhongApDung: 'Không áp dụng',
   },
   detail: 'Chi tiết',
 } as const;

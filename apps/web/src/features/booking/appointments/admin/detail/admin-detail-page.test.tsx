@@ -50,7 +50,7 @@ describe('trang chi tiết: tải, nội dung theo Figma 512:2', () => {
     ).toHaveAttribute('href', '/admin/lich-hen');
   });
 
-  it('AQD-03 nội dung: hai thẻ + panel; đúng nhãn và giá trị (giờ Việt Nam, tiền từ CHUỖI); KHÔNG Email, Giới tính, Ngày sinh, Kênh đặt, thẻ `Thanh toán`', async () => {
+  it('AQD-03 nội dung: ba thẻ + panel (F12: thêm `Chi phí & Thanh toán`); đúng nhãn và giá trị (giờ Việt Nam, tiền từ CHUỖI); KHÔNG Email, Giới tính, Ngày sinh, Kênh đặt, thẻ `Thanh toán`', async () => {
     await openAdminDetail();
     const info = 'Thông tin lịch hẹn';
     expect(factOf(info, 'Ngày khám')).toBe('18/10/2026');
@@ -59,9 +59,12 @@ describe('trang chi tiết: tải, nội dung theo Figma 512:2', () => {
     expect(factOf(info, 'Chuyên khoa')).toBe('Tim mạch');
     expect(factOf(info, 'Dịch vụ')).toBe('Khám tim mạch');
     expect(factOf(info, 'Chi nhánh')).toBe('CLINIX Quận 1');
-    expect(factOf(info, 'Giá khám')).toBe('300.000đ');
-    expect(factOf(info, 'Tiền cọc')).toBe('100.000đ');
-    expect(factOf(info, 'Còn phải thu')).toBe('300.000đ');
+    // F12: tiền nằm ở thẻ `Chi phí & Thanh toán` (như trang Bệnh nhân), không còn ở `Thông tin lịch hẹn`
+    const cost = 'Chi phí & Thanh toán';
+    expect(factOf(cost, 'Giá khám')).toBe('300.000đ');
+    expect(factOf(cost, 'Tiền cọc')).toBe('100.000đ');
+    expect(factOf(cost, 'Còn phải thu')).toBe('300.000đ');
+    expect(factOf(info, 'Giá khám')).toBeNull();
     const patient = 'Thông tin bệnh nhân';
     expect(factOf(patient, 'Họ tên')).toContain('Nguyễn Văn A');
     expect(factOf(patient, 'Họ tên')).toContain('Bản thân');
@@ -105,8 +108,9 @@ describe('trang chi tiết: tải, nội dung theo Figma 512:2', () => {
       chuyenDuoc: [],
     });
     const info = 'Thông tin lịch hẹn';
-    expect(factOf(info, 'Hạn thanh toán')).toBe('18/10/2026 · 14:15');
-    expect(factOf(info, 'Còn phải thu')).toBeNull();
+    const cost = 'Chi phí & Thanh toán';
+    expect(factOf(cost, 'Hạn thanh toán')).toBe('18/10/2026 · 14:15');
+    expect(factOf(cost, 'Còn phải thu')).toBeNull();
     expect(factOf(info, 'Lý do hủy')).toBeNull();
     expect(screen.getByText('Chờ thanh toán')).toBeInTheDocument();
 
@@ -119,7 +123,7 @@ describe('trang chi tiết: tải, nội dung theo Figma 512:2', () => {
       chuyenDuoc: [],
     });
     expect(factOf(info, 'Lý do hủy')).toBe('Bệnh nhân báo bận');
-    expect(factOf(info, 'Hạn thanh toán')).toBeNull();
+    expect(factOf(cost, 'Hạn thanh toán')).toBeNull();
   });
 
   it('AQD-04 người khám khác người đặt: dòng `Người đặt` và chú thích `Người thân`, `Của người đặt`; SĐT là của người đặt', async () => {
@@ -140,9 +144,9 @@ describe('trang chi tiết: tải, nội dung theo Figma 512:2', () => {
       giaSnapshot: '9007199254740993.00',
       conPhaiThu: '9007199254740993.00',
     });
-    const info = 'Thông tin lịch hẹn';
-    expect(factOf(info, 'Giá khám')).toBe('9.007.199.254.740.993đ');
-    expect(factOf(info, 'Còn phải thu')).toBe('9.007.199.254.740.993đ');
+    const cost = 'Chi phí & Thanh toán';
+    expect(factOf(cost, 'Giá khám')).toBe('9.007.199.254.740.993đ');
+    expect(factOf(cost, 'Còn phải thu')).toBe('9.007.199.254.740.993đ');
   });
 });
 
@@ -242,6 +246,42 @@ describe('lỗi tải chi tiết, quay lại, dữ liệu cá nhân', () => {
     expect(window.sessionStorage.length).toBe(0);
     expect(document.cookie).toBe('');
     for (const spy of spies) expect(spy).not.toHaveBeenCalled();
+  });
+
+  // booking F12 (UI-11, UI-12; Đại 14/11/2026). Mã UIF là [đề xuất] (PLAN booking mục 7.48). jsdom không đo bố cục: đây là bằng chứng CẤU TRÚC; bề rộng thật đo bằng trình duyệt ở TRACKING 3.42.
+  it('UIF-11 khung chung như trang Bệnh nhân: căn giữa `max-w-[64rem]` (không còn 52,5rem lệch trái), thẻ đầu (mã MỘT lần, chip, chuyên khoa, bốn ô), lưới hai cột: Thông tin lịch hẹn và Thông tin bệnh nhân bên trái; Chi phí, Lịch sử, Thao tác bên phải', async () => {
+    await openAdminDetail();
+    const page = screen
+      .getByRole('heading', { level: 1, name: 'Chi tiết lịch hẹn' })
+      .closest('section') as HTMLElement;
+    expect(page).toHaveClass('mx-auto', 'max-w-[64rem]');
+    expect(page).not.toHaveClass('max-w-[52.5rem]');
+
+    const hero = screen.getByRole('region', { name: 'Tóm tắt lịch hẹn' });
+    expect(screen.getAllByText(ADMIN_CODE)).toHaveLength(1);
+    expect(within(hero).getByText(ADMIN_CODE)).toBeInTheDocument();
+    expect(within(hero).getByText('Đã xác nhận')).toBeVisible();
+    expect(
+      within(hero).getByRole('heading', { level: 2, name: 'Tim mạch' }),
+    ).toBeInTheDocument();
+    for (const label of ['Bác sĩ', 'Ngày khám', 'Chi nhánh', 'Người khám']) {
+      expect(within(hero).getByText(label), label).toBeInTheDocument();
+    }
+    expect(within(hero).getByText('Chủ nhật, 18/10/2026')).toBeInTheDocument();
+    expect(within(hero).getByText('08:00')).toBeInTheDocument();
+    expect(within(hero).getByText('Bản thân')).toBeInTheDocument();
+
+    const card = (name: string) =>
+      screen
+        .getByRole('heading', { level: 2, name })
+        .closest('section') as HTMLElement;
+    const left = card('Thông tin lịch hẹn').parentElement as HTMLElement;
+    const right = card('Chi phí & Thanh toán').parentElement as HTMLElement;
+    expect(left).not.toBe(right);
+    expect(left.parentElement).toBe(right.parentElement);
+    expect(left).toContainElement(card('Thông tin bệnh nhân'));
+    expect(right).toContainElement(card('Lịch sử trạng thái'));
+    expect(right).toContainElement(card('Thao tác'));
   });
 
   it('AQD-08 trợ năng: h1, ba tiêu đề h2 của thẻ, chip trạng thái bằng CHỮ, `aria-busy` tắt khi đã tải xong', async () => {

@@ -1,25 +1,30 @@
-import { ChevronLeft } from 'lucide-react';
 import { useRef } from 'react';
-import { Link, useLocation, useParams } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import { ADMIN_APPOINTMENTS_PATH } from '../../../../../shared/routes/booking-paths';
 import { LoadingState } from '../../../../../shared/ui/loading-state';
 import { ActionNotice } from '../../common/action-notice';
 import { appointmentStateLabel } from '../../common/appointment-status';
+import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
 import { DetailFailure } from '../../common/detail-failure';
 import { readListSearch } from '../../common/list-search';
 import { refundResultLine } from '../../common/refund-text';
-import { StatusChip } from '../../common/status-chip';
 import { DETAIL_TEXT, doneLabel } from './detail-messages';
-import { DetailSections } from './detail-sections';
+import {
+  AdminAppointmentCard,
+  AdminCostCard,
+  AdminHero,
+  AdminPatientCard,
+} from './detail-sections';
 import { HistoryPanel } from './history-panel';
 import { OverrideActions } from './override-actions';
 import { OverrideDialog } from './override-dialog';
 import { useAdminDetail } from './use-admin-detail';
 import { useOverride } from './use-override';
 
-// Trang chi tiết một lịch hẹn của Quản trị viên (booking F10; Figma `512:2`): `Quay lại danh sách`, h1 `Chi tiết lịch hẹn`, mã, chip trạng thái; lưới ba cột: hai thẻ thông tin (hai cột) và, bên phải,
-// panel `Lịch sử trạng thái` cùng thẻ `Thao tác` (nhóm nút override theo `chuyenDuoc[]`, chỗ Figma dành cho thẻ `Thanh toán` đang ẩn: [đề xuất]). Nội dung từ MỘT nguồn là chi tiết. Hộp override là modal
-// duy nhất của trang. Mã lịch ở đầu trang hiện ngay; nội dung hiện sau khi chi tiết về.
+// Trang chi tiết một lịch hẹn của Quản trị viên (booking F10; Figma `512:2`; F12 dựng lại theo KHUNG CHUNG của Bệnh nhân, UI-11, UI-12, Đại 14/11/2026: Figma `512:2` chỉ rộng 840 px và lệch trái nên trang chưa
+// đủ cả trang): `Quay lại danh sách`, h1 `Chi tiết lịch hẹn`, thẻ đầu (mã, chip, chuyên khoa, bốn ô), rồi lưới hai cột: bên trái `Thông tin lịch hẹn` và `Thông tin bệnh nhân`; bên phải `Chi phí & Thanh toán`,
+// panel `Lịch sử trạng thái` và thẻ `Thao tác` (nhóm nút override theo `chuyenDuoc[]`, chỗ Figma dành cho thẻ `Thanh toán` đang ẩn: [đề xuất]). Nội dung từ MỘT nguồn là chi tiết. Hộp override là modal
+// duy nhất của trang. Mã lịch hiện ngay (dưới h1) khi chi tiết chưa về; khi đã về, mã nằm ở thẻ đầu.
 export function AdminDetailPage({ maLichHen }: { maLichHen: string }) {
   const location = useLocation();
   const backRef = useRef<HTMLAnchorElement>(null);
@@ -34,36 +39,24 @@ export function AdminDetailPage({ maLichHen }: { maLichHen: string }) {
   const dialog = override.dialog;
 
   return (
-    <section
-      aria-busy={ready?.refreshing ?? view.kind === 'loading'}
-      className="max-w-[52.5rem]"
+    <DetailPageFrame
+      backRef={backRef}
+      backTo={{
+        pathname: ADMIN_APPOINTMENTS_PATH,
+        search: readListSearch(location.state),
+      }}
+      backLabel={DETAIL_TEXT.back}
+      title={DETAIL_TEXT.title}
+      busy={ready?.refreshing ?? view.kind === 'loading'}
+      // Đang gửi thì không rời trang: rời giữa chừng làm mất kết quả (máy chủ vẫn xử lý)
+      backDisabled={override.state.kind === 'submitting'}
+      onBackClick={(event) => {
+        if (override.isSending()) event.preventDefault();
+      }}
     >
-      <Link
-        ref={backRef}
-        to={{
-          pathname: ADMIN_APPOINTMENTS_PATH,
-          search: readListSearch(location.state),
-        }}
-        // Đang gửi thì không rời trang: rời giữa chừng làm mất kết quả (máy chủ vẫn xử lý)
-        aria-disabled={override.state.kind === 'submitting'}
-        onClick={(event) => {
-          if (override.isSending()) event.preventDefault();
-        }}
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:underline"
-      >
-        <ChevronLeft aria-hidden="true" className="size-4" />
-        {DETAIL_TEXT.back}
-      </Link>
-
-      <div className="flex items-start justify-between gap-3 pt-3">
-        <div>
-          <h1 className="text-[1.3333rem] leading-normal font-bold text-gray-900">
-            {DETAIL_TEXT.title}
-          </h1>
-          <p className="font-mono text-sm text-gray-600">{maLichHen}</p>
-        </div>
-        {ready !== null && <StatusChip status={ready.data.trangThai} />}
-      </div>
+      {ready === null && (
+        <p className="font-mono text-sm text-gray-600">{maLichHen}</p>
+      )}
 
       {view.kind === 'loading' && (
         <LoadingState message={DETAIL_TEXT.loading} />
@@ -76,7 +69,7 @@ export function AdminDetailPage({ maLichHen }: { maLichHen: string }) {
         />
       )}
       {ready !== null && (
-        <>
+        <div className="mt-5 flex flex-col gap-4">
           {/* Kết quả hay lỗi của override sau khi hộp đã đóng; hộp mở thì lỗi hiện trong hộp */}
           {dialog === null && (
             <ActionNotice
@@ -95,22 +88,29 @@ export function AdminDetailPage({ maLichHen }: { maLichHen: string }) {
               )}
             />
           )}
-          <div className="mt-4 grid gap-4 lg:grid-cols-3">
-            <div className="space-y-4 lg:col-span-2">
-              <DetailSections detail={ready.data} />
-            </div>
-            <div className="space-y-4">
-              <HistoryPanel entries={ready.data.lichSuTrangThai} />
-              <OverrideActions
-                detail={ready.data}
-                busy={override.busy}
-                onOpen={(target, trigger) =>
-                  override.open(target, trigger, ready.data.trangThai)
-                }
-              />
-            </div>
-          </div>
-        </>
+          <AdminHero detail={ready.data} />
+          <DetailColumns
+            main={
+              <>
+                <AdminAppointmentCard detail={ready.data} />
+                <AdminPatientCard detail={ready.data} />
+              </>
+            }
+            side={
+              <>
+                <AdminCostCard detail={ready.data} />
+                <HistoryPanel entries={ready.data.lichSuTrangThai} />
+                <OverrideActions
+                  detail={ready.data}
+                  busy={override.busy}
+                  onOpen={(target, trigger) =>
+                    override.open(target, trigger, ready.data.trangThai)
+                  }
+                />
+              </>
+            }
+          />
+        </div>
       )}
 
       {/* Hộp đang mở: dựng ở cấp trang, KHÔNG phụ thuộc `ready` (chi tiết có thể đang tải lại hay lỗi 404 trong lúc hộp còn hiện câu lỗi) */}
@@ -128,7 +128,7 @@ export function AdminDetailPage({ maLichHen }: { maLichHen: string }) {
           onReload={override.reloadAndClose}
         />
       )}
-    </section>
+    </DetailPageFrame>
   );
 }
 
