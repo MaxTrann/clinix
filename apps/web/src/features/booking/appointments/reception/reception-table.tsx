@@ -1,3 +1,5 @@
+import { Link } from 'react-router';
+import { receptionAppointmentDetailPath } from '../../../../shared/routes/booking-paths';
 import {
   formatVietnamShortDate,
   formatVietnamTime,
@@ -9,14 +11,11 @@ import { bookedByLabel, detailButtonSuffix, LIST_TEXT } from './list-messages';
 const HEADER_CELL = 'px-3.5 py-2.5 text-xs font-semibold text-gray-700';
 const BODY_CELL = 'px-3.5 py-3 align-middle';
 
-// `onOpen` nhận mã lịch và NÚT đã bấm: nơi gọi giữ nút để trả tiêu điểm về đúng hàng khi đóng ngăn chi tiết
-export type OpenDetail = (maLichHen: string, trigger: HTMLElement) => void;
-
 function AppointmentRow(props: {
   appointment: ReceptionAppointment;
-  onOpen: OpenDetail;
+  listSearch: string;
 }) {
-  const { appointment, onOpen } = props;
+  const { appointment, listSearch } = props;
   const { nguoiKham, nguoiDat } = appointment;
   return (
     <tr className="border-t border-gray-100">
@@ -50,30 +49,28 @@ function AppointmentRow(props: {
         <StatusChip status={appointment.trangThai} />
       </td>
       <td className={BODY_CELL}>
-        {/* Figma `#0092b8` chữ xanh trên trắng chỉ 3,62:1: dùng `brand-strong` 5,28:1 (ADR 0004). Tên truy cập kèm mã lịch để các nút `Chi tiết` phân biệt được */}
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          onClick={(event) =>
-            onOpen(appointment.maLichHen, event.currentTarget)
-          }
+        {/* F12b: liên kết tới TRANG chi tiết (trước là nút mở ngăn), kèm `search` của danh sách để `Quay lại danh sách` khôi phục bộ lọc (không có `q`). Figma `#0092b8` chữ xanh trên trắng
+            chỉ 3,62:1: dùng `brand-strong` 5,28:1 (ADR 0004). Tên truy cập kèm mã lịch để các liên kết `Chi tiết` phân biệt được */}
+        <Link
+          to={receptionAppointmentDetailPath(appointment.maLichHen)}
+          state={{ listSearch }}
           className="inline-flex min-h-7 items-center rounded-lg px-2 text-xs font-medium text-brand-strong hover:bg-brand-soft"
         >
           {LIST_TEXT.detail}
           <span className="sr-only">
             {detailButtonSuffix(appointment.maLichHen)}
           </span>
-        </button>
+        </Link>
       </td>
     </tr>
   );
 }
 
 // Bảng lịch hẹn (Figma `479:2`: bảy cột, trừ `Kênh` của Q37 nên còn sáu). Cột cuối chỉ có nút `Chi tiết`: `Thu tiền` và `Tiếp đón` của Figma cần `conPhaiThu` và `chuyenDuoc[]` mà
-// danh sách B3 không trả (mỗi dòng sẽ là một lần gọi cổng), nên hai nút nằm trong ngăn chi tiết. Màn hẹp cuộn ngang trong vùng có tên và nhận Tab (Figma chỉ có 1440 px).
+// danh sách B3 không trả (mỗi dòng sẽ là một lần gọi cổng), nên hai nút nằm ở trang chi tiết. Màn hẹp cuộn ngang trong vùng có tên và nhận Tab (Figma chỉ có 1440 px).
 export function ReceptionTable(props: {
   appointments: readonly ReceptionAppointment[];
-  onOpen: OpenDetail;
+  listSearch: string;
 }) {
   const { columns } = LIST_TEXT;
   return (
@@ -112,7 +109,7 @@ export function ReceptionTable(props: {
             <AppointmentRow
               key={appointment.maLichHen}
               appointment={appointment}
-              onOpen={props.onOpen}
+              listSearch={props.listSearch}
             />
           ))}
         </tbody>

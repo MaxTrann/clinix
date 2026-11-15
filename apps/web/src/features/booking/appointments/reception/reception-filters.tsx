@@ -4,19 +4,21 @@ import {
   APPOINTMENT_STATES,
   isAppointmentState,
 } from '../common/appointment-status';
+import { FIELD_HEIGHT } from '../common/field-style';
 import {
   DateRangeFields,
   KeywordSearchBox,
   OptionsNote,
+  SelectBox,
 } from '../common/filter-controls';
 import { DateChips } from './date-chips';
 import { LIST_TEXT } from './list-messages';
 import type { FilterOptionsController } from './use-filter-options';
 import type { ReceptionListController } from './use-reception-list';
 
-// Ô chọn gọn của Figma `479:2`: KHÔNG có nhãn nhìn thấy, chữ `Tất cả …` nằm trong ô (mục đầu, giá trị rỗng); tên truy cập là nhãn ngắn (`aria-label`).
-const COMPACT_SELECT =
-  'h-7 rounded-lg border border-gray-500 bg-white px-3 text-xs text-gray-700';
+// Ô chọn gọn của Figma `479:2`: KHÔNG có nhãn nhìn thấy, chữ `Tất cả …` nằm trong ô (mục đầu, giá trị rỗng); tên truy cập là nhãn ngắn (`aria-label`). F12b (UI-10, UI-04): cao 28,1 px theo Figma `494:188` (F8: `h-7`
+// = 26,25 px) và dùng `SelectBox` của F12a để mũi tên tự vẽ (cách mép phải 11,25 px như ô ngày) thay mũi tên gốc của trình duyệt.
+const COMPACT_SELECT = `${FIELD_HEIGHT.receptionCompact} rounded-lg border border-gray-500 bg-white px-3 text-xs text-gray-700`;
 
 function CompactSelect(props: {
   label: string;
@@ -27,7 +29,7 @@ function CompactSelect(props: {
 }) {
   const id = useId();
   return (
-    <select
+    <SelectBox
       id={id}
       aria-label={props.label}
       value={props.value}
@@ -36,7 +38,7 @@ function CompactSelect(props: {
     >
       <option value="">{props.allLabel}</option>
       {props.children}
-    </select>
+    </SelectBox>
   );
 }
 
@@ -54,6 +56,7 @@ export function ReceptionFilters({ list, options }: ReceptionFiltersProps) {
   return (
     <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
       <KeywordSearchBox
+        height={FIELD_HEIGHT.receptionSearch}
         keyword={list.keyword}
         label={LIST_TEXT.searchLabel}
         placeholder={LIST_TEXT.searchPlaceholder}
@@ -127,6 +130,7 @@ export function ReceptionFilters({ list, options }: ReceptionFiltersProps) {
       {list.preset === 'range' && (
         <div className="mt-3 grid grid-cols-2 gap-3 sm:max-w-sm">
           <DateRangeFields
+            height={FIELD_HEIGHT.receptionDate}
             from={list.fromDate}
             to={list.toDate}
             orderInvalid={list.dateOrderInvalid}

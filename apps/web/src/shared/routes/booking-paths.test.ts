@@ -29,8 +29,11 @@ import {
   PATIENT_APPOINTMENTS_SEGMENT,
   PATIENT_PROFILE_PATH,
   patientAppointmentDetailPath,
+  RECEPTION_APPOINTMENT_DETAIL_ROUTE,
+  RECEPTION_APPOINTMENT_DETAIL_SEGMENT,
   RECEPTION_APPOINTMENTS_PATH,
   RECEPTION_APPOINTMENTS_SEGMENT,
+  receptionAppointmentDetailPath,
   serviceListPath,
 } from './booking-paths';
 
@@ -312,5 +315,47 @@ describe('booking F11 — đường dẫn "Lịch hẹn" của Bác sĩ', () => 
     ];
     expect(taken).not.toContain(DOCTOR_APPOINTMENTS_PATH);
     expect(DOCTOR_APPOINTMENTS_PATH.startsWith(`${BOOKING_PATH}/`)).toBe(false);
+  });
+});
+
+// booking F12b. Mã ca BP-15 là [đề xuất] (PLAN booking mục 7.18 và 7.48; Đại duyệt ba hằng ở TRACKING 3.42, câu (h)). Chi tiết lịch hẹn của Lễ tân từ NGĂN (F8, F9) thành TRANG: cùng nếp BP-13,
+// BP-14. Gốc `/le-tan` viết chữ ở `booking-paths.ts` nên ca này giữ nó khớp `ROLE_HOME_PATHS.LeTan`; mục menu `Quản lý lịch hẹn` không đặt `end` nên trang con vẫn làm sáng mục (UIF-18).
+describe('booking F12b — chi tiết lịch hẹn của Lễ tân là trang', () => {
+  it('BP-15 chi tiết nằm dưới đường dẫn danh sách Lễ tân, mã lịch trên đường dẫn (có mã hoá), khác mọi đường dẫn đã có', () => {
+    expect(RECEPTION_APPOINTMENT_DETAIL_SEGMENT).toBe(
+      'quan-ly-lich-hen/:maLichHen',
+    );
+    expect(RECEPTION_APPOINTMENT_DETAIL_SEGMENT).toBe(
+      `${RECEPTION_APPOINTMENTS_SEGMENT}/:maLichHen`,
+    );
+    expect(RECEPTION_APPOINTMENT_DETAIL_ROUTE).toBe(
+      '/le-tan/quan-ly-lich-hen/:maLichHen',
+    );
+    // Khớp gốc khu Lễ tân của auth và đường dẫn danh sách: đổi một nơi mà quên nơi kia thì ca đỏ
+    expect(RECEPTION_APPOINTMENT_DETAIL_ROUTE).toBe(
+      `${ROLE_HOME_PATHS.LeTan}/${RECEPTION_APPOINTMENT_DETAIL_SEGMENT}`,
+    );
+    expect(
+      RECEPTION_APPOINTMENT_DETAIL_ROUTE.startsWith(
+        `${RECEPTION_APPOINTMENTS_PATH}/`,
+      ),
+    ).toBe(true);
+    expect(receptionAppointmentDetailPath('CP20261018001')).toBe(
+      '/le-tan/quan-ly-lich-hen/CP20261018001',
+    );
+    expect(receptionAppointmentDetailPath('a/b?c#d')).toBe(
+      '/le-tan/quan-ly-lich-hen/a%2Fb%3Fc%23d',
+    );
+    // Ca âm: đường dẫn danh sách KHÔNG đổi (menu trỏ vào nó); chi tiết khác đường dẫn danh sách và khác mọi gốc khu
+    expect(RECEPTION_APPOINTMENTS_PATH).toBe('/le-tan/quan-ly-lich-hen');
+    expect(receptionAppointmentDetailPath('X')).not.toBe(
+      RECEPTION_APPOINTMENTS_PATH,
+    );
+    expect(Object.values(ROLE_HOME_PATHS)).not.toContain(
+      RECEPTION_APPOINTMENT_DETAIL_ROUTE,
+    );
+    expect(
+      RECEPTION_APPOINTMENT_DETAIL_ROUTE.startsWith(`${BOOKING_PATH}/`),
+    ).toBe(false);
   });
 });

@@ -7,6 +7,10 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  RECEPTION_APPOINTMENTS_PATH,
+  receptionAppointmentDetailPath,
+} from '../../../../../shared/routes/booking-paths';
 import { holdResponse } from '../../../testing/appointment-detail-harness';
 import {
   apiErrorResponse,
@@ -17,6 +21,7 @@ import {
   cleanUpReceptionPage,
   currentUrl,
   listQueries,
+  loaded,
   openReceptionDetail,
   RECEPTION_CODE,
 } from '../../../testing/reception-harness';
@@ -24,11 +29,16 @@ import type { ReceptionAppointmentDetail } from '../api/reception-appointment-ty
 import { ACTION_TEXT, DETAIL_TEXT } from './detail-messages';
 import { ReceptionActions } from './reception-actions';
 
-// booking F9: ba thao tác ghi của Lễ tân trong ngăn chi tiết (hộp `Hủy lịch hẹn`, hộp `Đánh dấu vắng mặt`, lời gọi `Tiếp đón`). Mã LTA là [đề xuất] (PLAN booking mục 7.36). LTN-02 = LTA-04, 05,
-// 06; LTN-03 = LTA-07; LTN-04 = LTA-08 (kèm LTE-01, LTE-02 ở `status-failure.test.ts`). API giả; chữ hộp lấy từ Figma `490:2`, `489:2` đã tự đọc ngày 13/11/2026.
+// booking F9: ba thao tác ghi của Lễ tân trong chi tiết (hộp `Hủy lịch hẹn`, hộp `Đánh dấu vắng mặt`, lời gọi `Tiếp đón`); F12b: chi tiết là TRANG (F9: ngăn kéo; xem UIF-14, UIF-15 ở `reception-detail-page.test.tsx`).
+// Mã LTA là [đề xuất] (PLAN booking mục 7.36). LTN-02 = LTA-04, 05, 06; LTN-03 = LTA-07; LTN-04 = LTA-08 (kèm LTE-01, LTE-02 ở `status-failure.test.ts`). API giả; chữ hộp lấy từ Figma `490:2`, `489:2` đã tự đọc
+// ngày 13/11/2026. `page` là khung chứa nội dung trang (hộp dựng bằng portal nên nằm NGOÀI `page`).
 afterEach(cleanUpReceptionPage);
 
 const DETAIL_PATH = `/reception/appointments/${RECEPTION_CODE}`;
+// Đường dẫn của TRANG chi tiết trên URL của trình duyệt (khác `DETAIL_PATH` là đường dẫn API)
+const DETAIL_URL = receptionAppointmentDetailPath(RECEPTION_CODE);
+// Liên kết `Quay lại danh sách` của trang chi tiết (F9: nút `Danh sách` của ngăn)
+const backLink = () => screen.getByRole('link', { name: DETAIL_TEXT.back });
 const ALL_TARGETS: Partial<ReceptionAppointmentDetail> = {
   chuyenDuoc: ['DaHuy', 'DaTiepDon', 'VangMat'],
   conPhaiThu: '0.00',
@@ -38,8 +48,8 @@ type Fake = Parameters<
   NonNullable<Parameters<typeof openReceptionDetail>[1]>
 >[0];
 
-const inDrawer = (drawer: HTMLElement, name: string) =>
-  within(drawer).getByRole('button', { name });
+const inPage = (page: HTMLElement, name: string) =>
+  within(page).getByRole('button', { name });
 const reasonField = (box: HTMLElement) =>
   within(box).getByRole('textbox', { name: ACTION_TEXT.cancel.reasonLabel });
 const confirmCancel = (box: HTMLElement) =>
@@ -55,7 +65,7 @@ async function openCancel(
   before?: (api: Fake) => void,
 ) {
   const view = await openReceptionDetail({ ...ALL_TARGETS, ...detail }, before);
-  fireEvent.click(inDrawer(view.drawer, 'Hủy lịch'));
+  fireEvent.click(inPage(view.page, 'Hủy lịch'));
   const box = await screen.findByRole('dialog', {
     name: ACTION_TEXT.cancel.title,
   });
@@ -68,7 +78,7 @@ async function openNoShow(
   before?: (api: Fake) => void,
 ) {
   const view = await openReceptionDetail({ ...ALL_TARGETS, ...detail }, before);
-  fireEvent.click(inDrawer(view.drawer, 'Vắng mặt'));
+  fireEvent.click(inPage(view.page, 'Vắng mặt'));
   const box = await screen.findByRole('dialog', {
     name: ACTION_TEXT.noShow.title,
   });
@@ -171,7 +181,7 @@ describe('hộp "Hủy lịch hẹn" (Figma 490:2)', () => {
   );
 
   it('LTA-06 huỷ thành công: hộp đóng, ngăn báo "Đã hủy lịch hẹn." kèm số hoàn THỰC TẾ, tiêu điểm vào vùng báo, chi tiết và danh sách được tải lại, không có chữ "dự kiến"', async () => {
-    const { box, api, drawer } = await openCancel();
+    const { box, api, page } = await openCancel();
     fireEvent.change(reasonField(box), {
       target: { value: 'Bệnh nhân báo bận' },
     });
@@ -188,11 +198,12 @@ describe('hộp "Hủy lịch hẹn" (Figma 490:2)', () => {
 
     // Tải lại: GET chi tiết lần hai và GET danh sách lần hai
     await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
-    await waitFor(() => expect(listQueries(api)).toHaveLength(2));
+    // F12b: danh sách KHÔNG còn mount cùng trang chi tiết nên không có lần tải lại danh sách (F9: ngăn nằm trên danh sách)
+    expect(listQueries(api)).toHaveLength(0);
     // Chi tiết mới (đã huỷ) không còn nút nào
-    await within(drawer).findByText('Đã hủy');
+    await within(page).findByText('Đã hủy');
     expect(
-      within(drawer).queryByRole('group', { name: DETAIL_TEXT.actionsGroup }),
+      within(page).queryByRole('group', { name: DETAIL_TEXT.sections.actions }),
     ).toBeNull();
     // Vẫn chỉ MỘT POST
     expect(api.writes()).toHaveLength(1);
@@ -219,16 +230,16 @@ describe('hộp "Hủy lịch hẹn" (Figma 490:2)', () => {
   });
 
   it('LTA-04 `Đóng` đóng hộp KHÔNG gọi API và trả tiêu điểm về ĐÚNG nút `Hủy lịch` đã mở; lý do đã gõ không được giữ lại khi mở lại', async () => {
-    const { box, drawer, api } = await openCancel();
+    const { box, page, api } = await openCancel();
     fireEvent.change(reasonField(box), { target: { value: 'Chưa gửi' } });
     fireEvent.click(
       within(box).getByRole('button', { name: ACTION_TEXT.cancel.close }),
     );
     await gone(ACTION_TEXT.cancel.title);
     expect(api.writes()).toEqual([]);
-    await waitFor(() => expect(inDrawer(drawer, 'Hủy lịch')).toHaveFocus());
+    await waitFor(() => expect(inPage(page, 'Hủy lịch')).toHaveFocus());
 
-    fireEvent.click(inDrawer(drawer, 'Hủy lịch'));
+    fireEvent.click(inPage(page, 'Hủy lịch'));
     const again = await screen.findByRole('dialog', {
       name: ACTION_TEXT.cancel.title,
     });
@@ -266,19 +277,20 @@ describe('hộp "Đánh dấu vắng mặt" (Figma 489:2)', () => {
     expect(Object.keys(body as object)).toEqual(['trangThai']);
     expect(api.writes()).toHaveLength(1);
     await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
-    await waitFor(() => expect(listQueries(api)).toHaveLength(2));
+    // F12b: danh sách KHÔNG còn mount cùng trang chi tiết nên không có lần tải lại danh sách (F9: ngăn nằm trên danh sách)
+    expect(listQueries(api)).toHaveLength(0);
     const region = statusRegion(ACTION_TEXT.noShow.done);
     await waitFor(() => expect(region).toHaveFocus());
   });
 
   it('LTA-07 (LTN-03) `Hủy` đóng hộp KHÔNG gọi API và trả tiêu điểm về nút `Vắng mặt`; không hiện số no-show hay cờ khoá ở đâu cả', async () => {
-    const { box, drawer, api } = await openNoShow();
+    const { box, page, api } = await openNoShow();
     fireEvent.click(
       within(box).getByRole('button', { name: ACTION_TEXT.noShow.keep }),
     );
     await gone(ACTION_TEXT.noShow.title);
     expect(api.writes()).toEqual([]);
-    await waitFor(() => expect(inDrawer(drawer, 'Vắng mặt')).toHaveFocus());
+    await waitFor(() => expect(inPage(page, 'Vắng mặt')).toHaveFocus());
     expect(document.body.textContent).not.toMatch(
       /no-show|khoá đặt lịch|số lần/i,
     );
@@ -305,31 +317,32 @@ describe('hộp "Đánh dấu vắng mặt" (Figma 489:2)', () => {
 });
 
 describe('lời gọi "Tiếp đón bệnh nhân" (LTN-04)', () => {
-  const checkInButton = (drawer: HTMLElement) =>
-    inDrawer(drawer, 'Tiếp đón bệnh nhân');
+  const checkInButton = (page: HTMLElement) =>
+    inPage(page, 'Tiếp đón bệnh nhân');
 
   it('LTA-08 bấm gọi THẲNG `{ trangThai: "DaTiepDon" }` (không hộp xác nhận, không `lyDo`); báo "Đã tiếp đón bệnh nhân.", tải lại chi tiết và danh sách, tiêu điểm vào vùng báo', async () => {
-    const { drawer, api } = await openReceptionDetail(ALL_TARGETS);
-    fireEvent.click(checkInButton(drawer));
-    // Không có hộp nào mở: chỉ còn hộp thoại của ngăn
-    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    const { page, api } = await openReceptionDetail(ALL_TARGETS);
+    fireEvent.click(checkInButton(page));
+    // Không có hộp nào mở (F9: chỉ còn hộp thoại của ngăn; F12b: trang không có hộp nào)
+    expect(screen.queryByRole('dialog')).toBeNull();
 
     await screen.findByText(ACTION_TEXT.checkIn.done);
     expect(api.statusBodies()).toEqual([{ trangThai: 'DaTiepDon' }]);
     await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
-    await waitFor(() => expect(listQueries(api)).toHaveLength(2));
+    // F12b: danh sách KHÔNG còn mount cùng trang chi tiết nên không có lần tải lại danh sách (F9: ngăn nằm trên danh sách)
+    expect(listQueries(api)).toHaveLength(0);
     await waitFor(() =>
       expect(statusRegion(ACTION_TEXT.checkIn.done)).toHaveFocus(),
     );
     // Đã tiếp đón: Lễ tân không còn thao tác nào (Q21)
-    await within(drawer).findByText('Đã tiếp đón');
+    await within(page).findByText('Đã tiếp đón');
     expect(
-      within(drawer).queryByRole('group', { name: DETAIL_TEXT.actionsGroup }),
+      within(page).queryByRole('group', { name: DETAIL_TEXT.sections.actions }),
     ).toBeNull();
   });
 
   it('LTA-08 (LTN-04) `CON_PHAN_CHUA_THANH_TOAN` ⇒ câu có SỐ TIỀN từ chuỗi (không `Number`) và KHÔNG hứa thu tiền; nút theo `chuyenDuoc[]` mới sau khi tải lại', async () => {
-    const { drawer, api } = await openReceptionDetail(ALL_TARGETS, (fake) =>
+    const { page, api } = await openReceptionDetail(ALL_TARGETS, (fake) =>
       fake.failNext('status', () =>
         apiErrorResponse(409, 'CON_PHAN_CHUA_THANH_TOAN', undefined, {
           conPhaiThu: '9007199254740993.00',
@@ -345,9 +358,9 @@ describe('lời gọi "Tiếp đón bệnh nhân" (LTN-04)', () => {
         }),
       ),
     );
-    fireEvent.click(checkInButton(drawer));
+    fireEvent.click(checkInButton(page));
 
-    const alert = await within(drawer).findByRole('alert');
+    const alert = await within(page).findByRole('alert');
     expect(alert).toHaveTextContent(
       'Lịch hẹn còn 9.007.199.254.740.993đ chưa thanh toán nên chưa thể tiếp đón.',
     );
@@ -355,17 +368,17 @@ describe('lời gọi "Tiếp đón bệnh nhân" (LTN-04)', () => {
     await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
     await waitFor(() =>
       expect(
-        within(drawer).queryByRole('button', { name: 'Tiếp đón bệnh nhân' }),
+        within(page).queryByRole('button', { name: 'Tiếp đón bệnh nhân' }),
       ).toBeNull(),
     );
     // `Thu tiền & tiếp đón` thuộc `payment`: vẫn vô hiệu (LTN-05)
     expect(
-      within(drawer).getByRole('button', { name: /Thu tiền & tiếp đón/ }),
+      within(page).getByRole('button', { name: /Thu tiền & tiếp đón/ }),
     ).toBeDisabled();
   });
 
   it('LTA-08 (LTN-04) `NGOAI_KHUNG_GIO_TIEP_DON` ⇒ hai mốc ISO UTC hiện theo GIỜ VIỆT NAM, hai biên đóng', async () => {
-    const { drawer } = await openReceptionDetail(ALL_TARGETS, (fake) =>
+    const { page } = await openReceptionDetail(ALL_TARGETS, (fake) =>
       fake.failNext('status', () =>
         apiErrorResponse(409, 'NGOAI_KHUNG_GIO_TIEP_DON', undefined, {
           tu: '2026-10-18T00:30:00.000Z',
@@ -373,27 +386,27 @@ describe('lời gọi "Tiếp đón bệnh nhân" (LTN-04)', () => {
         }),
       ),
     );
-    fireEvent.click(checkInButton(drawer));
-    expect(await within(drawer).findByRole('alert')).toHaveTextContent(
+    fireEvent.click(checkInButton(page));
+    expect(await within(page).findByRole('alert')).toHaveTextContent(
       'Chỉ tiếp đón từ 07:30 đến 08:30 ngày 18/10/2026.',
     );
   });
 
   it('LTA-08 `HE_THONG_CHUA_CAU_HINH` và lỗi lạ ⇒ câu đúng `maLoi`; `maLoi` lạ cùng HTTP 409 ⇒ câu chung, nút vẫn bấm lại được', async () => {
-    const { drawer } = await openReceptionDetail(ALL_TARGETS, (fake) => {
+    const { page } = await openReceptionDetail(ALL_TARGETS, (fake) => {
       fake.failNext('status', () =>
         apiErrorResponse(409, 'HE_THONG_CHUA_CAU_HINH'),
       );
       fake.failNext('status', () => apiErrorResponse(409, 'MA_LA_CHUA_BIET'));
     });
-    fireEvent.click(checkInButton(drawer));
-    expect(await within(drawer).findByRole('alert')).toHaveTextContent(
+    fireEvent.click(checkInButton(page));
+    expect(await within(page).findByRole('alert')).toHaveTextContent(
       ACTION_TEXT.notConfigured,
     );
-    await waitFor(() => expect(checkInButton(drawer)).toBeEnabled());
-    fireEvent.click(checkInButton(drawer));
+    await waitFor(() => expect(checkInButton(page)).toBeEnabled());
+    fireEvent.click(checkInButton(page));
     await waitFor(() =>
-      expect(within(drawer).getByRole('alert')).toHaveTextContent(
+      expect(within(page).getByRole('alert')).toHaveTextContent(
         'Đã có lỗi xảy ra. Vui lòng thử lại sau.',
       ),
     );
@@ -459,7 +472,7 @@ describe('chống bấm đúp, không đóng khi đang gửi', () => {
     const t = await openReceptionDetail(ALL_TARGETS, (api) =>
       api.failNext('status', checkIn.override),
     );
-    const button = inDrawer(t.drawer, 'Tiếp đón bệnh nhân');
+    const button = inPage(t.page, 'Tiếp đón bệnh nhân');
     act(() => {
       fireEvent.click(button);
       fireEvent.click(button);
@@ -471,7 +484,9 @@ describe('chống bấm đúp, không đóng khi đang gửi', () => {
     expect(t.api.writes()).toHaveLength(1);
   });
 
-  it('LTA-10 đang gửi từ HỘP: nút vô hiệu và đổi chữ, `Đóng`, Esc, lớp phủ không đóng, nút `Danh sách` và X của ngăn vô hiệu, `aria-busy`; xong thì đóng được', async () => {
+  // F12b: chi tiết là TRANG nên "đang gửi thì không đóng ngăn" (F9: nút `Danh sách`, X, Esc, lớp phủ của ngăn) thành "đang gửi thì không RỜI trang": liên kết `Quay lại danh sách` `aria-disabled` và bấm
+  // không đi đâu (máy chủ vẫn xử lý, rời trang làm mất kết quả); hộp vẫn không đóng bằng Esc, lớp phủ, `Đóng`.
+  it('LTA-10 đang gửi từ HỘP: nút vô hiệu và đổi chữ, `Đóng`, Esc, lớp phủ không đóng, liên kết `Quay lại danh sách` vô hiệu và không rời trang, `aria-busy`; xong thì đóng được', async () => {
     const held = holdResponse(() =>
       jsonResponse({
         maLichHen: RECEPTION_CODE,
@@ -479,7 +494,7 @@ describe('chống bấm đúp, không đóng khi đang gửi', () => {
         hoanCoc: null,
       }),
     );
-    const { box, drawer, api } = await openCancel({}, (fake) =>
+    const { box, api } = await openCancel({}, (fake) =>
       fake.failNext('status', held.override),
     );
     fireEvent.change(reasonField(box), { target: { value: 'Bận' } });
@@ -493,57 +508,56 @@ describe('chống bấm đúp, không đóng khi đang gửi', () => {
     ).toBeDisabled();
     expect(reasonField(box)).toHaveAttribute('readonly');
     expect(box).toHaveAttribute('aria-busy', 'true');
-    expect(
-      within(drawer).getByRole('button', { name: DETAIL_TEXT.back }),
-    ).toBeDisabled();
-    expect(
-      within(drawer).getByRole('button', { name: DETAIL_TEXT.close }),
-    ).toBeDisabled();
+    expect(backLink()).toHaveAttribute('aria-disabled', 'true');
 
     fireEvent.keyDown(document.body, { key: 'Escape' });
     fireEvent.click(box.parentElement as HTMLElement);
-    fireEvent.click(drawer.parentElement as HTMLElement);
-    expect(screen.getAllByRole('dialog')).toHaveLength(2);
+    fireEvent.click(backLink());
+    // Hộp là modal DUY NHẤT (F9: hai lớp dialog); bấm quay lại không rời trang
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(currentUrl()).toBe(DETAIL_URL);
     expect(api.writes()).toHaveLength(1);
 
     await act(async () => held.release());
     await screen.findByText(ACTION_TEXT.cancel.done);
     await gone(ACTION_TEXT.cancel.title);
-    // Hết gửi: ngăn đóng lại được bằng Esc
-    fireEvent.keyDown(document.body, { key: 'Escape' });
-    await waitFor(() =>
-      expect(screen.queryAllByRole('dialog')).toHaveLength(0),
-    );
+    // Hết gửi: liên kết quay lại dùng được lại; trang ở lại (kết quả báo ở vùng thông báo của trang)
+    expect(backLink()).not.toHaveAttribute('aria-disabled', 'true');
+    expect(currentUrl()).toBe(DETAIL_URL);
+    expect(screen.queryAllByRole('dialog')).toHaveLength(0);
   });
 
-  it('LTA-10 đang gọi `Tiếp đón` (không hộp): ngăn KHÔNG đóng bằng Esc, lớp phủ, `Danh sách`, X; mọi nút thao tác vô hiệu, nút tiếp đón đổi chữ', async () => {
+  it('LTA-10 đang gọi `Tiếp đón` (không hộp): trang KHÔNG rời đi (liên kết `Quay lại danh sách` vô hiệu, Esc không làm gì); mọi nút thao tác vô hiệu, nút tiếp đón đổi chữ', async () => {
     const held = holdStatus();
-    const { drawer, api } = await openReceptionDetail(ALL_TARGETS, (fake) =>
+    const { page, api } = await openReceptionDetail(ALL_TARGETS, (fake) =>
       fake.failNext('status', held.override),
     );
-    fireEvent.click(inDrawer(drawer, 'Tiếp đón bệnh nhân'));
+    fireEvent.click(inPage(page, 'Tiếp đón bệnh nhân'));
 
     expect(
-      within(drawer).getByRole('button', {
+      within(page).getByRole('button', {
         name: ACTION_TEXT.checkIn.confirming,
       }),
     ).toBeDisabled();
-    expect(inDrawer(drawer, 'Vắng mặt')).toBeDisabled();
-    expect(inDrawer(drawer, 'Hủy lịch')).toBeDisabled();
-    expect(
-      within(drawer).getByRole('button', { name: DETAIL_TEXT.back }),
-    ).toBeDisabled();
+    expect(inPage(page, 'Vắng mặt')).toBeDisabled();
+    expect(inPage(page, 'Hủy lịch')).toBeDisabled();
+    expect(backLink()).toHaveAttribute('aria-disabled', 'true');
 
     fireEvent.keyDown(document.body, { key: 'Escape' });
-    fireEvent.click(drawer.parentElement as HTMLElement);
-    expect(screen.getByRole('dialog')).toBe(drawer);
+    fireEvent.click(backLink());
+    expect(currentUrl()).toBe(DETAIL_URL);
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(api.writes()).toHaveLength(1);
 
     await act(async () => held.release());
     await screen.findByText(ACTION_TEXT.checkIn.done);
-    // Hết gửi và chi tiết đã tải lại: ngăn đóng được
-    fireEvent.keyDown(document.body, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // Hết gửi và chi tiết đã tải lại: quay lại được, và quay lại thật sự về danh sách
+    await waitFor(() =>
+      expect(backLink()).not.toHaveAttribute('aria-disabled', 'true'),
+    );
+    fireEvent.click(backLink());
+    await loaded();
+    expect(currentUrl()).toBe(RECEPTION_APPOINTMENTS_PATH);
   });
 });
 
@@ -595,18 +609,19 @@ describe('lỗi khi gửi', () => {
 
     await gone(ACTION_TEXT.cancel.title);
     await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
-    await waitFor(() => expect(listQueries(api)).toHaveLength(2));
+    // F12b: danh sách KHÔNG còn mount cùng trang chi tiết nên không có lần tải lại danh sách (F9: ngăn nằm trên danh sách)
+    expect(listQueries(api)).toHaveLength(0);
     expect(api.writes()).toHaveLength(1);
   });
 
   it('LTA-11 `Tiếp đón` mất kết nối ⇒ thông báo "chưa rõ" ở ngăn kèm `Tải lại chi tiết`, không tự gửi lại', async () => {
-    const { drawer, api } = await openReceptionDetail(ALL_TARGETS, (fake) =>
+    const { page, api } = await openReceptionDetail(ALL_TARGETS, (fake) =>
       fake.failNext('status', () =>
         Promise.reject(new TypeError('Failed to fetch')),
       ),
     );
-    fireEvent.click(inDrawer(drawer, 'Tiếp đón bệnh nhân'));
-    const alert = await within(drawer).findByRole('alert');
+    fireEvent.click(inPage(page, 'Tiếp đón bệnh nhân'));
+    const alert = await within(page).findByRole('alert');
     expect(alert).toHaveTextContent(ACTION_TEXT.unsure.DaTiepDon);
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -616,11 +631,11 @@ describe('lỗi khi gửi', () => {
       within(alert).getByRole('button', { name: ACTION_TEXT.reload }),
     );
     await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
-    expect(within(drawer).queryByRole('alert')).toBeNull();
+    expect(within(page).queryByRole('alert')).toBeNull();
   });
 
-  it('LTA-12 404 `KHONG_TIM_THAY` ⇒ MỘT câu trong hộp, chỉ còn `Đóng`; chi tiết và danh sách tải lại; sau `Đóng` ngăn hiện "không tìm thấy" và đóng ngăn thì danh sách tải lại nữa', async () => {
-    const { box, api, drawer } = await openCancel({}, (fake) =>
+  it('LTA-12 404 `KHONG_TIM_THAY` ⇒ MỘT câu trong hộp, chỉ còn `Đóng`; chi tiết tải lại; sau `Đóng` trang hiện "không tìm thấy" và `Quay lại danh sách` về danh sách (dựng lại và tự tải)', async () => {
+    const { box, api, page } = await openCancel({}, (fake) =>
       fake.failNext('status', () => apiErrorResponse(404, 'KHONG_TIM_THAY')),
     );
     // Lần tải lại chi tiết sau đó cũng 404 (lịch đã mất thật)
@@ -635,26 +650,27 @@ describe('lỗi khi gửi', () => {
       within(box).queryByRole('button', { name: ACTION_TEXT.cancel.confirm }),
     ).toBeNull();
     await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
-    await waitFor(() => expect(listQueries(api)).toHaveLength(2));
+    // F12b: danh sách KHÔNG còn mount cùng trang chi tiết nên không có lần tải lại danh sách (F9: ngăn nằm trên danh sách)
+    expect(listQueries(api)).toHaveLength(0);
 
     fireEvent.click(
       within(box).getByRole('button', { name: ACTION_TEXT.close }),
     );
     await gone(ACTION_TEXT.cancel.title);
-    expect(await within(drawer).findByRole('alert')).toHaveTextContent(
+    expect(await within(page).findByRole('alert')).toHaveTextContent(
       DETAIL_TEXT.notFound,
     );
-    // Đóng ngăn đã báo không tìm thấy ⇒ danh sách tải lại lần nữa (đường F8 sẵn có)
-    fireEvent.click(
-      within(drawer).getByRole('button', { name: DETAIL_TEXT.back }),
-    );
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await waitFor(() => expect(listQueries(api)).toHaveLength(3));
+    // F12b: về danh sách ⇒ danh sách dựng lại và TỰ tải (F9: đóng ngăn đã báo không tìm thấy thì tải lại danh sách đang nằm dưới ngăn)
+    expect(listQueries(api)).toHaveLength(0);
+    fireEvent.click(backLink());
+    await loaded();
+    expect(currentUrl()).toBe(RECEPTION_APPOINTMENTS_PATH);
+    expect(listQueries(api)).toHaveLength(1);
     expect(api.writes()).toHaveLength(1);
   });
 
   it('LTA-13 409 trạng thái đã đổi ở nơi khác ⇒ câu có nhãn trạng thái, chi tiết và danh sách tải lại, nút khớp máy chủ (hết nút) và chip đổi', async () => {
-    const { box, api, drawer } = await openCancel({}, (fake) =>
+    const { box, api, page } = await openCancel({}, (fake) =>
       fake.failNext('status', () =>
         apiErrorResponse(409, 'LICH_HEN_KHONG_CHO_HUY', undefined, {
           trangThai: 'DaTiepDon',
@@ -677,14 +693,15 @@ describe('lỗi khi gửi', () => {
       'Lịch hẹn đang ở trạng thái Đã tiếp đón nên không thể hủy.',
     );
     await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
-    await waitFor(() => expect(listQueries(api)).toHaveLength(2));
+    // F12b: danh sách KHÔNG còn mount cùng trang chi tiết nên không có lần tải lại danh sách (F9: ngăn nằm trên danh sách)
+    expect(listQueries(api)).toHaveLength(0);
     fireEvent.click(
       within(box).getByRole('button', { name: ACTION_TEXT.close }),
     );
     await gone(ACTION_TEXT.cancel.title);
-    await within(drawer).findByText('Đã tiếp đón');
+    await within(page).findByText('Đã tiếp đón');
     expect(
-      within(drawer).queryByRole('group', { name: DETAIL_TEXT.actionsGroup }),
+      within(page).queryByRole('group', { name: DETAIL_TEXT.sections.actions }),
     ).toBeNull();
   });
 
@@ -694,7 +711,7 @@ describe('lỗi khi gửi', () => {
         makeReceptionDetail({ chuyenDuoc: ['DaHuy'], conPhaiThu: '5000.00' }),
       ),
     );
-    const { drawer, api } = await openReceptionDetail(ALL_TARGETS, (fake) =>
+    const { page, api } = await openReceptionDetail(ALL_TARGETS, (fake) =>
       fake.failNext('status', () =>
         apiErrorResponse(409, 'CON_PHAN_CHUA_THANH_TOAN', undefined, {
           conPhaiThu: '5000.00',
@@ -702,18 +719,18 @@ describe('lỗi khi gửi', () => {
       ),
     );
     api.failNext('detail', reload.override);
-    fireEvent.click(inDrawer(drawer, 'Tiếp đón bệnh nhân'));
-    await within(drawer).findByRole('alert');
+    fireEvent.click(inPage(page, 'Tiếp đón bệnh nhân'));
+    await within(page).findByRole('alert');
     await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
     // Bản cũ còn hiện nhưng nút bị vô hiệu tới khi bản mới về
-    expect(inDrawer(drawer, 'Tiếp đón bệnh nhân')).toBeDisabled();
-    expect(inDrawer(drawer, 'Vắng mặt')).toBeDisabled();
-    expect(inDrawer(drawer, 'Hủy lịch')).toBeDisabled();
+    expect(inPage(page, 'Tiếp đón bệnh nhân')).toBeDisabled();
+    expect(inPage(page, 'Vắng mặt')).toBeDisabled();
+    expect(inPage(page, 'Hủy lịch')).toBeDisabled();
 
     await act(async () => reload.release());
-    await waitFor(() => expect(inDrawer(drawer, 'Hủy lịch')).toBeEnabled());
+    await waitFor(() => expect(inPage(page, 'Hủy lịch')).toBeEnabled());
     expect(
-      within(drawer).queryByRole('button', { name: 'Tiếp đón bệnh nhân' }),
+      within(page).queryByRole('button', { name: 'Tiếp đón bệnh nhân' }),
     ).toBeNull();
   });
 
@@ -807,7 +824,9 @@ describe('dữ liệu cá nhân', () => {
     expect(sessionStorage.length).toBe(0);
     expect(document.cookie).toBe('');
     expect(currentUrl()).toBe(before);
-    expect(currentUrl()).not.toMatch(/0901234567|báo bận|CP2026/);
+    // F12b: URL là đường dẫn chi tiết (mã lịch trên đường dẫn là CÓ CHỦ Ý: không phải dữ liệu cá nhân); không SĐT, không lý do, không query
+    expect(currentUrl()).toBe(DETAIL_URL);
+    expect(currentUrl()).not.toMatch(/0901234567|báo bận|\?|#/);
     // URL thật của trang (không chỉ URL của router): không query, không hash
     expect(window.location.search).toBe('');
     expect(window.location.hash).toBe('');

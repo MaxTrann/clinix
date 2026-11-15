@@ -21,9 +21,7 @@ export function AdminListPage() {
   return (
     <section>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h1 className="text-[1.3333rem] leading-normal font-bold text-gray-900">
-          {LIST_TEXT.title}
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900">{LIST_TEXT.title}</h1>
         {/* Figma `#99a1af` chữ xám nhạt chỉ 2,60:1: dùng `gray-600` (ADR 0004) */}
         <p aria-live="polite" className="pt-1 text-sm text-gray-600">
           {total !== null && countLabel(total)}
