@@ -11,11 +11,16 @@ import {
 } from './public-header';
 
 // Q19f/Q25: tái dùng token và hành vi modal của patient F11 cho trạng thái chưa có frame.
+// Ngưỡng 1280 px (search F14, M5): Figma `257:6` chỉ có logo + menu + nút đặt lịch; bộ chọn chi nhánh và nút tài khoản
+// (không có trong Figma) làm header thật cần 1150,5 px (chưa đăng nhập) đến 1202 px (đã đăng nhập, tên ngắn) khi các nút một dòng.
+// Ngưỡng cũ 1024 px làm header tràn ngang ở cửa sổ 1036 px. Ở dưới ngưỡng này header thu thành nút menu.
+const WIDE_QUERY = '(min-width: 1280px)';
+
 export function PublicShell({
   children,
   ...header
 }: PublicHeaderProps & { children: ReactNode }) {
-  const wide = useMediaQuery('(min-width: 1024px)');
+  const wide = useMediaQuery(WIDE_QUERY);
   const location = useLocation();
   const [openKey, setOpenKey] = useState<string | null>(null);
   if (openKey !== null && (wide || openKey !== location.key)) setOpenKey(null);

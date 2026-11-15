@@ -16,6 +16,7 @@ import {
 import { resetAuthForTest } from '../../auth/auth-session';
 import { setAuthState } from '../../auth/auth-store';
 import type { DoctorItem, SpecialtySummary } from '../api/search-types';
+import { FOOTER_SPECIALTY_COUNT } from '../shell/public-footer';
 import { DOCTOR_EMPTY_MESSAGE } from './doctor-results';
 
 // search F6. Mã ca TBS-21 (PLAN search mục 7.4): "Đội ngũ bác sĩ" và danh sách trong chi tiết chuyên khoa
@@ -92,6 +93,18 @@ beforeEach(() => {
       const url = new URL(String(input), 'http://localhost');
       const path = url.pathname;
       if (!path.includes('/public/')) return api.fetch(input, init);
+      // Chân trang (search F14, G4) tự tải 8 chuyên khoa đầu; ca của trang này không xét cột đó nên trả rỗng
+      if (
+        path.endsWith('/public/specialties') &&
+        url.searchParams.get('pageSize') === String(FOOTER_SPECIALTY_COUNT)
+      )
+        return jsonResponse(200, {
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: FOOTER_SPECIALTY_COUNT,
+          soCoBacSi: 0,
+        });
       if (path.endsWith('/public/clinic-info')) {
         return jsonResponse(200, {
           tenThuongHieu: 'CLINIX',

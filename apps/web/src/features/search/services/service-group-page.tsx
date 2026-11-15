@@ -14,6 +14,7 @@ import type { ServiceGroupItem } from '../api/search-types';
 import { formatMoney } from '../format/money';
 import { serviceListPath } from '../search-paths';
 import { useRemote } from '../../../shared/hooks/use-remote';
+import { PUBLIC_STEP_CONTAINER } from '../layout';
 
 export const SERVICE_GROUP_EMPTY_MESSAGE = 'Chưa có nhóm dịch vụ nào.';
 export const COMING_SOON_LABEL = 'Sắp triển khai';
@@ -99,7 +100,7 @@ export function ServiceGroupPage() {
   );
 
   return (
-    <main className="mx-auto max-w-300 px-7.5 py-8">
+    <main className={PUBLIC_STEP_CONTAINER}>
       <h1 className="text-3xl font-semibold text-gray-900">
         Đặt lịch khám bệnh
       </h1>

@@ -71,16 +71,25 @@ function setup(width = 390, loggedIn = false) {
   return { media, router, open, select, logout, ...view };
 }
 
-it('KC-08: 1024px có điều hướng đầy đủ; 1023px thu thành nút menu', () => {
-  const { media } = setup(1024);
+it('KC-08: 1280px có điều hướng đầy đủ; 1279px thu thành nút menu (ngưỡng nâng từ 1024, search F14 M5)', () => {
+  const { media } = setup(1280);
   expect(screen.getByRole('navigation')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Mở menu' })).toBeNull();
-  act(() => media.resize(1023));
+  act(() => media.resize(1279));
   expect(screen.queryByRole('navigation')).toBeNull();
   expect(screen.getByRole('button', { name: 'Mở menu' })).toHaveAttribute(
     'aria-expanded',
     'false',
   );
+});
+
+it('KC-08/UIS-02: cửa sổ 1036 px (đo thật, header cần ≥ 1150 px) và 1024 px dùng nút menu, không dựng điều hướng', () => {
+  for (const width of [1024, 1036]) {
+    const { unmount } = setup(width, true);
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Mở menu' })).toBeInTheDocument();
+    unmount();
+  }
 });
 
 it('KC-08/KC-09: focus đầu, bẫy Tab hai chiều, nền inert, Esc trả focus và nhả cuộn', () => {
@@ -156,7 +165,7 @@ it('KC-08: đổi route, mở rộng rồi thu hẹp và unmount đều nhả mo
   await act(async () => router.navigate('/bac-si'));
   expect(screen.queryByRole('dialog')).toBeNull();
   open();
-  act(() => media.resize(1024));
+  act(() => media.resize(1280));
   expect(document.body.style.overflow).toBe('');
   act(() => media.resize(320));
   expect(screen.queryByRole('dialog')).toBeNull();

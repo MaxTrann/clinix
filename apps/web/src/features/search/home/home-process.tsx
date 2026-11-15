@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { PUBLIC_CONTAINER } from '../layout';
 import { BOOKING_PATH } from '../search-paths';
 
 const STEPS = [
@@ -28,7 +29,7 @@ const STEPS = [
 export function HomeProcess() {
   return (
     <section aria-labelledby="home-process" className="bg-brand-soft py-14">
-      <div className="mx-auto max-w-300 px-7.5">
+      <div className={PUBLIC_CONTAINER}>
         <h2
           id="home-process"
           className="text-center text-3xl font-bold text-gray-900"
@@ -45,7 +46,8 @@ export function HomeProcess() {
               className="rounded-2xl border border-gray-200 bg-white p-5"
             >
               <div className="flex items-center gap-3">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-brand-strong">
+                {/* Figma bo 13,375 px (`radius + 4px`), còn `rounded-xl` của Tailwind là 11,25 px nên ghi số px thật. */}
+                <span className="flex size-10 items-center justify-center rounded-[13.375px] bg-brand-strong">
                   <img
                     src={`/assets/search/home/${step.icon}.svg`}
                     alt=""
@@ -59,14 +61,16 @@ export function HomeProcess() {
               <h3 className="mt-3 text-lg font-semibold text-gray-900">
                 {step.title}
               </h3>
-              <p className="mt-1 text-sm text-gray-600">{step.text}</p>
+              <p className="mt-1 text-sm leading-relaxed text-gray-600">
+                {step.text}
+              </p>
             </li>
           ))}
         </ol>
         <div className="mt-10 text-center">
           <Link
             to={BOOKING_PATH}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-strong px-8 py-3 font-medium text-white"
+            className="inline-flex items-center gap-2 rounded-[13.375px] bg-brand-strong px-8 py-3 font-medium text-white"
           >
             <img
               src="/assets/search/home/calendar.svg"

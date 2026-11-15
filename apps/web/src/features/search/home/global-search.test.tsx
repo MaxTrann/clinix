@@ -211,3 +211,12 @@ it('TCH-05: blur ra ngoài đóng hộp/huỷ request; unmount huỷ request k�
   view.unmount();
   expect(nextSignal?.aborted).toBe(true);
 });
+
+it('UIS-04 (search F14, G2): ô nhập chữ 15 px (cao ô 52,5 px) và nút "Tìm kiếm" `px-7` (26,25 px) theo Figma 257:68; nút không còn viền trái', () => {
+  openSearch();
+  const input = screen.getByRole('combobox');
+  expect(input).toHaveClass('text-base', 'py-4', 'border-0');
+  const button = screen.getByRole('button', { name: 'Tìm kiếm' });
+  expect(button).toHaveClass('px-7', 'font-medium');
+  expect(button).not.toHaveClass('border-l', 'px-5');
+});

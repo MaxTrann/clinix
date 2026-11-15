@@ -4,6 +4,7 @@ import { useRemote } from '../../../shared/hooks/use-remote';
 import { DoctorFilters } from './doctor-filters';
 import { DoctorResults } from './doctor-results';
 import { useDoctorSearch } from './use-doctor-search';
+import { PUBLIC_CONTAINER } from '../layout';
 
 // Trang "Đội ngũ bác sĩ" (Figma 260:2): không bắt chọn dịch vụ (Q11). Bỏ dải "Ngày khám" và khung giờ (`[SAU]`);
 // thêm lọc giá/đánh giá/sắp xếp theo Q12 (chưa có frame Figma).
@@ -36,7 +37,7 @@ function DoctorTeamContent({
   );
 
   return (
-    <main className="mx-auto max-w-300 px-7.5 py-8">
+    <main className={`${PUBLIC_CONTAINER} py-8`}>
       <nav aria-label="Đường dẫn" className="text-sm text-gray-600">
         <Link to="/" className="hover:underline">
           Trang chủ

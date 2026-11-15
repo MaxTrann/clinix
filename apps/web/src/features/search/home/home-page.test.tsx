@@ -276,3 +276,238 @@ it('TCH-02 / Q20: gửi tìm kiếm chuyển sang đội ngũ bác sĩ với t�
     ),
   );
 });
+
+const heroChips = () => {
+  const row = screen.getByText('Gợi ý:').parentElement;
+  if (!row) throw new Error('không có hàng chip gợi ý');
+  return within(row).getAllByRole('link');
+};
+
+it('UIS-03 (search F14, G2): hero có hai vòng tròn trang trí ĐẶC trắng 8% (270 px và 180 px sát đáy), không còn vòng chỉ có viền', () => {
+  openHome();
+  const hero = screen.getByRole('region', {
+    name: /Đặt lịch khám đúng bác sĩ/,
+  });
+  const circles = Array.from(hero.firstElementChild?.children ?? []);
+  expect(hero.firstElementChild).toHaveAttribute('aria-hidden', 'true');
+  expect(circles).toHaveLength(2);
+  expect(circles[0]).toHaveClass('size-72', 'right-20', 'top-10');
+  expect(circles[1]).toHaveClass('size-48', 'left-10', 'bottom-0');
+  for (const circle of circles) {
+    expect(circle).toHaveClass('rounded-full', 'bg-white/8');
+    expect(circle).not.toHaveClass('border');
+  }
+});
+
+it('UIS-03: số liệu hero theo Figma 257:87: nhãn sát ngay dưới số (không khe `mt-1`, hero khớp 583 px của Figma)', async () => {
+  openHome();
+  const term = await screen.findByText('Dịch vụ khám', { selector: 'dt' });
+  expect(term).toHaveClass('order-2', 'text-sm');
+  expect(term).not.toHaveClass('mt-1');
+});
+
+it('UIS-03: chip gợi ý = hai nhóm dịch vụ đầu đang cung cấp (bỏ nhóm sắp triển khai) rồi chip tĩnh "Chuyên khoa" (Figma 257:81 đến 257:85)', async () => {
+  vi.mocked(api.getServiceGroups).mockResolvedValue({
+    items: [
+      {
+        nhomDichVuId: '6',
+        ten: 'Nhóm sắp mở',
+        soDichVu: 0,
+        giaTu: null,
+        sapTrienKhai: true,
+      },
+      ...['Khám chuyên khoa', 'Khám tổng quát', 'Khám từ xa'].map(
+        (ten, index) => ({
+          nhomDichVuId: String(index + 1),
+          ten,
+          soDichVu: 2,
+          giaTu: '200000.00',
+          sapTrienKhai: false,
+        }),
+      ),
+    ],
+  });
+  openHome();
+  await waitFor(() => expect(heroChips()).toHaveLength(3));
+  const chips = heroChips();
+  expect(chips.map((chip) => chip.textContent)).toEqual([
+    'Khám chuyên khoa',
+    'Khám tổng quát',
+    'Chuyên khoa',
+  ]);
+  expect(chips.map((chip) => chip.getAttribute('href'))).toEqual([
+    '/dat-lich/nhom/1',
+    '/dat-lich/nhom/2',
+    '/chuyen-khoa',
+  ]);
+  for (const chip of chips)
+    expect(chip).toHaveClass('rounded-full', 'border', 'px-3', 'py-1.5');
+});
+
+it('UIS-03: nhóm dịch vụ lỗi ⇒ chỉ còn chip tĩnh "Chuyên khoa"; hero vẫn dùng được', async () => {
+  vi.mocked(api.getServiceGroups).mockRejectedValue(new Error('failed'));
+  openHome();
+  const services = screen.getByRole('region', { name: 'Chọn dịch vụ khám' });
+  await within(services).findByRole('alert');
+  expect(heroChips().map((chip) => chip.textContent)).toEqual(['Chuyên khoa']);
+});
+
+it('UIS-03: chưa có nhóm dịch vụ nào, hoặc chỉ có nhóm sắp triển khai ⇒ chỉ còn chip tĩnh "Chuyên khoa"', async () => {
+  vi.mocked(api.getServiceGroups).mockResolvedValue({ items: [] });
+  const first = openHome();
+  await screen.findByText('Chưa có nhóm dịch vụ nào.');
+  expect(heroChips().map((chip) => chip.textContent)).toEqual(['Chuyên khoa']);
+  first.unmount();
+  vi.mocked(api.getServiceGroups).mockResolvedValue({
+    items: [
+      {
+        nhomDichVuId: '6',
+        ten: 'Nhóm sắp mở',
+        soDichVu: 0,
+        giaTu: null,
+        sapTrienKhai: true,
+      },
+    ],
+  });
+  openHome();
+  await screen.findByText('Sắp triển khai');
+  expect(heroChips().map((chip) => chip.textContent)).toEqual(['Chuyên khoa']);
+});
+
+it('UIS-05 (search F14, G3): thẻ nhóm dịch vụ theo Figma 257:120, 257:169: dòng giá `text-xs`, nhóm sắp triển khai có viền ĐỨT và chip xám', async () => {
+  openHome();
+  const services = screen.getByRole('region', { name: 'Chọn dịch vụ khám' });
+  const comingSoon = await within(services).findByText('Sắp triển khai');
+  expect(comingSoon).toHaveClass(
+    'rounded-full',
+    'bg-gray-200',
+    'px-2.5',
+    'py-1',
+    'text-xs',
+    'font-medium',
+  );
+  expect(comingSoon.closest('li')?.firstElementChild).toHaveClass(
+    'border-dashed',
+    'bg-gray-50',
+    'rounded-2xl',
+  );
+  const price = within(services).getByText('200.000đ');
+  expect(price).toHaveClass('font-medium');
+  expect(price.parentElement).toHaveClass('text-xs');
+});
+
+it('UIS-05: thẻ chuyên khoa theo Figma 257:199: mô tả `text-xs` luôn chừa 30 px (kể cả khi trống), "N bác sĩ" là chip kèm mũi tên', async () => {
+  vi.mocked(api.getSpecialties).mockResolvedValue({
+    ...page([
+      { ...specialty, moTa: null, soBacSi: 3 },
+      { ...specialty, chuyenKhoaId: '2', ten: 'Nhi khoa', moTa: 'Mô tả nhi' },
+    ]),
+    soCoBacSi: 1,
+  });
+  openHome();
+  const specialties = screen.getByRole('region', { name: 'Chuyên khoa' });
+  const withDoctors = (
+    await within(specialties).findByText('3 bác sĩ')
+  ).closest('li');
+  if (!withDoctors) throw new Error('không có thẻ chuyên khoa');
+  expect(within(withDoctors).getByText('3 bác sĩ')).toHaveClass(
+    'rounded-full',
+    'bg-brand-soft',
+    'px-2.5',
+    'py-1',
+    'text-xs',
+    'font-medium',
+  );
+  expect(
+    within(withDoctors)
+      .getByText('3 bác sĩ')
+      .parentElement?.querySelector('svg'),
+  ).toHaveClass('size-4');
+  const empty = withDoctors.querySelector('p.min-h-8');
+  expect(empty).toHaveClass('text-xs', 'leading-4', 'line-clamp-2');
+  expect(empty?.textContent).toBe('');
+  const soon = within(specialties).getByText('Sắp có bác sĩ');
+  expect(soon).toHaveClass('rounded-full', 'bg-gray-100', 'text-gray-700');
+  expect(within(specialties).getByText('Mô tả nhi')).toHaveClass(
+    'min-h-8',
+    'text-xs',
+  );
+});
+
+it('UIS-06 (search F14, G3): tab sắp xếp cao 37,5 px (`h-10`), nút cuộn tròn 37,5 px (`size-10`) theo Figma 257:394', async () => {
+  openHome();
+  const doctors = screen.getByRole('region', { name: 'Đội ngũ bác sĩ' });
+  await within(doctors).findByText('Chưa có đánh giá');
+  for (const name of ['Nhiều kinh nghiệm', 'Được yêu thích']) {
+    expect(within(doctors).getByRole('button', { name })).toHaveClass(
+      'h-10',
+      'rounded-full',
+      'px-4',
+      'font-medium',
+    );
+  }
+  for (const name of ['Bác sĩ trước', 'Bác sĩ tiếp']) {
+    expect(within(doctors).getByRole('button', { name })).toHaveClass(
+      'size-10',
+      'rounded-full',
+    );
+  }
+});
+
+it('UIS-06: thẻ bác sĩ theo Figma 257:409: ảnh cao 192 px, bo 8 px, chữ 11/14/13 px; chưa có đánh giá thì không có huy hiệu sao', async () => {
+  openHome();
+  const doctors = screen.getByRole('region', { name: 'Đội ngũ bác sĩ' });
+  const card = (await within(doctors).findByText('Chưa có đánh giá')).closest(
+    'li',
+  );
+  if (!card) throw new Error('không có thẻ bác sĩ');
+  expect(card).toHaveClass('rounded-[8px]');
+  expect(card.querySelector('[aria-hidden="true"]')).toHaveClass('h-[192px]');
+  expect(within(card).getByText('Tim mạch')).toHaveClass('text-[11px]');
+  expect(within(card).getByRole('heading', { level: 3 })).toHaveClass(
+    'text-[14px]',
+    'font-bold',
+  );
+  expect(within(card).getByText('200.000đ')).toHaveClass('text-[13px]');
+  expect(within(card).getByRole('link', { name: /Xem hồ sơ/ })).toHaveClass(
+    'text-[12px]',
+    'px-[14px]',
+    'py-[6px]',
+  );
+  expect(card.querySelector('.rounded-full')).toBeNull();
+});
+
+it('UIS-06: có điểm đánh giá ⇒ huy hiệu sao ở góc ảnh (điểm một chữ số lẻ, số lượt cho trình đọc màn hình), không còn dòng "Chưa có đánh giá"', async () => {
+  vi.mocked(api.getDoctors).mockResolvedValue(
+    page([{ ...doctor, danhGia: { diemTrungBinh: '4.86', soDanhGia: 7 } }]),
+  );
+  openHome();
+  const doctors = screen.getByRole('region', { name: 'Đội ngũ bác sĩ' });
+  const badge = await within(doctors).findByText('4.9');
+  expect(badge.closest('span')).toHaveClass(
+    'absolute',
+    'right-2.5',
+    'top-2.5',
+    'rounded-full',
+  );
+  expect(
+    within(doctors).getByText('(7 đánh giá)', { exact: false }),
+  ).toHaveClass('sr-only');
+  expect(within(doctors).queryByText('Chưa có đánh giá')).toBeNull();
+});
+
+it('UIS-07 (search F14, G3): khối quy trình theo Figma 257:849: nút "Đặt lịch khám" và ô số bước bo 13,375 px, đoạn mô tả dòng 1,625', () => {
+  openHome();
+  const process = screen.getByRole('region', {
+    name: 'Đặt lịch khám tại CLINIX',
+  });
+  expect(
+    within(process).getByRole('link', { name: 'Đặt lịch khám' }),
+  ).toHaveClass('rounded-[13.375px]', 'px-8', 'py-3');
+  const steps = within(process).getAllByRole('listitem');
+  expect(steps).toHaveLength(4);
+  for (const step of steps) {
+    expect(step.querySelector('.size-10')).toHaveClass('rounded-[13.375px]');
+    expect(step.querySelector('p')).toHaveClass('leading-relaxed');
+  }
+});

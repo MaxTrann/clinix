@@ -8,6 +8,7 @@ import {
   createFakeAuthApi,
   createFakeLocks,
 } from '../../../test/fake-auth-api';
+import { fakeMatchMedia } from '../../../test/fake-match-media';
 import { resetAuthForTest } from '../../auth/auth-session';
 import { setAuthState } from '../../auth/auth-store';
 import type { BranchDetail, BranchSummary } from '../api/search-types';
@@ -59,6 +60,8 @@ const jsonResponse = (status: number, body: unknown) =>
   });
 
 beforeEach(() => {
+  // Điều hướng đầy đủ chỉ dựng từ 1280 px (search F14, M5); happy-dom mặc định rộng 1024 nên giả bề ngang
+  fakeMatchMedia(1280);
   resetAuthForTest();
   resetSelectedBranchForTest();
   window.localStorage.clear();

@@ -489,7 +489,8 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 03/11/2026: *
 | ☑ | F7 | Chi tiết bác sĩ `/bac-si/:id` (`653:2`–`657:2`): tab Giới thiệu, Phòng khám, Hướng dẫn (tĩnh), Đánh giá (chỉ điểm + số lượt — Q16); tab Lịch khám chừa chỗ `[SAU]`; "Nhắn tin" vô hiệu; bỏ "Đặt trước tối đa 7 ngày" | F5, B6 | TCBS b9 | `feat(web)` |
 | ☑ | F8 | Trang chủ thật (`257:2`) theo Q21; xoá `pages/home-page.tsx` và trang chủ tạm của F1, giữ hành vi không chuyển người đã đăng nhập | F1, F4, F5, B9 | Điểm vào TCCN b1, TCBS b1 | Triển khai/kiểm local 08/11/2026; chờ PR/review/merge (#175); xem TRACKING · `feat(web)` |
 | ☐ | F9 | Ô tìm tổng + hộp gợi ý (`258:2`): tự tìm sau 300 ms, huỷ yêu cầu cũ, combobox ARIA, bấm gợi ý mở trang tương ứng | F8, B8 | TCCN b3, TCBS b1 (Q20) | Triển khai/kiểm local 08/11/2026; chờ PR/review/merge (#176); xem TRACKING · `feat(web)` |
-| ☐ | F10 | Màn hẹp (< 1024 px): thanh điều hướng thu vào ngăn kéo (bẫy focus, Esc đóng); bộ chọn chi nhánh trong ngăn kéo; **cuối cụm 1**, không chặn F1. Đã triển khai/kiểm local 08/11/2026 (#177), xem TRACKING; ô chưa tick chờ merge | F1, F2 | Khung (Q19f) | `feat(web)` |
+| ☐ | F10 | Màn hẹp (< 1024 px; F14a nâng ngưỡng lên 1280 px, xem KC-08): thanh điều hướng thu vào ngăn kéo (bẫy focus, Esc đóng); bộ chọn chi nhánh trong ngăn kéo; **cuối cụm 1**, không chặn F1. Đã triển khai/kiểm local 08/11/2026 (#177), xem TRACKING; ô chưa tick chờ merge | F1, F2 | Khung (Q19f) | `feat(web)` |
+| ☐ | F14 | **Rà soát giao diện công khai theo Figma (task MỚI, issue #427):** sửa bố cục, kích thước, chữ, số mục và trạng thái ở khung công khai (menu, chân trang), Trang chủ, Chuyên khoa, Bác sĩ, Đặt lịch bước 1–3 (Dịch vụ khám) và Chi nhánh (không có frame: chỉ khung chung); GIỮ màu theo ADR 0004, chỗ lệch màu liệt kê ở TRACKING 6.3 và không sửa. `[đề xuất]` ≈ 17,75 giờ cho một PR, hoặc tách F14a (khung, Trang chủ, chân trang ≈ 9,5 giờ) và F14b (Chuyên khoa, Bác sĩ, Đặt lịch, Chi nhánh ≈ 8,25 giờ); mã test `UIS-nn` `[đề xuất]` | F1 đến F10 (mã đã có) | Figma `257:2`, `258:2`, `217:2`, `259:2`, `260:2`, `653:2` đến `657:2`, `444:2` đến `446:2`; nhận xét của Đại 15/11/2026 | **Đã duyệt 15/11/2026, tách hai PR** (TRACKING mục 6): F14a (G0 đến G4) làm trước, mã và test đã viết, đã đo trình duyệt 15/11/2026 (TRACKING F14-R, F14-S: sửa M5, khe số liệu hero, dòng liên kết chân trang), PR `Refs #156` và `Refs #427`; F14b (G5 đến G8) sau khi F14a gộp, PR `Closes #427`; ô chưa tick chờ merge cả hai; `[ĐỤNG search]` (Đại báo Trung trước khi mở PR) · `feat(web)` |
 
 ### 6.5 Nhóm D — Đồng bộ tài liệu (đi cùng PR của task code tương ứng)
 
@@ -651,7 +652,7 @@ Loại: **U** = unit, **I** = tích hợp MySQL thật (`*.int-spec.ts`), **E** 
 | KC-05 | Chân trang: liên hệ từ `/public/clinic-info` (trường `null` ⇒ ẩn dòng), danh sách chuyên khoa từ API, giờ của chi nhánh đang chọn / ẩn khi "Toàn quốc"; API lỗi ⇒ chân trang vẫn hiện phần tĩnh | Đúng `[Q19e]` | Khung | C |
 | KC-06 | Trang auth (`/dang-nhap`…), `/admin`, `/benh-nhan`, `/le-tan`, `/bac-si-portal` | **Không** có header/footer công khai; hành vi cũ giữ nguyên (`routes.test.tsx` vẫn xanh) | Ràng buộc nhóm 03/11/2026 | C |
 | KC-07 | Mất mạng trên trang công khai | `OfflineBanner` vẫn hiện | Khung | C |
-| KC-08 | Màn hẹp (< 1024 px) — **F10** | Header thu vào nút menu; ngăn kéo bẫy focus, Esc đóng, chọn mục thì đóng; có bộ chọn chi nhánh `[Q19f]` | Khung | C |
+| KC-08 | Màn hẹp (< 1280 px; ngưỡng 1024 của F10 nâng lên 1280 ở F14a vì header cần tới 1202 px, TRACKING F14-R) — **F10**, **F14** | Header thu vào nút menu; ngăn kéo bẫy focus, Esc đóng, chọn mục thì đóng; có bộ chọn chi nhánh `[Q19f]` | Khung | C |
 | KC-09 | Bàn phím: Tab qua header, bộ chọn, bộ lọc; focus thấy được; tương phản chữ/viền | Đạt WCAG 2.2 AA (ADR 0004) | ADR 0004 | C/M |
 | KC-10 | Đường dẫn không tồn tại dưới khung công khai | Trang 404 có header/footer | Khung | C |
 
@@ -686,6 +687,21 @@ Loại: **U** = unit, **I** = tích hợp MySQL thật (`*.int-spec.ts`), **E** 
 | KGI-06 | Bấm Còn trống (đã đăng nhập / Khách vãng lai) | Sang "Đặt lịch khám" điền sẵn / đăng nhập rồi khôi phục lựa chọn | TCBS b10, A4 |
 | KGI-07 | Bấm Đã đặt/Đang giữ chỗ; xác nhận / huỷ popup | Sang đăng ký chờ điền sẵn bác sĩ/ngày/ca / đóng popup | TCBS A2 |
 | KGI-08 | Chạy lại toàn bộ ca TBS-*, TCK-*, CC-* sau khi thêm khung giờ | Vẫn xanh (hợp đồng cũ không đổi) | Mục 5.6 |
+
+### 7.11 Kích thước giao diện công khai theo Figma (UIS) — task F14 (mã `UIS-nn` là `[đề xuất]`)
+
+Mức W (`css: false`): khoá LỚP CSS và nội dung, không đo bố cục; số đo thật (getBoundingClientRect) ghi ở TRACKING mục 6. Gốc `html` 15 px: 1 đơn vị Tailwind = 3,75 px. F14b (G5 đến G8) thêm `UIS-09` trở đi.
+
+| ID | Kịch bản | Mong đợi | Phủ | Loại |
+|---|---|---|---|---|
+| UIS-01 | Khung nội dung: hằng khung, không file mã nào còn lớp viết theo gốc 16 px, mỗi trang dùng đúng hằng | 1200 px đệm 30 px; Đặt lịch bước 1–3 840 px đệm 15 px, đệm dọc 37,5 px | Figma `257:8`, `444:66` | C |
+| UIS-02 | Menu: khung, logo, mục một dòng (chưa đăng nhập và đã đăng nhập) | Cao 60 px; logo 30, biểu tượng và chữ 18,75; mục và ba nút hành động `whitespace-nowrap shrink-0`; hàng hành động `min-w-0 gap-3`; bộ chọn chi nhánh tối đa 150 px; dưới 1280 px dùng nút menu (M5) | `257:6` | C |
+| UIS-03 | Hero: hai vòng tròn đặc; chip gợi ý | Hai vòng trắng 8% (270 px, 180 px sát đáy); chip = hai nhóm đầu đang cung cấp rồi "Chuyên khoa"; lỗi, rỗng hay chỉ nhóm sắp triển khai ⇒ chỉ chip tĩnh; nhãn số liệu sát ngay dưới số (không khe) | `257:54`, `257:55`, `257:81`…`257:85` | C |
+| UIS-04 | Ô tìm hero | Ô nhập chữ 15 px (cao 52,5 px), nút `px-7`, không viền trái | `257:68` | C |
+| UIS-05 | Thẻ nhóm dịch vụ và thẻ chuyên khoa | Dòng giá 11,25 px; nhóm sắp triển khai viền ĐỨT + chip xám; mô tả chuyên khoa chừa 30 px kể cả khi trống; chip "N bác sĩ" kèm mũi tên | `257:120`, `257:169`, `257:199` | C |
+| UIS-06 | Hàng điều khiển bác sĩ và thẻ bác sĩ | Tab và nút cuộn 37,5 px; ảnh 192 px, bo 8 px, chữ 11/14/13 px; có điểm ⇒ huy hiệu sao, chưa có ⇒ không huy hiệu | `257:394`, `257:409` | C |
+| UIS-07 | Khối quy trình | Nút và ô số bước bo 13,375 px; đoạn mô tả dòng 1,625 | `257:849` | C |
+| UIS-08 | Chân trang | Khung 1200/30, đệm 45 px, bốn cột khe 30 px theo thứ tự Figma; cột "Chuyên khoa" từ `GET /public/specialties` (8 tên, không lọc chi nhánh), lỗi ⇒ ẩn; logo, phân cách; ba danh sách liên kết `text-sm` (dòng cao 19 px) | `257:1008` | C |
 
 ## 8. Gom cụm (nhóm đồng ý 03/11/2026; cụm 4 xếp sau cùng)
 

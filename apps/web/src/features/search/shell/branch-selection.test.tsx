@@ -9,6 +9,7 @@ import {
   createFakeAuthApi,
   createFakeLocks,
 } from '../../../test/fake-auth-api';
+import { fakeMatchMedia } from '../../../test/fake-match-media';
 import { login, resetAuthForTest } from '../../auth/auth-session';
 import { setAuthState } from '../../auth/auth-store';
 import {
@@ -81,6 +82,8 @@ const positionAt = (latitude: number, longitude: number) =>
   ({ coords: { latitude, longitude } }) as GeolocationPosition;
 
 beforeEach(() => {
+  // Điều hướng đầy đủ chỉ dựng từ 1280 px (search F14, M5); happy-dom mặc định rộng 1024 nên giả bề ngang
+  fakeMatchMedia(1280);
   resetAuthForTest();
   resetSelectedBranchForTest();
   window.localStorage.clear();

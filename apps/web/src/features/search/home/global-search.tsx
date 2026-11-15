@@ -78,6 +78,7 @@ export function GlobalSearch() {
         );
       }}
     >
+      {/* Figma 257:68: ô cao 52,5 px = đệm 30 + dòng 22,5 (`text-base`, quy tắc base của `input` là `text-sm`); nút `px-7` = 26,25 px. */}
       <div className="flex overflow-hidden rounded-2xl bg-white shadow-xl">
         <label className="flex min-w-0 flex-1 items-center gap-3 px-4">
           <img src="/assets/search/home/search.svg" alt="" aria-hidden="true" />
@@ -126,12 +127,12 @@ export function GlobalSearch() {
               }
             }}
             placeholder="Tìm bác sĩ, chuyên khoa, dịch vụ"
-            className="min-w-0 flex-1 border-0 bg-white py-4 text-gray-900"
+            className="min-w-0 flex-1 border-0 bg-white py-4 text-base text-gray-900"
           />
         </label>
         <button
           type="submit"
-          className="border-l border-gray-200 bg-brand-strong px-5 font-medium text-white"
+          className="bg-brand-strong px-7 font-medium text-white"
         >
           Tìm kiếm
         </button>

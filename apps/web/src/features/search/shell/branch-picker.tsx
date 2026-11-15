@@ -53,7 +53,7 @@ export function BranchPicker({
     }`;
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative min-w-0 max-w-40">
       <button
         ref={triggerRef}
         type="button"
@@ -62,7 +62,7 @@ export function BranchPicker({
         aria-label={`Chi nhánh đang chọn: ${label}`}
         title={notice ?? undefined}
         onClick={() => setOpen((value) => !value)}
-        className="flex max-w-56 items-center gap-1.5 rounded-[0.625rem] border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        className="flex max-w-full items-center gap-1.5 rounded-[0.625rem] border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
       >
         <MapPin className="size-4 shrink-0" aria-hidden="true" />
         <span className="truncate">{label}</span>
