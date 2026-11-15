@@ -5,21 +5,28 @@ import {
   useAdminScope,
   type AdminTableColumn,
 } from '../../../admin';
+import { ApiError } from '../../../../shared/api/errors';
+import { errorMessageFor } from '../../../../shared/api/error-message';
 import { ErrorState } from '../../../../shared/ui/error-state';
 import { LoadingState } from '../../../../shared/ui/loading-state';
 import {
   ADMIN_LEAVE_PAGE_SIZE,
   listAdminLeaveRequests,
+  retryAdminLeaveCancellations,
   type AdminLeaveItem,
   type AdminLeavePage,
   type AdminLeaveQuery,
+  type ApprovalOutcome,
 } from '../../api/admin-leave-api';
 import { LeaveToast } from '../../leave/leave-toast';
 import {
   useLoad,
   useReceptionDoctors,
 } from '../../reception/use-reception-data';
+import { ApprovalResultBanner } from './approval-result-banner';
+import { ApproveDialog } from './approve-dialog';
 import {
+  formatAffectedCount,
   formatLeaveKindLabel,
   formatLeaveTime,
   formatSentDate,
@@ -36,7 +43,8 @@ const SEARCH_MIN_LENGTH = 2;
 const REJECTED_MESSAGE = 'Đã từ chối yêu cầu nghỉ phép.';
 
 // Tab "Yêu cầu nghỉ phép" của trang Duyệt yêu cầu (doctor F8; Figma `582:2` Toàn hệ thống, `623:2` Chi nhánh, `517:2` rỗng, `583:2` chi tiết, `584:2` Từ chối).
-// Chỉ xem và Từ chối: KHÔNG có nút Duyệt (F9 làm sau khi B15 merge, Q26; WA-16). Phạm vi chi nhánh do server ép: Admin Chi nhánh thấy chip cố định.
+// Xem, Từ chối (F8) và Duyệt (F9, `585:2`, `586:2`): Duyệt mở hộp xác nhận, xong hiện banner kết quả huỷ lịch hẹn kèm "Xử lý lại" nếu dang dở.
+// Phạm vi chi nhánh do server ép: Admin Chi nhánh thấy chip cố định.
 export function LeaveApprovalPage() {
   const scope = useAdminScope();
   const isBranchAdmin = scope.phamVi === 'ChiNhanh';
@@ -48,6 +56,12 @@ export function LeaveApprovalPage() {
   const [refresh, setRefresh] = useState(0);
   const [detailItem, setDetailItem] = useState<AdminLeaveItem | null>(null);
   const [rejectItem, setRejectItem] = useState<AdminLeaveItem | null>(null);
+  const [approveItem, setApproveItem] = useState<AdminLeaveItem | null>(null);
+  // Kết quả huỷ lịch hẹn của lần Duyệt (hoặc Xử lý lại) gần nhất; chỉ giữ MỘT, lần sau thay lần trước
+  const [outcome, setOutcome] = useState<ApprovalOutcome | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const retryingRef = useRef(false);
   const [toast, setToast] = useState<string | null>(null);
   // Nút đã mở ngăn kéo/hộp: nhận lại focus khi đóng
   const opener = useRef<HTMLElement | null>(null);
@@ -119,6 +133,33 @@ export function LeaveApprovalPage() {
     setRejectItem(item);
   }
 
+  function openApprove(item: AdminLeaveItem) {
+    setDetailItem(null);
+    setApproveItem(item);
+  }
+
+  // "Xử lý lại" (WA-12): chạy lại bước huỷ lịch hẹn; kết quả mới thay banner cũ. Chặn bấm đúp bằng ref (state cập nhật chậm hơn hai lần bấm liền nhau).
+  async function runRetry(id: string) {
+    if (retryingRef.current) return;
+    retryingRef.current = true;
+    setRetrying(true);
+    setRetryError(null);
+    setDetailItem(null);
+    try {
+      setOutcome(await retryAdminLeaveCancellations(id));
+      setRefresh((value) => value + 1);
+    } catch (failure) {
+      setRetryError(
+        failure instanceof ApiError && failure.maLoi === 'YEU_CAU_DA_XU_LY'
+          ? 'Chỉ xử lý lại được yêu cầu đã duyệt.'
+          : errorMessageFor(failure),
+      );
+    } finally {
+      retryingRef.current = false;
+      setRetrying(false);
+    }
+  }
+
   const columns: AdminTableColumn<AdminLeaveItem>[] = [
     {
       id: 'bacSi',
@@ -162,6 +203,16 @@ export function LeaveApprovalPage() {
       cell: (item) => formatSentDate(item.thoiDiemTao),
     },
     {
+      id: 'anhHuong',
+      header: 'Lịch hẹn bị ảnh hưởng',
+      width: '10%',
+      cell: (item) => (
+        <span className="text-gray-500">
+          {formatAffectedCount(item) ?? '—'}
+        </span>
+      ),
+    },
+    {
       id: 'trangThai',
       header: 'Trạng thái',
       width: '12%',
@@ -173,23 +224,50 @@ export function LeaveApprovalPage() {
       width: '12%',
       cell: (item) =>
         item.trangThai === 'ChoDuyet' ? (
-          <button
-            type="button"
-            aria-label={`Từ chối yêu cầu của ${item.bacSi.hoTen}`}
-            onClick={(event) => {
-              opener.current = event.currentTarget;
-              setRejectItem(item);
-            }}
-            className="min-h-9 rounded-lg border border-danger-line bg-white px-3 text-xs font-semibold text-danger-strong hover:bg-danger-soft"
-          >
-            Từ chối
-          </button>
-        ) : null,
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              aria-label={`Từ chối yêu cầu của ${item.bacSi.hoTen}`}
+              onClick={(event) => {
+                opener.current = event.currentTarget;
+                setRejectItem(item);
+              }}
+              className="min-h-9 rounded-lg border border-danger-line bg-white px-3 text-xs font-semibold text-danger-strong hover:bg-danger-soft"
+            >
+              Từ chối
+            </button>
+            <button
+              type="button"
+              aria-label={`Duyệt yêu cầu của ${item.bacSi.hoTen}`}
+              onClick={(event) => {
+                opener.current = event.currentTarget;
+                setApproveItem(item);
+              }}
+              className="min-h-9 rounded-lg bg-brand px-3 text-xs font-semibold text-white hover:opacity-90"
+            >
+              Duyệt
+            </button>
+          </div>
+        ) : (
+          <span className="text-xs text-gray-400">Đã xử lý</span>
+        ),
     },
   ];
 
   return (
     <div className="flex flex-col gap-4">
+      {outcome !== null && (
+        <ApprovalResultBanner
+          outcome={outcome}
+          retrying={retrying}
+          retryError={retryError}
+          onRetry={() => void runRetry(outcome.yeuCauNghiPhepId)}
+          onDismiss={() => {
+            setOutcome(null);
+            setRetryError(null);
+          }}
+        />
+      )}
       {list.state.status === 'success' && (
         <LeaveStats stats={list.state.data.thongKe} />
       )}
@@ -230,6 +308,8 @@ export function LeaveApprovalPage() {
           item={detailItem}
           onClose={() => setDetailItem(null)}
           onReject={openReject}
+          onApprove={openApprove}
+          onRetry={(request) => void runRetry(request.yeuCauNghiPhepId)}
         />
       )}
       {rejectItem !== null && (
@@ -241,6 +321,20 @@ export function LeaveApprovalPage() {
             setRejectItem(null);
             setRefresh((value) => value + 1);
             setToast(REJECTED_MESSAGE);
+          }}
+          onGone={() => setRefresh((value) => value + 1)}
+        />
+      )}
+      {approveItem !== null && (
+        <ApproveDialog
+          item={approveItem}
+          returnFocusRef={opener}
+          onClose={() => setApproveItem(null)}
+          onApproved={(result) => {
+            setApproveItem(null);
+            setRetryError(null);
+            setOutcome(result);
+            setRefresh((value) => value + 1);
           }}
           onGone={() => setRefresh((value) => value + 1)}
         />
