@@ -3,6 +3,7 @@ import { DoctorResults } from './doctor-results';
 import { useDoctorSearch } from './use-doctor-search';
 
 // Phần "Bác sĩ chuyên khoa …" ở chi tiết chuyên khoa (Figma 259:2, bỏ dải 7 ngày và khung giờ): dùng lại bộ lọc và thẻ của F5 với chuyên khoa cố định.
+// H2 18,75 px đậm, cách thẻ đầu 22,5 px (Figma 259:99; search F14, K8).
 export function SpecialtyDoctors({
   specialtyId,
   specialtyName,
@@ -12,10 +13,10 @@ export function SpecialtyDoctors({
 }) {
   const search = useDoctorSearch({ chuyenKhoaId: specialtyId });
   return (
-    <section aria-labelledby="specialty-doctors-title" className="mt-10">
+    <section aria-labelledby="specialty-doctors-title" className="mt-6">
       <h2
         id="specialty-doctors-title"
-        className="text-2xl font-semibold text-gray-900"
+        className="text-xl font-bold text-gray-900"
       >
         Bác sĩ chuyên khoa {specialtyName}
       </h2>

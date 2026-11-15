@@ -250,7 +250,7 @@ describe('Luồng chọn dịch vụ → bác sĩ', () => {
   it('TBS-17 nhập tên/giá/đánh giá ⇒ gọi lại API với đúng tham số', async () => {
     renderAt(DOCTORS_PATH);
     await screen.findByText(/Nguyễn Minh Anh/);
-    fireEvent.change(screen.getByLabelText('Tên bác sĩ'), {
+    fireEvent.change(screen.getByLabelText('Tìm bác sĩ'), {
       target: { value: 'minh' },
     });
     fireEvent.change(screen.getByLabelText('Giá từ (đ)'), {
@@ -309,7 +309,7 @@ describe('Luồng chọn dịch vụ → bác sĩ', () => {
           })
         : null;
     doctors = [{ ...DOCTOR, hoTen: 'Bác Sĩ Cũ' }];
-    fireEvent.change(screen.getByLabelText('Tên bác sĩ'), {
+    fireEvent.change(screen.getByLabelText('Tìm bác sĩ'), {
       target: { value: 'cu' },
     });
     await waitFor(() =>
@@ -318,7 +318,7 @@ describe('Luồng chọn dịch vụ → bác sĩ', () => {
       ),
     );
     doctors = [{ ...DOCTOR, hoTen: 'Bác Sĩ Mới' }];
-    fireEvent.change(screen.getByLabelText('Tên bác sĩ'), {
+    fireEvent.change(screen.getByLabelText('Tìm bác sĩ'), {
       target: { value: 'moi' },
     });
     expect(await screen.findByText(/Bác Sĩ Mới/)).toBeInTheDocument();
@@ -343,12 +343,12 @@ describe('Luồng chọn dịch vụ → bác sĩ', () => {
   it('TBS-19 thẻ bác sĩ: chức danh, kinh nghiệm, chi nhánh, giá, cọc, chữ viết tắt, chưa đánh giá, không khung giờ', async () => {
     renderAt(DOCTORS_PATH);
     expect(
-      await screen.findByRole('heading', { name: 'BS.CKII. Nguyễn Minh Anh' }),
+      await screen.findByRole('heading', { name: 'BS.CKII Nguyễn Minh Anh' }),
     ).toBeInTheDocument();
     expect(screen.getByText('12 năm kinh nghiệm')).toBeInTheDocument();
     const card = within(
       screen
-        .getByRole('heading', { name: 'BS.CKII. Nguyễn Minh Anh' })
+        .getByRole('heading', { name: 'BS.CKII Nguyễn Minh Anh' })
         .closest('li') as HTMLElement,
     );
     expect(card.getByText('Chi nhánh Sài Gòn')).toBeInTheDocument();
@@ -377,13 +377,13 @@ describe('Luồng chọn dịch vụ → bác sĩ', () => {
     doctorsFail = true;
     renderAt(DOCTORS_PATH);
     expect(await screen.findByRole('alert')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Tên bác sĩ'), {
+    fireEvent.change(screen.getByLabelText('Tìm bác sĩ'), {
       target: { value: 'an' },
     });
-    expect(screen.getByLabelText('Tên bác sĩ')).toHaveValue('an');
+    expect(screen.getByLabelText('Tìm bác sĩ')).toHaveValue('an');
     doctorsFail = false;
     fireEvent.click(await screen.findByRole('button', { name: 'Thử lại' }));
     expect(await screen.findByText(/Nguyễn Minh Anh/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Tên bác sĩ')).toHaveValue('an');
+    expect(screen.getByLabelText('Tìm bác sĩ')).toHaveValue('an');
   });
 });

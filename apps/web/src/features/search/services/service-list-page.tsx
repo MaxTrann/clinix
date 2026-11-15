@@ -28,10 +28,12 @@ function ServiceCard({
     <li>
       <Link
         to={doctorListPath(groupId, item.dichVuKhamId)}
-        className="block h-full rounded-xl border border-gray-200 bg-white p-5 hover:border-brand hover:shadow-md"
+        className="flex h-full flex-col rounded-[15px] border border-gray-200 bg-white p-5 hover:border-brand hover:shadow-md"
       >
-        <h2 className="text-lg font-semibold text-gray-900">{item.ten}</h2>
-        <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-sm text-gray-700">
+        <h2 className="mb-4 text-lg font-semibold leading-snug text-gray-900">
+          {item.ten}
+        </h2>
+        <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3 text-[14px] leading-[21px] text-gray-700">
           <span>
             Giá dịch vụ:{' '}
             <strong className="text-gray-900">
@@ -41,15 +43,19 @@ function ServiceCard({
           <span>
             Cọc:{' '}
             {isNoDeposit(item.mucDatCoc) ? (
-              <strong className="text-success">Không cần cọc</strong>
+              <strong className="font-semibold text-success">
+                Không cần cọc
+              </strong>
             ) : (
-              <strong className="text-warning">
+              <strong className="font-semibold text-warning">
                 {formatMoney(item.mucDatCoc)}
               </strong>
             )}
           </span>
         </div>
-        <p className="mt-2 text-xs text-gray-600">{SURCHARGE_NOTE}</p>
+        <p className="pt-1 text-xs font-medium text-gray-600">
+          {SURCHARGE_NOTE}
+        </p>
       </Link>
     </li>
   );
@@ -77,12 +83,12 @@ export function ServiceListPage() {
     <main className={PUBLIC_STEP_CONTAINER}>
       <Link
         to={BOOKING_PATH}
-        className="inline-flex items-center gap-1 text-sm text-gray-700 hover:underline"
+        className="-ml-2 inline-flex min-h-12 items-center gap-1.5 px-2 text-base font-medium text-gray-700 hover:underline"
       >
         <ChevronLeft className="size-4" aria-hidden="true" />
         Chọn lại nhóm dịch vụ
       </Link>
-      <h1 className="mt-4 text-3xl font-semibold text-gray-900">
+      <h1 className="mt-2 text-2xl font-bold text-gray-900">
         {groupName ?? 'Dịch vụ khám'}
       </h1>
       <p className="mt-1 text-gray-600">
@@ -100,7 +106,7 @@ export function ServiceListPage() {
         {services.state.status === 'ready' &&
           services.state.data.items.length > 0 && (
             <>
-              <ul className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {services.state.data.items.map((item) => (
                   <ServiceCard
                     key={item.dichVuKhamId}
@@ -109,7 +115,9 @@ export function ServiceListPage() {
                   />
                 ))}
               </ul>
-              <p className="mt-4 text-sm text-gray-600">{DEPOSIT_NOTE}</p>
+              <p className="mt-3 text-[13px] leading-[19.5px] text-gray-600">
+                {DEPOSIT_NOTE}
+              </p>
             </>
           )}
       </div>

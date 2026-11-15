@@ -31,7 +31,9 @@ describe('kích thước thanh menu công khai theo Figma 257:6 (UIS-02)', () =>
     renderHeader();
     const frame = screen.getByRole('banner').firstElementChild;
     expect(frame).toHaveClass('max-w-320', 'px-8', 'h-16', 'justify-between');
-    expect(frame).not.toHaveClass('max-w-300', 'px-7.5', 'h-15');
+    expect(frame).not.toHaveClass('max-w-300');
+    expect(frame).not.toHaveClass('px-7.5');
+    expect(frame).not.toHaveClass('h-15');
   });
 
   it('UIS-02 logo: ô 30 px, biểu tượng 18,75 px, chữ 18,75 px, khe 9,375 px', () => {

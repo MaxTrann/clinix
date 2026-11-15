@@ -7,6 +7,8 @@ import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { searchBranches } from '../api/search-service';
 import type { BranchSummary } from '../api/search-types';
+import { Breadcrumb } from '../breadcrumb';
+import { SearchField } from '../search-field';
 import { selectedFirst } from './selected-first';
 import { useRemote } from '../../../shared/hooks/use-remote';
 import { PUBLIC_CONTAINER } from '../layout';
@@ -26,10 +28,10 @@ function BranchCard({
     <li>
       <Link
         to={`/chi-nhanh/${item.chiNhanhId}`}
-        className="block h-full rounded-xl border border-gray-200 bg-white p-4 hover:shadow-md"
+        className="block h-full rounded-2xl border border-gray-200 bg-white p-4 hover:shadow-md"
       >
         <div className="flex items-start justify-between gap-2">
-          <h2 className="text-base font-semibold text-gray-900">{item.ten}</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{item.ten}</h2>
           {selected && (
             <span className="shrink-0 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-cyan-800">
               {SELECTED_BADGE}
@@ -73,34 +75,28 @@ export function BranchListPage() {
   };
 
   return (
-    <main className={`${PUBLIC_CONTAINER} py-8`}>
-      <nav aria-label="Đường dẫn" className="text-sm text-gray-600">
-        <Link to="/" className="hover:underline">
-          Trang chủ
-        </Link>
-        <span aria-hidden="true"> / </span>
-        <span aria-current="page">Chi nhánh</span>
-      </nav>
-      <h1 className="mt-3 text-3xl font-semibold text-gray-900">Chi nhánh</h1>
+    <main className={`${PUBLIC_CONTAINER} py-10`}>
+      <Breadcrumb
+        items={[{ label: 'Trang chủ', to: '/' }, { label: 'Chi nhánh' }]}
+      />
+      <h1 className="mt-5 text-3xl font-bold text-gray-900">Chi nhánh</h1>
       {state.status === 'ready' && (
-        <p className="mt-1 text-gray-600">{state.data.total} chi nhánh.</p>
+        <p className="mt-1.5 text-gray-600">{state.data.total} chi nhánh.</p>
       )}
 
-      <div className="mt-5 max-w-md">
+      <div className="mt-6 max-w-112">
         <label htmlFor="branch-search" className="sr-only">
           Tìm chi nhánh
         </label>
-        <input
+        <SearchField
           id="branch-search"
-          type="search"
           value={input}
           onChange={(event) => setInput(event.target.value)}
           placeholder="Tìm theo tên hoặc địa chỉ, ví dụ: Quận 3"
-          className="w-full rounded-[0.625rem] border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
 
-      <div className="mt-6">
+      <div className="mt-8">
         {state.status === 'loading' && <LoadingState />}
         {state.status === 'error' && (
           <ErrorState error={state.error} onRetry={retry} />

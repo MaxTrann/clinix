@@ -218,5 +218,6 @@ it('UIS-04 (search F14, G2): ô nhập chữ 15 px (cao ô 52,5 px) và nút "T�
   expect(input).toHaveClass('text-base', 'py-4', 'border-0');
   const button = screen.getByRole('button', { name: 'Tìm kiếm' });
   expect(button).toHaveClass('px-7', 'font-medium');
-  expect(button).not.toHaveClass('border-l', 'px-5');
+  expect(button).not.toHaveClass('border-l');
+  expect(button).not.toHaveClass('px-5');
 });
