@@ -3,10 +3,9 @@ import { UnexpectedResponseError } from '../../../shared/api/errors';
 import type { ShiftCode } from '../../../shared/schedule/shift-labels';
 import type { LeaveKind, LeaveStatus } from './leave-api';
 
-// Hợp đồng `GET /admin/leave-requests[/:id]` và `POST /admin/leave-requests/:id/reject` (PLAN doctor B13, B14). Chỉ Quản trị viên.
-// KHÔNG có hàm duyệt: nút Duyệt do F9 thêm sau khi B15 merge (Q26, WA-16).
+// Hợp đồng `GET /admin/leave-requests[/:id]`, `POST …/reject`, `POST …/approve`, `POST …/retry-cancellations` (PLAN doctor B13–B17). Chỉ Quản trị viên.
 
-/** Một dòng danh sách. Không có `lyDo` (thuộc chi tiết) và chưa có số lịch hẹn bị ảnh hưởng (booking B11, nối ở B17). */
+/** Một dòng danh sách. Không có `lyDo` (thuộc chi tiết). `soLichHenBiAnhHuong` (B17): `null` với yêu cầu `TuChoi`. */
 export interface AdminLeaveItem {
   yeuCauNghiPhepId: string;
   trangThai: LeaveStatus;
@@ -21,10 +20,48 @@ export interface AdminLeaveItem {
   chuyenKhoa: { ten: string };
   // Chi nhánh HIỆN TẠI của bác sĩ (Q28)
   chiNhanh: { chiNhanhId: string; ten: string };
+  soLichHenBiAnhHuong: number | null;
+}
+
+/** Một lịch hẹn bị ảnh hưởng (danh sách trắng của server: không SĐT, email, lý do khám). */
+export interface AffectedAppointment {
+  maLichHen: string;
+  // ISO 8601 UTC
+  thoiGian: string;
+  trangThai: 'ChoThanhToan' | 'DaXacNhan';
+  nguoiKham: { hoTen: string };
+  // Chuỗi decimal; "0.00" = chưa đặt cọc
+  tienCocSnapshot: string;
+}
+
+/** Hộp xác nhận Duyệt (Q32): `tong`, `soBenhNhan`, `soCoCoc` là số thật; `items` chỉ có tối đa 20 lịch đầu, `conNua` báo còn lịch chưa liệt kê. */
+export interface AffectedAppointments {
+  tong: number;
+  soBenhNhan: number;
+  soCoCoc: number;
+  conNua: boolean;
+  items: AffectedAppointment[];
 }
 
 export interface AdminLeaveDetail extends AdminLeaveItem {
   lyDo: string;
+  // `null` với yêu cầu `TuChoi`
+  lichHenBiAnhHuong: AffectedAppointments | null;
+}
+
+/** Kết quả bước huỷ lịch hẹn sau khi Duyệt hoặc Xử lý lại (B15, B16). */
+export interface CancellationResult {
+  // `false` = còn lịch chưa xử lý xong (lỗi bất ngờ): hiện "Xử lý lại"
+  hoanTat: boolean;
+  daHuy: number;
+  daHuyTruocDo: number;
+  khongHuyDuoc: { maLichHen: string; trangThai: string }[];
+}
+
+export interface ApprovalOutcome {
+  yeuCauNghiPhepId: string;
+  trangThai: 'DaDuyet';
+  huyLichHen: CancellationResult;
 }
 
 // Số yêu cầu theo trạng thái, tính với cùng bộ lọc trừ `trangThai`: không đổi khi bấm đổi trạng thái (PD-21)
@@ -101,4 +138,37 @@ export function rejectAdminLeaveRequest(
     method: 'POST',
     json: { lyDo },
   });
+}
+
+function parseOutcome(data: ApprovalOutcome): ApprovalOutcome {
+  if (
+    typeof data?.huyLichHen !== 'object' ||
+    data.huyLichHen === null ||
+    typeof data.huyLichHen.daHuy !== 'number' ||
+    !Array.isArray(data.huyLichHen.khongHuyDuoc)
+  )
+    throw new UnexpectedResponseError(200);
+  return data;
+}
+
+/** Duyệt một yêu cầu `ChoDuyet`; không có thân. 200 kèm kết quả huỷ lịch hẹn (`hoanTat: false` vẫn là đã duyệt). 409 `YEU_CAU_DA_XU_LY` hoặc `YEU_CAU_NGHI_DA_QUA_HAN`. */
+export async function approveAdminLeaveRequest(
+  id: string,
+): Promise<ApprovalOutcome> {
+  const data = await request<ApprovalOutcome>(
+    `/admin/leave-requests/${encodeURIComponent(id)}/approve`,
+    { method: 'POST' },
+  );
+  return parseOutcome(data);
+}
+
+/** "Xử lý lại": chạy lại bước huỷ lịch hẹn của yêu cầu đã duyệt (idempotent). */
+export async function retryAdminLeaveCancellations(
+  id: string,
+): Promise<ApprovalOutcome> {
+  const data = await request<ApprovalOutcome>(
+    `/admin/leave-requests/${encodeURIComponent(id)}/retry-cancellations`,
+    { method: 'POST' },
+  );
+  return parseOutcome(data);
 }

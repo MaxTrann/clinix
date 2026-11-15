@@ -11,7 +11,10 @@ import { resetAuthForTest, restoreSession } from '../../../auth/auth-session';
 import type { AdminMe } from '../../../admin';
 import { createAppRoutes } from '../../../../router/routes';
 import { createFakeAuthApi } from '../../../../test/fake-auth-api';
-import type { AdminLeaveItem } from '../../api/admin-leave-api';
+import type {
+  AdminLeaveItem,
+  AffectedAppointments,
+} from '../../api/admin-leave-api';
 import type { ReceptionDoctor } from '../../api/reception-api';
 import { jsonResponse } from '../../testing/fetch-routing';
 import {
@@ -38,8 +41,9 @@ const userEvent = {
   }),
 };
 
-// doctor F8: WA-07 (thẻ, lọc, phân trang, rỗng), WA-08 (chi tiết), WA-09 (hộp Từ chối), WA-13 (tab đổi lịch vô hiệu), WA-15 (hộp thoại: tên truy cập, focus, Esc),
-// WA-16 (không có nút Duyệt, không gọi `approve`). Bổ sung: lỗi 409/mạng khi Từ chối, Admin Chi nhánh, lỗi tải.
+// doctor F8: WA-07 (thẻ, lọc, phân trang, rỗng), WA-08 (chi tiết), WA-09 (hộp Từ chối), WA-13 (tab đổi lịch vô hiệu), WA-15 (hộp thoại: tên truy cập, focus, Esc).
+// Bổ sung: lỗi 409/mạng khi Từ chối, Admin Chi nhánh, lỗi tải.
+// doctor F9: WA-10 (hộp Xác nhận duyệt), WA-11 (kết quả duyệt), WA-12 (Xử lý lại), WA-15 (hộp Duyệt). WA-16 (F8 không có nút Duyệt) hết hiệu lực khi F9 thêm nút.
 const Q3 = { chiNhanhId: '1', ten: 'CLINIX Chi nhánh Quận 3' };
 const Q7 = { chiNhanhId: '2', ten: 'CLINIX Chi nhánh Quận 7' };
 
@@ -56,9 +60,49 @@ function leave(overrides: Partial<AdminLeaveItem>): AdminLeaveItem {
     bacSi: { bacSiId: '11', hoTen: 'ThS.BS. Nguyễn Minh Anh' },
     chuyenKhoa: { ten: 'Tim mạch' },
     chiNhanh: Q3,
+    soLichHenBiAnhHuong: 0,
     ...overrides,
   };
 }
+
+// Hộp xác nhận Duyệt (Q32): 3 lịch, 2 đã đặt cọc, 2 bệnh nhân
+const AFFECTED: AffectedAppointments = {
+  tong: 3,
+  soBenhNhan: 2,
+  soCoCoc: 2,
+  conNua: false,
+  items: [
+    {
+      maLichHen: 'LH-0001',
+      thoiGian: '2026-10-29T07:30:00.000Z',
+      trangThai: 'DaXacNhan',
+      nguoiKham: { hoTen: 'Trần Văn An' },
+      tienCocSnapshot: '200000.00',
+    },
+    {
+      maLichHen: 'LH-0002',
+      thoiGian: '2026-10-29T08:00:00.000Z',
+      trangThai: 'ChoThanhToan',
+      nguoiKham: { hoTen: 'Lê Thị Bình' },
+      tienCocSnapshot: '0.00',
+    },
+    {
+      maLichHen: 'LH-0003',
+      thoiGian: '2026-10-29T08:30:00.000Z',
+      trangThai: 'DaXacNhan',
+      nguoiKham: { hoTen: 'Trần Văn An' },
+      tienCocSnapshot: '150000.00',
+    },
+  ],
+};
+const NO_AFFECTED: AffectedAppointments = {
+  tong: 0,
+  soBenhNhan: 0,
+  soCoCoc: 0,
+  conNua: false,
+  items: [],
+};
+const DONE = { hoanTat: true, daHuy: 3, daHuyTruocDo: 0, khongHuyDuoc: [] };
 
 const ITEMS: AdminLeaveItem[] = [
   leave({}),
@@ -97,6 +141,8 @@ let scope: AdminMe;
 let listResponse: () => Response;
 let detailResponse: () => Response;
 let rejectResponse: () => Response | Promise<Response>;
+let approveResponse: () => Response | Promise<Response>;
+let retryResponse: () => Response | Promise<Response>;
 
 function callsTo(pathEnd: string, method = 'GET') {
   return fetchMock.mock.calls
@@ -115,7 +161,24 @@ beforeEach(() => {
   scope = { phamVi: 'ToanHeThong' };
   listResponse = () => page();
   detailResponse = () =>
-    jsonResponse({ ...ITEMS[0], lyDo: 'Việc gia đình đột xuất' });
+    jsonResponse({
+      ...ITEMS[0],
+      lyDo: 'Việc gia đình đột xuất',
+      lichHenBiAnhHuong: NO_AFFECTED,
+    });
+  approveResponse = () =>
+    jsonResponse({
+      yeuCauNghiPhepId: '1',
+      trangThai: 'DaDuyet',
+      thoiDiemXuLy: '2026-10-20T03:00:00.000Z',
+      huyLichHen: DONE,
+    });
+  retryResponse = () =>
+    jsonResponse({
+      yeuCauNghiPhepId: '1',
+      trangThai: 'DaDuyet',
+      huyLichHen: DONE,
+    });
   rejectResponse = () =>
     jsonResponse({ yeuCauNghiPhepId: '1', trangThai: 'TuChoi' });
   fetchMock.mockReset();
@@ -130,6 +193,10 @@ beforeEach(() => {
       );
     if (url.pathname.endsWith('/reject') && method === 'POST')
       return Promise.resolve(rejectResponse());
+    if (url.pathname.endsWith('/approve') && method === 'POST')
+      return Promise.resolve(approveResponse());
+    if (url.pathname.endsWith('/retry-cancellations') && method === 'POST')
+      return Promise.resolve(retryResponse());
     if (/\/admin\/leave-requests\/\d+$/.test(url.pathname))
       return Promise.resolve(detailResponse());
     if (url.pathname.endsWith('/admin/leave-requests'))
@@ -167,7 +234,7 @@ const BRANCH_ADMIN: AdminMe = {
 };
 
 describe('trang Duyệt yêu cầu - nghỉ phép (F8)', () => {
-  it('WA-07 danh sách: tiêu đề, menu sáng, bốn thẻ thống kê, cột và dòng đúng; không có cột lịch hẹn bị ảnh hưởng', async () => {
+  it('WA-07 danh sách: tiêu đề, menu sáng, bốn thẻ thống kê, cột (có Lịch hẹn bị ảnh hưởng) và dòng đúng', async () => {
     await renderPage();
     const table = await screen.findByRole('table', {
       name: 'Yêu cầu nghỉ phép của bác sĩ',
@@ -196,6 +263,7 @@ describe('trang Duyệt yêu cầu - nghỉ phép (F8)', () => {
       'Loại nghỉ',
       'Thời gian',
       'Ngày gửi',
+      'Lịch hẹn bị ảnh hưởng',
       'Trạng thái',
       'Thao tác',
     ]);
@@ -376,8 +444,8 @@ describe('chi tiết yêu cầu (F8)', () => {
     expect(within(drawer).getByText('18/10/2026')).toBeVisible();
     expect(within(drawer).getByText(Q3.ten)).toBeVisible();
     expect(callsTo('/admin/leave-requests/1')).toHaveLength(1);
-    // Chưa có mục "Lịch hẹn bị ảnh hưởng" và không có số 0 giả (B17)
-    expect(within(drawer).queryByText(/Lịch hẹn bị ảnh hưởng/i)).toBeNull();
+    // Mục "Lịch hẹn bị ảnh hưởng" lấy số thật từ server (B17), ở đây là 0
+    expect(within(drawer).getByText('Lịch hẹn bị ảnh hưởng (0)')).toBeVisible();
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -401,26 +469,6 @@ describe('chi tiết yêu cầu (F8)', () => {
     expect(within(drawer).getByText('Theo ca')).toBeVisible();
   });
 
-  it('WA-16 danh sách và ngăn kéo không có nút "Duyệt" và không gọi approve', async () => {
-    const user = userEvent.setup();
-    await renderPage();
-    const table = await screen.findByRole('table');
-    expect(screen.queryByRole('button', { name: /^Duyệt/ })).toBeNull();
-    await user.click(
-      within(table).getAllByRole('button', {
-        name: 'ThS.BS. Nguyễn Minh Anh',
-      })[0],
-    );
-    const drawer = await screen.findByRole('dialog');
-    expect(within(drawer).queryByRole('button', { name: /^Duyệt/ })).toBeNull();
-    expect(callsTo('/approve', 'POST')).toHaveLength(0);
-    expect(
-      fetchMock.mock.calls.some(([input]) =>
-        String(input).includes('/approve'),
-      ),
-    ).toBe(false);
-  });
-
   it('WA-08 yêu cầu đã xử lý: chi tiết không có nút Từ chối, dòng không có nút thao tác', async () => {
     listResponse = () =>
       page([
@@ -435,6 +483,8 @@ describe('chi tiết yêu cầu (F8)', () => {
     expect(
       within(table).queryByRole('button', { name: /Từ chối yêu cầu/ }),
     ).toBeNull();
+    expect(within(table).queryByRole('button', { name: /^Duyệt/ })).toBeNull();
+    expect(within(table).getByText('Đã xử lý')).toBeVisible();
     await user.click(
       within(table).getByRole('button', { name: 'ThS.BS. Nguyễn Minh Anh' }),
     );
@@ -443,6 +493,7 @@ describe('chi tiết yêu cầu (F8)', () => {
     expect(
       within(drawer).queryByRole('button', { name: 'Từ chối' }),
     ).toBeNull();
+    expect(within(drawer).queryByRole('button', { name: 'Duyệt' })).toBeNull();
   });
 });
 
@@ -623,6 +674,293 @@ describe('hộp Từ chối (F8)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Từ chối' }));
     await waitFor(() =>
       expect(callsTo('/admin/leave-requests/1/reject', 'POST')).toHaveLength(1),
+    );
+  });
+});
+
+describe('Duyệt yêu cầu nghỉ (F9)', () => {
+  const approveDetail = (lichHenBiAnhHuong = AFFECTED) =>
+    jsonResponse({
+      ...ITEMS[0],
+      soLichHenBiAnhHuong: lichHenBiAnhHuong.tong,
+      lyDo: 'Việc gia đình đột xuất',
+      lichHenBiAnhHuong,
+    });
+  const incomplete = (daHuy: number) =>
+    jsonResponse({
+      yeuCauNghiPhepId: '1',
+      trangThai: 'DaDuyet',
+      thoiDiemXuLy: '2026-10-20T03:00:00.000Z',
+      huyLichHen: { ...DONE, hoanTat: false, daHuy },
+    });
+
+  beforeEach(() => {
+    detailResponse = () => approveDetail();
+  });
+
+  // Mở hộp rồi chờ số lịch tải xong (nút "Xác nhận duyệt" bật)
+  async function openApprove() {
+    const user = userEvent.setup();
+    await renderPage();
+    const table = await screen.findByRole('table');
+    await user.click(
+      within(table).getAllByRole('button', {
+        name: /Duyệt yêu cầu của ThS.BS. Nguyễn Minh Anh/,
+      })[0],
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Xác nhận duyệt nghỉ phép',
+    });
+    const confirm = within(dialog).getByRole('button', {
+      name: 'Xác nhận duyệt',
+    });
+    return { user, dialog, confirm };
+  }
+
+  it('WA-10 hộp Xác nhận duyệt: focus ở "Hủy", nêu bác sĩ, thời gian, số lịch huỷ, số lịch hoàn cọc 100%, số bệnh nhân (Q32)', async () => {
+    const { dialog, confirm } = await openApprove();
+    expect(within(dialog).getByRole('button', { name: 'Hủy' })).toHaveFocus();
+    expect(within(dialog).getByText('ThS.BS. Nguyễn Minh Anh')).toBeVisible();
+    expect(within(dialog).getByText('Ca chiều ngày 29/10/2026')).toBeVisible();
+    const value = (label: string) =>
+      within(dialog).getByText(label).nextElementSibling;
+    await waitFor(() => expect(confirm).toBeEnabled());
+    expect(value('Lịch hẹn sẽ bị hủy')).toHaveTextContent('3 lịch');
+    expect(value('Lịch đã đặt cọc (hoàn 100% vào ví)')).toHaveTextContent(
+      '2 lịch',
+    );
+    expect(value('Bệnh nhân nhận thông báo')).toHaveTextContent('2 bệnh nhân');
+    expect(callsTo('/approve', 'POST')).toHaveLength(0);
+  });
+
+  it('WA-10 chưa tải được số lịch hẹn thì KHÔNG cho duyệt; "Thử lại" tải lại rồi mới bật nút', async () => {
+    let fail = true;
+    detailResponse = () =>
+      fail
+        ? jsonResponse({ maLoi: 'LOI_MAY_CHU', thongBao: 'x' }, 500)
+        : approveDetail();
+    const { user, dialog, confirm } = await openApprove();
+    const retry = await within(dialog).findByRole('button', {
+      name: /Thử lại/,
+    });
+    expect(confirm).toBeDisabled();
+    fail = false;
+    await user.click(retry);
+    await waitFor(() => expect(confirm).toBeEnabled());
+  });
+
+  it('WA-11 duyệt thành công: POST không thân, đóng hộp, banner xanh "Đã hủy 3 lịch hẹn", tải lại danh sách', async () => {
+    const { user, confirm } = await openApprove();
+    await waitFor(() => expect(confirm).toBeEnabled());
+    const listCallsBefore = callsTo('/admin/leave-requests').length;
+    await user.click(confirm);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const call = fetchMock.mock.calls.find(([input]) =>
+      String(input).endsWith('/admin/leave-requests/1/approve'),
+    )!;
+    expect(call[1]?.method).toBe('POST');
+    expect(call[1]?.body).toBeUndefined();
+    const banner = await screen.findByRole('status');
+    expect(banner).toHaveTextContent('Đã duyệt nghỉ phép. Đã hủy 3 lịch hẹn.');
+    expect(
+      within(banner).queryByRole('button', { name: 'Xử lý lại' }),
+    ).toBeNull();
+    await waitFor(() =>
+      expect(callsTo('/admin/leave-requests').length).toBeGreaterThan(
+        listCallsBefore,
+      ),
+    );
+  });
+
+  it('WA-11 bấm Xác nhận duyệt hai lần liên tiếp chỉ gửi MỘT yêu cầu', async () => {
+    let release: (response: Response) => void = () => undefined;
+    approveResponse = () =>
+      new Promise<Response>((resolve) => {
+        release = resolve;
+      });
+    const { user, confirm } = await openApprove();
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+    await user.click(confirm);
+    expect(callsTo('/approve', 'POST')).toHaveLength(1);
+    release(
+      jsonResponse({
+        yeuCauNghiPhepId: '1',
+        trangThai: 'DaDuyet',
+        huyLichHen: DONE,
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('WA-11 có lịch không hủy được: banner vàng nêu mã lịch, KHÔNG có "Xử lý lại" (chạy lại cũng không đổi)', async () => {
+    approveResponse = () =>
+      jsonResponse({
+        yeuCauNghiPhepId: '1',
+        trangThai: 'DaDuyet',
+        thoiDiemXuLy: '2026-10-20T03:00:00.000Z',
+        huyLichHen: {
+          ...DONE,
+          daHuy: 2,
+          khongHuyDuoc: [{ maLichHen: 'LH-0003', trangThai: 'DaTiepDon' }],
+        },
+      });
+    const { user, confirm } = await openApprove();
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent('Đã hủy 2 lịch hẹn.');
+    expect(banner).toHaveTextContent('1 lịch không hủy được (LH-0003)');
+    expect(
+      within(banner).queryByRole('button', { name: 'Xử lý lại' }),
+    ).toBeNull();
+  });
+
+  it('WA-12 huỷ dang dở (hoanTat=false): banner vàng có "Xử lý lại"; bấm gọi retry-cancellations, banner đổi sang kết quả mới', async () => {
+    approveResponse = () => incomplete(1);
+    const { user, confirm } = await openApprove();
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent('chưa xong');
+    await user.click(within(banner).getByRole('button', { name: 'Xử lý lại' }));
+    await waitFor(() =>
+      expect(callsTo('/retry-cancellations', 'POST')).toHaveLength(1),
+    );
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Đã hủy 3 lịch hẹn.',
+    );
+  });
+
+  it('WA-12 Xử lý lại lỗi mạng: giữ banner, báo lỗi, cho thử lại', async () => {
+    approveResponse = () => incomplete(0);
+    retryResponse = () => {
+      throw new TypeError('Failed to fetch');
+    };
+    const { user, confirm } = await openApprove();
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+    const banner = await screen.findByRole('alert');
+    await user.click(within(banner).getByRole('button', { name: 'Xử lý lại' }));
+    expect(await screen.findByText(/Không có kết nối mạng/)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Xử lý lại' })).toBeEnabled();
+  });
+
+  it('WA-11 409 YEU_CAU_DA_XU_LY (Admin khác xử lý trước): báo lỗi theo mã, không cho gửi lại, tải lại danh sách', async () => {
+    approveResponse = () =>
+      jsonResponse(
+        { maLoi: 'YEU_CAU_DA_XU_LY', thongBao: 'không in câu này' },
+        409,
+      );
+    const { user, dialog, confirm } = await openApprove();
+    await waitFor(() => expect(confirm).toBeEnabled());
+    const listCallsBefore = callsTo('/admin/leave-requests').length;
+    await user.click(confirm);
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'đã được xử lý trước đó',
+    );
+    expect(confirm).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Đóng' })).toBeVisible();
+    expect(within(dialog).queryByText('không in câu này')).toBeNull();
+    await waitFor(() =>
+      expect(callsTo('/admin/leave-requests').length).toBeGreaterThan(
+        listCallsBefore,
+      ),
+    );
+  });
+
+  it('WA-11 409 YEU_CAU_NGHI_DA_QUA_HAN: báo "chỉ có thể từ chối"', async () => {
+    approveResponse = () =>
+      jsonResponse({ maLoi: 'YEU_CAU_NGHI_DA_QUA_HAN', thongBao: 'x' }, 409);
+    const { user, dialog, confirm } = await openApprove();
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'chỉ có thể từ chối',
+    );
+  });
+
+  it('WA-11 mất mạng khi duyệt: báo "chưa rõ", không tự gửi lại', async () => {
+    approveResponse = () => {
+      throw new TypeError('Failed to fetch');
+    };
+    const { user, dialog, confirm } = await openApprove();
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Chưa rõ yêu cầu đã được duyệt chưa',
+    );
+    expect(callsTo('/approve', 'POST')).toHaveLength(1);
+  });
+
+  it('WA-15 Esc đóng hộp Duyệt mà không gọi approve; focus về nút Duyệt đã mở', async () => {
+    const { user } = await openApprove();
+    const opener = screen.getAllByRole('button', {
+      name: /Duyệt yêu cầu của/,
+      hidden: true,
+    })[0];
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(callsTo('/approve', 'POST')).toHaveLength(0);
+    expect(opener).toHaveFocus();
+  });
+
+  it('WA-10 ngăn kéo yêu cầu chờ duyệt: liệt kê lịch bị ảnh hưởng (mã, giờ, tiền cọc) và nút Duyệt mở hộp xác nhận', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+    const table = await screen.findByRole('table');
+    await user.click(
+      within(table).getAllByRole('button', {
+        name: 'ThS.BS. Nguyễn Minh Anh',
+      })[0],
+    );
+    const drawer = await screen.findByRole('dialog', {
+      name: 'ThS.BS. Nguyễn Minh Anh',
+    });
+    expect(await within(drawer).findByText('LH-0001')).toBeVisible();
+    expect(within(drawer).getByText('Lịch hẹn bị ảnh hưởng (3)')).toBeVisible();
+    expect(
+      within(drawer).getByText(/14:30 29\/10\/2026 · Cọc: 200\.000 ₫/),
+    ).toBeVisible();
+    expect(within(drawer).getByText(/Cọc: —/)).toBeVisible();
+    await user.click(within(drawer).getByRole('button', { name: 'Duyệt' }));
+    expect(
+      await screen.findByRole('dialog', { name: 'Xác nhận duyệt nghỉ phép' }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole('dialog', { name: 'ThS.BS. Nguyễn Minh Anh' }),
+    ).toBeNull();
+  });
+
+  it('WA-12 ngăn kéo yêu cầu đã duyệt còn lịch chưa huỷ có "Xử lý lại"', async () => {
+    listResponse = () =>
+      page([
+        leave({
+          trangThai: 'DaDuyet',
+          thoiDiemXuLy: '2026-10-19T03:00:00.000Z',
+          soLichHenBiAnhHuong: 3,
+        }),
+      ]);
+    detailResponse = () =>
+      jsonResponse({
+        ...ITEMS[0],
+        trangThai: 'DaDuyet',
+        lyDo: 'x',
+        lichHenBiAnhHuong: AFFECTED,
+      });
+    const user = userEvent.setup();
+    await renderPage();
+    const table = await screen.findByRole('table');
+    expect(within(table).getByText('3 lịch')).toBeVisible();
+    await user.click(
+      within(table).getByRole('button', { name: 'ThS.BS. Nguyễn Minh Anh' }),
+    );
+    const drawer = await screen.findByRole('dialog');
+    await user.click(
+      await within(drawer).findByRole('button', { name: 'Xử lý lại' }),
+    );
+    await waitFor(() =>
+      expect(callsTo('/retry-cancellations', 'POST')).toHaveLength(1),
     );
   });
 });
