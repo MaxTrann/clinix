@@ -50,31 +50,6 @@ export const DETAIL_FAILURE_TEXTS: DetailFailureTexts = {
   forbidden: DETAIL_TEXT.forbidden,
 };
 
-// Câu của thẻ `Hồ sơ khám bệnh` khi `ghiChuKham` là `null` (B5: luôn `null` tới khi `doctor` có `ho_so_kham`), theo trạng thái (chữ Figma `458:2`, `459:2`, `464:2`, `692:2`). Câu thứ hai của Figma mời bấm nút
-// `Ghi hồ sơ khám` của `doctor` nên F11 không hiện [đề xuất]. `none` (huỷ, vắng mặt, mã lạ): chữ nghiêng.
-const RECORD_PENDING =
-  'Hồ sơ khám sẽ được bác sĩ cập nhật sau khi người bệnh được tiếp đón.';
-const RECORD_STARTED = 'Chưa ghi hồ sơ khám.';
-const RECORD_COMPLETED = 'Ca khám đã hoàn thành nhưng chưa có hồ sơ khám.';
-const RECORD_NONE = 'Không có hồ sơ khám.';
-
-export function recordMessage(trangThai: string): {
-  text: string;
-  italic: boolean;
-} {
-  switch (trangThai) {
-    case 'ChoThanhToan':
-    case 'DaXacNhan':
-      return { text: RECORD_PENDING, italic: false };
-    case 'DaTiepDon':
-      return { text: RECORD_STARTED, italic: false };
-    case 'HoanThanh':
-      return { text: RECORD_COMPLETED, italic: false };
-    default:
-      return { text: RECORD_NONE, italic: true };
-  }
-}
-
 // `BanThan` ⇒ "Bản thân" (Figma); mã của `moi_quan_he` ⇒ nhãn; mã lạ ⇒ "Người thân" (không lộ mã thô). `relationshipLabel` của F4 không biết `BanThan` nên xử lý trước.
 export function relationLabel(code: string): string {
   return code === 'BanThan' ? DETAIL_TEXT.ownPerson : relationshipLabel(code);

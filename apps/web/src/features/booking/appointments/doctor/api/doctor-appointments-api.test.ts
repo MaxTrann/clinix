@@ -11,7 +11,7 @@ import {
   parseDoctorAppointmentPage,
 } from './doctor-appointments-api';
 
-// booking F11: bộ đọc và bộ dựng query của API Bác sĩ. Mã DAL-01, DAL-03, DAD-02 là [đề xuất] (PLAN booking mục 7.44). Phản hồi 200 sai hình dạng cùng loại với HTML 502 (không dùng được): ném
+// booking F11: bộ đọc và bộ dựng query của API Bác sĩ. Mã DAL-01, DAL-03, DAD-02 là [đề xuất] (PLAN booking mục 7.44); doctor-exam F2 sửa DAD-02: `ghiChuKham` nhận `null` HOẶC đối tượng năm khoá (WHS-08 phần bộ đọc chi tiết). Phản hồi 200 sai hình dạng cùng loại với HTML 502 (không dùng được): ném
 // `UnexpectedResponseError`; khoá thừa của API không được chép theo, nên giá, cọc, email, người đặt, tên bác sĩ không bao giờ lên màn hình (BSI-02).
 const COUNTS = {
   ChoThanhToan: 1,
@@ -231,6 +231,16 @@ describe('booking F11 — bộ dựng query của Bác sĩ', () => {
 
 const ELEVEN_KEYS = [...EIGHT_KEYS, 'chiNhanh', 'ghiChuKham', 'ngayDat'].sort();
 
+// Hồ sơ khám (doctor-exam F2; hình dạng nguồn `ExamRecordView` của B2): đúng năm khoá. Dữ liệu giả.
+const RECORD = {
+  trieuChung: 'Đau ngực khi gắng sức',
+  chanDoanSoBo: 'Theo dõi thêm',
+  huongXuLy: 'Nghỉ ngơi, tái khám khi nặng hơn',
+  ngayTaiKhamDuKien: '2026-07-10',
+  capNhatLanCuoi: '2026-06-10T10:30:00.000Z',
+};
+const RECORD_KEYS = Object.keys(RECORD).sort();
+
 describe('booking F11 — bộ đọc chi tiết của Bác sĩ', () => {
   it('DAD-02 chi tiết có đúng mười một khoá, `ghiChuKham` là null; khoá thừa (giá, cọc, email, lý do hủy, tên bác sĩ) bị bỏ', () => {
     const detail = parseDoctorAppointmentDetail({
@@ -253,12 +263,77 @@ describe('booking F11 — bộ đọc chi tiết của Bác sĩ', () => {
     }
   });
 
-  it('DAD-02 `ghiChuKham` khác null ⇒ phản hồi không dùng được (hợp đồng đã đổi: việc của `doctor`, sửa bộ đọc MỘT chỗ); thiếu khoá cũng vậy', () => {
+  it('DAD-02 (F2) `ghiChuKham` là đối tượng đúng năm khoá ⇒ đọc đúng; vẫn đúng mười một khoá cấp một; khoá THỪA trong đối tượng bị bỏ, không chép sang kết quả (WHS-08 phần bộ đọc)', () => {
+    const detail = parseDoctorAppointmentDetail({
+      ...makeDoctorDetail(),
+      ghiChuKham: {
+        ...RECORD,
+        soDienThoai: '0977777777',
+        thua: 'KHÔNG ĐƯỢC LỌT',
+      },
+    });
+    expect(detail.ghiChuKham).toEqual(RECORD);
+    expect(Object.keys(detail.ghiChuKham ?? {}).sort()).toEqual(RECORD_KEYS);
+    expect(Object.keys(detail).sort()).toEqual(ELEVEN_KEYS);
+    const text = JSON.stringify(detail);
+    for (const leaked of ['0977777777', 'KHÔNG ĐƯỢC LỌT', 'thua']) {
+      expect(text).not.toContain(leaked);
+    }
+  });
+
+  it('DAD-02 (F2) `ngayTaiKhamDuKien` là null (tuỳ chọn) ⇒ giữ null; `ghiChuKham` null ⇒ null', () => {
+    const detail = parseDoctorAppointmentDetail({
+      ...makeDoctorDetail(),
+      ghiChuKham: { ...RECORD, ngayTaiKhamDuKien: null },
+    });
+    expect(detail.ghiChuKham).toEqual({ ...RECORD, ngayTaiKhamDuKien: null });
+    expect(
+      parseDoctorAppointmentDetail({ ...makeDoctorDetail(), ghiChuKham: null })
+        .ghiChuKham,
+    ).toBeNull();
+  });
+
+  it.each(RECORD_KEYS)(
+    'DAD-02 (F2) đối tượng `ghiChuKham` thiếu khoá %s ⇒ phản hồi không dùng được',
+    (key) => {
+      const ghiChuKham: Record<string, unknown> = { ...RECORD };
+      delete ghiChuKham[key];
+      expect(() =>
+        parseDoctorAppointmentDetail({ ...makeDoctorDetail(), ghiChuKham }),
+      ).toThrow(UnexpectedResponseError);
+    },
+  );
+
+  it.each([
+    ['trieuChung là số', { trieuChung: 5 }],
+    ['trieuChung là null', { trieuChung: null }],
+    ['chanDoanSoBo là mảng', { chanDoanSoBo: ['x'] }],
+    ['huongXuLy là đối tượng', { huongXuLy: { a: 1 } }],
+    ['ngayTaiKhamDuKien dạng dd/mm/yyyy', { ngayTaiKhamDuKien: '10/07/2026' }],
+    ['ngayTaiKhamDuKien thiếu số 0', { ngayTaiKhamDuKien: '2026-7-1' }],
+    ['ngayTaiKhamDuKien có giờ', { ngayTaiKhamDuKien: '2026-07-10T00:00:00Z' }],
+    ['ngayTaiKhamDuKien là số', { ngayTaiKhamDuKien: 20260710 }],
+    ['capNhatLanCuoi chỉ có ngày', { capNhatLanCuoi: '2026-06-10' }],
+    ['capNhatLanCuoi dạng dd/mm/yyyy', { capNhatLanCuoi: '10/06/2026 17:30' }],
+    ['capNhatLanCuoi là null', { capNhatLanCuoi: null }],
+    ['capNhatLanCuoi là số', { capNhatLanCuoi: 1781090000000 }],
+  ])('DAD-02 (F2) %s ⇒ phản hồi không dùng được', (_name, wrong) => {
+    expect(() =>
+      parseDoctorAppointmentDetail({
+        ...makeDoctorDetail(),
+        ghiChuKham: { ...RECORD, ...wrong },
+      }),
+    ).toThrow(UnexpectedResponseError);
+  });
+
+  it('DAD-02 (F2) `ghiChuKham` không phải null hay đối tượng (mảng, chuỗi, rỗng, số, boolean) ⇒ không dùng được; vắng khoá `ghiChuKham` cũng vậy', () => {
     for (const ghiChuKham of [
+      [],
+      [RECORD],
       'Triệu chứng: đau ngực',
-      { trieuChung: 'x' },
       '',
       0,
+      true,
     ]) {
       expect(() =>
         parseDoctorAppointmentDetail({ ...makeDoctorDetail(), ghiChuKham }),
@@ -269,6 +344,23 @@ describe('booking F11 — bộ đọc chi tiết của Bác sĩ', () => {
     expect(() => parseDoctorAppointmentDetail(missing)).toThrow(
       UnexpectedResponseError,
     );
+  });
+
+  it('DAD-02 (F2) mỗi khoá của hồ sơ lấy đúng khoá của nó (ba chuỗi khác nhau không bị đảo chỗ)', () => {
+    const detail = parseDoctorAppointmentDetail({
+      ...makeDoctorDetail(),
+      ghiChuKham: {
+        ...RECORD,
+        trieuChung: 'A-triệu chứng',
+        chanDoanSoBo: 'B-chẩn đoán',
+        huongXuLy: 'C-hướng xử lý',
+      },
+    });
+    expect(detail.ghiChuKham).toMatchObject({
+      trieuChung: 'A-triệu chứng',
+      chanDoanSoBo: 'B-chẩn đoán',
+      huongXuLy: 'C-hướng xử lý',
+    });
   });
 
   it.each(['chiNhanh', 'ngayDat', 'maLichHen', 'nguoiKham'])(
