@@ -243,6 +243,9 @@ describe('booking F11 — chi tiết của Bác sĩ: hồ sơ khám và trạng 
       await openDoctorDetail({ trangThai });
       const record = card('Hồ sơ khám bệnh');
       expect(within(record).getByText(sentence)).toBeInTheDocument();
+      // doctor-exam F2: thẻ do `ExamRecordCard` của `doctor` vẽ; hai trạng thái "chưa có" theo Figma `459:2`, `464:2` có biểu tượng bảng ghi chú, hộp xám của bốn trạng thái còn lại thì không
+      const hasIcon = trangThai === 'DaTiepDon' || trangThai === 'HoanThanh';
+      expect(record.querySelector('svg.size-10') !== null).toBe(hasIcon);
       expect(record.textContent).not.toMatch(
         /Triệu chứng|Chẩn đoán|Hướng xử lý|Tái khám/i,
       );
@@ -404,7 +407,7 @@ describe('booking F11 — chi tiết của Bác sĩ: lỗi, quay lại, riêng t
     expect(api.requests).toHaveLength(2);
   });
 
-  it('DAD-12 mất mạng (fetch ném TypeError) ⇒ `Thử lại`; chi tiết sai hình dạng (`ghiChuKham` khác null) ⇒ hộp lỗi, KHÔNG vẽ dở dang', async () => {
+  it('DAD-12 mất mạng (fetch ném TypeError) ⇒ `Thử lại`; chi tiết sai hình dạng (`ghiChuKham` không phải null hay đối tượng hồ sơ) ⇒ hộp lỗi, KHÔNG vẽ dở dang', async () => {
     const first = renderDoctorAppointments(
       doctorAppointmentDetailPath(DOCTOR_CODE),
       {

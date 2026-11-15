@@ -3,24 +3,41 @@ import {
   readIsoDateTime,
   readRecord,
   readText,
-  unusableResponse,
 } from '../../common/response-readers';
-import { parseDoctorAppointment } from './doctor-appointments-api';
-import type { DoctorAppointmentDetail } from './doctor-appointment-types';
+import {
+  parseDoctorAppointment,
+  readNullableDate,
+} from './doctor-appointments-api';
+import type {
+  DoctorAppointmentDetail,
+  DoctorExamRecord,
+} from './doctor-appointment-types';
 
 // Gọi và kiểm hình dạng `GET /doctor/appointments/:maLichHen` (booking F11; hợp đồng B5: PLAN 5.9, TRACKING 3.20.1). Gắn access token. Đủ mười một khoá = tám khoá của dòng cộng `ghiChuKham`, `chiNhanh`,
 // `ngayDat`; khoá thừa của API (giá, cọc, email, `lyDoHuy`, tên bác sĩ…) không bao giờ lọt ra màn hình.
 //
-// `ghiChuKham` nhận ĐÚNG `null` (B5: luôn `null` tới khi module `doctor` có bảng `ho_so_kham`). Khác `null` ⇒ phản hồi không dùng được: hợp đồng đã đổi và hình dạng mới là việc của `doctor`, nên bộ đọc này
-// được sửa MỘT chỗ trong cùng PR đó; hiện sai hay bịa nội dung hồ sơ khám còn tệ hơn báo lỗi (TRACKING 3.38 F11-E).
+// `ghiChuKham` nhận `null` HOẶC đối tượng đúng năm khoá (doctor-exam F2, H6: sửa TRƯỚC B3; B5 hiện vẫn luôn trả `null`): ba chuỗi `trieuChung`, `chanDoanSoBo`, `huongXuLy`, `ngayTaiKhamDuKien` là `YYYY-MM-DD` hoặc `null`,
+// `capNhatLanCuoi` là ISO 8601. Thiếu khoá, sai kiểu, sai dạng ngày, mảng, chuỗi hay số ⇒ phản hồi không dùng được (hiện sai hay bịa nội dung hồ sơ khám còn tệ hơn báo lỗi, TRACKING 3.38 F11-E); khoá THỪA bị bỏ (không chép
+// sang kết quả, đúng nếp mọi bộ đọc của booking: B3 thêm khoá không làm hỏng cả trang). Khoá `ghiChuKham` vắng ⇒ không dùng được. Nội dung hồ sơ là dữ liệu sức khoẻ: không bao giờ vào log, thông báo lỗi hay URL.
+function parseExamRecord(raw: unknown): DoctorExamRecord | null {
+  if (raw === null) return null;
+  const note = readRecord(raw);
+  return {
+    trieuChung: readText(note.trieuChung),
+    chanDoanSoBo: readText(note.chanDoanSoBo),
+    huongXuLy: readText(note.huongXuLy),
+    ngayTaiKhamDuKien: readNullableDate(note.ngayTaiKhamDuKien),
+    capNhatLanCuoi: readIsoDateTime(note.capNhatLanCuoi),
+  };
+}
+
 export function parseDoctorAppointmentDetail(
   raw: unknown,
 ): DoctorAppointmentDetail {
   const body = readRecord(raw);
-  if (body.ghiChuKham !== null) return unusableResponse();
   return {
     ...parseDoctorAppointment(body),
-    ghiChuKham: null,
+    ghiChuKham: parseExamRecord(body.ghiChuKham),
     chiNhanh: readText(body.chiNhanh),
     ngayDat: readIsoDateTime(body.ngayDat),
   };

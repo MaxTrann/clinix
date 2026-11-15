@@ -24,9 +24,9 @@ export function readNullableText(value: unknown): string | null {
   return value === null ? null : readText(value);
 }
 
-// Ngày sinh `YYYY-MM-DD` hoặc `null`; sai dạng ⇒ phản hồi không dùng được
+// Ngày sinh hay ngày tái khám dự kiến của hồ sơ (doctor-exam F2) `YYYY-MM-DD` hoặc `null`; sai dạng ⇒ phản hồi không dùng được
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-function readNullableDate(value: unknown): string | null {
+export function readNullableDate(value: unknown): string | null {
   if (value === null) return null;
   const text = readText(value);
   return DATE_ONLY.test(text) ? text : unusableResponse();
