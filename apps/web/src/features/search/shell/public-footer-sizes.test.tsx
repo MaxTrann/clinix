@@ -36,10 +36,13 @@ describe('kích thước chân trang công khai theo Figma 257:1008 (UIS-08)', (
     renderFooter();
     const frame = screen.getByRole('contentinfo').firstElementChild;
     expect(frame).toHaveClass('max-w-320', 'px-8', 'py-12');
-    expect(frame).not.toHaveClass('max-w-300', 'px-7.5', 'py-11');
+    expect(frame).not.toHaveClass('max-w-300');
+    expect(frame).not.toHaveClass('px-7.5');
+    expect(frame).not.toHaveClass('py-11');
     const grid = frame?.firstElementChild;
     expect(grid).toHaveClass('grid', 'gap-8', 'lg:grid-cols-4');
-    expect(grid).not.toHaveClass('gap-7.5', 'md:grid-cols-3');
+    expect(grid).not.toHaveClass('gap-7.5');
+    expect(grid).not.toHaveClass('md:grid-cols-3');
   });
 
   it('UIS-08 logo 30 px, biểu tượng 18,75 px, chữ 18,75 px; đường phân cách cách trên 30 px, đệm 22,5 px', () => {
@@ -52,7 +55,8 @@ describe('kích thước chân trang công khai theo Figma 257:1008 (UIS-08)', (
     expect(logo?.querySelector('svg')).toHaveClass('size-5');
     const legal = within(footer).getByText(/Bảo lưu mọi quyền/).parentElement;
     expect(legal).toHaveClass('mt-8', 'pt-6', 'border-t');
-    expect(legal).not.toHaveClass('mt-7.5', 'pt-5.5');
+    expect(legal).not.toHaveClass('mt-7.5');
+    expect(legal).not.toHaveClass('pt-5.5');
   });
 
   it('UIS-08 cột theo thứ tự Figma: Liên kết nhanh, Chuyên khoa (8 tên có liên kết), Thông tin liên hệ', () => {

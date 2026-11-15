@@ -5,6 +5,7 @@ import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { getBranchDetail } from '../api/search-service';
 import type { BranchDetail, WeekdayHours } from '../api/search-types';
+import { Breadcrumb } from '../breadcrumb';
 import { formatDayHours } from '../format/weekly-hours';
 import { doctorCountLabel } from '../specialties/doctor-count-label';
 import { useRemote } from '../../../shared/hooks/use-remote';
@@ -51,23 +52,15 @@ export function BranchDetailPage() {
 
   return (
     <main className={`${PUBLIC_CONTAINER} py-8`}>
-      <nav aria-label="Đường dẫn" className="text-sm text-gray-600">
-        <Link to="/" className="hover:underline">
-          Trang chủ
-        </Link>
-        <span aria-hidden="true"> / </span>
-        <Link to="/chi-nhanh" className="hover:underline">
-          Chi nhánh
-        </Link>
-        {state.status === 'ready' && (
-          <>
-            <span aria-hidden="true"> / </span>
-            <span aria-current="page">{state.data.ten}</span>
-          </>
-        )}
-      </nav>
+      <Breadcrumb
+        items={[
+          { label: 'Trang chủ', to: '/' },
+          { label: 'Chi nhánh', to: '/chi-nhanh' },
+          ...(state.status === 'ready' ? [{ label: state.data.ten }] : []),
+        ]}
+      />
 
-      <div className="mt-6">
+      <div className="mt-5">
         {state.status === 'loading' && <LoadingState />}
         {notFound && (
           <div role="alert" className="rounded-xl border border-gray-200 p-4">
@@ -110,7 +103,7 @@ function BranchDetailBody({
   const services = Array.isArray(detail.dichVuKham) ? detail.dichVuKham : [];
   return (
     <section>
-      <h1 className="text-3xl font-semibold text-gray-900">{detail.ten}</h1>
+      <h1 className="text-2xl font-bold text-gray-900">{detail.ten}</h1>
       <p className="mt-2 text-gray-700">{detail.diaChi}</p>
       <p className="mt-1 text-sm font-medium text-gray-700">
         {doctorCountLabel(detail.soBacSi)}

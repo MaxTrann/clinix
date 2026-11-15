@@ -33,33 +33,41 @@ function GroupCard({
     <>
       <span
         aria-hidden="true"
-        className="flex size-11 items-center justify-center rounded-xl bg-brand-soft text-brand-strong"
+        className="flex size-12 items-center justify-center rounded-[13.375px] bg-brand-soft text-brand-strong"
       >
-        <Icon className="size-5" />
+        <Icon className="size-6" />
       </span>
-      <h2 className="mt-4 text-lg font-semibold text-gray-900">{item.ten}</h2>
+      <h2
+        className={`mt-3 text-lg font-semibold ${
+          item.sapTrienKhai ? 'text-gray-600' : 'text-gray-900'
+        }`}
+      >
+        {item.ten}
+      </h2>
       {item.sapTrienKhai ? (
         <>
-          <span className="mt-2 inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+          <span className="mt-2 inline-block self-start rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
             {COMING_SOON_LABEL}
           </span>
-          <p className="mt-3 text-sm text-gray-600">{COMING_SOON_NOTE}</p>
+          <p className="mt-auto pt-4 text-sm font-medium text-gray-600">
+            {COMING_SOON_NOTE}
+          </p>
         </>
       ) : (
-        <div className="mt-6 flex items-center justify-between text-sm text-gray-700">
+        <div className="mt-auto flex items-center justify-between pt-4 text-sm font-medium text-gray-700">
           <span>
             {item.soDichVu} dịch vụ
             {item.giaTu !== null && (
               <>
                 {' '}
                 · từ{' '}
-                <strong className="text-brand-strong">
+                <strong className="font-bold text-brand-strong">
                   {formatMoney(item.giaTu)}
                 </strong>
               </>
             )}
           </span>
-          <span className="flex items-center gap-1 font-medium text-brand-strong">
+          <span className="flex items-center gap-1 font-semibold text-brand-strong">
             Chọn <ChevronRight className="size-4" aria-hidden="true" />
           </span>
         </div>
@@ -72,7 +80,7 @@ function GroupCard({
     return (
       <li
         aria-disabled="true"
-        className="rounded-xl border border-gray-200 bg-gray-50 p-5"
+        className="flex flex-col rounded-[15px] border border-gray-200 bg-gray-50 p-5"
       >
         {body}
       </li>
@@ -82,7 +90,7 @@ function GroupCard({
     <li>
       <Link
         to={serviceListPath(item.nhomDichVuId)}
-        className="block h-full rounded-xl border border-gray-200 bg-white p-5 hover:shadow-md"
+        className="flex h-full flex-col rounded-[15px] border border-gray-200 bg-white p-5 hover:shadow-md"
       >
         {body}
       </Link>
@@ -101,9 +109,7 @@ export function ServiceGroupPage() {
 
   return (
     <main className={PUBLIC_STEP_CONTAINER}>
-      <h1 className="text-3xl font-semibold text-gray-900">
-        Đặt lịch khám bệnh
-      </h1>
+      <h1 className="text-2xl font-bold text-gray-900">Đặt lịch khám bệnh</h1>
       <p className="mt-1 text-gray-600">
         Chọn nhóm dịch vụ phù hợp với nhu cầu của bạn
       </p>
@@ -116,7 +122,7 @@ export function ServiceGroupPage() {
           <EmptyState message={SERVICE_GROUP_EMPTY_MESSAGE} />
         )}
         {state.status === 'ready' && state.data.items.length > 0 && (
-          <ul className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {state.data.items.map((item, index) => (
               <GroupCard
                 key={item.nhomDichVuId}

@@ -44,12 +44,12 @@ export function DoctorListPage() {
     <main className={PUBLIC_STEP_CONTAINER}>
       <Link
         to={serviceListPath(groupId)}
-        className="inline-flex items-center gap-1 text-sm text-gray-700 hover:underline"
+        className="-ml-2 inline-flex min-h-12 items-center gap-1.5 px-2 text-base font-medium text-gray-700 hover:underline"
       >
         <ChevronLeft className="size-4" aria-hidden="true" />
         Chọn lại dịch vụ khám
       </Link>
-      <h1 className="mt-4 text-3xl font-semibold text-gray-900">Chọn bác sĩ</h1>
+      <h1 className="mt-2 text-2xl font-bold text-gray-900">Chọn bác sĩ</h1>
       {service && (
         <p className="mt-1 text-gray-600">
           Dịch vụ: <strong className="text-gray-900">{service.ten}</strong>

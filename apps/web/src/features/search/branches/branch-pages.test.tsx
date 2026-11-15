@@ -160,7 +160,11 @@ const picker = () =>
   screen.getByRole('button', { name: /^Chi nhánh đang chọn:/ });
 const stored = () =>
   JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? 'null') as unknown;
-const cards = () => within(screen.getByRole('main')).getAllByRole('listitem');
+// Thẻ nằm trong `ul`; đường dẫn (search F14, G8) là `ol` có `li` riêng nên không đếm chung (listitem của cả `main`)
+const cards = () =>
+  within(
+    screen.getByRole('main').querySelector('ul') as HTMLElement,
+  ).getAllByRole('listitem');
 
 describe('selectedFirst (Q5)', () => {
   it('đưa chi nhánh đang chọn lên đầu, giữ nguyên thứ tự còn lại', () => {
