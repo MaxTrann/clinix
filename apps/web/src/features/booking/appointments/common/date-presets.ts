@@ -52,3 +52,23 @@ export function presetRange(
       return custom;
   }
 }
+
+// Giá trị `khoang` trên URL cho các chip tính theo hôm nay [đề xuất]. Bác sĩ (F11, `range` là mặc định nên không có slug) và Lễ tân (F12b, `range` có slug riêng vì mặc định là `today`) dùng
+// chung bản đồ này để MỘT chip có MỘT tên trên URL.
+export const PRESET_SLUGS: Readonly<
+  Record<Exclude<DatePreset, 'range'>, string>
+> = {
+  today: 'hom-nay',
+  tomorrow: 'ngay-mai',
+  week: 'tuan-nay',
+  nextWeek: 'tuan-sau',
+  month: 'thang-nay',
+};
+
+// Chip ứng với một slug; slug lạ (URL do người dùng tự gõ hay sửa) thì trả `fallback` của trang gọi.
+export function presetFromSlug(slug: string, fallback: DatePreset): DatePreset {
+  for (const [preset, value] of Object.entries(PRESET_SLUGS)) {
+    if (value === slug) return preset as DatePreset;
+  }
+  return fallback;
+}

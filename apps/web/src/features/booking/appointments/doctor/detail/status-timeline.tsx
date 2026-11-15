@@ -17,7 +17,7 @@ function Dot({ tone }: { tone: StepTone }) {
     return (
       <span
         aria-hidden="true"
-        className="flex size-[1.625rem] items-center justify-center rounded-full bg-success text-white"
+        className="flex size-7 items-center justify-center rounded-full bg-success text-white"
       >
         <Check className="size-3.5" />
       </span>
@@ -27,7 +27,7 @@ function Dot({ tone }: { tone: StepTone }) {
     return (
       <span
         aria-hidden="true"
-        className="flex size-[1.625rem] items-center justify-center rounded-full border-2 border-brand-strong bg-white"
+        className="flex size-7 items-center justify-center rounded-full border-2 border-brand-strong bg-white"
       >
         <span className="size-2.5 rounded-full bg-brand-strong" />
       </span>
@@ -37,7 +37,7 @@ function Dot({ tone }: { tone: StepTone }) {
     return (
       <span
         aria-hidden="true"
-        className="flex size-[1.625rem] items-center justify-center rounded-full bg-gray-600 text-white"
+        className="flex size-7 items-center justify-center rounded-full bg-gray-600 text-white"
       >
         <X className="size-3.5" />
       </span>
@@ -46,7 +46,7 @@ function Dot({ tone }: { tone: StepTone }) {
   return (
     <span
       aria-hidden="true"
-      className="flex size-[1.625rem] items-center justify-center rounded-full border border-gray-200 bg-gray-50"
+      className="flex size-7 items-center justify-center rounded-full border border-gray-200 bg-gray-50"
     >
       <span className="size-1.5 rounded-full bg-gray-300" />
     </span>

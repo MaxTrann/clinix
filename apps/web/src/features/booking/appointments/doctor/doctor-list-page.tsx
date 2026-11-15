@@ -23,10 +23,8 @@ export function DoctorAppointmentsPage() {
 
   return (
     <section>
-      <h1 className="text-[1.3333rem] leading-normal font-bold text-gray-900">
-        {LIST_TEXT.title}
-      </h1>
-      <p className="pt-[0.2667rem] text-[0.8667rem] leading-normal text-gray-600">
+      <h1 className="text-2xl font-bold text-gray-900">{LIST_TEXT.title}</h1>
+      <p className="pt-1 text-sm leading-normal text-gray-600">
         {LIST_TEXT.subtitle}
       </p>
       <DoctorFilters list={list} />

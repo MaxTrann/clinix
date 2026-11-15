@@ -150,7 +150,7 @@ describe('lỗi theo maLoi (lần tải đầu)', () => {
 // LTL-12: SĐT người đặt, tên bệnh nhân và `q` (có thể là SĐT) là dữ liệu cá nhân: không log, không URL, không kho trình duyệt. Đo bằng `.length`: `vi.spyOn(Storage.prototype,
 // 'setItem')` chỉ thấy lần gọi đầu (F2 đã phát hiện) nên không dùng.
 describe('dữ liệu cá nhân', () => {
-  it('LTL-12 suốt luồng tải, gõ SĐT vào ô tìm, đổi chip và ô chọn: không localStorage, sessionStorage, cookie, không console; URL không đổi và không chứa q, SĐT, mã', async () => {
+  it('LTL-12 suốt luồng tải, gõ SĐT vào ô tìm, đổi chip và ô chọn: không localStorage, sessionStorage, cookie, không console; URL chỉ có bộ lọc không cá nhân, không chứa q, SĐT, mã', async () => {
     const consoleSpies = (
       ['log', 'info', 'warn', 'error', 'debug'] as const
     ).map((method) =>
@@ -186,8 +186,11 @@ describe('dữ liệu cá nhân', () => {
     expect(sessionStorage.length).toBe(0);
     expect(document.cookie).toBe('');
     for (const spy of consoleSpies) expect(spy).not.toHaveBeenCalled();
-    expect(currentUrl()).toBe('/le-tan/quan-ly-lich-hen');
-    expect(currentUrl()).not.toMatch(/0901234567|CP2026|\?|#/);
+    // F12b: URL có bộ lọc KHÔNG cá nhân (chip, bác sĩ) nhưng KHÔNG BAO GIỜ có `q`, SĐT hay mã lịch (F8: URL không đổi)
+    expect(currentUrl()).toBe(
+      '/le-tan/quan-ly-lich-hen?khoang=tuan-nay&bacSiId=5',
+    );
+    expect(currentUrl()).not.toMatch(/0901234567|CP2026|q=|#/);
     consoleSpies.forEach((spy) => spy.mockRestore());
   });
 });

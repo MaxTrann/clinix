@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { receptionAppointmentDetailPath } from '../../../../shared/routes/booking-paths';
 import {
   chip,
   cleanUpReceptionPage,
@@ -8,6 +9,7 @@ import {
   loaded,
   renderReceptionPage,
   rowCodes,
+  searchBox,
   select,
 } from '../../testing/reception-harness';
 import { jsonResponse } from '../../testing/fake-appointment-list-api';
@@ -93,9 +95,16 @@ describe('danh sách: tải đầu, bảng, dòng đếm', () => {
       .slice(1);
     expect(rows).toHaveLength(6);
     for (const row of rows) {
-      const buttons = within(row).getAllByRole('button');
-      expect(buttons).toHaveLength(1);
-      expect(buttons[0]).toHaveAccessibleName(/^Chi tiết lịch hẹn CP\d+$/);
+      // F12b: `Chi tiết` là LIÊN KẾT tới trang chi tiết (F8, F9: nút mở ngăn); hàng không còn nút nào
+      const links = within(row).getAllByRole('link');
+      expect(links).toHaveLength(1);
+      expect(links[0]).toHaveAccessibleName(/^Chi tiết lịch hẹn CP\d+$/);
+      expect(within(row).queryAllByRole('button')).toHaveLength(0);
+      const code = within(row).getAllByRole('cell')[0].textContent ?? '';
+      expect(links[0]).toHaveAttribute(
+        'href',
+        receptionAppointmentDetailPath(code),
+      );
     }
     expect(
       screen.queryByRole('button', { name: /Thu tiền|Tiếp đón/ }),
@@ -371,5 +380,48 @@ describe('danh sách: chuyển trang, giữ dữ liệu cũ, rỗng', () => {
     expect(chip('Hôm nay')).toHaveAttribute('aria-pressed', 'true');
     expect(select('Trạng thái')).toHaveValue('');
     expect(screen.queryByRole('button', { name: 'Xóa lọc' })).toBeNull();
+  });
+});
+
+// booking F12b, UIF-10 (UI-10, UI-04; mã UIF là [đề xuất], PLAN 7.48): kích thước theo Figma `494:2` và `494:162`; mức W (`css: false`): chỉ khoá LỚP CSS (cấu trúc), số đo thật ở trình duyệt (TRACKING 3.44). Gốc `html` là 15 px nên
+// `text-2xl` = 22,5 px, `h-7.5` = 28,1 px, `h-8.5` = 31,9 px. Đại chọn h1 thống nhất 22,5 px đậm 700 (câu (a): Figma `494:162` ghi 18,75 px đậm 600, lệch có chủ ý) và chiều cao theo Figma từng màn (câu (b)).
+describe('kích thước theo Figma (UIF-10)', () => {
+  it('UIF-10 h1 `text-2xl font-bold` (22,5 px, thống nhất bốn trang) và phụ đề `text-sm`; không còn số `rem` tuỳ ý chia 16', async () => {
+    renderReceptionPage();
+    await loaded();
+    const h1 = screen.getByRole('heading', { level: 1, name: LIST_TEXT.title });
+    expect(h1).toHaveClass('text-2xl', 'font-bold');
+    expect(h1.className).not.toMatch(/\[\d+(\.\d+)?rem\]/);
+    const subtitle = screen.getByText(LIST_TEXT.subtitle);
+    expect(subtitle).toHaveClass('text-sm', 'pt-1');
+    expect(subtitle.className).not.toMatch(/\[\d+(\.\d+)?rem\]/);
+  });
+
+  it('UIF-10 UI-04 ô tìm cao 39 px, ô chọn gọn cao 28 px (`h-7.5`) với mũi tên TỰ VẼ (`appearance-none` và một biểu tượng `aria-hidden`), chip cao 28 px', async () => {
+    renderReceptionPage();
+    await loaded();
+    expect(searchBox()).toHaveClass('h-[2.6rem]');
+    for (const name of ['Chuyên khoa', 'Bác sĩ', 'Trạng thái']) {
+      const box = select(name);
+      expect(box).toHaveClass('h-7.5', 'appearance-none');
+      expect(box).not.toHaveClass('h-7');
+      // Một mũi tên tự vẽ, trang trí (không nhận chuột)
+      const arrows = box.parentElement?.querySelectorAll(
+        'svg[aria-hidden="true"]',
+      );
+      expect(arrows).toHaveLength(1);
+    }
+    for (const name of ['Hôm nay', 'Ngày mai', 'Tuần này', 'Khoảng ngày']) {
+      expect(chip(name)).toHaveClass('min-h-7.5');
+    }
+  });
+
+  it('UIF-10 chọn `Khoảng ngày`: hai ô ngày cao 31,9 px (`h-8.5`, Figma 31,6 px)', async () => {
+    renderReceptionPage();
+    await loaded();
+    fireEvent.click(chip('Khoảng ngày'));
+    for (const label of ['Từ ngày', 'Đến ngày']) {
+      expect(screen.getByLabelText(label)).toHaveClass('h-8.5');
+    }
   });
 });
