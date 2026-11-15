@@ -36,6 +36,7 @@ const EXPECTED_FIELD_CODES = [
   'BAT_BUOC',
   'QUA_DAI',
   'NGAY_KHONG_HOP_LE',
+  'NOI_DUNG_KHONG_HOP_LE',
   'SO_SAO_BAT_BUOC',
   'SO_SAO_KHONG_HOP_LE',
   'LY_DO_BAT_BUOC',
@@ -55,7 +56,7 @@ describe('mã lỗi của phần khám bệnh (PLAN 5.14)', () => {
     );
   });
 
-  it('đúng tám mã trường của loi[].ma', () => {
+  it('đúng chín mã trường của loi[].ma', () => {
     expect(values(EXAM_FIELD_ERROR_CODES).toSorted()).toEqual(
       [...EXPECTED_FIELD_CODES].toSorted(),
     );
