@@ -50,7 +50,7 @@ export const PATIENT_NAV: { items: RoleNavItem[]; footerItems: RoleNavItem[] } =
 export const RECEPTION_NAV: { items: RoleNavItem[] } = {
   items: [
     { label: 'Tổng quan', icon: LayoutDashboard },
-    // booking F8: không `end` (nếp mục menu khác); chi tiết là ngăn kéo trên cùng trang nên không có trang con
+    // booking F8: không `end` (nếp mục menu khác). F12b: chi tiết một lịch là TRANG con (`/le-tan/quan-ly-lich-hen/:maLichHen`) nên mục này vẫn sáng ở đó nhờ không có `end` (UIF-18)
     {
       label: 'Quản lý lịch hẹn',
       icon: Calendar,

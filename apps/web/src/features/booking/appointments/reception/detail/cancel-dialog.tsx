@@ -1,4 +1,5 @@
 import { useRef, useState, type RefObject } from 'react';
+import { useModalDialog } from '../../../../../shared/hooks/use-modal-dialog';
 import { ActionDialog } from '../../common/action-dialog';
 import { ReasonField } from '../../common/reason-field';
 import { checkStatusReason } from '../../common/status-reason';
@@ -9,6 +10,8 @@ import type { StatusActionState } from './use-status-action';
 // `cancel-preview`), bộ đếm hay câu cảnh báo, nên không thêm. `Lý do hủy` là bắt buộc 1 đến 255 đơn vị UTF-16 sau khi cắt khoảng trắng (`common/status-reason.ts`): rỗng hay quá dài thì
 // CHẶN ở client, lời báo dưới ô, không gọi API, nút vẫn bật (không vô hiệu mà không giải thích). Lý do chỉ nằm trong bộ nhớ của hộp: không kho trình duyệt, URL, log.
 // Ô lý do dùng chung với hộp override của Quản trị viên (`common/reason-field.tsx`, F10).
+// F12b: đây là modal DUY NHẤT của trang chi tiết (F9: modal thứ hai chồng lên ngăn, ngăn giữ MỘT `useModalDialog` và đổi phần tử bẫy Tab), nên hộp gọi MỘT `useModalDialog` (Esc, bẫy Tab, khoá cuộn) như hộp
+// override của Quản trị viên; việc trả tiêu điểm về nút đã mở do `use-reception-actions.ts` làm SAU khi hộp gỡ (nền `inert` được gỡ trước), nên hook nhận một ref rỗng và không tự trả tiêu điểm.
 interface CancelDialogProps {
   state: StatusActionState;
   panelRef: RefObject<HTMLDivElement | null>;
@@ -29,6 +32,15 @@ export function CancelDialog({
   // Lời báo của kiểm tra ở client; xoá khi người dùng sửa ô
   const [clientError, setClientError] = useState<string | null>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
+  // Ref rỗng: hook không trả tiêu điểm (xem chú thích đầu file)
+  const noReturnFocusRef = useRef<HTMLElement | null>(null);
+  useModalDialog({
+    open: true,
+    dialogRef: panelRef,
+    initialFocusRef: fieldRef,
+    returnFocusRef: noReturnFocusRef,
+    onClose: onDismiss,
+  });
 
   // Máy chủ từ chối lý do (400 `LY_DO_BAT_BUOC`) dù client cho qua: cùng chỗ hiện với lời báo của client
   const serverError =

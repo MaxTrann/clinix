@@ -13,6 +13,8 @@ export function DateChips(props: {
       {...props}
       presets={DATE_PRESETS}
       groupLabel={LIST_TEXT.dateGroup}
+      // F12b (UI-10): chip cao 27,9 px theo Figma `494:178` (Bác sĩ `457:134`: 30 px là mặc định của `common/`)
+      height="min-h-7.5"
     />
   );
 }

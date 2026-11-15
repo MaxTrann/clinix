@@ -1,6 +1,7 @@
 import { ChevronDown, Search } from 'lucide-react';
 import { useId } from 'react';
 import type { ComponentProps, KeyboardEvent, ReactNode } from 'react';
+import { FIELD_HEIGHT, fieldControl } from './field-style';
 import {
   COMMON_LIST_TEXT,
   optionsFailedLabel,
@@ -8,10 +9,7 @@ import {
 } from './list-text';
 import type { KeywordBoxController } from './use-keyword-box';
 
-// Các ô của bộ lọc dùng chung cho trang danh sách lịch hẹn của Bệnh nhân (F1 viết, chuyển lên `common/` ở F8) và của Lễ tân (F8). F10, F11 dùng lại.
-
-export const FIELD_CONTROL =
-  'block h-[2.6rem] w-full rounded-xl border border-gray-500 bg-white px-3 text-sm text-gray-900';
+// Các ô của bộ lọc dùng chung cho trang danh sách lịch hẹn của Bệnh nhân (F1 viết, chuyển lên `common/` ở F8) và của Lễ tân (F8). F10, F11 dùng lại. Chiều cao ô theo Figma của từng màn ở `field-style.ts` (F12b, UI-10).
 
 // Ô chọn có mũi tên TỰ VẼ (F12, UI-04; Đại 14/11/2026): mũi tên gốc của trình duyệt dính sát mép phải trong khi biểu tượng lịch ở ô ngày cách mép khoảng 11 px, nên ẩn mũi tên gốc
 // (`appearance-none`) và đặt `ChevronDown` ở `right-3` (cùng khoảng cách). Mũi tên chỉ trang trí (`aria-hidden`, không nhận chuột) nên bấm vào đâu của ô cũng mở danh sách. Lệch Figma `511:330`
@@ -25,7 +23,7 @@ export function SelectBox({
     <div className="relative">
       <select
         {...select}
-        className={`${className ?? FIELD_CONTROL} appearance-none pr-9`}
+        className={`${className ?? fieldControl()} appearance-none pr-9`}
       >
         {children}
       </select>
@@ -105,6 +103,8 @@ export function SelectField(props: {
   failed: boolean;
   truncated: boolean;
   retry: () => void;
+  // Chiều cao ô theo Figma của màn gọi (`FIELD_HEIGHT`); vắng thì chiều cao của Bệnh nhân, Bác sĩ
+  height?: string;
   children: ReactNode;
 }) {
   return (
@@ -122,6 +122,7 @@ export function SelectField(props: {
     >
       <SelectBox
         id={props.id}
+        className={fieldControl(props.height)}
         value={props.value}
         onChange={(event) => props.onChange(event.target.value)}
       >
@@ -141,6 +142,8 @@ export function KeywordSearchBox(props: {
   rejected: boolean;
   // `pill` (mặc định): hình viên thuốc của Bệnh nhân, Lễ tân (Figma `411:2`, `479:2`); `soft`: bo vừa của Quản trị viên (Figma `511:2`: 9,4 px; F12, UI-08)
   shape?: 'pill' | 'soft';
+  // Chiều cao ô theo Figma của màn gọi (`FIELD_HEIGHT`); vắng thì chiều cao của Bệnh nhân, Bác sĩ
+  height?: string;
 }) {
   const searchId = useId();
   const hintId = useId();
@@ -160,7 +163,7 @@ export function KeywordSearchBox(props: {
       <div role="search" className="relative">
         <Search
           aria-hidden="true"
-          className="pointer-events-none absolute top-[1.3rem] left-3.5 size-4 -translate-y-1/2 text-gray-600"
+          className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-gray-600"
         />
         <input
           id={searchId}
@@ -178,7 +181,7 @@ export function KeywordSearchBox(props: {
           onKeyDown={handleKeyDown}
           onCompositionStart={() => keyword.setComposing(true)}
           onCompositionEnd={() => keyword.setComposing(false)}
-          className={`block h-[2.6rem] w-full ${props.shape === 'soft' ? 'rounded-xl' : 'rounded-full'} border border-gray-500 bg-white pr-4 pl-10 text-sm text-gray-900`}
+          className={`block ${props.height ?? FIELD_HEIGHT.standard} w-full ${props.shape === 'soft' ? 'rounded-xl' : 'rounded-full'} border border-gray-500 bg-white pr-4 pl-10 text-sm text-gray-900`}
         />
       </div>
       {(keyword.hint || rejected) && (
@@ -201,7 +204,10 @@ export function DateRangeFields(props: {
   orderInvalid: boolean;
   onFromChange: (value: string) => void;
   onToChange: (value: string) => void;
+  // Chiều cao hai ô theo Figma của màn gọi (`FIELD_HEIGHT`); vắng thì chiều cao của Bệnh nhân, Bác sĩ
+  height?: string;
 }) {
+  const control = fieldControl(props.height);
   const fromId = useId();
   const toId = useId();
   const noteId = useId();
@@ -214,7 +220,7 @@ export function DateRangeFields(props: {
           value={props.from}
           max={props.to || undefined}
           onChange={(event) => props.onFromChange(event.target.value)}
-          className={FIELD_CONTROL}
+          className={control}
         />
       </Field>
 
@@ -241,7 +247,7 @@ export function DateRangeFields(props: {
           aria-invalid={props.orderInvalid}
           aria-describedby={props.orderInvalid ? noteId : undefined}
           onChange={(event) => props.onToChange(event.target.value)}
-          className={FIELD_CONTROL}
+          className={control}
         />
       </Field>
     </>
