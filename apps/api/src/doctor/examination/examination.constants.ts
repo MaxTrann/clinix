@@ -50,3 +50,9 @@ export const FOLLOW_UP_MAX_DAYS = 365;
 export const RATING_COMMENT_MAX_LENGTH = 1000;
 /** Lý do ẩn đánh giá tối thiểu 10 (Q8; DB không có mức tối thiểu). */
 export const HIDE_REASON_MIN_LENGTH = 10;
+
+// Danh sách hồ sơ khám của Bệnh nhân (B4; PLAN 5.6). `PageQueryDto` cho `pageSize` tới 100 nên B4 dùng lớp query riêng với trần 50; miền `nam` `[đề xuất]` (chống năm vô lý, TRACKING 15.7 câu (f)).
+export const EXAM_LIST_DEFAULT_PAGE_SIZE = 20;
+export const EXAM_LIST_MAX_PAGE_SIZE = 50;
+export const EXAM_LIST_YEAR_MIN = 2000;
+export const EXAM_LIST_YEAR_MAX = 2100;
