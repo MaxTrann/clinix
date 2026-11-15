@@ -426,7 +426,7 @@ Cụm 3 (Admin, search): P1,P3 ─ B7 (danh sách/chi tiết) ─ B8 (ẩn) ; B7
 Cụm 4 (hoàn tất):   D1 (cùng P1/B2/B8) · D2 (cuối) · X2 (kiểm tay) ─ X3 (tổng kết, chạy lại HDK/DHK với booking thật)
 ```
 
-Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 14/11/2026: **P1 đã merge (#418); P3 đã làm xong** (tick ☑ trong PR của task, chờ merge; kết quả ở TRACKING mục 1, 2, 9.9); **X1 đã làm xong 15/11/2026** (tick ☑ trong PR của task, chờ merge; số đo ở TRACKING mục 6, kết quả ở mục 11.6); các task khác chưa làm. Mọi task `[CHỜ Qn]`/`[CHỜ Trung]` làm được phần độc lập (giá trị tạm theo đề xuất) nhưng **không merge** khi câu hỏi chưa được trả lời. Cột "Giờ" là ước `[đề xuất]` cho một phiên 3 đến 5 giờ; cột "Iter." là Iteration (6: 17/11 đến 23/11; 7: 24/11 đến 30/11; 8: 01/12 đến 07/12; mục 6.8); cột "Mức" là mức kiểm.
+Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 14/11/2026: **P1 đã merge (#418); P3 đã làm xong** (tick ☑ trong PR của task, chờ merge; kết quả ở TRACKING mục 1, 2, 9.9); **X1 đã làm xong 15/11/2026** (tick ☑ trong PR #425 của task, chờ merge; số đo ở TRACKING mục 6, kết quả ở mục 11.6); các task khác chưa làm. Mọi task `[CHỜ Qn]`/`[CHỜ Trung]` làm được phần độc lập (giá trị tạm theo đề xuất) nhưng **không merge** khi câu hỏi chưa được trả lời. Cột "Giờ" là ước `[đề xuất]` cho một phiên 3 đến 5 giờ; cột "Iter." là Iteration (6: 17/11 đến 23/11; 7: 24/11 đến 30/11; 8: 01/12 đến 07/12; mục 6.8); cột "Mức" là mức kiểm.
 
 ### 6.2 Nhóm P — Tiền đề
 
