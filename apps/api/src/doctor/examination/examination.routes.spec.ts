@@ -83,7 +83,7 @@ class ClassLevel {
 }
 
 describe('QHK-09 mọi route của doctor/examination/ có @Roles, không @Public (lớp 1: metadata của ExaminationModule)', () => {
-  it('ExaminationModule thật: không route nào thiếu @Roles hay có @Public (P3 rỗng; từ B1 có ExamCompletionController)', () => {
+  it('ExaminationModule thật: không route nào thiếu @Roles hay có @Public (P3 rỗng; từ B1 có ExamCompletionController, từ B2 thêm ExamRecordController)', () => {
     expect(findRouteRoleViolations(registeredControllers())).toEqual([]);
   });
 
@@ -125,7 +125,7 @@ describe('QHK-09 lớp 2: controller trong doctor/examination/ phải đăng ký
   const declared = (name: string) =>
     `@Controller('doctor/x')\n@Roles('BacSi')\nexport class ${name} {}`;
 
-  it('mã thật của thư mục: mọi lớp @Controller đã nằm trong controllers của ExaminationModule (từ B1: ExamCompletionController)', () => {
+  it('mã thật của thư mục: mọi lớp @Controller đã nằm trong controllers của ExaminationModule (từ B1: ExamCompletionController; từ B2: ExamRecordController)', () => {
     expect(
       findUnregisteredControllers(examFiles(), registeredControllers()),
     ).toEqual([]);
