@@ -1,5 +1,4 @@
-import type { DataSource, EntityManager } from 'typeorm';
-import { withBookingTransaction } from '../../../appointments/locking/booking-transaction.js';
+import { vi } from 'vitest';
 import {
   retryStats,
   reportRounds,
@@ -21,10 +20,6 @@ import {
   world,
 } from '../../../appointments/testing/status-int-kit.js';
 import { setNoShow } from '../../../appointments/testing/status-world.js';
-import { AuditRepository } from '../../../audit/audit.repository.js';
-import { AuditService } from '../../../audit/audit.service.js';
-import { editRecordEntry } from '../../../audit/testing/exam-audit-entries.js';
-import { nowVN, toSecond } from '../../../common/time/time.js';
 import {
   countRows,
   examCompletionStack,
@@ -35,10 +30,11 @@ import {
   runExamRounds,
 } from '../testing/exam-concurrency.js';
 import { assertExamInvariants } from '../testing/exam-invariants.js';
+import { recordBody, recordService } from '../testing/exam-record-stack.js';
 
-// doctor-exam B1 — các ca ĐỒNG THỜI của hoàn thành ca khám trên MySQL 8.4 THẬT (PLAN 5.3, 7.8 DHK-01, DHK-09; DHK-12 `[đề xuất]`; X1 M1, M4, M12). CHẠY MỘT MÌNH (`--no-file-parallelism` đã là mặc định của cấu hình int;
+// doctor-exam B1 — các ca ĐỒNG THỜI của hoàn thành ca khám trên MySQL 8.4 THẬT (PLAN 5.3, 7.8 DHK-01, DHK-09; DHK-02 của B2 (thay DHK-12 `[đề xuất]` mô phỏng của B1); X1 M1, M4, M12). CHẠY MỘT MÌNH (`--no-file-parallelism` đã là mặc định của cấu hình int;
 // không chạy cùng lúc với ca nặng khác). Mỗi vòng: dữ liệu SẠCH, hai bên cùng xuất phát (`racePair`, xen kẽ ai đi trước), IVK-01…IVK-05 và INV-01…INV-05 sau vòng, rồi IN một dòng `[B1-DHK]` (số vòng, bên thắng,
-// số lần thử lại 1213/1205 theo nhãn, số yêu cầu hết lượt 503). DỰ ĐOÁN (ghi trước khi chạy, TRACKING 12.7; lệch thì GHI, không sửa dự đoán): P1 DHK-01 và DHK-12: 0 lần thử lại, 0 × 503 (X1 M1, M12: chuỗi khoá
+// số lần thử lại 1213/1205 theo nhãn, số yêu cầu hết lượt 503). DỰ ĐOÁN (ghi trước khi chạy, TRACKING 12.7; lệch thì GHI, không sửa dự đoán): P1 DHK-01 và DHK-02: 0 lần thử lại, 0 × 503 (X1 M1, M12: chuỗi khoá
 // `lich_hen` X trước mọi ghi); P2 DHK-09: có thể ≥ 1 lần 1213 ở bên override (chu trình đã đo ở X1 M4: 8/56 vòng), thử lại thành công, 503 = 0 (`retriesAllowed`); P3 mọi ca: đúng một thông báo cho mỗi lịch HoanThanh.
 const TAG = 'B1-DHK';
 const SLOW = 600_000;
@@ -167,69 +163,18 @@ describe('DHK-09 hoàn thành THẬT đua override Quản trị viên THẬT DaT
   );
 });
 
-// Chuỗi PUT hồ sơ MÔ PHỎNG đúng PLAN 5.3 (B2 chưa có): khoá `lich_hen` X theo khoá chính → kiểm bác sĩ và trạng thái dưới khoá → `ho_so_kham` X theo `lich_hen_id` → INSERT hoặc UPDATE → nhật ký
-// `SuaGhiChuKham` (AuditService THẬT) khi lịch đã HoanThanh và đã có hồ sơ. Cùng vỏ `withBookingTransaction` như B2 sẽ dùng. B2 thay ca này bằng DHK-02 với service thật rồi xoá phần mô phỏng.
-async function simulatedPut(
-  database: DataSource,
-  input: { lichHenId: string; bacSiId: string; chiNhanhId: string },
-) {
-  const audit = new AuditService(new AuditRepository());
-  return withBookingTransaction(
-    database,
-    async (em: EntityManager) => {
-      const locked: { bacSiId: string; trangThai: string }[] = await em.query(
-        'SELECT CAST(bac_si_id AS CHAR) AS bacSiId, trang_thai AS trangThai FROM lich_hen WHERE lich_hen_id = ? FOR UPDATE',
-        [input.lichHenId],
-      );
-      const lich = locked[0];
-      if (lich?.bacSiId !== input.bacSiId) return { kind: 'NotFound' as const };
-      if (lich.trangThai !== 'DaTiepDon' && lich.trangThai !== 'HoanThanh')
-        return { kind: 'WrongState' as const };
-      const existing: { id: string; huongXuLy: string }[] = await em.query(
-        'SELECT CAST(ho_so_kham_id AS CHAR) AS id, huong_xu_ly AS huongXuLy FROM ho_so_kham WHERE lich_hen_id = ? FOR UPDATE',
-        [input.lichHenId],
-      );
-      const now = toSecond(nowVN());
-      const found = existing[0];
-      if (found === undefined) {
-        await em.query(
-          'INSERT INTO ho_so_kham (lich_hen_id, trieu_chung, chan_doan_so_bo, huong_xu_ly, cap_nhat_lan_cuoi) VALUES (?, ?, ?, ?, ?)',
-          [input.lichHenId, 'Ho khan', 'Viêm họng', 'Uống nước ấm', now],
-        );
-        return { kind: 'Saved' as const, edited: false };
-      }
-      await em.query(
-        'UPDATE ho_so_kham SET huong_xu_ly = ?, cap_nhat_lan_cuoi = ? WHERE ho_so_kham_id = ?',
-        ['Nghỉ ngơi', now, found.id],
-      );
-      const edited = lich.trangThai === 'HoanThanh';
-      if (edited)
-        await audit.record(
-          em,
-          editRecordEntry({
-            actorId: input.bacSiId,
-            branchId: input.chiNhanhId,
-            targetId: found.id,
-            changes: {
-              truoc: { huong_xu_ly: found.huongXuLy },
-              sau: { huong_xu_ly: 'Nghỉ ngơi' },
-            },
-          }),
-        );
-      return { kind: 'Saved' as const, edited };
-    },
-    { label: 'exam-record-sim' },
-  );
-}
-
-describe('DHK-12 [đề xuất] hoàn thành THẬT đua chuỗi PUT hồ sơ MÔ PHỎNG cùng lịch DaTiepDon (X1 M1 chạy lại với service thật, có INSERT thong_bao): cả hai thành công, 0 lần thử lại', () => {
+// DHK-02 (doctor-exam B2; PLAN 7.8; X1 M1 chạy lại với service THẬT): `complete` THẬT của B1 đua `PUT exam-record` THẬT của B2 cùng một lịch `DaTiepDon`. Thay DHK-12 `[đề xuất, B1]` vốn dùng chuỗi PUT MÔ PHỎNG
+// (`simulatedPut`, đã xoá). Bên PUT trả bản hồ sơ; nhật ký `SuaGhiChuKham` có IFF PUT chạy SAU hoàn thành VÀ đã có hồ sơ (chỉ ca (b)). Dự đoán P1 của B1 vẫn áp dụng: 0 lần thử lại, 0 × 503.
+describe('DHK-02 hoàn thành THẬT đua PUT hồ sơ THẬT cùng lịch DaTiepDon (X1 M1 chạy lại với service thật, có INSERT thong_bao và nhật ký): cả hai thành công, 0 lần thử lại', () => {
   it.each([
     ['(a) chưa có hồ sơ', false],
     ['(b) đã có hồ sơ', true],
   ])(
     `${String(EXAM_RACE_ROUNDS)} vòng %s`,
     async (name, hasRecord) => {
+      vi.setSystemTime(new Date('2026-11-10T09:00:00+07:00'));
       const w = await world();
+      const put = recordService(db);
       const tally = winnerTally();
       await runExamRounds(db, {
         setup: async () => {
@@ -247,34 +192,39 @@ describe('DHK-12 [đề xuất] hoàn thành THẬT đua chuỗi PUT hồ sơ M�
             round,
             () => service.complete(w.doctor.account.taiKhoanId, lich.maLichHen),
             () =>
-              simulatedPut(db, {
-                lichHenId: lich.lichHenId,
-                bacSiId: w.doctor.account.taiKhoanId,
-                chiNhanhId: w.branch.chiNhanhId,
-              }),
+              put.save(
+                w.doctor.account.taiKhoanId,
+                lich.maLichHen,
+                recordBody({
+                  trieuChung: 'Ho',
+                  chanDoanSoBo: 'Viêm họng',
+                  huongXuLy: 'Nghỉ ngơi',
+                  capNhatLanCuoi: hasRecord ? '2026-11-10T01:00:00.000Z' : null,
+                }),
+              ),
           ),
         check: async ({ lich }, results) => {
-          const [complete, put] = results.map((result) => {
+          const [complete, saved] = results.map((result) => {
             if (result.status === 'rejected')
               throw new Error(`yêu cầu ném lỗi: ${String(result.reason)}`);
             return result.value;
-          }) as [{ trangThai: string }, { kind: string; edited?: boolean }];
+          }) as unknown as [{ trangThai: string }, { huongXuLy: string }];
           expect(complete.trangThai).toBe('HoanThanh');
-          expect(put.kind).toBe('Saved');
+          expect(saved.huongXuLy).toBe('Nghỉ ngơi');
           expect((await w.snapshot(lich, 0)).row.trangThai).toBe('HoanThanh');
           expect(await countRows(db, 'ho_so_kham')).toBe(1);
           expect(await thongBaoRows(db, COMPLETED)).toHaveLength(1);
           // nhật ký có IFF PUT chạy sau hoàn thành VÀ đã có hồ sơ (chỉ ca (b)); IVK-04 kiểm khớp trạng thái ở `runExamRounds`
-          expect(await countRows(db, 'nhat_ky_hanh_dong')).toBe(
-            put.edited === true ? 1 : 0,
-          );
+          const audits = await countRows(db, 'nhat_ky_hanh_dong');
+          if (!hasRecord) expect(audits).toBe(0);
+          expect(audits).toBeLessThanOrEqual(1);
           // Nhãn là thứ QUAN SÁT ĐƯỢC: có dòng nhật ký (PUT chạy sau hoàn thành, chỉ xảy ra ở ca (b)) hay không. Ở ca (a) không có hồ sơ cũ nên PUT không bao giờ ghi nhật ký: nhãn không nói ai đi trước.
-          tally.add(put.edited === true ? 'co-nhat-ky' : 'khong-nhat-ky');
+          tally.add(audits === 1 ? 'co-nhat-ky' : 'khong-nhat-ky');
         },
       });
       reportRounds(
         TAG,
-        `DHK-12 ${name}`,
+        `DHK-02 ${name}`,
         EXAM_RACE_ROUNDS,
         tally.winners,
         logs,

@@ -21,6 +21,8 @@ export const EXAM_FIELD_ERROR_CODES = {
   REQUIRED: 'BAT_BUOC',
   TOO_LONG: 'QUA_DAI',
   INVALID_DATE: 'NGAY_KHONG_HOP_LE',
+  /** Nội dung một trường chữ của hồ sơ có dạng bí mật mà bộ che của `audit/` sẽ đổi (`Cookie: …`, `otp: …`, `token=…`, 64 hex…): chặn TRƯỚC giao dịch (HSK-23; Đại 15/11/2026 "Chặn trước bằng lỗi 400"). */
+  CONTENT_REJECTED: 'NOI_DUNG_KHONG_HOP_LE',
   RATING_REQUIRED: 'SO_SAO_BAT_BUOC',
   RATING_INVALID: 'SO_SAO_KHONG_HOP_LE',
   HIDE_REASON_REQUIRED: 'LY_DO_BAT_BUOC',
