@@ -28,9 +28,11 @@ import {
   findAuditTableViolations,
   findClockViolations,
   findIndexAndLockViolations,
+  findHealthRecordTableViolations,
   findInternalWriteViolations,
   findRouteRoleViolations,
   findWriteViolations,
+  HEALTH_RECORD_READER,
   INTERNAL_WRITE_RULES,
   type SourceFile,
 } from './testing/architecture-rules.js';
@@ -40,6 +42,7 @@ import {
 // Task B6b — AR-06 và CG-10 (luật nội bộ: mỗi bảng chỉ MỘT nơi ghi trong appointments/; TRACKING 3.14 B6-G).
 // Task B12 — AR-02 cho route đổi trạng thái của Lễ tân; AR-06 thêm mẫu `UPDATE benh_nhan` chỉ ở state/ (TRACKING 3.26 câu (i)).
 // Task B4 — AR-02 cho hai route đọc của Quản trị viên; AR-08 (bảng `nhat_ky_hanh_dong` của audit/ chỉ được ĐỌC ở MỘT file, không câu ghi nào; TRACKING 3.33 B4-E).
+// Task B3 (doctor-exam) — AR-09 (bảng `ho_so_kham` của doctor/ chỉ được ĐỌC ở MỘT file, không câu ghi nào; TRACKING doctor-exam 17).
 // Bộ quét dùng lại hàm của doctor (TECH_DEBT dòng 88); luật riêng ở testing/architecture-rules.ts, nhận `{ path, source }[]` nên test bằng dữ liệu tổng hợp.
 const SRC_DIR = fileURLToPath(new URL('..', import.meta.url));
 
@@ -507,6 +510,73 @@ describe('AR-08 bảng nhat_ky_hanh_dong của audit/: trong appointments/ chỉ
           'INSERT INTO nhat_ky_hanh_dong () VALUES ()',
         ),
         file(reader, "q('SELECT 1 FROM nhat_ky_hanh_dong WHERE 1 = 1')"),
+      ]),
+    ).toEqual([]);
+  });
+});
+
+describe('AR-09 bảng ho_so_kham của doctor/: trong appointments/ chỉ ĐỌC ở MỘT file, không câu ghi nào', () => {
+  const reader = HEALTH_RECORD_READER;
+
+  it('cây src/ thật đạt, và bộ quét THẤY câu đọc thật (đổi nơi được phép thì lộ đúng doctor-appointments.repository.ts)', () => {
+    expect(findHealthRecordTableViolations(files)).toEqual([]);
+    expect(files.some((f) => f.path === reader)).toBe(true);
+    const exposed = findHealthRecordTableViolations(
+      files,
+      'appointments/khac.ts',
+    );
+    expect(exposed).toHaveLength(1);
+    expect(exposed[0]).toMatch(
+      /^appointments\/lists\/doctor-appointments\.repository\.ts: đọc ho_so_kham/,
+    );
+  });
+
+  it.each([
+    ['INSERT INTO', 'INSERT INTO ho_so_kham (lich_hen_id) VALUES (1)'],
+    ['INSERT IGNORE INTO', 'INSERT IGNORE INTO `ho_so_kham` () VALUES ()'],
+    ['REPLACE INTO', 'REPLACE INTO ho_so_kham () VALUES ()'],
+    ['UPDATE', 'UPDATE ho_so_kham SET trieu_chung = NULL'],
+    ['DELETE FROM', 'DELETE FROM ho_so_kham WHERE 1 = 1'],
+    ['TRUNCATE', 'TRUNCATE TABLE ho_so_kham'],
+    ['manager.insert(HoSoKham', 'await manager.insert(HoSoKham, {})'],
+    ['getRepository(HoSoKham).save', 'em.getRepository(HoSoKham).save(x)'],
+  ])(
+    'đột biến: câu ghi "%s" bị bắt dù ở chính file được phép đọc',
+    (_name, sql) => {
+      const found = findHealthRecordTableViolations([
+        file(reader, `q(\`${sql}\`)`),
+      ]);
+      expect(found).toHaveLength(1);
+      expect(found[0]).toContain('doctor/examination');
+    },
+  );
+
+  it.each(['FROM ho_so_kham', 'JOIN `ho_so_kham` hk ON 1 = 1'])(
+    'đột biến: câu ĐỌC "%s" ở file khác bị bắt',
+    (sql) => {
+      const found = findHealthRecordTableViolations([
+        file('appointments/lists/list-query.sql.ts', `q('SELECT 1 ${sql}')`),
+      ]);
+      expect(found).toHaveLength(1);
+      expect(found[0]).toContain(`chỉ ${reader} được đọc`);
+    },
+  );
+
+  it('không bắt nhầm: comment, tên bảng đứng một mình (lock-order), cột và bảng có tiền tố giống, file test, và nơi ngoài appointments/ (doctor/ ghi bảng của chính nó)', () => {
+    expect(
+      findHealthRecordTableViolations([
+        file(
+          'appointments/a.ts',
+          '// SELECT FROM ho_so_kham, INSERT INTO ho_so_kham',
+        ),
+        file('appointments/locking/b.ts', "const order = ['ho_so_kham']"),
+        file('appointments/c.ts', 'SELECT hk.ho_so_kham_id AS id'),
+        file('appointments/d.ts', 'SELECT 1 FROM ho_so_kham_cu'),
+        file(
+          'doctor/examination/exam-record/exam-record.repository.ts',
+          'INSERT INTO ho_so_kham (lich_hen_id) VALUES (1)',
+        ),
+        file(reader, "q('SELECT 1 FROM x LEFT JOIN ho_so_kham hk ON 1 = 1')"),
       ]),
     ).toEqual([]);
   });

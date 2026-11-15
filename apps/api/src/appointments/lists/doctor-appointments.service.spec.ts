@@ -9,7 +9,7 @@ import {
 import type {
   DoctorAppointmentDetailRow,
   DoctorAppointmentFilter,
-  DoctorAppointmentRow,
+  DoctorAppointmentPageRow,
   DoctorAppointmentsRepository,
 } from './doctor-appointments.repository.js';
 import { DoctorAppointmentsService } from './doctor-appointments.service.js';
@@ -55,8 +55,8 @@ beforeEach(() => {
 const baseQuery: DoctorAppointmentsQuery = { page: 1, pageSize: 20, offset: 0 };
 
 function row(
-  overrides: Partial<DoctorAppointmentRow> = {},
-): DoctorAppointmentRow {
+  overrides: Partial<DoctorAppointmentPageRow> = {},
+): DoctorAppointmentPageRow {
   return {
     maLichHen: 'CLX-20261110-ABCDE',
     trangThai: 'DaXacNhan',
@@ -70,6 +70,25 @@ function row(
     dichVu: 'Khám nội',
     chuyenKhoa: 'Nội',
     lyDoKham: 'Đau đầu',
+    coHoSoKham: 0,
+    ...overrides,
+  };
+}
+
+// Hàng thô của câu chi tiết khi lịch CHƯA có hồ sơ (cờ 0, cột hồ sơ NULL)
+function detailRow(
+  overrides: Partial<DoctorAppointmentDetailRow> = {},
+): DoctorAppointmentDetailRow {
+  return {
+    ...row(),
+    chiNhanh: 'CN 1',
+    ngayDat: new Date('2026-11-01T00:00:00.000Z'),
+    coHoSo: 0,
+    trieuChung: null,
+    chanDoanSoBo: null,
+    huongXuLy: null,
+    ngayTaiKhamDuKien: null,
+    capNhatLanCuoi: null,
     ...overrides,
   };
 }
@@ -92,11 +111,9 @@ describe('phạm vi bác sĩ (DSB-01)', () => {
   });
 
   it('DSB-07 chi tiết: `bacSiId` của token và mã lịch đi nguyên vào kho, trong MỘT `runReadOnly` với DataSource của service', async () => {
-    repo.findDetail.mockResolvedValue({
-      ...row(),
-      chiNhanh: 'CN 1',
-      ngayDat: new Date('2026-11-01T00:00:00.000Z'),
-    } satisfies DoctorAppointmentDetailRow);
+    repo.findDetail.mockResolvedValue(
+      detailRow() satisfies DoctorAppointmentDetailRow,
+    );
     await service.detail(DOCTOR, 'CLX-20261110-ABCDE');
     expect(repo.findDetail).toHaveBeenCalledWith(
       hoisted.manager,
@@ -237,7 +254,7 @@ describe('sắp xếp, phân trang, hình dạng (DSB-04, DSB-05, DSB-11)', () =
     });
   });
 
-  it('DSB-06 `items` qua mapper của Bác sĩ: tám khoá, hàng thô thừa (`lichHenId`, giá) không lọt', async () => {
+  it('DSB-06 `items` qua mapper của Bác sĩ: chín khoá (tám khoá lõi cộng `coHoSoKham`), hàng thô thừa (`lichHenId`, giá) không lọt', async () => {
     repo.count.mockResolvedValue(1);
     repo.findPage.mockResolvedValue([
       row({
@@ -245,8 +262,24 @@ describe('sắp xếp, phân trang, hình dạng (DSB-04, DSB-05, DSB-11)', () =
       }),
     ]);
     const page = await service.list(DOCTOR, baseQuery);
-    expect(Object.keys(page.items[0] ?? {})).toHaveLength(8);
+    expect(Object.keys(page.items[0] ?? {})).toHaveLength(9);
     expect(JSON.stringify(page)).not.toMatch(/4242|150000/);
+  });
+
+  it('HDK-02 cờ `coHoSoKham` của từng dòng đi theo hàng thô (1 ⇒ true, 0 ⇒ false), thứ tự dòng giữ nguyên, `total` lấy từ câu đếm (không từ số dòng của trang)', async () => {
+    repo.count.mockResolvedValue(7);
+    repo.findPage.mockResolvedValue([
+      row({ maLichHen: 'CLX-20261110-AAAAA', coHoSoKham: 1 }),
+      row({ maLichHen: 'CLX-20261110-BBBBB', coHoSoKham: 0 }),
+    ]);
+    const page = await service.list(DOCTOR, baseQuery);
+    expect(
+      page.items.map((item) => [item.maLichHen, item.coHoSoKham]),
+    ).toStrictEqual([
+      ['CLX-20261110-AAAAA', true],
+      ['CLX-20261110-BBBBB', false],
+    ]);
+    expect(page.total).toBe(7);
   });
 });
 
@@ -262,14 +295,33 @@ describe('chi tiết: 404 cùng một chỗ (DSB-07)', () => {
     });
   });
 
-  it('DSB-06, DSB-08 có hàng ⇒ chi tiết mười một khoá, `ghiChuKham` là `null`', async () => {
-    repo.findDetail.mockResolvedValue({
-      ...row(),
-      chiNhanh: 'CN 1',
-      ngayDat: new Date('2026-11-01T00:00:00.000Z'),
-    });
+  it('DSB-06, DSB-08 có hàng, chưa có hồ sơ ⇒ chi tiết mười một khoá, `ghiChuKham` là `null`', async () => {
+    repo.findDetail.mockResolvedValue(detailRow());
     const detail = await service.detail(DOCTOR, 'CLX-20261110-ABCDE');
     expect(Object.keys(detail)).toHaveLength(11);
     expect(detail.ghiChuKham).toBeNull();
+  });
+
+  it('DSB-06, DSB-08, HDK-01 có hàng và có hồ sơ ⇒ vẫn mười một khoá, `ghiChuKham` là đối tượng năm khoá (nguyên văn) qua mapper', async () => {
+    repo.findDetail.mockResolvedValue(
+      detailRow({
+        trangThai: 'HoanThanh',
+        coHoSo: 1,
+        trieuChung: 'Ho',
+        chanDoanSoBo: 'Viêm họng',
+        huongXuLy: 'Nghỉ ngơi',
+        ngayTaiKhamDuKien: '2026-11-24',
+        capNhatLanCuoi: new Date('2026-11-10T03:20:30.000Z'),
+      }),
+    );
+    const detail = await service.detail(DOCTOR, 'CLX-20261110-ABCDE');
+    expect(Object.keys(detail)).toHaveLength(11);
+    expect(detail.ghiChuKham).toStrictEqual({
+      trieuChung: 'Ho',
+      chanDoanSoBo: 'Viêm họng',
+      huongXuLy: 'Nghỉ ngơi',
+      ngayTaiKhamDuKien: '2026-11-24',
+      capNhatLanCuoi: '2026-11-10T03:20:30.000Z',
+    });
   });
 });
