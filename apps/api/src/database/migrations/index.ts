@@ -6,6 +6,7 @@ import { TaoBangHoSoKham1793620800000 } from './1793620800000-tao-bang-ho-so-kha
 import { TaoBangMocHoanTien1793534400000 } from './1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './1793275200000-tao-bang-nghi-phep.js';
 import { TaoBangNhanSu1793080000000 } from './1793080000000-tao-bang-nhan-su.js';
+import { TaoBangThanhToanVi1793707200000 } from './1793707200000-tao-bang-thanh-toan-vi.js';
 import { TaoBangVanHanh1793090000000 } from './1793090000000-tao-bang-van-hanh.js';
 import { ThongBaoLichHen1793448000000 } from './1793448000000-thong-bao-lich-hen.js';
 
@@ -22,4 +23,5 @@ export const MIGRATIONS = [
   ThongBaoLichHen1793448000000,
   TaoBangMocHoanTien1793534400000,
   TaoBangHoSoKham1793620800000,
+  TaoBangThanhToanVi1793707200000,
 ];

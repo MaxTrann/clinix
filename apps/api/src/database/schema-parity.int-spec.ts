@@ -60,6 +60,14 @@ const NGHI_PHEP_TABLES = ['yeu_cau_nghi_phep'];
 const MOC_HOAN_TIEN_TABLES = ['moc_hoan_tien'];
 // doctor-exam P1: hồ sơ khám và đánh giá bác sĩ
 const EXAM_TABLES = ['ho_so_kham', 'danh_gia_bac_si'];
+// payment P1: năm bảng tiền (MGT-02; gồm cột lich_su_hoan_tien.loai, bảng lan_doi_soat_nap_vi và ENUM nhat_ky_hanh_dong mở rộng)
+const PAYMENT_TABLES = [
+  'giao_dich_thanh_toan',
+  'lich_su_hoan_tien',
+  'yeu_cau_rut_tien',
+  'giao_dich_vi',
+  'lan_doi_soat_nap_vi',
+];
 const MIGRATED_TABLES = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
@@ -69,6 +77,7 @@ const MIGRATED_TABLES = [
   ...NGHI_PHEP_TABLES,
   ...MOC_HOAN_TIEN_TABLES,
   ...EXAM_TABLES,
+  ...PAYMENT_TABLES,
 ];
 let migrated: DataSource;
 let reference: DataSource;

@@ -6,6 +6,12 @@ import {
 } from './migrations/1793620800000-tao-bang-ho-so-kham.js';
 import { MIGRATIONS } from './migrations/index.js';
 import { TAO_BANG_MOC_HOAN_TIEN_SQL } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
+import {
+  NHAT_KY_RUT_TIEN_DOWN_SQL,
+  NHAT_KY_RUT_TIEN_UP_SQL,
+  TAO_BANG_THANH_TOAN_VI_SQL,
+  TaoBangThanhToanVi1793707200000,
+} from './migrations/1793707200000-tao-bang-thanh-toan-vi.js';
 import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-su.js';
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
 import { THONG_BAO_LICH_HEN_UP_SQL } from './migrations/1793448000000-thong-bao-lich-hen.js';
@@ -315,6 +321,98 @@ describe('migration doctor-exam P1 (ho_so_kham, danh_gia_bac_si) khớp schema S
     const migration = new TaoBangHoSoKham1793620800000();
     expect(migration.name).toBe(TaoBangHoSoKham1793620800000.name);
     expect(Number.isFinite(timestampOf(migration.name))).toBe(true);
+    const index = MIGRATIONS.findIndex((item) => item.name === migration.name);
+    expect(index, 'đã đăng ký ở MIGRATIONS').toBeGreaterThan(0);
+    for (const earlier of MIGRATIONS.slice(0, index)) {
+      expect(timestampOf(earlier.name), earlier.name).toBeLessThan(
+        timestampOf(migration.name),
+      );
+    }
+  });
+});
+
+// payment P1 (MGT-02, MGT-11): phần chữ DDL (không cần DB). Phần SHOW CREATE TABLE ở schema-parity.int-spec.ts, up/down ở migrations.int-spec.ts,
+// CHECK/UNIQUE thật ở wallet/entities/money-tables.int-spec.ts.
+describe('migration payment P1 (năm bảng tiền) khớp schema SQL chính thức', () => {
+  const PAYMENT_TABLES = [
+    'giao_dich_thanh_toan',
+    'lich_su_hoan_tien',
+    'yeu_cau_rut_tien',
+    'giao_dich_vi',
+    'lan_doi_soat_nap_vi',
+  ];
+  const official =
+    officialStatementsFor(PAYMENT_TABLES).map(normalizeStatement);
+  const migrated = TAO_BANG_THANH_TOAN_VI_SQL.map(normalizeStatement);
+  const countFor = (sqls: string[], table: string): number =>
+    sqls.filter((sql) => targetTable(sql) === table).length;
+
+  it('MGT-02: đúng 35 câu, trùng từng câu và cùng thứ tự với clinix_mysql.sql (kể cả cột loai và bảng lan_doi_soat_nap_vi)', () => {
+    expect(official).toHaveLength(35);
+    expect(migrated).toEqual(official);
+    // Số câu từng bảng: bảng, chỉ mục, COMMENT bảng, khóa ngoại, CHECK
+    expect(countFor(migrated, 'giao_dich_thanh_toan')).toBe(11);
+    expect(countFor(migrated, 'lich_su_hoan_tien')).toBe(4);
+    expect(countFor(migrated, 'yeu_cau_rut_tien')).toBe(6);
+    expect(countFor(migrated, 'giao_dich_vi')).toBe(9);
+    expect(countFor(migrated, 'lan_doi_soat_nap_vi')).toBe(5);
+  });
+
+  it('MGT-02: mọi câu chỉ tác động năm bảng của task; hai thay đổi DDL đã chốt có mặt trong chữ DDL', () => {
+    for (const statement of TAO_BANG_THANH_TOAN_VI_SQL) {
+      expect(PAYMENT_TABLES).toContain(targetTable(statement));
+    }
+    const refund = migrated.find((sql) =>
+      sql.startsWith('CREATE TABLE `lich_su_hoan_tien` ('),
+    );
+    expect(refund).toContain(
+      "`loai` ENUM ('TuDong', 'DacBiet') NOT NULL DEFAULT 'TuDong'",
+    );
+    const reconcile = migrated.find((sql) =>
+      sql.startsWith('CREATE TABLE `lan_doi_soat_nap_vi` ('),
+    );
+    expect(reconcile).toContain(
+      "`ket_qua` ENUM ('ThanhCong', 'ThatBai', 'KhongTheXuLy') NOT NULL",
+    );
+    expect(migrated).toContain(
+      'CREATE UNIQUE INDEX `lan_doi_soat_nap_vi_index_lan_thu` ON `lan_doi_soat_nap_vi` (`giao_dich_thanh_toan_id`, `so_lan_thu`)',
+    );
+    // Ca âm: sửa một chữ ở bất kỳ câu nào làm lệch văn bản
+    const changed = [...migrated];
+    changed[0] = (changed[0] ?? '').replace('ENGINE=InnoDB', 'ENGINE=MyISAM');
+    expect(changed).not.toEqual(official);
+  });
+
+  it('MGT-02: CREATE TABLE của nhat_ky_hanh_dong ở file chính thức có giá trị ENUM mới ở CUỐI danh sách; ALTER của migration khớp', () => {
+    const create =
+      officialStatementsFor(['nhat_ky_hanh_dong'])
+        .map(normalizeStatement)
+        .find((sql) => sql.startsWith('CREATE TABLE')) ?? '';
+    expect(create).toContain(
+      "'DuyetNghiPhep', 'TuChoiNghiPhep', 'DuyetRutTien', 'TuChoiRutTien') NOT NULL",
+    );
+    expect(create).toContain(
+      "'yeu_cau_nghi_phep', 'yeu_cau_rut_tien') NOT NULL COMMENT",
+    );
+    expect(NHAT_KY_RUT_TIEN_UP_SQL).toContain(
+      "'TuChoiNghiPhep', 'DuyetRutTien', 'TuChoiRutTien') NOT NULL",
+    );
+    expect(NHAT_KY_RUT_TIEN_UP_SQL).toContain(
+      "'yeu_cau_nghi_phep', 'yeu_cau_rut_tien') NOT NULL COMMENT 'Bảng bị tác động'",
+    );
+    // down trả về danh sách trước P1: không còn ba giá trị mới, vẫn đủ các giá trị cũ
+    for (const value of ['DuyetRutTien', 'TuChoiRutTien', 'yeu_cau_rut_tien']) {
+      expect(NHAT_KY_RUT_TIEN_DOWN_SQL).not.toContain(value);
+    }
+    expect(NHAT_KY_RUT_TIEN_DOWN_SQL).toContain("'TuChoiNghiPhep') NOT NULL");
+    expect(targetTable(NHAT_KY_RUT_TIEN_UP_SQL)).toBe('nhat_ky_hanh_dong');
+  });
+
+  it('MGT-11: name trùng tên lớp, kết thúc bằng timestamp 13 chữ số và lớn hơn mọi migration đứng trước trong sổ đăng ký', () => {
+    const timestampOf = (name: string): number =>
+      Number(/(\d{13})$/.exec(name)?.[1]);
+    const migration = new TaoBangThanhToanVi1793707200000();
+    expect(migration.name).toBe(TaoBangThanhToanVi1793707200000.name);
     const index = MIGRATIONS.findIndex((item) => item.name === migration.name);
     expect(index, 'đã đăng ký ở MIGRATIONS').toBeGreaterThan(0);
     for (const earlier of MIGRATIONS.slice(0, index)) {
