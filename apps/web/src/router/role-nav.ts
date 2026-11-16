@@ -12,7 +12,11 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import { DOCTOR_PATHS, RECEPTION_SCHEDULE_PATH } from '../features/doctor';
+import {
+  DOCTOR_PATHS,
+  PATIENT_EXAM_RECORDS_PATH,
+  RECEPTION_SCHEDULE_PATH,
+} from '../features/doctor';
 import { PATIENT_PATHS, RECEPTION_PATHS } from '../features/patient';
 import {
   DOCTOR_APPOINTMENTS_PATH,
@@ -34,7 +38,12 @@ export const PATIENT_NAV: { items: RoleNavItem[]; footerItems: RoleNavItem[] } =
         icon: Calendar,
         to: PATIENT_APPOINTMENTS_PATH,
       },
-      { label: 'Hồ sơ khám bệnh', icon: ClipboardList },
+      // doctor-exam F5: trang Hồ sơ khám bệnh (không `end`, nếp các mục menu khác)
+      {
+        label: 'Hồ sơ khám bệnh',
+        icon: ClipboardList,
+        to: PATIENT_EXAM_RECORDS_PATH,
+      },
       { label: 'Ví của tôi', icon: Wallet },
       { label: 'Danh sách chờ', icon: ListOrdered },
       { label: 'Tin nhắn', icon: MessageCircle },
