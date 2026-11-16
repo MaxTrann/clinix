@@ -8,3 +8,8 @@ export type {
 } from './doctor/exam-record-card';
 export { PATIENT_EXAM_RECORDS_PATH } from './patient/patient-exam-paths';
 export { PATIENT_EXAM_ROUTES } from './patient/patient-exam-routes';
+export { PatientExamSections } from './patient/patient-exam-sections';
+export type {
+  PatientExamCards,
+  PatientExamSectionsProps,
+} from './patient/patient-exam-sections';

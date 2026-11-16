@@ -1,6 +1,7 @@
 import type {
   ExamDetailNote,
   ExamListItem,
+  ExamRating,
   ExamineeOption,
 } from '../../api/patient-exam-types';
 
@@ -12,6 +13,8 @@ export interface FakeVisit extends ExamListItem {
   // Chi tiết kèm theo (cho `GET /patient/exam-records/:ma`)
   chiNhanh: string;
   hoSoKham: ExamDetailNote | null;
+  // Đánh giá đã có của lịch này (F6; `null` = chưa đánh giá). POST đánh giá hợp lệ GHI vào đây để GET sau đó thấy
+  danhGia: ExamRating | null;
 }
 
 export interface FakeExamData {
@@ -23,6 +26,9 @@ export interface RecordedCall {
   path: string;
   params: Record<string, string>;
   signal: AbortSignal | null | undefined;
+  method: string;
+  // Thân gửi lên (chuỗi JSON) hoặc `null`
+  body: string | null;
 }
 
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -66,6 +72,7 @@ export function visit(
     personId: null,
     chiNhanh: 'CLINIX Chi nhánh Quận 3',
     hoSoKham: null,
+    danhGia: null,
     ...overrides,
   };
 }
@@ -149,14 +156,39 @@ export function detailBody(row: FakeVisit): unknown {
     bacSi: row.bacSi,
     nguoiKham: row.nguoiKham,
     hoSoKham: row.hoSoKham,
-    // Hai khoá của B5 mà F5 không đọc: phải bị bỏ
-    danhGia: null,
-    coTheDanhGia: true,
+    // Hai khoá cuối của B5 (F6 đọc): `coTheDanhGia = (danhGia === null)`
+    danhGia: row.danhGia,
+    coTheDanhGia: row.danhGia === null,
   };
 }
 
-// Trả lời MỘT lời gọi theo URL (hàm thuần; test cần trễ hay lỗi thì bọc hàm này)
-export function routeExamRequest(url: URL, data: FakeExamData): Response {
+// `POST …/rating` (B6) theo hợp đồng: 404 khi không có lịch, 409 `DA_DANH_GIA` khi đã có đánh giá, ngược lại GHI đánh giá vào lịch và trả 201 đúng ba khoá (`nhanXet` `null` khi thân không có khoá). Không kiểm miền số sao: test lỗi 400 chèn qua `respond`
+function rateVisit(row: FakeVisit | undefined, body: string | null): Response {
+  if (row === undefined) return notFoundResponse();
+  if (row.danhGia !== null) {
+    return jsonOk({ maLoi: 'DA_DANH_GIA', thongBao: 'Đã đánh giá.' }, 409);
+  }
+  const sent = JSON.parse(body ?? '{}') as {
+    soSao: number;
+    nhanXet?: string;
+  };
+  row.danhGia = {
+    soSao: sent.soSao,
+    nhanXet: sent.nhanXet ?? null,
+    thoiDiemTao: new Date().toISOString(),
+  };
+  return jsonOk(row.danhGia, 201);
+}
+
+// Trả lời MỘT lời gọi theo URL (test cần trễ hay lỗi thì bọc hàm này). `POST …/rating` GHI vào `data` (lịch có đánh giá từ đó)
+export function routeExamRequest(
+  url: URL,
+  data: FakeExamData,
+  request: { method: string; body: string | null } = {
+    method: 'GET',
+    body: null,
+  },
+): Response {
   const path = url.pathname.replace(/^\/api/, '');
   const params = Object.fromEntries(url.searchParams.entries());
   if (path === '/patient/exam-records') {
@@ -164,8 +196,15 @@ export function routeExamRequest(url: URL, data: FakeExamData): Response {
   }
   const prefix = '/patient/exam-records/';
   if (path.startsWith(prefix)) {
-    const code = decodeURIComponent(path.slice(prefix.length));
+    const rest = path.slice(prefix.length);
+    const isRating = rest.endsWith('/rating');
+    const code = decodeURIComponent(isRating ? rest.slice(0, -7) : rest);
     const row = data.visits.find((candidate) => candidate.maLichHen === code);
+    if (isRating) {
+      return request.method === 'POST'
+        ? rateVisit(row, request.body)
+        : notFoundResponse();
+    }
     return row === undefined ? notFoundResponse() : jsonOk(detailBody(row));
   }
   return notFoundResponse();
@@ -191,11 +230,13 @@ export function createFakePatientExamApi(
       path: url.pathname.replace(/^\/api/, ''),
       params: Object.fromEntries(url.searchParams.entries()),
       signal: init?.signal,
+      method: init?.method ?? 'GET',
+      body: typeof init?.body === 'string' ? init.body : null,
     };
     calls.push(call);
     const custom = respond?.(url, call);
     return custom === undefined
-      ? Promise.resolve(routeExamRequest(url, data))
+      ? Promise.resolve(routeExamRequest(url, data, call))
       : Promise.resolve(custom);
   };
   return {
@@ -203,7 +244,14 @@ export function createFakePatientExamApi(
     calls,
     listCalls: () =>
       calls.filter((call) => call.path === '/patient/exam-records'),
+    // Các lời gọi GET chi tiết (không tính POST đánh giá)
     detailCalls: () =>
-      calls.filter((call) => call.path.startsWith('/patient/exam-records/')),
+      calls.filter(
+        (call) =>
+          call.method === 'GET' &&
+          call.path.startsWith('/patient/exam-records/') &&
+          !call.path.endsWith('/rating'),
+      ),
+    ratingCalls: () => calls.filter((call) => call.path.endsWith('/rating')),
   };
 }

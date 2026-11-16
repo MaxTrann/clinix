@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import { PATIENT_APPOINTMENTS_PATH } from '../../../../../shared/routes/booking-paths';
 import { ErrorState } from '../../../../../shared/ui/error-state';
 import { LoadingState } from '../../../../../shared/ui/loading-state';
+import { PatientExamSections } from '../../../../doctor';
 import {
   classifyDetailError,
   type DetailErrorKind,
@@ -87,26 +88,35 @@ function AppointmentDetail({ maLichHen }: { maLichHen: string }) {
       {view.kind === 'ready' && (
         <div aria-busy={view.refreshing} className="mt-5 flex flex-col gap-4">
           <DetailSummary detail={view.detail} />
-          <DetailColumns
-            main={
-              <>
-                <DetailInfoCard detail={view.detail} />
-                <RecordCard />
-              </>
-            }
-            side={
-              <>
-                <DetailCostCard detail={view.detail} />
-                <DetailTimeline status={view.detail.trangThai} />
-                <CancelSection
-                  detail={view.detail}
-                  box={box}
-                  onReload={reload}
-                  fallbackFocusRef={headingRef}
-                />
-              </>
-            }
-          />
+          {/* doctor-exam F6 (Q20, Q21): CHỈ khi `HoanThanh` module `doctor` gọi `exam-records` và đưa hai thẻ vào đúng hai cột (hồ sơ ở trái, đánh giá ở phải: Figma `422:2`); trạng thái khác `record` và `rating` là `null` nên giữ thẻ chữ tĩnh cũ */}
+          <PatientExamSections
+            maLichHen={view.detail.maLichHen}
+            trangThai={view.detail.trangThai}
+          >
+            {({ record, rating }) => (
+              <DetailColumns
+                main={
+                  <>
+                    <DetailInfoCard detail={view.detail} />
+                    {record ?? <RecordCard />}
+                  </>
+                }
+                side={
+                  <>
+                    <DetailCostCard detail={view.detail} />
+                    <DetailTimeline status={view.detail.trangThai} />
+                    {rating}
+                    <CancelSection
+                      detail={view.detail}
+                      box={box}
+                      onReload={reload}
+                      fallbackFocusRef={headingRef}
+                    />
+                  </>
+                }
+              />
+            )}
+          </PatientExamSections>
         </div>
       )}
     </DetailPageFrame>
