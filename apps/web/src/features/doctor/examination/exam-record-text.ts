@@ -12,18 +12,24 @@ export const RECORD_TEXT = {
   pending:
     'Hồ sơ khám sẽ được bác sĩ cập nhật sau khi người bệnh được tiếp đón.',
   notStarted: 'Chưa ghi hồ sơ khám.',
+  // Dòng phụ của trạng thái rỗng (doctor-exam F3; Figma `459:2` `460:271`, `464:2`)
+  notStartedHint: 'Có thể ghi hồ sơ trước hoặc sau khi hoàn thành ca.',
   completedWithout: 'Ca khám đã hoàn thành nhưng chưa có hồ sơ khám.',
+  completedWithoutHint:
+    'Bổ sung hồ sơ để lưu triệu chứng, chẩn đoán và lời khuyên.',
   none: 'Không có hồ sơ khám.',
+  // Chữ hai nút mở hộp (doctor-exam F3; Figma `460:273`, `463:250`)
+  actions: { write: 'Ghi hồ sơ khám', edit: 'Chỉnh sửa ghi chú' },
 } as const;
 
 // Thẻ hiện MỘT trong ba dạng:
 //   content  bốn khối nội dung và "Cập nhật lúc": CHỈ khi lịch `DaTiepDon` hoặc `HoanThanh` VÀ có hồ sơ (Q6);
-//   empty    trạng thái rỗng có biểu tượng (Figma `459:2`, `464:2`): lịch `DaTiepDon` hoặc `HoanThanh` mà chưa có hồ sơ;
+//   empty    trạng thái rỗng có biểu tượng (Figma `459:2`, `464:2`): lịch `DaTiepDon` hoặc `HoanThanh` mà chưa có hồ sơ, kèm dòng phụ `hint`;
 //   note     hộp chữ (nghiêng khi không có hồ sơ nào): chờ thanh toán, đã xác nhận, đã hủy, vắng mặt, mã lạ. Q16: nội dung KHÔNG được hiện ở các trạng thái này dù API có gửi (hồ sơ cũ của lịch bị hủy
 //            hay bị override về trạng thái khác là hồ sơ mồ côi, phải ẩn).
 export type RecordView =
   | { kind: 'content' }
-  | { kind: 'empty'; text: string }
+  | { kind: 'empty'; text: string; hint: string }
   | { kind: 'note'; text: string; italic: boolean };
 
 export function recordView(trangThai: string, hasRecord: boolean): RecordView {
@@ -31,11 +37,19 @@ export function recordView(trangThai: string, hasRecord: boolean): RecordView {
     case 'DaTiepDon':
       return hasRecord
         ? { kind: 'content' }
-        : { kind: 'empty', text: RECORD_TEXT.notStarted };
+        : {
+            kind: 'empty',
+            text: RECORD_TEXT.notStarted,
+            hint: RECORD_TEXT.notStartedHint,
+          };
     case 'HoanThanh':
       return hasRecord
         ? { kind: 'content' }
-        : { kind: 'empty', text: RECORD_TEXT.completedWithout };
+        : {
+            kind: 'empty',
+            text: RECORD_TEXT.completedWithout,
+            hint: RECORD_TEXT.completedWithoutHint,
+          };
     case 'ChoThanhToan':
     case 'DaXacNhan':
       return { kind: 'note', text: RECORD_TEXT.pending, italic: false };

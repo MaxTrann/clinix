@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatReturnDate,
   formatUpdatedAt,
+  RECORD_TEXT,
   recordView,
 } from './exam-record-text';
 
@@ -53,10 +54,19 @@ describe('doctor-exam F2 — thẻ hiện gì theo cặp (trạng thái, có h�
     expect(recordView('DaTiepDon', false)).toEqual({
       kind: 'empty',
       text: 'Chưa ghi hồ sơ khám.',
+      hint: 'Có thể ghi hồ sơ trước hoặc sau khi hoàn thành ca.',
     });
     expect(recordView('HoanThanh', false)).toEqual({
       kind: 'empty',
       text: 'Ca khám đã hoàn thành nhưng chưa có hồ sơ khám.',
+      hint: 'Bổ sung hồ sơ để lưu triệu chứng, chẩn đoán và lời khuyên.',
+    });
+  });
+
+  it('WHS-10 chữ hai nút của F3 đúng Figma `460:273` và `463:250`', () => {
+    expect(RECORD_TEXT.actions).toEqual({
+      write: 'Ghi hồ sơ khám',
+      edit: 'Chỉnh sửa ghi chú',
     });
   });
 
