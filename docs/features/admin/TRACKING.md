@@ -137,3 +137,91 @@ ghi ở bảng 2. Dòng nhật ký ở mục 1 nên trỏ tới số thứ tự 
 | Ngày | Mục trong `AI_USAGE_LOG.md` (số thứ tự / `AI-BUG-nnn`) | Task liên quan |
 |---|---|---|
 | | | |
+
+## 5. Chỉnh giao diện nhỏ Admin Catalog (PR1, 16/11/2026)
+
+Người làm: Đại (`MaxTrann`), trên module của Trung (`junUTE`), sau khi Đại test tay 15 test case của Trung. Nhánh `fix/admin-catalog-ui-pr1`. Chỉ `apps/web` và tài liệu, không đổi `apps/api`. **`[ĐỤNG admin]`** (Trung review) và **`[ĐỤNG doctor]`** (xem 5.4). Kế hoạch được phiên kiểm độc lập duyệt theo ủy quyền của Đại ngày 16/11/2026, kèm các chỉnh ghi ở 5.2. Figma: file `1OsOfwD5myNNRv7FPCD9YC`, trang `63:2`.
+
+### 5.1 Chín mục đã làm
+
+| # | Việc | Test (mã `[đề xuất]`, chưa có trong PLAN mục 7) | Ghi chú |
+|---|---|---|---|
+| 1 | Viền focus ô nhập: viền teal đè lên đúng vị trí viền xám, bóng **trong** `inset 0 0 0 1px`, tắt outline; ô lỗi giữ đỏ; nút giữ outline | AF1-12 (19 ca đọc nguồn CSS, 4 ca lớp Tailwind) | Hai lớp `outline` lệch cũ chừa khe và lộ viền xám trong; bóng NGOÀI làm mép ngoài nhích 1 px nên chọn bóng TRONG (chỉnh của phiên kiểm). Tailwind: `focus:border-brand focus:shadow-[inset_0_0_0_1px_var(--color-brand)]`, CSS build có `box-shadow: inset 0 0 0 1px`. Ngoại lệ ghi ở ADR 0004 mục "Control dùng chung". Chromium bắt thêm một lỗi mà test đọc nguồn không thấy: ô tên trong hộp Thêm/Sửa chuyên khoa vẫn xám ngoài cùng vì quy tắc nền `.formField input:not([type='file'])` cùng độ ưu tiên và đứng sau; sửa thành `.formField input:not([type='file']):focus-visible` (5.8) |
+| 2 | Icon bật/tắt chuyên khoa theo trạng thái: đang hoạt động `CirclePause` cam `#bb4d00`, đang ngừng `CirclePlay` xanh lá `#008236`; bút chì dùng `Pencil` lucide `#0092b8` | AF2-08 | Trang chuyên khoa và trang Loại dịch vụ khám cùng một kiểu bút chì (Đại muốn đồng bộ). Xoá `toggle-status.svg` và `specialties/edit.svg` (hết nơi dùng; `branches/edit.svg` là file khác, giữ) |
+| 3 | Popup xác nhận Ngừng hoạt động (Figma `733:2`, thêm ngày 16/11/2026): `AdminConfirmationDialog` mở rộng `tone: 'warning'`, `message: ReactNode`, `note` | AF2-07, AF1-13 | Nút cam dùng `#bb4d00`, lệch Figma `#fe9a00` vì chữ trắng trên đó 2,13:1 (ADR 0004 cần 4,5:1); `#bb4d00` đạt 5,03:1. Tiêu đề biến thể warning 16,875 px khớp `733:599`; hộp xóa nhóm giữ 18,75 px (`563:2`). Kích hoạt gọi API ngay, không popup (Đại chốt). Chromium 375 px bắt nhãn nút ngắt hai dòng nên thêm `min-width: max-content; white-space: nowrap` cho nút biến thể warning |
+| 4 | Ô "Đang hoạt động" cách vùng ảnh 15 px | AF2-10 (đọc nguồn CSS) | Figma `540:635`: vùng ảnh kết thúc 599,3, nhãn bắt đầu 614,4 |
+| 5 | Lỗi tải ảnh có câu riêng: `LOI_HE_THONG` ⇒ "Tính năng tải ảnh hiện chưa sẵn sàng…", còn lại ⇒ "Không tải được ảnh lên. Vui lòng thử lại." | AF2-09 | API trả 503 cho cả thiếu cấu hình Cloudinary lẫn nhà cung cấp lỗi, cùng mã `LOI_HE_THONG`, nên một câu chung (chọn theo mã lỗi, không theo mã HTTP) |
+| 6 | Phân trang: một component `AdminPagination` (`features/admin/components/`), chữ "Hiển thị a–b trên c" `[đề xuất]`; xoá `catalog-pagination.tsx` | AF1-11, AF1-07 (sửa chữ) | Figma không vẽ chân phân trang ở frame nào. `AdminTable` dùng chung nên trang Duyệt nghỉ phép của doctor đổi chữ theo (Đại chấp nhận) |
+| 7 | Thông tin chung: nút Hủy (mới so với Figma `541:2`); Lưu và Hủy mờ khi chưa đổi hoặc đang lưu | AF4-08, AF4-09; sửa AF4-05 ×3, AF4-06 | `baseline` đổi sau mỗi lần lưu thành công; `isDirty` so từng ký tự (không cắt khoảng trắng); Hủy đưa focus về ô đầu. `setSaved(false)` không cần trong Hủy: "Đã lưu" chỉ hiện khi chưa đổi gì, lúc đó Hủy đang mờ |
+| 8 | Thẻ chi nhánh ba dòng: địa chỉ kèm link "Xem bản đồ" (tọa độ bỏ khỏi thẻ), danh sách giờ nhận khám mỗi nhóm ngày liền kề một dòng, ngày nghỉ ghi "Nghỉ" | CN b1 (`branch-schedule-format.test.ts` 11 ca, `branch-page.test.tsx` 5 ca mới + 1 sửa) | Link `https://www.google.com/maps/search/?api=1&query=…`, `target="_blank"`, `rel="noopener noreferrer"`. Nút "Sửa lịch / dịch vụ" vẫn vô hiệu. Chromium 375 px bắt danh sách giờ bị bóp còn 55,9 px (thẻ cao 1100 px) nên màn hẹp xếp nút xuống dưới thẻ (`branches-css.test.ts`, 2 ca) |
+| 9 | Cột Thao tác dùng icon `Pencil`/`Trash2` ở cả hai tab Loại dịch vụ khám | AF3-09 | Giữ `aria-label` và `title`. Cột "Số dịch vụ" (luôn "—") để PR3 |
+
+### 5.2 Quyết định đã chốt (Đại, 16/11/2026) và chỉnh của phiên kiểm
+
+(a) link "Xem bản đồ" cho tọa độ; (b) Lưu mờ khi chưa đổi cùng Hủy; (c) Kích hoạt chuyên khoa không popup; (d) ghi vào mục này và một dòng ngoại lệ ở ADR 0004; (e) phân trang gộp đặt ở `features/admin/components/`; (f) đổi icon cả hai tab. Chỉnh của phiên kiểm: bóng **trong** thay bóng ngoài (mục 1); PR phải ghi `[ĐỤNG doctor]` và chạy cả test trang Duyệt nghỉ phép; màu nút popup `#bb4d00` được duyệt, ghi là lệch Figma vì tương phản.
+
+### 5.3 Lệch Figma cần nhắc sửa `[ĐỒNG BỘ TL]`
+
+1. Icon trạng thái theo trạng thái (cam tạm dừng / xanh lá phát) thay khiên gạch chéo xám: `538:2`, `539:2`, `540:2`, `733:2`; bút chì `#0092b8` thay `#99A1AF`.
+2. Chân phân trang "Hiển thị a–b trên c": mọi frame catalog (`538:2`, `548:2`, `560:2`, `542:2`).
+3. Thẻ chi nhánh ba dòng, link "Xem bản đồ", giờ nhận khám theo nhóm ngày: `542:2`, `543:2`, `629:2`, `693:2`.
+4. Nút Hủy ở Thông tin chung: `541:2`.
+5. Nút cam popup `#fe9a00` ⇒ token `warning` `#bb4d00` (tương phản): `733:2`.
+6. Trạng thái focus ô nhập (viền teal đè viền xám, bóng trong): chưa có frame nào.
+7. Cột Thao tác tab Nhóm dịch vụ và Dịch vụ khám dùng icon bút chì và thùng rác: `548:2`, `560:2`, `562:2`, `565:2`, `630:2`.
+
+### 5.4 Ảnh hưởng ngoài `features/admin` (`[ĐỤNG doctor]`)
+
+`AdminTable`, `AdminSearchInput` và `AdminConfirmationDialog` được `features/doctor/admin/approvals` dùng chung: trang Duyệt nghỉ phép đổi chữ chân bảng ("Hiển thị 1–10 trên 25") và viền focus ô tìm. Test của trang đó (`approvals.test.tsx`, 34 ca, giữ `Trang 1 / 3`) chạy lại xanh. `features/patient/lookup/lookup-pagination.tsx` dòng 12 còn comment nhắc `catalog-pagination.tsx` (đã xoá): chỉ là comment của module khác, không sửa.
+
+### 5.5 Kiểm tra thật
+
+- **Đỏ rồi xanh** theo từng nhóm (test viết trước, thấy đỏ đúng lý do): focus 19/23 đỏ ⇒ 23/23; phân trang 7 ca đỏ vì chưa có module + 3 ca chữ ⇒ 24/24; Thông tin chung 8/9 ca mới đỏ ⇒ 20/20; popup/icon/lỗi upload/CSS 21/42 đỏ ⇒ xanh; thẻ chi nhánh và icon Thao tác 6/59 đỏ ⇒ 40/40; đồng bộ bút chì 2 ca đỏ ⇒ 29/29.
+- **Lượt cuối (sau các sửa lỗi Chromium):** `npm run build` exit 0 (10 giây; lượt trước 18 giây); vitest cả `src/features/admin` 15 file 147/147; vitest `src/features/doctor/admin/approvals` 34/34; `tsc -b` 0 lỗi (qua build); `eslint src/features/admin src/features/doctor/admin` 0 lỗi; Prettier sạch ở file mới và phần thêm (ba file cũ đã lệch Prettier từ `HEAD`, không reformat cả file). jscpd và gitleaks: CI đo.
+- **Đột biến (19 ca)**, dự đoán ghi trước khi chạy, sao lưu ngoài repo kèm SHA-256, mọi ca khôi phục đúng, 0 file `*.mut`: 18 bắt, 1 sống sót đúng dự đoán (M19: đổi độ đậm nét icon, chỉ Chromium thấy), 1 lệch ca bắt (M7 gộp ngày không kiểm liền kề: dự đoán bắt bởi ca "giữa tuần nghỉ", thực tế bắt bởi ca "hoatDong null" vì ngày nghỉ giữa tuần tự tạo nhóm "Nghỉ" chen giữa; ca đó không yếu, chỉ không phải ca bắt đột biến này). M14 (`margin-top` 15 px): kế hoạch cũ dự đoán sống sót ở vitest, sau khi thêm test hợp đồng CSS dự đoán bắt, kết quả bắt. Mutant tương đương ghi riêng: "Hủy xóa dòng Đã lưu" không đột biến được vì mã đó không tồn tại.
+- **Tương phản** (script Python, hiệu chuẩn brand `#0092b8` trên trắng 3,62:1 khớp ADR 0004): chữ trắng trên `#fe9a00` 2,13; trên `#bb4d00` 5,03; ghi chú `#bb4d00` trên `#fffbeb` 4,85; icon `#bb4d00` trên trắng 5,03, `#008236` 4,95; bút chì `#0092b8` 3,62; thùng rác `#fb2c36` 3,81; link bản đồ `#007595` 5,28; `edit.svg` cũ `#99A1AF` trên trắng 2,60 (dưới 3:1 của WCAG 1.4.11).
+
+### 5.6 Test hợp đồng CSS đọc nguồn bằng `node:fs` và một file `.d.ts` chỉ cho test
+
+Vitest chạy `css: false` nên không có kiểu tính toán; focus, khoảng cách và màu của PR này được khoá bằng cách đọc nguồn `*.module.css`. Nếp `import.meta.glob(..., { query: '?raw' })` của `features/booking/architecture.test.ts` và `features/doctor/architecture.test.ts` **không áp được cho CSS Module** (thử 16/11/2026, vitest 4.1.12): với `css: false`, vitest thay `*.module.css` bằng proxy tên lớp kể cả khi có `?raw`. `import.meta.glob(['../**/*.module.css'], { query: '?raw', import: 'default', eager: true })` trả `{}` cho cả 5 file; `import css from './x.module.css?raw'` không phải chuỗi (`css.replace is not a function`). `.ts`/`.tsx` thì `?raw` chạy bình thường. Vì vậy `features/admin/testing/css-source.ts` đọc bằng `node:fs`, và `features/admin/testing/node-modules.d.ts` khai báo đúng hai hàm dùng (`readFileSync`, `fileURLToPath`) vì `tsconfig.app.json` giới hạn `types`. Không sửa `tsconfig`; không dùng `/// <reference types="node" />` (đưa kiểu Node vào cả chương trình `tsc`). Nếu Trung muốn cách khác thì đổi.
+
+### 5.7 Xác minh phụ
+
+Chữ popup "ẩn khỏi kết quả tìm kiếm/đặt lịch dành cho bệnh nhân" đúng với backend: tìm kiếm lọc `ck.trang_thai_hoat_dong = 'DangHoatDong'` (`apps/api/src/search/common/public-doctor.sql.ts` dòng 15); đặt lịch (`create-appointment.service`, `booking-checks.service`) dùng `evaluateBookability`, đọc "bác sĩ khả dụng" bằng `PUBLIC_DOCTOR_CONDITION` (cùng điều kiện) và trả `BAC_SI_KHONG_KHA_DUNG` (phiên kiểm đã kiểm).
+
+### 5.8 Đo Chromium (16/11/2026)
+
+Vite `127.0.0.1:5173` (một tiến trình), Chromium của Playwright, ngữ cảnh mới với kích thước khai báo 1440×900, 768×1024, 375×812, `devicePixelRatio` 1,25; API chặn bằng `route` với hàm điều kiện `url.pathname.startsWith('/api/')` (mock dán thẳng vào lệnh, không tạo file, không chạm DB). Viền `1px` vẽ 0,8 px ở DPR này, nên mọi số đo viền được so cùng độ dày; các lệch dưới đây đều ghi rõ có phải do viền hay không. Xong thì đóng trình duyệt, tắt Vite, cổng 5173 trống ở `127.0.0.1` và `[::1]`, không còn file `.playwright-mcp` trong repo.
+
+**Viền focus theo điểm ảnh** (chụp vùng quanh ô ở trạng thái thường và focus, quét hàng/cột đi qua tâm từ mép ngoài vào): 16 ô (chuyên khoa 5, Thông tin chung 2, chi nhánh 4, loại dịch vụ khám 5) cộng 1 ca ô lỗi. Kích thước ô không đổi (`getBoundingClientRect` Δ = 0), mép ngoài khối không-trắng trùng ở cả bốn cạnh (Δ = 0 điểm ảnh thiết bị, chặt hơn dung sai ±0,5 px CSS đã đặt). Bên trong mép: hai điểm ảnh teal `0,146,184` rồi một điểm chuyển sắc `191,227,237`, không điểm xám `229,231,235` nào xen vào (thường: một điểm xám). Ca lỗi giữ đỏ `240,68,56`. Computed: `border-color` teal, `box-shadow: rgb(0,146,184) 0 0 0 1px inset`, `outline-style: none`. Figma không có frame focus; tham chiếu là hai ảnh Đại chụp (tài liệu góp ý sau khi test admin): ảnh Figma (ô Mô tả) là MỘT viền teal dày khoảng 2 điểm ảnh thay hẳn viền xám, không có khe; ảnh thực tế lúc chưa sửa có vòng teal ngoài, khe trắng, rồi viền xám 1 điểm ảnh bên trong (ô trông to lên). Số đo sau sửa khớp ảnh Figma: hai điểm ảnh teal ngay tại mép cũ, không khe, không điểm xám.
+- **Lỗi của MÃ tìm thấy:** ô tên hộp Thêm/Sửa chuyên khoa: điểm ảnh ngoài cùng vẫn `229,231,235` rồi mới tới teal (computed `border-color` xám). Test hợp đồng đọc nguồn (đã xanh) không thấy vì không tính được độ ưu tiên. Sửa bộ chọn rồi đo lại: `0,146,184` ×2. Ca "mô tả" đo lần đầu lệch 9,88 px là do lỗi kiểm tra tên hiện ra khi rời ô tên đẩy hộp, không phải focus; điền tên trước thì Δ = 0.
+
+**Ô "Đang hoạt động" (`540:635`):** khoảng cách đáy vùng ảnh đến đỉnh nhãn **15,00 px** ở 1440 và 375 (Figma 15,1); nhãn cao 19,69 (Figma 19), tâm nhãn cách đáy vùng ảnh 24,84 (Figma 24,6); hàng nút cách nhãn 18,75 (Figma 18,75). Không tràn ngang (1425/1425 và 360/360).
+
+**Popup `733:599` ở 1440:** hộp 360 × 250,7 (Figma 360 × 252,4); tiêu đề 315 × 25,31 (Figma 26); nội dung 3 dòng 315 × 56,25 (Figma 57); ghi chú 315 × 54,1 (Figma 315,3 × 54,7), chữ ghi chú 270,28 × 30 (Figma 270 × 30), icon 13,13; nút 151,88 × 40,04 (Figma 150,8 × 39,7). Khoảng cách tiêu đề→nội dung 7,5, nội dung→ghi chú 11,25, ghi chú→nút 11,25, đáy nút→đáy hộp 22,5, giữa hai nút 11,25: khớp Figma. Màu và cỡ chữ khớp (nền ghi chú `#fffbeb`, viền `#fef3c6`, chữ `#bb4d00`; nút `#bb4d00` thay `#fe9a00` như đã duyệt). **Các lệch nhỏ (cộng 1,7 px chiều cao hộp):** ghi chú thấp hơn 0,6 px đúng bằng 2 × (1,111 − 0,8) vì frame `733:2` rộng 2503 px nên Figma xuất viền 1,111 px còn Chromium vẽ 0,8 px; tiêu đề và nội dung thấp hơn 0,7 và 0,75 px vì metadata Figma làm tròn dòng 25,313 và 18,75 lên 26 và 19; nút cao hơn 0,34 px do `line-height` 19,69 (1,5 × 13,125, kế thừa) thay 18,75 cộng với viền 0,8 thay 1,111, và có sẵn ở hộp xóa nhóm (`563:2`), không đổi trong PR này.
+- **Lỗi của MÃ tìm thấy ở 375:** nhãn "Ngừng hoạt động" ngắt hai dòng (nút cao 59,73 trong khi Hủy 40,04). Sau khi thêm `min-width: max-content`: hai nút cùng cao 40,04 (rộng 124,99 và 138,76), ở 1440 vẫn bằng nhau 151,88; không tràn (360/360).
+
+**Thẻ chi nhánh:** ở 1440 mỗi dòng giờ nhận khám đúng một dòng (không còn dấu "…"), thẻ 840 × 130,3 và 840 × 160,3, không còn số tọa độ trong thẻ, link "Xem bản đồ" `href` đúng, `target="_blank"`, `rel="noopener noreferrer"`, chữ `rgb(0,117,149)`, nút "Sửa lịch / dịch vụ" vô hiệu. **Lỗi của MÃ tìm thấy ở 375:** thẻ rộng 260 px nhưng nút 135 px nằm cạnh khiến danh sách giờ chỉ còn 55,9 px (4 đến 8 dòng mỗi nhóm, thẻ cao 1100,9 px). Sau khi màn hẹp xếp nút xuống dưới: thẻ 260 × 273,8 và 260 × 259,4, danh sách rộng 206, mỗi nhóm giờ 1 đến 2 dòng, không tràn (360/360). Thanh bên dạng rail và nội dung rộng 260 ở 375 là của khung Admin có sẵn, không đổi.
+
+**Phân trang ở 768:** ba nơi (bảng chuyên khoa, tab Nhóm dịch vụ, tab Dịch vụ khám) cho thanh giống hệt nhau 481,2 × 52; "Hiển thị 1–20 trên 25" (và "trên 45"), "Trang 1 / 2" (và "1 / 3"); nút Trước 57,7 × 34 (vô hiệu) và Sau 45,2 × 34; chữ 13,125 px màu `rgb(52,64,84)`; `aria-live="polite"`.
+
+**Thông tin chung:** Hủy 56,6 × 37,5 và Lưu 170,8 × 37,5 (cùng cao, Figma Lưu 37,5). Chưa đổi: cả hai mờ (opacity 0,6 và 0,7, `cursor: not-allowed`); đã đổi: bật. Bấm Hủy: ô về `CLINIX Clinic`, focus ở `clinic-brand-name`, cả hai mờ lại. Ở 375 hai nút xếp hai hàng (Hủy trên Lưu), không tràn.
+
+**Icon cột Thao tác:** nút 26 × 26 (chuyên khoa), 26,3 × 26,3 (loại dịch vụ khám, `size-7` ở gốc 15 px), icon 15 px; màu `rgb(0,146,184)` bút chì, `rgb(187,77,0)` tạm dừng, `rgb(0,130,54)` phát, `rgb(251,44,54)` thùng rác; không còn chữ "Sửa"/"Xóa".
+
+**Tràn ngang:** 9/9 cặp (3 trang × 1440, 768, 375) `scrollWidth` = `clientWidth` (1425/1425, 753/753, 360/360); thêm các trạng thái hộp Thêm/Sửa chuyên khoa, popup, thẻ chi nhánh và Thông tin chung ở 375: đều bằng nhau.
+
+**Ba lỗi của MÃ này được Chromium bắt (vitest không thấy)**; mỗi lỗi sửa kèm test hợp đồng, đỏ được chứng minh bằng cách hoàn tác tạm từng sửa (sao lưu ngoài repo, SHA-256 khôi phục đúng): hoàn tác selector ô tên ⇒ `admin-focus-ring` đỏ 1 ca; bỏ `min-width` nút popup ⇒ `admin-confirmation-css` đỏ 1 ca; bỏ xếp cột thẻ chi nhánh ⇒ `branches-css` đỏ 1 ca (đúng dự đoán ghi trước).
+
+### 5.9 Việc còn nợ
+
+Quy tắc focus toàn cục ở lớp base cho mọi module (đã ghi `docs/TECH_DEBT.md` dòng 169, Đại đồng ý 16/11/2026); PR3 (`soDichVu`, giá số nguyên); nhắc sửa Figma ở 5.3; `AI_USAGE_LOG.md` hàng 135 và AI-BUG-053 đã ghi (Đại đồng ý), còn `[cần điền]` PR và commit; số hàng 169, 135 và AI-BUG-053 là số đề xuất, đối chiếu lại `origin/main` trước khi merge.
+
+### 5.10 Lỗi của chính tôi trong PR này
+
+1. 23 ca test hợp đồng focus xanh nhưng bỏ sót lỗi độ ưu tiên của ô tên chuyên khoa: test đọc nguồn không tính được cascade; chỉ đo Chromium mới thấy. Bài học: test hợp đồng CSS là lưới hồi quy, không thay đo điểm ảnh.
+2. Dự đoán đột biến M7 sai ca (đã ghi hai phía ở 5.5).
+3. Tin báo ban đầu nói nét `edit.svg` "khoảng 2,5:1"; số đo đúng là 2,60:1.
+4. Script đột biến lần đầu sập ở lệnh in vì mã hóa `cp1252` (trước khi chạy ca nào; dự đoán giữ nguyên, chạy lại).
+5. Lần `tsc` đầu báo thiếu kiểu `node:fs`/`node:url` ở test hợp đồng CSS (xử lý ở 5.6).
+6. Thẻ chi nhánh và nút popup lúc đầu chưa xét màn hẹp: hai lỗi 375 px ở 5.8 là do tôi đổi từ một hàng nowrap sang nhiều dòng mà chưa đo.

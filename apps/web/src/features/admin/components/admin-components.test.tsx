@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { AdminConfirmationDialog } from './admin-confirmation-dialog';
 import { AdminDetailPanel } from './admin-detail-panel';
 import { AdminSearchInput } from './admin-search-input';
 import { AdminTable } from './admin-table';
+import styles from './admin-components.module.css';
 
 interface Person {
   id: string;
@@ -32,7 +33,7 @@ describe('Admin controls', () => {
 
     expect(screen.getByRole('table', { name: 'Nhân sự' })).toBeInTheDocument();
     expect(screen.getByText('Nguyễn An')).toBeInTheDocument();
-    expect(screen.getByText('1–10 / 11')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 1–10 trên 11')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trang trước' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     expect(onPageChange).toHaveBeenCalledWith(2);
@@ -54,7 +55,7 @@ describe('Admin controls', () => {
     );
 
     expect(screen.getByText('Chưa có nhân sự.')).toBeInTheDocument();
-    expect(screen.getByText('11–11 / 11')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 11–11 trên 11')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trang sau' })).toBeDisabled();
   });
 
@@ -192,5 +193,74 @@ describe('Admin controls', () => {
     render(<Harness />);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('AdminConfirmationDialog mở rộng cho popup Ngừng hoạt động (AF1-13)', () => {
+  function renderDialog(props: {
+    tone?: 'primary' | 'danger' | 'warning';
+    note?: string;
+  }) {
+    return render(
+      <AdminConfirmationDialog
+        open
+        title="Ngừng hoạt động chuyên khoa?"
+        message={
+          <>
+            Chuyên khoa <strong>Tim mạch</strong> sẽ được tạm dừng.
+          </>
+        }
+        confirmLabel="Ngừng hoạt động"
+        cancelLabel="Hủy"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+        {...props}
+      />,
+    );
+  }
+
+  it('AF1-13 message nhận ReactNode (tên in đậm); ghi chú là vùng note và được đọc cùng mô tả hộp thoại', () => {
+    renderDialog({
+      tone: 'warning',
+      note: '3 bác sĩ thuộc chuyên khoa này vẫn giữ nguyên hồ sơ.',
+    });
+
+    const dialog = screen.getByRole('dialog', {
+      name: 'Ngừng hoạt động chuyên khoa?',
+    });
+    expect(within(dialog).getByText('Tim mạch').tagName).toBe('STRONG');
+    expect(within(dialog).getByRole('note')).toHaveTextContent(
+      '3 bác sĩ thuộc chuyên khoa này vẫn giữ nguyên hồ sơ.',
+    );
+    expect(dialog).toHaveAccessibleDescription(
+      /Tim mạch sẽ được tạm dừng\..*3 bác sĩ thuộc chuyên khoa này/,
+    );
+  });
+
+  it('AF1-13 tone warning: nút xác nhận mang lớp warningAction và không mang dangerAction', () => {
+    renderDialog({ tone: 'warning' });
+
+    const confirm = screen.getByRole('button', { name: 'Ngừng hoạt động' });
+    expect(confirm).toHaveClass(styles.warningAction);
+    expect(confirm).not.toHaveClass(styles.dangerAction);
+  });
+
+  it('AF1-13 tone mặc định và danger không mang lớp warningAction (hộp xóa nhóm giữ nguyên)', () => {
+    const { unmount } = renderDialog({});
+    expect(
+      screen.getByRole('button', { name: 'Ngừng hoạt động' }),
+    ).not.toHaveClass(styles.warningAction);
+    unmount();
+
+    renderDialog({ tone: 'danger' });
+    const confirm = screen.getByRole('button', { name: 'Ngừng hoạt động' });
+    expect(confirm).toHaveClass(styles.dangerAction);
+    expect(confirm).not.toHaveClass(styles.warningAction);
+  });
+
+  it('AF1-13 không truyền note thì không có vùng ghi chú', () => {
+    renderDialog({ tone: 'warning' });
+
+    expect(screen.queryByRole('note')).toBeNull();
   });
 });

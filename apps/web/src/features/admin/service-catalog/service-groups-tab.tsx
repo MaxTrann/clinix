@@ -1,9 +1,9 @@
 import { Fragment, useEffect, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { AdminConfirmationDialog } from '../components/admin-confirmation-dialog';
-import { CatalogPagination } from './catalog-pagination';
+import { AdminPagination } from '../components/admin-pagination';
 import { feedbackFor, type FormFeedback } from './catalog-errors';
 import { ServiceGroupForm } from './service-group-form';
 import {
@@ -85,7 +85,7 @@ export function ServiceGroupsTab({ canEdit }: { canEdit: boolean }) {
   }
 
   const inputClass =
-    'h-10 w-full rounded-lg border border-border bg-white pl-10 pr-3 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-brand focus:ring-2 focus:ring-brand/15 sm:max-w-sm';
+    'h-10 w-full rounded-lg border border-border bg-white pl-10 pr-3 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-brand focus:shadow-[inset_0_0_0_1px_var(--color-brand)] sm:max-w-sm';
 
   return (
     <div className="space-y-4" data-testid="AF3-groups-panel">
@@ -214,21 +214,29 @@ export function ServiceGroupsTab({ canEdit }: { canEdit: boolean }) {
                             <div className="inline-flex items-center gap-1">
                               <button
                                 type="button"
-                                className="inline-flex items-center rounded-md px-2 py-1 text-[11.25px] font-medium text-[#0092b8] hover:bg-info-surface focus-visible:outline-2 focus-visible:outline-brand"
+                                className="inline-flex size-7 items-center justify-center rounded-md text-[#0092b8] hover:bg-info-surface focus-visible:outline-2 focus-visible:outline-brand"
                                 aria-label={`Sửa ${group.ten}`}
                                 title="Sửa"
                                 onClick={() => openEdit(group)}
                               >
-                                Sửa
+                                <Pencil
+                                  size={15}
+                                  strokeWidth={1.5}
+                                  aria-hidden="true"
+                                />
                               </button>
                               <button
                                 type="button"
-                                className="inline-flex items-center rounded-md px-2 py-1 text-[11.25px] font-medium text-[#fb2c36] hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-danger"
+                                className="inline-flex size-7 items-center justify-center rounded-md text-[#fb2c36] hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-danger"
                                 aria-label={`Xóa ${group.ten}`}
                                 title="Xóa"
                                 onClick={() => setDeleteTarget(group)}
                               >
-                                Xóa
+                                <Trash2
+                                  size={15}
+                                  strokeWidth={1.5}
+                                  aria-hidden="true"
+                                />
                               </button>
                             </div>
                           </td>
@@ -257,12 +265,14 @@ export function ServiceGroupsTab({ canEdit }: { canEdit: boolean }) {
               </tbody>
             </table>
           </div>
-          <CatalogPagination
-            page={state.data.page}
-            pageSize={state.data.pageSize}
-            total={state.data.total}
-            onPageChange={setPage}
-          />
+          <div className="border-t border-border text-[13.125px] text-[#344054]">
+            <AdminPagination
+              page={state.data.page}
+              pageSize={state.data.pageSize}
+              total={state.data.total}
+              onPageChange={setPage}
+            />
+          </div>
         </section>
       )}
 

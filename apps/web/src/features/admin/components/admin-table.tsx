@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import styles from './admin-components.module.css';
+import { AdminPagination } from './admin-pagination';
 
 export interface AdminTableColumn<Row> {
   id: string;
@@ -32,13 +33,6 @@ export function AdminTable<Row>({
   onPageChange,
   emptyMessage = 'Chưa có dữ liệu.',
 }: AdminTableProps<Row>) {
-  const safeTotal = Math.max(0, total);
-  const safePageSize = Math.max(1, pageSize);
-  const pageCount = Math.max(1, Math.ceil(safeTotal / safePageSize));
-  const safePage = Math.min(Math.max(1, page), pageCount);
-  const firstItem = safeTotal === 0 ? 0 : (safePage - 1) * safePageSize + 1;
-  const lastItem = Math.min(safePage * safePageSize, safeTotal);
-
   return (
     <section className={styles.tableSection}>
       <div className={styles.tableScroll}>
@@ -75,32 +69,12 @@ export function AdminTable<Row>({
         </table>
       </div>
 
-      <div className={styles.pagination}>
-        <p aria-live="polite">
-          {firstItem}–{lastItem} / {total}
-        </p>
-        <div className={styles.paginationButtons}>
-          <button
-            type="button"
-            onClick={() => onPageChange(safePage - 1)}
-            disabled={safePage <= 1}
-            aria-label="Trang trước"
-          >
-            Trước
-          </button>
-          <span>
-            Trang {safePage} / {pageCount}
-          </span>
-          <button
-            type="button"
-            onClick={() => onPageChange(safePage + 1)}
-            disabled={safePage >= pageCount}
-            aria-label="Trang sau"
-          >
-            Sau
-          </button>
-        </div>
-      </div>
+      <AdminPagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={onPageChange}
+      />
     </section>
   );
 }

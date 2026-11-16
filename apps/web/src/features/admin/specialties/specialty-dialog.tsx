@@ -48,8 +48,14 @@ function safeUploadErrorMessage(error: unknown): string {
       return 'Không thể tối ưu ảnh xuống 2 MB trong giới hạn chất lượng. Hãy chọn ảnh khác.';
     if (error.maLoi === 'XU_LY_ANH_HET_THOI_GIAN')
       return 'Xử lý ảnh quá lâu. Hãy chọn ảnh nhỏ hơn.';
+    // API trả 503 khi chưa cấu hình Cloudinary (và khi nhà cung cấp ảnh lỗi), cùng mã LOI_HE_THONG: chọn câu theo mã lỗi
+    if (error.maLoi === 'LOI_HE_THONG')
+      return 'Tính năng tải ảnh hiện chưa sẵn sàng. Vui lòng thử lại sau hoặc lưu chuyên khoa không kèm ảnh.';
   }
-  return safeErrorMessage(error);
+  if (error instanceof TimeoutError || error instanceof NetworkError)
+    return safeErrorMessage(error);
+  // Không rơi về câu của thao tác LƯU ("Không lưu được chuyên khoa"): đây là lỗi tải ảnh
+  return 'Không tải được ảnh lên. Vui lòng thử lại.';
 }
 
 export function SpecialtyDialog({
