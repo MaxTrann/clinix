@@ -40,6 +40,8 @@ export const LIST_TEXT = {
   detail: 'Chi tiết',
   // Lý do khám trống (khoá luôn có mặt nhưng có thể `null`)
   noReason: 'Không có',
+  // Nhãn con dưới chip `Hoàn thành` (Figma `457:408`, `457:444`; doctor-exam F4, Q6 (4)): theo cờ `coHoSoKham` của máy chủ
+  record: { has: 'Đã có hồ sơ khám', missing: 'Chưa ghi hồ sơ' },
 } as const;
 
 // Sáu chip ngày theo thứ tự và chữ của Figma `457:2`

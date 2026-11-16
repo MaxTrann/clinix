@@ -2,6 +2,7 @@ import { request } from '../../../../../shared/api/client';
 import {
   readCode,
   readCount,
+  readFlag,
   readIsoDateTime,
   readList,
   readRecord,
@@ -12,6 +13,7 @@ import { parseStatusCounts } from '../../common/status-counts';
 import type {
   DoctorAppointment,
   DoctorAppointmentPage,
+  DoctorAppointmentRow,
   DoctorExaminee,
   DoctorListQuery,
 } from './doctor-appointment-types';
@@ -44,7 +46,7 @@ export function parseExaminee(raw: unknown): DoctorExaminee {
   };
 }
 
-// ĐÚNG tám khoá của một dòng (chi tiết dùng lại và cộng ba khoá riêng). Khoá thừa bị bỏ; thiếu một khoá hay sai kiểu ⇒ `UnexpectedResponseError`.
+// ĐÚNG tám khoá LÕI của một lịch (dòng danh sách cộng `coHoSoKham` ở `parseDoctorListRow`; chi tiết dùng lại và cộng ba khoá riêng, KHÔNG có cờ nên bộ đọc này KHÔNG đọc cờ). Khoá thừa bị bỏ; thiếu một khoá hay sai kiểu ⇒ `UnexpectedResponseError`.
 export function parseDoctorAppointment(
   row: Record<string, unknown>,
 ): DoctorAppointment {
@@ -60,13 +62,24 @@ export function parseDoctorAppointment(
   };
 }
 
+// Dòng DANH SÁCH (doctor-exam F4): tám khoá lõi cộng `coHoSoKham` (B3, Q24). Cờ phải là `boolean`: thiếu hay sai kiểu (`"true"`, `1`, `null`) ⇒ `UnexpectedResponseError` và cả trang ra hộp lỗi, vì đoán sai một
+// nhãn về hồ sơ khám của bệnh nhân tệ hơn báo lỗi. Chọn từng khoá (không chép cả đối tượng) nên khoá thừa, kể cả nội dung hồ sơ mà máy chủ lỡ gửi (`trieuChung`, `ghiChuKham`…), không bao giờ lọt ra.
+export function parseDoctorListRow(
+  row: Record<string, unknown>,
+): DoctorAppointmentRow {
+  return {
+    ...parseDoctorAppointment(row),
+    coHoSoKham: readFlag(row.coHoSoKham),
+  };
+}
+
 export function parseDoctorAppointmentPage(
   raw: unknown,
 ): DoctorAppointmentPage {
   const body = readRecord(raw);
   return {
     items: readList(body.items).map((item) =>
-      parseDoctorAppointment(readRecord(item)),
+      parseDoctorListRow(readRecord(item)),
     ),
     total: readCount(body.total),
     page: readCount(body.page, 1),
