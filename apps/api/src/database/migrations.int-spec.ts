@@ -7,6 +7,7 @@ import {
 import { MIGRATIONS } from './migrations/index.js';
 import { TaoBangDanhMuc1793024340000 } from './migrations/1793024340000-tao-bang-danh-muc.js';
 import { TaoBangHoSoKham1793620800000 } from './migrations/1793620800000-tao-bang-ho-so-kham.js';
+import { TaoBangThanhToanVi1793707200000 } from './migrations/1793707200000-tao-bang-thanh-toan-vi.js';
 import { TaoBangMocHoanTien1793534400000 } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -57,6 +58,14 @@ const OPERATIONS_TABLES = [
 const NGHI_PHEP_TABLES = ['yeu_cau_nghi_phep'];
 const MOC_HOAN_TIEN_TABLES = ['moc_hoan_tien'];
 const EXAM_TABLES = ['ho_so_kham', 'danh_gia_bac_si'];
+// payment P1: năm bảng tiền
+const PAYMENT_TABLES = [
+  'giao_dich_thanh_toan',
+  'giao_dich_vi',
+  'lan_doi_soat_nap_vi',
+  'lich_su_hoan_tien',
+  'yeu_cau_rut_tien',
+];
 // Bảng có trước từng migration cuối: ca down/up của MHT-09 và MGK-06 chỉ khẳng định các bảng này còn nguyên, nên thêm
 // migration mới ở cuối sổ chỉ cần thêm một dòng vào cuối chuỗi này, không phải sửa hai ca đó.
 const TABLES_BEFORE_P6 = [
@@ -68,7 +77,8 @@ const TABLES_BEFORE_P6 = [
   ...NGHI_PHEP_TABLES,
 ];
 const TABLES_BEFORE_EXAM = [...TABLES_BEFORE_P6, ...MOC_HOAN_TIEN_TABLES];
-const MIGRATED_TABLES = [...TABLES_BEFORE_EXAM, ...EXAM_TABLES];
+const TABLES_BEFORE_PAYMENT = [...TABLES_BEFORE_EXAM, ...EXAM_TABLES];
+const MIGRATED_TABLES = [...TABLES_BEFORE_PAYMENT, ...PAYMENT_TABLES];
 // 20 hành động đã có trước P4 (đúng thứ tự trong migration vận hành).
 const HANH_DONG_TRUOC_P4 = [
   'DoiQuyen',
@@ -97,6 +107,7 @@ const P4_NAME = NhatKyPhanCongNghiPhep1793361600000.name;
 const BOOKING_P7_NAME = ThongBaoLichHen1793448000000.name;
 const BOOKING_P6_NAME = TaoBangMocHoanTien1793534400000.name;
 const EXAM_NAME = TaoBangHoSoKham1793620800000.name;
+const PAYMENT_NAME = TaoBangThanhToanVi1793707200000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -517,7 +528,10 @@ describe('vòng đời migration', () => {
     expect(await readEnum('loai_doi_tuong')).toHaveLength(9);
     expect(await listTables(dataSource)).toContain('yeu_cau_nghi_phep');
     expect(await runPendingMigrations(dataSource)).toEqual([P4_NAME, ...later]);
-    expect(await readEnum('hanh_dong')).toEqual(afterUp);
+    // Migration sau P4 có thể thêm giá trị CUỐI danh sách (payment P1 thêm DuyetRutTien, TuChoiRutTien): chỉ so phần của P4.
+    expect((await readEnum('hanh_dong')).slice(0, afterUp.length)).toEqual(
+      afterUp,
+    );
   });
 
   it('MG-05: down hoàn tác migration nghỉ phép (ngay trước P4): giữ các bảng cũ, xóa bảng nghỉ phép, rồi up lại được', async () => {
@@ -541,6 +555,119 @@ describe('vòng đời migration', () => {
     expect(await listTables(dataSource)).toEqual(
       expect.arrayContaining(MIGRATED_TABLES),
     );
+  });
+
+  // payment P1 (MGT-01, MGT-14, MGT-15): up/down của migration năm bảng tiền và mở rộng ENUM nhật ký rút tiền.
+  describe('payment P1: năm bảng tiền và ENUM nhật ký rút tiền', () => {
+    const readEnum = async (column: string): Promise<string[]> => {
+      const rows = (await dataSource.query(
+        "SELECT COLUMN_TYPE AS type FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'nhat_ky_hanh_dong' AND COLUMN_NAME = ?",
+        [column],
+      )) as { type: string }[];
+      return [...(rows[0]?.type ?? '').matchAll(/'([^']+)'/g)].map(
+        (match) => match[1]!,
+      );
+    };
+    const hasColumn = async (table: string, column: string): Promise<boolean> =>
+      (
+        (await dataSource.query(
+          'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+          [table, column],
+        )) as unknown[]
+      ).length > 0;
+    /** Dựng một dòng nhật ký trên MỘT kết nối đã tắt kiểm khóa ngoại (tài khoản không cần có thật). */
+    const insertAudit = async (
+      action: string,
+      target: string,
+    ): Promise<void> => {
+      const queryRunner = dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+        await queryRunner.query(
+          "INSERT INTO nhat_ky_hanh_dong (tai_khoan_id, hanh_dong, loai_doi_tuong, ma_doi_tuong, thoi_diem, ket_qua) VALUES (900001, ?, ?, 1, NOW(), 'ThanhCong')",
+          [action, target],
+        );
+      } finally {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+        await queryRunner.release();
+      }
+    };
+    const countAudit = async (): Promise<number> => {
+      const rows = (await dataSource.query(
+        'SELECT COUNT(*) AS total FROM nhat_ky_hanh_dong',
+      )) as { total: string | number }[];
+      return Number(rows[0]?.total);
+    };
+    const expectFullyInstalled = async (): Promise<void> => {
+      expect(await listTables(dataSource)).toEqual(
+        expect.arrayContaining(PAYMENT_TABLES),
+      );
+      expect(await hasColumn('lich_su_hoan_tien', 'loai')).toBe(true);
+      expect(await readEnum('hanh_dong')).toEqual(
+        expect.arrayContaining(['DuyetRutTien', 'TuChoiRutTien']),
+      );
+      expect(await readEnum('loai_doi_tuong')).toContain('yeu_cau_rut_tien');
+    };
+
+    it('MGT-14: down khi ĐÃ có dòng nhật ký dùng giá trị mới thì dừng với thông báo rõ TRƯỚC mọi câu DDL; DB nguyên vẹn (cả hai loại giá trị mới, ca biên một giá trị)', async () => {
+      const later = await revertAfter(PAYMENT_NAME);
+      expect(later).toEqual([]);
+      await expectFullyInstalled();
+      const before = {
+        hanhDong: await readEnum('hanh_dong'),
+        doiTuong: await readEnum('loai_doi_tuong'),
+      };
+
+      // (a) hành động mới; (b) chỉ loai_doi_tuong mới với hành động cũ; (c) chỉ hành động mới với đối tượng cũ
+      const cases = [
+        ['DuyetRutTien', 'yeu_cau_rut_tien'],
+        ['XuLyNapViChuaCong', 'yeu_cau_rut_tien'],
+        ['TuChoiRutTien', 'giao_dich_thanh_toan'],
+      ] as const;
+      for (const [action, target] of cases) {
+        await insertAudit(action, target);
+        await expect(revertLastMigration(dataSource)).rejects.toThrow(
+          /Không hoàn tác được migration[\s\S]*còn 1 dòng/,
+        );
+        // Không DDL nào đã chạy: đủ năm bảng, cột loai, ENUM mở rộng; dòng nhật ký còn nguyên; migration vẫn ở trạng thái đã áp dụng
+        await expectFullyInstalled();
+        expect(await readEnum('hanh_dong')).toEqual(before.hanhDong);
+        expect(await readEnum('loai_doi_tuong')).toEqual(before.doiTuong);
+        expect(await countAudit()).toBe(1);
+        expect(
+          (await listMigrations(dataSource)).find(
+            (item) => item.name === PAYMENT_NAME,
+          )?.executed,
+        ).toBe(true);
+        await dataSource.query('DELETE FROM nhat_ky_hanh_dong');
+      }
+    });
+
+    it('MGT-01, MGT-15: down khi KHÔNG có dòng nào dùng giá trị mới khôi phục ENUM cũ và xoá cả năm bảng; up lại chạy được', async () => {
+      await insertAudit('XuLyNapViChuaCong', 'giao_dich_thanh_toan'); // giá trị CŨ không chặn down
+      await expectFullyInstalled();
+      expect(await revertLastMigration(dataSource)).toBe(PAYMENT_NAME);
+      const tables = await listTables(dataSource);
+      for (const table of PAYMENT_TABLES) expect(tables).not.toContain(table);
+      expect(tables).toEqual(expect.arrayContaining(TABLES_BEFORE_PAYMENT));
+      expect(await readEnum('hanh_dong')).toHaveLength(24);
+      expect(await readEnum('hanh_dong')).not.toContain('DuyetRutTien');
+      expect(await readEnum('loai_doi_tuong')).toHaveLength(11);
+      expect(await readEnum('loai_doi_tuong')).not.toContain(
+        'yeu_cau_rut_tien',
+      );
+      expect(await countAudit()).toBe(1); // dòng nhật ký cũ không bị mất
+      expect(
+        (await listMigrations(dataSource)).find((i) => i.name === PAYMENT_NAME)
+          ?.executed,
+      ).toBe(false);
+
+      expect(await runPendingMigrations(dataSource)).toEqual([PAYMENT_NAME]);
+      await expectFullyInstalled();
+      expect(await countAudit()).toBe(1);
+      await dataSource.query('DELETE FROM nhat_ky_hanh_dong');
+    });
   });
 
   it('hoàn tác hết rồi hoàn tác tiếp: trả về null, không lỗi', async () => {

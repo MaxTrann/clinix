@@ -24,6 +24,11 @@ import { CauHinhHeThong } from '../admin/entities/cau-hinh-he-thong.entity.js';
 import { EmailThongBao } from '../admin/entities/email-thong-bao.entity.js';
 import { ThongBao } from '../admin/entities/thong-bao.entity.js';
 import { ThongTinPhongKham } from '../admin/entities/thong-tin-phong-kham.entity.js';
+import { GiaoDichThanhToan } from '../payment/entities/giao-dich-thanh-toan.entity.js';
+import { GiaoDichVi } from '../wallet/entities/giao-dich-vi.entity.js';
+import { LanDoiSoatNapVi } from '../wallet/entities/lan-doi-soat-nap-vi.entity.js';
+import { LichSuHoanTien } from '../wallet/entities/lich-su-hoan-tien.entity.js';
+import { YeuCauRutTien } from '../wallet/entities/yeu-cau-rut-tien.entity.js';
 import { DanhGiaBacSi } from '../doctor/entities/danh-gia-bac-si.entity.js';
 import { HoSoKham } from '../doctor/entities/ho-so-kham.entity.js';
 import { YeuCauNghiPhep } from '../doctor/entities/yeu-cau-nghi-phep.entity.js';
@@ -64,4 +69,9 @@ export const ENTITIES = [
   YeuCauNghiPhep,
   HoSoKham,
   DanhGiaBacSi,
+  GiaoDichThanhToan,
+  LichSuHoanTien,
+  YeuCauRutTien,
+  GiaoDichVi,
+  LanDoiSoatNapVi,
 ];
