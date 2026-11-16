@@ -8,7 +8,8 @@ import {
 // Task P1 — LOK-01…LOK-04 (PLAN booking 7.17; TRACKING 3.3 P1-F). Danh sách mong đợi viết RIÊNG theo bảng 5.3.
 describe('LOK-01 bảng tầng khoá của 5.3', () => {
   // doctor-exam P2: thêm hạng 6b giữa 6 và 7 nên danh sách liệt kê đổi (tầng 7 lùi từ vị trí 7 sang 8); hành vi các hạng cũ không đổi.
-  it('tầng 1, 2, 3, 4, 4b, 5, 6, 6b, 7 đúng thứ tự (tầng 7 gồm ba hạng liền nhau) và đúng bảng', () => {
+  // payment P2: tầng 7 tách thành 7a, 7b, 7c (PLAN payment 5.3); số hạng và vị trí không đổi, chỉ nhãn.
+  it('tầng 1, 2, 3, 4, 4b, 5, 6, 6b, 7a, 7b, 7c đúng thứ tự và đúng bảng', () => {
     expect(LOCK_ORDER.map((rank) => rank.tang)).toEqual([
       '1',
       '2',
@@ -18,9 +19,9 @@ describe('LOK-01 bảng tầng khoá của 5.3', () => {
       '5',
       '6',
       '6b',
-      '7',
-      '7',
-      '7',
+      '7a',
+      '7b',
+      '7c',
     ]);
     expect(LOCK_ORDER.slice(0, 8).map((rank) => rank.bang)).toEqual([
       ['tai_khoan'],
@@ -33,9 +34,15 @@ describe('LOK-01 bảng tầng khoá của 5.3', () => {
       ['ho_so_kham', 'danh_gia_bac_si'],
     ]);
     expect(LOCK_ORDER.slice(8).map((rank) => rank.bang)).toEqual([
-      ['giao_dich_thanh_toan'],
+      ['giao_dich_thanh_toan', 'yeu_cau_rut_tien'],
       ['vi_noi_bo'],
-      ['lich_su_hoan_tien', 'giao_dich_vi', 'thong_bao', 'nhat_ky_hanh_dong'],
+      [
+        'lich_su_hoan_tien',
+        'giao_dich_vi',
+        'lan_doi_soat_nap_vi',
+        'thong_bao',
+        'nhat_ky_hanh_dong',
+      ],
     ]);
   });
 
@@ -136,10 +143,10 @@ describe('LOK-04 quy tắc 7: khoá lich_hen', () => {
 // doctor-exam P2 (#392) — HDK-05: tầng 6b (`ho_so_kham`, `danh_gia_bac_si`) nằm giữa `lich_hen` (6) và tầng 7 (PLAN doctor-exam 5.3, E5).
 // Phạm vi ở đây: bảng thứ tự và `findLockOrderViolation`. Chuỗi khoá bằng câu SQL THẬT của HSK, DGB, KDD kiểm ở B2, B6, B8 (`testing/lock-chain.ts`).
 describe('HDK-05 tầng 6b của doctor (hồ sơ khám, đánh giá)', () => {
-  it('6b đứng ngay sau lich_hen và ngay trước tầng 7 đầu tiên; hai bảng cùng một hạng', () => {
+  it('6b đứng ngay sau lich_hen và ngay trước tầng 7 đầu tiên (7a); hai bảng cùng một hạng', () => {
     const tiers = LOCK_ORDER.map((rank) => rank.tang);
     expect(tiers.indexOf('6b')).toBe(tiers.indexOf('6') + 1);
-    expect(tiers.indexOf('7')).toBe(tiers.indexOf('6b') + 1);
+    expect(tiers.indexOf('7a')).toBe(tiers.indexOf('6b') + 1);
     expect(LOCK_ORDER[tiers.indexOf('6b')]?.bang).toEqual([
       'ho_so_kham',
       'danh_gia_bac_si',
@@ -229,6 +236,106 @@ describe('HDK-05 tầng 6b của doctor (hồ sơ khám, đánh giá)', () => {
       'vi phạm đầu tiên, cách vài bước (bảng ngoài thứ tự bị bỏ qua)',
       ['lich_hen', 'ho_so_kham', 'chi_nhanh', 'khung_gio'],
       { index: 3, truoc: 'ho_so_kham', sau: 'khung_gio' },
+    ],
+  ])('%s', (_name, steps, expected) => {
+    expect(findLockOrderViolation(steps)).toEqual(expected);
+  });
+});
+
+// payment P2 — HDT-14 (phần đơn vị): chuỗi khoá TƯỜNG MINH của mọi luồng ở PLAN payment 5.3 không vi phạm; chiều ngược bị bắt.
+// Chuỗi chỉ liệt kê khoá, không liệt kê `INSERT` hàng mới vào bảng 7a (hàng mới không ai khác khoá được). Phần chạy trên MySQL thật: lock-order.int-spec.ts.
+describe('HDT-14 hạng 7a, 7b, 7c của payment và wallet', () => {
+  it.each([
+    [
+      'E6 thanh toán cọc bằng ví',
+      ['khung_gio', 'lich_hen', 'vi_noi_bo', 'giao_dich_vi', 'thong_bao'],
+    ],
+    ['E7 thu tiền mặt', ['lich_hen']],
+    [
+      'E4 hoàn cọc khi huỷ',
+      [
+        'giao_dich_thanh_toan',
+        'vi_noi_bo',
+        'lich_su_hoan_tien',
+        'giao_dich_vi',
+        'thong_bao',
+      ],
+    ],
+    [
+      'IPN nạp ví',
+      ['giao_dich_thanh_toan', 'vi_noi_bo', 'giao_dich_vi', 'thong_bao'],
+    ],
+    [
+      'đối soát nạp ví',
+      [
+        'giao_dich_thanh_toan',
+        'vi_noi_bo',
+        'giao_dich_vi',
+        'lan_doi_soat_nap_vi',
+        'thong_bao',
+        'nhat_ky_hanh_dong',
+      ],
+    ],
+    ['tạo yêu cầu rút tiền', ['vi_noi_bo', 'thong_bao']],
+    [
+      'duyệt hoặc từ chối rút tiền',
+      [
+        'yeu_cau_rut_tien',
+        'vi_noi_bo',
+        'giao_dich_vi',
+        'nhat_ky_hanh_dong',
+        'thong_bao',
+      ],
+    ],
+    [
+      'hoàn tiền đặc biệt',
+      [
+        'giao_dich_thanh_toan',
+        'vi_noi_bo',
+        'lich_su_hoan_tien',
+        'giao_dich_vi',
+        'nhat_ky_hanh_dong',
+        'thong_bao',
+      ],
+    ],
+    [
+      'hai bảng 7a không khoá cùng lúc nhưng cùng hạng nên thứ tự nào cũng được',
+      ['yeu_cau_rut_tien', 'giao_dich_thanh_toan', 'vi_noi_bo'],
+    ],
+  ])('%s ⇒ null', (_name, steps) => {
+    expect(findLockOrderViolation(steps)).toBeNull();
+  });
+
+  it.each([
+    [
+      'ví trước yêu cầu rút (7b trước 7a)',
+      ['vi_noi_bo', 'yeu_cau_rut_tien'],
+      { index: 1, truoc: 'vi_noi_bo', sau: 'yeu_cau_rut_tien' },
+    ],
+    [
+      'ví trước giao dịch thanh toán (7b trước 7a)',
+      ['vi_noi_bo', 'giao_dich_thanh_toan'],
+      { index: 1, truoc: 'vi_noi_bo', sau: 'giao_dich_thanh_toan' },
+    ],
+    [
+      'bảng đối soát trước ví (7c trước 7b)',
+      ['lan_doi_soat_nap_vi', 'vi_noi_bo'],
+      { index: 1, truoc: 'lan_doi_soat_nap_vi', sau: 'vi_noi_bo' },
+    ],
+    [
+      'sổ ví trước giao dịch thanh toán (7c trước 7a)',
+      ['giao_dich_vi', 'giao_dich_thanh_toan'],
+      { index: 1, truoc: 'giao_dich_vi', sau: 'giao_dich_thanh_toan' },
+    ],
+    [
+      'yêu cầu rút trước lịch hẹn (7a trước 6)',
+      ['yeu_cau_rut_tien', 'lich_hen'],
+      { index: 1, truoc: 'yeu_cau_rut_tien', sau: 'lich_hen' },
+    ],
+    [
+      'thông báo trước yêu cầu rút (7c trước 7a)',
+      ['thong_bao', 'yeu_cau_rut_tien'],
+      { index: 1, truoc: 'thong_bao', sau: 'yeu_cau_rut_tien' },
     ],
   ])('%s', (_name, steps, expected) => {
     expect(findLockOrderViolation(steps)).toEqual(expected);
