@@ -77,7 +77,10 @@ export function ServiceGroupsTab({ canEdit }: { canEdit: boolean }) {
       setPage(1);
       retry();
     } catch (error) {
-      setActionError(feedbackFor(error).message);
+      // `message` rỗng khi lỗi gắn ô (không có ô nào ở đây để báo), nên cần câu dự phòng thay vì im lặng
+      setActionError(
+        feedbackFor(error).message || 'Không xóa được nhóm. Vui lòng thử lại.',
+      );
       setDeleteTarget(null);
     } finally {
       setDeletePending(false);
@@ -94,7 +97,7 @@ export function ServiceGroupsTab({ canEdit }: { canEdit: boolean }) {
           pending={formPending}
           feedback={formFeedback}
           onCancel={() => setCreateOpen(false)}
-          onSubmit={(input) => void saveGroup(input)}
+          onSubmit={saveGroup}
         />
       )}
 
@@ -254,7 +257,7 @@ export function ServiceGroupsTab({ canEdit }: { canEdit: boolean }) {
                               pending={formPending}
                               feedback={formFeedback}
                               onCancel={() => setEditing(null)}
-                              onSubmit={(input) => void saveGroup(input)}
+                              onSubmit={saveGroup}
                             />
                           </td>
                         </tr>

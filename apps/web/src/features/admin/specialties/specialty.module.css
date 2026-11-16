@@ -377,11 +377,13 @@
   resize: vertical;
 }
 
-.formField input[aria-invalid='true'] {
+.formField input[aria-invalid='true'],
+.formField textarea[aria-invalid='true'] {
   border-color: #f04438;
 }
 
-.formField input[aria-invalid='true']:focus-visible {
+.formField input[aria-invalid='true']:focus-visible,
+.formField textarea[aria-invalid='true']:focus-visible {
   border-color: #f04438;
   box-shadow: inset 0 0 0 1px #f04438;
 }

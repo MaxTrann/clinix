@@ -1,5 +1,10 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
+import { useFocusFirstInvalid } from '../hooks/use-focus-first-invalid';
 import type { FormFeedback } from './catalog-errors';
+import {
+  validateGroupInput,
+  type GroupFieldErrors,
+} from './catalog-validation';
 import type { ServiceGroup, ServiceGroupInput } from './service-catalog-types';
 
 interface ServiceGroupFormProps {
@@ -7,7 +12,8 @@ interface ServiceGroupFormProps {
   pending: boolean;
   feedback: FormFeedback | null;
   onCancel: () => void;
-  onSubmit: (value: ServiceGroupInput) => void;
+  // Trả Promise để form biết khi nào lần lưu xong (cờ chống bấm đúp)
+  onSubmit: (value: ServiceGroupInput) => Promise<void> | void;
 }
 
 export function ServiceGroupForm({
@@ -18,15 +24,44 @@ export function ServiceGroupForm({
   onSubmit,
 }: ServiceGroupFormProps) {
   const id = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  // Hạ xuống khi lần lưu trước xong: hai lần submit liên tiếp (bấm đúp, Enter hai lần) chỉ gửi MỘT yêu cầu
+  const submittingRef = useRef(false);
   const [name, setName] = useState(group?.ten ?? '');
   const [order, setOrder] = useState(String(group?.thuTuHienThi ?? 1));
+  // Lỗi phía form (admin PR2 mục 6.3); lỗi từ máy chủ đến qua `feedback`
+  const [errors, setErrors] = useState<GroupFieldErrors>({});
+  const [attempt, setAttempt] = useState(0);
+  // Chỉ chuyển focus khi vừa bấm lưu hỏng hoặc có feedback MỚI, không khi người dùng đang gõ (điều kiện B)
+  useFocusFirstInvalid(formRef, attempt);
+  useFocusFirstInvalid(formRef, feedback);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  const nameError = errors.ten ?? feedback?.fields.ten;
+  const orderError = errors.thuTuHienThi ?? feedback?.fields.thuTuHienThi;
+
+  function clearError(field: keyof GroupFieldErrors) {
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const parsedOrder = Number(order);
-    if (!name.trim() || !Number.isInteger(parsedOrder) || parsedOrder < 0)
+    if (submittingRef.current || pending) return;
+    const result = validateGroupInput(name, order);
+    setErrors(result.errors);
+    if (!result.value) {
+      setAttempt((count) => count + 1);
       return;
-    onSubmit({ ten: name, thuTuHienThi: parsedOrder });
+    }
+    submittingRef.current = true;
+    try {
+      await onSubmit(result.value);
+    } finally {
+      submittingRef.current = false;
+    }
   }
 
   const fieldClass =
@@ -34,12 +69,14 @@ export function ServiceGroupForm({
 
   return (
     <form
+      ref={formRef}
       className={
         group
           ? 'bg-white px-[15px] pb-[15px]' // Figma 562:2: form sửa nằm phẳng trong hàng bảng
           : 'rounded-[13.375px] border border-[#e5e7eb] bg-white p-[18.75px]'
       }
-      onSubmit={submit}
+      noValidate
+      onSubmit={(event) => void submit(event)}
       aria-label={group ? 'Chỉnh sửa nhóm dịch vụ' : 'Thêm nhóm dịch vụ'}
       data-testid="AF3-group-form"
     >
@@ -61,22 +98,24 @@ export function ServiceGroupForm({
             id={`${id}-name`}
             className={fieldClass}
             value={name}
-            onChange={(event) => setName(event.currentTarget.value)}
+            onChange={(event) => {
+              setName(event.currentTarget.value);
+              clearError('ten');
+            }}
             maxLength={100}
             required
             autoFocus
             placeholder="Ví dụ: Khám theo chuyên khoa"
-            aria-invalid={Boolean(feedback?.fields.ten)}
-            aria-describedby={
-              feedback?.fields.ten ? `${id}-name-error` : undefined
-            }
+            aria-invalid={Boolean(nameError)}
+            aria-describedby={nameError ? `${id}-name-error` : undefined}
           />
-          {feedback?.fields.ten && (
+          {nameError && (
             <span
               id={`${id}-name-error`}
+              role="alert"
               className="mt-1 block text-[11.25px] font-normal text-danger"
             >
-              {feedback.fields.ten}
+              {nameError}
             </span>
           )}
         </label>
@@ -93,16 +132,30 @@ export function ServiceGroupForm({
             min={0}
             step={1}
             value={order}
-            onChange={(event) => setOrder(event.currentTarget.value)}
+            onChange={(event) => {
+              setOrder(event.currentTarget.value);
+              clearError('thuTuHienThi');
+            }}
             required
-            aria-invalid={Boolean(feedback?.fields.thuTuHienThi)}
+            aria-invalid={Boolean(orderError)}
+            aria-describedby={
+              orderError ? `${id}-order-error` : `${id}-order-help`
+            }
           />
-          <span className="mt-1 block text-[11.25px] font-normal text-[#99a1af]">
-            Số nhỏ hơn hiển thị trước.
-          </span>
-          {feedback?.fields.thuTuHienThi && (
-            <span className="mt-1 block text-[11.25px] font-normal text-danger">
-              {feedback.fields.thuTuHienThi}
+          {orderError ? (
+            <span
+              id={`${id}-order-error`}
+              role="alert"
+              className="mt-1 block text-[11.25px] font-normal text-danger"
+            >
+              {orderError}
+            </span>
+          ) : (
+            <span
+              id={`${id}-order-help`}
+              className="mt-1 block text-[11.25px] font-normal text-[#99a1af]"
+            >
+              Số nhỏ hơn hiển thị trước.
             </span>
           )}
         </label>
@@ -124,10 +177,11 @@ export function ServiceGroupForm({
         >
           Hủy
         </button>
+        {/* Không mờ khi tên trống (Đại chọn 16/11/2026): bấm Lưu thì câu lỗi hiện dưới ô tên */}
         <button
           type="submit"
           className="inline-flex items-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60"
-          disabled={pending || !name.trim()}
+          disabled={pending}
         >
           <img
             src="/assets/admin/branches/save.svg"

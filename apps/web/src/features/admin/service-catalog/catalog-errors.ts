@@ -1,6 +1,8 @@
 import { errorMessageFor } from '../../../shared/api/error-message';
 import { ApiError } from '../../../shared/api/errors';
 
+// `message` là banner của form và CHỈ dành cho lỗi không gắn ô nào; lỗi đã gắn ô (`fields`) thì `message` rỗng để không hiện hai lần
+// (admin PR2 mục 6.2). Form vẽ banner khi `message` khác rỗng; nơi cần một câu bằng mọi giá (xóa nhóm) phải tự có câu dự phòng.
 export interface FormFeedback {
   message: string;
   fields: Record<string, string>;
@@ -12,8 +14,8 @@ const FIELD_MESSAGES: Record<string, string> = {
   NHOM_DICH_VU_ID_KHONG_HOP_LE: 'Vui lòng chọn nhóm dịch vụ hợp lệ.',
   TEN_DICH_VU_KHONG_HOP_LE: 'Tên dịch vụ cần có từ 1 đến 100 ký tự.',
   THOI_LUONG_KHONG_HOP_LE: 'Thời lượng phải là số nguyên dương.',
-  GIA_MAC_DINH_KHONG_HOP_LE:
-    'Giá phải lớn hơn 0 và có tối đa 2 chữ số thập phân.',
+  // Web chỉ gửi số nguyên đồng; API tới PR3 vẫn nhận phần lẻ nên câu này chưa phản ánh hết luật của API (TRACKING admin 6.9)
+  GIA_MAC_DINH_KHONG_HOP_LE: 'Giá phải là số nguyên đồng lớn hơn 0.',
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -38,7 +40,7 @@ export function feedbackFor(error: unknown): FormFeedback {
   switch (error.maLoi) {
     case 'TEN_NHOM_DICH_VU_TRUNG':
       fields.ten = 'Tên nhóm dịch vụ đã tồn tại.';
-      return { message: 'Tên nhóm dịch vụ đã tồn tại.', fields };
+      return { message: '', fields };
     case 'NHOM_DICH_VU_CON_DICH_VU':
       return {
         message:
@@ -47,25 +49,20 @@ export function feedbackFor(error: unknown): FormFeedback {
       };
     case 'TEN_DICH_VU_TRUNG':
       fields.ten = 'Tên dịch vụ đã tồn tại trong nhóm này.';
-      return {
-        message: 'Tên dịch vụ đã tồn tại trong nhóm này.',
-        fields,
-      };
+      return { message: '', fields };
     case 'NHOM_DICH_VU_KHONG_TON_TAI':
       fields.nhomDichVuId =
         'Nhóm dịch vụ không còn tồn tại. Hãy chọn nhóm khác.';
-      return { message: 'Nhóm dịch vụ không còn tồn tại.', fields };
+      return { message: '', fields };
     case 'THOI_LUONG_DANG_DUNG':
       fields.thoiLuong =
         'Không thể đổi thời lượng vì dịch vụ đang được lịch hẹn hoặc khung giờ sử dụng.';
-      return {
-        message: 'Không thể đổi thời lượng dịch vụ đang được sử dụng.',
-        fields,
-      };
+      return { message: '', fields };
     case 'DU_LIEU_KHONG_HOP_LE':
+      // Có ô nhận ra được thì chỉ báo dưới ô; không ô nào thì banner chung là chỗ duy nhất còn lại để báo
       return {
         message: Object.keys(fields).length
-          ? 'Vui lòng kiểm tra lại các trường được đánh dấu.'
+          ? ''
           : 'Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại.',
         fields,
       };

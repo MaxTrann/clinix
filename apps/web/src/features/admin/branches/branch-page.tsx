@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { ApiError } from '../../../shared/api/errors';
 import { errorMessageFor } from '../../../shared/api/error-message';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
+import { useFocusFirstInvalid } from '../hooks/use-focus-first-invalid';
 import { useAdminScope } from '../use-admin-scope';
 import { createBranch } from './branch-service';
 import { dayLabel, scheduleLines } from './branch-schedule-format';
@@ -23,20 +24,13 @@ import {
   useBranches,
   type AvailableServicesState,
 } from './use-branches';
+import { applyQuickSchedule, type QuickApplyInput } from './quick-apply';
+import { QuickApplyPanel } from './quick-apply-panel';
+import type { PeriodDraft, ScheduleDraft } from './schedule-draft';
+import { TimeInput24 } from './time-input-24';
 import styles from './branches.module.css';
 
-interface PeriodDraft {
-  enabled: boolean;
-  start: string;
-  end: string;
-}
-
-interface ScheduleDraft {
-  day: number;
-  open: boolean;
-  morning: PeriodDraft;
-  afternoon: PeriodDraft;
-}
+const COORDINATE_PAIR_MESSAGE = 'Nhập đồng thời vĩ độ và kinh độ.';
 
 interface BranchDraft {
   ten: string;
@@ -107,8 +101,8 @@ function validateBranchDraft(draft: BranchDraft): BranchFieldErrors {
   const hasLatitude = draft.toaDoLat !== '';
   const hasLongitude = draft.toaDoLng !== '';
   if (hasLatitude !== hasLongitude) {
-    errors.toaDoLat = 'Nhập đồng thời vĩ độ và kinh độ.';
-    errors.toaDoLng = 'Nhập đồng thời vĩ độ và kinh độ.';
+    errors.toaDoLat = COORDINATE_PAIR_MESSAGE;
+    errors.toaDoLng = COORDINATE_PAIR_MESSAGE;
   } else if (hasLatitude && hasLongitude) {
     const latitudeError = coordinateError(draft.toaDoLat, 90);
     const longitudeError = coordinateError(draft.toaDoLng, 180);
@@ -123,7 +117,7 @@ function fieldErrorFromApi(field: string, code: string): string | undefined {
   if (field === 'diaChi') return 'Địa chỉ phải có từ 1 đến 255 ký tự.';
   if (field === 'toaDoLat' || field === 'toaDoLng') {
     return code === 'TOA_DO_PHAI_DI_THEO_CAP'
-      ? 'Nhập đồng thời vĩ độ và kinh độ.'
+      ? COORDINATE_PAIR_MESSAGE
       : 'Tọa độ không hợp lệ.';
   }
   return undefined;
@@ -216,10 +210,18 @@ function BranchCreateForm({
   >([]);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Tăng khi bấm Lưu mà có ô lỗi (phía form hoặc từ máy chủ): đưa focus vào ô lỗi đầu tiên, không cướp focus lúc đang gõ (admin PR2 6.2)
+  const [focusTick, setFocusTick] = useState(0);
+  useFocusFirstInvalid(formRef, focusTick);
 
   const fieldErrors = submitted
     ? { ...validateBranchDraft(draft), ...serverFieldErrors }
     : {};
+  // Lỗi "nhập đồng thời" gắn cả hai ô nhưng chỉ hiện MỘT lần (dưới vĩ độ); lỗi riêng của kinh độ hiện dưới ô kinh độ
+  const coordinatePair =
+    fieldErrors.toaDoLat === COORDINATE_PAIR_MESSAGE &&
+    fieldErrors.toaDoLng === COORDINATE_PAIR_MESSAGE;
   const currentScheduleInput = toScheduleInput(schedule);
   const scheduleIssues = submitted
     ? [...validateWeeklySchedule(currentScheduleInput), ...serverScheduleIssues]
@@ -257,6 +259,13 @@ function BranchCreateForm({
     });
   }
 
+  // Panel "Áp dụng nhanh": chỉ sửa bản nháp lịch (vẫn 7 dòng); hợp lệ từng ngày do validateWeeklySchedule kiểm lúc Lưu
+  function applyQuick(input: QuickApplyInput) {
+    setSchedule((current) => applyQuickSchedule(current, input));
+    setServerScheduleIssues([]);
+    setFormError('');
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
@@ -266,7 +275,10 @@ function BranchCreateForm({
     const errors = validateBranchDraft(draft);
     const schedulePayload = toScheduleInput(schedule);
     const scheduleErrors = validateWeeklySchedule(schedulePayload);
-    if (Object.keys(errors).length > 0 || scheduleErrors.length > 0) return;
+    if (Object.keys(errors).length > 0 || scheduleErrors.length > 0) {
+      setFocusTick((count) => count + 1);
+      return;
+    }
 
     const input: CreateBranchInput = {
       ten: draft.ten.trim().replace(/\s+/gu, ' '),
@@ -288,7 +300,13 @@ function BranchCreateForm({
         error instanceof ApiError &&
         error.maLoi === 'LICH_HOAT_DONG_KHONG_HOP_LE'
       ) {
-        setServerScheduleIssues(scheduleIssuesFromApi(error.chiTiet));
+        const issues = scheduleIssuesFromApi(error.chiTiet);
+        setServerScheduleIssues(issues);
+        // Máy chủ không chỉ ra ngày nào thì không có chỗ nào khác để báo: banner chung (trước đây im lặng)
+        if (issues.length === 0)
+          setFormError(
+            'Lịch hoạt động chưa hợp lệ. Vui lòng kiểm tra lại các ngày.',
+          );
       } else if (
         error instanceof ApiError &&
         error.maLoi === 'DU_LIEU_KHONG_HOP_LE'
@@ -300,13 +318,19 @@ function BranchCreateForm({
           if (message && (field === 'ten' || field === 'diaChi'))
             apiErrors[field] = message;
           if (message && (field === 'toaDoLat' || field === 'toaDoLng')) {
-            apiErrors.toaDoLat = message;
-            apiErrors.toaDoLng = message;
+            // Lỗi "đi theo cặp" gắn cả hai ô; lỗi khác chỉ gắn đúng ô được báo (trước đây đánh dấu lây sang ô còn lại)
+            if (fieldError.ma === 'TOA_DO_PHAI_DI_THEO_CAP') {
+              apiErrors.toaDoLat = message;
+              apiErrors.toaDoLng = message;
+            } else {
+              apiErrors[field] = message;
+            }
           }
         }
         setServerFieldErrors(apiErrors);
         if (Object.keys(apiErrors).length === 0)
           setFormError('Một số thông tin chưa hợp lệ. Vui lòng kiểm tra lại.');
+        else setFocusTick((count) => count + 1);
       } else if (error instanceof ApiError && error.status === 403) {
         setFormError('Bạn không có quyền thêm chi nhánh.');
       } else if (error instanceof ApiError && error.status === 404) {
@@ -345,13 +369,11 @@ function BranchCreateForm({
         </label>
         {day.open && value.enabled ? (
           <div className={styles.timeRange}>
-            <input
-              type="time"
+            <TimeInput24
               aria-label={`${fieldLabel} bắt đầu`}
               disabled={saving}
               value={value.start}
-              onChange={(event) => {
-                const start = event.currentTarget.value;
+              onChange={(start) => {
                 updateSchedule(day.day, (current) => ({
                   ...current,
                   [period]: { ...current[period], start },
@@ -359,13 +381,11 @@ function BranchCreateForm({
               }}
             />
             <span aria-hidden="true">–</span>
-            <input
-              type="time"
+            <TimeInput24
               aria-label={`${fieldLabel} kết thúc`}
               disabled={saving}
               value={value.end}
-              onChange={(event) => {
-                const end = event.currentTarget.value;
+              onChange={(end) => {
                 updateSchedule(day.day, (current) => ({
                   ...current,
                   [period]: { ...current[period], end },
@@ -384,6 +404,7 @@ function BranchCreateForm({
 
   return (
     <form
+      ref={formRef}
       id="branch-create-form"
       className={styles.createForm}
       aria-label="Thêm chi nhánh mới"
@@ -409,7 +430,11 @@ function BranchCreateForm({
             onChange={(event) => changeField('ten', event.currentTarget.value)}
           />
           {fieldErrors.ten && (
-            <p id="branch-name-error" className={styles.fieldError}>
+            <p
+              id="branch-name-error"
+              className={styles.fieldError}
+              role="alert"
+            >
               {fieldErrors.ten}
             </p>
           )}
@@ -434,7 +459,11 @@ function BranchCreateForm({
             }
           />
           {fieldErrors.diaChi && (
-            <p id="branch-address-error" className={styles.fieldError}>
+            <p
+              id="branch-address-error"
+              className={styles.fieldError}
+              role="alert"
+            >
               {fieldErrors.diaChi}
             </p>
           )}
@@ -459,7 +488,11 @@ function BranchCreateForm({
             }
           />
           {fieldErrors.toaDoLat && (
-            <p id="branch-coordinate-error" className={styles.fieldError}>
+            <p
+              id="branch-coordinate-error"
+              className={styles.fieldError}
+              role="alert"
+            >
               {fieldErrors.toaDoLat}
             </p>
           )}
@@ -477,12 +510,25 @@ function BranchCreateForm({
             value={draft.toaDoLng}
             aria-invalid={Boolean(fieldErrors.toaDoLng)}
             aria-describedby={
-              fieldErrors.toaDoLng ? 'branch-coordinate-error' : undefined
+              fieldErrors.toaDoLng
+                ? coordinatePair
+                  ? 'branch-coordinate-error'
+                  : 'branch-longitude-error'
+                : undefined
             }
             onChange={(event) =>
               changeField('toaDoLng', event.currentTarget.value)
             }
           />
+          {fieldErrors.toaDoLng && !coordinatePair && (
+            <p
+              id="branch-longitude-error"
+              className={styles.fieldError}
+              role="alert"
+            >
+              {fieldErrors.toaDoLng}
+            </p>
+          )}
         </div>
       </div>
 
@@ -490,6 +536,7 @@ function BranchCreateForm({
         <legend className={styles.sectionLabel}>
           Lịch hoạt động theo tuần <span aria-hidden="true">*</span>
         </legend>
+        <QuickApplyPanel disabled={saving} onApply={applyQuick} />
         {scheduleIssues.some((issue) => issue.thu === null) && (
           <p className={styles.fieldError} role="alert">
             {weeklyScheduleIssueMessage(
