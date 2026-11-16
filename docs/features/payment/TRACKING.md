@@ -24,15 +24,16 @@ chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá s
 | 15/11/2026 | **Phiên kiểm duyệt giai đoạn 2** (tin của phiên "Repo, Docker CI/CD và class diagram"): đọc 5.3 (ba hạng 7a/7b/7c, bảng chuỗi khoá E6, E7, E2, E4, IPN, đối soát, rút, hoàn đặc biệt đi theo hạng tăng dần; hai trường hợp không đơn điệu được nêu và xử lý hợp lý; giữ đề xuất thông báo hoàn cọc không gắn `lich_hen_id`), quy tắc `PaymentAbort` khớp cách `withBookingTransaction` chỉ bắt 1213 và 1205, Q1 sandbox thật xử lý đúng ba chỗ (khoá chỉ ở `.env`, test offline, tunnel cho IPN). Yêu cầu giai đoạn 3 (thứ tự task, lát cắt giao được, mức kiểm, bảng test, file chạm, thông tin sinh issue, CRLF). **Thông tin MoMo mới:** `developers.momo.vn` 403 cả ở trình duyệt thật (đừng vượt chặn); kho mẫu chính thức `momo-wallet/payment` chỉ có phần tạo thanh toán; đã ghi vào PLAN 5.4, Q24, 4.3, 4.6 (không chép bộ giá trị thử nào) | — (chỉ tài liệu) | Chưa chạy gì | Phiên kiểm cũng lưu ý B5 của doctor-exam sẽ giữ dòng AI log 128 và TECH_DEBT 159 |
 | 15/11/2026 | **Lập kế hoạch, giai đoạn 3 trong 3:** viết `PLAN.md` mục 6 (sơ đồ phụ thuộc và **năm lát cắt S1 đến S5**; 39 task: P1 đến P5, B1 đến B18, F1 đến F9, D1, D2, X1 đến X5; bảng file chạm 6.7; ước giờ và Iteration 6.8; thông tin sinh issue 6.9; việc bắt đầu ngay 6.10), mục 7 (**293 mã test**: 35 U, 187 I, 21 E, 50 W; 26 nhóm tiền tố, quét `grep` chưa ai dùng), mục 8, 9, 10, 4.3 và 4.6 (việc ngoài repo kèm người làm và hạn `[đề xuất]`). Kiểm chéo bằng script: mọi mã được task dẫn đều có định nghĩa, mọi mã định nghĩa đều có task dẫn (10 mã mồ côi đã gán), 39 tiêu đề PR ≤ 100 ký tự, tổng giờ khớp. **Tổng 154 giờ của Trung vượt 90 giờ của Iteration 6 và 7** (S1 đến S3 = 85 giờ vừa hai Iteration; S4 và S5 = 69 giờ sang Iteration 8 và 9); ba phương án cắt ở 6.8. Đổi hai file sang CRLF | — (chỉ tài liệu) | Chưa chạy gì | Chờ phiên kiểm duyệt giai đoạn 3; sau đó hỏi Đại các câu còn lại (Q5, Q6, Q8, Q10 đến Q14, Q16, Q18 đến Q21, Q24 đến Q26, phần còn lại của Q7 và Q9) |
 | 15/11/2026 | **Phiên kiểm duyệt giai đoạn 3** và **Đại trả lời trực tiếp ba hộp cuối** (hộp 3 đến 5): Q5, Q6, Q7 (phần còn lại), Q8, Q9 (phần hoàn đặc biệt), Q10, Q11, Q12, Q13 (kèm câu con "người làm"), Q14, Q16, Q18, Q19, Q20, Q21, Q24, Q25, Q26 **đều theo đề xuất**. Ghi vào PLAN 4.2 và TRACKING 3.1; gỡ các thẻ `[CHỜ Qn]` ở bảng task; thêm cột "Người làm" ở 6.9; cập nhật 6.8, 6.10, 4.3, 4.6, 5.10; đối chiếu lại bằng script (mã test, giờ, tiêu đề PR); đổi hai file sang CRLF | — (chỉ tài liệu) | Chưa chạy gì | Còn lại **không phải câu hỏi**: `[cần điền]` ở PLAN 4.3 (tài liệu MoMo, quy tắc ký VNPAY, tài khoản sandbox, cửa sổ tiếp đón) và việc ngoài repo ở 4.6; chờ mở PR tài liệu |
+| 16/11/2026 | **Rà soát Q1 đến Q26 và bổ sung PLAN** (Trung, nhánh `docs/payment-bo-sung-plan`): Trung gửi 8 điểm, **Đại đồng ý cả 8** (điểm 8 có điều kiện đo); ghi ở PLAN **mục 4.7 mới** và sửa tại chỗ L9, Q12, Q17, Q18, 4.3, 4.6, 5.2, 5.3 (thêm trường hợp không đơn điệu thứ ba), 5.6.1, 5.9, 5.11 #1, 5.12, 5.13, 5.14 (`GIA_DUOI_MUC_COC`, nhãn "Chưa nhận kết quả"), P1, B1, B4, B8, B9, B10, X2, 6.7, 6.8, 6.9; thêm TECH_DEBT 163 `[đề xuất số]` | thêm 7 mã: CSD-18, CSD-19, NTV-23, SDV-09, DTT-16, MGT-14, MGT-15; sửa CSD-04 (U → I), SDV-03, HCC-13, TDT-04, MGT-01, WVI-01 | Chưa chạy gì (chỉ tài liệu); đếm lại bằng script: 300 mã (34 U, 195 I, 21 E, 50 W) | Trung tự rút đề xuất "cọc là bội số 100đ" (VND thực tế không có số lẻ dưới 1 đồng). Đại tự sửa comment `refund-calculator.ts` ở B9. Số TECH_DEBT kiểm lại trên `main` lúc gộp (Đại giữ 159 đến 162) |
 
 ## 2. Kết quả test theo use case
 
-Chưa có mã test chạy (chưa task nào được làm). **293 mã** ở PLAN.md mục 7 (35 U, 187 I, 21 E, 50 W); cập nhật cột "Trạng thái" khi từng task xong (☑ n/n Pass, hay ghi ca `Fail`/`Một phần` kèm lý do). Tổng các nhóm dưới đây = 293.
+Chưa có mã test chạy (chưa task nào được làm). **300 mã** ở PLAN.md mục 7 (34 U, 195 I, 21 E, 50 W; 293 lúc lập kế hoạch, thêm 7 ngày 16/11/2026 theo PLAN 4.7); cập nhật cột "Trạng thái" khi từng task xong (☑ n/n Pass, hay ghi ca `Fail`/`Một phần` kèm lý do). Tổng các nhóm dưới đây = 300.
 
 | Nhóm | Use case / chủ đề | Số mã | Task | Trạng thái |
 |---|---|---|---|---|
-| CSD | Cấu hình chính sách đặt cọc / hủy / hoàn tiền | 17 (CSD-01…CSD-17) | B10, B18 | ☐ |
-| NTV | Nạp tiền vào ví | 22 (NTV-01…NTV-22) | B4, B16 | ☐ |
+| CSD | Cấu hình chính sách đặt cọc / hủy / hoàn tiền | 19 (CSD-01…CSD-19) | B10, B18 | ☐ |
+| NTV | Nạp tiền vào ví | 23 (NTV-01…NTV-23) | B4, B16 | ☐ |
 | CGS | Cổng thanh toán, chữ ký, IPN | 15 (CGS-01…CGS-15) | B3, B4, B16 | ☐ |
 | DST | Đối soát tự động nạp ví | 9 (DST-01…DST-09) | B14 | ☐ |
 | TLK | Thanh toán lịch khám | 16 (TLK-01…TLK-16) | B5 | ☐ |
@@ -42,13 +43,13 @@ Chưa có mã test chạy (chưa task nào được làm). **293 mã** ở PLAN.
 | HDB | Hoàn tiền đặc biệt | 12 (HDB-01…HDB-12) | B13 | ☐ |
 | NVC | Nạp ví chưa cộng | 10 (NVC-01…NVC-10) | B15 | ☐ |
 | HCC | Hoàn cọc khi huỷ | 14 (HCC-01…HCC-14) | B8, B9 | ☐ |
-| SDV | Số dư và lịch sử ví | 8 (SDV-01…SDV-08) | B1 | ☐ |
+| SDV | Số dư và lịch sử ví | 9 (SDV-01…SDV-09) | B1 | ☐ |
 | QTT | Quyền và phạm vi (kể cả bộ quét kiến trúc) | 14 (QTT-01…QTT-14) | P4, B1, B4, B5, B6, B12, X5 | ☐ |
-| DTT | Đồng thời (chạy một mình) | 15 (DTT-01…DTT-15) | B4, B5, B6, B8, B10, B11, B12, B13, B14, B15 | ☐ |
+| DTT | Đồng thời (chạy một mình) | 16 (DTT-01…DTT-16) | B4, B5, B6, B8, B10, B11, B12, B13, B14, B15 | ☐ |
 | IVT | Bất biến sổ ví và hàm tiền | 9 (IVT-01…IVT-09) | P2, P3 | ☐ |
 | HDT | Hợp đồng và cổng với `booking` | 15 (HDT-01…HDT-15) | P2, P4, B1, B2, B5, B6, B7, B8, B9 | ☐ |
 | BDT | Bảo mật dữ liệu và log | 9 (BDT-01…BDT-09) | B3, B4, B13, mọi task B | ☐ |
-| MGT | Bảng và migration | 13 (MGT-01…MGT-13) | P1, B18 | ☐ |
+| MGT | Bảng và migration | 15 (MGT-01…MGT-15) | P1, B18 | ☐ |
 | TDT | Thông báo và nhật ký | 10 (TDT-01…TDT-10) | P5, B4, B8, B12, B14, B15, B17 | ☐ |
 | WVI | Web: Ví của tôi | 7 (WVI-01…WVI-07) | F1 | ☐ |
 | WNT | Web: nạp tiền và trang kết quả | 7 (WNT-01…WNT-07) | F2 | ☐ |
@@ -90,6 +91,13 @@ Ghi câu trả lời cho các câu hỏi ở PLAN.md mục 4.2 và ngày chốt,
 | Q19 F6 và BWZ-08 | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (scope này làm thành phần; F6 booking của Đại gắn) | 15/11/2026 | Đại duyệt PR F3 (đổi BWZ-08) |
 | Q20 hạn mức | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (nạp 50.000đ đến 2.000.000đ; rút tối thiểu 10.000đ; hằng) | 15/11/2026 | `wallet.constants.ts` |
 | Q21, Q25, Q26 | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất cả ba** (`findPayment` trả đối tượng; chưa làm truy vấn chủ động; không thông báo Bác sĩ khi thu tiền) | 15/11/2026 | TRACKING booking mục 5 và 2.4 TTQ b5 cho nhóm |
+| Bổ sung 16/11 (#1) cọc ≤ giá hai chiều | **Đại đồng ý:** kiểm ở cả B10 và `ServiceService.update` của admin, dưới cùng khoá X hàng `dich_vu_kham`; 409 `GIA_DUOI_MUC_COC` `[đề xuất mã]`; không thêm CHECK DDL | 16/11/2026 | PLAN 4.7 #1; B10, 6.7; CSD-04, CSD-18, CSD-19 |
+| Bổ sung 16/11 (#2) nạp `DangXuLy` bỏ dở | **Đại đồng ý:** không đổi trạng thái, chỉ lọc khi hiển thị; cửa sổ theo cổng, VNPAY 90 phút `[đề xuất]`, MoMo tạm bằng VNPAY; không áp cho IPN và đối soát | 16/11/2026 | PLAN 4.7 #2; sửa trước B1; X2 đo lại; SDV-03, SDV-09, NTV-23, WVI-01 |
+| Bổ sung 16/11 (#3) tunnel | **Đại đồng ý:** chỉ bật lúc kiểm tay, dữ liệu mẫu, tắt sau khi xong, chỉ chuyển đường IPN nếu được | 16/11/2026 | PLAN 4.6 mục 2, X2 |
+| Bổ sung 16/11 (#4) thứ tự cắt | **Đại đồng ý:** vẫn không cắt; dự phòng cắt MoMo (B16, X3) trước, kích hoạt khi đến 26/11 chưa có tài liệu hoặc tài khoản MoMo | 16/11/2026 | PLAN 6.8 |
+| Bổ sung 16/11 (#5) `down()` P1 | **Đại đồng ý:** đếm trước rồi mới `ALTER`; có dòng ⇒ dừng, không xoá nhật ký | 16/11/2026 | P1; MGT-14, MGT-15 |
+| Bổ sung 16/11 (#6, #7) Q16 | **Đại đồng ý:** Đại sửa comment `refund-calculator.ts` dòng 5 ở B9; bỏ câu "Quản trị viên phát hiện qua lịch `DaHuy`", ghi TECH_DEBT 163 `[đề xuất số]` | 16/11/2026 | B9; PLAN 5.6.1; `docs/TECH_DEBT.md` |
+| Bổ sung 16/11 (#8) Q18 `lich_hen_id` | **Đại đồng ý có điều kiện:** gắn `lich_hen_id` cho `HoanCocThanhCong`, `HoanCocCanXuLy`, `HoanTienDacBiet`; đo DTT-16 ở B8, thấy 1213 lộ ra ngoài thì quay về không gắn | 16/11/2026 | PLAN 5.3, 5.12; B8; HCC-13, TDT-04, DTT-16 |
 | Q24★ điều kiện sandbox | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất = theo 4.6, VNPAY trước MoMo sau** | 15/11/2026 | Việc ngoài repo ở PLAN 4.6 (người và hạn); chưa có tài liệu MoMo thì giao diện nạp chỉ bật VNPAY |
 
 ### 3.2 Quyết định kế thừa từ module khác (không bàn lại; nguồn ở PLAN.md 4.1)
