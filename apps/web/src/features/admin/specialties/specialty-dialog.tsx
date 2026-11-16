@@ -6,6 +6,7 @@ import {
 } from 'react';
 import { ApiError, NetworkError, TimeoutError } from '../../../shared/api/errors';
 import { useAdminDialogFocus } from '../hooks/use-admin-dialog-focus';
+import { useFocusFirstInvalid } from '../hooks/use-focus-first-invalid';
 import {
   createSpecialty,
   setSpecialtyStatus,
@@ -26,13 +27,26 @@ interface SpecialtyDialogProps {
   onPartialSaved: () => void;
 }
 
+// Lỗi máy chủ gắn với một ô: hiện dưới ô đó (một chỗ duy nhất, admin PR2 mục 6.2), không rơi vào banner chung
+const FIELD_ERRORS: Record<
+  string,
+  { field: 'name' | 'description'; message: string }
+> = {
+  TEN_CHUYEN_KHOA_TRUNG: {
+    field: 'name',
+    message: 'Tên chuyên khoa đã tồn tại. Vui lòng chọn tên khác.',
+  },
+  TEN_CHUYEN_KHOA_KHONG_HOP_LE: {
+    field: 'name',
+    message: 'Tên chuyên khoa phải có từ 1 đến 100 ký tự.',
+  },
+  MO_TA_QUA_DAI: {
+    field: 'description',
+    message: 'Mô tả không được vượt quá 5.000 ký tự.',
+  },
+};
+
 function safeErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.maLoi === 'TEN_CHUYEN_KHOA_KHONG_HOP_LE')
-      return 'Tên chuyên khoa phải có từ 1 đến 100 ký tự.';
-    if (error.maLoi === 'MO_TA_QUA_DAI')
-      return 'Mô tả không được vượt quá 5.000 ký tự.';
-  }
   if (error instanceof TimeoutError || error instanceof NetworkError)
     return 'Chưa nhận được xác nhận từ máy chủ. Ảnh đang gắn vẫn được giữ nguyên.';
   return 'Không lưu được chuyên khoa. Vui lòng thử lại.';
@@ -68,7 +82,9 @@ export function SpecialtyDialog({
   const dialogRef = useRef<HTMLElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
   const nameErrorId = useId();
+  const descriptionErrorId = useId();
   const imageHelpId = useId();
   const [baseRecord, setBaseRecord] = useState<Specialty | null>(specialty);
   const [name, setName] = useState(specialty?.ten ?? '');
@@ -83,6 +99,10 @@ export function SpecialtyDialog({
     undefined,
   );
   const [nameError, setNameError] = useState('');
+  const [descriptionError, setDescriptionError] = useState('');
+  // Tăng mỗi lần bấm Lưu mà có ô lỗi (phía form hoặc từ máy chủ) để đưa focus vào ô lỗi đầu tiên. Lỗi hiện khi rời ô (onBlur) KHÔNG
+  // tăng nên không cướp focus của ô người dùng vừa chuyển tới (điều kiện B của phiên kiểm).
+  const [focusTick, setFocusTick] = useState(0);
   const [imageError, setImageError] = useState('');
   const [formError, setFormError] = useState('');
   const [pending, setPending] = useState(false);
@@ -91,6 +111,7 @@ export function SpecialtyDialog({
   useAdminDialogFocus(open, dialogRef, () => {
     if (!pending && !uploading) onClose();
   });
+  useFocusFirstInvalid(formRef, focusTick);
 
   if (!open) return null;
 
@@ -140,7 +161,11 @@ export function SpecialtyDialog({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError('');
-    if (!validateName()) return;
+    setDescriptionError('');
+    if (!validateName()) {
+      setFocusTick((count) => count + 1);
+      return;
+    }
 
     const input: SpecialtyInput = {
       ten: name,
@@ -181,8 +206,12 @@ export function SpecialtyDialog({
 
       onSaved();
     } catch (error) {
-      if (error instanceof ApiError && error.maLoi === 'TEN_CHUYEN_KHOA_TRUNG') {
-        setNameError('Tên chuyên khoa đã tồn tại. Vui lòng chọn tên khác.');
+      const fieldError =
+        error instanceof ApiError ? FIELD_ERRORS[error.maLoi] : undefined;
+      if (fieldError) {
+        if (fieldError.field === 'name') setNameError(fieldError.message);
+        else setDescriptionError(fieldError.message);
+        setFocusTick((count) => count + 1);
         if (savedDetails) onPartialSaved();
         return;
       }
@@ -222,7 +251,11 @@ export function SpecialtyDialog({
           </button>
         </header>
 
-        <form onSubmit={(event) => void handleSubmit(event)} noValidate>
+        <form
+          ref={formRef}
+          onSubmit={(event) => void handleSubmit(event)}
+          noValidate
+        >
           <label className={styles.formField} htmlFor="specialty-name">
             <span>
               Tên chuyên khoa <b aria-hidden="true">*</b>
@@ -255,11 +288,27 @@ export function SpecialtyDialog({
               id="specialty-description"
               value={description}
               maxLength={5000}
-              onChange={(event) => setDescription(event.currentTarget.value)}
+              onChange={(event) => {
+                setDescription(event.currentTarget.value);
+                if (descriptionError) setDescriptionError('');
+              }}
               placeholder="Mô tả ngắn về chuyên khoa này…"
               disabled={busy}
               rows={3}
+              aria-invalid={Boolean(descriptionError)}
+              aria-describedby={
+                descriptionError ? descriptionErrorId : undefined
+              }
             />
+            {descriptionError && (
+              <span
+                className={styles.fieldError}
+                id={descriptionErrorId}
+                role="alert"
+              >
+                {descriptionError}
+              </span>
+            )}
           </label>
 
           <div className={styles.formField}>

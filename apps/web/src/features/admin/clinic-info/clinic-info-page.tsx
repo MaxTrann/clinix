@@ -15,6 +15,7 @@ import type {
   ClinicInfoField,
   ClinicInfoInput,
 } from './clinic-info-types';
+import { useFocusFirstInvalid } from '../hooks/use-focus-first-invalid';
 import { useClinicInfo } from './use-clinic-info';
 import { BranchPage } from '../branches/branch-page';
 import { useAdminScope } from '../use-admin-scope';
@@ -67,6 +68,10 @@ function ClinicInfoForm({
   const [saving, setSaving] = useState(false);
   const brandInput = useRef<HTMLInputElement>(null);
   const emailInput = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  // Tăng khi bấm Lưu mà có ô lỗi (phía form hoặc từ máy chủ): đưa focus vào ô lỗi đầu tiên, không cướp focus lúc đang gõ (admin PR2 6.2)
+  const [focusTick, setFocusTick] = useState(0);
+  useFocusFirstInvalid(formRef, focusTick);
   // So từng ký tự, không cắt khoảng trắng: ô còn dư một dấu cách thì Hủy vẫn bật để đưa nó về như đã tải.
   const isDirty = FIELDS.some((field) => values[field] !== baseline[field]);
 
@@ -100,7 +105,10 @@ function ClinicInfoForm({
       emailInput.current?.validity.typeMismatch ?? false,
     );
     setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    if (Object.keys(errors).length > 0) {
+      setFocusTick((count) => count + 1);
+      return;
+    }
 
     setSaving(true);
     try {
@@ -123,6 +131,8 @@ function ClinicInfoForm({
           setFormError(
             'Một số thông tin chưa hợp lệ. Vui lòng kiểm tra lại các trường.',
           );
+        } else {
+          setFocusTick((count) => count + 1);
         }
       } else if (error instanceof ApiError && error.status === 403) {
         setFormError('Bạn không có quyền cập nhật thông tin phòng khám.');
@@ -136,6 +146,7 @@ function ClinicInfoForm({
 
   return (
     <form
+      ref={formRef}
       className={styles.formCard}
       aria-label="Thông tin chung"
       noValidate
@@ -173,7 +184,11 @@ function ClinicInfoForm({
             />
           </div>
           {fieldErrors.tenThuongHieu && (
-            <p id="clinic-brand-error" className={styles.fieldError}>
+            <p
+              id="clinic-brand-error"
+              className={styles.fieldError}
+              role="alert"
+            >
               {fieldErrors.tenThuongHieu}
             </p>
           )}
@@ -209,7 +224,11 @@ function ClinicInfoForm({
             />
           </div>
           {fieldErrors.diaChiTruSo && (
-            <p id="clinic-address-error" className={styles.fieldError}>
+            <p
+              id="clinic-address-error"
+              className={styles.fieldError}
+              role="alert"
+            >
               {fieldErrors.diaChiTruSo}
             </p>
           )}
@@ -246,7 +265,11 @@ function ClinicInfoForm({
             />
           </div>
           {fieldErrors.duongDayNong && (
-            <p id="clinic-hotline-error" className={styles.fieldError}>
+            <p
+              id="clinic-hotline-error"
+              className={styles.fieldError}
+              role="alert"
+            >
               {fieldErrors.duongDayNong}
             </p>
           )}
@@ -283,7 +306,11 @@ function ClinicInfoForm({
             />
           </div>
           {fieldErrors.email && (
-            <p id="clinic-email-error" className={styles.fieldError}>
+            <p
+              id="clinic-email-error"
+              className={styles.fieldError}
+              role="alert"
+            >
               {fieldErrors.email}
             </p>
           )}

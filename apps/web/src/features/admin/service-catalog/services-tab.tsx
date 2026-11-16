@@ -102,7 +102,7 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
             pending={formPending}
             feedback={formFeedback}
             onCancel={() => setCreateOpen(false)}
-            onSubmit={(input) => void saveService(input)}
+            onSubmit={saveService}
           />
         ))}
 
@@ -271,7 +271,7 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
                               pending={formPending}
                               feedback={formFeedback}
                               onCancel={() => setEditing(null)}
-                              onSubmit={(input) => void saveService(input)}
+                              onSubmit={saveService}
                             />
                           </td>
                         </tr>

@@ -19,6 +19,7 @@ import { HealthController } from './health/health.controller.js';
 import { MailModule } from './mail/mail.module.js';
 import { SearchModule } from './search/search.module.js';
 import { PatientModule } from './patient/patient.module.js';
+import { PaymentModule } from './payment/payment.module.js';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { PatientModule } from './patient/patient.module.js';
     PatientModule,
     DoctorModule,
     AppointmentsModule,
+    PaymentModule,
     NotificationsModule,
     AuthModule,
     RbacModule,

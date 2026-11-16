@@ -225,3 +225,150 @@ Quy tắc focus toàn cục ở lớp base cho mọi module (đã ghi `docs/TECH
 4. Script đột biến lần đầu sập ở lệnh in vì mã hóa `cp1252` (trước khi chạy ca nào; dự đoán giữ nguyên, chạy lại).
 5. Lần `tsc` đầu báo thiếu kiểu `node:fs`/`node:url` ở test hợp đồng CSS (xử lý ở 5.6).
 6. Thẻ chi nhánh và nút popup lúc đầu chưa xét màn hẹp: hai lỗi 375 px ở 5.8 là do tôi đổi từ một hàng nowrap sang nhiều dòng mà chưa đo.
+
+## 6. Biểu mẫu Admin Catalog (PR2, 16/11/2026) — KẾ HOẠCH, chưa làm
+
+Người làm: Đại (`MaxTrann`), trên module của Trung (`junUTE`); Trung đã đồng ý nội dung (file `Tom_Tat_Chinh_Sua_Admin_Catalog_Gui_Trung_2026-11-16.docx`: A1, A2, A4, mục 2.1 đến 2.3). Nhánh `feat/admin-catalog-forms-pr2`, tiếp PR1 (#487, `e3b2c43`). Phạm vi `[đề xuất]`: `apps/web/src/features/admin/**` và tài liệu; không `apps/api`, không đổi hợp đồng API, không `features/booking|doctor`, không `shared/`, không `AdminTable`/`AdminPagination`/`AdminSearchInput` (trang Duyệt nghỉ phép của doctor dùng chung). **`[ĐỤNG admin]`** (Trung review). Kế hoạch chờ phiên kiểm độc lập duyệt theo ủy quyền của Đại (16/11/2026).
+
+### 6.1 Quyết định đã chốt (Đại, 16/11/2026)
+
+(a) Giá cũ có phần lẻ ở form sửa: nạp phần nguyên kèm một dòng gợi ý dưới ô; cùng quy tắc cho DÁN (bỏ phần lẻ sau dấu cuối, không bao giờ thành 30.000.050). (b)+(c) "Áp dụng nhanh" tự bật ngày và buổi của ngày được tick; chỉ hai nút "Tất cả" và "T2–T6". (d) Dùng bộ chữ `[đề xuất]` ở 6.3, 6.4 và 6.5. (e) Ghi ở mục này; số tài liệu `[đề xuất]` TECH_DEBT 170, AI log 136, AI-BUG-054 (`origin/main` lúc fetch: 169, 135, 053; B7 và F6 sắp chèn 167/168 và 133/134; đối chiếu lại trước khi ghi, chỉ ghi khi Đại đồng ý lúc đó). (f) **Bỏ trạng thái mờ của "Lưu nhóm"/"Lưu dịch vụ" khi tên trống** (đổi hành vi so với test case SVCGRP_001 b3 của Trung) để câu lỗi hiện được: Đại chọn "bỏ mờ" bằng hộp câu hỏi ngày 16/11/2026.
+
+Phiên kiểm độc lập DUYỆT kế hoạch ngày 16/11/2026 kèm sáu điều kiện A–F, đã đưa vào các mục dưới đây: A xóa dấu phân cách ở `onChange` (ô giá và ô giờ); B hook focus không cướp focus; C hỏi Đại bỏ mờ nút Lưu (đã trả lời ở (f)); D panel Áp dụng nhanh dùng `fieldset`/`legend`/radio thật; E ô giá `aria-hidden` cho "đ", test dán và thả; F ghi chữ `GIA_MAC_DINH_KHONG_HOP_LE` ở 6.9. Chạy đủ 21 đột biến (không rút còn 12).
+
+### 6.2 Lỗi hiện đúng một lần (mục 2.1): bảng kiểm trước và sau
+
+Quy tắc: lỗi gắn với ô nào thì CHỈ hiện dưới ô đó (`aria-invalid`, `aria-describedby`, một vùng `role="alert"`, focus vào ô lỗi đầu tiên theo thứ tự DOM); banner chỉ cho lỗi không gắn ô. Cách làm: `feedbackFor()` trả `message: ''` khi lỗi đã gắn ô, form chỉ vẽ banner khi `message` khác rỗng; thêm `hooks/use-focus-first-invalid.ts` (tìm `[aria-invalid="true"]` đầu tiên sau mỗi lần bấm lưu hỏng hoặc khi `feedback` mới đến); form catalog thêm `noValidate` (bỏ bong bóng trình duyệt tiếng Anh). Hook CHỈ chuyển focus khi vừa bấm lưu hỏng (bộ đếm tăng) hoặc `feedback` MỚI đến, không khi render lại vì lý do khác hay khi người dùng đang gõ (`focus({ preventScroll: true })` rồi `scrollIntoView({ block: 'nearest' })` gọi tùy chọn, không nhảy trang). Nơi gọi `feedbackFor`/`FormFeedback` (đã `grep`): `services-tab` (hai chỗ vẽ `ServiceForm`), `service-groups-tab` (hai chỗ vẽ `ServiceGroupForm` và `removeGroup`, nơi thêm chữ dự phòng khi `message` rỗng); không nơi nào vẽ banner rỗng. Số chỗ hiện lỗi, trước ⇒ sau:
+
+| Màn | Lỗi | Trước | Sau |
+|---|---|---|---|
+| Nhóm dịch vụ | `TEN_NHOM_DICH_VU_TRUNG` | 2 (dưới ô + banner đỏ) | 1 (dưới ô) |
+| Nhóm dịch vụ | `DU_LIEU_KHONG_HOP_LE` có ô | 2 (dưới ô + banner "Vui lòng kiểm tra lại…") | 1 |
+| Nhóm dịch vụ | tên trống; thứ tự trống/âm/lẻ | 0 (lưu im lặng; "Lưu nhóm" mờ khi tên trống; thứ tự trống bị coi là 0) | 1 (dưới ô, không gọi API) |
+| Nhóm dịch vụ | xóa nhóm `NHOM_DICH_VU_CON_DICH_VU` | 1 (banner) | 1 (banner, giữ) |
+| Dịch vụ khám | `TEN_DICH_VU_TRUNG`, `THOI_LUONG_DANG_DUNG`, `NHOM_DICH_VU_KHONG_TON_TAI` | 2 | 1 |
+| Dịch vụ khám | tên trống, chưa chọn nhóm, thời lượng sai, giá trống/0/sai dạng | 0 (im lặng) | 1 (dưới ô, không gọi API) |
+| Dịch vụ khám | 403, 404, mạng, hết giờ, 5xx | 1 (banner) | 1 (banner, giữ) |
+| Chuyên khoa | `TEN_CHUYEN_KHOA_TRUNG` | 1 (dưới ô) | 1 (giữ) |
+| Chuyên khoa | `TEN_CHUYEN_KHOA_KHONG_HOP_LE`, `MO_TA_QUA_DAI` | 1 nhưng ở banner, sai chỗ | 1 dưới ô Tên / ô Mô tả |
+| Chuyên khoa | lỗi tải ảnh | 1 (dưới vùng ảnh) | 1 (giữ) |
+| Thêm chi nhánh | `DU_LIEU_KHONG_HOP_LE` có ô, tên/địa chỉ/vĩ độ | 1 (dưới ô) | 1 (giữ, thêm focus) |
+| Thêm chi nhánh | chỉ KINH ĐỘ sai (lỗi chỉ gắn vào ô vĩ độ) | 0 (không có chỗ vẽ; `aria-describedby` trỏ id không tồn tại) | 1 (dưới ô kinh độ; cặp "nhập đồng thời" vẫn 1 chỗ ở vĩ độ) |
+| Thêm chi nhánh | `LICH_HOAT_DONG_KHONG_HOP_LE` không có `chiTiet` đọc được | 0 | 1 (banner chung) |
+| Thêm chi nhánh | lịch sai theo ngày | 1 (dưới từng ngày) | 1 (giữ) |
+| Thông tin chung | `DU_LIEU_KHONG_HOP_LE` có ô | 1 (dưới ô) | 1 (giữ, thêm `role="alert"` và focus) |
+
+Test của Trung ghi "ô và khung đỏ cùng báo" (SVCGRP_002 b2, SVC_002 b3, SVC_003 b2): các mã này KHÔNG có trong repo (`grep` 0 kết quả) và không test nào trong `features/admin` khẳng định hai chỗ cùng báo, nên không phải sửa test mã nào theo; chỉ file test case của Trung (ngoài repo) cần đổi kỳ vọng thành "chỉ dưới ô" `[ĐỒNG BỘ TL]`.
+
+### 6.3 Dịch vụ khám (mục 2.2)
+
+- **Ô giá** (`service-catalog/price-format.ts` thuần + `price-input.tsx`): giá giữ trong state dạng CHUỖI CHỮ SỐ ("300000"), hiển thị `3.000.000`; hậu tố "đ" cố định nằm NGOÀI giá trị gửi; `inputMode="numeric"`; tối đa 10 chữ số (khớp `^\d{1,10}` của API), bỏ số 0 đứng đầu; gõ chữ số thứ 11 bị bỏ qua. Dán (`onPaste`, tự lấy `clipboardData`): bỏ mọi ký tự không phải số (`3,000,000`, `3.000.000đ`, `300 000` ⇒ `3.000.000`); đuôi `[.,]\d{1,2}` cuối chuỗi coi là phần lẻ và bỏ (không bao giờ là ngăn nghìn vì ngăn nghìn luôn đi với đúng 3 chữ số); dán quá 10 chữ số thì bỏ lần dán và báo "Giá tối đa 10 chữ số." Giữ con trỏ: đếm số chữ số trước con trỏ rồi đặt lại sau khi định dạng (`useLayoutEffect` với `setSelectionRange`); Xóa dấu phân cách xử lý ở `onChange`, KHÔNG chỉ ở `keydown` (điều kiện A: bàn phím ảo/IME gửi `keydown` Unidentified): nếu chuỗi chữ số sau khi bỏ định dạng GIỐNG chuỗi cũ và giá trị ngắn đi (người dùng chỉ xóa một dấu chấm) thì xóa thêm chữ số ngay trước con trỏ (Backspace) hoặc ngay sau (Delete); hướng lấy từ `nativeEvent.inputType` (`deleteContentBackward`/`deleteContentForward`), không có thì từ phím cuối do `onKeyDown` ghi vào ref (chỉ ghi, không `preventDefault`), mặc định Backspace; test bằng `fireEvent.change` (một sự kiện chỉ xóa dấu chấm). Thả chữ vào ô (`onDrop`) đi cùng đường xử lý với dán, tại vùng chọn hiện tại; test cả `clipboardData` lẫn `drop` không ném lỗi và giá trị vẫn là chuỗi chữ số hợp lệ. Hậu tố "đ" `aria-hidden` (chỉ trang trí; nhãn "Giá mặc định (VND)" đã nêu đơn vị). Gửi API chuỗi chữ số thuần (`"300000"`; API vẫn nhận, PR3 mới từ chối phần lẻ). Gợi ý dưới ô thay câu dấu chấm thập phân: "Chỉ nhập số, đơn vị đồng. Ví dụ 150.000", màu `text-text-muted` (ADR 0004: chữ thường ≥ 4,5:1; `#99a1af` cũ chỉ 2,6:1).
+- **Lỗi dưới từng ô, không im lặng** (chữ `[đề xuất]`, đã duyệt): tên trống hoặc toàn dấu cách "Vui lòng nhập tên dịch vụ."; chưa chọn nhóm "Vui lòng chọn nhóm dịch vụ."; thời lượng trống/0/âm/lẻ/dạng `1e2`/quá 2147483647 "Thời lượng phải là số nguyên dương."; giá trống "Vui lòng nhập giá."; giá 0 "Giá phải lớn hơn 0."; nhóm: tên trống "Vui lòng nhập tên nhóm.", thứ tự trống/âm/lẻ "Thứ tự phải là số nguyên không âm."; câu máy chủ `GIA_MAC_DINH_KHONG_HOP_LE` đổi thành "Giá phải là số nguyên đồng lớn hơn 0." (không còn thập phân). Nút "Lưu dịch vụ"/"Lưu nhóm" không còn mờ khi tên trống (Đại chọn, xem 6.1 (f); mờ chỉ khi đang lưu, và riêng form dịch vụ khi chưa có nhóm nào để chọn). Không gọi API khi còn lỗi; cờ `useRef` chống gửi hai lần (`onSubmit` trả Promise, cờ hạ khi xong); lỗi ô từ phía form xóa khi người dùng sửa chính ô đó, lỗi từ máy chủ giữ tới lần lưu kế (như hiện nay).
+- **Form sửa nạp giá đã định dạng**: "150000.00" ⇒ "150.000". Giá cũ có phần lẻ ("350000.50") ⇒ "350.000" kèm dòng gợi ý dưới ô `[đề xuất chữ]`: "Giá cũ 350.000,50đ có phần lẻ; lưu sẽ lưu thành 350.000đ." (`aria-describedby`). Cột Giá của danh sách (`formatVnd`) giữ nguyên.
+
+### 6.4 Lịch hoạt động theo tuần (mục 2.3)
+
+- **`TimeInput24`** (`branches/time-format.ts` thuần + `time-input-24.tsx`): ô chữ `inputMode="numeric"`, `placeholder="08:00"`, `maxLength=5`, giữ `aria-label` hiện có ("Thứ 2 buổi sáng bắt đầu"…), `disabled`, và dùng lớp `.timeRange input` (viền focus của PR1). Xóa dấu `:` cũng ở `onChange` như ô giá (điều kiện A): chỉ mất `:` (chuỗi chữ số giống cũ, giá trị ngắn đi) thì xóa thêm chữ số trước (Backspace) hoặc sau (Delete) con trỏ. Mặt nạ khi gõ: chỉ chữ số và đúng một dấu `:`; chèn `:` sau 2 chữ số; chữ số đầu 3–9 tự thêm số 0 và dấu `:` (gõ `8` ⇒ `08:`, nên gõ `800` ⇒ `08:00`); khi rời ô chuẩn hóa `8:00`, `1:30` ⇒ `08:00`, `01:30`; giờ dở dang hoặc sai (`80:0`, `25:00`) để nguyên và báo lỗi ở lần Lưu (không đoán). Hợp lệ chỉ khi khớp `^(?:[01]\d|2[0-3]):[0-5]\d$` (xuất `isTime` có sẵn ở `branch-schedule-validation.ts`; `24:00`, `12:60` sai). Không đổi `BranchScheduleInput` hay body gửi.
+- **Panel "Áp dụng nhanh"** (`branches/quick-apply.ts` thuần + `quick-apply-panel.tsx`) trong `fieldset` lịch, phía trên các hàng ngày: một `fieldset` con có `legend` "Áp dụng nhanh"; chọn buổi bằng radio THẬT (Sáng, Chiều, cùng `name`), hai `TimeInput24` (bắt đầu, kết thúc), bảy ô tick ngày T2…CN (mỗi ô có nhãn truy cập "Thứ 2"…"CN") kèm nút "Tất cả" và "T2–T6", nút "Áp dụng" (`disabled` cho tới khi hai giờ hợp lệ, bắt đầu < kết thúc, có ≥ 1 ngày tick), dòng trợ giúp tĩnh "Nhập giờ hợp lệ (24 giờ), giờ kết thúc sau giờ bắt đầu và chọn ít nhất một ngày." làm `aria-describedby` của nút. Hành vi `[đề xuất]`, đã duyệt: ghi giờ vào buổi đã chọn của CÁC NGÀY ĐƯỢC TICK, đặt `open = true` cho ngày đó và `enabled = true` cho buổi đó; KHÔNG đụng buổi còn lại hay ngày không tick; sau đó vẫn sửa từng ngày; thông báo "Đã áp dụng cho Thứ 2–Thứ 6" ở MỘT vùng `aria-live="polite"` luôn có trong DOM (không lặp khi render lại; xóa khi người dùng sửa lại panel); ngày liền kề gộp "A–B", rời nhau "Thứ 2, Thứ 4, CN". Panel KHÔNG gửi lên API (vẫn 7 dòng như cũ). Kiểm hợp lệ giờ từng ngày giữ nguyên `validateWeeklySchedule` (sáng kết thúc > chiều bắt đầu vẫn báo `KHOANG_GIO_CHONG_NHAU` lúc Lưu, không báo ngay lúc Áp dụng). Tạm dừng khi đang lưu (`saving`). Layout dùng token và khoảng cách của form chi nhánh (`.scheduleCard`, `.timeRange`, `.checkbox`, `.cancelButton`); thêm lớp `.quickApply*` và `.radio` trong `branches.module.css`.
+- **Lỗi thêm chi nhánh**: sửa hai chỗ im lặng ở 6.2 (kinh độ, `chiTiet` không đọc được), thêm focus ô lỗi đầu tiên và `role="alert"` cho thông báo dưới ô. Lỗi lịch theo ngày giữ như cũ (thông báo theo ngày không chỉ ra ô cụ thể nên không đưa focus).
+
+### 6.5 Bảng test (mã `[đề xuất]`, chưa có trong PLAN mục 7; viết TRƯỚC, phải đỏ đúng lý do)
+
+| Mã | File (cạnh mã) | Phủ |
+|---|---|---|
+| AF3-10 | `service-catalog/catalog-errors.test.ts` (mới) | `feedbackFor`: bốn mã gắn ô ⇒ `message: ''` kèm chữ ô; `DU_LIEU_KHONG_HOP_LE` có/không ô; xóa nhóm, 403, 404, 5xx, lỗi mạng ⇒ banner |
+| AF3-11 | `service-catalog/service-group-form.test.tsx` (mới) | tên trống/dấu cách, thứ tự `''`/`-1`/`1.5`/`1e2`; không gọi `onSubmit`; focus ô lỗi; chỉ một vùng báo; không banner; gửi một lần |
+| AF3-12 | `service-catalog/service-form.test.tsx` (mới) | lỗi từng ô (tên, nhóm, thời lượng `0`/`1.5`/`1e2`/`2147483647`/`2147483648`, giá trống/0); không gọi `onSubmit`; focus ô lỗi đầu; bốn mã máy chủ chỉ dưới ô (đếm `role="alert"`); banner cho 403/404/mạng; bấm đúp một lần; body `giaMacDinh` chuỗi chữ số |
+| AF3-13 | `service-catalog/price-format.test.ts` (mới) + ca gõ/dán/phím trong `service-form.test.tsx` | `formatThousands`, bỏ số 0 đầu, cắt 10 chữ số, dán 6 dạng, đuôi lẻ, dán quá 10 chữ số, con trỏ đúng sau gõ giữa chuỗi, Backspace/Delete qua dấu chấm |
+| AF3-14 | `service-catalog/service-form.test.tsx` | sửa: "150000.00" ⇒ "150.000" không gợi ý; "350000.50" ⇒ "350.000" kèm gợi ý; "0.00"; lưu gửi chuỗi số nguyên |
+| AF1-12 (mở rộng) | `service-catalog/service-catalog-focus.test.tsx` | ô giá (có hậu tố "đ") giữ lớp focus bóng trong, `pr` chừa chỗ cho "đ", nhãn không ngắt dòng |
+| AF2-11 | `specialties/specialty-page.test.tsx` | `TEN_CHUYEN_KHOA_KHONG_HOP_LE` dưới ô tên, `MO_TA_QUA_DAI` dưới ô mô tả, không banner; tên trống ⇒ focus ô tên |
+| AF4-10 | `clinic-info/clinic-info-page.test.tsx` | lỗi ô có `role="alert"` và focus vào ô lỗi đầu; banner khi không ô nào khớp |
+| AF6-01 | `branches/time-format.test.ts` (mới) | mặt nạ (`0800`, `800`, `8`, `8:00`, `1:30`, `0830`, chữ, dán dài), chuẩn hóa, `24:00`, `12:60`, `23:59`, `00:00` |
+| AF6-02 | `branches/time-input-24.test.tsx` (mới) | `placeholder`, `maxLength`, `inputMode`, `aria-label`, `disabled`, gõ/rời ô, không có `type="time"` |
+| AF6-03 | `branches/quick-apply.test.ts` (mới) | áp đúng ngày tick, đúng buổi, bật ngày nghỉ và bật buổi tắt, không đụng buổi kia và ngày không tick, áp hai lần, tập ngày rỗng, mô tả ngày liền kề/rời |
+| AF6-04 | `branches/branch-page.test.tsx` | panel trong form: nút mờ tới khi đủ điều kiện; Áp dụng T2–T6 ghi vào ô giờ từng ngày; CN Nghỉ được bật; chồng giờ sáng/chiều vẫn báo lúc Lưu; thông báo `aria-live`; POST vẫn 7 ngày |
+| AF6-05 | `branches/branch-page.test.tsx` | chỉ kinh độ sai hiện dưới ô kinh độ; `LICH_HOAT_DONG_KHONG_HOP_LE` không chi tiết ⇒ banner; focus ô lỗi đầu |
+| AF6-06 | `branches/branches-css.test.ts` | lớp `.quickApply*` (cho phép xuống dòng, nút `min-width: max-content`/`nowrap`), `.timeRange input` giữ khai báo focus |
+
+Bổ sung theo phiên kiểm: AF3-13 và AF6-02 có ca `fireEvent.change` chỉ xóa MỘT dấu chấm (Backspace và Delete) hoặc MỘT dấu `:` (điều kiện A), cả ca chèn `:` không bị coi là xóa; AF3-13 có ca `Ctrl+V` (`clipboardData`) và `drop` chữ vào ô (điều kiện E); AF3-12 có ca "gõ vào ô khác sau khi báo lỗi thì focus không bị kéo về ô lỗi" và "render lại không đổi `feedback` thì không chuyển focus" (điều kiện B); AF6-04 có ca panel: `fieldset` và `legend`, radio cùng `name`, nhãn từng ô tick, một vùng `aria-live`, nút Áp dụng mờ kèm `aria-describedby` tới dòng trợ giúp (điều kiện D); AF3-11/AF3-12 khoá việc nút Lưu KHÔNG mờ khi tên trống và mờ khi đang lưu (6.1 (f)).
+
+Ngoài ra chạy lại cả `features/admin`, `features/doctor/admin/approvals` và `npm run build` sau lần sửa mã cuối.
+
+### 6.6 Đột biến: DỰ ĐOÁN ghi trước khi chạy (không sửa sau)
+
+| # | Đột biến | Dự đoán: bắt bởi |
+|---|---|---|
+| M1 | `applyQuickSchedule` áp cả ngày không tick | AF6-03 (không đụng ngày không tick) |
+| M2 | áp nhầm buổi (Sáng ↔ Chiều) | AF6-03, AF6-04 |
+| M3 | không bật `open` của ngày đang Nghỉ | AF6-03, AF6-04 |
+| M4 | không bật `enabled` của buổi đang tắt | AF6-03 |
+| M5 | ghi đè luôn buổi còn lại | AF6-03 |
+| M6 | `TimeInput24` nhận `24:00` (regex `2[0-4]`) | AF6-01 |
+| M7 | nhận `12:60` (regex `[0-6]\d`) | AF6-01 |
+| M8 | chèn `:` sau 3 chữ số thay vì 2 | AF6-01 |
+| M9 | chuẩn hóa `800` hoặc `8:00` không thêm số 0 | AF6-01 |
+| M10 | `formatThousands` nhóm theo 4 chữ số | AF3-13 |
+| M11 | dán không bỏ đuôi lẻ (`300.000,50` ⇒ `30000050`) | AF3-13 |
+| M12 | quên đặt lại con trỏ (nhảy về cuối) | AF3-13 (con trỏ) |
+| M13 | Backspace qua dấu chấm không xóa chữ số | AF3-13 (phím) |
+| M14 | bỏ giới hạn 10 chữ số | AF3-13 |
+| M15 | bỏ `return` sau kiểm: vẫn gọi `onSubmit` khi còn lỗi | AF3-11, AF3-12 |
+| M16 | bỏ cờ chống bấm đúp | AF3-11, AF3-12 |
+| M17 | banner vẫn hiện khi có lỗi ô (`message` không rỗng) | AF3-10, AF3-12 |
+| M18 | form sửa không định dạng giá | AF3-14 |
+| M19 | bỏ focus vào ô lỗi đầu | AF3-11, AF3-12, AF6-05 |
+| M20 | bỏ `aria-describedby` của ô lỗi | AF3-12 |
+| M21 | xóa dấu phân cách không xóa thêm chữ số (Backspace qua `.` hoặc `:` đứng yên) | AF3-13, AF6-02 |
+
+Dự đoán: 21/21 bị bắt; mutant tương đương (nếu có) nêu riêng; ca lệch ghi nguyên văn hai phía. Chạy đủ 21 ca, không rút còn 12 (phiên kiểm: mỗi ca vitest một file chỉ vài giây). Sao lưu ngoài repo kèm SHA-256, 0 file `*.mut`, `PYTHONIOENCODING=utf-8`.
+
+### 6.7 Đo Chromium dự kiến (khi phiên kiểm báo "RẢNH")
+
+Playwright tạo ngữ cảnh 1440, 768, 375 ở DPR 1,25 (không ép cửa sổ đang mở), chặn `/api/` bằng hàm điều kiện `url.pathname.startsWith('/api/')`, mock dán thẳng vào lệnh. Đo: (1) viền focus theo điểm ảnh của ô giá (có "đ") và ô giờ `TimeInput24` (mép ngoài Δ = 0, hai điểm ảnh teal, không điểm xám `229,231,235`; nhớ lỗi PR1: quy tắc nền cùng độ ưu tiên đứng sau quy tắc focus); (2) phím thật (`page.keyboard`): gõ giữa chuỗi, Backspace/Delete qua dấu chấm, dán, đọc `selectionStart` (vitest không có `inputType`); (3) 375 px: không tràn ngang, nhãn/nút ("Áp dụng", "Tất cả", "T2–T6", "Lưu dịch vụ") không ngắt dòng, nút bên cạnh không bóp danh sách, `9.999.999.999đ` vừa ô giá; (4) panel Áp dụng nhanh so khoảng cách với form chi nhánh (Figma `543:2`: ô giờ 107–111 × 28,9; hàng ngày cách 109,4 px; lề trong 15 px); (5) đếm DOM: mỗi lỗi một vùng `role="alert"` và không banner; (6) focus rơi vào ô lỗi đầu. Mỗi lỗi do Chromium bắt phải kèm test hợp đồng và được chứng minh ĐỎ bằng hoàn tác tạm.
+
+### 6.8 Lệch Figma cần nhắc sửa `[ĐỒNG BỘ TL]` (dự kiến)
+
+1. Panel "Áp dụng nhanh" (mới, không có frame): `543:2`, `629:2`, `693:2`. 2. Ô giờ 24h gõ tay thay `Time Picker` (Figma vẽ 107–111 × 28,9, mã giữ 106 × 30 như trước). 3. Ô giá có ngăn nghìn và hậu tố "đ"; Figma `565:2` vẽ "300.000" không hậu tố và nhãn "Giá khám (VNĐ) *" (mã đang là "Giá mặc định (VND)", PR1 chưa đổi; hỏi Trung có đổi nhãn không). 4. Lỗi dưới ô cho dịch vụ/nhóm (Figma `562:2`, `563:2`, `565:2` không vẽ trạng thái lỗi). 5. Dòng gợi ý giá cũ có phần lẻ. 6. Figma `565:2` còn ô "Đặt cọc" ngoài hợp đồng B3 (đã ghi AF3-08; không đổi).
+
+### 6.9 Điểm cần Trung quyết / lưu ý cho Trung
+
+Câu máy chủ `GIA_MAC_DINH_KHONG_HOP_LE` đổi thành "Giá phải là số nguyên đồng lớn hơn 0." trong khi API tới PR3 vẫn nhận phần lẻ; dán đuôi lẻ bị bỏ chứ không báo lỗi; hai lỗi cũ của mã (kinh độ không hiện, `chiTiet` rỗng im lặng) và việc thứ tự nhóm trống bị coi là 0 được sửa trong PR này; nhãn "Giá khám (VNĐ)" của Figma; nhãn "Thời lượng khám (phút)" của Figma so với "Thời lượng (phút)" của mã.
+
+**Đổi hành vi so với test case của Trung `[ĐỒNG BỘ TL]`** (file ngoài repo, Trung cần đổi kỳ vọng): (1) SVCGRP_001 bước 3 hiện kỳ vọng "Lưu nhóm mờ khi tên trống"; sau PR này nút bấm được, bấm với tên trống ⇒ câu "Vui lòng nhập tên nhóm." dưới ô tên, focus vào ô, không gọi API (Đại chọn 16/11/2026); ca tương ứng của form dịch vụ đổi theo. (2) Mọi ca đang kỳ vọng lỗi hiện CẢ dưới ô LẪN khung đỏ (SVCGRP_002 b2, SVC_002 b3, SVC_003 b2): sau PR chỉ còn dưới ô. (3) Dịch vụ: giá chỉ nhập số nguyên đồng, hiển thị ngăn nghìn bằng dấu chấm và hậu tố "đ" (A1, A2 của Trung). **Điều kiện F của phiên kiểm:** chữ máy chủ `GIA_MAC_DINH_KHONG_HOP_LE` đổi thành "Giá phải là số nguyên đồng lớn hơn 0." trong khi API tới PR3 vẫn nhận phần lẻ; web luôn gửi số nguyên nên chưa sai, nhưng PR3 (API) phải ép số nguyên cho khớp chữ này.
+
+### 6.10 Không làm trong PR này
+
+`soDichVu` và giá số nguyên ở API (PR3); sửa lịch chi nhánh đã có (nút "Sửa lịch / dịch vụ" vẫn vô hiệu, task F6b); icon mũi tên sidebar; file test case của Trung; quy tắc focus toàn cục (TECH_DEBT 169); focus vào giờ cụ thể trong lỗi lịch theo ngày.
+
+### 6.11 Ước lượng `[đề xuất]`
+
+Khoảng 8 đến 9 giờ làm việc: test + mã 5 đến 6 giờ, đột biến 1 giờ, đo Chromium 1,5 giờ, tài liệu và báo cáo 0,5 giờ. Model: Claude Sonnet 5.5.
+
+### 6.12 Kết quả kiểm tra (số thật, 16/11/2026)
+
+- **Đỏ rồi xanh theo nhóm** (test viết trước): `catalog-errors` 5/13 đỏ; `service-group-form` 11/16; `service-form` 24/30; `service-catalog-errors` 7/9; `service-catalog-focus` 1/5; `branch-create-form` 16/16; `branches-css` 6/10; `specialty-dialog-errors` 6/8; `clinic-info-errors` 4/5; bảy file `price-format`, `catalog-validation`, `time-format`, `quick-apply`, `price-input`, `time-input-24`, `quick-apply-panel` đỏ vì chưa có module. Sau khi viết mã: xanh hết.
+- **Vitest từng file** (một tiến trình, RAM đo riêng 4,5 đến 4,8 GB): cả 29 file test của `features/admin` 497 ca xanh, 0 đỏ (PR1: 15 file 147 ca); 14 file mới 341 ca (sau đo Chromium thêm 1 ca CSS ⇒ 498). `eslint src/features/admin` 0 lỗi; `tsc -p tsconfig.app.json --noEmit` 0 lỗi; Prettier sạch ở file mới (ba file có sẵn `branch-page`, `clinic-info-page`, `specialty-dialog` đã lệch Prettier từ `HEAD`, chỉ chỉnh phần thêm cho khớp, không reformat cả file); `git diff --check` sạch; CR = LF ở cả 38 file (file mới chuyển CRLF cho khớp cây `apps/**`).
+- **Lượt cuối sau lần sửa mã cuối và sau 21 đột biến đã khôi phục** (RAM đo riêng 3,7 GB trước từng lệnh): `vitest run src/features/admin src/features/doctor/admin/approvals` 30 file 532/532 xanh (498 của `features/admin` gồm một ca hợp đồng CSS thêm sau đo Chromium, + 34 của trang Duyệt nghỉ phép không đổi), 8,6 giây; `npm run build` exit 0 (9 giây, 2498 module; lượt trước đó 28 giây); `eslint src/features/admin src/features/doctor/admin` 0 lỗi; `tsc -p tsconfig.app.json --noEmit` 0 lỗi. CSS build có đủ `.pr-9{padding-right:calc(var(--spacing) * 9)}`, `.pl-\[11\.25px\]{padding-left:11.25px}` và `.pointer-events-none` của ô giá. jscpd và gitleaks: CI đo.
+- **Đột biến 21 ca (mức Gọn, mỗi ca một lần vitest, sao lưu ngoài repo kèm SHA-256, khôi phục và kiểm SHA sau từng ca, 0 file `*.mut`): 21/21 bị bắt, 0 sống sót, 0 lệch dự đoán ở 6.6**, không gặp mutant tương đương. Số ca đỏ: M1 2, M2 6, M3 1, M4 2, M5 2, M6 2, M7 2, M8 6, M9 2, M10 4, M11 8, M12 5, M13 6, M14 2, M15 10, M16 1, M17 2, M18 3, M19 11, M20 2, M21 5.
+- **Đo Chromium (6.7, 16/11/2026):** Vite `127.0.0.1:5199` một tiến trình, Chromium của Playwright, ngữ cảnh khai báo 1440×900, 768×1024, 375×812, `devicePixelRatio` 1,25 (viền `1px` vẽ 0,8 px), `/api/` chặn bằng hàm điều kiện `url.pathname.startsWith('/api/')`, mock dán vào lệnh (không file trong repo, không chạm DB); RAM đo riêng 4,96 GB trước khi bắt đầu, thấp nhất khi đo 3,8 GB; xong thì đóng trình duyệt, tắt Vite, `5199` và `[::1]:5199` trống, không còn `.playwright-mcp` hay ảnh ở gốc repo.
+  - **Viền focus theo điểm ảnh** (chụp vùng quanh ô lúc thường và lúc focus, quét từ mép vào trong; mép phải và mép dưới của ô giờ quét từ trong ra vì dấu "–" và hàng ô kế dưới lọt vào khung): ô giá, ô thời lượng, ô tên (form dịch vụ), ô giờ Thứ 2 sáng bắt đầu (cả bốn mép) và ô Mô tả đang lỗi: mép ngoài lệch 0 điểm ảnh thiết bị, hai điểm ảnh teal `0,146,184` (đỏ `240,68,56` ở ô lỗi) rồi một điểm chuyển sắc (`191,227,237` hoặc `251,208,205`), không điểm xám `229,231,235` nào xen vào (thường: một điểm xám); kích thước ô không đổi khi focus (392,95 × 39,1; 106 × 30).
+  - **Ô giá** (1440): 392,95 × 39,1 (bằng ô thời lượng cùng hàng); padding trái 11,25 và phải 33,75 (`pr-9`, một lớp padding phải); hậu tố "đ" rộng 8,11, cách mép phải 11,25, tâm dọc lệch 0, `pointer-events: none`, `aria-hidden="true"`; `9.999.999.999` vừa ô ở 768 (còn 77,1 px) và 375 (còn 83,7 px), chữ không đè lên "đ"; nút Hủy và Lưu dịch vụ cao 36,29 px bằng nhau, một dòng; không tràn ngang ở cả ba cỡ (1425/1425, 753/753, 360/360).
+  - **Phím thật ô giá** (16 ca, đều đúng): gõ `1234567` ⇒ `1.234.567` con trỏ 9; gõ `abc` bị từ chối; chèn `9` sau chữ số đầu ⇒ `19.234.567` con trỏ 2; Backspace ngay sau dấu chấm ⇒ xóa chữ số trước nó (`1.234.567`, con trỏ 1) và `inputType` thật là `deleteContentBackward`; Delete ngay trước dấu chấm ⇒ xóa chữ số sau nó (`134.567`, con trỏ 1); `0005` ⇒ `5`; 11 chữ số ⇒ chữ số thứ 11 và `77` gõ thêm bị bỏ; `Ctrl+V` `300.000,50` ⇒ `300.000`, `3,000,000` và `3.000.000đ` ⇒ `3.000.000`; `Ctrl+V` 11 chữ số ⇒ bỏ lần dán, giá trị giữ nguyên, hiện "Giá tối đa 10 chữ số.", gõ lại thì lỗi mất; thả chữ `150000.50` ⇒ `150.000`, thả `abc` không đổi.
+  - **Ô giờ** (13 ca, đều đúng): gõ `8` ⇒ `08:` con trỏ 3; `00` tiếp ⇒ `08:00`; `800` ⇒ `08:00`; `0830` ⇒ `08:30`; Backspace sau `:` (`08:|30`) ⇒ `03:0`; Delete trước `:` (`08|:30`) ⇒ `08:0`; Backspace qua `:` ở cuối ⇒ `08`; gõ chữ bị bỏ; `1:30` rồi Tab ⇒ `01:30`; `2400` giữ nguyên `24:00` khi rời ô (báo lỗi ở lần Lưu); `Ctrl+V` `800` ⇒ `08:00`. Thuộc tính: `type="text"`, `placeholder="08:00"`, `maxlength=5`, `inputmode="numeric"`; kích thước 106 × 30 như `<input type="time">` cũ (Figma Time Picker 107 đến 111 × 28,9, giữ như PR1).
+  - **Panel Áp dụng nhanh**: 840 px rộng (bằng thẻ lịch, Figma 840), padding 10/13, viền 0,8, bo 10, nền `#f9fafb`; 1440: cao 137,8 (rỗng) và 158,8 (có thông báo), ô giờ 106 × 30, nút cao 28 (`white-space: nowrap`); 768: 482,8 × 213,8; 375: 230 px, ô giờ 92,2 × 30 cùng một hàng, bảy ô tick xuống ba hàng, hai nút nhanh một hàng riêng, nút Áp dụng và dòng trợ giúp xuống hàng; không phần tử nào vượt khung panel, không tràn ngang ở cả ba cỡ, các ô giờ của hàng ngày có sẵn nằm trong thẻ lịch ở 768 và 375. Chữ trợ giúp 11,25 px `rgb(106,114,130)` (`#6a7282`).
+  - **Luồng thật**: nút Áp dụng mờ lúc đầu và khi giờ dở dang (`08:`), bật khi có giờ hợp lệ và ngày; Áp dụng T2–T6 sáng `08:00–11:30` ghi vào Thứ 2 đến Thứ 6, Thứ 7 và buổi chiều giữ nguyên, thông báo "Đã áp dụng cho Thứ 2–Thứ 6"; sửa lại panel thì thông báo mất; Chiều + "Tất cả" ghi cả 7 ngày, CN tự chuyển Hoạt động và chỉ buổi chiều được bật. Lỗi một chỗ: form dịch vụ trống ⇒ 4 vùng báo dưới đúng ô, 0 banner, focus ô tên, 0 POST, nút Lưu không mờ; `TEN_DICH_VU_TRUNG` ⇒ 1 vùng báo, focus ô tên, gõ sang ô khác không bị kéo focus; form sửa "350000.50" ⇒ `350.000` kèm "Giá cũ 350.000,50đ có phần lẻ; lưu sẽ lưu thành 350.000đ.", "300000.00" ⇒ `300.000` không có gợi ý; nhóm dịch vụ tên trống ⇒ 1 vùng báo + focus, `TEN_NHOM_DICH_VU_TRUNG` ⇒ 1 vùng báo, 0 banner; thông tin chung ⇒ 1 vùng báo + focus ô tên thương hiệu; thêm chi nhánh thiếu tên ⇒ focus ô tên, chỉ kinh độ sai ⇒ lỗi dưới ô kinh độ (`aria-describedby` đúng), focus ô kinh độ, vĩ độ không bị đánh dấu, 0 POST; hộp chuyên khoa `MO_TA_QUA_DAI` ⇒ lỗi dưới ô Mô tả, focus ô Mô tả, viền đỏ, sửa thì mất.
+  - **Lỗi của MÃ do Chromium bắt (AI-BUG-055):** dải trống 21 px dưới nút Áp dụng khi chưa có thông báo (panel cao 158,8 thay vì 137,8; ở 375 là 297,3 thay vì 276,3) do `min-height: 15px; margin: 6px 0 0` của vùng `aria-live` rỗng; vitest không thấy. Sửa: `.quickMessage { margin: 0 }` và `.quickMessage:not(:empty) { margin-top: 6px }` (không dùng `display: none` để vùng vẫn trong cây truy cập); test hợp đồng AF6-06 đỏ 1 ca khi hoàn tác tạm (sao lưu ngoài repo kèm SHA-256, khôi phục khớp), xanh sau sửa; đo lại: 137,8 (rỗng) và 158,8 (có thông báo, vùng `display: block`), ở 375 là 276,3.
+  - **Quan sát cần Đại và Trung biết (không phải lỗi, đúng điều kiện A của phiên kiểm):** Backspace sau dấu `:` giữa giờ xóa chữ số đứng trước nó rồi các chữ số còn lại dồn lên (`08:30` ⇒ `03:0`); đúng cách ô giá xử lý dấu chấm nhưng với giờ thì kết quả khó đoán hơn. Gõ chữ khi đang chọn hết nội dung làm ô rỗng (chữ bị bỏ nhưng vùng chọn đã bị thay).
+
+### 6.13 Lỗi của chính tôi trong PR này
+
+1. **Ghi rỗng 26 file (24 file mới chưa vào git và hai form viết lại)** bằng một script PowerShell: tôi gọi `[IO.File]::ReadAllBytes` với đường dẫn TƯƠNG ĐỐI (.NET đọc theo thư mục tiến trình, không theo `Set-Location`), lệnh đọc báo lỗi nhưng vòng lặp vẫn chạy, `[regex]::Replace` trên giá trị rỗng trả "", và `WriteAllText` (dùng `Resolve-Path`, đúng đường dẫn) ghi 0 byte. Không khôi phục được từ công cụ (`file-history` chỉ giữ bản trước khi sửa của file có sẵn). Hậu quả: dựng lại cả 26 file (khoảng 2.500 dòng) từ nội dung đã viết trong phiên rồi chạy lại Prettier, eslint, tsc và toàn bộ test (kết quả ở 6.12 là SAU lần dựng lại). Đối chiếu: 14 file test dựng lại cho đúng số ca đã báo trước sự cố (54, 28, 13, 65, 28, 16, 23, 30, 9, 21, 25, 16, 8, 5; tổng 341/341); số dòng trước sự cố chưa từng được ghi lại nên không đối chiếu được. Từ đó: đường dẫn tuyệt đối, kiểm độ dài > 0 trước khi ghi, ghi ra `.tmp` rồi đổi tên, sao lưu ngoài repo cả file mới (`backup-pr2-1`, `backup-pr2-2`). Mã AI-BUG-054 (Đại đồng ý ghi 16/11/2026; đã ghi ở `AI_USAGE_LOG.md`).
+2. Bốn test tôi viết sai, tự bắt được khi chạy lần đầu: một assert "buổi chiều của CN có ô giờ" ngược (lẽ ra không có); thứ tự khóa sắp xếp của body POST (`diaChi` đứng trước `dichVuKhamIds`); `getByLabelText('Mô tả')` khớp chính xác không còn đúng khi thông báo lỗi nằm trong thẻ label (đổi sang khớp theo phần đầu); và một test thêm dịch vụ để yêu cầu tải lại rơi sau `afterEach` (cảnh báo `ECONNREFUSED`, sửa bằng cách chờ danh sách tải lại xong).
+3. `tsc` không bắt `no-unused-vars` của `_removed` trong một bản `clearError` ban đầu mà `eslint` mới bắt được; sửa bằng bản không có biến thừa trước khi chạy `eslint`.
+4. **Dải trống 21 px dưới panel Áp dụng nhanh (AI-BUG-055):** vùng `aria-live` rỗng vẫn chiếm 21 px vì tôi đặt `min-height` và `margin-top` cố định; 498 ca vitest xanh, chỉ đo Chromium mới thấy. Sửa kèm test hợp đồng và chứng minh đỏ bằng hoàn tác tạm (6.12).
+5. Hai lần tôi viết script đo Chromium thiếu bước: gõ `8` mà chưa gõ phút nên nút Áp dụng (đúng) vẫn mờ và lệnh hết giờ chờ, và quét điểm ảnh mép phải/dưới của ô giờ trúng dấu "–" và hàng ô kế dưới (kết quả nhiễu); cả hai là lỗi của script đo, không phải của mã, đã quét lại từ trong ra ngoài.
+
+### 6.14 Việc còn nợ
+
+Quy tắc focus toàn cục (TECH_DEBT 169); PR3 (`soDichVu`, giá số nguyên ở API, từ chối phần lẻ, ép số nguyên cho khớp chữ `GIA_MAC_DINH_KHONG_HOP_LE`); sửa lịch chi nhánh đã có (F6b) nên dùng lại `TimeInput24` và panel Áp dụng nhanh; nhắc sửa Figma ở 6.8 và đổi kỳ vọng test case của Trung ở 6.9; Đã ghi (Đại đồng ý 16/11/2026, `origin/main` lúc ghi: TECH_DEBT 169, AI log 135, AI-BUG-053; chèn theo số, không đè dòng 167, 133 của B7 hay 168, 134 của F6): `docs/TECH_DEBT.md` dòng 170, `AI_USAGE_LOG.md` hàng 136, AI-BUG-054 (sự cố ghi rỗng file) và AI-BUG-055 (dải trống CSS); đối chiếu lại `origin/main` ngay trước khi merge vì nhánh này chưa có commit B7 (#488) và payment P2 (#486); `[cần điền]` số PR và hash commit.
