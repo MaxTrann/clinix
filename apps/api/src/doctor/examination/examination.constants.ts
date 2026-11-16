@@ -56,3 +56,10 @@ export const EXAM_LIST_DEFAULT_PAGE_SIZE = 20;
 export const EXAM_LIST_MAX_PAGE_SIZE = 50;
 export const EXAM_LIST_YEAR_MIN = 2000;
 export const EXAM_LIST_YEAR_MAX = 2100;
+
+// Danh sách và chi tiết đánh giá cho Quản trị viên (B7; PLAN 5.8). Trạng thái hiển thị suy từ `danh_gia_bac_si.bi_an` (HienThi = 0, DaAn = 1).
+export const ADMIN_RATING_STATUSES = ['HienThi', 'DaAn'] as const;
+/** Nhận xét ở danh sách cắt tối đa 200 đơn vị UTF-16 (`string.length`, cùng đơn vị với trần 1.000 của `RATING_COMMENT_MAX_LENGTH`); chi tiết trả đầy đủ. */
+export const ADMIN_RATING_PREVIEW_LENGTH = 200;
+/** Từ khoá tìm `q` tối đa 100 ký tự `[đề xuất]` (không có mức tối thiểu; rỗng ⇒ như không có `q`). */
+export const ADMIN_RATING_Q_MAX_LENGTH = 100;
