@@ -30,7 +30,7 @@ export function ServiceGroupForm({
   }
 
   const fieldClass =
-    'mt-[3.75px] block min-h-[39.1px] w-full rounded-[13.375px] border border-[#e5e7eb] bg-white px-[11.25px] py-[9.375px] text-[13.125px] font-normal text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand focus:ring-2 focus:ring-brand/15 disabled:bg-surface-muted';
+    'mt-[3.75px] block min-h-[39.1px] w-full rounded-[13.375px] border border-[#e5e7eb] bg-white px-[11.25px] py-[9.375px] text-[13.125px] font-normal text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand focus:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:bg-surface-muted';
 
   return (
     <form

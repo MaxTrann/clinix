@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Info } from 'lucide-react';
+import { CirclePause, CirclePlay, Info, Pencil } from 'lucide-react';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { ApiError } from '../../../shared/api/errors';
+import { AdminConfirmationDialog } from '../components/admin-confirmation-dialog';
 import { AdminTable, type AdminTableColumn } from '../components/admin-table';
 import { useAdminScope } from '../use-admin-scope';
 import { SpecialtyDialog } from './specialty-dialog';
@@ -12,6 +13,44 @@ import { useSpecialties } from './use-specialties';
 import styles from './specialty.module.css';
 
 type StatusFilter = 'all' | SpecialtyStatus;
+
+// Icon theo trạng thái (PR1 mục 2): đang hoạt động ⇒ hành động "Ngừng" (tạm dừng, cam); đang ngừng ⇒ "Kích hoạt" (phát, xanh lá)
+function StatusToggleButton({
+  specialty,
+  disabled,
+  onClick,
+}: {
+  specialty: Specialty;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const isActive = specialty.trangThaiHoatDong === 'DangHoatDong';
+  const label = isActive ? 'Ngừng hoạt động' : 'Kích hoạt';
+  return (
+    <button
+      type="button"
+      className={isActive ? styles.pauseAction : styles.resumeAction}
+      aria-label={`${label} ${specialty.ten}`}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {isActive ? (
+        <CirclePause size={15} strokeWidth={1.5} aria-hidden="true" />
+      ) : (
+        <CirclePlay size={15} strokeWidth={1.5} aria-hidden="true" />
+      )}
+    </button>
+  );
+}
+
+// Ghi chú của popup Ngừng hoạt động (Figma 733:2); chuyên khoa chưa có bác sĩ thì bỏ vế bác sĩ [đề xuất]
+function stopNote(specialty: Specialty): string {
+  const unlinked = 'Chuyên khoa không bị xóa hay gỡ liên kết.';
+  return specialty.soBacSi > 0
+    ? `${specialty.soBacSi} bác sĩ thuộc chuyên khoa này vẫn giữ nguyên hồ sơ. ${unlinked}`
+    : unlinked;
+}
 
 export function SpecialtyPage() {
   const adminScope = useAdminScope();
@@ -25,6 +64,8 @@ export function SpecialtyPage() {
   );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingStatusId, setPendingStatusId] = useState<string | null>(null);
+  // Chuyên khoa đang chờ xác nhận ngừng hoạt động (popup); chưa gọi API cho tới khi bấm xác nhận
+  const [stopTarget, setStopTarget] = useState<Specialty | null>(null);
   const [actionError, setActionError] = useState('');
   const { state, retry } = useSpecialties(
     page,
@@ -40,6 +81,21 @@ export function SpecialtyPage() {
   function openEditDialog(specialty: Specialty) {
     setDialogSpecialty(specialty);
     setDialogOpen(true);
+  }
+
+  // Kích hoạt gọi ngay (không mất dữ liệu, hoàn tác bằng một lần ngừng; Đại chốt 16/11/2026); Ngừng hoạt động phải xác nhận
+  function requestToggle(specialty: Specialty) {
+    if (specialty.trangThaiHoatDong === 'DangHoatDong') {
+      setStopTarget(specialty);
+      return;
+    }
+    void toggleStatus(specialty);
+  }
+
+  async function confirmStop() {
+    if (!stopTarget) return;
+    await toggleStatus(stopTarget);
+    setStopTarget(null);
   }
 
   async function toggleStatus(specialty: Specialty) {
@@ -131,29 +187,18 @@ export function SpecialtyPage() {
           <div className={styles.rowActions}>
             <button
               type="button"
+              className={styles.editAction}
               aria-label={`Chỉnh sửa ${specialty.ten}`}
               title="Chỉnh sửa"
               onClick={() => openEditDialog(specialty)}
             >
-              <img src="/assets/admin/specialties/edit.svg" alt="" />
+              <Pencil size={15} strokeWidth={1.5} aria-hidden="true" />
             </button>
-            <button
-              type="button"
-              aria-label={
-                specialty.trangThaiHoatDong === 'DangHoatDong'
-                  ? `Ngừng hoạt động ${specialty.ten}`
-                  : `Kích hoạt ${specialty.ten}`
-              }
-              title={
-                specialty.trangThaiHoatDong === 'DangHoatDong'
-                  ? 'Ngừng hoạt động'
-                  : 'Kích hoạt'
-              }
+            <StatusToggleButton
+              specialty={specialty}
               disabled={pendingStatusId !== null}
-              onClick={() => void toggleStatus(specialty)}
-            >
-              <img src="/assets/admin/specialties/toggle-status.svg" alt="" />
-            </button>
+              onClick={() => requestToggle(specialty)}
+            />
           </div>
         ) : (
           <span className={styles.readOnly}>Chỉ xem</span>
@@ -261,6 +306,28 @@ export function SpecialtyPage() {
           }
         />
       )}
+
+      <AdminConfirmationDialog
+        open={stopTarget !== null}
+        title="Ngừng hoạt động chuyên khoa?"
+        message={
+          stopTarget && (
+            <>
+              Chuyên khoa <strong>{stopTarget.ten}</strong> sẽ được tạm dừng và
+              ẩn khỏi kết quả tìm kiếm/đặt lịch dành cho bệnh nhân.
+            </>
+          )
+        }
+        note={stopTarget && stopNote(stopTarget)}
+        confirmLabel="Ngừng hoạt động"
+        cancelLabel="Hủy"
+        pending={pendingStatusId !== null}
+        tone="warning"
+        onConfirm={() => void confirmStop()}
+        onCancel={() => {
+          if (pendingStatusId === null) setStopTarget(null);
+        }}
+      />
 
       {dialogOpen && (
         <SpecialtyDialog

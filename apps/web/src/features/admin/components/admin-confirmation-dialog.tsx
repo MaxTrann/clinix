@@ -1,23 +1,33 @@
-import { useId, useRef } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 import { useAdminDialogFocus } from '../hooks/use-admin-dialog-focus';
 import styles from './admin-components.module.css';
 
 interface AdminConfirmationDialogProps {
   open: boolean;
   title: string;
-  message: string;
+  // ReactNode để in đậm tên đối tượng (popup Ngừng hoạt động chuyên khoa, Figma 733:2)
+  message: ReactNode;
+  // Khối ghi chú nền cam nhạt dưới nội dung; được đọc cùng mô tả của hộp thoại
+  note?: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   pending?: boolean;
-  tone?: 'primary' | 'danger';
+  tone?: 'primary' | 'danger' | 'warning';
   onConfirm: () => void;
   onCancel: () => void;
 }
+
+const CONFIRM_TONE_CLASS = {
+  primary: '',
+  danger: styles.dangerAction,
+  warning: styles.warningAction,
+} as const;
 
 export function AdminConfirmationDialog({
   open,
   title,
   message,
+  note,
   confirmLabel = 'Xác nhận',
   cancelLabel = 'Huỷ',
   pending = false,
@@ -28,6 +38,7 @@ export function AdminConfirmationDialog({
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const messageId = useId();
+  const noteId = useId();
   useAdminDialogFocus(open, dialogRef, onCancel);
 
   if (!open) return null;
@@ -36,22 +47,28 @@ export function AdminConfirmationDialog({
     <div className={styles.dialogOverlay}>
       <section
         ref={dialogRef}
-        className={styles.confirmationDialog}
+        className={`${styles.confirmationDialog} ${tone === 'warning' ? styles.warningDialog : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-describedby={messageId}
+        aria-describedby={note ? `${messageId} ${noteId}` : messageId}
         tabIndex={-1}
       >
         <h2 id={titleId}>{title}</h2>
         <p id={messageId}>{message}</p>
+        {note && (
+          <div id={noteId} role="note" className={styles.dialogNote}>
+            <img src="/assets/admin/note-warning.svg" alt="" />
+            <span>{note}</span>
+          </div>
+        )}
         <div className={styles.dialogActions}>
           <button type="button" onClick={onCancel} disabled={pending}>
             {cancelLabel}
           </button>
           <button
             type="button"
-            className={`${styles.primaryAction} ${tone === 'danger' ? styles.dangerAction : ''}`}
+            className={`${styles.primaryAction} ${CONFIRM_TONE_CLASS[tone]}`}
             onClick={onConfirm}
             disabled={pending}
           >

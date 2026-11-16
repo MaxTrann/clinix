@@ -1,9 +1,9 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Pencil, Plus, Search } from 'lucide-react';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
+import { AdminPagination } from '../components/admin-pagination';
 import { feedbackFor, type FormFeedback } from './catalog-errors';
-import { CatalogPagination } from './catalog-pagination';
 import { createService, updateService } from './service-catalog-service';
 import { ServiceForm } from './service-form';
 import type { ServiceCatalogItem, ServiceInput } from './service-catalog-types';
@@ -79,7 +79,7 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
   }
 
   const inputClass =
-    'h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-brand focus:ring-2 focus:ring-brand/15 sm:max-w-sm';
+    'h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-brand focus:shadow-[inset_0_0_0_1px_var(--color-brand)] sm:max-w-sm';
 
   return (
     <div className="space-y-4" data-testid="AF3-services-panel">
@@ -244,12 +244,16 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
                           <td className="px-5 py-3 text-right">
                             <button
                               type="button"
-                              className="inline-flex items-center rounded-md px-2 py-1 text-[11.25px] font-medium text-[#0092b8] hover:bg-info-surface focus-visible:outline-2 focus-visible:outline-brand"
+                              className="inline-flex size-7 items-center justify-center rounded-md text-[#0092b8] hover:bg-info-surface focus-visible:outline-2 focus-visible:outline-brand"
                               aria-label={`Sửa ${service.ten}`}
                               title="Sửa"
                               onClick={() => openEdit(service)}
                             >
-                              Sửa
+                              <Pencil
+                                size={15}
+                                strokeWidth={1.5}
+                                aria-hidden="true"
+                              />
                             </button>
                           </td>
                         )}
@@ -278,12 +282,14 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
               </tbody>
             </table>
           </div>
-          <CatalogPagination
-            page={state.data.page}
-            pageSize={state.data.pageSize}
-            total={state.data.total}
-            onPageChange={changePage}
-          />
+          <div className="border-t border-border text-[13.125px] text-[#344054]">
+            <AdminPagination
+              page={state.data.page}
+              pageSize={state.data.pageSize}
+              total={state.data.total}
+              onPageChange={changePage}
+            />
+          </div>
         </section>
       )}
     </div>

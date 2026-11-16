@@ -29,6 +29,13 @@ function toInput(info: ClinicInfo): ClinicInfoInput {
   };
 }
 
+const FIELDS: ClinicInfoField[] = [
+  'tenThuongHieu',
+  'diaChiTruSo',
+  'duongDayNong',
+  'email',
+];
+
 function fieldFromApiName(name: string): ClinicInfoField | undefined {
   if (
     name === 'tenThuongHieu' ||
@@ -49,11 +56,19 @@ function ClinicInfoForm({
   readOnly: boolean;
 }) {
   const [values, setValues] = useState<ClinicInfoInput>(() => toInput(info));
+  // Bản chụp dữ liệu đã tải/đã lưu: nút Hủy khôi phục về đây, và so với nó để biết ô đã đổi chưa (PR1 mục 7).
+  // Đổi sau mỗi lần lưu thành công, nên Hủy không quay về giá trị tải ban đầu.
+  const [baseline, setBaseline] = useState<ClinicInfoInput>(() =>
+    toInput(info),
+  );
   const [fieldErrors, setFieldErrors] = useState<ClinicInfoFieldErrors>({});
   const [formError, setFormError] = useState('');
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const brandInput = useRef<HTMLInputElement>(null);
   const emailInput = useRef<HTMLInputElement>(null);
+  // So từng ký tự, không cắt khoảng trắng: ô còn dư một dấu cách thì Hủy vẫn bật để đưa nó về như đã tải.
+  const isDirty = FIELDS.some((field) => values[field] !== baseline[field]);
 
   function changeField(field: ClinicInfoField, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -64,6 +79,15 @@ function ClinicInfoForm({
     });
     setFormError('');
     setSaved(false);
+  }
+
+  // Dòng "Đã lưu" không cần xóa ở đây: nó chỉ hiện khi chưa đổi gì (changeField đã xóa nó), lúc đó Hủy đang mờ.
+  function cancel() {
+    setValues(baseline);
+    setFieldErrors({});
+    setFormError('');
+    // Nút Hủy vừa mờ đi nên giữ tiêu điểm trong form, tránh rơi về body với người dùng bàn phím
+    brandInput.current?.focus();
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -81,7 +105,9 @@ function ClinicInfoForm({
     setSaving(true);
     try {
       const result = await updateClinicInfo(values);
-      setValues(toInput(result));
+      const savedValues = toInput(result);
+      setValues(savedValues);
+      setBaseline(savedValues);
       setFieldErrors({});
       setSaved(true);
     } catch (error) {
@@ -128,6 +154,7 @@ function ClinicInfoForm({
               aria-hidden="true"
             />
             <input
+              ref={brandInput}
               id="clinic-brand-name"
               name="tenThuongHieu"
               className={styles.input}
@@ -275,14 +302,30 @@ function ClinicInfoForm({
       )}
 
       {!readOnly && (
-        <button className={styles.saveButton} type="submit" disabled={saving}>
-          <img
-            src="/assets/admin/clinic-info/save.svg"
-            alt=""
-            aria-hidden="true"
-          />
-          {saving ? 'Đang lưu…' : 'Lưu thông tin chung'}
-        </button>
+        <div className={styles.actions}>
+          {/* Hủy là nút MỚI so với Figma 541:2 (nhóm đã chốt 16/11/2026); cả hai nút mờ khi chưa đổi gì hoặc đang lưu */}
+          <button
+            className={styles.cancelButton}
+            type="button"
+            disabled={saving || !isDirty}
+            onClick={cancel}
+          >
+            Hủy
+          </button>
+          <button
+            className={styles.saveButton}
+            type="submit"
+            disabled={saving || !isDirty}
+            aria-busy={saving}
+          >
+            <img
+              src="/assets/admin/clinic-info/save.svg"
+              alt=""
+              aria-hidden="true"
+            />
+            {saving ? 'Đang lưu…' : 'Lưu thông tin chung'}
+          </button>
+        </div>
       )}
     </form>
   );

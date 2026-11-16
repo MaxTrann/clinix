@@ -41,7 +41,13 @@
   font: inherit;
 }
 
-.searchField input:focus-visible,
+/* Ô nhập: viền teal đè lên đúng vị trí viền xám (bóng TRONG), mép ngoài không nhích ra; nút giữ outline (PR1 mục 1) */
+.searchField input:focus-visible {
+  border-color: #0092b8;
+  outline: none;
+  box-shadow: inset 0 0 0 1px #0092b8;
+}
+
 .pagination button:focus-visible,
 .dialogActions button:focus-visible,
 .panelHeader button:focus-visible {
@@ -200,6 +206,58 @@
   border-color: #e7000b;
   background: #e7000b;
   color: #fff;
+}
+
+/* Nút cam dùng token `warning` (#bb4d00): Figma 733:599 vẽ #fe9a00 nhưng chữ trắng trên đó chỉ khoảng 2,1:1 (ADR 0004 cần 4,5:1) */
+.dialogActions .warningAction,
+.confirmationDialog .dialogActions .warningAction {
+  border-color: #bb4d00;
+  background: #bb4d00;
+  color: #fff;
+}
+
+/* Biến thể warning (popup Ngừng hoạt động chuyên khoa, Figma 733:599): tiêu đề nhỏ hơn hộp xóa nhóm (563:2), có khối ghi chú cam */
+.warningDialog h2 {
+  font-size: 16.875px;
+  line-height: 25.313px;
+}
+
+.warningDialog p {
+  margin: 7.5px 0 0;
+}
+
+.confirmationDialog .dialogNote {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 7.5px;
+  margin: 11.25px 0 0;
+  padding: 11.25px;
+  border: 1px solid #fef3c6;
+  border-radius: 9.375px;
+  background: #fffbeb;
+  color: #bb4d00;
+  font-size: 11.25px;
+  line-height: 15px;
+}
+
+.dialogNote img {
+  display: block;
+  width: 13.125px;
+  height: 13.125px;
+  flex: 0 0 auto;
+  margin-top: 1.875px;
+}
+
+.warningDialog .dialogActions {
+  margin-top: 11.25px;
+}
+
+/* Nhãn "Ngừng hoạt động" dài: ở 375px mỗi nút chỉ có ~132px nên nhãn ngắt hai dòng và hai nút lệch chiều cao (đo Chromium 16/11/2026);
+   min-width theo nội dung giữ nhãn một dòng, còn ở 1440px hai nút vẫn bằng nhau (flex: 1 1 0) */
+.warningDialog .dialogActions button {
+  min-width: max-content;
+  white-space: nowrap;
 }
 
 .panelOverlay {
