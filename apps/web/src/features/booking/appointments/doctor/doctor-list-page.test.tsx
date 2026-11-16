@@ -558,3 +558,199 @@ describe('booking F11 — danh sách của Bác sĩ: liên kết Chi tiết', ()
     expect(search).not.toMatch(/Nguy|q=/);
   });
 });
+
+// doctor-exam F4: nhãn con dưới chip `Hoàn thành` theo cờ `coHoSoKham` (Figma `457:2`, PLAN 4.2 Q6 (4), Q24). Cờ đi qua bộ đọc THẬT của API giả. Mã WHS-08 phần danh sách; XHS-02 phần web; BDK-09 mở rộng (cờ "có hồ sơ" cũng là
+// thông tin sức khoẻ: QHK-08). Bảng dựng riêng ở `doctor-table.test.tsx` (WHS-19, WHS-20), bộ đọc ở `api/doctor-appointments-api.test.ts` (WHS-18).
+const HAS_RECORD = 'Đã có hồ sơ khám';
+const NO_RECORD = 'Chưa ghi hồ sơ';
+
+// Hai dòng `Hoàn thành` (cờ `true` rồi `false`), cộng ba dòng ngoài `Hoàn thành` mà một trong số đó có cờ `true` (DaTiepDon có hồ sơ: B3 trả `true`, giao diện KHÔNG hiện nhãn)
+const WITH_NOTES = [
+  makeDoctorAppointment({
+    maLichHen: 'CP20260520001',
+    trangThai: 'HoanThanh',
+    coHoSoKham: true,
+  }),
+  makeDoctorAppointment({
+    maLichHen: 'CP20260520005',
+    trangThai: 'HoanThanh',
+    coHoSoKham: false,
+  }),
+  makeDoctorAppointment({
+    maLichHen: 'CP20261018006',
+    trangThai: 'DaTiepDon',
+    coHoSoKham: true,
+  }),
+  makeDoctorAppointment({
+    maLichHen: 'CP20261018001',
+    trangThai: 'DaXacNhan',
+    coHoSoKham: false,
+  }),
+  makeDoctorAppointment({
+    maLichHen: 'CP20261008051',
+    trangThai: 'ChoThanhToan',
+    coHoSoKham: true,
+  }),
+];
+
+// Chữ của nhãn con ở ô Trạng thái (ô thứ năm) của từng dòng, theo thứ tự dòng; `null` khi không có nhãn
+const statusNotes = () =>
+  screen
+    .getAllByRole('row')
+    .slice(1)
+    .map(
+      (row) =>
+        within(row).getAllByRole('cell')[4].querySelector('p')?.textContent ??
+        null,
+    );
+
+describe('doctor-exam F4 — danh sách của Bác sĩ: nhãn con theo `coHoSoKham`', () => {
+  it('WHS-08 (phần danh sách) `Hoàn thành` cờ `true` ⇒ "Đã có hồ sơ khám", cờ `false` ⇒ "Chưa ghi hồ sơ"; trạng thái khác KHÔNG nhãn (kể cả DaTiepDon, ChoThanhToan cờ `true`); đúng nhãn đúng dòng', async () => {
+    await mount((api) => {
+      api.appointments = WITH_NOTES;
+    });
+    expect(rowCodes()).toEqual([
+      'CP20260520001',
+      'CP20260520005',
+      'CP20261018006',
+      'CP20261018001',
+      'CP20261008051',
+    ]);
+    expect(statusNotes()).toEqual([HAS_RECORD, NO_RECORD, null, null, null]);
+    expect(screen.getAllByText(HAS_RECORD)).toHaveLength(1);
+    expect(screen.getAllByText(NO_RECORD)).toHaveLength(1);
+  });
+
+  it('WHS-08 (phần danh sách) lọc `Hoàn thành` rồi bỏ lọc: nhãn đi theo từng dòng sau mỗi lần tải lại; bảng vẫn sáu cột', async () => {
+    await mount((api) => {
+      api.appointments = WITH_NOTES;
+    });
+    fireEvent.click(tab(/^Hoàn thành/));
+    await waitFor(() =>
+      expect(rowCodes()).toEqual(['CP20260520001', 'CP20260520005']),
+    );
+    expect(statusNotes()).toEqual([HAS_RECORD, NO_RECORD]);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(6);
+
+    fireEvent.click(tab(/^Tất cả/));
+    await waitFor(() => expect(rowCodes()).toHaveLength(5));
+    expect(statusNotes()).toEqual([HAS_RECORD, NO_RECORD, null, null, null]);
+  });
+
+  it.each([
+    ['thiếu khoá', undefined],
+    ['chuỗi "true"', 'true'],
+    ['số 1', 1],
+    ['null', null],
+  ])(
+    'WHS-08 `coHoSoKham` %s ở một dòng `Hoàn thành` ⇒ hộp lỗi với `Thử lại`, KHÔNG vẽ bảng dở dang và KHÔNG đoán nhãn',
+    async (_label, wrong) => {
+      const row: Record<string, unknown> = {
+        ...makeDoctorAppointment({ trangThai: 'HoanThanh' }),
+      };
+      if (wrong === undefined) delete row.coHoSoKham;
+      else row.coHoSoKham = wrong;
+      const { api } = renderDoctorAppointments(DOCTOR_APPOINTMENTS_PATH, {
+        before: (fake) => {
+          fake.appointments = [row];
+        },
+      });
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Thử lại' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('region', { name: LIST_TEXT.resultsRegion }),
+      ).toBeNull();
+      expect(screen.queryByText(HAS_RECORD)).toBeNull();
+      expect(screen.queryByText(NO_RECORD)).toBeNull();
+      expect(api.callsTo('/doctor/appointments')).toHaveLength(1);
+    },
+  );
+
+  it('XHS-02 (phần web) máy chủ lỡ gửi nội dung hồ sơ trong dòng danh sách (`trieuChung`, `chanDoanSoBo`, `huongXuLy`, `ghiChuKham`, `ngayTaiKhamDuKien`, `capNhatLanCuoi`) ⇒ KHÔNG chữ nào lên màn hình; nhãn vẫn đúng', async () => {
+    await mount((api) => {
+      api.appointments = [
+        {
+          ...makeDoctorAppointment({
+            trangThai: 'HoanThanh',
+            coHoSoKham: true,
+          }),
+          trieuChung: 'XHS02-trieu-chung',
+          chanDoanSoBo: 'XHS02-chan-doan',
+          huongXuLy: 'XHS02-huong-xu-ly',
+          ngayTaiKhamDuKien: '2026-07-10',
+          capNhatLanCuoi: '2026-06-10T10:30:00.000Z',
+          ghiChuKham: {
+            trieuChung: 'XHS02-ghi-chu-doi-tuong',
+            chanDoanSoBo: 'XHS02-chan-doan-2',
+            huongXuLy: 'XHS02-huong-xu-ly-2',
+            ngayTaiKhamDuKien: null,
+            capNhatLanCuoi: '2026-06-10T10:30:00.000Z',
+          },
+        },
+      ];
+    });
+    const text = document.body.textContent ?? '';
+    for (const leaked of [
+      'XHS02',
+      '10/07/2026',
+      '2026-07-10',
+      '2026-06-10',
+      'Cập nhật lúc',
+    ]) {
+      expect(text, leaked).not.toContain(leaked);
+    }
+    expect(statusNotes()).toEqual([HAS_RECORD]);
+  });
+
+  it('BDK-09 (mở rộng) hiện nhãn, lọc, mở `Chi tiết`: cờ KHÔNG vào `localStorage`, `sessionStorage`, URL, `state`, tiêu đề, truy vấn gửi đi hay `console.*`; chỉ GET', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const consoleSpies = (
+      ['log', 'info', 'warn', 'error', 'debug'] as const
+    ).map((method) => vi.spyOn(console, method).mockImplementation(() => {}));
+    try {
+      const title = document.title;
+      const search = window.location.search;
+      const hash = window.location.hash;
+      const { api, router } = await mount((fake) => {
+        fake.appointments = WITH_NOTES;
+      });
+      fireEvent.click(tab(/^Hoàn thành/));
+      await waitFor(() =>
+        expect(currentUrl()).toBe(
+          `${DOCTOR_APPOINTMENTS_PATH}?trangThai=HoanThanh`,
+        ),
+      );
+      await waitFor(() => expect(rowCodes()).toHaveLength(2));
+      expect(statusNotes()).toEqual([HAS_RECORD, NO_RECORD]);
+      expect(currentUrl()).not.toMatch(/coHoSoKham|true|false/);
+
+      for (const spy of consoleSpies) expect(spy).not.toHaveBeenCalled();
+      expect(setItem).not.toHaveBeenCalled();
+      expect(window.localStorage.length).toBe(0);
+      expect(window.sessionStorage.length).toBe(0);
+      expect(document.title).toBe(title);
+      expect(window.location.search).toBe(search);
+      expect(window.location.hash).toBe(hash);
+      for (const query of doctorListQueries(api)) {
+        expect(JSON.stringify(query)).not.toContain('coHoSoKham');
+      }
+      expect(api.writes()).toEqual([]);
+
+      fireEvent.click(detailLink('CP20260520001'));
+      await waitFor(() =>
+        expect(router.state.location.pathname).toBe(
+          '/bac-si-portal/lich-hen/CP20260520001',
+        ),
+      );
+      expect(router.state.location.state).toEqual({
+        listSearch: '?trangThai=HoanThanh',
+      });
+      expect(JSON.stringify(router.state.location)).not.toContain('coHoSoKham');
+      expect(setItem).not.toHaveBeenCalled();
+    } finally {
+      for (const spy of [setItem, ...consoleSpies]) spy.mockRestore();
+    }
+  });
+});

@@ -1,6 +1,7 @@
 import type {
   DoctorAppointment,
   DoctorAppointmentDetail,
+  DoctorAppointmentRow,
 } from '../appointments/doctor/api/doctor-appointment-types';
 import { APPOINTMENT_STATES } from '../appointments/common/appointment-status';
 import type { StatusCounts } from '../appointments/common/status-counts';
@@ -11,11 +12,11 @@ import {
 } from './fake-appointment-list-api';
 
 // API giả của "Lịch hẹn" của Bác sĩ cho test web (booking F11). Bọc `fetch` của fake auth như `fake-admin-api.ts`: CHỈ trả lời các đường dẫn dưới đây, mọi đường dẫn khác chuyển cho `delegate`. KHÔNG gọi backend thật.
-//   /doctor/appointments        danh sách: lọc `trangThai` (một mã), `ca` và `q` (chứa, không phân biệt hoa thường, trên mã lịch, tên và SĐT người khám: như B5, không khớp tên bác sĩ), cắt trang theo `page` và
+//   /doctor/appointments        danh sách (mỗi dòng ĐÚNG chín khoá của B3: có `coHoSoKham`, mặc định `false`): lọc `trangThai` (một mã), `ca` và `q` (chứa, không phân biệt hoa thường, trên mã lịch, tên và SĐT người khám: như B5, không khớp tên bác sĩ), cắt trang theo `page` và
 //                               `api.pageSize`, giữ NGUYÊN thứ tự của `api.appointments` (test đặt đúng thứ tự mà máy chủ sắp: web không được sắp lại); trang vượt cuối ⇒ 200 rỗng và `total` vẫn đúng.
 //                               `demTheoTrangThai`: đếm theo mọi bộ lọc TRỪ `trangThai` (như B5) trừ khi test đặt `api.counts` (số cố định, để khẳng định web lấy NGUYÊN số của máy chủ).
 //                               `tuNgay`, `denNgay`, `sapXep` CHỈ được ghi vào `requests` (không lọc, không sắp): test khẳng định truy vấn đã gửi.
-//   /doctor/appointments/:ma    chi tiết: lấy từ `api.details[ma]`; chưa đặt thì dựng từ dòng danh sách cùng mã; không có ⇒ 404 `KHONG_TIM_THAY` (như B5).
+//   /doctor/appointments/:ma    chi tiết (ĐÚNG mười một khoá, KHÔNG `coHoSoKham`): lấy từ `api.details[ma]`; chưa đặt thì dựng từ dòng danh sách cùng mã (bỏ cờ); không có ⇒ 404 `KHONG_TIM_THAY` (như B5).
 // Ghi MỌI lời gọi vào `requests` (kể cả đường dẫn chuyển đi), kèm query và việc có gắn Authorization hay không.
 
 type FetchLike = (
@@ -33,8 +34,8 @@ const DETAIL_PREFIX = `${LIST_PATH}/`;
 export const FAKE_VISIT_TIME = '2026-10-18T01:00:00.000Z';
 export const DOCTOR_CODE = 'CP20261018001';
 
-// Dòng danh sách mẫu của Bác sĩ: ĐÚNG tám khoá của B5 (dữ liệu giả, không phải của ai)
-export function makeDoctorAppointment(
+// Tám khoá LÕI mẫu của một lịch của Bác sĩ (dữ liệu giả, không phải của ai): dòng danh sách cộng `coHoSoKham`, chi tiết cộng ba khoá riêng
+function makeDoctorCore(
   overrides: Partial<DoctorAppointment> = {},
 ): DoctorAppointment {
   return {
@@ -56,8 +57,16 @@ export function makeDoctorAppointment(
   };
 }
 
+// Dòng danh sách mẫu của Bác sĩ: ĐÚNG chín khoá của B3 (tám khoá lõi cộng `coHoSoKham`, mặc định `false`: chưa có hồ sơ; ghi đè được)
+export function makeDoctorAppointment(
+  overrides: Partial<DoctorAppointmentRow> = {},
+): DoctorAppointmentRow {
+  const { coHoSoKham = false, ...core } = overrides;
+  return { ...makeDoctorCore(core), coHoSoKham };
+}
+
 // `count` dòng có mã khác nhau `CP20261018001`, `CP20261018002`… (cùng người khám, cùng giờ)
-export function makeDoctorAppointments(count: number): DoctorAppointment[] {
+export function makeDoctorAppointments(count: number): DoctorAppointmentRow[] {
   return Array.from({ length: count }, (_, index) =>
     makeDoctorAppointment({
       maLichHen: `CP20261018${String(index + 1).padStart(3, '0')}`,
@@ -65,17 +74,19 @@ export function makeDoctorAppointments(count: number): DoctorAppointment[] {
   );
 }
 
-// Chi tiết mẫu: ĐÚNG mười một khoá (tám khoá của dòng, `ghiChuKham` luôn `null`, `chiNhanh`, `ngayDat`)
+// Chi tiết mẫu: ĐÚNG mười một khoá (tám khoá lõi, `ghiChuKham` luôn `null`, `chiNhanh`, `ngayDat`). KHÔNG có `coHoSoKham` (B3: cờ chỉ của danh sách): nếu `overrides` là một dòng danh sách thì BỎ cờ
 export function makeDoctorDetail(
   overrides: Partial<DoctorAppointmentDetail> = {},
 ): DoctorAppointmentDetail {
-  return {
-    ...makeDoctorAppointment(),
+  const detail: DoctorAppointmentDetail & { coHoSoKham?: boolean } = {
+    ...makeDoctorCore(),
     ghiChuKham: null,
     chiNhanh: 'CLINIX Chi nhánh Quận 3',
     ngayDat: '2026-10-16T03:00:00.000Z',
     ...overrides,
   };
+  delete detail.coHoSoKham;
+  return detail;
 }
 
 const normalize = (text: string) => text.normalize('NFC').toLowerCase();
