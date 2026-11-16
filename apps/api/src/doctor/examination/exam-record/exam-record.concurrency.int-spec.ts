@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import { withRowLock } from '../../../appointments/testing/concurrency-harness.js';
 import {
   reportRounds,
+  retryStats,
   sleep,
   valuesOf,
   winnerTally,
@@ -34,14 +35,21 @@ import {
   recordService,
 } from '../testing/exam-record-stack.js';
 import { accountName, detailService } from '../testing/patient-exam-stack.js';
+import {
+  LOCK_LICH_HEN_SQL,
+  ratingBody,
+  ratingService,
+  waitingLocks,
+} from '../testing/rating-stack.js';
 import type { PatientExamDetail } from '../patient-view/patient-exam-detail.dto.js';
+import type { RatingView } from '../rating/rating.dto.js';
 
 // doctor-exam B2 — các ca ĐỒNG THỜI của ghi và sửa hồ sơ khám trên MySQL 8.4 THẬT (PLAN 5.3, 7.8 DHK-03, DHK-04, DHK-05, DHK-10, DHK-11; X1 M2, M3). CHẠY MỘT MÌNH (`--no-file-parallelism` đã là mặc định của cấu hình int;
 // không chạy cùng lúc với ca nặng khác). DHK-02 (`complete` ‖ `PUT`) ở completion/exam-completion.concurrency.int-spec.ts (thay DHK-12 mô phỏng của B1). Mỗi vòng: dữ liệu SẠCH, hai bên cùng xuất phát (`racePair`, xen kẽ ai đi trước),
 // IVK-01…IVK-05 và INV-01…INV-05 sau vòng, rồi IN một dòng `[B2-DHK]` (số vòng, bên thắng, số lần thử lại 1213/1205 theo nhãn, số yêu cầu hết lượt 503).
 // DỰ ĐOÁN (ghi trước khi chạy, TRACKING 13.2; lệch thì GHI, không sửa dự đoán): P1 DHK-03, DHK-04, DHK-05: 0 lần thử lại, 0 × 503 (khoá `lich_hen` X trước mọi ghi; X1 M1 đến M3 và DHK-12 của B1 đều 0); P2 DHK-11: 0 lần thử lại, 0 × 503, đánh giá luôn
 // vào được sau một lần chờ ngắn (X1 M3: vài ms); P3 DHK-10: 0 lần thử lại (PUT không xin `benh_nhan` nên không có chu trình như DHK-09 của B1; bật `retriesAllowed` đề phòng), 503 = 0 chắc chắn; P4 mọi ca: INV, IVK xanh sau mỗi vòng;
-// DHK-03 và DHK-04(a): đúng một 200 và một 409 `HO_SO_KHAM_DA_THAY_DOI` mỗi vòng, không 1062 lộ. DHK-05 dùng bên đọc THẬT (`PatientExamDetailService`, B5: thay bên đọc mô phỏng của B2; kèm ca xác định (b) bằng khoá hàng); DHK-11 còn dùng bên đánh giá MÔ PHỎNG (B6 chưa có): B6 thay bằng service thật.
+// DHK-03 và DHK-04(a): đúng một 200 và một 409 `HO_SO_KHAM_DA_THAY_DOI` mỗi vòng, không 1062 lộ. DHK-05 dùng bên đọc THẬT (`PatientExamDetailService`, B5: thay bên đọc mô phỏng của B2; kèm ca xác định (b) bằng khoá hàng); DHK-11 dùng bên đánh giá THẬT (`RatingService`, B6: thay bên MÔ PHỎNG `INSERT danh_gia_bac_si` thô của B2), cộng ca xác định (C) bằng khoá hàng và số lần chờ khoá đọc từ `performance_schema` (B6).
 useStatusWorldHooks();
 
 const TAG = 'B2-DHK';
@@ -397,11 +405,17 @@ describe('DHK-10 PUT hồ sơ THẬT ‖ override Admin THẬT DaTiepDon → DaX
   );
 });
 
-describe('DHK-11 [đề xuất, B2] gửi đánh giá MÔ PHỎNG ‖ PUT hồ sơ cùng lịch HoanThanh: không deadlock; đánh giá chờ ngắn rồi thành công (X1 M3)', () => {
+/** Trung vị của một dãy số (ms), để IN ra báo cáo. */
+const median = (values: readonly number[]): number =>
+  [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ??
+  Number.NaN;
+
+describe('DHK-11 gửi đánh giá THẬT (RatingService, B6) ‖ PUT hồ sơ cùng lịch HoanThanh: không deadlock; đánh giá chờ ngắn rồi thành công (X1 M3)', () => {
   it(
-    `${String(EXAM_RACE_ROUNDS)} vòng`,
+    `${String(EXAM_RACE_ROUNDS)} vòng (cộng ${String(EXAM_RACE_ROUNDS)} lần đối chứng KHÔNG đua để tách chi phí của chính service khỏi chờ khoá)`,
     async () => {
       const t = await raceWorld();
+      const rating = ratingService(db);
       const tally = winnerTally();
       const waits: number[] = [];
       await runExamRounds(db, {
@@ -423,34 +437,116 @@ describe('DHK-11 [đề xuất, B2] gửi đánh giá MÔ PHỎNG ‖ PUT hồ s
                   capNhatLanCuoi: SEEDED_TOKEN,
                 }),
               ),
-            // Bên đánh giá là `INSERT danh_gia_bac_si` thô (B6 chưa có): xin S ngầm trên hàng cha `lich_hen` nên chờ đúng phần còn lại của PUT
+            // Bên đánh giá là `RatingService` THẬT (đọc thường, rồi INSERT xin S ngầm trên hàng cha `lich_hen` nên chờ đúng phần còn lại của PUT, rồi đọc lại): đo cả lời gọi
             async () => {
               const start = performance.now();
-              await t.exam.rating(lich.lichHenId);
-              return performance.now() - start;
+              const view = await rating.submit(
+                t.w.patientId,
+                lich.maLichHen,
+                ratingBody({ soSao: 4, nhanXet: 'Đánh giá lúc sửa hồ sơ' }),
+              );
+              return { view, ms: performance.now() - start };
             },
           ),
         check: async (lich, results) => {
-          const [put, wait] = valuesOf(results) as [
+          const [put, rated] = valuesOf(results) as [
             { huongXuLy: string },
-            number,
+            { view: RatingView; ms: number },
           ];
           expect(put.huongXuLy).toBe('Sửa lúc có đánh giá');
+          expect(rated.view).toMatchObject({
+            soSao: 4,
+            nhanXet: 'Đánh giá lúc sửa hồ sơ',
+          });
           expect(await editAuditRows(db)).toHaveLength(1);
           const ratings = await db.query<{ n: string | number }[]>(
             'SELECT COUNT(*) AS n FROM danh_gia_bac_si WHERE lich_hen_id = ?',
             [lich.lichHenId],
           );
           expect(Number(ratings[0]?.n)).toBe(1);
-          waits.push(wait);
+          waits.push(rated.ms);
           tally.add('ca-hai-xong');
         },
       });
+      // Đối chứng: cùng `submit` nhưng KHÔNG có PUT (lịch khác mỗi lần): chi phí của chính service (đọc, SET, INSERT, đọc lại, COMMIT)
+      const baseline: number[] = [];
+      for (let run = 0; run < EXAM_RACE_ROUNDS; run++) {
+        await resetRound();
+        const lich = await t.w.booked('HoanThanh', 0);
+        const start = performance.now();
+        await rating.submit(t.w.patientId, lich.maLichHen, ratingBody());
+        baseline.push(performance.now() - start);
+      }
       const sorted = [...waits].sort((a, b) => a - b);
       console.info(
-        `[${TAG}] DHK-11 chờ của INSERT đánh giá (ms): trung vị ${String(sorted[Math.floor(sorted.length / 2)]?.toFixed(1))}, nhỏ nhất ${String(sorted[0]?.toFixed(1))}, lớn nhất ${String(sorted.at(-1)?.toFixed(1))} (${String(sorted.length)} vòng)`,
+        `[${TAG}] DHK-11 thời gian của submit khi ĐUA với PUT (ms): trung vị ${median(waits).toFixed(1)}, nhỏ nhất ${String(sorted[0]?.toFixed(1))}, lớn nhất ${String(sorted.at(-1)?.toFixed(1))} (${String(sorted.length)} vòng); đối chứng KHÔNG đua: trung vị ${median(baseline).toFixed(1)}, lớn nhất ${String(Math.max(...baseline).toFixed(1))}; hiệu hai trung vị ${(median(waits) - median(baseline)).toFixed(1)} ms`,
       );
       reportRounds(TAG, 'DHK-11', EXAM_RACE_ROUNDS, tally.winners, logs);
+    },
+    SLOW,
+  );
+});
+
+describe('DHK-11 (C) [đề xuất, B6] ca xác định: giữ khoá X của lich_hen H ms ⇒ submit THẬT chờ rồi 201; đúng MỘT khoá đang chờ: lich_hen PRIMARY S,REC_NOT_GAP (X1 M3 (ii) với service thật)', () => {
+  it(
+    '3 lượt, H = 300 ms: chưa xong trước khi nhả khoá; trong lúc chờ có đúng một khoá đang chờ; sau khi nhả: 201, một dòng, 0 lần thử lại',
+    async () => {
+      const t = await raceWorld();
+      const rating = ratingService(db);
+      const HOLD_MS = 300;
+      for (let run = 0; run < 3; run++) {
+        await resetRound();
+        const lich = await t.w.booked('HoanThanh', 0);
+        const { view, ms, waiting, doneEarly } = await withRowLock(
+          db,
+          { sql: LOCK_LICH_HEN_SQL, params: [lich.lichHenId] },
+          async (held) => {
+            const start = performance.now();
+            let finished = false;
+            const pending = rating
+              .submit(t.w.patientId, lich.maLichHen, ratingBody())
+              .then((value) => {
+                finished = true;
+                return { value, ms: performance.now() - start };
+              });
+            await sleep(HOLD_MS / 2);
+            const waitingNow = await waitingLocks(db);
+            const early = finished;
+            await sleep(HOLD_MS / 2);
+            await held.release('rollback');
+            const done = await pending;
+            return {
+              view: done.value,
+              ms: done.ms,
+              waiting: waitingNow,
+              doneEarly: early,
+            };
+          },
+        );
+        console.info(
+          `[${TAG}] DHK-11 (C) lượt ${String(run + 1)}: submit xong sau ${ms.toFixed(1)} ms (khoá giữ ${String(HOLD_MS)} ms; chờ thêm ${(ms - HOLD_MS).toFixed(1)} ms); khoá đang chờ ${JSON.stringify(waiting)}`,
+        );
+        expect(doneEarly, 'submit không được xong khi khoá còn giữ').toBe(
+          false,
+        );
+        expect(waiting).toEqual([
+          {
+            tableName: 'lich_hen',
+            indexName: 'PRIMARY',
+            lockMode: 'S,REC_NOT_GAP',
+          },
+        ]);
+        expect(view).toMatchObject({ soSao: 5 });
+        expect(ms).toBeGreaterThanOrEqual(HOLD_MS * 0.9);
+        // Chặn trên LỎNG (chống treo, không phải tiêu chí đo): tiêu chí đo (≤ H + 100 ms) đánh giá ở báo cáo từ số in ra
+        expect(ms).toBeLessThan(HOLD_MS + 1500);
+        const saved = await db.query<{ n: string | number }[]>(
+          'SELECT COUNT(*) AS n FROM danh_gia_bac_si WHERE lich_hen_id = ?',
+          [lich.lichHenId],
+        );
+        expect(Number(saved[0]?.n)).toBe(1);
+      }
+      expect(retryStats(logs)).toEqual({ retries: {}, exhausted: 0 });
     },
     SLOW,
   );
