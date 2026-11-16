@@ -6,6 +6,7 @@ import type {
 } from '../../admin/entities/enums.js';
 import {
   DOCTOR_VISIBLE_STATES,
+  RECORD_VISIBLE_STATES,
   type DoctorVisibleState,
 } from './doctor-appointments.dto.js';
 import {
@@ -55,15 +56,43 @@ export interface DoctorAppointmentRow {
   lyDoKham: string | null;
 }
 
-/** Hàng thô của câu chi tiết: thêm `chiNhanh` (`cn.ten`) và `ngayDat` (`thoi_diem_tao`, DATETIME ra `Date`). Không `lich_hen_id`, không `ly_do_huy`. */
+/**
+ * Hàng thô của câu TRANG: thêm `coHoSoKham`, cờ logic `(hk.ho_so_kham_id IS NOT NULL)` của `LEFT JOIN ho_so_kham` (doctor-exam B3): số 0/1, chuỗi hoặc boolean tuỳ driver nên mapper đọc bằng `Number(...) === 1`.
+ * Chỉ cờ, KHÔNG cột nội dung hồ sơ.
+ */
+export interface DoctorAppointmentPageRow extends DoctorAppointmentRow {
+  coHoSoKham: number | string | boolean;
+}
+
+/**
+ * Hàng thô của câu chi tiết: thêm `chiNhanh` (`cn.ten`) và `ngayDat` (`thoi_diem_tao`, DATETIME ra `Date`), cộng sáu cột của hồ sơ khám (doctor-exam B3): cờ `coHoSo` và năm cột `hk.*`. Khi không có dòng hồ sơ HOẶC
+ * lịch ngoài `DaTiepDon`/`HoanThanh` (điều kiện trong `ON`) thì cờ là 0 và mọi cột hồ sơ là NULL. `ngayTaiKhamDuKien` đã `DATE_FORMAT` (chuỗi `YYYY-MM-DD`); `capNhatLanCuoi` (DATETIME) ra `Date`. Không `lich_hen_id`,
+ * không `ly_do_huy`.
+ */
 export interface DoctorAppointmentDetailRow extends DoctorAppointmentRow {
   chiNhanh: string;
   ngayDat: Date;
+  coHoSo: number | string | boolean;
+  trieuChung: string | null;
+  chanDoanSoBo: string | null;
+  huongXuLy: string | null;
+  ngayTaiKhamDuKien: string | null;
+  capNhatLanCuoi: Date | null;
 }
 
 // `ca` KHÔNG nằm ở `lich_hen`: nó là `lich_lam_viec.ca`, ghép qua `khung_gio` (cả hai khoá ngoại NOT NULL, khoá chính ở phía kia nên không đổi số hàng). Không suy `ca` từ giờ.
 const CA_JOINS = `INNER JOIN khung_gio kg ON kg.khung_gio_id = lh.khung_gio_id
 INNER JOIN lich_lam_viec llv ON llv.lich_lam_viec_id = kg.lich_lam_viec_id`;
+
+// Hồ sơ khám (doctor-exam B3; Q24, Q16): MỘT `LEFT JOIN` ở MỘT chỗ, chỉ cho câu TRANG và câu CHI TIẾT (câu đếm và câu nhóm theo trạng thái không cần). `ho_so_kham.lich_hen_id` là UNIQUE nên JOIN KHÔNG nhân dòng
+// và truy cập `eq_ref`. Điều kiện trạng thái nằm TRONG `ON` (không ở `WHERE`): lịch ngoài `DaTiepDon`/`HoanThanh` vẫn hiện trong danh sách nhưng mọi cột `hk.*` là NULL, nên nội dung hồ sơ KHÔNG rời DB ở các trạng thái đó.
+// Tập trạng thái là hằng (`RECORD_VISIBLE_STATES`), không từ đầu vào, nên viết thẳng vào câu SQL và không đổi thứ tự tham số của các câu.
+const RECORD_STATES = RECORD_VISIBLE_STATES.map((state) => `'${state}'`).join(
+  ', ',
+);
+const RECORD_JOIN = `LEFT JOIN ho_so_kham hk ON hk.lich_hen_id = lh.lich_hen_id
+  AND lh.trang_thai IN (${RECORD_STATES})`;
+const JOINS_WITH_RECORD = `${CA_JOINS}\n${RECORD_JOIN}`;
 
 // Người khám: khám cho chính mình (không có hồ sơ người thân) thì lấy ở TÀI KHOẢN của người đặt (`tbn`; `benh_nhan` không có ngày sinh, giới tính), khám cho người thân thì ở HỒ SƠ (`hs`).
 // SĐT cũng vậy: người thân không có SĐT ⇒ NULL, KHÔNG thay bằng SĐT người đặt.
@@ -80,25 +109,34 @@ const KEYWORD_TARGETS: KeywordTargets = {
 };
 
 // Danh sách trắng cột, không `SELECT *`: không `lich_hen_id`, `benh_nhan_id`, giá, cọc, email, người đặt (DSB-06). Cột giá KHÔNG BAO GIỜ được SELECT.
-const PAGE_COLUMNS = `SELECT lh.ma_lich_hen AS maLichHen, lh.trang_thai AS trangThai, lh.thoi_gian AS thoiGian, llv.ca AS ca,
+const CORE_COLUMNS = `SELECT lh.ma_lich_hen AS maLichHen, lh.trang_thai AS trangThai, lh.thoi_gian AS thoiGian, llv.ca AS ca,
   COALESCE(hs.ho_ten, tbn.ho_ten) AS nguoiKhamHoTen, hs.moi_quan_he AS quanHe,
   ${examinee('tbn.gioi_tinh', 'hs.gioi_tinh')} AS gioiTinh,
   DATE_FORMAT(${examinee('tbn.ngay_sinh', 'hs.ngay_sinh')}, '%Y-%m-%d') AS ngaySinh,
   ${EXAMINEE_PHONE} AS soDienThoai,
   dv.ten AS dichVu, ck.ten AS chuyenKhoa, lh.ly_do_kham AS lyDoKham`;
 
-// Chi tiết: thêm chi nhánh (JOIN `cn` đã có trong `FROM_APPOINTMENTS`) và thời điểm đặt
-const DETAIL_COLUMNS = `${PAGE_COLUMNS},
-  cn.ten AS chiNhanh, lh.thoi_diem_tao AS ngayDat`;
+// Trang: thêm ĐÚNG một cờ `coHoSoKham`, KHÔNG cột nội dung hồ sơ (HDK-02)
+const PAGE_COLUMNS = `${CORE_COLUMNS},
+  (hk.ho_so_kham_id IS NOT NULL) AS coHoSoKham`;
+
+// Chi tiết: thêm chi nhánh (JOIN `cn` đã có trong `FROM_APPOINTMENTS`), thời điểm đặt và hồ sơ khám: cờ và năm cột (HDK-01). Ngày tái khám (DATE) qua `DATE_FORMAT` như B2 (booking M4; X1 M11): đọc thẳng thì
+// driver trả `Date` lệch múi giờ. `cap_nhat_lan_cuoi` (DATETIME) đọc thẳng ra `Date`, rồi mapper `toISOString()` đúng phép của token B2.
+const DETAIL_COLUMNS = `${CORE_COLUMNS},
+  cn.ten AS chiNhanh, lh.thoi_diem_tao AS ngayDat,
+  (hk.ho_so_kham_id IS NOT NULL) AS coHoSo, hk.trieu_chung AS trieuChung, hk.chan_doan_so_bo AS chanDoanSoBo, hk.huong_xu_ly AS huongXuLy,
+  DATE_FORMAT(hk.ngay_tai_kham_du_kien, '%Y-%m-%d') AS ngayTaiKhamDuKien, hk.cap_nhat_lan_cuoi AS capNhatLanCuoi`;
 
 /**
- * Điều kiện dùng CHUNG cho các câu của danh sách (đếm, theo trạng thái, trang): dựng một lần nên số đếm luôn đúng tập mà trang cắt ra. `lh.bac_si_id = ?` (từ access token) là điều kiện ĐẦU TIÊN
+ * Điều kiện dùng CHUNG cho các câu của danh sách (đếm, theo trạng thái, trang): dựng một lần nên số đếm luôn đúng tập mà trang cắt ra. `joins` là các JOIN giữa FROM và WHERE: câu đếm và câu nhóm dùng mặc định
+ * (chỉ `CA_JOINS`), câu trang thêm `LEFT JOIN ho_so_kham` (không đổi số hàng vì `UNIQUE (lich_hen_id)`). `lh.bac_si_id = ?` (từ access token) là điều kiện ĐẦU TIÊN
  * và luôn có, nằm TRONG SQL (H10): lịch của bác sĩ khác không bao giờ được đọc dù biết mã. `bacSiId` bắt buộc là chuỗi: thiếu giá trị thì `= NULL` không khớp hàng nào (đóng cửa khi lỗi).
  * Thứ tự: bác sĩ, trạng thái, `ca`, khoảng ngày, ô tìm.
  */
 function filterOf(
   bacSiId: string,
   filter: DoctorAppointmentFilter,
+  joins: string = CA_JOINS,
 ): { sql: string; params: unknown[] } {
   const clauses: SqlClauses = {
     where: ['lh.bac_si_id = ?'],
@@ -117,7 +155,7 @@ function filterOf(
     to: filter.to,
   });
   addKeywordFilter(clauses, filter.keyword, KEYWORD_TARGETS);
-  return fromWhere(clauses, CA_JOINS);
+  return fromWhere(clauses, joins);
 }
 
 /** Ba câu của danh sách và câu chi tiết; người gọi truyền `manager` của MỘT lần gọi `runReadOnly` nên các câu cùng ảnh chụp (P9). */
@@ -154,9 +192,9 @@ export class DoctorAppointmentsRepository {
     order: ListOrder,
     limit: number,
     offset: number,
-  ): Promise<DoctorAppointmentRow[]> {
-    const { sql, params } = filterOf(bacSiId, filter);
-    return em.query<DoctorAppointmentRow[]>(
+  ): Promise<DoctorAppointmentPageRow[]> {
+    const { sql, params } = filterOf(bacSiId, filter, JOINS_WITH_RECORD);
+    return em.query<DoctorAppointmentPageRow[]>(
       `${PAGE_COLUMNS} ${sql}\n${ORDER_BY[order]} LIMIT ? OFFSET ?`,
       [...params, limit, offset],
     );
@@ -165,7 +203,7 @@ export class DoctorAppointmentsRepository {
   /**
    * Chi tiết MỘT lịch: MỘT câu `WHERE lh.bac_si_id = ? AND lh.ma_lich_hen = ?` NGAY TRONG SQL: lịch của bác sĩ khác và lịch không tồn tại cùng ra "không có hàng", không có nhánh nào chạy sau khi
    * thấy hàng của bác sĩ khác (H10, DSB-07). `maLichHen` đã chuẩn hoá chữ hoa (`ParseAppointmentCodePipe`; collation `utf8mb4_unicode_ci` không phân biệt hoa thường, H17). Tập trạng thái hiển thị:
-   * `DaDoiLich` cũng ra "không có hàng" (câu (c)). Không khoá.
+   * `DaDoiLich` cũng ra "không có hàng" (câu (c)). Không khoá. Hồ sơ khám đọc CÙNG câu bằng `LEFT JOIN ho_so_kham` (không câu thứ hai); lịch ngoài `DaTiepDon`/`HoanThanh` có cột hồ sơ NULL.
    */
   async findDetail(
     em: EntityManager,
@@ -177,7 +215,7 @@ export class DoctorAppointmentsRepository {
       params: [bacSiId, maLichHen],
     };
     addStateFilter(clauses, DOCTOR_VISIBLE_STATES);
-    const { sql, params } = fromWhere(clauses, CA_JOINS);
+    const { sql, params } = fromWhere(clauses, JOINS_WITH_RECORD);
     const rows = await em.query<DoctorAppointmentDetailRow[]>(
       `${DETAIL_COLUMNS} ${sql}`,
       params,

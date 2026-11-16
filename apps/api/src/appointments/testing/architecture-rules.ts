@@ -390,3 +390,70 @@ export function findAuditTableViolations(
   }
   return found;
 }
+
+// AR-09 (task B3 của doctor-exam; TRACKING doctor-exam 17): bảng `ho_so_kham` thuộc `doctor/examination/` (dữ liệu SỨC KHOẺ, PLAN H3, H10). Trong `appointments/` mã sản xuất chỉ được ĐỌC nó (`FROM`/`JOIN`) ở MỘT file,
+// `lists/doctor-appointments.repository.ts` (trả hồ sơ và cờ cho Bác sĩ phụ trách), và KHÔNG có câu ghi nào: mọi ghi đi qua `doctor/examination/exam-record`. Nhờ đó Lễ tân, Quản trị viên, Bệnh nhân không có đường nào đọc nội dung
+// hồ sơ chỉ vì ai đó thêm một `JOIN` vào câu SQL dùng chung. Cùng giới hạn đã biết của AR-08 (văn bản, không bắt SQL ghép chuỗi; chỉ bắt câu SQL, không bắt tên bảng đứng một mình ở `locking/lock-order.ts`).
+export const HEALTH_RECORD_READER =
+  'appointments/lists/doctor-appointments.repository.ts';
+
+const HEALTH_TABLE = 'ho_so_kham';
+// Tên bảng khớp theo ranh giới từ (`ho_so_kham_id`, `ho_so_kham_cu` KHÔNG bị bắt nhầm)
+const HEALTH_READ = /\b(?:FROM|JOIN)\s+`?ho_so_kham`?(?!\w)/i;
+const HEALTH_WRITES: readonly Rule[] = [
+  {
+    name: `INSERT INTO ${HEALTH_TABLE}`,
+    patterns: [
+      /\b(?:INSERT|REPLACE)\s+(?:IGNORE\s+)?INTO\s+`?ho_so_kham`?(?!\w)/i,
+    ],
+  },
+  {
+    name: `UPDATE ${HEALTH_TABLE}`,
+    patterns: [/\bUPDATE\s+(?:IGNORE\s+)?`?ho_so_kham`?(?!\w)/i],
+  },
+  {
+    name: `DELETE FROM ${HEALTH_TABLE}`,
+    patterns: [/\bDELETE\s+(?:IGNORE\s+)?FROM\s+`?ho_so_kham`?(?!\w)/i],
+  },
+  {
+    name: `TRUNCATE ${HEALTH_TABLE}`,
+    patterns: [/\bTRUNCATE\s+(?:TABLE\s+)?`?ho_so_kham`?(?!\w)/i],
+  },
+  {
+    name: 'ghi thực thể HoSoKham',
+    patterns: [
+      new RegExp(
+        String.raw`\.\s*(?:${ENTITY_WRITE_METHODS})\s*\(\s*HoSoKham\b`,
+      ),
+      new RegExp(
+        String.raw`getRepository\s*(?:<[^>]*>)?\s*\(\s*HoSoKham\s*\)\s*\.\s*(?:${ENTITY_WRITE_METHODS})\b`,
+      ),
+    ],
+  },
+];
+
+/**
+ * AR-09: câu ghi `ho_so_kham` ở BẤT KỲ đâu trong `appointments/`, và câu ĐỌC (`FROM`/`JOIN`) ngoài `readerPath`. Trả danh sách thông điệp (rỗng = đạt). Cùng giới hạn đã biết của AR-01 (văn bản, không bắt SQL ghép
+ * chuỗi từ nhiều biến). File ngoài `appointments/` không bị quét (đó là bảng của chính `doctor/examination/`).
+ */
+export function findHealthRecordTableViolations(
+  files: readonly SourceFile[],
+  readerPath: string = HEALTH_RECORD_READER,
+): string[] {
+  const found: string[] = [];
+  for (const file of files) {
+    if (!file.path.startsWith(OWN_DIR)) continue;
+    const code = stripComments(file.source);
+    for (const rule of HEALTH_WRITES) {
+      if (rule.patterns.some((pattern) => pattern.test(code)))
+        found.push(
+          `${file.path}: ${rule.name} — booking không ghi hồ sơ khám: mọi ghi đi qua doctor/examination (exam-record)`,
+        );
+    }
+    if (file.path !== readerPath && HEALTH_READ.test(code))
+      found.push(
+        `${file.path}: đọc ${HEALTH_TABLE} — chỉ ${readerPath} được đọc bảng này (dữ liệu sức khoẻ của doctor/examination); Lễ tân, Quản trị viên, Bệnh nhân không được đọc nội dung hồ sơ`,
+      );
+  }
+  return found;
+}

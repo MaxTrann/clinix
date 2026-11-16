@@ -1,0 +1,154 @@
+# Tracking — scope #7 `payment` và `wallet` (cấu hình đặt cọc và hoàn tiền, nạp ví, thanh toán lịch khám, thu tiền tại quầy, rút tiền, hoàn tiền đặc biệt và nạp ví chưa cộng)
+
+Nhật ký tiến độ riêng của scope #7 (hai module Nest `payment` và `wallet`, một PLAN). Kế hoạch, task, phụ thuộc và danh sách test case nằm ở [`PLAN.md`](PLAN.md); file này chỉ ghi việc **đã làm** để sau này giải thích lại được (luồng chạy, test nào pass,
+chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá sau khi merge. **Người làm scope này: Trung (`junUTE`)**; bản kế hoạch do phiên Claude Code của Đại (`MaxTrann`) lập hộ (15/11/2026). Hợp đồng với `booking` cần Đại xác nhận, điểm chạm file của Trung cần Trung xác nhận (mục 5).
+
+**Cách ghi**
+- Thêm một dòng mới **sau mỗi task** (mã task `P*`/`B*`/`F*`/`D*`/`X*` theo PLAN.md mục 6), mới nhất ở cuối.
+- "Test case": liệt kê mã test case ở mục 7 của PLAN.md; "Kết quả": `Pass` / `Fail` / `Một phần` (ghi rõ ca nào ở cột cuối). Ca `Fail` phải có dòng sau ghi cách xử lý và lần chạy lại.
+- Ca đồng thời ghi thêm số vòng chạy và số lỗi 1213/1205 đo được; sau mỗi ca đồng thời ghi kết quả bất biến sổ ví.
+- Đổi kế hoạch khi đang làm thì sửa `PLAN.md`; ghi lý do ở cột cuối của dòng tương ứng.
+- Câu hỏi Q1 trở đi (PLAN.md mục 4.2) được trả lời thì ghi vào mục 3 **kèm chữ "ĐÃ TRẢ LỜI (ngày, Đại trả lời trực tiếp)"** rồi bỏ thẻ `[CHỜ Qn]` trong PLAN.md. **Không ghi "ĐÃ TRẢ LỜI" khi Đại chưa trả lời trực tiếp** (tin của phiên kiểm độc lập chỉ duyệt kế hoạch từng giai đoạn và trả lời câu kỹ thuật, không trả lời câu cho nhóm). Câu chạm file của Trung ghi tên người xác nhận.
+- Số đo thật (PLAN.md mục 5.15, giai đoạn 2) ghi ở mục 6; việc còn chờ module khác ghi ở mục 7 cho tới khi module đó có mã.
+- Khi cả scope xong: thêm **đúng một dòng** vào `docs/TRACKING.md` ở gốc, trỏ sang file này.
+
+## 1. Nhật ký
+
+| Ngày | Việc đã làm | Test case | Kết quả | Vấn đề phát sinh / cách xử lý |
+|---|---|---|---|---|
+| 15/11/2026 | **Lập kế hoạch, giai đoạn 1 trong 3** scope #7: tạo `docs/features/payment/PLAN.md` (mục 0 đến 4, 5.1, 5.10) và `TRACKING.md` (nhánh `docs/payment-wallet-plan`, nền `origin/main` = `072483b`, PR 433; cây sạch lúc bắt đầu; PR mở: 435 (doctor-exam B4, nháp) và 378 (dependabot)). Đọc mã thật: `appointments/ports/` (bốn cổng), `appointments.module.ts` (chú thích thay `Noop`), `state/confirm-paid.ts`, `state/check-in.ts`, `locking/lock-order.ts`, `locking/booking-transaction.ts`, `cancel/refund-calculator.ts`, `pricing/money.ts`, `audit/`, `rbac/`, `notifications/`, `auth/entities/vi-noi-bo.entity.ts`, `admin/entities/moc-hoan-tien.entity.ts`, `database/migrations/`; web: `wizard/steps/payment-step.tsx`, `patient/detail/detail-cost.tsx`, `reception/detail/reception-actions.tsx`, `router/role-nav.ts`, `admin-sidebar.tsx`; schema `docs/database/*` (DDL, CHECK, chỉ mục, quy tắc nghiệp vụ); PLAN và TRACKING `booking` (5.2, 5.3, 5.5, 5.6, 5.7, 5.10, Q4, Q15 đến Q22, Q44 đến Q46, mục 5 và 7), PLAN `admin` (Q21, Q41, L19), mẫu `doctor-exam`; TECH_DEBT 106, 107, 145 đến 148. Figma: `get_metadata` toàn trang `63:2` (12,7 triệu ký tự) lưu ra file rồi lọc bằng script ở thư mục scratchpad, và `get_screenshot` năm frame (`631:2`, `551:2`, `492:2`, `553:2`, `550:2`) | — (chỉ tài liệu) | Chưa chạy gì | Chỉ tạo hai file ở `docs/features/payment/`; không sửa file nào khác, không lệnh git ghi, không `npm`/test/build/Docker/MySQL. Phát hiện 16 chỗ lệch L1 đến L16 (giai đoạn 2 thêm L17, L18) (nổi bật: **schema thiếu chỗ lưu đối soát (L3), hoàn tiền đặc biệt không khớp schema (L4), ENUM nhật ký thiếu hành động rút tiền (L5), bảng chính sách mặc định không có chỗ lưu (L6), Figma có "Thanh toán toàn bộ" ngoài 2.4 (L7)**), 12 rủi ro H1 đến H12 và 21 câu hỏi Q1 đến Q21. Giai đoạn 2 và 3 chưa viết |
+| 15/11/2026 | **Phiên kiểm độc lập duyệt giai đoạn 1** (tin của phiên "Repo, Docker CI/CD và class diagram", theo ủy quyền của Đại): đối chiếu PLAN 5.10 và 5.1 với `origin/main` `072483b` (chỉ đọc), **khớp sáu điểm** (chữ ký E2 đến E5 với `ports/*.ts`; `confirmPaid` và bốn kết quả; `checkIn` với `actor: 'ThanhToan'` không đòi `conPhaiThu = 0`; `ALLOWED_OUTSIDE_METHODS` chỉ có `confirmPaid` và `complete`; `REAL_PORT_TOKENS`; DDL `chk_gd_vi_tham_chieu`); yêu cầu năm việc cho giai đoạn 2 (mâu thuẫn E13 và 5.1; sơ đồ khoá E6, E4, E7; lời giải idempotency hoàn tiền trên DDL; luật `checkIn` chỉ `actor: 'ThanhToan'`; hỏi Đại trực tiếp các câu đòi sửa DDL hay booking). Đã ghi kết quả đối chiếu vào PLAN 5.10 | — (chỉ tài liệu) | Chưa chạy gì | Phiên kiểm **không** trả lời câu cho nhóm: Q1 đến Q4 vẫn do Đại trả lời trực tiếp (dòng sau) |
+| 15/11/2026 | **Đại trả lời trực tiếp Q1 đến Q4** (hộp câu hỏi trong cửa sổ này): Q1 (a) = **sandbox THẬT VNPay/MoMo** (khác đề xuất cổng giả); Q2 (b) = ba module Nest, hai thư mục (theo đề xuất); Q3 (c) = scope này làm một migration bốn bảng (theo đề xuất); Q4 (d) = `useExisting` và hai module lá (theo đề xuất). Ghi vào PLAN 4.2 và TRACKING 3.1; chỉnh các chỗ giai đoạn 1 bị Q1 ảnh hưởng (phạm vi, L1, L14, H13, H14, 5.1, E10, 4.6) | — (chỉ tài liệu) | Chưa chạy gì | Q1 làm tài liệu MoMo thành điều kiện chặn phần MoMo (Q24) |
+| 15/11/2026 | **Lập kế hoạch, giai đoạn 2 trong 3:** viết `PLAN.md` mục 5.2 đến 5.9 và 5.11 đến 5.15 (máy trạng thái và bất biến sổ ví IVT-01…07; **ba hạng khoá tầng 7** và sơ đồ khoá từng luồng kèm phân tích không chu trình; nạp ví với VNPAY thật; thanh toán cọc; hoàn cọc và hoàn đặc biệt; thu tiền mặt; rút tiền; cấu hình chính sách cọc; 14 nhóm endpoint; 11 sự kiện thông báo; web; bảng mã lỗi; **16 việc phải đo M1 đến M16**). Tra **tài liệu chính thức VNPAY** (`sandbox.vnpayment.vn`) bằng agent con `web-fetch`: IPN là GET, cần HTTPS, `RspCode` 00 hay 02 kết thúc, 01, 04, 97, 99 hay hết giờ ⇒ gửi lại tối đa 10 lần cách 5 phút, trang quay về không cập nhật kết quả, `vnp_Amount` nhân 100, có `querydr`; **tài liệu MoMo không đọc được (HTTP 403)**. Thêm L17, L18, H13, H14, Q22 đến Q26 | — (chỉ tài liệu) | Chưa chạy gì | Quy tắc ký VNPAY không rõ trong tài liệu (ba mã mẫu khác nhau: H14, M12); MoMo chờ Đại dán tài liệu (Q24). Giai đoạn 3 chưa viết |
+| 15/11/2026 | **Đại trả lời trực tiếp hộp câu hỏi thứ hai** (giai đoạn 2): Q9 phần lưu đối soát = bảng mới `lan_doi_soat_nap_vi`; Q17 = mở rộng ENUM nhật ký; Q7 phần bảng mặc định = chỉ là cách nhập; Q15 = hoàn chỉ phần trả bằng ví (`amountRefundable`); Q22 = `WalletModule` nhập `PaymentPortsModule`; Q23 = thêm cột `lich_su_hoan_tien.loai` (tất cả theo đề xuất). Ghi vào PLAN 4.2, 3.1, 3.2, 5.1, 5.4, 5.6, 5.8, 5.10 và TRACKING 3.1 | — (chỉ tài liệu) | Chưa chạy gì | **Ba thay đổi DDL đã chốt** (bảng `lan_doi_soat_nap_vi`, cột `loai`, ENUM nhật ký): task P1 sửa cả ba `docs/database/*`. Đề xuất Q3 ("một migration") và Q17 ("migration vận hành riêng") mâu thuẫn: PLAN ghi một file P1 hai phần, chờ Đại xác nhận nếu muốn tách |
+| 15/11/2026 | **Phiên kiểm duyệt giai đoạn 2** (tin của phiên "Repo, Docker CI/CD và class diagram"): đọc 5.3 (ba hạng 7a/7b/7c, bảng chuỗi khoá E6, E7, E2, E4, IPN, đối soát, rút, hoàn đặc biệt đi theo hạng tăng dần; hai trường hợp không đơn điệu được nêu và xử lý hợp lý; giữ đề xuất thông báo hoàn cọc không gắn `lich_hen_id`), quy tắc `PaymentAbort` khớp cách `withBookingTransaction` chỉ bắt 1213 và 1205, Q1 sandbox thật xử lý đúng ba chỗ (khoá chỉ ở `.env`, test offline, tunnel cho IPN). Yêu cầu giai đoạn 3 (thứ tự task, lát cắt giao được, mức kiểm, bảng test, file chạm, thông tin sinh issue, CRLF). **Thông tin MoMo mới:** `developers.momo.vn` 403 cả ở trình duyệt thật (đừng vượt chặn); kho mẫu chính thức `momo-wallet/payment` chỉ có phần tạo thanh toán; đã ghi vào PLAN 5.4, Q24, 4.3, 4.6 (không chép bộ giá trị thử nào) | — (chỉ tài liệu) | Chưa chạy gì | Phiên kiểm cũng lưu ý B5 của doctor-exam sẽ giữ dòng AI log 128 và TECH_DEBT 159 |
+| 15/11/2026 | **Lập kế hoạch, giai đoạn 3 trong 3:** viết `PLAN.md` mục 6 (sơ đồ phụ thuộc và **năm lát cắt S1 đến S5**; 39 task: P1 đến P5, B1 đến B18, F1 đến F9, D1, D2, X1 đến X5; bảng file chạm 6.7; ước giờ và Iteration 6.8; thông tin sinh issue 6.9; việc bắt đầu ngay 6.10), mục 7 (**293 mã test**: 35 U, 187 I, 21 E, 50 W; 26 nhóm tiền tố, quét `grep` chưa ai dùng), mục 8, 9, 10, 4.3 và 4.6 (việc ngoài repo kèm người làm và hạn `[đề xuất]`). Kiểm chéo bằng script: mọi mã được task dẫn đều có định nghĩa, mọi mã định nghĩa đều có task dẫn (10 mã mồ côi đã gán), 39 tiêu đề PR ≤ 100 ký tự, tổng giờ khớp. **Tổng 154 giờ của Trung vượt 90 giờ của Iteration 6 và 7** (S1 đến S3 = 85 giờ vừa hai Iteration; S4 và S5 = 69 giờ sang Iteration 8 và 9); ba phương án cắt ở 6.8. Đổi hai file sang CRLF | — (chỉ tài liệu) | Chưa chạy gì | Chờ phiên kiểm duyệt giai đoạn 3; sau đó hỏi Đại các câu còn lại (Q5, Q6, Q8, Q10 đến Q14, Q16, Q18 đến Q21, Q24 đến Q26, phần còn lại của Q7 và Q9) |
+| 15/11/2026 | **Phiên kiểm duyệt giai đoạn 3** và **Đại trả lời trực tiếp ba hộp cuối** (hộp 3 đến 5): Q5, Q6, Q7 (phần còn lại), Q8, Q9 (phần hoàn đặc biệt), Q10, Q11, Q12, Q13 (kèm câu con "người làm"), Q14, Q16, Q18, Q19, Q20, Q21, Q24, Q25, Q26 **đều theo đề xuất**. Ghi vào PLAN 4.2 và TRACKING 3.1; gỡ các thẻ `[CHỜ Qn]` ở bảng task; thêm cột "Người làm" ở 6.9; cập nhật 6.8, 6.10, 4.3, 4.6, 5.10; đối chiếu lại bằng script (mã test, giờ, tiêu đề PR); đổi hai file sang CRLF | — (chỉ tài liệu) | Chưa chạy gì | Còn lại **không phải câu hỏi**: `[cần điền]` ở PLAN 4.3 (tài liệu MoMo, quy tắc ký VNPAY, tài khoản sandbox, cửa sổ tiếp đón) và việc ngoài repo ở 4.6; chờ mở PR tài liệu |
+
+## 2. Kết quả test theo use case
+
+Chưa có mã test chạy (chưa task nào được làm). **293 mã** ở PLAN.md mục 7 (35 U, 187 I, 21 E, 50 W); cập nhật cột "Trạng thái" khi từng task xong (☑ n/n Pass, hay ghi ca `Fail`/`Một phần` kèm lý do). Tổng các nhóm dưới đây = 293.
+
+| Nhóm | Use case / chủ đề | Số mã | Task | Trạng thái |
+|---|---|---|---|---|
+| CSD | Cấu hình chính sách đặt cọc / hủy / hoàn tiền | 17 (CSD-01…CSD-17) | B10, B18 | ☐ |
+| NTV | Nạp tiền vào ví | 22 (NTV-01…NTV-22) | B4, B16 | ☐ |
+| CGS | Cổng thanh toán, chữ ký, IPN | 15 (CGS-01…CGS-15) | B3, B4, B16 | ☐ |
+| DST | Đối soát tự động nạp ví | 9 (DST-01…DST-09) | B14 | ☐ |
+| TLK | Thanh toán lịch khám | 16 (TLK-01…TLK-16) | B5 | ☐ |
+| TTQ | Thanh toán offline tại quầy | 15 (TTQ-01…TTQ-15) | B6 | ☐ |
+| RTV | Yêu cầu rút tiền từ ví | 8 (RTV-01…RTV-08) | B11 | ☐ |
+| XRT | Xử lý rút tiền (duyệt, từ chối) | 12 (XRT-01…XRT-12) | B12 | ☐ |
+| HDB | Hoàn tiền đặc biệt | 12 (HDB-01…HDB-12) | B13 | ☐ |
+| NVC | Nạp ví chưa cộng | 10 (NVC-01…NVC-10) | B15 | ☐ |
+| HCC | Hoàn cọc khi huỷ | 14 (HCC-01…HCC-14) | B8, B9 | ☐ |
+| SDV | Số dư và lịch sử ví | 8 (SDV-01…SDV-08) | B1 | ☐ |
+| QTT | Quyền và phạm vi (kể cả bộ quét kiến trúc) | 14 (QTT-01…QTT-14) | P4, B1, B4, B5, B6, B12, X5 | ☐ |
+| DTT | Đồng thời (chạy một mình) | 15 (DTT-01…DTT-15) | B4, B5, B6, B8, B10, B11, B12, B13, B14, B15 | ☐ |
+| IVT | Bất biến sổ ví và hàm tiền | 9 (IVT-01…IVT-09) | P2, P3 | ☐ |
+| HDT | Hợp đồng và cổng với `booking` | 15 (HDT-01…HDT-15) | P2, P4, B1, B2, B5, B6, B7, B8, B9 | ☐ |
+| BDT | Bảo mật dữ liệu và log | 9 (BDT-01…BDT-09) | B3, B4, B13, mọi task B | ☐ |
+| MGT | Bảng và migration | 13 (MGT-01…MGT-13) | P1, B18 | ☐ |
+| TDT | Thông báo và nhật ký | 10 (TDT-01…TDT-10) | P5, B4, B8, B12, B14, B15, B17 | ☐ |
+| WVI | Web: Ví của tôi | 7 (WVI-01…WVI-07) | F1 | ☐ |
+| WNT | Web: nạp tiền và trang kết quả | 7 (WNT-01…WNT-07) | F2 | ☐ |
+| WTT | Web: thành phần thanh toán cọc | 7 (WTT-01…WTT-07) | F3 | ☐ |
+| WTQ | Web: hộp Thu tiền và tiếp đón | 7 (WTQ-01…WTQ-07) | F4 | ☐ |
+| WCP | Web: cấu hình đặt cọc và hoàn tiền | 7 (WCP-01…WCP-07) | F5 | ☐ |
+| WRT | Web: rút tiền (Bệnh nhân) | 5 (WRT-01…WRT-05) | F6 | ☐ |
+| WQL | Web: Quản lý tài chính ví (Quản trị viên) | 10 (WQL-01…WQL-10) | F7, F8, F9 | ☐ |
+
+## 3. Quyết định đã chốt
+
+Ghi câu trả lời cho các câu hỏi ở PLAN.md mục 4.2 và ngày chốt, để PLAN.md có thể bỏ thẻ `[CHỜ …]`. Quyết định ở đây là **quyết định cuối**, ưu tiên hơn đề xuất trong PLAN.md. **Đại đã trả lời trực tiếp (15/11/2026) MỌI câu Q1 đến Q26 (năm hộp qua ba giai đoạn); Q1 là sandbox THẬT, khác đề xuất; mọi câu khác theo đề xuất.** Sau khi phiên kiểm đối chiếu hợp đồng với `booking`, nhóm đọc và xác nhận các câu `[CHỜ …]`, điền bảng dưới.
+
+### 3.1 Quyết định của nhóm cho scope này
+
+| Mã câu hỏi | Quyết định | Ngày chốt | Ghi chú (khác đề xuất? hệ quả cho task) |
+|---|---|---|---|
+| Q1★ (a) cổng sandbox giả hay thật | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): sandbox THẬT của VNPay và MoMo** (KHÁC đề xuất: cổng giả trong repo) | 15/11/2026 | Hệ quả: hai bộ điều hợp `VnpayGateway` và `MomoGateway` sau `PaymentGatewayPort`; không trang cổng mô phỏng; IPN công khai (VNPAY: GET, cần HTTPS) nên dev và kiểm tay cần tunnel (Q24); test tự động không gọi mạng; **tài liệu MoMo chưa đọc được** (HTTP 403) nên phần MoMo `[cần điền]`; khoá chỉ ở biến môi trường |
+| Q2★ (b) ranh giới và thư mục | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (ba module Nest: `WalletModule` lá, `PaymentPortsModule` lá, `PaymentModule`; thư mục `payment/` và `wallet/`; web `features/payment/` và `features/wallet/`) | 15/11/2026 | Chỗ nhập giữa hai module lá đã chốt ở Q22 (`WalletModule` nhập `PaymentPortsModule`) |
+| Q3★ (c) migration các bảng nền | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (scope này làm MỘT migration viết tay bốn bảng, P1 merge đầu tiên; nếu Q7, Q9, Q17, Q23 đổi DDL thì gộp vào migration chưa merge) | 15/11/2026 | Chạm `database/entities.ts` và `migrations/index.ts` (file dùng chung): báo Đại, Trung xác nhận |
+| Q4★ (d) bản thật các cổng và chỗ đặt | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (hai module lá không nhập `AppointmentsModule`; bốn dòng `useExisting` và bốn token vào `REAL_PORT_TOKENS` ở task B17a của Đại) | 15/11/2026 | `[ĐỤNG booking]`: Đại |
+| Q7★ (g) phần bảng mặc định | **ĐÃ TRẢ LỜI một phần (15/11/2026, Đại trả lời trực tiếp): bảng mặc định chỉ là cách nhập** (hằng ở web; không đổi DDL; không đụng booking) | 15/11/2026 | Phần luật hợp lệ, seed `payment-demo`, không ghi nhật ký CSD: chưa hỏi |
+| Q9★ (i) phần lưu đối soát | **ĐÃ TRẢ LỜI một phần (15/11/2026, Đại trả lời trực tiếp): bảng mới `lan_doi_soat_nap_vi`** | 15/11/2026 | **Đổi DDL**: sửa cả ba `docs/database/*`, gộp migration P1, `schema-parity` (`[ĐỒNG BỘ TL]`); phần hoàn tiền đặc biệt (chọn khoản thanh toán, trần, lý do): chưa hỏi |
+| Q15★ hoàn trên số nào | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): chỉ phần đã trả bằng ví, thêm `amountRefundable`** | 15/11/2026 | `cancel` của booking đổi MỘT chỗ (`[ĐỤNG booking]`, B17a, Đại); không đổi DDL |
+| Q17 audit rút tiền | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): mở rộng ENUM** (`DuyetRutTien`, `TuChoiRutTien`, `loai_doi_tuong` + `yeu_cau_rut_tien`) | 15/11/2026 | **Đổi DDL** (ba file `docs/database/*`, `audit-enum-parity`, `schema-parity`); PLAN ghi theo Q3 (một file migration P1 hai phần) vì đề xuất Q3 và Q17 mâu thuẫn: Đại xác nhận lại nếu muốn tách file |
+| Q22★ nơi đặt `PaymentChain` | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): phương án B** (`WalletModule` nhập `PaymentPortsModule`) | 15/11/2026 | Sửa 5.1; một chỗ duy nhất cho truy vấn lịch gốc |
+| Q23★ idempotency hoàn tiền | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): DDL-1, thêm cột `lich_su_hoan_tien.loai`** | 15/11/2026 | **Đổi DDL** (ba file `docs/database/*`, migration P1, `schema-parity`) |
+| Q5★ (e) và Q6 (f) luồng khoá, hết hạn | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** | 15/11/2026 | Luồng ở PLAN 5.3, 5.5, E6, E7; giả định chưa đo ở X1 (M1, M2, M3) |
+| Q7★ (g) phần còn lại | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (luật hợp lệ như 5.9; seed `payment-demo` tuỳ chọn B18; không nhật ký khi đổi cọc) | 15/11/2026 | TECH_DEBT dự kiến: CSD không có nhật ký |
+| Q8★ (h) rút tiền | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (một yêu cầu `ChoDuyet`; ghi chú vào thông báo và nhật ký; nguyên đồng, tối thiểu 10.000đ) | 15/11/2026 | Không đổi DDL |
+| Q9★ (i) phần hoàn đặc biệt | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (chọn khoản thanh toán qua ví, trần, một lần, lý do 10 đến 255) | 15/11/2026 | Figma `550:2` cần thêm ô chọn khoản |
+| Q10★ (j) quyền | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (mọi route tài chính của Quản trị viên chỉ `ToanHeThong`) | 15/11/2026 | `systemOnly` ở `admin-sidebar.tsx`; sửa Figma `631:2` |
+| Q11 (k) điểm nối #9 | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (giao dịch trỏ lịch gốc, `PaymentChain`) | 15/11/2026 | #9 cần S1 và B7; hoàn cọc lịch mới cần S3 |
+| Q12 (l) mã test, thứ tự task | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (39 task, 5 lát cắt, 293 mã) | 15/11/2026 | — |
+| Q13 (m) giờ và Iteration; người làm | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** = 45 giờ/tuần, S1 đến S3 ở Iteration 6 và 7, S4 và S5 ở 8 và 9, **không cắt**; **người làm: Trung làm hết theo PLAN** (trừ B7, B9, booking F6 của Đại) | 15/11/2026 | Iteration 9 chưa có trong Project (việc của người dùng) |
+| Q14★ "toàn bộ" | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất = chỉ cọc** | 15/11/2026 | Sửa Figma `452:2` và 2.4 nếu cần |
+| Q16★ TECH_DEBT 106 | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất = phương án (d)** | 15/11/2026 | Dòng TECH_DEBT dự kiến ở mục 4 |
+| Q18 thông báo và thư | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (thông báo trước, thư ở B17 S5) | 15/11/2026 | `[ĐỤNG booking]`: Đại duyệt khi review B17 |
+| Q19 F6 và BWZ-08 | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (scope này làm thành phần; F6 booking của Đại gắn) | 15/11/2026 | Đại duyệt PR F3 (đổi BWZ-08) |
+| Q20 hạn mức | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất** (nạp 50.000đ đến 2.000.000đ; rút tối thiểu 10.000đ; hằng) | 15/11/2026 | `wallet.constants.ts` |
+| Q21, Q25, Q26 | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất cả ba** (`findPayment` trả đối tượng; chưa làm truy vấn chủ động; không thông báo Bác sĩ khi thu tiền) | 15/11/2026 | TRACKING booking mục 5 và 2.4 TTQ b5 cho nhóm |
+| Q24★ điều kiện sandbox | **ĐÃ TRẢ LỜI (15/11/2026, Đại trả lời trực tiếp): theo đề xuất = theo 4.6, VNPAY trước MoMo sau** | 15/11/2026 | Việc ngoài repo ở PLAN 4.6 (người và hạn); chưa có tài liệu MoMo thì giao diện nạp chỉ bật VNPAY |
+
+### 3.2 Quyết định kế thừa từ module khác (không bàn lại; nguồn ở PLAN.md 4.1)
+Xem PLAN.md mục 4.1 (booking Q4, Q15 đến Q22, 5.3; admin Q40, Q41; doctor Q33, Q34; patient Q22).
+
+## 4. Ghi chú AI
+
+- Lần lập kế hoạch này dùng **Claude Code (model Claude Sonnet 5.5)** ngày 15/11/2026, trong phiên của Đại (`MaxTrann`) theo yêu cầu của phiên "Repo, Docker CI/CD và class diagram"; **dùng hai agent con `web-fetch`** (đọc tài liệu chính thức VNPAY: đọc được; MoMo: HTTP 403, không đọc được) và công cụ tìm kiếm web (nguồn thứ cấp, không dùng làm đặc tả); siêu dữ liệu Figma lưu ra file bằng công cụ chỉ đọc rồi lọc bằng script tạm ở thư mục scratchpad của phiên, không ghi vào repo.
+- **Dòng `AI_USAGE_LOG.md` `[đề xuất]`: dòng 127** (kiểm lại trên `main` lúc ghi: lúc soạn, dòng lớn nhất trên `origin/main` là 125; `doctor-exam` B4 (PR 435, đã merge ở `7e5049b`) đã dùng 124, B3 giữ 126 và B5 giữ 128 (theo phiên kiểm); nếu các PR gộp khác thứ tự thì giữ cả hai dòng và sắp lại theo số). **Phiên này KHÔNG sửa `AI_USAGE_LOG.md`**; hỏi Đại trước khi ghi. Nháp dòng (giai đoạn 1; cập nhật khi xong giai đoạn 3):
+  - Ngày: 15/11/2026 · Người dùng: MaxTrann · Công cụ: Claude Code (Claude Sonnet 5.5).
+  - Phạm vi: `docs/features/payment/PLAN.md` (mới), `docs/features/payment/TRACKING.md` (mới), `AI_USAGE_LOG.md` (dòng này) (lập kế hoạch scope #7 `payment` và `wallet`; người làm: Trung; hợp đồng với `booking` của Đại).
+  - Prompt chính: lập kế hoạch sáu use case (Cấu hình chính sách đặt cọc/hủy/hoàn tiền, Nạp tiền vào ví, Thanh toán lịch khám, Thanh toán offline tại quầy, Yêu cầu rút tiền từ ví, Xử lý rút tiền/hoàn tiền đặc biệt/nạp ví chưa cộng) theo `docs/FEATURE_PLANNING_PROMPT.md` và prompt 15/11/2026; chỉ tạo hai file, không viết mã, không lệnh git ghi, không chạy test; làm theo ba giai đoạn, dừng chờ duyệt mỗi giai đoạn; câu hỏi cho nhóm chỉ Đại quyết.
+  - Phần AI sinh (giai đoạn 1 đến 3): toàn bộ `PLAN.md` (18 chỗ lệch L1 đến L18, 14 rủi ro H1 đến H14, 26 câu hỏi Q1 đến Q26 kèm đề xuất, 15 điểm giao tiếp E1 đến E15 với `booking`, ba hạng khoá tầng 7 và sơ đồ khoá, 16 việc cần đo M1 đến M16, 39 task P/B/F/D/X chia năm lát cắt kèm ước giờ và Iteration, thông tin sinh issue, 293 mã test) và `TRACKING.md`; đọc mã thật ở `072483b`, schema `docs/database/*`, PLAN và TRACKING `booking`, `admin`, mẫu `doctor-exam`, Figma; phát hiện năm chỗ schema hay Figma lệch 2.4 (L3 đến L7).
+  - Phần tự sửa/viết: `[cần điền]` (Đại điền khi duyệt).
+  - Cách kiểm chứng: chưa chạy mã (chỉ tài liệu); đối chiếu số dòng DDL và tên cổng bằng đọc trực tiếp file; chờ phiên kiểm độc lập và nhóm xác nhận.
+- **Dòng nợ `docs/TECH_DEBT.md` `[đề xuất]`:** lúc soạn dòng lớn nhất trên `origin/main` là **156**; `doctor-exam` B3 giữ **157** và B5 giữ **159** (theo phiên kiểm) ⇒ dòng đầu của scope này `[đề xuất]` **158**, các dòng sau **160 trở đi** (kiểm lại trên `main` lúc ghi). **KHÔNG thêm dòng nào ở PR kế hoạch**; mỗi dòng thêm ở PR của task tạo ra nó. Dòng dự kiến (giai đoạn 1; chốt ở giai đoạn 3):
+  - **B nạp ví:** chỉ làm **sandbox** của VNPAY và MoMo (Q1), chưa có cổng production; test tự động không gọi mạng (khoá giả, bộ ký thử), chỉ X2, X3 và X4 chạm sandbox thật; khoá và mã merchant chỉ ở `.env` cục bộ.
+  - **B hoàn cọc:** cửa sổ "tiến trình chết giữa commit huỷ và lần thử hoàn đầu tiên" không có bộ quét tự tính lại (Q16 phương án (d)); Quản trị viên xử lý bằng hoàn tiền đặc biệt (liên quan TECH_DEBT 106).
+  - **B cấu hình cọc:** thay đổi `muc_dat_coc` và mốc hoàn **không** ghi nhật ký (2.4 CSD không yêu cầu; `CapNhatCauHinh` chỉ cho `cau_hinh_he_thong`).
+  - **B IPN và route tiền:** chưa throttling theo IP (việc X3, làm trước khi mở công khai).
+  - **B nạp ví:** mã tham chiếu giao dịch là khoá chính tuần tự (lộ số lượng giao dịch); route của Bệnh nhân luôn kiểm chủ sở hữu.
+  - **B hạn mức:** hạn mức nạp và rút là hằng trong mã, không phải cấu hình ở DB (Q20, Đại chốt).
+  - **TTQ (Q26):** 2.4 TTQ b5 "thông báo cho Bác sĩ phụ trách" không làm: `checkIn` của booking không có sự kiện thông báo ở cả đường Lễ tân và Quản trị viên; việc của booking hay nhóm sửa 2.4.
+  - **NTV (Q25):** chưa có bước chủ động hỏi cổng khi mất tín hiệu; chỉ trông vào IPN gửi lại của VNPAY (tối đa 10 lần cách 5 phút).
+  - **F1 (`shared/`):** `formatVnd` dùng chung mới; các bản chép cũ ở booking, search, patient chưa gộp (liên quan TECH_DEBT 109).
+  - **B nạp ví:** tài liệu MoMo chưa đọc được (HTTP 403): bộ điều hợp MoMo viết theo nội dung Đại cung cấp, chưa đối chiếu với trang chính thức (Q24); chưa có bước chủ động hỏi cổng khi mất tín hiệu (`querydr`, Q25).
+  - **B IPN:** tham số IPN của VNPAY nằm trong chuỗi truy vấn của URL: bộ ghi log lỗi phải bỏ chuỗi truy vấn (TECH_DEBT 83), kiểm ở BDT.
+  - **B hoàn cọc:** cửa sổ trước dòng `ThatBai` đầu tiên (Q16 (d)) và, nếu Q23 chọn DDL-0, kẽ hở gọi `refund` lặp sau hoàn đặc biệt.
+
+## 5. Phối hợp với module khác
+
+Việc chưa làm; cập nhật cột "Trạng thái" khi hai bên đã thống nhất.
+
+| Với | Việc | Task / mục PLAN | Trạng thái |
+|---|---|---|---|
+| Trung (người làm scope này) | **Nêu và xin xác nhận:** (1) Q2 ba module và hai thư mục; (2) Q3 scope này làm migration bốn bảng (đụng `database/entities.ts`, `database/migrations/index.ts`); (3) danh sách file của `admin`, `audit`, `rbac`, `pricing`, `router/` bị chạm (PLAN 5.10 E15; 6.7 ở giai đoạn 3); (4) Q10 mọi route tài chính của Quản trị viên chỉ `ToanHeThong`, `admin-sidebar.tsx` thêm `to` và `systemOnly`; (5) Q17 mở rộng ENUM nhật ký | Q2, Q3, Q10, Q17; 5.10 E15 | Chưa: Trung approve PR tài liệu coi là xác nhận |
+| Đại (`booking`) | **Đối chiếu mục 5.10 E1 đến E15:** (1) bốn dòng `useExisting` và `imports` ở `appointments.module.ts` (B17a); (2) AR-07 thêm `'checkIn'`; (3) `lock-order.ts` và `lock-order.int-spec.ts` (xoá `NOT_YET_MIGRATED`, chia tầng 7 nếu cần); (4) Q15 thêm `amountRefundable` hay cắt số hoàn; (5) Q16 phương án (d) không bộ quét; (6) Q18 mở rộng worker thư của `NotificationsModule`; (7) Q19 BWZ-08 thêm `payment`, `wallet` và việc ai làm F6, nút `Thu tiền`, nút `Thanh toán`; (8) E13 điểm nối #9 | 5.10; Q15, Q16, Q18, Q19 | Chưa: `[CHỜ Đại]`; phiên kiểm đối chiếu hợp đồng sau khi giai đoạn 3 xong |
+| Đại (`booking` PLAN và TRACKING) | **Không sửa ở PR kế hoạch:** nhắc B17a, F6 và các hàng `payment`, `wallet` ở TRACKING booking mục 5 và 7 cho PR sau (D2); hai cửa sổ `doctor-exam` B3, B4 đang sửa file chung | D2 (giai đoạn 3) | Chưa |
+| Trung (`audit`) | `audit-entry.ts`, `audit-validation.ts`: thêm `HoanTienDacBiet`, `XuLyNapViChuaCong` và (Q17) hai hành động rút tiền | P (audit) | Chưa |
+| Trung (`pricing`) | `pricing/money.ts`: thêm phép trừ và so sánh tiền (file dùng chung của `search` và `booking`) | P | Chưa |
+| **Nhóm (sandbox thật; Q1, Q24)** | (1) đăng ký tài khoản sandbox VNPAY (thông tin kết nối gửi qua email) và MoMo; (2) máy chủ HTTPS hay tunnel cho URL IPN công khai; (3) **nội dung tài liệu MoMo**: `developers.momo.vn` 403 cả ở trình duyệt thật (đừng vượt chặn); kho mẫu chính thức `momo-wallet/payment` chỉ có phần tạo thanh toán; Đại hoặc Trung cung cấp IPN, phản hồi, `resultCode`, truy vấn, hoàn tiền, hết hạn khi có cách truy cập hợp lệ; (4) thông tin kết nối chỉ ở `.env` cục bộ, **không vào repo, prompt, log hay test** | Q1, Q24; 5.4, 5.15 (M12, M13) | Chưa: chặn task MoMo và X2 với cổng thật |
+| Đại (`booking`; câu giai đoạn 2) | **Hỏi trực tiếp:** Q15 (`amountRefundable` hay cắt số hoàn; đổi `cancel` của booking), Q22 (nơi đặt `PaymentChain`), Q23 (cột `lich_su_hoan_tien.loai`: sửa `docs/database/*` và `schema-parity`), Q9 (bảng `lan_doi_soat_nap_vi`: sửa `docs/database/*`), Q17 (ENUM nhật ký: sửa `docs/database/*` và migration vận hành), Q7 (bảng mặc định) | 5.3, 5.4, 5.6; Q7, Q9, Q15, Q17, Q22, Q23 | Chưa: hỏi ở cuối giai đoạn 2 |
+| Đại (booking: việc của Đại trong scope; Q19, Q18 đã chốt) | **B7** (B17a lần 1: `imports`, ba dòng `useExisting`, AR, chạy lại ca booking), **B9** (B17a lần 2: `RefundPort` thật, `cancel` tính trên `amountRefundable`), **booking F6** (#256: trang Thanh toán, gắn `DepositPaymentPanel`, nút `Thanh toán` ở `detail-cost.tsx`), duyệt đổi **BWZ-08** (F3, F4), duyệt B17 (thư) và `thay admin/payment-summary.ts` (TECH_DEBT 146); các việc này **không** tính vào giờ của Trung | 6.3 (B7, B9, B17), 6.4, 6.7; Q19 | Chưa: `[CHỜ Đại]` |
+| Nhóm (4.6: việc ngoài repo và hạn) | tám việc ở PLAN 4.6 (đăng ký sandbox VNPAY và MoMo, HTTPS hay tunnel, tài liệu MoMo, hạn mức, BWZ-08, Figma, 2.4) kèm người làm và hạn `[đề xuất]` | 4.6 | Chưa |
+| Nhóm (2.4, Figma; D2) | 2.4: điền `[cần điền]` của NTV và TTQ (L1, L2); CSD (L6), XLR (L4, L5), TLK nếu Q14. Figma: bổ sung 4.5, sửa `631:2` (Q10) và `452:2` (Q14); bỏ chữ mô phỏng. Không sửa file Word hay Figma từ repo | D2 | Chưa (việc của nhóm, ngoài repo) |
+
+## 6. Số đo thật (PLAN.md mục 5.15, giai đoạn 2; làm ở task X1 trước các task có khoá)
+
+Chưa đo. Danh sách việc phải đo: PLAN.md 5.15 (M1 đến M16: khoá S ngầm của `INSERT` cọc 0đ trên ví; S→X trên ví; hoàn tác sau `confirmPaid`; đua thanh toán với `expire` và `cancel`; hai IPN đồng thời; IPN + lỗi cộng ví; rút tiền đua thanh toán; truy vấn lịch gốc; `ValidationPipe` số tiền; biên số; EXPLAIN các danh sách; **quy tắc ký VNPAY và IPN thật qua tunnel**; job và mốc 5 phút; CSD đua `create`; nhập module). Mọi chỗ "chưa đo" trong PLAN.md là suy ra từ mã hay tài liệu. Ghi số đo và tiêu chí đặt trước ở đây khi làm X1.
+
+## 7. Cảnh báo và việc chờ module khác (cập nhật khi module đó có mã)
+
+**Cảnh báo cho người làm (đọc trước khi bắt đầu từng task):**
+- **Thứ tự khoá (H1, H2):** `confirmPaid` và `checkIn` **trước** mọi `INSERT` bảng con của `lich_hen` và **trước** khoá ví; khoá ví `FOR UPDATE` **trước** mọi `INSERT` bảng con của ví; không bao giờ khoá `lich_hen` theo `khung_gio_id`. Chi tiết ở PLAN 5.3 (giai đoạn 2).
+- **Cổng còn là `Noop`** (TECH_DEBT 147; TRACKING booking mục 7): bốn cổng của scope này thay bằng bản thật ở task B17a (Đại); trước đó mọi lịch cọc > 0 không thanh toán được thật.
+- **`search` K1, K2 chưa làm** (TECH_DEBT 148): giao diện chưa chọn được khung giờ, kiểm tay phải vào bằng `?khungGioId=` hoặc API (H9).
+- **IPN là cửa công khai** (`@Public`): chỉ tin tín hiệu đã **xác minh chữ ký**, khớp mã giao dịch và số tiền; **không bao giờ** cộng ví ở trang quay về; không log chuỗi truy vấn (chứa chữ ký và số tiền); phản hồi `00` hay `02` chỉ sau khi đã lưu bền (PLAN 5.4).
+- **Sandbox thật cần mạng:** CI và test tự động chạy offline với khoá giả; kiểm tay ở X2 cần tài khoản sandbox, HTTPS hay tunnel và (MoMo) tài liệu của nhóm.
+- **Lệch giờ (PLAN 6.8):** tổng 154 giờ của Trung vượt 90 giờ của Iteration 6 và 7; S1 đến S3 (85 giờ) vừa hai Iteration, S4 và S5 sang Iteration 8 và 9; ba phương án cắt ở 6.8 (Đại quyết, Q13).
+- **Thứ tự bắt buộc:** P1 (migration, `[ĐỒNG BỘ TL]` cả ba `docs/database/*`) merge TRƯỚC mọi task khác; P4 trước P3 (Q22); X1 trước B2, B4, B5, B6, B8, B11; X2 trước B3, B4.
+- **Dữ liệu tiền:** không log số tiền gắn người, mã giao dịch cổng, chữ ký hay token; tiền là chuỗi decimal, không `Number`.
+- **Hai cửa sổ `doctor-exam` (B3, B4)** đang sửa `docs/features/doctor-exam/*`, `docs/TECH_DEBT.md`, `AI_USAGE_LOG.md`: `git fetch` và `git log origin/main -- <file>` đầu mỗi phiên; không sửa các file đó trong PR kế hoạch.

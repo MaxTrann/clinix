@@ -34,7 +34,8 @@ export const DOCTOR_ROOT_KEYS = [
   'pageSize',
   'total',
 ];
-export const DOCTOR_ITEM_KEYS = [
+/** Tám khoá LÕI của một lịch: dòng danh sách thêm `coHoSoKham` (doctor-exam B3), chi tiết thêm `chiNhanh`, `ghiChuKham`, `ngayDat` */
+export const DOCTOR_CORE_KEYS = [
   'ca',
   'chuyenKhoa',
   'dichVu',
@@ -44,6 +45,8 @@ export const DOCTOR_ITEM_KEYS = [
   'thoiGian',
   'trangThai',
 ];
+/** Chín khoá của MỘT dòng danh sách (B3, Q24): tám khoá lõi cộng cờ `coHoSoKham`; KHÔNG nội dung hồ sơ */
+export const DOCTOR_ITEM_KEYS = [...DOCTOR_CORE_KEYS, 'coHoSoKham'].sort();
 export const DOCTOR_EXAMINEE_KEYS = [
   'gioiTinh',
   'hoTen',
@@ -51,13 +54,44 @@ export const DOCTOR_EXAMINEE_KEYS = [
   'quanHe',
   'soDienThoai',
 ];
-// Chi tiết = dòng cộng `chiNhanh`, `ghiChuKham`, `ngayDat`; KHÔNG `lyDoHuy`
+// Chi tiết = tám khoá lõi cộng `chiNhanh`, `ghiChuKham`, `ngayDat`; KHÔNG `coHoSoKham` (cờ chỉ của danh sách), KHÔNG `lyDoHuy`
 export const DOCTOR_DETAIL_KEYS = [
-  ...DOCTOR_ITEM_KEYS,
+  ...DOCTOR_CORE_KEYS,
   'chiNhanh',
   'ghiChuKham',
   'ngayDat',
 ].sort();
+/** Năm khoá của đối tượng `ghiChuKham` (doctor-exam B3, Q24) */
+export const DOCTOR_RECORD_KEYS = [
+  'capNhatLanCuoi',
+  'chanDoanSoBo',
+  'huongXuLy',
+  'ngayTaiKhamDuKien',
+  'trieuChung',
+];
+/** Dấu hiệu chuỗi DUY NHẤT trong nội dung hồ sơ mẫu: quét JSON của vai trò khác để chắc nội dung không lọt (QHK-08) */
+export const RECORD_MARKER = 'BÍ MẬT-HSK';
+/** `cap_nhat_lan_cuoi` mẫu: chuỗi giờ VN (cột DATETIME không múi giờ) ⇒ ISO UTC `RECORD_UPDATED_ISO` (driver `+07:00`) */
+export const RECORD_UPDATED_VN = '2026-11-10 10:20:30';
+export const RECORD_UPDATED_ISO = '2026-11-10T03:20:30.000Z';
+
+/** Một dòng `ho_so_kham` THÔ (chữ có thể NULL như dữ liệu từ nguồn khác); `capNhatLanCuoi` là chuỗi giờ VN `YYYY-MM-DD HH:mm:ss` */
+export interface RecordFields {
+  trieuChung: string | null;
+  chanDoanSoBo: string | null;
+  huongXuLy: string | null;
+  ngayTaiKhamDuKien: string | null;
+  capNhatLanCuoi: string;
+}
+export const DEFAULT_RECORD = {
+  trieuChung: `Ho kéo dài hai tuần (${RECORD_MARKER})`,
+  chanDoanSoBo: `Viêm họng cấp (${RECORD_MARKER})`,
+  huongXuLy: `Uống nhiều nước, tái khám khi sốt (${RECORD_MARKER})`,
+  ngayTaiKhamDuKien: '2026-11-24',
+  capNhatLanCuoi: RECORD_UPDATED_VN,
+} satisfies RecordFields;
+// `ho_so_kham_id` = `lich_hen_id` + hằng này: LUÔN khác `lich_hen_id`, nên một câu JOIN nối sai khoá (`hk.ho_so_kham_id = lh.lich_hen_id`) không thể khớp nhầm (HDK-01, đột biến M3)
+const RECORD_ID_OFFSET = 1_000_000n;
 /** Sáu khoá của `demTheoTrangThai`, mọi giá trị 0: số đếm của bác sĩ không có lịch nào. */
 export const ZERO_STATUS_COUNTS = {
   ChoThanhToan: 0,
@@ -143,6 +177,32 @@ export class DoctorListFixtures {
       'UPDATE lich_hen SET thoi_diem_tao = ? WHERE lich_hen_id = ?',
       [gio, lichHenId],
     );
+  }
+
+  /**
+   * Chèn MỘT dòng `ho_so_kham` THẲNG bằng SQL (doctor-exam B3): nội dung THÔ như HTML, emoji, xuống dòng, khoảng trắng hai đầu, NULL (B2 sẽ chuẩn hoá khi ghi nên không dùng B2 ở đây), và ở BẤT KỲ trạng thái lịch nào
+   * (hồ sơ mồ côi khi Admin override: Q16). `ho_so_kham_id` CỐ Ý khác `lich_hen_id` (`RECORD_ID_OFFSET`). Mặc định là `DEFAULT_RECORD`. Trả `ho_so_kham_id`.
+   */
+  async insertRecord(
+    lichHenId: string,
+    fields: Partial<RecordFields> = {},
+  ): Promise<string> {
+    const record = { ...DEFAULT_RECORD, ...fields };
+    const id = String(BigInt(lichHenId) + RECORD_ID_OFFSET);
+    await this.db.query(
+      `INSERT INTO ho_so_kham (ho_so_kham_id, lich_hen_id, trieu_chung, chan_doan_so_bo, huong_xu_ly, ngay_tai_kham_du_kien, cap_nhat_lan_cuoi)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        lichHenId,
+        record.trieuChung,
+        record.chanDoanSoBo,
+        record.huongXuLy,
+        record.ngayTaiKhamDuKien,
+        record.capNhatLanCuoi,
+      ],
+    );
+    return id;
   }
 
   /**

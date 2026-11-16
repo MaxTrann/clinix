@@ -9,16 +9,20 @@ import {
 import { BookingFixtures } from '../testing/booking-fixtures.js';
 import {
   DAUGHTER_FIELDS,
+  DEFAULT_RECORD,
   DOCTOR_CODES,
   DOCTOR_DETAIL_KEYS,
   DOCTOR_EXAMINEE_KEYS,
   DOCTOR_ITEM_KEYS,
+  DOCTOR_RECORD_KEYS,
   DOCTOR_ROOT_KEYS,
   DoctorListFixtures,
   MOTHER_FIELDS,
   MOTHER_NAME,
   MOTHER_PHONE,
   ONE_ACCOUNT_FIELDS,
+  RECORD_MARKER,
+  RECORD_UPDATED_ISO,
   ZERO_STATUS_COUNTS,
   type RelativeFields,
 } from '../testing/doctor-list-fixtures.js';
@@ -234,7 +238,7 @@ describe('DSB-12 người khám', () => {
 });
 
 describe('DSB-06, DSB-08 hình dạng', () => {
-  it('DSB-06 dòng: đúng tám khoá và năm khoá `nguoiKham`; `ca`, `thoiGian`, `lyDoKham`, `dichVu`, `chuyenKhoa` đúng giá trị (tên lấy từ DB)', async () => {
+  it('DSB-06 dòng: đúng chín khoá (tám khoá lõi cộng `coHoSoKham`) và năm khoá `nguoiKham`; `ca`, `thoiGian`, `lyDoKham`, `dichVu`, `chuyenKhoa` đúng giá trị (tên lấy từ DB)', async () => {
     const w = await dfx.world();
     const page = await list(w.doctorA1);
     expect(Object.keys(page).sort()).toStrictEqual(DOCTOR_ROOT_KEYS);
@@ -267,7 +271,7 @@ describe('DSB-06, DSB-08 hình dạng', () => {
     });
   });
 
-  it('DSB-06, DSB-08 chi tiết: đúng mười một khoá; `chiNhanh` là tên chi nhánh; `ngayDat` là ISO UTC của `thoi_diem_tao` (09:15:30 giờ VN ⇒ 02:15:30Z); `ghiChuKham` null ở MỌI trạng thái kể cả HoanThanh', async () => {
+  it('DSB-06, DSB-08 chi tiết: đúng mười một khoá; `chiNhanh` là tên chi nhánh; `ngayDat` là ISO UTC của `thoi_diem_tao` (09:15:30 giờ VN ⇒ 02:15:30Z); chưa có hồ sơ thì `ghiChuKham` null ở MỌI trạng thái kể cả HoanThanh (có hồ sơ: khối HDK-01 bên dưới)', async () => {
     const w = await dfx.world();
     await dfx.setCreatedAt(w.apps.a1.lichHenId, '2026-11-02 09:15:30');
     const own = await detail(w.doctorA1, C.a1);
@@ -544,5 +548,247 @@ describe('DSB-13 ô tìm `q`', () => {
     expect(await find(C.a3)).toStrictEqual([]);
     expect(await find('%%')).toStrictEqual([]);
     expect(await find('__')).toStrictEqual([]);
+  });
+});
+
+// Task B3 (doctor-exam; PLAN 5.10 E2; TRACKING 17) — hồ sơ khám đọc bằng MỘT `LEFT JOIN ho_so_kham` ở câu trang và câu chi tiết, trên MySQL 8.4 THẬT: HDK-01 (chi tiết), HDK-02 (cờ ở danh sách), HDK-14 (không nhân
+// dòng), HDK-15 (nội dung nguyên văn), XHS-14 (cột NULL). Dòng `ho_so_kham` chèn THẲNG bằng SQL (`DoctorListFixtures.insertRecord`: nội dung thô mà B2 sẽ chuẩn hoá, và `ho_so_kham_id` CỐ Ý khác `lich_hen_id` để câu JOIN
+// nối sai khoá không thể khớp nhầm). Thế giới: A1 có a1 DaXacNhan, a2 ChoThanhToan, a6 VangMat, c1 DaXacNhan, c2 DaTiepDon (a5 DaDoiLich ẩn); A2 có a3 HoanThanh, a4 DaHuy, a7 DaXacNhan.
+const flagsOf = (page: DoctorAppointmentsPage) =>
+  Object.fromEntries(
+    page.items.map((item) => [item.maLichHen, item.coHoSoKham]),
+  );
+// Trang bỏ cờ `coHoSoKham`: để so "có hồ sơ" với "không hồ sơ" mà chỉ cờ được khác (HDK-14)
+const withoutFlag = (page: DoctorAppointmentsPage) => ({
+  ...page,
+  items: page.items.map((item) =>
+    Object.fromEntries(
+      Object.entries(item).filter(([key]) => key !== 'coHoSoKham'),
+    ),
+  ),
+});
+const CONTENT_KEY =
+  /trieuChung|chanDoanSoBo|huongXuLy|ghiChuKham|ngayTaiKhamDuKien|capNhatLanCuoi/;
+const SAVED = {
+  trieuChung: DEFAULT_RECORD.trieuChung,
+  chanDoanSoBo: DEFAULT_RECORD.chanDoanSoBo,
+  huongXuLy: DEFAULT_RECORD.huongXuLy,
+  ngayTaiKhamDuKien: DEFAULT_RECORD.ngayTaiKhamDuKien,
+  capNhatLanCuoi: RECORD_UPDATED_ISO,
+};
+
+describe('HDK-01 hồ sơ khám ở chi tiết', () => {
+  it('HDK-01 chưa có hồ sơ ⇒ `null`; DaTiepDon (c2) và HoanThanh (a3) có hồ sơ ⇒ đối tượng ĐÚNG năm khoá, nguyên văn, `capNhatLanCuoi` là ISO UTC của giờ VN đã lưu; chi tiết vẫn ĐÚNG mười một khoá, KHÔNG `coHoSoKham`', async () => {
+    const w = await dfx.world();
+    expect((await detail(w.doctorA1, C.c2)).ghiChuKham).toBeNull();
+    expect((await detail(w.doctorA2, C.a3)).ghiChuKham).toBeNull();
+    await dfx.insertRecord(w.apps.c2.lichHenId);
+    await dfx.insertRecord(w.apps.a3.lichHenId, { ngayTaiKhamDuKien: null });
+
+    const open = await detail(w.doctorA1, C.c2);
+    expect(Object.keys(open).sort()).toStrictEqual(DOCTOR_DETAIL_KEYS);
+    expect(open).not.toHaveProperty('coHoSoKham');
+    expect(Object.keys(open.ghiChuKham ?? {}).sort()).toStrictEqual(
+      DOCTOR_RECORD_KEYS,
+    );
+    expect(open.ghiChuKham).toStrictEqual(SAVED);
+
+    const done = await detail(w.doctorA2, C.a3);
+    expect(done.trangThai).toBe('HoanThanh');
+    expect(Object.keys(done).sort()).toStrictEqual(DOCTOR_DETAIL_KEYS);
+    expect(done.ghiChuKham).toStrictEqual({
+      ...SAVED,
+      ngayTaiKhamDuKien: null,
+    });
+  });
+
+  it('HDK-01, Q16 hồ sơ MỒ CÔI ở bốn trạng thái ngoài DaTiepDon/HoanThanh (a2 ChoThanhToan, a1 DaXacNhan, a4 DaHuy, a6 VangMat) ⇒ chi tiết `ghiChuKham` null và danh sách `coHoSoKham` false; lịch về lại DaTiepDon thì hồ sơ HIỆN LẠI', async () => {
+    const w = await dfx.world();
+    const orphans = [
+      [w.doctorA1, C.a2, w.apps.a2.lichHenId],
+      [w.doctorA1, C.a1, w.apps.a1.lichHenId],
+      [w.doctorA1, C.a6, w.apps.a6.lichHenId],
+      [w.doctorA2, C.a4, w.apps.a4.lichHenId],
+    ] as const;
+    for (const [, , lichHenId] of orphans) await dfx.insertRecord(lichHenId);
+    for (const [doctor, code] of orphans)
+      expect((await detail(doctor, code)).ghiChuKham, code).toBeNull();
+    for (const doctor of [w.doctorA1, w.doctorA2])
+      expect(
+        Object.values(flagsOf(await list(doctor))).every((flag) => !flag),
+      ).toBe(true);
+
+    // Như Admin override hoàn tác về DaTiepDon: dòng hồ sơ vẫn đó nên nội dung hiện lại
+    await db.query('UPDATE lich_hen SET trang_thai = ? WHERE lich_hen_id = ?', [
+      'DaTiepDon',
+      w.apps.a1.lichHenId,
+    ]);
+    expect((await detail(w.doctorA1, C.a1)).ghiChuKham).toStrictEqual(SAVED);
+    expect(flagsOf(await list(w.doctorA1))[C.a1]).toBe(true);
+  });
+
+  it('HDK-01, DSB-07, QB-06 lịch CÓ hồ sơ của bác sĩ khác và lịch DaDoiLich có hồ sơ ⇒ 404 CÙNG thân với mã không tồn tại (hồ sơ không làm lộ sự tồn tại của lịch)', async () => {
+    const w = await dfx.world();
+    await dfx.insertRecord(w.apps.c2.lichHenId);
+    await dfx.insertRecord(w.apps.a3.lichHenId);
+    await dfx.insertRecord(w.apps.a5.lichHenId);
+    const missing = await notFoundBody(idOf(w.doctorA1), C.missing);
+    expect(await notFoundBody(idOf(w.doctorA2), C.c2)).toBe(missing);
+    expect(await notFoundBody(idOf(w.doctorA1), C.a3)).toBe(missing);
+    expect(await notFoundBody(idOf(w.doctorA1), C.a5)).toBe(missing);
+  });
+
+  it('HDK-01 quét JSON danh sách và chi tiết khi MỌI lịch hiển thị có hồ sơ: không khoá khớp regex cấm của Bác sĩ; không email, băm, giá, SĐT hay tên chính bác sĩ', async () => {
+    const w = await dfx.world();
+    for (const app of Object.values(w.apps))
+      await dfx.insertRecord(app.lichHenId);
+    const doctors = [w.doctorA1, w.doctorA2];
+    const emails = await db.query<{ email: string }[]>(
+      'SELECT email FROM tai_khoan WHERE tai_khoan_id IN (?, ?)',
+      doctors.map(idOf),
+    );
+    for (const doctor of doctors) {
+      const page = await list(doctor);
+      const details = await Promise.all(
+        codesOf(page).map((code) => detail(doctor, code)),
+      );
+      for (const json of [page, ...details]) {
+        expect(
+          collectKeys(json).filter((key) => DOCTOR_FORBIDDEN_KEY.test(key)),
+        ).toStrictEqual([]);
+        const strings = collectStrings(json);
+        for (const banned of [
+          DOCTOR_PHONE,
+          '100000.00',
+          'Bác Sĩ',
+          'argon2',
+          ...emails.map((row) => row.email),
+        ])
+          expect(
+            strings.filter((value) => value.includes(banned)),
+            banned,
+          ).toStrictEqual([]);
+      }
+    }
+  });
+});
+
+describe('HDK-02 cờ `coHoSoKham` ở danh sách', () => {
+  it('HDK-02 true ở DaTiepDon có hồ sơ (c2) và HoanThanh có hồ sơ (a3); false ở HoanThanh CHƯA có hồ sơ, DaXacNhan chưa có và mọi trạng thái khác; ĐÚNG chín khoá mỗi dòng, không khoá và không chuỗi nào của nội dung', async () => {
+    const w = await dfx.world();
+    const before = await list(w.doctorA2);
+    expect(flagsOf(before)).toStrictEqual({
+      [C.a7]: false,
+      [C.a4]: false,
+      [C.a3]: false,
+    });
+
+    await dfx.insertRecord(w.apps.c2.lichHenId);
+    await dfx.insertRecord(w.apps.a3.lichHenId);
+    const one = await list(w.doctorA1);
+    const two = await list(w.doctorA2);
+    expect(flagsOf(one)).toStrictEqual({
+      [C.c2]: true,
+      [C.c1]: false,
+      [C.a6]: false,
+      [C.a2]: false,
+      [C.a1]: false,
+    });
+    expect(flagsOf(two)).toStrictEqual({
+      [C.a7]: false,
+      [C.a4]: false,
+      [C.a3]: true,
+    });
+    for (const page of [one, two]) {
+      for (const item of page.items) {
+        expect(Object.keys(item).sort()).toStrictEqual(DOCTOR_ITEM_KEYS);
+        expect(typeof item.coHoSoKham).toBe('boolean');
+      }
+      expect(
+        collectKeys(page).filter((key) => CONTENT_KEY.test(key)),
+      ).toStrictEqual([]);
+      expect(JSON.stringify(page)).not.toContain(RECORD_MARKER);
+    }
+  });
+});
+
+describe('HDK-14 `LEFT JOIN` không nhân dòng', () => {
+  it('HDK-14 mọi lịch của A1 (kể cả a5 DaDoiLich ẩn và hồ sơ mồ côi) có hồ sơ: `total`, thứ tự hai chiều, ba trang cỡ 2, bộ lọc `ca` và `trangThai`, `demTheoTrangThai` GIỐNG HỆT lúc chưa có hồ sơ; chỉ cờ của c2 khác', async () => {
+    const w = await dfx.world();
+    const queries: Partial<DoctorAppointmentsQuery>[] = [
+      {},
+      { sapXep: 'CuNhat' },
+      { page: 1, pageSize: 2 },
+      { page: 2, pageSize: 2 },
+      { page: 3, pageSize: 2 },
+      { ca: 'CaChieu' },
+      { trangThai: ['DaXacNhan', 'DaTiepDon'] },
+    ];
+    const before = await Promise.all(queries.map((q) => list(w.doctorA1, q)));
+    expect(before[0]?.total).toBe(5);
+
+    for (const code of ['a1', 'a2', 'a5', 'a6', 'c1', 'c2'] as const)
+      await dfx.insertRecord(w.apps[code].lichHenId);
+    const after = await Promise.all(queries.map((q) => list(w.doctorA1, q)));
+
+    after.forEach((page, index) => {
+      expect(withoutFlag(page), JSON.stringify(queries[index])).toStrictEqual(
+        withoutFlag(before[index] as DoctorAppointmentsPage),
+      );
+    });
+    expect(after[0]?.total).toBe(5);
+    expect(codesOf(after[0] as DoctorAppointmentsPage)).toStrictEqual(
+      NEWEST_A1,
+    );
+    expect(after[0]?.demTheoTrangThai).toStrictEqual(COUNTS_A1);
+    expect(flagsOf(after[0] as DoctorAppointmentsPage)).toStrictEqual({
+      [C.c2]: true,
+      [C.c1]: false,
+      [C.a6]: false,
+      [C.a2]: false,
+      [C.a1]: false,
+    });
+    // Không nhân dòng: câu trang không LIMIT của chính repository trả đúng `total` hàng
+    const all = await list(w.doctorA1, { pageSize: 100 });
+    expect(new Set(codesOf(all)).size).toBe(all.items.length);
+    expect(all.items).toHaveLength(all.total);
+  });
+});
+
+describe('HDK-15, XHS-14 nội dung nguyên văn và cột NULL (MySQL thật)', () => {
+  it('HDK-15 HTML, emoji ghép, CRLF, TAB, khoảng trắng hai đầu, 2.000 ký tự, ngày cuối năm đi qua DB và API KHÔNG đổi một ký tự', async () => {
+    const w = await dfx.world();
+    const raw = {
+      trieuChung: '  <script>alert("x")</script> & <b>đậm</b>  ',
+      chanDoanSoBo: 'Dòng 1\r\nDòng 2\n\tDòng 3 😀 👨‍⚕️',
+      huongXuLy: 'a'.repeat(2000),
+      ngayTaiKhamDuKien: '2026-12-31',
+    };
+    await dfx.insertRecord(w.apps.c2.lichHenId, raw);
+    expect((await detail(w.doctorA1, C.c2)).ghiChuKham).toStrictEqual({
+      ...raw,
+      capNhatLanCuoi: RECORD_UPDATED_ISO,
+    });
+  });
+
+  it('XHS-14 cột chữ NULL (dữ liệu từ nguồn khác) ⇒ không lỗi, các trường đó là chuỗi rỗng, cờ danh sách vẫn true; một cột NULL chỉ ảnh hưởng đúng cột đó', async () => {
+    const w = await dfx.world();
+    await dfx.insertRecord(w.apps.c2.lichHenId, {
+      trieuChung: null,
+      chanDoanSoBo: null,
+      huongXuLy: null,
+    });
+    await dfx.insertRecord(w.apps.a3.lichHenId, { chanDoanSoBo: null });
+    expect((await detail(w.doctorA1, C.c2)).ghiChuKham).toStrictEqual({
+      ...SAVED,
+      trieuChung: '',
+      chanDoanSoBo: '',
+      huongXuLy: '',
+    });
+    expect((await detail(w.doctorA2, C.a3)).ghiChuKham).toStrictEqual({
+      ...SAVED,
+      chanDoanSoBo: '',
+    });
+    expect(flagsOf(await list(w.doctorA1))[C.c2]).toBe(true);
   });
 });
