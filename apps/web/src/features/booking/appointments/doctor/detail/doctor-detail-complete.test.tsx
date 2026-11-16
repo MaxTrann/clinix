@@ -64,7 +64,8 @@ describe('doctor-exam F1 — nút Hoàn thành ca khám trên trang chi tiết',
     expect(
       within(titleRow()).getByRole('button', { name: 'Hoàn thành ca khám' }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole('button')).toHaveLength(1);
+    // Hàng tiêu đề chỉ có MỘT nút; nút `Ghi hồ sơ khám` của thẻ hồ sơ (doctor-exam F3) nằm ngoài hàng này
+    expect(within(titleRow()).getAllByRole('button')).toHaveLength(1);
   });
 
   it('WHT-03 bấm rồi xác nhận ⇒ MỘT POST tới đúng mã, tải lại chi tiết (GET lần hai), chip `Hoàn thành`, nút biến mất, dòng "Đã hoàn thành ca khám."', async () => {
@@ -85,7 +86,7 @@ describe('doctor-exam F1 — nút Hoàn thành ca khám trên trang chi tiết',
     expect(
       screen.queryByRole('button', { name: 'Hoàn thành ca khám' }),
     ).toBeNull();
-    expect(screen.queryAllByRole('button')).toEqual([]);
+    expect(within(titleRow()).queryAllByRole('button')).toEqual([]);
     expect(within(titleRow()).getByRole('status')).toHaveTextContent(
       'Đã hoàn thành ca khám.',
     );
@@ -115,6 +116,6 @@ describe('doctor-exam F1 — nút Hoàn thành ca khám trên trang chi tiết',
       'Ca khám này đã được hoàn thành.',
     );
     expect(within(titleRow()).queryByRole('alert')).toBeNull();
-    expect(screen.queryAllByRole('button')).toEqual([]);
+    expect(within(titleRow()).queryAllByRole('button')).toEqual([]);
   });
 });

@@ -238,7 +238,7 @@ describe('booking F11 — chi tiết của Bác sĩ: hồ sơ khám và trạng 
     ['DaHuy', 'Không có hồ sơ khám.'],
     ['VangMat', 'Không có hồ sơ khám.'],
   ])(
-    'DAD-08 %s: `ghiChuKham` null ⇒ MỘT câu theo trạng thái, không nội dung hồ sơ bịa, không nút ghi hồ sơ; nút `Hoàn thành ca khám` CHỈ khi Đã tiếp đón (doctor-exam F1)',
+    'DAD-08 %s: `ghiChuKham` null ⇒ MỘT câu theo trạng thái, không nội dung hồ sơ bịa; nút `Hoàn thành ca khám` CHỈ khi Đã tiếp đón (doctor-exam F1); nút `Ghi hồ sơ khám` CHỈ ở hai trạng thái "chưa có" (doctor-exam F3)',
     async (trangThai, sentence) => {
       await openDoctorDetail({ trangThai });
       const record = card('Hồ sơ khám bệnh');
@@ -246,20 +246,22 @@ describe('booking F11 — chi tiết của Bác sĩ: hồ sơ khám và trạng 
       // doctor-exam F2: thẻ do `ExamRecordCard` của `doctor` vẽ; hai trạng thái "chưa có" theo Figma `459:2`, `464:2` có biểu tượng bảng ghi chú, hộp xám của bốn trạng thái còn lại thì không
       const hasIcon = trangThai === 'DaTiepDon' || trangThai === 'HoanThanh';
       expect(record.querySelector('svg.size-10') !== null).toBe(hasIcon);
+      // Nhãn của bốn khối viết hoa đầu câu; dòng phụ của F3 ("… lưu triệu chứng, chẩn đoán và lời khuyên.") viết thường nên không trùng (không dùng cờ `i`)
       expect(record.textContent).not.toMatch(
-        /Triệu chứng|Chẩn đoán|Hướng xử lý|Tái khám/i,
+        /Triệu chứng|Chẩn đoán sơ bộ|Hướng xử lý|Ngày tái khám/,
       );
-      // F11 chỉ đọc; doctor-exam F1 chỉ thêm nút `Hoàn thành ca khám` và CHỈ khi `DaTiepDon` (WHT-01, WHT-07); không nút ghi hồ sơ (việc của F2), chưa bấm thì chưa có `Xác nhận`
-      for (const name of [
-        /Ghi hồ sơ khám/,
-        /Chỉnh sửa ghi chú/,
-        /^Xác nhận$/,
-      ]) {
+      // F11 chỉ đọc; doctor-exam F1 thêm nút `Hoàn thành ca khám` và CHỈ khi `DaTiepDon` (WHT-01, WHT-07); doctor-exam F3 thêm nút `Ghi hồ sơ khám` ở thẻ khi chưa có hồ sơ (`DaTiepDon`, `HoanThanh`; WHS-10);
+      // chưa có hồ sơ thì không có `Chỉnh sửa ghi chú`, chưa bấm thì chưa có `Xác nhận`
+      for (const name of [/Chỉnh sửa ghi chú/, /^Xác nhận$/]) {
         expect(screen.queryByRole('button', { name })).toBeNull();
       }
+      const expectedButtons = {
+        DaTiepDon: ['Hoàn thành ca khám', 'Ghi hồ sơ khám'],
+        HoanThanh: ['Ghi hồ sơ khám'],
+      }[trangThai as 'DaTiepDon' | 'HoanThanh'];
       expect(
         screen.queryAllByRole('button').map((button) => button.textContent),
-      ).toEqual(trangThai === 'DaTiepDon' ? ['Hoàn thành ca khám'] : []);
+      ).toEqual(expectedButtons ?? []);
     },
   );
 
