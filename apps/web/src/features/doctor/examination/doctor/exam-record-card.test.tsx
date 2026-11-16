@@ -1,10 +1,19 @@
-import { render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setApiAuthHooks } from '../../../../shared/api/auth-hooks';
+import { jsonResponse } from '../../testing/fetch-routing';
 import { ExamRecordCard, type ExamRecordNote } from './exam-record-card';
 import cardSource from './exam-record-card.tsx?raw';
 
-// doctor-exam F2: thẻ "Hồ sơ khám bệnh" CHỈ ĐỌC của Bác sĩ (Figma `459:2`, `462:2`, `464:2`; Q6, Q16). WHS-01 (bốn cặp), WHS-10 phần F2 (trạng thái ngoài hai đích: không nội dung, không nút; nút ghi là F3), WHS-12 [đề xuất]
-// (hiển thị an toàn), BDK-09 (không ghi nội dung vào kho trình duyệt, URL, tiêu đề, log). Mức W (happy-dom, `css:false`): khoá TÊN LỚP, kích thước thật đo ở Chromium (TRACKING doctor-exam mục 16.8). MỖI lớp một khẳng định
+// doctor-exam F2: thẻ "Hồ sơ khám bệnh" của Bác sĩ (Figma `459:2`, `462:2`, `464:2`; Q6, Q16). WHS-01 (bốn cặp), WHS-10 (trạng thái ngoài hai đích: không nội dung, không nút), WHS-12 [đề xuất]
+// (hiển thị an toàn), BDK-09 (không ghi nội dung vào kho trình duyệt, URL, tiêu đề, log). doctor-exam F3 thêm hai nút mở hộp ghi/sửa (WHS-10 phần F3), mở hộp, bản nháp và dòng "Đã lưu hồ sơ khám." (WHS-03, WHS-16 [đề xuất]; cuối file).
+// Mức W (happy-dom, `css:false`): khoá TÊN LỚP, kích thước thật đo ở Chromium (TRACKING doctor-exam mục 16.8 và 19.8). MỖI lớp một khẳng định
 // `toHaveClass` hay `.not.toHaveClass` (jest-dom: `.not` với nhiều lớp chỉ đỏ khi có ĐỦ mọi lớp, AI-BUG-052). Dữ liệu giả, không phải của ai.
 const NOTE: ExamRecordNote = {
   trieuChung:
@@ -27,8 +36,18 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const onChanged = vi.fn();
 const renderCard = (trangThai: string, ghiChuKham: ExamRecordNote | null) =>
-  render(<ExamRecordCard trangThai={trangThai} ghiChuKham={ghiChuKham} />);
+  render(
+    <ExamRecordCard
+      maLichHen="CP20261018006"
+      trangThai={trangThai}
+      nguoiKham="Vũ Thị Lan"
+      thoiGian="2026-06-10T02:30:00.000Z"
+      ghiChuKham={ghiChuKham}
+      onChanged={onChanged}
+    />,
+  );
 const card = () =>
   screen
     .getByRole('heading', { level: 2, name: 'Hồ sơ khám bệnh' })
@@ -52,8 +71,8 @@ describe('doctor-exam F2 — thẻ Hồ sơ khám bệnh: có hồ sơ (Figma 46
       expect(
         within(card()).getByText('Cập nhật lúc 17:30 ngày 10/06/2026'),
       ).toBeInTheDocument();
-      // CHỈ ĐỌC: nút `Ghi hồ sơ khám`, `Chỉnh sửa ghi chú` là F3
-      expect(buttons()).toEqual([]);
+      // F3: đúng MỘT nút `Chỉnh sửa ghi chú` ở đầu thẻ; KHÔNG nút `Ghi hồ sơ khám`
+      expect(texts(buttons())).toEqual(['Chỉnh sửa ghi chú']);
       expect(screen.queryByRole('link')).toBeNull();
       expect(card().querySelector('svg.size-10')).toBeNull();
     },
@@ -114,14 +133,13 @@ describe('doctor-exam F2 — thẻ Hồ sơ khám bệnh: chưa có hồ sơ (Fi
     ['DaTiepDon', 'Chưa ghi hồ sơ khám.'],
     ['HoanThanh', 'Ca khám đã hoàn thành nhưng chưa có hồ sơ khám.'],
   ])(
-    'WHS-01 %s chưa có hồ sơ ⇒ trạng thái rỗng: biểu tượng và MỘT câu; CHƯA dòng phụ và nút (F3)',
+    'WHS-01 %s chưa có hồ sơ ⇒ trạng thái rỗng: biểu tượng, câu, dòng phụ và đúng MỘT nút `Ghi hồ sơ khám` (F3)',
     (trangThai, sentence) => {
       renderCard(trangThai, null);
       const text = within(card()).getByText(sentence);
       expect(text).toBeInTheDocument();
       expect(within(card()).queryAllByRole('term')).toEqual([]);
-      expect(buttons()).toEqual([]);
-      expect(screen.queryByText(/Có thể ghi hồ sơ|Bổ sung hồ sơ/)).toBeNull();
+      expect(texts(buttons())).toEqual(['Ghi hồ sơ khám']);
       // Figma: câu 13,125 px đậm vừa `#1e2939`; khối căn giữa, đệm trên 45, dưới 30, khoảng cách biểu tượng 11,25
       for (const cls of ['text-sm', 'font-medium', 'text-gray-800']) {
         expect(text).toHaveClass(cls);
@@ -166,15 +184,23 @@ describe('doctor-exam F2 — thẻ Hồ sơ khám bệnh: chưa có hồ sơ (Fi
       'flex',
       'items-center',
       'gap-2',
-      'border-b',
-      'border-gray-100',
-      'px-5',
-      'py-3.5',
       'text-sm',
       'font-semibold',
       'text-gray-900',
     ]) {
       expect(heading).toHaveClass(cls);
+    }
+    // F3: hàng đầu thẻ chứa tiêu đề và (khi có hồ sơ) nút `Chỉnh sửa ghi chú` ở bên phải; viền và đệm của hàng
+    for (const cls of [
+      'flex',
+      'items-center',
+      'justify-between',
+      'border-b',
+      'border-gray-100',
+      'px-5',
+      'py-3.5',
+    ]) {
+      expect(heading.parentElement).toHaveClass(cls);
     }
     const icon = heading.querySelector('svg') as SVGElement;
     expect(icon).toHaveAttribute('aria-hidden', 'true');
@@ -282,5 +308,330 @@ describe('doctor-exam F2 — hiển thị an toàn (WHS-12) và dữ liệu sứ
     expect(document.title).toBe(title);
     expect(document.title).not.toContain(NOTE.trieuChung);
     for (const spy of consoleSpies) expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+// ---- doctor-exam F3: hai nút, mở hộp, bản nháp, dòng trạng thái ----
+const CODE = 'CP20261018006';
+const SAVED: ExamRecordNote = {
+  ...NOTE,
+  capNhatLanCuoi: '2026-06-10T11:00:00.000Z',
+};
+const fetchMock = vi.fn<typeof fetch>();
+const ui = (
+  trangThai: string,
+  ghiChuKham: ExamRecordNote | null,
+  nguoiKham = 'Vũ Thị Lan',
+) => (
+  <ExamRecordCard
+    maLichHen={CODE}
+    trangThai={trangThai}
+    nguoiKham={nguoiKham}
+    thoiGian="2026-06-10T02:30:00.000Z"
+    ghiChuKham={ghiChuKham}
+    onChanged={onChanged}
+  />
+);
+const openButton = (name: string) => screen.getByRole('button', { name });
+const dialog = () => screen.getByRole('dialog');
+const box = (label: RegExp) =>
+  within(dialog()).getByLabelText(label) as HTMLTextAreaElement;
+const type = (element: HTMLElement, value: string) =>
+  fireEvent.change(element, { target: { value } });
+const apiError = (status: number, maLoi: string) =>
+  jsonResponse({ maLoi, thongBao: 'x' }, status);
+const puts = () =>
+  fetchMock.mock.calls.filter(([, init]) => init?.method === 'PUT');
+
+describe('doctor-exam F3 — nút mở hộp theo bốn cặp (trạng thái, có hồ sơ) (WHS-10 phần F3)', () => {
+  beforeEach(() => {
+    onChanged.mockReset();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+    setApiAuthHooks({
+      getAccessToken: () => 'token-gia',
+      recoverFromUnauthorized: async () => false,
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setApiAuthHooks(null);
+  });
+
+  it.each([
+    [
+      'DaTiepDon',
+      'Chưa ghi hồ sơ khám.',
+      'Có thể ghi hồ sơ trước hoặc sau khi hoàn thành ca.',
+    ],
+    [
+      'HoanThanh',
+      'Ca khám đã hoàn thành nhưng chưa có hồ sơ khám.',
+      'Bổ sung hồ sơ để lưu triệu chứng, chẩn đoán và lời khuyên.',
+    ],
+  ])(
+    'WHS-10 %s chưa có hồ sơ ⇒ câu, dòng phụ "%s" rồi nút `Ghi hồ sơ khám` (Figma 459:2, 464:2, 460:273); cỡ nút như `Hoàn thành ca khám`',
+    (trangThai, sentence, hint) => {
+      renderCard(trangThai, null);
+      const text = within(card()).getByText(sentence);
+      const hintText = within(card()).getByText(hint);
+      // Thứ tự trong khối rỗng: biểu tượng, câu, dòng phụ, nút
+      const empty = text.parentElement as HTMLElement;
+      expect(Array.from(empty.children).map((child) => child.tagName)).toEqual([
+        'svg',
+        'P',
+        'P',
+        'BUTTON',
+      ]);
+      expect(empty.children[2]).toBe(hintText);
+      for (const cls of ['text-xs', 'text-gray-600']) {
+        expect(hintText).toHaveClass(cls);
+      }
+      const button = openButton('Ghi hồ sơ khám');
+      expect(empty.children[3]).toBe(button);
+      for (const cls of [
+        'inline-flex',
+        'items-center',
+        'gap-2',
+        'rounded-[13.375px]',
+        'bg-brand-strong',
+        'px-4',
+        'py-2',
+        'text-sm',
+        'font-semibold',
+        'whitespace-nowrap',
+        'text-white',
+      ]) {
+        expect(button).toHaveClass(cls);
+      }
+      expect(button).toHaveAttribute('type', 'button');
+      expect(button.querySelector('svg')).toHaveAttribute(
+        'aria-hidden',
+        'true',
+      );
+      expect(button.querySelector('svg')).toHaveClass('size-4');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['DaTiepDon', 'HoanThanh'])(
+    'WHS-10 %s có hồ sơ ⇒ nút `Chỉnh sửa ghi chú` CẠNH tiêu đề thẻ (Figma 463:250): chữ nhỏ đậm vừa, gạch chân, biểu tượng 13,125; không nút `Ghi hồ sơ khám`',
+    (trangThai) => {
+      renderCard(trangThai, NOTE);
+      const button = openButton('Chỉnh sửa ghi chú');
+      const heading = screen.getByRole('heading', {
+        level: 2,
+        name: 'Hồ sơ khám bệnh',
+      });
+      expect(heading.parentElement).toContainElement(button);
+      expect(heading).not.toContainElement(button);
+      for (const cls of [
+        'inline-flex',
+        'items-center',
+        'gap-1.5',
+        'text-xs',
+        'font-medium',
+        'text-brand-strong',
+        'underline',
+      ]) {
+        expect(button).toHaveClass(cls);
+      }
+      expect(button.querySelector('svg')).toHaveAttribute(
+        'aria-hidden',
+        'true',
+      );
+      expect(button.querySelector('svg')).toHaveClass('size-3.5');
+      expect(
+        screen.queryByRole('button', { name: 'Ghi hồ sơ khám' }),
+      ).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['ChoThanhToan', 'DaXacNhan', 'DaHuy', 'VangMat', 'DaDoiLich', ''])(
+    'WHS-10 trạng thái %j ⇒ KHÔNG nút nào dù có hay không có hồ sơ (Q16)',
+    (trangThai) => {
+      for (const ghiChuKham of [null, NOTE]) {
+        const view = renderCard(trangThai, ghiChuKham);
+        expect(buttons()).toEqual([]);
+        view.unmount();
+      }
+    },
+  );
+
+  it('WHS-03 `Ghi hồ sơ khám` mở hộp GHI MỚI: tên "Ghi chú khám", phụ đề `<mã> · <họ tên>`, ba ô trống; `Chỉnh sửa ghi chú` mở hộp SỬA điền sẵn', () => {
+    const view = renderCard('DaTiepDon', null);
+    fireEvent.click(openButton('Ghi hồ sơ khám'));
+    expect(
+      screen.getByRole('dialog', { name: 'Ghi chú khám' }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog()).getByText(`${CODE} · Vũ Thị Lan`),
+    ).toBeInTheDocument();
+    expect(box(/^Triệu chứng/)).toHaveValue('');
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Hủy' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    view.unmount();
+
+    renderCard('HoanThanh', NOTE);
+    fireEvent.click(openButton('Chỉnh sửa ghi chú'));
+    expect(
+      screen.getByRole('dialog', { name: 'Chỉnh sửa ghi chú khám' }),
+    ).toBeInTheDocument();
+    expect(box(/^Triệu chứng/)).toHaveValue(NOTE.trieuChung);
+    expect(box(/^Hướng xử lý/)).toHaveValue(NOTE.huongXuLy);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // Vá khe hở do đột biến M3 (TRACKING 19.3, 19.8): ca BDK-09 ở trên chỉ HIỂN THỊ nội dung, không đi qua `open()` của thẻ; ca này mở hộp từ thẻ rồi gõ
+  it('BDK-09 mở hộp từ thẻ rồi gõ nội dung hồ sơ không ghi `localStorage`, `sessionStorage`, URL, `document.title`, `console`', () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    const consoleSpies = (
+      ['log', 'info', 'warn', 'error', 'debug'] as const
+    ).map((method) =>
+      vi.spyOn(console, method).mockImplementation(() => undefined),
+    );
+    const href = window.location.href;
+    const title = document.title;
+    const state = window.history.state;
+    const typed = 'Nội dung gõ dở không được ghi ra ngoài bộ nhớ';
+    renderCard('HoanThanh', NOTE);
+    fireEvent.click(openButton('Chỉnh sửa ghi chú'));
+    type(box(/^Hướng xử lý/), typed);
+    expect(box(/^Hướng xử lý/)).toHaveValue(typed);
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
+    expect(window.location.href).toBe(href);
+    expect(window.history.state).toEqual(state);
+    expect(document.title).toBe(title);
+    expect(document.title).not.toContain(typed);
+    expect(document.title).not.toContain(NOTE.trieuChung);
+    for (const spy of consoleSpies) expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('doctor-exam F3 — lưu xong, bản nháp (WHS-16 [đề xuất])', () => {
+  beforeEach(() => {
+    onChanged.mockReset();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+    setApiAuthHooks({
+      getAccessToken: () => 'token-gia',
+      recoverFromUnauthorized: async () => false,
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setApiAuthHooks(null);
+  });
+
+  function fill() {
+    type(box(/^Triệu chứng/), 'Ho khan');
+    type(box(/^Chẩn đoán sơ bộ/), 'Viêm họng');
+    type(box(/^Hướng xử lý/), 'Nghỉ ngơi');
+  }
+
+  it('WHS-16 lưu thành công ⇒ hộp đóng, dòng `status` "Đã lưu hồ sơ khám." nhận tiêu điểm, onChanged đúng một lần, MỘT PUT với token `null`', async () => {
+    renderCard('DaTiepDon', null);
+    fireEvent.click(openButton('Ghi hồ sơ khám'));
+    fill();
+    fetchMock.mockResolvedValue(jsonResponse(SAVED));
+    fireEvent.click(
+      within(dialog()).getByRole('button', { name: 'Lưu ghi chú' }),
+    );
+
+    const status = await screen.findByRole('status');
+    expect(status).toHaveTextContent('Đã lưu hồ sơ khám.');
+    expect(status).toHaveClass('text-success');
+    expect(status).toHaveFocus();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onChanged).toHaveBeenCalledTimes(1);
+    expect(puts()).toHaveLength(1);
+    expect(JSON.parse(String(puts()[0][1]?.body)).capNhatLanCuoi).toBeNull();
+  });
+
+  it('WHS-16 dòng "Đã lưu hồ sơ khám." biến mất khi mở hộp lần nữa', async () => {
+    const view = renderCard('DaTiepDon', null);
+    fireEvent.click(openButton('Ghi hồ sơ khám'));
+    fill();
+    fetchMock.mockResolvedValue(jsonResponse(SAVED));
+    fireEvent.click(
+      within(dialog()).getByRole('button', { name: 'Lưu ghi chú' }),
+    );
+    await screen.findByRole('status');
+    // Trang tải lại: thẻ có hồ sơ
+    view.rerender(ui('DaTiepDon', SAVED));
+    fireEvent.click(openButton('Chỉnh sửa ghi chú'));
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('WHS-16 đóng hộp khi KHÔNG có lỗi ⇒ mở lại là nội dung của máy chủ (không giữ bản gõ dở)', () => {
+    renderCard('HoanThanh', NOTE);
+    fireEvent.click(openButton('Chỉnh sửa ghi chú'));
+    type(box(/^Hướng xử lý/), 'Gõ dở rồi bỏ');
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Hủy' }));
+    fireEvent.click(openButton('Chỉnh sửa ghi chú'));
+    expect(box(/^Hướng xử lý/)).toHaveValue(NOTE.huongXuLy);
+  });
+
+  it('WHS-16 đóng hộp SAU lỗi ⇒ mở lại vẫn giữ nội dung đã gõ (bản nháp trong bộ nhớ); lưu thành công thì xoá nháp', async () => {
+    const view = renderCard('HoanThanh', NOTE);
+    fireEvent.click(openButton('Chỉnh sửa ghi chú'));
+    type(box(/^Hướng xử lý/), 'Lời khuyên chưa lưu được');
+    fetchMock.mockResolvedValueOnce(apiError(503, 'HE_THONG_DANG_BAN'));
+    fireEvent.click(
+      within(dialog()).getByRole('button', { name: 'Lưu ghi chú' }),
+    );
+    await within(dialog()).findByText(/đang bận/);
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Hủy' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(openButton('Chỉnh sửa ghi chú'));
+    expect(box(/^Hướng xử lý/)).toHaveValue('Lời khuyên chưa lưu được');
+    expect(box(/^Triệu chứng/)).toHaveValue(NOTE.trieuChung);
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(SAVED));
+    fireEvent.click(
+      within(dialog()).getByRole('button', { name: 'Lưu ghi chú' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(puts()).toHaveLength(2);
+    // Đã lưu: nháp xoá, mở lại thấy bản của máy chủ
+    view.rerender(ui('HoanThanh', SAVED));
+    fireEvent.click(openButton('Chỉnh sửa ghi chú'));
+    expect(box(/^Hướng xử lý/)).toHaveValue(NOTE.huongXuLy);
+  });
+
+  it('WHS-16 bản nháp CŨ bị bỏ khi hồ sơ của máy chủ đã đổi (token khác): mở lại thấy bản mới của máy chủ', async () => {
+    const view = renderCard('HoanThanh', NOTE);
+    fireEvent.click(openButton('Chỉnh sửa ghi chú'));
+    type(box(/^Hướng xử lý/), 'Nháp trên nền hồ sơ cũ');
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    fireEvent.click(
+      within(dialog()).getByRole('button', { name: 'Lưu ghi chú' }),
+    );
+    await within(dialog()).findByText(/^Chưa rõ hồ sơ/);
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Hủy' }));
+
+    view.rerender(ui('HoanThanh', { ...SAVED, huongXuLy: 'Do nơi khác sửa' }));
+    fireEvent.click(openButton('Chỉnh sửa ghi chú'));
+    expect(box(/^Hướng xử lý/)).toHaveValue('Do nơi khác sửa');
+  });
+
+  it('WHS-16 trang tải lại làm lịch rời hai trạng thái (đã hủy) trong lúc hộp mở ⇒ hộp và nội dung đang gõ Ở LẠI, nút trên thẻ biến mất', () => {
+    const view = renderCard('DaTiepDon', null);
+    fireEvent.click(openButton('Ghi hồ sơ khám'));
+    fill();
+    view.rerender(ui('DaHuy', null));
+    expect(dialog()).toBeInTheDocument();
+    expect(box(/^Hướng xử lý/)).toHaveValue('Nghỉ ngơi');
+    expect(screen.queryByRole('button', { name: 'Ghi hồ sơ khám' })).toBeNull();
+  });
+
+  it('WHS-12 nguồn của thẻ vẫn không dùng `dangerouslySetInnerHTML` sau F3', () => {
+    expect(cardSource).not.toMatch(/dangerouslySetInnerHTML\s*=/);
   });
 });

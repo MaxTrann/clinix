@@ -13,7 +13,7 @@ import { useDoctorDetail } from './use-doctor-detail';
 // Trang chi tiết một ca khám của Bác sĩ (booking F11; Figma `458:2`; F12 dựng lại theo KHUNG CHUNG của Bệnh nhân, UI-12, Đại 14/11/2026): `← Lịch hẹn`, h1 `Chi tiết ca khám`, thẻ đầu (mã, chip, dịch vụ, bốn ô Người khám,
 // Ngày khám, Chuyên khoa, Chi nhánh); lưới hai cột: bên trái `Thông tin người khám` và `Hồ sơ khám bệnh`, bên phải `Thông tin lịch hẹn` và `Trạng thái ca khám`. Nội dung từ MỘT nguồn là chi tiết. Chi tiết chỉ ĐỌC (GET).
 // Nút `Hoàn thành ca khám` (doctor-exam F1, POST; Figma `459:2`, `461:2`) do module `doctor` cung cấp: `ExamHeaderActions` đặt ở `headerAside` của `DetailPageFrame`, import CHỈ qua `features/doctor/index.ts` (Q20 phương án C;
-// `trangThai` và `reload` đi qua props, không import kiểu của `doctor` hay của booking qua lại). Thẻ `Hồ sơ khám bệnh` (doctor-exam F2, chỉ đọc) cũng của `doctor`: `ExamRecordCard` nhận `trangThai` và `ghiChuKham` qua cùng đường `index.ts`; nút `Ghi hồ sơ khám`, `Chỉnh sửa ghi chú` là F3.
+// `trangThai` và `reload` đi qua props, không import kiểu của `doctor` hay của booking qua lại). Thẻ `Hồ sơ khám bệnh` (doctor-exam F2 hiển thị, F3 ghi và sửa bằng PUT) cũng của `doctor`: `ExamRecordCard` nhận `maLichHen`, `trangThai`, họ tên người khám, `thoiGian` và `ghiChuKham` qua cùng đường `index.ts`, và `reload` làm `onChanged` (tải lại chi tiết sau khi lưu).
 // Liên kết quay lại và h1 hiện ngay, kể cả khi đang tải hay lỗi.
 export function DoctorDetailPage({ maLichHen }: { maLichHen: string }) {
   const location = useLocation();
@@ -57,8 +57,12 @@ export function DoctorDetailPage({ maLichHen }: { maLichHen: string }) {
               <>
                 <ExamineeCard detail={ready.data} />
                 <ExamRecordCard
+                  maLichHen={maLichHen}
                   trangThai={ready.data.trangThai}
+                  nguoiKham={ready.data.nguoiKham.hoTen}
+                  thoiGian={ready.data.thoiGian}
                   ghiChuKham={ready.data.ghiChuKham}
+                  onChanged={reload}
                 />
               </>
             }

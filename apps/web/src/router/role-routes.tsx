@@ -9,6 +9,7 @@ import {
   DOCTOR_PATHS,
   DOCTOR_ROUTES,
   DoctorLayout,
+  PATIENT_EXAM_ROUTES,
   RECEPTION_SCHEDULE_ROUTES,
 } from '../features/doctor';
 import {
@@ -49,6 +50,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
           ...PATIENT_ROUTES,
           // booking F1: Lịch hẹn của tôi
           ...PATIENT_APPOINTMENT_ROUTES,
+          // doctor-exam F5: Hồ sơ khám bệnh của Bệnh nhân
+          ...PATIENT_EXAM_ROUTES,
         ],
       },
     ],

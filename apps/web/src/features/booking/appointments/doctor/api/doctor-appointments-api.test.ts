@@ -9,6 +9,7 @@ import {
   buildDoctorListQuery,
   parseDoctorAppointment,
   parseDoctorAppointmentPage,
+  parseDoctorListRow,
 } from './doctor-appointments-api';
 
 // booking F11: bộ đọc và bộ dựng query của API Bác sĩ. Mã DAL-01, DAL-03, DAD-02 là [đề xuất] (PLAN booking mục 7.44); doctor-exam F2 sửa DAD-02: `ghiChuKham` nhận `null` HOẶC đối tượng năm khoá (WHS-08 phần bộ đọc chi tiết). Phản hồi 200 sai hình dạng cùng loại với HTML 502 (không dùng được): ném
@@ -390,5 +391,187 @@ describe('booking F11 — bộ đọc chi tiết của Bác sĩ', () => {
     expect(() => parseDoctorAppointmentDetail([])).toThrow(
       UnexpectedResponseError,
     );
+  });
+});
+
+// doctor-exam F4: dòng DANH SÁCH có thêm `coHoSoKham` (B3, Q24: chín khoá). Mã WHS-18 là [đề xuất] (TRACKING 21.2); XHS-02 phần web: danh sách không bao giờ mang nội dung hồ sơ. `parseDoctorAppointment` (tám khoá lõi) được CHI TIẾT dùng
+// lại và chi tiết KHÔNG có cờ: bộ đọc đó không được đọc cờ (thêm cờ vào đó làm hỏng mọi trang chi tiết).
+const NINE_KEYS = [...EIGHT_KEYS, 'coHoSoKham'].sort();
+
+// Khoá nội dung hồ sơ mà một máy chủ lỡ gửi kèm ở dòng danh sách (B3 chỉ gửi cờ): phải bị bỏ, kể cả dạng đối tượng
+const RECORD_LEAK = {
+  trieuChung: 'LEAK-trieu-chung',
+  chanDoanSoBo: 'LEAK-chan-doan',
+  huongXuLy: 'LEAK-huong-xu-ly',
+  ngayTaiKhamDuKien: '2026-07-10',
+  capNhatLanCuoi: '2026-06-10T10:30:00.000Z',
+  ghiChuKham: { ...RECORD, trieuChung: 'LEAK-ghi-chu-doi-tuong' },
+};
+const RECORD_LEAK_WORDS = [
+  'LEAK',
+  '2026-07-10',
+  '2026-06-10T10:30',
+  'trieuChung',
+  'chanDoanSoBo',
+  'huongXuLy',
+  'ghiChuKham',
+  'ngayTaiKhamDuKien',
+  'capNhatLanCuoi',
+];
+
+describe('doctor-exam F4 — bộ đọc dòng danh sách có `coHoSoKham`', () => {
+  it('WHS-18 dòng có ĐÚNG chín khoá (tám khoá lõi cộng `coHoSoKham`); cờ `true` và `false` giữ nguyên; khoá thừa (giá, cọc, email…) bị bỏ', () => {
+    for (const coHoSoKham of [true, false]) {
+      const row = parseDoctorListRow({
+        ...makeDoctorAppointment({ coHoSoKham }),
+        ...EXTRA,
+      });
+      expect(Object.keys(row).sort()).toEqual(NINE_KEYS);
+      expect(row.coHoSoKham).toBe(coHoSoKham);
+      const text = JSON.stringify(row);
+      for (const leaked of ['300000', '100000', 'email', '0988888888']) {
+        expect(text).not.toContain(leaked);
+      }
+    }
+  });
+
+  it.each([
+    ['chuỗi "true"', 'true'],
+    ['chuỗi "false"', 'false'],
+    ['số 1', 1],
+    ['số 0', 0],
+    ['null', null],
+    ['mảng rỗng', []],
+    ['đối tượng', {}],
+    ['chuỗi rỗng', ''],
+  ])(
+    'WHS-18 `coHoSoKham` là %s (không phải boolean) ⇒ phản hồi không dùng được',
+    (_label, wrong) => {
+      expect(() =>
+        parseDoctorListRow({
+          ...makeDoctorAppointment(),
+          coHoSoKham: wrong,
+        }),
+      ).toThrow(UnexpectedResponseError);
+    },
+  );
+
+  it('WHS-18 thiếu khoá `coHoSoKham` (vắng hay `undefined`) ⇒ phản hồi không dùng được', () => {
+    const missing: Record<string, unknown> = { ...makeDoctorAppointment() };
+    delete missing.coHoSoKham;
+    expect(() => parseDoctorListRow(missing)).toThrow(UnexpectedResponseError);
+    expect(() =>
+      parseDoctorListRow({ ...makeDoctorAppointment(), coHoSoKham: undefined }),
+    ).toThrow(UnexpectedResponseError);
+  });
+
+  it.each(EIGHT_KEYS)(
+    'WHS-18 thiếu khoá lõi %s ⇒ dòng danh sách không dùng được (như bộ đọc lõi)',
+    (key) => {
+      const row: Record<string, unknown> = { ...makeDoctorAppointment() };
+      delete row[key];
+      expect(() => parseDoctorListRow(row)).toThrow(UnexpectedResponseError);
+    },
+  );
+
+  it('WHS-18 trang: cờ đi đúng từng dòng (đúng thứ tự, không đảo, không lệch); mỗi dòng đủ chín khoá', () => {
+    const page = parseDoctorAppointmentPage({
+      items: [
+        makeDoctorAppointment({ maLichHen: 'CP20260520001', coHoSoKham: true }),
+        makeDoctorAppointment({
+          maLichHen: 'CP20260520002',
+          coHoSoKham: false,
+        }),
+        makeDoctorAppointment({ maLichHen: 'CP20260520003', coHoSoKham: true }),
+      ],
+      total: 3,
+      page: 1,
+      pageSize: 20,
+      demTheoTrangThai: COUNTS,
+    });
+    expect(page.items.map((item) => [item.maLichHen, item.coHoSoKham])).toEqual(
+      [
+        ['CP20260520001', true],
+        ['CP20260520002', false],
+        ['CP20260520003', true],
+      ],
+    );
+    for (const item of page.items) {
+      expect(Object.keys(item).sort()).toEqual(NINE_KEYS);
+    }
+  });
+
+  it('WHS-18 MỘT dòng sai cờ trong trang ⇒ CẢ trang không dùng được (không vẽ bảng dở dang)', () => {
+    expect(() =>
+      parseDoctorAppointmentPage({
+        items: [
+          makeDoctorAppointment({ maLichHen: 'CP20260520001' }),
+          {
+            ...makeDoctorAppointment({ maLichHen: 'CP20260520002' }),
+            coHoSoKham: 'true',
+          },
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+        demTheoTrangThai: COUNTS,
+      }),
+    ).toThrow(UnexpectedResponseError);
+  });
+
+  it('XHS-02 (phần web) nội dung hồ sơ lọt vào dòng (`trieuChung`, `chanDoanSoBo`, `huongXuLy`, `ghiChuKham` dạng đối tượng, `ngayTaiKhamDuKien`, `capNhatLanCuoi`) bị BỎ: khoá và chuỗi đều không có ở kết quả', () => {
+    const row = parseDoctorListRow({
+      ...makeDoctorAppointment({ coHoSoKham: true }),
+      ...RECORD_LEAK,
+    });
+    expect(Object.keys(row).sort()).toEqual(NINE_KEYS);
+    const text = JSON.stringify(row);
+    for (const word of RECORD_LEAK_WORDS) {
+      expect(text, word).not.toContain(word);
+    }
+
+    const page = parseDoctorAppointmentPage({
+      items: [{ ...makeDoctorAppointment(), ...RECORD_LEAK }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      demTheoTrangThai: COUNTS,
+    });
+    const pageText = JSON.stringify(page);
+    for (const word of RECORD_LEAK_WORDS) {
+      expect(pageText, word).not.toContain(word);
+    }
+  });
+
+  it('WHS-18 bộ đọc lõi (dùng chung với chi tiết) vẫn ĐÚNG tám khoá và KHÔNG đọc cờ: dòng có cờ thì bỏ cờ, dòng không có cờ vẫn dùng được', () => {
+    const withFlag = parseDoctorAppointment({
+      ...makeDoctorAppointment({ coHoSoKham: true }),
+    });
+    expect(Object.keys(withFlag).sort()).toEqual(EIGHT_KEYS);
+    expect(withFlag).not.toHaveProperty('coHoSoKham');
+    const withoutFlag = parseDoctorAppointment({ ...makeDoctorDetail() });
+    expect(Object.keys(withoutFlag).sort()).toEqual(EIGHT_KEYS);
+  });
+
+  it('WHS-18 chi tiết KHÔNG có `coHoSoKham` (B3: cờ chỉ của danh sách): vẫn ĐÚNG mười một khoá và không đòi cờ; nếu máy chủ lỡ gửi thì bị bỏ', () => {
+    const plain = parseDoctorAppointmentDetail(makeDoctorDetail());
+    expect(Object.keys(plain).sort()).toEqual(ELEVEN_KEYS);
+    const stray = parseDoctorAppointmentDetail({
+      ...makeDoctorDetail(),
+      coHoSoKham: true,
+    });
+    expect(Object.keys(stray).sort()).toEqual(ELEVEN_KEYS);
+    expect(stray).not.toHaveProperty('coHoSoKham');
+  });
+
+  it('WHS-18 bộ dựng giả đúng hợp đồng B3: dòng giả chín khoá (cờ mặc định `false`), chi tiết giả mười một khoá và BỎ cờ kể cả khi dựng từ một dòng danh sách', () => {
+    expect(Object.keys(makeDoctorAppointment()).sort()).toEqual(NINE_KEYS);
+    expect(makeDoctorAppointment().coHoSoKham).toBe(false);
+    expect(makeDoctorAppointment({ coHoSoKham: true }).coHoSoKham).toBe(true);
+    expect(Object.keys(makeDoctorDetail()).sort()).toEqual(ELEVEN_KEYS);
+    const fromRow = makeDoctorDetail(
+      makeDoctorAppointment({ coHoSoKham: true }),
+    );
+    expect(Object.keys(fromRow).sort()).toEqual(ELEVEN_KEYS);
   });
 });

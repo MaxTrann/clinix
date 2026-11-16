@@ -60,12 +60,16 @@ describe('doctor-exam F2 — thẻ Hồ sơ khám bệnh trên trang chi tiết'
     },
   );
 
-  it('WHS-13 `DaTiepDon` có hồ sơ: vẫn đúng MỘT nút `Hoàn thành ca khám` (F1) và thẻ KHÔNG có nút ghi (F3)', async () => {
+  it('WHS-13 `DaTiepDon` có hồ sơ: vẫn đúng MỘT nút `Hoàn thành ca khám` (F1) và thẻ có đúng MỘT nút `Chỉnh sửa ghi chú` (F3), không nút `Ghi hồ sơ khám`', async () => {
     await openDoctorDetail({ trangThai: 'DaTiepDon', ghiChuKham: NOTE });
     expect(
       screen.getAllByRole('button').map((button) => button.textContent),
-    ).toEqual(['Hoàn thành ca khám']);
-    expect(within(record()).queryAllByRole('button')).toEqual([]);
+    ).toEqual(['Hoàn thành ca khám', 'Chỉnh sửa ghi chú']);
+    expect(
+      within(record())
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Chỉnh sửa ghi chú']);
   });
 
   it('WHS-13 `ghiChuKham` null ⇒ câu theo trạng thái, nút `Hoàn thành ca khám` không phụ thuộc hồ sơ (Q6)', async () => {

@@ -6,6 +6,8 @@ import {
   formatCalendarDate,
   parseCalendarDate,
 } from '../../../scheduling/calendar-date.js';
+import { PatientExamDetailRepository } from '../patient-view/patient-exam-detail.repository.js';
+import { PatientExamDetailService } from '../patient-view/patient-exam-detail.service.js';
 import {
   PatientExamRecordsQueryDto,
   type PatientExamRecordsQuery,
@@ -13,12 +15,17 @@ import {
 import { PatientExamRecordsRepository } from '../patient-view/patient-exam-records.repository.js';
 import { PatientExamRecordsService } from '../patient-view/patient-exam-records.service.js';
 
-// Bộ dựng và đọc dùng chung của int-spec và e2e B4 (doctor-exam; `patient-view/patient-exam-records.int-spec`, `test/doctor-exam-patient-records.e2e-spec`): để jscpd (quét cả `*.int-spec.ts` và `*.e2e-spec.ts`)
+// Bộ dựng và đọc dùng chung của int-spec và e2e B4, B5 (doctor-exam; `patient-view/patient-exam-records.int-spec`, `patient-view/patient-exam-detail.int-spec`, `test/doctor-exam-patient-records.e2e-spec`): để jscpd (quét cả `*.int-spec.ts` và `*.e2e-spec.ts`)
 // không thấy cùng một đoạn dựng ở nhiều file. Nằm trong `testing/` nên PD-19, HD-08, AR-01 bỏ qua thư mục này (nên được `UPDATE lich_hen SET thoi_gian` thô để đặt giờ tuỳ ý: lịch thật không đổi giờ).
 
 /** `PatientExamRecordsService` THẬT trên MySQL thật. */
 export function listService(db: DataSource): PatientExamRecordsService {
   return new PatientExamRecordsService(db, new PatientExamRecordsRepository());
+}
+
+/** `PatientExamDetailService` THẬT trên MySQL thật (doctor-exam B5). */
+export function detailService(db: DataSource): PatientExamDetailService {
+  return new PatientExamDetailService(db, new PatientExamDetailRepository());
 }
 
 /**
@@ -158,6 +165,85 @@ export const FORBIDDEN_LIST_KEYS = [
   'soDienThoai',
   'email',
 ] as const;
+
+/**
+ * Khoá KHÔNG được có trong CHI TIẾT một lịch (XHS-10, Q19; doctor-exam B5): đánh giá bị ẩn (`biAn`, `lyDoAn`), mọi id nội bộ, liên hệ, giá. Nội dung hồ sơ và đánh giá của chính Bệnh nhân
+ * thì ĐƯỢC có ở chi tiết (khác danh sách). Hằng viết tay độc lập với mapper, không lấy từ mã đang kiểm.
+ */
+export const FORBIDDEN_DETAIL_KEYS = [
+  'biAn',
+  'lyDoAn',
+  'lichHenId',
+  'hoSoKhamId',
+  'danhGiaId',
+  'benhNhanId',
+  'bacSiId',
+  'hoSoNguoiThanId',
+  'chiNhanhId',
+  'chuyenKhoaId',
+  'khungGioId',
+  'trangThai',
+  'soDienThoai',
+  'email',
+  'giaSnapshot',
+  'tienCocSnapshot',
+  'lyDoKham',
+] as const;
+
+async function scalar(
+  db: DataSource,
+  sql: string,
+  id: string,
+): Promise<string> {
+  const rows = await db.query<{ v: string }[]>(sql, [id]);
+  const value = rows[0]?.v;
+  if (value === undefined) throw new Error(`Không có dòng cho id ${id}`);
+  return value;
+}
+
+// Ba hàm đọc DỮ LIỆU MẪU bằng SQL riêng (không gọi mã đang kiểm) để test so tên bác sĩ, chi nhánh, chuyên khoa với giá trị trong DB thay vì chép hằng (doctor-exam B5).
+/**
+ * Đặt họ tên KHÁC NHAU cho bác sĩ và Bệnh nhân của thế giới test: bộ dựng mặc định cho MỌI tài khoản cùng tên "Nguyễn Văn A" (lần chạy đầu của B5 thấy `capNhatBoi` và tên người khám trùng chữ),
+ * nên `capNhatBoi` lấy nhầm tên Bệnh nhân hay người khám (M17) sẽ KHÔNG bị bắt nếu không đặt tên riêng. Trả hai tên.
+ */
+export async function nameDoctorAndPatient(
+  db: DataSource,
+  w: Pick<StatusWorld, 'patientId'> & {
+    doctor: { account: { taiKhoanId: string } };
+  },
+): Promise<{ doctorName: string; patientName: string }> {
+  const doctorName = 'Bác sĩ Lê Đặc Biệt';
+  const patientName = 'Bệnh nhân Phạm Riêng';
+  await db.query('UPDATE tai_khoan SET ho_ten = ? WHERE tai_khoan_id = ?', [
+    doctorName,
+    w.doctor.account.taiKhoanId,
+  ]);
+  await db.query('UPDATE tai_khoan SET ho_ten = ? WHERE tai_khoan_id = ?', [
+    patientName,
+    w.patientId,
+  ]);
+  return { doctorName, patientName };
+}
+
+/** Họ tên của một tài khoản (bác sĩ hay Bệnh nhân). */
+export const accountName = (db: DataSource, accountId: string) =>
+  scalar(
+    db,
+    'SELECT ho_ten AS v FROM tai_khoan WHERE tai_khoan_id = ?',
+    accountId,
+  );
+
+/** Tên một chi nhánh. */
+export const branchName = (db: DataSource, branchId: string) =>
+  scalar(db, 'SELECT ten AS v FROM chi_nhanh WHERE chi_nhanh_id = ?', branchId);
+
+/** Tên chuyên khoa HIỆN TẠI của một bác sĩ. */
+export const specialtyName = (db: DataSource, doctorId: string) =>
+  scalar(
+    db,
+    'SELECT ck.ten AS v FROM bac_si bs INNER JOIN chuyen_khoa ck ON ck.chuyen_khoa_id = bs.chuyen_khoa_id WHERE bs.tai_khoan_id = ?',
+    doctorId,
+  );
 
 /** Mọi tên khoá ở mọi độ sâu của một giá trị JSON, để quét khoá cấm. */
 export function keysDeep(value: unknown): string[] {

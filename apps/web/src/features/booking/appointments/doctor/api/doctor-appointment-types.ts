@@ -21,7 +21,7 @@ export interface DoctorExaminee {
   soDienThoai: string | null;
 }
 
-// MỘT dòng danh sách: ĐÚNG tám khoá của B5 (danh sách trắng; không giá, cọc, thanh toán, email, người đặt, tên bác sĩ, id). `thoiGian`: ISO 8601 UTC, hiển thị theo giờ Việt Nam. `lyDoKham` là chữ tự do
+// Tám khoá LÕI của một lịch (dòng danh sách thêm `coHoSoKham`, chi tiết thêm ba khoá khác): ĐÚNG tám khoá của B5 (danh sách trắng; không giá, cọc, thanh toán, email, người đặt, tên bác sĩ, id). `thoiGian`: ISO 8601 UTC, hiển thị theo giờ Việt Nam. `lyDoKham` là chữ tự do
 // của bệnh nhân (dữ liệu sức khoẻ riêng tư). `ca` và `trangThai` giữ mã thô: mã lạ vẫn đi qua và được che ở chỗ hiển thị.
 export interface DoctorAppointment {
   maLichHen: string;
@@ -32,6 +32,12 @@ export interface DoctorAppointment {
   dichVu: string;
   chuyenKhoa: string;
   lyDoKham: string | null;
+}
+
+// MỘT dòng của DANH SÁCH: ĐÚNG chín khoá = tám khoá lõi cộng `coHoSoKham` (doctor-exam B3, Q24; F4 đọc). `true` khi lịch ở `DaTiepDon`/`HoanThanh` VÀ đã có hồ sơ khám; KHÔNG có nội dung hồ sơ. Chi tiết KHÔNG có khoá này
+// (cờ chỉ của danh sách) nên dùng `DoctorAppointment`. Giao diện chỉ hiện nhãn ở `HoanThanh` (Q6 (4)); cờ do máy chủ tính, web không suy ra.
+export interface DoctorAppointmentRow extends DoctorAppointment {
+  coHoSoKham: boolean;
 }
 
 // Hồ sơ khám của lịch (doctor-exam F2; hình dạng nguồn `ExamRecordView` của B2, B3 trả ở `ghiChuKham`): ĐÚNG năm khoá. `ngayTaiKhamDuKien` là `YYYY-MM-DD` hoặc `null` (tuỳ chọn), `capNhatLanCuoi` là ISO 8601 UTC.
@@ -52,7 +58,7 @@ export interface DoctorAppointmentDetail extends DoctorAppointment {
 
 // `{ items, total, page, pageSize, demTheoTrangThai }`: số đếm đủ sáu khoá, áp mọi bộ lọc TRỪ `trangThai[]`
 export interface DoctorAppointmentPage {
-  items: DoctorAppointment[];
+  items: DoctorAppointmentRow[];
   total: number;
   page: number;
   pageSize: number;
