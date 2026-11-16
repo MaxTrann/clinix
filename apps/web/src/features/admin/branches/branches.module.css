@@ -471,6 +471,131 @@
   color: #008236;
 }
 
+/* Panel "Áp dụng nhanh" (admin PR2 mục 6.4). Không có frame Figma [ĐỒNG BỘ TL]: dùng token và khoảng cách của .scheduleCard và
+   .timeRange. Các quy tắc nút ĐỨNG SAU .cancelButton/.submitButton để ghi đè đúng (cùng độ ưu tiên, bài học PR1: quy tắc nền đứng
+   sau quy tắc focus làm hỏng viền). Chỉ Chromium thấy ngắt dòng và tràn ngang nên đo ở 375px. */
+.quickApply {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 8px;
+  padding: 10px 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.quickLegend {
+  padding: 0 4px;
+  color: #364153;
+  font-size: 11.25px;
+  font-weight: 500;
+  line-height: 15px;
+}
+
+.quickRow {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.quickRow + .quickRow {
+  margin-top: 8px;
+}
+
+.quickPeriods {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.radio {
+  box-sizing: border-box;
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  margin: 0;
+  appearance: none;
+  border: 1px solid #767676;
+  border-radius: 50%;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.radio:checked {
+  border-color: #0075ff;
+  background-color: #0075ff;
+  box-shadow: inset 0 0 0 2.5px #fff;
+}
+
+.radio:focus-visible {
+  outline: 2px solid #0092b8;
+  outline-offset: 2px;
+}
+
+.radio:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.dayPicks {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.dayPick {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #4a5565;
+  font-size: 11.25px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dayPick:has(input:disabled) {
+  color: #99a1af;
+  cursor: not-allowed;
+}
+
+.compactButton {
+  min-width: max-content;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 11.25px;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+.quickApplyButton {
+  border-color: #007595;
+  color: #007595;
+  font-weight: 500;
+}
+
+.quickHelp {
+  margin: 0;
+  color: #6a7282;
+  font-size: 11.25px;
+  line-height: 15px;
+}
+
+/* Vùng aria-live luôn có trong DOM (không display: none) nhưng khi rỗng không chiếm chỗ: đo Chromium thấy dải trống 21px dưới panel */
+.quickMessage {
+  margin: 0;
+  color: #008236;
+  font-size: 11.25px;
+  line-height: 15px;
+}
+
+.quickMessage:not(:empty) {
+  margin-top: 6px;
+}
+
 .branchList {
   min-width: 0;
 }

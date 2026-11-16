@@ -1,5 +1,12 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
+import { useFocusFirstInvalid } from '../hooks/use-focus-first-invalid';
 import type { FormFeedback } from './catalog-errors';
+import {
+  validateServiceInput,
+  type ServiceFieldErrors,
+} from './catalog-validation';
+import { formatThousands, parseApiPrice } from './price-format';
+import { PriceInput } from './price-input';
 import type {
   ServiceCatalogItem,
   ServiceGroup,
@@ -12,8 +19,19 @@ interface ServiceFormProps {
   pending: boolean;
   feedback: FormFeedback | null;
   onCancel: () => void;
-  onSubmit: (value: ServiceInput) => void;
+  // Trả Promise để form biết khi nào lần lưu xong (cờ chống bấm đúp)
+  onSubmit: (value: ServiceInput) => Promise<void> | void;
 }
+
+// Ô nhập dùng chung; ô giá thay `px-*` bằng `pl-*` + `pr-9` để chừa chỗ cho hậu tố "đ" mà không để hai lớp padding phải cùng tồn tại
+// (thứ tự trong CSS build quyết định lớp nào thắng, nên chỉ dùng MỘT lớp padding phải cho mỗi ô)
+const FIELD_BASE =
+  'mt-[3.75px] block min-h-[39.1px] w-full rounded-[13.375px] border border-[#e5e7eb] bg-white py-[9.375px] text-[13.125px] font-normal text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand focus:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:bg-surface-muted';
+const FIELD_CLASS = `${FIELD_BASE} px-[11.25px]`;
+const PRICE_FIELD_CLASS = `${FIELD_BASE} pl-[11.25px] pr-9`;
+
+const ERROR_CLASS = 'mt-1 block text-[11.25px] font-normal text-danger';
+const HINT_CLASS = 'mt-1 block text-[11.25px] font-normal text-text-muted';
 
 export function ServiceForm({
   service,
@@ -24,43 +42,81 @@ export function ServiceForm({
   onSubmit,
 }: ServiceFormProps) {
   const id = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  // Hạ xuống khi lần lưu trước xong: hai lần submit liên tiếp chỉ gửi MỘT yêu cầu
+  const submittingRef = useRef(false);
+  // Giá API ("150000.00", "350000.50") nạp vào ô dạng số nguyên đồng; phần lẻ khác 0 được báo rõ bằng một dòng gợi ý (không làm tròn thầm)
+  const [legacyPrice] = useState(() =>
+    service ? parseApiPrice(service.giaMacDinh) : null,
+  );
   const [name, setName] = useState(service?.ten ?? '');
   const [groupId, setGroupId] = useState(service?.nhomDichVuId ?? '');
   const [duration, setDuration] = useState(
     service ? String(service.thoiLuong) : '',
   );
-  const [price, setPrice] = useState(service?.giaMacDinh ?? '');
-  const fieldClass =
-    'mt-[3.75px] block min-h-[39.1px] w-full rounded-[13.375px] border border-[#e5e7eb] bg-white px-[11.25px] py-[9.375px] text-[13.125px] font-normal text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand focus:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:bg-surface-muted';
+  const [price, setPrice] = useState(legacyPrice?.digits ?? '');
+  // Lỗi phía form (admin PR2 mục 6.3); lỗi từ máy chủ đến qua `feedback`
+  const [errors, setErrors] = useState<ServiceFieldErrors>({});
+  const [attempt, setAttempt] = useState(0);
+  // Chỉ chuyển focus khi vừa bấm lưu hỏng hoặc có feedback MỚI, không khi người dùng đang gõ (điều kiện B)
+  useFocusFirstInvalid(formRef, attempt);
+  useFocusFirstInvalid(formRef, feedback);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const parsedDuration = Number(duration);
-    if (
-      !name.trim() ||
-      !groupId ||
-      !Number.isInteger(parsedDuration) ||
-      parsedDuration < 1 ||
-      !/^\d{1,10}(?:\.\d{1,2})?$/u.test(price) ||
-      Number(price) <= 0
-    )
-      return;
-    onSubmit({
-      nhomDichVuId: groupId,
-      ten: name,
-      thoiLuong: parsedDuration,
-      giaMacDinh: price,
+  const nameError = errors.ten ?? feedback?.fields.ten;
+  const groupError = errors.nhomDichVuId ?? feedback?.fields.nhomDichVuId;
+  const durationError = errors.thoiLuong ?? feedback?.fields.thoiLuong;
+  const priceError = errors.giaMacDinh ?? feedback?.fields.giaMacDinh;
+  const legacyHint =
+    legacyPrice?.hasFraction && price === legacyPrice.digits
+      ? `Giá cũ ${formatThousands(legacyPrice.digits)},${legacyPrice.fraction}đ có phần lẻ; lưu sẽ lưu thành ${formatThousands(legacyPrice.digits)}đ.`
+      : '';
+  const priceDescribedBy = [
+    priceError ? `${id}-price-error` : `${id}-price-help`,
+    legacyHint ? `${id}-price-legacy` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  function clearError(field: keyof ServiceFieldErrors) {
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
     });
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submittingRef.current || pending) return;
+    const result = validateServiceInput({
+      name,
+      groupId,
+      duration,
+      priceDigits: price,
+    });
+    setErrors(result.errors);
+    if (!result.value) {
+      setAttempt((count) => count + 1);
+      return;
+    }
+    submittingRef.current = true;
+    try {
+      await onSubmit(result.value);
+    } finally {
+      submittingRef.current = false;
+    }
   }
 
   return (
     <form
+      ref={formRef}
       className={
         service
           ? 'bg-white px-[15px] pb-[15px]' // Figma 565:2: form sửa nằm phẳng trong hàng bảng
           : 'rounded-[13.375px] border border-[#e5e7eb] bg-white p-[18.75px]'
       }
-      onSubmit={submit}
+      noValidate
+      onSubmit={(event) => void submit(event)}
       aria-label={service ? 'Chỉnh sửa dịch vụ khám' : 'Thêm dịch vụ khám'}
       data-testid="AF3-service-form"
     >
@@ -80,24 +136,22 @@ export function ServiceForm({
           </span>
           <input
             id={`${id}-name`}
-            className={fieldClass}
+            className={FIELD_CLASS}
             value={name}
-            onChange={(event) => setName(event.currentTarget.value)}
+            onChange={(event) => {
+              setName(event.currentTarget.value);
+              clearError('ten');
+            }}
             maxLength={100}
             required
             autoFocus
             placeholder="Ví dụ: Khám tổng quát"
-            aria-invalid={Boolean(feedback?.fields.ten)}
-            aria-describedby={
-              feedback?.fields.ten ? `${id}-name-error` : undefined
-            }
+            aria-invalid={Boolean(nameError)}
+            aria-describedby={nameError ? `${id}-name-error` : undefined}
           />
-          {feedback?.fields.ten && (
-            <span
-              id={`${id}-name-error`}
-              className="mt-1 block text-[11.25px] font-normal text-danger"
-            >
-              {feedback.fields.ten}
+          {nameError && (
+            <span id={`${id}-name-error`} role="alert" className={ERROR_CLASS}>
+              {nameError}
             </span>
           )}
         </label>
@@ -111,15 +165,16 @@ export function ServiceForm({
           </span>
           <select
             id={`${id}-group`}
-            className={fieldClass}
+            className={FIELD_CLASS}
             value={groupId}
-            onChange={(event) => setGroupId(event.currentTarget.value)}
+            onChange={(event) => {
+              setGroupId(event.currentTarget.value);
+              clearError('nhomDichVuId');
+            }}
             required
             disabled={groups.length === 0 || pending}
-            aria-invalid={Boolean(feedback?.fields.nhomDichVuId)}
-            aria-describedby={
-              feedback?.fields.nhomDichVuId ? `${id}-group-error` : undefined
-            }
+            aria-invalid={Boolean(groupError)}
+            aria-describedby={groupError ? `${id}-group-error` : undefined}
           >
             <option value="" disabled>
               Chọn nhóm dịch vụ
@@ -130,17 +185,14 @@ export function ServiceForm({
               </option>
             ))}
           </select>
-          {groups.length === 0 && !feedback?.fields.nhomDichVuId && (
+          {groups.length === 0 && !groupError && (
             <span className="mt-1 block text-[11.25px] font-normal text-[#99a1af]">
               Chưa có nhóm dịch vụ để chọn.
             </span>
           )}
-          {feedback?.fields.nhomDichVuId && (
-            <span
-              id={`${id}-group-error`}
-              className="mt-1 block text-[11.25px] font-normal text-danger"
-            >
-              {feedback.fields.nhomDichVuId}
+          {groupError && (
+            <span id={`${id}-group-error`} role="alert" className={ERROR_CLASS}>
+              {groupError}
             </span>
           )}
         </label>
@@ -154,26 +206,30 @@ export function ServiceForm({
           </span>
           <input
             id={`${id}-duration`}
-            className={fieldClass}
+            className={FIELD_CLASS}
             type="number"
             inputMode="numeric"
             min={1}
             max={2147483647}
             step={1}
             value={duration}
-            onChange={(event) => setDuration(event.currentTarget.value)}
+            onChange={(event) => {
+              setDuration(event.currentTarget.value);
+              clearError('thoiLuong');
+            }}
             required
-            aria-invalid={Boolean(feedback?.fields.thoiLuong)}
+            aria-invalid={Boolean(durationError)}
             aria-describedby={
-              feedback?.fields.thoiLuong ? `${id}-duration-error` : undefined
+              durationError ? `${id}-duration-error` : undefined
             }
           />
-          {feedback?.fields.thoiLuong && (
+          {durationError && (
             <span
               id={`${id}-duration-error`}
-              className="mt-1 block text-[11.25px] font-normal text-danger"
+              role="alert"
+              className={ERROR_CLASS}
             >
-              {feedback.fields.thoiLuong}
+              {durationError}
             </span>
           )}
         </label>
@@ -185,35 +241,35 @@ export function ServiceForm({
           <span className="text-danger" aria-hidden="true">
             *
           </span>
-          <input
+          <PriceInput
             id={`${id}-price`}
-            className={fieldClass}
-            inputMode="decimal"
-            pattern="[0-9]{1,10}([.][0-9]{1,2})?"
-            value={price}
-            onChange={(event) => setPrice(event.currentTarget.value)}
-            required
-            placeholder="0.00"
-            aria-invalid={Boolean(feedback?.fields.giaMacDinh)}
-            aria-describedby={
-              feedback?.fields.giaMacDinh
-                ? `${id}-price-error`
-                : `${id}-price-help`
+            className={PRICE_FIELD_CLASS}
+            digits={price}
+            onDigitsChange={(digits) => {
+              setPrice(digits);
+              clearError('giaMacDinh');
+            }}
+            onTooLong={() =>
+              setErrors((current) => ({
+                ...current,
+                giaMacDinh: 'Giá tối đa 10 chữ số.',
+              }))
             }
+            invalid={Boolean(priceError)}
+            describedBy={priceDescribedBy}
           />
-          {feedback?.fields.giaMacDinh ? (
-            <span
-              id={`${id}-price-error`}
-              className="mt-1 block text-[11.25px] font-normal text-danger"
-            >
-              {feedback.fields.giaMacDinh}
+          {priceError ? (
+            <span id={`${id}-price-error`} role="alert" className={ERROR_CLASS}>
+              {priceError}
             </span>
           ) : (
-            <span
-              id={`${id}-price-help`}
-              className="mt-1 block text-[11.25px] font-normal text-[#99a1af]"
-            >
-              Dùng dấu chấm cho phần thập phân, ví dụ 100000.00.
+            <span id={`${id}-price-help`} className={HINT_CLASS}>
+              Chỉ nhập số, đơn vị đồng. Ví dụ 150.000
+            </span>
+          )}
+          {legacyHint && (
+            <span id={`${id}-price-legacy`} className={HINT_CLASS}>
+              {legacyHint}
             </span>
           )}
         </label>
@@ -235,10 +291,11 @@ export function ServiceForm({
         >
           Hủy
         </button>
+        {/* Không mờ khi tên trống (Đại chọn 16/11/2026): bấm Lưu thì câu lỗi hiện dưới ô. Chỉ mờ khi đang lưu hoặc chưa có nhóm nào để chọn */}
         <button
           type="submit"
           className="inline-flex items-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60"
-          disabled={pending || groups.length === 0 || !name.trim()}
+          disabled={pending || groups.length === 0}
         >
           <img
             src="/assets/admin/branches/save.svg"

@@ -77,6 +77,26 @@ describe('AF1-12 viền focus Tailwind của trang Loại dịch vụ khám', ()
     expectInsetFocus(screen.getByLabelText(/Giá mặc định/));
   });
 
+  it('AF1-12/AF3-13 ô giá có hậu tố "đ": chừa chỗ bên phải bằng MỘT lớp padding (không chồng px và pr), hậu tố không chặn chuột', () => {
+    render(
+      <ServiceForm
+        groups={[{ nhomDichVuId: '1', ten: 'Khám tổng quát', thuTuHienThi: 1 }]}
+        pending={false}
+        feedback={null}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const price = screen.getByLabelText(/Giá mặc định/);
+    expect(price).toHaveClass('pr-9');
+    expect(price).toHaveClass('pl-[11.25px]');
+    // `px-*` và `pr-*` cùng đặt padding phải; thứ tự trong CSS build quyết định ai thắng nên chỉ dùng MỘT trong hai
+    expect(price).not.toHaveClass('px-[11.25px]');
+    expect(screen.getByText('đ')).toHaveClass('pointer-events-none');
+    expect(screen.getByText('đ')).toHaveClass('absolute');
+  });
+
   it('ô tìm của tab Nhóm dịch vụ dùng bóng trong', async () => {
     render(<ServiceGroupsTab canEdit />);
 

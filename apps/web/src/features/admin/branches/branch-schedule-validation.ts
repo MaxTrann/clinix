@@ -10,7 +10,7 @@ type UnknownRecord = Record<string, unknown>;
 const isRecord = (value: unknown): value is UnknownRecord =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const isTime = (value: unknown): value is string =>
+export const isTime = (value: unknown): value is string =>
   typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/u.test(value);
 
 function validatePeriod(
