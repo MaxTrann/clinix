@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { withRowLock } from '../../../appointments/testing/concurrency-harness.js';
 import {
   reportRounds,
   sleep,
@@ -32,13 +33,15 @@ import {
   recordRows,
   recordService,
 } from '../testing/exam-record-stack.js';
+import { accountName, detailService } from '../testing/patient-exam-stack.js';
+import type { PatientExamDetail } from '../patient-view/patient-exam-detail.dto.js';
 
 // doctor-exam B2 — các ca ĐỒNG THỜI của ghi và sửa hồ sơ khám trên MySQL 8.4 THẬT (PLAN 5.3, 7.8 DHK-03, DHK-04, DHK-05, DHK-10, DHK-11; X1 M2, M3). CHẠY MỘT MÌNH (`--no-file-parallelism` đã là mặc định của cấu hình int;
 // không chạy cùng lúc với ca nặng khác). DHK-02 (`complete` ‖ `PUT`) ở completion/exam-completion.concurrency.int-spec.ts (thay DHK-12 mô phỏng của B1). Mỗi vòng: dữ liệu SẠCH, hai bên cùng xuất phát (`racePair`, xen kẽ ai đi trước),
 // IVK-01…IVK-05 và INV-01…INV-05 sau vòng, rồi IN một dòng `[B2-DHK]` (số vòng, bên thắng, số lần thử lại 1213/1205 theo nhãn, số yêu cầu hết lượt 503).
 // DỰ ĐOÁN (ghi trước khi chạy, TRACKING 13.2; lệch thì GHI, không sửa dự đoán): P1 DHK-03, DHK-04, DHK-05: 0 lần thử lại, 0 × 503 (khoá `lich_hen` X trước mọi ghi; X1 M1 đến M3 và DHK-12 của B1 đều 0); P2 DHK-11: 0 lần thử lại, 0 × 503, đánh giá luôn
 // vào được sau một lần chờ ngắn (X1 M3: vài ms); P3 DHK-10: 0 lần thử lại (PUT không xin `benh_nhan` nên không có chu trình như DHK-09 của B1; bật `retriesAllowed` đề phòng), 503 = 0 chắc chắn; P4 mọi ca: INV, IVK xanh sau mỗi vòng;
-// DHK-03 và DHK-04(a): đúng một 200 và một 409 `HO_SO_KHAM_DA_THAY_DOI` mỗi vòng, không 1062 lộ. DHK-05 và DHK-11 dùng bên đọc và bên đánh giá MÔ PHỎNG (B4, B5, B6 chưa có): B5 và B6 thay bằng service thật.
+// DHK-03 và DHK-04(a): đúng một 200 và một 409 `HO_SO_KHAM_DA_THAY_DOI` mỗi vòng, không 1062 lộ. DHK-05 dùng bên đọc THẬT (`PatientExamDetailService`, B5: thay bên đọc mô phỏng của B2; kèm ca xác định (b) bằng khoá hàng); DHK-11 còn dùng bên đánh giá MÔ PHỎNG (B6 chưa có): B6 thay bằng service thật.
 useStatusWorldHooks();
 
 const TAG = 'B2-DHK';
@@ -46,6 +49,8 @@ const SLOW = 600_000;
 const NOW = new Date('2026-11-10T09:00:00+07:00');
 const SEEDED_AT = '2026-11-10 08:00:00';
 const SEEDED_TOKEN = '2026-11-10T01:00:00.000Z';
+/** `capNhatLanCuoi` sau khi bác sĩ sửa lúc 09:00 giờ VN (đồng hồ giả NOW) */
+const EDITED_ISO = '2026-11-10T02:00:00.000Z';
 const CONFLICT = 'HO_SO_KHAM_DA_THAY_DOI';
 const NOT_WRITABLE = 'KHONG_THE_GHI_HO_SO_KHAM';
 
@@ -219,34 +224,19 @@ describe('DHK-04 hai PUT LẦN ĐẦU (token null): (a) cùng lịch: một INSE
   );
 });
 
-/** Bên đọc MÔ PHỎNG (B4, B5 chưa có): đúng MỘT câu `SELECT` năm cột của PLAN 5.3 ("Đọc: một câu SELECT, nhất quán từng câu dưới READ COMMITTED"), không khoá. */
-const readFiveColumns = (lichHenId: string) =>
-  db.query<
-    {
-      trieuChung: string;
-      chanDoanSoBo: string;
-      huongXuLy: string;
-      ngayTaiKhamDuKien: string | null;
-      capNhatLanCuoi: string;
-    }[]
-  >(
-    `SELECT trieu_chung AS trieuChung, chan_doan_so_bo AS chanDoanSoBo, huong_xu_ly AS huongXuLy,
-            DATE_FORMAT(ngay_tai_kham_du_kien, '%Y-%m-%d') AS ngayTaiKhamDuKien, DATE_FORMAT(cap_nhat_lan_cuoi, '%Y-%m-%d %H:%i:%s') AS capNhatLanCuoi
-       FROM ho_so_kham WHERE lich_hen_id = ?`,
-    [lichHenId],
-  );
-
 /**
- * Độ trễ (ms) của bên đọc ở DHK-05, xoay vòng theo vòng. Lần chạy ĐẦU (không có độ trễ) bên đọc thấy bản CŨ ở 40/40 vòng: một câu `SELECT` xong trước khi PUT kịp commit, nên nhánh "đọc bản mới" chưa bao giờ chạy
- * và ca chưa chứng minh được gì về bản mới. Thêm quét độ trễ để cả hai nhánh cùng xảy ra (số của hai lần chạy đều được ghi ở TRACKING 13.8).
+ * Độ trễ (ms) của bên đọc ở DHK-05, xoay vòng theo vòng. Lần chạy ĐẦU của bên đọc MÔ PHỎNG (B2; không có độ trễ) thấy bản CŨ ở 40/40 vòng: một câu `SELECT` xong trước khi PUT kịp commit, nên nhánh "đọc bản mới" chưa bao giờ chạy
+ * và ca chưa chứng minh được gì về bản mới. Thêm quét độ trễ để cả hai nhánh cùng xảy ra (số của hai lần chạy đều được ghi ở TRACKING 13.8; số của bên đọc THẬT ở TRACKING 18.8).
  */
 const READER_DELAYS_MS = [0, 2, 4, 6, 8, 10, 14, 20];
 
-describe('DHK-05 [đề xuất, B2] đọc MÔ PHỎNG ‖ Bác sĩ sửa: đọc thấy TRỌN bản cũ hoặc TRỌN bản mới, không lẫn trường, không bị chặn', () => {
+describe('DHK-05 [đề xuất, B2; bên đọc THẬT từ B5] PatientExamDetailService THẬT ‖ Bác sĩ sửa: đọc thấy TRỌN bản cũ hoặc TRỌN bản mới, không lẫn trường, không bị chặn', () => {
   it(
     `${String(EXAM_RACE_ROUNDS)} vòng`,
     async () => {
       const t = await raceWorld();
+      const reader = detailService(db);
+      const doctorName = await accountName(db, t.doctorId);
       const tally = winnerTally();
       const old = {
         trieuChung: 'V1 triệu chứng',
@@ -282,21 +272,27 @@ describe('DHK-05 [đề xuất, B2] đọc MÔ PHỎNG ‖ Bác sĩ sửa: đọ
               await sleep(
                 READER_DELAYS_MS[round % READER_DELAYS_MS.length] ?? 0,
               );
-              return readFiveColumns(lich.lichHenId);
+              return reader.detail(t.w.patientId, lich.maLichHen);
             },
           ),
         check: async (_lich, results) => {
-          const [, read] = valuesOf(results) as [
-            unknown,
-            Awaited<ReturnType<typeof readFiveColumns>>,
-          ];
-          expect(read).toHaveLength(1);
-          const row = read[0];
-          const isOld = row?.capNhatLanCuoi === SEEDED_AT;
-          expect(row, 'không được lẫn trường của hai bản').toMatchObject(
+          const [, read] = valuesOf(results) as [unknown, PatientExamDetail];
+          const record = read.hoSoKham;
+          const isOld = record?.capNhatLanCuoi === SEEDED_TOKEN;
+          // toEqual: ĐÚNG sáu khoá, không lẫn trường của hai bản
+          expect(record, 'không được lẫn trường của hai bản').toEqual(
             isOld
-              ? { ...old, ngayTaiKhamDuKien: null, capNhatLanCuoi: SEEDED_AT }
-              : { ...fresh, capNhatLanCuoi: '2026-11-10 09:00:00' },
+              ? {
+                  ...old,
+                  ngayTaiKhamDuKien: null,
+                  capNhatLanCuoi: SEEDED_TOKEN,
+                  capNhatBoi: doctorName,
+                }
+              : {
+                  ...fresh,
+                  capNhatLanCuoi: EDITED_ISO,
+                  capNhatBoi: doctorName,
+                },
           );
           tally.add(isOld ? 'doc-ban-cu' : 'doc-ban-moi');
         },
@@ -305,6 +301,46 @@ describe('DHK-05 [đề xuất, B2] đọc MÔ PHỎNG ‖ Bác sĩ sửa: đọ
     },
     SLOW,
   );
+});
+
+describe('DHK-05 (b) [đề xuất, B5] bên đọc THẬT không bị chặn bởi khoá hàng và không thấy ghi chưa commit', () => {
+  it('xác định (không đua): giữ khoá X trên lich_hen và ho_so_kham của lịch ⇒ detail trả BẢN CŨ ngay; sửa chưa commit vẫn không thấy; sau commit thấy bản mới', async () => {
+    const t = await raceWorld();
+    const reader = detailService(db);
+    const lich = await t.w.booked('HoanThanh', 0);
+    await t.exam.record(lich.lichHenId, {
+      trieuChung: 'V1 triệu chứng',
+      capNhatLanCuoi: SEEDED_AT,
+    });
+    const read = async (): Promise<PatientExamDetail> => {
+      const outcome = await Promise.race([
+        reader.detail(t.w.patientId, lich.maLichHen),
+        sleep(5000).then(() => 'BI_CHAN' as const),
+      ]);
+      // bị chặn ⇒ hết 5 giây mà chưa có kết quả (khoá chờ mặc định 50 giây)
+      if (outcome === 'BI_CHAN')
+        throw new Error('detail bị chặn bởi khoá hàng');
+      return outcome;
+    };
+    await withRowLock(
+      db,
+      {
+        sql: `SELECT lh.lich_hen_id FROM lich_hen lh INNER JOIN ho_so_kham hsk ON hsk.lich_hen_id = lh.lich_hen_id
+              WHERE lh.lich_hen_id = ? FOR UPDATE`,
+        params: [lich.lichHenId],
+      },
+      async (held) => {
+        expect((await read()).hoSoKham?.trieuChung).toBe('V1 triệu chứng');
+        await held.manager.query(
+          'UPDATE ho_so_kham SET trieu_chung = ? WHERE lich_hen_id = ?',
+          ['CHƯA COMMIT', lich.lichHenId],
+        );
+        expect((await read()).hoSoKham?.trieuChung).toBe('V1 triệu chứng');
+        await held.release('commit');
+        expect((await read()).hoSoKham?.trieuChung).toBe('CHƯA COMMIT');
+      },
+    );
+  });
 });
 
 describe('DHK-10 PUT hồ sơ THẬT ‖ override Admin THẬT DaTiepDon → DaXacNhan: PUT thắng ⇒ dòng tồn tại; override thắng ⇒ PUT 409 KHONG_THE_GHI_HO_SO_KHAM; lịch luôn DaXacNhan; 503 = 0', () => {
