@@ -24,3 +24,21 @@ export function fromCents(cents: bigint): string {
 export function addMoney(a: string, b: string): string {
   return fromCents(toCents(a) + toCents(b));
 }
+
+/** So sánh hai số tiền theo GIÁ TRỊ (không so chuỗi): trả -1 nếu a < b, 0 nếu bằng, 1 nếu a > b. Chuỗi không hợp lệ ⇒ ném lỗi như `toCents`. */
+export function compareMoney(a: string, b: string): -1 | 0 | 1 {
+  const left = toCents(a);
+  const right = toCents(b);
+  if (left < right) return -1;
+  return left > right ? 1 : 0;
+}
+
+/**
+ * Trừ hai số tiền: a − b, luôn trả đúng 2 chữ số thập phân. Kết quả ÂM ⇒ ném lỗi: số dư ví và số tiền còn lại không bao giờ âm, nên nơi gọi phải
+ * kiểm `compareMoney(a, b) >= 0` (hoặc dưới khoá ví) trước; ném lỗi ở đây là lưới an toàn cuối, không phải cách báo "không đủ số dư".
+ */
+export function subtractMoney(a: string, b: string): string {
+  const result = toCents(a) - toCents(b);
+  if (result < 0n) throw new Error(`Kết quả phép trừ tiền âm: ${a} − ${b}`);
+  return fromCents(result);
+}
