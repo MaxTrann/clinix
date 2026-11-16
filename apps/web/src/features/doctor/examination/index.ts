@@ -6,3 +6,5 @@ export type {
   ExamRecordCardProps,
   ExamRecordNote,
 } from './doctor/exam-record-card';
+export { PATIENT_EXAM_RECORDS_PATH } from './patient/patient-exam-paths';
+export { PATIENT_EXAM_ROUTES } from './patient/patient-exam-routes';

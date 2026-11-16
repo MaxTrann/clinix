@@ -101,13 +101,16 @@ describe('khung Bệnh nhân', () => {
     expect(
       within(menu).getByRole('link', { name: 'Hồ sơ người khám' }),
     ).toHaveAttribute('href', PATIENT_PATHS.profile);
-    // "Hồ sơ người khám" (patient F1) và "Lịch hẹn của tôi" (booking F1) có trang; sáu mục còn lại vô hiệu (KG-04). Đổi có duyệt ở booking F1.
-    expect(within(menu).getAllByRole('link')).toHaveLength(2);
+    // "Hồ sơ người khám" (patient F1), "Lịch hẹn của tôi" (booking F1) và "Hồ sơ khám bệnh" (doctor-exam F5, WXH-01) có trang; năm mục còn lại vô hiệu (KG-04). Đổi có duyệt ở booking F1 và doctor-exam F5 (Đại, 16/11/2026).
+    expect(within(menu).getAllByRole('link')).toHaveLength(3);
     expect(
       within(menu).getByRole('link', { name: 'Lịch hẹn của tôi' }),
     ).toHaveAttribute('href', PATIENT_APPOINTMENTS_PATH);
+    expect(
+      within(menu).getByRole('link', { name: 'Hồ sơ khám bệnh' }),
+    ).toHaveAttribute('href', `${ROLE_HOME_PATHS.BenhNhan}/ho-so-kham-benh`);
     const disabledItems = within(menu).getAllByRole('button');
-    expect(disabledItems).toHaveLength(6);
+    expect(disabledItems).toHaveLength(5);
     for (const button of disabledItems) expect(button).toBeDisabled();
     expect(
       within(aside).getByRole('link', { name: 'Về trang chủ' }),
