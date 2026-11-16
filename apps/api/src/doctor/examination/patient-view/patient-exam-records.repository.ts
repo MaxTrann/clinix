@@ -45,13 +45,12 @@ function whereOf(
   return { sql: `WHERE ${where.join('\n  AND ')}`, params };
 }
 
-// Trang: bảy cột (danh sách trắng). Chuyên khoa theo `bac_si.chuyen_khoa_id` HIỆN TẠI (như booking L14); hai LEFT JOIN `ho_so_kham`, `danh_gia_bac_si` đều UNIQUE theo `lich_hen_id` nên không nhân dòng;
-// `daDanhGia` tính cả đánh giá đã ẩn (Q19). Người khám: bản thân là họ tên tài khoản (`tbn`), người thân là họ tên hồ sơ (`hs`, kể cả hồ sơ đã ngừng dùng: Q18).
-const PAGE_SELECT = `SELECT lh.ma_lich_hen AS maLichHen, lh.thoi_gian AS thoiGian, ck.ten AS chuyenKhoa,
-  tbs.ho_ten AS bacSiHoTen, bs.chuc_danh AS chucDanh,
-  COALESCE(hs.ho_ten, tbn.ho_ten) AS nguoiKhamHoTen, hs.moi_quan_he AS quanHe,
-  (hsk.ho_so_kham_id IS NOT NULL) AS coHoSoKham, (dg.danh_gia_bac_si_id IS NOT NULL) AS daDanhGia
-FROM lich_hen lh
+/**
+ * Chuỗi nối `FROM lich_hen lh …` của MỘT lịch hẹn với bác sĩ, chuyên khoa, người khám, hồ sơ khám và đánh giá; DÙNG CHUNG với chi tiết của B5 (`patient-exam-detail.repository.ts`) để không có hai bản chép (jscpd).
+ * Chuyên khoa theo `bac_si.chuyen_khoa_id` HIỆN TẠI (như booking L14); hai LEFT JOIN `ho_so_kham`, `danh_gia_bac_si` đều UNIQUE theo `lich_hen_id` nên không nhân dòng.
+ * Người khám: bản thân là họ tên tài khoản (`tbn`), người thân là họ tên hồ sơ (`hs`, kể cả hồ sơ đã ngừng dùng: Q18). Chữ SQL KHÔNG đổi khi tách (B5 chứng minh bằng so chuỗi tuyệt đối, TRACKING 18.8).
+ */
+export const EXAM_VISIT_JOINS = `FROM lich_hen lh
 INNER JOIN bac_si bs ON bs.tai_khoan_id = lh.bac_si_id
 INNER JOIN tai_khoan tbs ON tbs.tai_khoan_id = lh.bac_si_id
 INNER JOIN chuyen_khoa ck ON ck.chuyen_khoa_id = bs.chuyen_khoa_id
@@ -59,6 +58,13 @@ INNER JOIN tai_khoan tbn ON tbn.tai_khoan_id = lh.benh_nhan_id
 LEFT JOIN ho_so_nguoi_than hs ON hs.ho_so_nguoi_than_id = lh.ho_so_nguoi_than_id
 LEFT JOIN ho_so_kham hsk ON hsk.lich_hen_id = lh.lich_hen_id
 LEFT JOIN danh_gia_bac_si dg ON dg.lich_hen_id = lh.lich_hen_id`;
+
+// Trang: bảy cột (danh sách trắng); `daDanhGia` tính cả đánh giá đã ẩn (Q19). Phần nối ở `EXAM_VISIT_JOINS`.
+const PAGE_SELECT = `SELECT lh.ma_lich_hen AS maLichHen, lh.thoi_gian AS thoiGian, ck.ten AS chuyenKhoa,
+  tbs.ho_ten AS bacSiHoTen, bs.chuc_danh AS chucDanh,
+  COALESCE(hs.ho_ten, tbn.ho_ten) AS nguoiKhamHoTen, hs.moi_quan_he AS quanHe,
+  (hsk.ho_so_kham_id IS NOT NULL) AS coHoSoKham, (dg.danh_gia_bac_si_id IS NOT NULL) AS daDanhGia
+${EXAM_VISIT_JOINS}`;
 
 // Lựa chọn người khám: mọi lịch `HoanThanh` của Bệnh nhân (mọi năm, không áp bộ lọc nào), bản thân đứng đầu rồi theo họ tên và id
 const EXAMINEE_SQL = `SELECT lh.ho_so_nguoi_than_id AS id, COALESCE(hs.ho_ten, tbn.ho_ten) AS hoTen, hs.moi_quan_he AS quanHe

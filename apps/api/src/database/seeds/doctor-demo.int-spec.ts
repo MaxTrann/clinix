@@ -101,12 +101,16 @@ describe('doctor B18 — seed doctor-demo (MySQL thật)', () => {
     expect(approved.thoiDiemXuLy).not.toBeNull();
     const pending = leaves.find((l) => l.trangThai === 'ChoDuyet')!;
     expect(pending.nguoiXuLyId).toBeNull();
+    // Đối chiếu ngày ở phía SQL, KHÔNG đưa `leave.ngayBatDau` làm tham số: cột DATE đọc qua entity bị đổi bằng giờ máy
+    // nên lệch 1 ngày khi Node chạy UTC (như runner CI), và ngày bị lùi có thể rơi vào Chủ nhật không có ca.
     for (const leave of leaves) {
       expect(
         await count(
-          `SELECT COUNT(*) AS n FROM lich_lam_viec
-            WHERE bac_si_id = ? AND ngay = ? AND (? IS NULL OR ca = ?)`,
-          [leave.bacSiId, leave.ngayBatDau, leave.ca, leave.ca],
+          `SELECT COUNT(*) AS n
+             FROM yeu_cau_nghi_phep y
+             JOIN lich_lam_viec l ON l.bac_si_id = y.bac_si_id AND l.ngay = y.ngay_bat_dau
+            WHERE y.yeu_cau_nghi_phep_id = ? AND (y.ca IS NULL OR l.ca = y.ca)`,
+          [leave.yeuCauNghiPhepId],
         ),
       ).toBeGreaterThan(0);
     }

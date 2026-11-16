@@ -31,8 +31,8 @@ describe('XHS-15 (AR-05 mở rộng) không hàm ngày giờ nào bọc cột th
   });
 
   it('bộ quét thật sự thấy mã: có file repository và câu SQL của nó nhắc `lh.thoi_gian` (không quét rỗng)', () => {
-    const repository = sources.find((file) =>
-      file.name.endsWith('.repository.ts'),
+    const repository = sources.find(
+      (file) => file.name === 'patient-exam-records.repository.ts',
     );
     expect(repository?.source).toContain('lh.thoi_gian >= ?');
   });
