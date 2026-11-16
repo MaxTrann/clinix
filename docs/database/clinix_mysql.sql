@@ -47,6 +47,9 @@
 -- thong_bao_index_lich_hen (lich_hen_id, tai_khoan_id, loai_su_kien) để thông báo của một lịch hẹn không bị ghi trùng; không thêm
 -- bảng, enum hay CHECK nên các số bảng, enum, CHECK ở các dòng trên không đổi. Chuyển đổi từ DB cũ: mục "booking P7" ở cuối
 -- clinix_quy_tac_nghiep_vu.md.
+-- 16/11/2026 (module payment và wallet, task P1): lich_su_hoan_tien thêm cột loai (TuDong | DacBiet; Q23); bảng mới lan_doi_soat_nap_vi (mỗi dòng một lần đối soát nạp ví,
+-- UNIQUE (giao_dich_thanh_toan_id, so_lan_thu), nguoi_xu_ly_id trống cho job; Q9); ENUM nhat_ky_hanh_dong.hanh_dong thêm DuyetRutTien, TuChoiRutTien và
+-- loai_doi_tuong thêm yeu_cau_rut_tien (Q17); DBML thêm hai khối Enum (loai_hoan_tien_enum, ket_qua_doi_soat_enum) => 46 bảng, 32 khối Enum DBML. Chuyển đổi từ DB cũ: mục "payment P1" ở cuối clinix_quy_tac_nghiep_vu.md.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -56,6 +59,7 @@
 --   * 1 lịch cũ chỉ sinh tối đa 1 lịch mới khi đổi lịch  [lich_hen.lich_hen_truoc_id UNIQUE]
 --   * Quản trị viên: phạm vi Chi nhánh phải có chi_nhanh_id, Toàn hệ thống thì không  [chk_qtv_pham_vi]
 --   * Tỷ lệ hoàn tiền từ 0 đến 100  [chk_moc_hoan_ty_le]
+--   * Mỗi lần thử hoàn tiền và mỗi lần đối soát nạp ví một dòng, không trùng số lần thử trong cùng giao dịch  [lich_su_hoan_tien_index_20, lan_doi_soat_nap_vi_index_lan_thu]
 --   * Nghỉ phép: CaNgay (không có ca, được nghỉ nhiều ngày) hoặc TheoCa (bắt buộc có ca, chỉ 1 ngày)  [chk_nghi_phep_hinh_thuc]
 --   * Yêu cầu đổi lịch đã xử lý (khác ChoDuyet) phải có ghi chú xử lý  [chk_doi_lich_xu_ly]
 --   * Yêu cầu nghỉ phép, đổi lịch ngoài chính sách, rút tiền: ChoDuyet thì chưa có người và thời điểm xử lý; DaDuyet hoặc TuChoi thì phải có cả hai  [chk_nghi_phep_xu_ly, chk_doi_lich_nguoi_xu_ly, chk_rut_tien_xu_ly]
@@ -440,6 +444,7 @@ CREATE TABLE `lich_su_hoan_tien` (
   `lich_su_hoan_tien_id` bigint PRIMARY KEY AUTO_INCREMENT,
   `giao_dich_thanh_toan_id` bigint NOT NULL COMMENT 'Khoản cọc được hoàn = giao dịch thanh toán của lịch gốc',
   `vi_noi_bo_id` bigint NOT NULL COMMENT 'Tiền hoàn chỉ về ví, không hoàn tiền mặt',
+  `loai` ENUM ('TuDong', 'DacBiet') NOT NULL DEFAULT 'TuDong' COMMENT 'TuDong: hoàn cọc khi huỷ lịch (kể cả các lần thử lại); DacBiet: Quản trị viên hoàn tiền đặc biệt, mỗi khoản thanh toán tối đa một dòng DacBiet (kiểm ở service)',
   `so_tien` decimal(12,2) NOT NULL,
   `ly_do` varchar(255),
   `trang_thai` ENUM ('ThanhCong', 'ThatBai') NOT NULL,
@@ -466,6 +471,16 @@ CREATE TABLE `giao_dich_vi` (
   `giao_dich_thanh_toan_id` bigint,
   `lich_su_hoan_tien_id` bigint,
   `yeu_cau_rut_tien_id` bigint,
+  `thoi_diem` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `lan_doi_soat_nap_vi` (
+  `lan_doi_soat_nap_vi_id` bigint PRIMARY KEY AUTO_INCREMENT,
+  `giao_dich_thanh_toan_id` bigint NOT NULL COMMENT 'Giao dịch nạp ví (loai = NapVi) đã được cổng xác nhận thành công nhưng chưa cộng được vào ví',
+  `so_lan_thu` int NOT NULL COMMENT '0 = lần cộng đầu bị lỗi lúc xác minh; 1 đến 3 = job tự động; từ 4 = Quản trị viên xử lý',
+  `ket_qua` ENUM ('ThanhCong', 'ThatBai', 'KhongTheXuLy') NOT NULL,
+  `nguoi_xu_ly_id` bigint COMMENT 'Quản trị viên xử lý; để trống khi là job tự động',
+  `ly_do` varchar(255) COMMENT 'Mã lỗi dạng mã hoặc lý do của Quản trị viên; không ghi văn bản lỗi gốc của cổng',
   `thoi_diem` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -573,8 +588,8 @@ CREATE TABLE `nhat_ky_hanh_dong` (
   `nhat_ky_hanh_dong_id` bigint PRIMARY KEY AUTO_INCREMENT,
   `tai_khoan_id` bigint NOT NULL COMMENT 'Người thực hiện',
   `chi_nhanh_id` bigint COMMENT 'Chi nhánh liên quan, để Quản trị viên phạm vi Chi nhánh lọc nhật ký',
-  `hanh_dong` ENUM ('DoiQuyen', 'OverrideLichHen', 'HoanTienDacBiet', 'DoiChiNhanhBacSi', 'ChinhNoShow', 'AnDanhGia', 'XuLyDoiLichNgoaiChinhSach', 'SuaGhiChuKham', 'BacSiHuyDotXuat', 'CapNhatCauHinh', 'XuLyNapViChuaCong', 'TaoTaiKhoanNhanSu', 'KhoaTaiKhoan', 'MoKhoaTaiKhoan', 'MoKhoaNoShow', 'DuyetThayDoiChiNhanh', 'TuChoiThayDoiChiNhanh', 'RutThayDoiChiNhanh', 'HuyThayDoiChiNhanh', 'DoiHieuLucThayDoiChiNhanh', 'PhanCongLichLamViec', 'GoLichLamViec', 'DuyetNghiPhep', 'TuChoiNghiPhep') NOT NULL,
-  `loai_doi_tuong` ENUM ('tai_khoan', 'benh_nhan', 'lich_hen', 'ho_so_kham', 'danh_gia_bac_si', 'giao_dich_thanh_toan', 'yeu_cau_doi_lich_ngoai_chinh_sach', 'cau_hinh_he_thong', 'yeu_cau_thay_doi_chi_nhanh', 'lich_lam_viec', 'yeu_cau_nghi_phep') NOT NULL COMMENT 'Bảng bị tác động',
+  `hanh_dong` ENUM ('DoiQuyen', 'OverrideLichHen', 'HoanTienDacBiet', 'DoiChiNhanhBacSi', 'ChinhNoShow', 'AnDanhGia', 'XuLyDoiLichNgoaiChinhSach', 'SuaGhiChuKham', 'BacSiHuyDotXuat', 'CapNhatCauHinh', 'XuLyNapViChuaCong', 'TaoTaiKhoanNhanSu', 'KhoaTaiKhoan', 'MoKhoaTaiKhoan', 'MoKhoaNoShow', 'DuyetThayDoiChiNhanh', 'TuChoiThayDoiChiNhanh', 'RutThayDoiChiNhanh', 'HuyThayDoiChiNhanh', 'DoiHieuLucThayDoiChiNhanh', 'PhanCongLichLamViec', 'GoLichLamViec', 'DuyetNghiPhep', 'TuChoiNghiPhep', 'DuyetRutTien', 'TuChoiRutTien') NOT NULL,
+  `loai_doi_tuong` ENUM ('tai_khoan', 'benh_nhan', 'lich_hen', 'ho_so_kham', 'danh_gia_bac_si', 'giao_dich_thanh_toan', 'yeu_cau_doi_lich_ngoai_chinh_sach', 'cau_hinh_he_thong', 'yeu_cau_thay_doi_chi_nhanh', 'lich_lam_viec', 'yeu_cau_nghi_phep', 'yeu_cau_rut_tien') NOT NULL COMMENT 'Bảng bị tác động',
   `ma_doi_tuong` bigint NOT NULL COMMENT 'Khóa chính của bản ghi bị tác động; không có FK để nhật ký còn nguyên khi bản ghi gốc bị xóa hoặc ẩn',
   `thoi_diem` datetime NOT NULL,
   `ket_qua` ENUM ('ThanhCong', 'ThatBai') NOT NULL,
@@ -645,6 +660,8 @@ CREATE UNIQUE INDEX `lich_su_hoan_tien_index_20` ON `lich_su_hoan_tien` (`giao_d
 CREATE INDEX `yeu_cau_rut_tien_index_21` ON `yeu_cau_rut_tien` (`trang_thai`, `thoi_diem_yeu_cau`);
 
 CREATE INDEX `giao_dich_vi_index_22` ON `giao_dich_vi` (`vi_noi_bo_id`, `thoi_diem`);
+
+CREATE UNIQUE INDEX `lan_doi_soat_nap_vi_index_lan_thu` ON `lan_doi_soat_nap_vi` (`giao_dich_thanh_toan_id`, `so_lan_thu`);
 
 CREATE INDEX `bai_viet_hashtag_index_23` ON `bai_viet_hashtag` (`hashtag_id`, `bai_viet_id`);
 
@@ -727,6 +744,8 @@ ALTER TABLE `giao_dich_thanh_toan` COMMENT = 'Ràng buộc: NapVi thì lich_hen_
 ALTER TABLE `yeu_cau_rut_tien` COMMENT = 'Tạo yêu cầu: so_tien_dang_giu tăng so_tien. Duyệt: ghi giao_dich_vi loại Rut, so_du và so_tien_dang_giu cùng giảm so_tien. Từ chối: so_tien_dang_giu giảm so_tien.';
 
 ALTER TABLE `giao_dich_vi` COMMENT = 'Sổ cái lịch sử nạp/trừ/hoàn/rút, chỉ thêm không sửa. Ràng buộc: đúng 1 trong 3 cột tham chiếu có giá trị, tùy theo loại.';
+
+ALTER TABLE `lan_doi_soat_nap_vi` COMMENT = 'Lịch sử các lần đối soát nạp ví, chỉ thêm không sửa; mỗi dòng một lần thử. Job tự động ghi tối đa 3 lần (nguoi_xu_ly_id trống); Quản trị viên chọn Cộng ví (ThanhCong) hoặc Không thể xử lý (KhongTheXuLy, bắt buộc ly_do, kiểm ở service).';
 
 ALTER TABLE `danh_gia_bac_si` COMMENT = 'Chỉ cho đánh giá khi lịch hẹn ở trạng thái HoanThanh (kiểm tra ở service). Ràng buộc: bi_an = false thì ly_do_an để trống; bi_an = true thì bắt buộc có ly_do_an.';
 
@@ -842,6 +861,10 @@ ALTER TABLE `giao_dich_vi` ADD FOREIGN KEY (`giao_dich_thanh_toan_id`) REFERENCE
 ALTER TABLE `giao_dich_vi` ADD FOREIGN KEY (`lich_su_hoan_tien_id`) REFERENCES `lich_su_hoan_tien` (`lich_su_hoan_tien_id`);
 
 ALTER TABLE `giao_dich_vi` ADD FOREIGN KEY (`yeu_cau_rut_tien_id`) REFERENCES `yeu_cau_rut_tien` (`yeu_cau_rut_tien_id`);
+
+ALTER TABLE `lan_doi_soat_nap_vi` ADD FOREIGN KEY (`giao_dich_thanh_toan_id`) REFERENCES `giao_dich_thanh_toan` (`giao_dich_thanh_toan_id`);
+
+ALTER TABLE `lan_doi_soat_nap_vi` ADD FOREIGN KEY (`nguoi_xu_ly_id`) REFERENCES `quan_tri_vien` (`tai_khoan_id`);
 
 ALTER TABLE `danh_gia_bac_si` ADD FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen` (`lich_hen_id`);
 

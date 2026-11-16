@@ -5,6 +5,7 @@ import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { useAdminScope } from '../use-admin-scope';
 import { createBranch } from './branch-service';
+import { dayLabel, scheduleLines } from './branch-schedule-format';
 import {
   scheduleIssuesFromApi,
   toPeriodInput,
@@ -23,16 +24,6 @@ import {
   type AvailableServicesState,
 } from './use-branches';
 import styles from './branches.module.css';
-
-const DAY_LABELS: Record<number, string> = {
-  1: 'Thứ 2',
-  2: 'Thứ 3',
-  3: 'Thứ 4',
-  4: 'Thứ 5',
-  5: 'Thứ 6',
-  6: 'Thứ 7',
-  7: 'CN',
-};
 
 interface PeriodDraft {
   enabled: boolean;
@@ -138,50 +129,6 @@ function fieldErrorFromApi(field: string, code: string): string | undefined {
   return undefined;
 }
 
-function dayLabel(day: number): string {
-  return DAY_LABELS[day] ?? `Thứ ${day}`;
-}
-
-function formatPeriod(period: { batDau: string; ketThuc: string }): string {
-  return `${period.batDau.slice(0, 5)}–${period.ketThuc.slice(0, 5)}`;
-}
-
-// Gộp các ngày liền nhau có cùng giờ thành một đoạn, ví dụ "Thứ 4–Thứ 6: S: 08:00–11:30" (như Figma)
-function formatSchedule(branch: Branch): string {
-  const groups: { first: number; last: number; periods: string }[] = [];
-  const days = [...branch.lichHoatDong].sort(
-    (a, b) => a.thuTrongTuan - b.thuTrongTuan,
-  );
-  for (const day of days) {
-    if (day.hoatDong !== true) continue;
-    const periods: string[] = [];
-    if (day.sang) periods.push(`S: ${formatPeriod(day.sang)}`);
-    if (day.chieu) periods.push(`C: ${formatPeriod(day.chieu)}`);
-    if (periods.length === 0) continue;
-    const text = periods.join(', ');
-    const previous = groups[groups.length - 1];
-    if (
-      previous &&
-      previous.periods === text &&
-      previous.last === day.thuTrongTuan - 1
-    ) {
-      previous.last = day.thuTrongTuan;
-    } else {
-      groups.push({
-        first: day.thuTrongTuan,
-        last: day.thuTrongTuan,
-        periods: text,
-      });
-    }
-  }
-  const parts = groups.map((group) =>
-    group.first === group.last
-      ? `${dayLabel(group.first)}: ${group.periods}`
-      : `${dayLabel(group.first)}–${dayLabel(group.last)}: ${group.periods}`,
-  );
-  return parts.length > 0 ? parts.join(' | ') : 'Chưa khai báo giờ nhận khám';
-}
-
 function BranchCard({ branch }: { branch: Branch }) {
   return (
     <article className={styles.branchCard} aria-label={branch.ten}>
@@ -198,19 +145,30 @@ function BranchCard({ branch }: { branch: Branch }) {
           )}
         </div>
         <div className={styles.branchDetails}>
-          <span className={styles.branchDetail}>
+          <div className={styles.branchDetail}>
             <img src="/assets/admin/branches/location.svg" alt="" />
             <span>{branch.diaChi}</span>
-          </span>
-          <span className={styles.branchDetail}>
+            {/* Tọa độ không hiện số trên thẻ nữa, mà là link tới bản đồ (Đại chốt 16/11/2026) */}
+            {branch.toaDoLat !== null && branch.toaDoLng !== null && (
+              <a
+                className={styles.mapLink}
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${branch.toaDoLat},${branch.toaDoLng}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Xem bản đồ ${branch.ten} (mở tab mới)`}
+              >
+                Xem bản đồ
+              </a>
+            )}
+          </div>
+          <div className={styles.branchDetail}>
             <img src="/assets/admin/branches/schedule.svg" alt="" />
-            <span>{formatSchedule(branch)}</span>
-          </span>
-          {branch.toaDoLat !== null && branch.toaDoLng !== null && (
-            <span className={styles.coordinates}>
-              {branch.toaDoLat}, {branch.toaDoLng}
-            </span>
-          )}
+            <ul className={styles.scheduleList} aria-label="Giờ nhận khám">
+              {scheduleLines(branch.lichHoatDong).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
       {/* Figma có nút này; API sửa lịch/dịch vụ (F6b) chưa có nên để vô hiệu */}

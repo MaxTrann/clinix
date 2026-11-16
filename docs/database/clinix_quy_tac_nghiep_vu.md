@@ -666,3 +666,21 @@ Không có `ALTER`: route `POST /admin/appointments/:maLichHen/override-status` 
 - **Thứ tự khoá.** Theo lõi của từng đích (PLAN 5.3): huỷ `khung_gio` rồi `lich_hen`; Vắng mặt `benh_nhan` rồi `lich_hen`; tiếp đón và khôi phục chỉ `lich_hen`; nhật ký (bảng chỉ-thêm) SAU CÙNG. Khoá S ngầm của khoá ngoại ở `UPDATE lich_hen SET trang_thai` (TECH_DEBT dòng 113) làm giao dịch `markNoShow` (kể cả do override gọi) có thể deadlock 1213 khi đua huỷ hay tiếp đón cùng một lịch; giao dịch bị hoàn tác chạy lại thân, kết quả luôn đúng (đo ở B14: 56 vòng mỗi ca, không lần nào hết lượt 503).
 - **Thông báo.** Chỉ do các lõi đã có, cho tài khoản ĐẶT: huỷ (`LichHenDaHuy`), Vắng mặt (`LichHenVangMat`, và `KhoaDatLichNoShow` khi cờ vừa bật). Tiếp đón và khôi phục KHÔNG có sự kiện (**[cần điền]** nếu nhóm muốn thêm kèm mẫu thư).
 - **Job tự Vắng mặt (B13).** Lịch được khôi phục `VangMat → DaXacNhan` (hoặc lùi `DaTiepDon → DaXacNhan`) mà ca đã kết thúc vẫn là ứng viên của job (`DaXacNhan`, giờ hẹn đã qua, ca đã kết thúc): job đánh Vắng mặt lại trong tối đa 5 phút và cộng no-show lần hai (nhóm chọn làm đúng Q24; TECH_DEBT dòng 120). Bệnh nhân đã đến thì override sang `DaTiepDon`, không phải `DaXacNhan`.
+
+## payment P1 — Năm bảng tiền, cột loại hoàn tiền và ENUM nhật ký rút tiền (16/11/2026, module payment và wallet)
+
+Migration `TaoBangThanhToanVi1793707200000` tạo năm bảng `giao_dich_thanh_toan`, `lich_su_hoan_tien`, `yeu_cau_rut_tien`, `giao_dich_vi`, `lan_doi_soat_nap_vi` (DDL nguyên văn từ `clinix_mysql.sql`, 35 câu) rồi mở rộng hai ENUM của `nhat_ky_hanh_dong`. Ba thay đổi so với DDL cũ của các bảng tiền (cả ba đã được Đại chốt ngày 15/11/2026):
+
+- **`lich_su_hoan_tien.loai`** (`TuDong` | `DacBiet`, mặc định `TuDong`; Q23): phân biệt hoàn cọc tự động khi huỷ lịch (kể cả các lần thử lại) với hoàn tiền đặc biệt do Quản trị viên. Mỗi khoản thanh toán tối đa MỘT dòng `DacBiet` do service kiểm (DB không có chỉ mục riêng cho điều này).
+- **Bảng mới `lan_doi_soat_nap_vi`** (Q9): mỗi dòng một lần đối soát nạp ví chưa cộng (`giao_dich_thanh_toan_id`, `so_lan_thu`, `ket_qua` `ThanhCong` | `ThatBai` | `KhongTheXuLy`, `nguoi_xu_ly_id` trống khi là job, `ly_do` ≤ 255, `thoi_diem`), UNIQUE `(giao_dich_thanh_toan_id, so_lan_thu)`. `so_lan_thu = 0` là lần cộng đầu bị lỗi lúc xác minh, `1` đến `3` là job tự động, từ `4` là Quản trị viên. `ly_do` chỉ ghi mã lỗi dạng mã hoặc lý do của Quản trị viên, không ghi văn bản lỗi gốc của cổng.
+- **ENUM `nhat_ky_hanh_dong`** (Q17): `hanh_dong` thêm `DuyetRutTien`, `TuChoiRutTien`; `loai_doi_tuong` thêm `yeu_cau_rut_tien` (thêm CUỐI danh sách, không đổi thứ tự và giá trị đã lưu).
+
+DB mới tạo từ `clinix_mysql.sql` đã có đủ. DB đang ở bản trước và cần giữ dữ liệu thì sao lưu trước rồi chạy `npm run migration:run` (migration trên). Câu mở rộng ENUM chạy cùng nội dung với:
+
+```sql audit_rut_tien
+ALTER TABLE nhat_ky_hanh_dong
+  MODIFY hanh_dong ENUM ('DoiQuyen', 'OverrideLichHen', 'HoanTienDacBiet', 'DoiChiNhanhBacSi', 'ChinhNoShow', 'AnDanhGia', 'XuLyDoiLichNgoaiChinhSach', 'SuaGhiChuKham', 'BacSiHuyDotXuat', 'CapNhatCauHinh', 'XuLyNapViChuaCong', 'TaoTaiKhoanNhanSu', 'KhoaTaiKhoan', 'MoKhoaTaiKhoan', 'MoKhoaNoShow', 'DuyetThayDoiChiNhanh', 'TuChoiThayDoiChiNhanh', 'RutThayDoiChiNhanh', 'HuyThayDoiChiNhanh', 'DoiHieuLucThayDoiChiNhanh', 'PhanCongLichLamViec', 'GoLichLamViec', 'DuyetNghiPhep', 'TuChoiNghiPhep', 'DuyetRutTien', 'TuChoiRutTien') NOT NULL,
+  MODIFY loai_doi_tuong ENUM ('tai_khoan', 'benh_nhan', 'lich_hen', 'ho_so_kham', 'danh_gia_bac_si', 'giao_dich_thanh_toan', 'yeu_cau_doi_lich_ngoai_chinh_sach', 'cau_hinh_he_thong', 'yeu_cau_thay_doi_chi_nhanh', 'lich_lam_viec', 'yeu_cau_nghi_phep', 'yeu_cau_rut_tien') NOT NULL COMMENT 'Bảng bị tác động';
+```
+
+**Hoàn tác (`down`)**: DDL của MySQL tự commit nên không hoàn tác nửa chừng được; migration vì vậy đếm TRƯỚC mọi câu DDL số dòng `nhat_ky_hanh_dong` còn dùng `DuyetRutTien`, `TuChoiRutTien` hoặc `yeu_cau_rut_tien`. Còn dòng nào ⇒ dừng với thông báo rõ, không xoá nhật ký, DB nguyên vẹn. Không còn dòng nào ⇒ trả ENUM về bản trước rồi xoá năm bảng (kèm mọi dòng của chúng: hệ thống chỉ dùng dữ liệu mẫu). Mục quy tắc nghiệp vụ đầy đủ của ví, thanh toán và hoàn tiền sẽ thêm ở task D1.

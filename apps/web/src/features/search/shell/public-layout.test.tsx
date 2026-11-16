@@ -22,6 +22,8 @@ const CLINIC_INFO = {
 let api: ReturnType<typeof createFakeAuthApi>;
 let publicCalls: { url: string; headers: Headers }[];
 let clinicInfoResponse: () => Response | Promise<Response>;
+// null ⇒ dùng danh sách nhóm dịch vụ rỗng mặc định
+let serviceGroupItems: unknown[] | null;
 
 const jsonResponse = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -34,6 +36,7 @@ beforeEach(() => {
   api = createFakeAuthApi();
   publicCalls = [];
   clinicInfoResponse = () => jsonResponse(200, CLINIC_INFO);
+  serviceGroupItems = null;
   // Điều hướng đầy đủ chỉ dựng từ 1280 px (search F14, M5); happy-dom mặc định rộng 1024 nên giả bề ngang cho các ca header
   fakeMatchMedia(1280);
   vi.stubGlobal(
@@ -44,6 +47,10 @@ beforeEach(() => {
           url: String(input),
           headers: new Headers(init?.headers),
         });
+        if (serviceGroupItems && String(input).includes('/service-groups'))
+          return Promise.resolve(
+            jsonResponse(200, { items: serviceGroupItems }),
+          );
         const homeResponse = emptyPublicHomeResponse(String(input));
         return Promise.resolve(homeResponse ?? clinicInfoResponse());
       }
@@ -133,6 +140,34 @@ describe('PublicHeader', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
     expect(trigger).toHaveFocus();
+  });
+
+  it('Dịch vụ khám: liệt kê nhóm từ API, bỏ nhóm "Sắp triển khai"', async () => {
+    serviceGroupItems = [
+      {
+        nhomDichVuId: '5',
+        ten: 'Khám chuyên khoa',
+        soDichVu: 1,
+        giaTu: '200000.00',
+        sapTrienKhai: false,
+      },
+      {
+        nhomDichVuId: '6',
+        ten: 'Khám tại nhà',
+        soDichVu: 0,
+        giaTu: null,
+        sapTrienKhai: true,
+      },
+    ];
+    setAuthState({ status: 'unauthenticated' });
+    renderAt('/');
+    fireEvent.click(screen.getByRole('button', { name: 'Dịch vụ khám' }));
+    // Trang chủ cũng liệt kê nhóm nên chỉ tìm trong menu
+    const menu = within(document.getElementById('public-service-menu')!);
+    const link = await menu.findByRole('link', { name: 'Khám chuyên khoa' });
+    expect(link).toHaveAttribute('href', '/dat-lich/nhom/5');
+    expect(menu.queryByText('Khám tại nhà')).toBeNull();
+    expect(menu.queryByText('Chưa có nhóm dịch vụ nào.')).toBeNull();
   });
 
   it('KC-02 Khách vãng lai: "Đăng nhập" dẫn tới /dang-nhap', () => {

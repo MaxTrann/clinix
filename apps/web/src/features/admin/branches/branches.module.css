@@ -50,10 +50,11 @@
   font-size: 13.125px;
 }
 
+/* Ô nhập: viền teal đè lên đúng vị trí viền xám (bóng TRONG), mép ngoài không nhích ra; nút giữ outline (PR1 mục 1) */
 .searchBox:focus-within {
   border-color: #0092b8;
-  outline: 2px solid #0092b8;
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: inset 0 0 0 1px #0092b8;
 }
 
 .searchBox input::placeholder {
@@ -195,13 +196,19 @@
 .formFieldWide input:focus-visible,
 .timeRange input:focus-visible {
   border-color: #0092b8;
-  outline: 2px solid #0092b8;
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: inset 0 0 0 1px #0092b8;
 }
 
 .formField input[aria-invalid='true'],
 .formFieldWide input[aria-invalid='true'] {
   border-color: #d92d20;
+}
+
+.formField input[aria-invalid='true']:focus-visible,
+.formFieldWide input[aria-invalid='true']:focus-visible {
+  border-color: #d92d20;
+  box-shadow: inset 0 0 0 1px #d92d20;
 }
 
 .formField input:disabled,
@@ -552,19 +559,19 @@
   color: #bb4d00;
 }
 
+/* Thẻ ba dòng (PR1 mục 8): tiêu đề, địa chỉ kèm link bản đồ, danh sách giờ nhận khám; chữ xuống dòng thay vì bị cắt "…" */
 .branchDetails {
-  display: grid;
+  display: flex;
   min-width: 0;
-  grid-template-columns: max-content minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 3.75px 15px;
+  flex-direction: column;
+  gap: 3.75px;
   margin-top: 5.625px;
 }
 
 .branchDetail {
   display: flex;
   min-width: 0;
-  align-items: center;
+  align-items: flex-start;
   gap: 3.75px;
   color: #6a7282;
   font-size: 11.25px;
@@ -576,19 +583,33 @@
   width: 11.25px;
   height: 11.25px;
   flex: 0 0 auto;
+  margin-top: 1.875px;
 }
 
-.branchDetail span {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.branchDetail span,
+.scheduleList li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.scheduleList {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mapLink {
+  flex: 0 0 auto;
+  margin-left: 7.5px;
+  color: #007595;
+  text-decoration: underline;
   white-space: nowrap;
 }
 
-.coordinates {
-  color: #99a1af;
-  font-size: 11.25px;
-  line-height: 15px;
-  white-space: nowrap;
+.mapLink:focus-visible {
+  outline: 2px solid #0092b8;
+  outline-offset: 2px;
 }
 
 .emptyState {
@@ -624,25 +645,22 @@
     padding: 15px;
   }
 
+  /* Thẻ chi nhánh: nút Sửa lịch xuống dưới để danh sách giờ không bị bóp còn ~56px (đo Chromium 375px) */
+  .branchCard {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .editButton {
+    align-self: flex-start;
+  }
+
   .formFields {
     grid-template-columns: 1fr;
   }
 
   .formFieldWide {
     grid-column: auto;
-  }
-
-  .branchDetails {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 4px;
-  }
-
-  .branchDetail span {
-    white-space: normal;
-  }
-
-  .coordinates {
-    padding-left: 15px;
   }
 }
 

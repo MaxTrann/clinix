@@ -7,6 +7,7 @@
 // 07/11/2026 (module patient, task B6): chỉ sửa chữ, không đổi bảng, cột, enum, constraint: thêm quy tắc 53 "Tra cứu hồ sơ bệnh nhân của Lễ tân" (clinix_quy_tac_nghiep_vu.md mục 2): phạm vi toàn hệ thống (khác quy tắc 25 của Quản trị viên Chi nhánh), chỉ Bệnh nhân đã xác minh kể cả NgungHoatDong, khớp chứa họ tên (chữ đ coi như d) và email, thêm SĐT khi từ khoá toàn chữ số, chỉ đọc, không ghi nhật ký hành động (Q20 = A).
 // 08/11/2026 (module patient, task B7): chỉ sửa chữ, không đổi bảng, cột, enum, constraint: mở rộng quy tắc 53 (clinix_quy_tac_nghiep_vu.md mục 2) thêm phần chi tiết một bệnh nhân (GET /reception/patients/:id): cùng phạm vi và cùng tập tra cứu được với danh sách, mười trường gồm số lần vắng khám và danh sách người thân ở cả hai trạng thái hiệu lực, 404 chung cho id không có, không phải Bệnh nhân, chưa xác minh hay sai dạng, chỉ đọc, không ghi nhật ký hành động (Q20 = A).
 // 10/11/2026 (module booking, task P7): thong_bao thêm lich_hen_id (ref: >? lich_hen, nullable) và index unique (lich_hen_id, tai_khoan_id, loai_su_kien); không thêm bảng, enum hay CHECK.
+// 16/11/2026 (module payment và wallet, task P1): lich_su_hoan_tien thêm cột loai (loai_hoan_tien_enum: TuDong | DacBiet; Q23); bảng mới lan_doi_soat_nap_vi (ket_qua_doi_soat_enum; Q9); enum nhật ký thêm DuyetRutTien, TuChoiRutTien, yeu_cau_rut_tien (Q17) => 46 bảng, 32 khối Enum.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17
@@ -162,6 +163,17 @@ Enum ket_qua_enum {
   ThatBai
 }
 
+Enum loai_hoan_tien_enum {
+  TuDong
+  DacBiet
+}
+
+Enum ket_qua_doi_soat_enum {
+  ThanhCong
+  ThatBai
+  KhongTheXuLy
+}
+
 Enum hanh_dong_nhay_cam_enum {
   DoiQuyen
   OverrideLichHen
@@ -187,6 +199,8 @@ Enum hanh_dong_nhay_cam_enum {
   GoLichLamViec
   DuyetNghiPhep
   TuChoiNghiPhep
+  DuyetRutTien
+  TuChoiRutTien
 }
 
 Enum loai_doi_tuong_enum {
@@ -201,6 +215,7 @@ Enum loai_doi_tuong_enum {
   yeu_cau_thay_doi_chi_nhanh
   lich_lam_viec
   yeu_cau_nghi_phep
+  yeu_cau_rut_tien
 }
 
 Enum loai_hoi_thoai_enum {
@@ -710,6 +725,7 @@ Table lich_su_hoan_tien {
   lich_su_hoan_tien_id bigint [pk, increment]
   giao_dich_thanh_toan_id bigint [not null, ref: > giao_dich_thanh_toan.giao_dich_thanh_toan_id, note: 'Khoản cọc được hoàn = giao dịch thanh toán của lịch gốc']
   vi_noi_bo_id bigint [not null, ref: > vi_noi_bo.vi_noi_bo_id, note: 'Tiền hoàn chỉ về ví, không hoàn tiền mặt']
+  loai loai_hoan_tien_enum [not null, default: 'TuDong', note: 'TuDong: hoàn cọc khi huỷ lịch (kể cả các lần thử lại); DacBiet: Quản trị viên hoàn tiền đặc biệt, mỗi khoản thanh toán tối đa một dòng DacBiet (kiểm ở service)']
   so_tien decimal(12,2) [not null]
   ly_do varchar(255)
   trang_thai ket_qua_enum [not null]
@@ -753,6 +769,22 @@ Table giao_dich_vi {
   }
 
   Note: 'Sổ cái lịch sử nạp/trừ/hoàn/rút, chỉ thêm không sửa. Ràng buộc: đúng 1 trong 3 cột tham chiếu có giá trị, tùy theo loại.'
+}
+
+Table lan_doi_soat_nap_vi {
+  lan_doi_soat_nap_vi_id bigint [pk, increment]
+  giao_dich_thanh_toan_id bigint [not null, ref: > giao_dich_thanh_toan.giao_dich_thanh_toan_id, note: 'Giao dịch nạp ví (loai = NapVi) đã được cổng xác nhận thành công nhưng chưa cộng được vào ví']
+  so_lan_thu int [not null, note: '0 = lần cộng đầu bị lỗi lúc xác minh; 1 đến 3 = job tự động; từ 4 = Quản trị viên xử lý']
+  ket_qua ket_qua_doi_soat_enum [not null]
+  nguoi_xu_ly_id bigint [ref: >? quan_tri_vien.tai_khoan_id, note: 'Quản trị viên xử lý; để trống khi là job tự động']
+  ly_do varchar(255) [note: 'Mã lỗi dạng mã hoặc lý do của Quản trị viên; không ghi văn bản lỗi gốc của cổng']
+  thoi_diem datetime [not null]
+
+  indexes {
+    (giao_dich_thanh_toan_id, so_lan_thu) [unique, name: 'lan_doi_soat_nap_vi_index_lan_thu']
+  }
+
+  Note: 'Lịch sử các lần đối soát nạp ví, chỉ thêm không sửa; mỗi dòng một lần thử. Job tự động ghi tối đa 3 lần (nguoi_xu_ly_id trống); Quản trị viên chọn Cộng ví (ThanhCong) hoặc Không thể xử lý (KhongTheXuLy, bắt buộc ly_do, kiểm ở service).'
 }
 
 // ===================== CỤM 6: KHÁM & ĐÁNH GIÁ =====================

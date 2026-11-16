@@ -114,7 +114,7 @@ Preflight xoá kiểu mặc định, nên lớp `base` trong `src/styles/index.c
 - Nút: `cursor: pointer`; `:disabled` là `not-allowed`. Nút không có class (`button:not([class])`) có viền và đệm tối thiểu để trang giữ chỗ dùng được. Nút chính theo `635:58` (cao 45px, `rounded-xl`, `font-medium`, vô hiệu `opacity-50` theo `637:66`) nhưng nền `brand-strong`, hover cyan-800, viết bằng utility ở thành phần, không ở base.
 - Ô nhập (`input`, `textarea`, `select`): viền `gray-200`, `rounded-xl`, `text-sm`, placeholder `gray-500`, vô hiệu `opacity-60`, theo `635:37`, `637:45`. Viền `0.8px` của Figma là sản phẩm xuất khung nên dùng `1px` như Make.
 - Liên kết không có class (`a:not([class])`): màu `brand-strong`, gạch chân. Liên kết có class giữ nguyên.
-- Focus: `:focus-visible` viền 2px `brand`, lệch 2px. Figma không có frame focus.
+- Focus: `:focus-visible` viền 2px `brand`, lệch 2px. Figma không có frame focus. **Ngoại lệ ô nhập Admin (admin PR1, 16/11/2026):** trong `features/admin/**`, `input`, `textarea`, `select` và khung bọc ô tìm khi focus đổi viền sang `brand` kèm `box-shadow: inset 0 0 0 1px` và tắt outline, để viền teal đè đúng lên vị trí viền xám (mép ngoài không nhích ra, không lộ viền xám trong khe của outline lệch); ô đang lỗi giữ viền và bóng đỏ; nút bấm giữ quy tắc chung; tương phản viền không đổi (3,62:1). Các module khác chưa đổi.
 
 ## Chuyển CSS Modules đang có
 

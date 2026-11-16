@@ -13,8 +13,14 @@
 //         (lich_hen_id) hoặc ma_lich_hen
 //   6b    ho_so_kham,      FOR UPDATE theo khoá chính         CHỈ doctor (phần khám bệnh: ghi hồ sơ khám, ẩn đánh giá), SAU `lich_hen` và TRƯỚC tầng 7;
 //         danh_gia_bac_si  hoặc `lich_hen_id` (UNIQUE)        booking KHÔNG xin khoá nào trên hai bảng này (doctor-exam P2; PLAN doctor-exam 5.3)
-//   7     giao_dich_thanh_toan → vi_noi_bo → bảng chỉ-thêm    payment, wallet, thông báo, audit; SAU `lich_hen` (payment khoá `lich_hen` TRƯỚC `vi_noi_bo`)
-//         (lich_su_hoan_tien, giao_dich_vi, thong_bao, nhat_ky_hanh_dong)
+//   7a    giao_dich_thanh_toan,  FOR UPDATE theo khoá chính        payment, wallet: tuần tự hoá MỌI việc trên MỘT giao dịch hay MỘT yêu cầu ĐÃ CÓ
+//         yeu_cau_rut_tien       (IPN trùng, hai lần thử hoàn, duyệt đua từ chối); SAU `lich_hen` (payment khoá `lich_hen` TRƯỚC ví)
+//   7b    vi_noi_bo              FOR UPDATE theo benh_nhan_id        wallet, payment: tuần tự hoá số dư, TRƯỚC mọi INSERT vào bảng con của ví (tránh nâng S lên X)
+//   7c    lich_su_hoan_tien, giao_dich_vi, lan_doi_soat_nap_vi,      hàng MỚI chèn bởi chính giao dịch (không ai khác khoá được); chỉ-thêm
+//         thong_bao, nhat_ky_hanh_dong
+//         Một bảng có thể xuất hiện ở hai hạng theo vai trò hàng: `giao_dich_thanh_toan`/`yeu_cau_rut_tien` ở 7a khi KHOÁ hàng đã có, còn `INSERT` hàng mới là 7c
+//         (không ai khác khoá được hàng mới nên không cần ghi vào chuỗi). Chuỗi đưa vào `findLockOrderViolation` chỉ liệt kê khoá TƯỜNG MINH, không liệt kê `INSERT`
+//         vào bảng 7a (PLAN payment 5.3; hạng 7a/7b/7c: payment P2).
 //
 // Quy tắc áp dụng (PLAN 5.3):
 //  1. Luồng chỉ biết `lich_hen` (huỷ, hết hạn, xác nhận, tiếp đón, Vắng mặt) ĐỌC THƯỜNG một lần để lấy `lich_hen_id`, `khung_gio_id`, `benh_nhan_id` (cả ba
@@ -35,9 +41,10 @@
 // câu khoá đó. Giao dịch ngừng sử dụng hồ sơ (patient) không bao giờ xin `bac_si` hay `khung_gio` nên không có chu trình chờ với luồng tạo.
 // Lưu ý: `ACTIVE_APPOINTMENT_STATES` (3 trạng thái) khác tập của cột sinh `khung_gio_dang_giu` (5 trạng thái) CÓ CHỦ ĐÍCH (5.2): đừng "sửa cho khớp".
 
-export type LockTierId = '1' | '2' | '3' | '4' | '4b' | '5' | '6' | '6b' | '7';
+export type LockTierId =
+  '1' | '2' | '3' | '4' | '4b' | '5' | '6' | '6b' | '7a' | '7b' | '7c';
 
-/** Một HẠNG khoá: các bảng cùng hạng không có thứ tự bắt buộc với nhau; hạng nhỏ khoá trước. Tầng 7 gồm ba hạng liền nhau (đúng chữ của bảng 5.3). */
+/** Một HẠNG khoá: các bảng cùng hạng không có thứ tự bắt buộc với nhau; hạng nhỏ khoá trước. Tầng 7 gồm ba hạng 7a, 7b, 7c liền nhau (đúng chữ của bảng 5.3). */
 export interface LockRank {
   tang: LockTierId;
   bang: readonly string[];
@@ -53,13 +60,15 @@ export const LOCK_ORDER: readonly LockRank[] = [
   { tang: '6', bang: ['lich_hen'] },
   // Hai bảng con của `lich_hen` (khoá ngoại): hàng con khoá SAU hàng cha, TRƯỚC thông báo và nhật ký ở tầng 7. Cùng một hạng: không luồng nào xin cả hai.
   { tang: '6b', bang: ['ho_so_kham', 'danh_gia_bac_si'] },
-  { tang: '7', bang: ['giao_dich_thanh_toan'] },
-  { tang: '7', bang: ['vi_noi_bo'] },
+  // Hai bảng 7a cùng hạng: không luồng nào khoá cả hai cùng lúc (một luồng làm việc trên một giao dịch HOẶC một yêu cầu rút).
+  { tang: '7a', bang: ['giao_dich_thanh_toan', 'yeu_cau_rut_tien'] },
+  { tang: '7b', bang: ['vi_noi_bo'] },
   {
-    tang: '7',
+    tang: '7c',
     bang: [
       'lich_su_hoan_tien',
       'giao_dich_vi',
+      'lan_doi_soat_nap_vi',
       'thong_bao',
       'nhat_ky_hanh_dong',
     ],

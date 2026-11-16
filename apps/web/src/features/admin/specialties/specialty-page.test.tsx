@@ -1,9 +1,16 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { ApiError } from '../../../shared/api/errors';
+import { ApiError, NetworkError } from '../../../shared/api/errors';
 import { AdminMeProvider } from '../admin-me-context';
 import { SpecialtyDialog } from './specialty-dialog';
 import { SpecialtyPage } from './specialty-page';
+import styles from './specialty.module.css';
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
@@ -100,6 +107,13 @@ describe('Admin specialty feature', () => {
     expect(await screen.findByText('Tim mạch')).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole('button', { name: 'Ngừng hoạt động Tim mạch' }),
+    );
+    // PR1 mục 3: bấm icon chỉ mở popup xác nhận, PATCH chỉ gửi sau khi bấm "Ngừng hoạt động" trong popup
+    expect(mocks.setStatus).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Ngừng hoạt động',
+      }),
     );
 
     await waitFor(() => expect(mocks.setStatus).toHaveBeenCalledWith('12', 'NgungHoatDong'));
@@ -297,5 +311,315 @@ describe('SpecialtyDialog', () => {
         imageUploadId: 'upload-uuid',
       });
     });
+  });
+});
+
+const INACTIVE = {
+  chuyenKhoaId: '15',
+  ten: 'Da liễu',
+  moTa: null,
+  anhDaiDien: null,
+  trangThaiHoatDong: 'NgungHoatDong' as const,
+  soBacSi: 0,
+};
+
+describe('Admin specialty status popup (AF2-07, AF2-08)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.list.mockResolvedValue({
+      items: [ITEM, INACTIVE],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    });
+    mocks.setStatus.mockResolvedValue({
+      ...ITEM,
+      trangThaiHoatDong: 'NgungHoatDong',
+    });
+  });
+
+  async function openStopPopup() {
+    renderPage('ToanHeThong');
+    expect(await screen.findByText('Tim mạch')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Ngừng hoạt động Tim mạch' }),
+    );
+    return screen.getByRole('dialog', { name: 'Ngừng hoạt động chuyên khoa?' });
+  }
+
+  it('AF2-07 bấm Ngừng hoạt động chỉ mở popup: chưa gọi API, tên in đậm, ghi chú số bác sĩ (Figma 733:2)', async () => {
+    const dialog = await openStopPopup();
+
+    expect(mocks.setStatus).not.toHaveBeenCalled();
+    expect(within(dialog).getByText('Tim mạch').tagName).toBe('STRONG');
+    expect(
+      within(dialog).getByText(
+        /sẽ được tạm dừng và ẩn khỏi kết quả tìm kiếm\/đặt lịch dành cho bệnh nhân\./,
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole('note')).toHaveTextContent(
+      '3 bác sĩ thuộc chuyên khoa này vẫn giữ nguyên hồ sơ. Chuyên khoa không bị xóa hay gỡ liên kết.',
+    );
+    expect(
+      within(dialog).getByRole('button', { name: 'Hủy' }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: 'Ngừng hoạt động' }),
+    ).toBeInTheDocument();
+  });
+
+  it('AF2-07 chuyên khoa chưa có bác sĩ: ghi chú bỏ vế bác sĩ, chỉ còn câu không bị xóa hay gỡ liên kết', async () => {
+    mocks.list.mockResolvedValue({
+      items: [{ ...ITEM, soBacSi: 0 }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    const dialog = await openStopPopup();
+
+    expect(within(dialog).getByRole('note')).toHaveTextContent(
+      'Chuyên khoa không bị xóa hay gỡ liên kết.',
+    );
+    expect(within(dialog).queryByText(/bác sĩ thuộc chuyên khoa/)).toBeNull();
+  });
+
+  it('AF2-07 Hủy đóng popup, không gọi API và không tải lại danh sách', async () => {
+    const dialog = await openStopPopup();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mocks.setStatus).not.toHaveBeenCalled();
+    expect(mocks.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('AF2-07 Esc đóng popup, không gọi API và không tải lại danh sách', async () => {
+    await openStopPopup();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mocks.setStatus).not.toHaveBeenCalled();
+    expect(mocks.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('AF2-07 xác nhận gọi PATCH NgungHoatDong đúng một lần, đóng popup rồi tải lại danh sách', async () => {
+    const dialog = await openStopPopup();
+
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Ngừng hoạt động' }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(mocks.setStatus).toHaveBeenCalledExactlyOnceWith(
+      '12',
+      'NgungHoatDong',
+    );
+    await waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2));
+  });
+
+  it('AF2-07 đang gửi: nút khóa, Esc không đóng popup, bấm lần hai không gọi thêm', async () => {
+    let finish!: (value: unknown) => void;
+    mocks.setStatus.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const dialog = await openStopPopup();
+
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Ngừng hoạt động' }),
+    );
+
+    const busy = await within(dialog).findByRole('button', {
+      name: 'Đang xử lý…',
+    });
+    expect(busy).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Hủy' })).toBeDisabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.click(busy);
+    expect(mocks.setStatus).toHaveBeenCalledTimes(1);
+
+    finish({ ...ITEM, trangThaiHoatDong: 'NgungHoatDong' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2));
+  });
+
+  it('AF2-07 lỗi 403: báo thiếu quyền, đóng popup và không tải lại danh sách', async () => {
+    mocks.setStatus.mockRejectedValue(
+      new ApiError(403, {
+        maLoi: 'KHONG_DU_QUYEN',
+        thongBao: 'Không đủ quyền.',
+      }),
+    );
+    const dialog = await openStopPopup();
+
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Ngừng hoạt động' }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Bạn không có quyền đổi trạng thái chuyên khoa.',
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mocks.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('AF2-07 lỗi khác: báo lỗi chung, đóng popup và không tải lại danh sách', async () => {
+    mocks.setStatus.mockRejectedValue(new Error('boom'));
+    const dialog = await openStopPopup();
+
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Ngừng hoạt động' }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Không đổi được trạng thái chuyên khoa. Vui lòng thử lại.',
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(mocks.list).toHaveBeenCalledTimes(1);
+  });
+
+  it('AF2-07 ca âm: chuyên khoa đang ngừng bấm Kích hoạt gọi API ngay, không có popup (Đại chốt 16/11/2026)', async () => {
+    mocks.setStatus.mockResolvedValue({
+      ...INACTIVE,
+      trangThaiHoatDong: 'DangHoatDong',
+    });
+    renderPage('ToanHeThong');
+    expect(await screen.findByText('Da liễu')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kích hoạt Da liễu' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() =>
+      expect(mocks.setStatus).toHaveBeenCalledExactlyOnceWith(
+        '15',
+        'DangHoatDong',
+      ),
+    );
+    await waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2));
+  });
+
+  it('AF2-08 nút Chỉnh sửa dùng cùng icon bút chì và màu với trang Loại dịch vụ khám (đồng bộ, không còn edit.svg xám)', async () => {
+    const { container } = renderPage('ToanHeThong');
+    expect(await screen.findByText('Tim mạch')).toBeInTheDocument();
+
+    const edit = screen.getByRole('button', { name: 'Chỉnh sửa Tim mạch' });
+
+    expect(edit).toHaveAttribute('title', 'Chỉnh sửa');
+    expect(edit.querySelector('svg')).toHaveClass('lucide-pencil');
+    expect(edit).toHaveClass(styles.editAction);
+    expect(
+      container.querySelector('img[src$="specialties/edit.svg"]'),
+    ).toBeNull();
+  });
+
+  it('AF2-08 icon theo trạng thái: đang hoạt động là tạm dừng tông cam, đang ngừng là phát tông xanh; giữ aria-label và title', async () => {
+    const { container } = renderPage('ToanHeThong');
+    expect(await screen.findByText('Tim mạch')).toBeInTheDocument();
+
+    const stop = screen.getByRole('button', {
+      name: 'Ngừng hoạt động Tim mạch',
+    });
+    expect(stop).toHaveAttribute('title', 'Ngừng hoạt động');
+    expect(stop.querySelector('svg')).toHaveClass('lucide-circle-pause');
+    expect(stop).toHaveClass(styles.pauseAction);
+    expect(stop).not.toHaveClass(styles.resumeAction);
+
+    const resume = screen.getByRole('button', { name: 'Kích hoạt Da liễu' });
+    expect(resume).toHaveAttribute('title', 'Kích hoạt');
+    expect(resume.querySelector('svg')).toHaveClass('lucide-circle-play');
+    expect(resume).toHaveClass(styles.resumeAction);
+    expect(resume).not.toHaveClass(styles.pauseAction);
+
+    expect(container.querySelector('img[src$="toggle-status.svg"]')).toBeNull();
+  });
+});
+
+describe('SpecialtyDialog lỗi tải ảnh lên (AF2-09)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function renderCreateDialog() {
+    render(
+      <SpecialtyDialog
+        open
+        specialty={null}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+        onPartialSaved={vi.fn()}
+      />,
+    );
+  }
+
+  function pickImage() {
+    const file = new File(['image bytes'], 'specialty.png', {
+      type: 'image/png',
+    });
+    fireEvent.change(document.getElementById('specialty-image')!, {
+      target: { files: [file] },
+    });
+  }
+
+  it.each([
+    [
+      'ảnh gốc quá dung lượng (giữ câu có sẵn)',
+      new ApiError(413, { maLoi: 'ANH_QUA_DUNG_LUONG', thongBao: 'x' }),
+      'Ảnh gốc không được vượt quá 10 MB.',
+    ],
+    [
+      'mã lỗi lạ',
+      new ApiError(400, { maLoi: 'MA_LA', thongBao: 'x' }),
+      'Không tải được ảnh lên. Vui lòng thử lại.',
+    ],
+    [
+      'LOI_HE_THONG 503 (thiếu cấu hình hoặc nhà cung cấp ảnh lỗi)',
+      new ApiError(503, { maLoi: 'LOI_HE_THONG', thongBao: 'x' }),
+      'Tính năng tải ảnh hiện chưa sẵn sàng. Vui lòng thử lại sau hoặc lưu chuyên khoa không kèm ảnh.',
+    ],
+    [
+      'LOI_HE_THONG 504 (chọn câu theo mã lỗi, không theo mã HTTP)',
+      new ApiError(504, { maLoi: 'LOI_HE_THONG', thongBao: 'x' }),
+      'Tính năng tải ảnh hiện chưa sẵn sàng. Vui lòng thử lại sau hoặc lưu chuyên khoa không kèm ảnh.',
+    ],
+    [
+      'lỗi không phải ApiError',
+      new Error('boom'),
+      'Không tải được ảnh lên. Vui lòng thử lại.',
+    ],
+    [
+      'mất kết nối (giữ câu có sẵn)',
+      new NetworkError(),
+      'Chưa nhận được xác nhận từ máy chủ. Ảnh đang gắn vẫn được giữ nguyên.',
+    ],
+  ])('AF2-09 %s', async (_name, error, expected) => {
+    mocks.upload.mockRejectedValue(error);
+    renderCreateDialog();
+
+    pickImage();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(expected);
+    expect(alert).not.toHaveTextContent('Không lưu được chuyên khoa');
+    expect(screen.getByText(/Kéo thả ảnh vào đây/)).toBeInTheDocument();
+  });
+
+  it('AF2-09 ca âm: lỗi LƯU chuyên khoa vẫn dùng câu của thao tác lưu', async () => {
+    mocks.create.mockRejectedValue(
+      new ApiError(500, { maLoi: 'LOI_HE_THONG', thongBao: 'x' }),
+    );
+    renderCreateDialog();
+
+    fireEvent.change(screen.getByLabelText(/Tên chuyên khoa/), {
+      target: { value: 'Thần kinh học' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Không lưu được chuyên khoa. Vui lòng thử lại.',
+    );
   });
 });

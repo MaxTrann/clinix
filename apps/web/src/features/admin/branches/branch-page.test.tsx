@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { AdminMeProvider } from '../admin-me-context';
 import { BranchPage } from './branch-page';
 import type { Branch, BranchSchedule } from './branch-types';
@@ -64,13 +64,18 @@ describe('BranchPage (F6a)', () => {
       await screen.findByRole('article', { name: 'CLINIX Chi nhánh Quận 3' }),
     ).toBeInTheDocument();
     expect(screen.getByText('1 dịch vụ')).toBeInTheDocument();
-    // CN b1: các ngày liền nhau cùng giờ được gộp thành một đoạn như Figma
+    // CN b1 (PR1 mục 8): mỗi nhóm ngày liền kề cùng giờ một dòng, ngày nghỉ ghi rõ; tọa độ chuyển sang link "Xem bản đồ"
+    const hours = screen.getByRole('list', { name: 'Giờ nhận khám' });
     expect(
-      screen.getByText(
-        'Thứ 2–Thứ 6: S: 08:00–11:30, C: 13:30–17:00 | Thứ 7: S: 08:00–11:30',
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByText('10.7769, 106.6920')).toBeInTheDocument();
+      within(hours)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual([
+      'Thứ 2–Thứ 6: Sáng 08:00–11:30 · Chiều 13:30–17:00',
+      'Thứ 7: Sáng 08:00–11:30',
+      'CN: Nghỉ',
+    ]);
+    expect(screen.queryByText('10.7769, 106.6920')).toBeNull();
 
     fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm chi nhánh' }), {
       target: { value: 'Quận 1' },
@@ -220,5 +225,80 @@ describe('BranchPage (F6a)', () => {
     expect(
       await screen.findByText('Chưa có chi nhánh nào.'),
     ).toBeInTheDocument();
+  });
+});
+
+describe('BranchCard thẻ chi nhánh (CN b1, PR1 mục 8)', () => {
+  async function renderCard(overrides: Partial<Branch> = {}) {
+    fetchMock.mockResolvedValueOnce(
+      response({
+        items: [branch(overrides)],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+      }),
+    );
+    renderPage();
+    return screen.findByRole('article', {
+      name: overrides.ten ?? 'CLINIX Chi nhánh Quận 3',
+    });
+  }
+
+  it('hiện địa chỉ, giờ nhận khám (không còn "S:"/"C:") và link Xem bản đồ theo tọa độ; nút Sửa lịch vẫn vô hiệu', async () => {
+    const card = await renderCard();
+
+    expect(
+      within(card).getByText('123 Nguyễn Thị Minh Khai, Q.3, TP.HCM'),
+    ).toBeInTheDocument();
+    expect(card).not.toHaveTextContent('S: 08:00');
+    expect(card).not.toHaveTextContent(' | ');
+    const link = within(card).getByRole('link', { name: /Xem bản đồ/ });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://www.google.com/maps/search/?api=1&query=10.7769%2C106.6920',
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(
+      within(card).getByRole('button', { name: 'Sửa lịch / dịch vụ' }),
+    ).toBeDisabled();
+  });
+
+  it('chi nhánh không có tọa độ thì không có link Xem bản đồ', async () => {
+    const card = await renderCard({ toaDoLat: null, toaDoLng: null });
+
+    expect(within(card).queryByRole('link', { name: /Xem bản đồ/ })).toBeNull();
+  });
+
+  it('chỉ có một nửa cặp tọa độ cũng không dựng link (tránh đường dẫn "null")', async () => {
+    const card = await renderCard({ toaDoLat: '10.7769', toaDoLng: null });
+
+    expect(within(card).queryByRole('link', { name: /Xem bản đồ/ })).toBeNull();
+  });
+
+  it('chưa khai báo giờ: một dòng "Chưa khai báo giờ nhận khám"', async () => {
+    const card = await renderCard({ lichHoatDong: [] });
+
+    const items = within(card).getAllByRole('listitem');
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Chưa khai báo giờ nhận khám',
+    ]);
+  });
+
+  it('một ngày giữa tuần nghỉ có dòng Nghỉ riêng', async () => {
+    const week: BranchSchedule[] = [1, 2, 3, 4, 5].map((thu) => ({
+      thuTrongTuan: thu,
+      hoatDong: thu !== 3,
+      sang: thu !== 3 ? { batDau: '08:00:00', ketThuc: '11:30:00' } : null,
+      chieu: null,
+    }));
+    const card = await renderCard({ lichHoatDong: week });
+
+    const items = within(card).getAllByRole('listitem');
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Thứ 2–Thứ 3: Sáng 08:00–11:30',
+      'Thứ 4: Nghỉ',
+      'Thứ 5–Thứ 6: Sáng 08:00–11:30',
+    ]);
   });
 });

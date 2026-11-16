@@ -104,14 +104,22 @@
   font-size: 13.125px;
 }
 
+/* Ô nhập: viền teal đè lên đúng vị trí viền xám (bóng TRONG), mép ngoài không nhích ra; nút giữ outline (PR1 mục 1).
+   `input:not([type='file'])` để ĐỦ độ ưu tiên thắng `.formField input:not([type='file'])` (viền xám) ở dưới: đo Chromium 16/11/2026
+   thấy bản `.formField input:focus-visible` thua nó (bằng độ ưu tiên, đứng trước) nên viền xám vẫn nằm ngoài cùng */
 .searchBox:focus-within,
 .filterField select:focus-visible,
+.formField input:not([type='file']):focus-visible,
+.formField textarea:focus-visible,
+.imageDropzone:focus-within {
+  border-color: #0092b8;
+  outline: none;
+  box-shadow: inset 0 0 0 1px #0092b8;
+}
+
 .addButton:focus-visible,
 .rowActions button:focus-visible,
 .dialogHeader button:focus-visible,
-.formField input:focus-visible,
-.formField textarea:focus-visible,
-.imageDropzone:focus-within,
 .dialogActions button:focus-visible {
   outline: 2px solid #0092b8;
   outline-offset: 2px;
@@ -237,8 +245,23 @@
   opacity: 0.55;
 }
 
-.rowActions img {
+.rowActions img,
+.rowActions svg {
   display: block;
+}
+
+/* Bút chì cùng màu #0092b8 với nút Sửa của trang Loại dịch vụ khám (edit.svg cũ nét #99A1AF chỉ khoảng 2,5:1, dưới 3:1 của WCAG 1.4.11) */
+.rowActions .editAction {
+  color: #0092b8;
+}
+
+/* Icon theo trạng thái (PR1 mục 2): Ngừng hoạt động cam #bb4d00, Kích hoạt xanh lá #008236 (cùng token chữ cảnh báo và thành công) */
+.rowActions .pauseAction {
+  color: #bb4d00;
+}
+
+.rowActions .resumeAction {
+  color: #008236;
 }
 
 .readOnly {
@@ -358,6 +381,11 @@
   border-color: #f04438;
 }
 
+.formField input[aria-invalid='true']:focus-visible {
+  border-color: #f04438;
+  box-shadow: inset 0 0 0 1px #f04438;
+}
+
 .fieldError,
 .formError {
   color: #b42318;
@@ -434,10 +462,13 @@
   cursor: pointer;
 }
 
+/* Cách vùng ảnh đại diện 15px như Figma 540:635 */
 .statusField {
-  display: inline-flex;
+  display: flex;
+  width: fit-content;
   align-items: center;
   gap: 7.5px;
+  margin-top: 15px;
   color: #4a5565;
   font-size: 13.125px;
   font-weight: 500;

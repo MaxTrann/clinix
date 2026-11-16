@@ -10,8 +10,10 @@ import {
 import {
   getBranchDetail,
   getClinicInfo,
+  getServiceGroups,
   getSpecialties,
 } from '../api/search-service';
+import { serviceListPath } from '../search-paths';
 import type {
   BranchDetail,
   ClinicInfo,
@@ -23,6 +25,7 @@ import { BranchPicker } from './branch-picker';
 import type { PublicNavConfig } from './public-nav-types';
 import { FOOTER_SPECIALTY_COUNT, PublicFooter } from './public-footer';
 import { PublicShell } from './public-shell';
+import type { ServiceGroupLink } from './service-menu';
 import { usePublicBranches } from './use-public-branches';
 
 export interface PublicLayoutProps {
@@ -41,6 +44,26 @@ export function PublicLayout({ nav }: PublicLayoutProps) {
   const { selection } = useSelectedBranch();
   const selectedId = selection?.chiNhanhId ?? null;
   const [detail, setDetail] = useState<BranchDetail | null>(null);
+  const [serviceGroups, setServiceGroups] = useState<ServiceGroupLink[]>([]);
+
+  // Menu "Dịch vụ khám": nhóm theo chi nhánh đang chọn; bỏ nhóm "Sắp triển khai" (không bấm được, giống trang bước 1); lỗi ⇒ menu giữ "Xem tất cả dịch vụ"
+  useEffect(() => {
+    const controller = new AbortController();
+    getServiceGroups(selectedId, controller.signal)
+      .then((result) =>
+        setServiceGroups(
+          result.items
+            .filter((item) => !item.sapTrienKhai)
+            .map((item) => ({
+              id: item.nhomDichVuId,
+              label: item.ten,
+              to: serviceListPath(item.nhomDichVuId),
+            })),
+        ),
+      )
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [selectedId]);
 
   // Lấy liên hệ chân trang một lần; lỗi/mất mạng thì chân trang giữ phần tĩnh, không báo lỗi (KC-05)
   useEffect(() => {
@@ -86,6 +109,7 @@ export function PublicLayout({ nav }: PublicLayoutProps) {
       <PublicShell
         navItems={nav.navItems}
         bookingItem={nav.bookingItem}
+        serviceGroups={serviceGroups}
         loginPath={LOGIN_PATH}
         branchPicker={
           <BranchPicker
