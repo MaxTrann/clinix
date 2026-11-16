@@ -90,6 +90,13 @@ export function formatUpdatedLine(iso: string): string | null {
   return `${pad(vn.getUTCHours())}:${pad(vn.getUTCMinutes())} ${vn.getUTCDate()}/${vn.getUTCMonth() + 1}/${year}`;
 }
 
+// "10/06/2026": ngày gửi đánh giá (doctor-exam F6, Figma `424:2`), theo giờ Việt Nam; ngày và tháng đệm số 0 (khác dòng "Cập nhật lần cuối" ở trên). Chuỗi không phải ISO ⇒ `null` (nơi gọi bỏ ngày)
+export function formatRatingDate(iso: string): string | null {
+  const vn = vietnamTime(iso);
+  if (vn === null) return null;
+  return `${pad(vn.getUTCDate())}/${pad(vn.getUTCMonth() + 1)}/${vn.getUTCFullYear()}`;
+}
+
 // Năm hiện tại THEO GIỜ VIỆT NAM (31/12 lúc 17:00Z đã là 00:00 ngày 01/01 năm sau ở Việt Nam)
 export function currentYearVN(now: Date): number {
   return new Date(now.getTime() + VN_OFFSET_MS).getUTCFullYear();

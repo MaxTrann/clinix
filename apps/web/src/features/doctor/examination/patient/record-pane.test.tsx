@@ -34,6 +34,9 @@ function detail(overrides: Partial<ExamDetail> = {}): ExamDetail {
     bacSi: { hoTen: 'Nguyễn Minh Anh', chucDanh: 'ThS_BS' },
     nguoiKham: { hoTen: 'Nguyễn Văn A', quanHe: null },
     hoSoKham: NOTE,
+    // F6: chi tiết đủ chín khoá (hai khoá cuối do thẻ đánh giá dùng; ngăn của F5 không đọc)
+    danhGia: null,
+    coTheDanhGia: true,
     ...overrides,
   };
 }

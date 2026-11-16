@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { UnexpectedResponseError } from '../../../../shared/api/errors';
-import { parseExamDetail, parseExamListPage } from './patient-exam-readers';
+import {
+  parseExamDetail,
+  parseExamListPage,
+  parseRatingResult,
+} from './patient-exam-readers';
 
-// doctor-exam F5: bộ đọc CHẶT hai phản hồi của Bệnh nhân. WXH-10 (danh sách: bảy khoá mỗi dòng, 12 khoá tháng, `nguoiKham[]`), WXH-11 (chi tiết: bảy khoá F5 đọc, `hoSoKham` null hoặc sáu khoá, `danhGia` và `coTheDanhGia` bị bỏ),
+// doctor-exam F5: bộ đọc CHẶT hai phản hồi của Bệnh nhân. WXH-10 (danh sách: bảy khoá mỗi dòng, 12 khoá tháng, `nguoiKham[]`), WXH-11 (chi tiết: bảy khoá F5 đọc, `hoSoKham` null hoặc sáu khoá; F6 đọc thêm `danhGia` và `coTheDanhGia`: WDG-11 ở cuối file),
 // XHS-02 phần web (khoá nội dung hồ sơ lọt vào dòng danh sách bị bỏ), XHS-14 phần web (chữ rỗng được nhận). Hình dạng theo `patient-exam-records.dto.ts` và `patient-exam-detail.dto.ts` của api (B4, B5). Dữ liệu giả.
 const ITEM_KEYS = [
   'bacSi',
@@ -248,12 +252,14 @@ function detail(overrides: Record<string, unknown> = {}) {
 }
 
 describe('doctor-exam F5 — bộ đọc chi tiết (WXH-11)', () => {
-  it('WXH-11 phản hồi đúng ⇒ bảy khoá F5 đọc; `hoSoKham` đúng sáu khoá; `danhGia` và `coTheDanhGia` BỊ BỎ', () => {
+  it('WXH-11 phản hồi đúng ⇒ chín khoá (bảy của F5, thêm `danhGia` và `coTheDanhGia` từ F6); `hoSoKham` đúng sáu khoá', () => {
     const result = parseExamDetail(detail());
     expect(Object.keys(result).sort()).toEqual([
       'bacSi',
       'chiNhanh',
       'chuyenKhoa',
+      'coTheDanhGia',
+      'danhGia',
       'hoSoKham',
       'maLichHen',
       'nguoiKham',
@@ -268,7 +274,13 @@ describe('doctor-exam F5 — bộ đọc chi tiết (WXH-11)', () => {
       'ngayTaiKhamDuKien',
       'trieuChung',
     ]);
-    expect(JSON.stringify(result)).not.toContain('soSao');
+    // F6: hai khoá của B5 nay ĐƯỢC đọc (WDG-11 kiểm chặt hình dạng)
+    expect(result.danhGia).toEqual({
+      soSao: 5,
+      nhanXet: 'Tốt',
+      thoiDiemTao: '2026-06-11T01:00:00.000Z',
+    });
+    expect(result.coTheDanhGia).toBe(false);
   });
 
   it('WXH-11 chưa có hồ sơ (`hoSoKham: null`) và không có ngày tái khám (`null`) được nhận', () => {
@@ -360,6 +372,159 @@ describe('doctor-exam F5 — bộ đọc chi tiết (WXH-11)', () => {
     'WXH-11 phản hồi sai hình dạng (%s) ⇒ UnexpectedResponseError',
     (_name, body) => {
       expect(() => parseExamDetail(body)).toThrow(UnexpectedResponseError);
+    },
+  );
+});
+
+// doctor-exam F6, WDG-11 và WDG-12 (phần bộ đọc) [đề xuất]: `danhGia` là `null` hoặc ĐÚNG ba khoá, `coTheDanhGia` kiểu `boolean` và PHẢI bằng `danhGia === null` (B5 luôn trả như vậy: hình dạng khác là "lạ" ⇒ không dùng được); bộ đọc 201 của POST đánh giá dùng cùng hình dạng ba khoá.
+// Đánh giá bị ẩn (Q19) KHÔNG có khoá `biAn`, `lyDoAn`: nếu máy chủ gửi nhầm thì bị BỎ, web không biết và không hiện.
+const RATING = {
+  soSao: 4,
+  nhanXet: 'Bác sĩ tận tâm.',
+  thoiDiemTao: '2026-06-11T01:00:00.000Z',
+};
+
+describe('doctor-exam F6 — bộ đọc chi tiết mở rộng (WDG-11)', () => {
+  it('WDG-11 chưa đánh giá: `danhGia: null` kèm `coTheDanhGia: true`', () => {
+    const result = parseExamDetail(
+      detail({ danhGia: null, coTheDanhGia: true }),
+    );
+    expect(result.danhGia).toBeNull();
+    expect(result.coTheDanhGia).toBe(true);
+  });
+
+  it('WDG-11 đã đánh giá: đúng ba khoá, nhận xét `null` (không viết nhận xét) được nhận, nhận xét rỗng cũng được nhận', () => {
+    const result = parseExamDetail(
+      detail({ danhGia: { ...RATING, nhanXet: null }, coTheDanhGia: false }),
+    );
+    expect(result.danhGia).toEqual({ ...RATING, nhanXet: null });
+    expect(Object.keys(result.danhGia ?? {}).sort()).toEqual([
+      'nhanXet',
+      'soSao',
+      'thoiDiemTao',
+    ]);
+    expect(
+      parseExamDetail(detail({ danhGia: { ...RATING, nhanXet: '' } })).danhGia
+        ?.nhanXet,
+    ).toBe('');
+  });
+
+  it('WDG-11 năm mức sao 1 đến 5 đều nhận', () => {
+    for (const soSao of [1, 2, 3, 4, 5]) {
+      expect(
+        parseExamDetail(detail({ danhGia: { ...RATING, soSao } })).danhGia
+          ?.soSao,
+      ).toBe(soSao);
+    }
+  });
+
+  it('WDG-11 khoá lạ trong `danhGia` (`biAn`, `lyDoAn`, `bacSiId`) bị BỎ: web không có cách biết đánh giá đã ẩn (Q19)', () => {
+    const result = parseExamDetail(
+      detail({
+        danhGia: { ...RATING, biAn: true, lyDoAn: 'Spam', bacSiId: '7' },
+      }),
+    );
+    expect(Object.keys(result.danhGia ?? {}).sort()).toEqual([
+      'nhanXet',
+      'soSao',
+      'thoiDiemTao',
+    ]);
+    expect(JSON.stringify(result)).not.toContain('Spam');
+    expect(JSON.stringify(result)).not.toContain('biAn');
+  });
+
+  it('WDG-11 nhận xét NGUYÊN VĂN (HTML, emoji, xuống dòng, khoảng trắng hai đầu)', () => {
+    const text = '  <script>alert(1)</script> &amp; 😀\r\nDòng hai  ';
+    expect(
+      parseExamDetail(detail({ danhGia: { ...RATING, nhanXet: text } })).danhGia
+        ?.nhanXet,
+    ).toBe(text);
+  });
+
+  it.each([
+    ['danhGia vắng (không phải null)', detail({ danhGia: undefined })],
+    ['danhGia là mảng', detail({ danhGia: [] })],
+    ['danhGia là chuỗi', detail({ danhGia: 'x' })],
+    ['soSao vắng', detail({ danhGia: { ...RATING, soSao: undefined } })],
+    ['soSao là chuỗi "5"', detail({ danhGia: { ...RATING, soSao: '5' } })],
+    ['soSao 0', detail({ danhGia: { ...RATING, soSao: 0 } })],
+    ['soSao 6', detail({ danhGia: { ...RATING, soSao: 6 } })],
+    ['soSao 3,5', detail({ danhGia: { ...RATING, soSao: 3.5 } })],
+    ['soSao âm', detail({ danhGia: { ...RATING, soSao: -1 } })],
+    ['soSao là null', detail({ danhGia: { ...RATING, soSao: null } })],
+    ['nhanXet vắng', detail({ danhGia: { ...RATING, nhanXet: undefined } })],
+    ['nhanXet là số', detail({ danhGia: { ...RATING, nhanXet: 5 } })],
+    [
+      'thoiDiemTao vắng',
+      detail({ danhGia: { ...RATING, thoiDiemTao: undefined } }),
+    ],
+    [
+      'thoiDiemTao không phải ISO',
+      detail({ danhGia: { ...RATING, thoiDiemTao: '11/06/2026' } }),
+    ],
+    ['coTheDanhGia vắng', detail({ coTheDanhGia: undefined })],
+    ['coTheDanhGia là chuỗi "true"', detail({ coTheDanhGia: 'true' })],
+    ['coTheDanhGia là số 1', detail({ coTheDanhGia: 1 })],
+    ['coTheDanhGia là null', detail({ coTheDanhGia: null })],
+    [
+      'đã đánh giá mà vẫn `coTheDanhGia: true` (lạ)',
+      detail({ danhGia: RATING, coTheDanhGia: true }),
+    ],
+    [
+      'chưa đánh giá mà `coTheDanhGia: false` (lạ)',
+      detail({ danhGia: null, coTheDanhGia: false }),
+    ],
+  ])(
+    'WDG-11 phản hồi sai hình dạng (%s) ⇒ UnexpectedResponseError',
+    (_name, body) => {
+      expect(() => parseExamDetail(body)).toThrow(UnexpectedResponseError);
+    },
+  );
+});
+
+describe('doctor-exam F6 — bộ đọc 201 của POST đánh giá (WDG-12)', () => {
+  it('WDG-12 đúng ba khoá `soSao`, `nhanXet`, `thoiDiemTao`; nhận xét `null` được nhận', () => {
+    expect(parseRatingResult(RATING)).toEqual(RATING);
+    expect(parseRatingResult({ ...RATING, nhanXet: null }).nhanXet).toBeNull();
+    expect(Object.keys(parseRatingResult(RATING)).sort()).toEqual([
+      'nhanXet',
+      'soSao',
+      'thoiDiemTao',
+    ]);
+  });
+
+  it('WDG-12 khoá lạ bị bỏ (`bacSiId`, `biAn`, `lichHenId`)', () => {
+    const result = parseRatingResult({
+      ...RATING,
+      bacSiId: '7',
+      biAn: false,
+      lichHenId: '9',
+    });
+    expect(Object.keys(result).sort()).toEqual([
+      'nhanXet',
+      'soSao',
+      'thoiDiemTao',
+    ]);
+  });
+
+  it.each([
+    ['thân null', null],
+    ['thân là mảng', []],
+    ['thân là chuỗi', 'x'],
+    ['thiếu soSao', { ...RATING, soSao: undefined }],
+    ['soSao 0', { ...RATING, soSao: 0 }],
+    ['soSao 6', { ...RATING, soSao: 6 }],
+    ['soSao 4,5', { ...RATING, soSao: 4.5 }],
+    ['soSao là chuỗi', { ...RATING, soSao: '4' }],
+    ['thiếu nhanXet', { ...RATING, nhanXet: undefined }],
+    ['nhanXet là số', { ...RATING, nhanXet: 4 }],
+    ['thiếu thoiDiemTao', { ...RATING, thoiDiemTao: undefined }],
+    ['thoiDiemTao không phải ISO', { ...RATING, thoiDiemTao: 'hôm qua' }],
+    ['thoiDiemTao là số', { ...RATING, thoiDiemTao: 1781139600000 }],
+  ])(
+    'WDG-12 phản hồi sai hình dạng (%s) ⇒ UnexpectedResponseError',
+    (_n, body) => {
+      expect(() => parseRatingResult(body)).toThrow(UnexpectedResponseError);
     },
   );
 });

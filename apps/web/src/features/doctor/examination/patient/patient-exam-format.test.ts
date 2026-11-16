@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   currentYearVN,
   dayOfMonth,
+  formatRatingDate,
   formatReturnDate,
   formatUpdatedLine,
   formatVisitDate,
@@ -138,5 +139,32 @@ describe('doctor-exam F5 — năm, tab năm, tháng mặc định', () => {
     expect(totalCases([0, 0, 0, 0, 1, 5, 0, 0, 0, 2, 0, 0])).toBe(8);
     expect(totalCases([])).toBe(0);
     expect(monthTitle(2026, 10)).toBe('Tháng 10 2026');
+  });
+});
+
+// doctor-exam F6, WDG-16 [đề xuất]: ngày gửi đánh giá "dd/MM/yyyy" theo giờ Việt Nam (Figma `424:2`: "10/06/2026"). +07:00 CỐ ĐỊNH, KHÔNG theo múi giờ của máy: chạy lại file này dưới `TZ=UTC` và `TZ=America/New_York`
+// (đột biến M18 "ngày theo giờ máy" chỉ đỏ khi múi giờ máy khác +07).
+describe('doctor-exam F6 — ngày gửi đánh giá theo giờ Việt Nam', () => {
+  it('WDG-16 "10/06/2026" (Figma 424:2): ngày và tháng đều ĐỆM số 0 (khác dòng "Cập nhật lần cuối")', () => {
+    expect(formatRatingDate('2026-06-10T03:00:00.000Z')).toBe('10/06/2026');
+    expect(formatRatingDate('2026-06-01T03:00:00.000Z')).toBe('01/06/2026');
+    expect(formatRatingDate('2026-01-05T03:00:00.000Z')).toBe('05/01/2026');
+  });
+
+  it('WDG-16 biên nửa đêm: 17:00Z là 00:00 ngày kế ở Việt Nam, 16:59Z vẫn là ngày trước', () => {
+    expect(formatRatingDate('2026-06-10T16:59:59.000Z')).toBe('10/06/2026');
+    expect(formatRatingDate('2026-06-10T17:00:00.000Z')).toBe('11/06/2026');
+  });
+
+  it('WDG-16 qua năm và năm nhuận: 17:00Z ngày 31/12/2026 là 01/01/2027; 17:00Z ngày 28/02/2028 là 29/02/2028', () => {
+    expect(formatRatingDate('2026-12-31T17:00:00.000Z')).toBe('01/01/2027');
+    expect(formatRatingDate('2028-02-28T17:00:00.000Z')).toBe('29/02/2028');
+    expect(formatRatingDate('2027-02-28T17:00:00.000Z')).toBe('01/03/2027');
+  });
+
+  it('WDG-16 chuỗi không phải ISO 8601 ⇒ null (nơi gọi bỏ ngày, không in "NaN")', () => {
+    for (const value of ['', 'hôm qua', '2026-06-10', '10/06/2026', 'NaN']) {
+      expect(formatRatingDate(value)).toBeNull();
+    }
   });
 });

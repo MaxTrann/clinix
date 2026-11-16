@@ -58,7 +58,24 @@ export interface ExamDetailNote {
   capNhatBoi: string;
 }
 
-// Chi tiết một ca: F5 đọc bảy trong chín khoá; `danhGia` và `coTheDanhGia` do F6 đọc khi cần
+// Miền số sao (PLAN 5.7: nguyên 1 đến 5). Một nơi định nghĩa cho bộ đọc, ô sao và quy tắc
+export const RATING_MIN_STARS = 1;
+export const RATING_MAX_STARS = 5;
+
+// Đánh giá bác sĩ của một lịch (doctor-exam F6; B5 `danhGia`, B6 201): ĐÚNG ba khoá. `nhanXet` là `null` khi không viết (Q7). Đánh giá bị ẩn vẫn nguyên vẹn và KHÔNG có `biAn`, `lyDoAn` (Q19): web không biết đã ẩn
+export interface ExamRating {
+  soSao: number;
+  nhanXet: string | null;
+  thoiDiemTao: string;
+}
+
+// Thân của `POST …/rating`: `nhanXet` chỉ có khi có chữ (đã chuẩn hoá); để trống thì BỎ khoá (Q7: tuỳ chọn)
+export interface RatingBody {
+  soSao: number;
+  nhanXet?: string;
+}
+
+// Chi tiết một ca, đủ chín khoá của B5. `coTheDanhGia` luôn bằng `danhGia === null` (bộ đọc ép điều này)
 export interface ExamDetail {
   maLichHen: string;
   thoiGian: string;
@@ -67,4 +84,6 @@ export interface ExamDetail {
   bacSi: ExamDoctor;
   nguoiKham: ExamPerson;
   hoSoKham: ExamDetailNote | null;
+  danhGia: ExamRating | null;
+  coTheDanhGia: boolean;
 }

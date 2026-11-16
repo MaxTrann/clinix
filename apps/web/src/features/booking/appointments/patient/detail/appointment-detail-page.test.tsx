@@ -69,7 +69,7 @@ describe('trang chi tiết theo trạng thái', () => {
       expect(head.getByText('Nguyễn Văn A')).toBeInTheDocument();
       expect(head.getByText('Bản thân')).toBeInTheDocument();
 
-      // Thông tin lịch hẹn: có hàng Dịch vụ (thêm), không có Kênh đặt, không có Đánh giá bác sĩ (API và tính năng chưa có)
+      // Thông tin lịch hẹn: có hàng Dịch vụ (thêm), không có Kênh đặt
       expect(
         screen.getByRole('heading', { level: 2, name: 'Thông tin lịch hẹn' }),
       ).toBeInTheDocument();
@@ -79,8 +79,17 @@ describe('trang chi tiết theo trạng thái', () => {
       ).toBeInTheDocument();
       expect(screen.queryByText('Kênh đặt')).toBeNull();
       expect(screen.queryByText('Đặt trực tuyến')).toBeNull();
-      expect(screen.queryByText(/Đánh giá bác sĩ/)).toBeNull();
-      expect(screen.getByText(DETAIL_TEXT.recordNote)).toBeInTheDocument();
+      // doctor-exam F6: `HoanThanh` có thẻ "Đánh giá bác sĩ" và thẻ hồ sơ THẬT thay câu tĩnh (ở đây `exam-records` trả 404 của API giả nên hai thẻ ở trạng thái lỗi; nội dung ở `appointment-detail-exam.test.tsx`);
+      // trạng thái khác giữ câu cũ và không có thẻ đánh giá
+      if (status === 'HoanThanh') {
+        expect(
+          screen.getByRole('heading', { level: 2, name: 'Đánh giá bác sĩ' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(DETAIL_TEXT.recordNote)).toBeNull();
+      } else {
+        expect(screen.queryByText(/Đánh giá bác sĩ/)).toBeNull();
+        expect(screen.getByText(DETAIL_TEXT.recordNote)).toBeInTheDocument();
+      }
 
       // Chi phí
       expect(

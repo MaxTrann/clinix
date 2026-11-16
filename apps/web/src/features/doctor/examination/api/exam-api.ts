@@ -1,11 +1,17 @@
 import { request } from '../../../../shared/api/client';
 import { UnexpectedResponseError } from '../../../../shared/api/errors';
 import type { ExamRecordNote, SaveBody } from '../exam-record-form';
-import { parseExamDetail, parseExamListPage } from './patient-exam-readers';
+import {
+  parseExamDetail,
+  parseExamListPage,
+  parseRatingResult,
+} from './patient-exam-readers';
 import type {
   ExamDetail,
   ExamListPage,
   ExamListQuery,
+  ExamRating,
+  RatingBody,
 } from './patient-exam-types';
 
 // Hợp đồng `POST /doctor/appointments/:maLichHen/complete` (doctor-exam B1, PLAN 5.4, Q5): thân rỗng; 200 `{ maLichHen, trangThai: 'HoanThanh' }`. Lỗi: 404 `KHONG_TIM_THAY`, 409
@@ -119,4 +125,19 @@ export async function getPatientExamDetail(
     { signal },
   );
   return parseExamDetail(body);
+}
+
+// Hợp đồng `POST /patient/exam-records/:maLichHen/rating` (doctor-exam B6, PLAN 5.7; Q7, Q19): thân `{ soSao, nhanXet? }`; 201 đúng ba khoá `{ soSao, nhanXet (null khi trống), thoiDiemTao }`. Lỗi: 400 `DU_LIEU_KHONG_HOP_LE` kèm `loi[{ truong, ma }]`, 404
+// `KHONG_TIM_THAY`, 409 `LICH_HEN_CHUA_HOAN_THANH`, 409 `DA_DANH_GIA`, 503 `HE_THONG_DANG_BAN`, 403, 401. API KHÔNG idempotent: gửi lần hai (bấm đúp, mất mạng rồi gửi lại) nhận 409 `DA_DANH_GIA`, nên nơi gọi KHÔNG BAO GIỜ tự gửi lại.
+// Mã lịch đi qua `encodeURIComponent`. 201 sai hình dạng ⇒ `UnexpectedResponseError`: nơi gọi coi là "chưa rõ" (máy chủ có thể đã lưu), KHÔNG phải thành công. Nhận xét là dữ liệu của người dùng: không vào log hay URL (chỉ nằm trong thân gửi đi).
+export async function submitRating(
+  maLichHen: string,
+  body: RatingBody,
+  signal?: AbortSignal,
+): Promise<ExamRating> {
+  const created = await request<unknown>(
+    `/patient/exam-records/${encodeURIComponent(maLichHen)}/rating`,
+    { method: 'POST', json: body, signal },
+  );
+  return parseRatingResult(created);
 }

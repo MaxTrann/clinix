@@ -35,7 +35,7 @@ export function DetailInfoCard({
   );
 }
 
-// Chữ tĩnh của Figma: hồ sơ khám do `doctor` ghi (`ho_so_kham` chưa có), không có dữ liệu nào để hiện
+// Chữ tĩnh của Figma, CHỈ còn dùng cho lịch chưa `HoanThanh` (chưa có hồ sơ để hiện): với `HoanThanh` thẻ này được thay bằng thẻ hồ sơ THẬT của module `doctor` (doctor-exam F6, `PatientExamSections`)
 export function RecordCard() {
   return (
     <DetailCard icon={Stethoscope} title={DETAIL_TEXT.recordTitle}>

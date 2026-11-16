@@ -1,15 +1,18 @@
 import { UnexpectedResponseError } from '../../../../shared/api/errors';
-import type {
-  ExamDetail,
-  ExamDetailNote,
-  ExamDoctor,
-  ExamListItem,
-  ExamListPage,
-  ExamPerson,
-  ExamineeOption,
+import {
+  RATING_MAX_STARS,
+  RATING_MIN_STARS,
+  type ExamDetail,
+  type ExamDetailNote,
+  type ExamDoctor,
+  type ExamListItem,
+  type ExamListPage,
+  type ExamPerson,
+  type ExamRating,
+  type ExamineeOption,
 } from './patient-exam-types';
 
-// Bộ đọc CHẶT hai phản hồi của Bệnh nhân (doctor-exam F5; WXH-10, WXH-11; như F2, F4): chép từng khoá cần dùng, khoá lạ bị BỎ (kể cả nội dung hồ sơ lọt vào dòng danh sách: XHS-02 phần web),
+// Bộ đọc CHẶT các phản hồi của Bệnh nhân (doctor-exam F5; WXH-10, WXH-11; F6: WDG-11, WDG-12; như F2, F4): chép từng khoá cần dùng, khoá lạ bị BỎ (kể cả nội dung hồ sơ lọt vào dòng danh sách: XHS-02 phần web),
 // thiếu khoá hay sai kiểu ở BẤT KỲ chỗ nào ⇒ `UnexpectedResponseError` ⇒ hộp lỗi có `Thử lại`, không vẽ dữ liệu dở dang. Hàm thuần, không đụng DOM.
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -134,9 +137,38 @@ function readNote(value: unknown): ExamDetailNote | null {
   };
 }
 
-// `danhGia` và `coTheDanhGia` (B5) không được đọc ở F5: bị bỏ như mọi khoá lạ. `hoSoKham` phải là `null` hoặc đối tượng đủ sáu khoá (vắng khoá ⇒ lỗi, không đoán "chưa có hồ sơ").
+// Số sao: nguyên 1 đến 5 (không chuỗi "5", không 3,5, không null)
+function readStars(value: unknown): number {
+  return typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= RATING_MIN_STARS &&
+    value <= RATING_MAX_STARS
+    ? value
+    : fail();
+}
+
+// Đánh giá (doctor-exam F6; WDG-11, WDG-12): ĐÚNG ba khoá, khoá lạ (`biAn`, `lyDoAn`, `bacSiId`) bị BỎ. `nhanXet` phải có mặt (chuỗi hoặc `null`): vắng khoá là sai hình dạng, không đoán "không có nhận xét".
+function readRating(value: unknown): ExamRating {
+  const rating = readObject(value);
+  return {
+    soSao: readStars(rating.soSao),
+    nhanXet: readNullableString(rating.nhanXet),
+    thoiDiemTao: readIsoDateTime(rating.thoiDiemTao),
+  };
+}
+
+// 201 của `POST …/rating` có cùng hình dạng với `danhGia` của chi tiết (B6)
+export function parseRatingResult(body: unknown): ExamRating {
+  return readRating(body);
+}
+
+// `hoSoKham` phải là `null` hoặc đối tượng đủ sáu khoá (vắng khoá ⇒ lỗi, không đoán "chưa có hồ sơ"). F6 đọc thêm `danhGia` (`null` hoặc đủ ba khoá) và `coTheDanhGia` (`boolean`); B5 luôn trả `coTheDanhGia === (danhGia === null)`, nên
+// cặp trái nhau là hình dạng LẠ ⇒ lỗi, không đoán bên nào đúng (nút `Đánh giá ngay` dựa vào cờ này).
 export function parseExamDetail(body: unknown): ExamDetail {
   const detail = readObject(body);
+  const danhGia = detail.danhGia === null ? null : readRating(detail.danhGia);
+  const coTheDanhGia = readBoolean(detail.coTheDanhGia);
+  if (coTheDanhGia !== (danhGia === null)) fail();
   return {
     maLichHen: readFilled(detail.maLichHen),
     thoiGian: readIsoDateTime(detail.thoiGian),
@@ -145,5 +177,7 @@ export function parseExamDetail(body: unknown): ExamDetail {
     bacSi: readDoctor(detail.bacSi),
     nguoiKham: readPerson(detail.nguoiKham),
     hoSoKham: readNote(detail.hoSoKham),
+    danhGia,
+    coTheDanhGia,
   };
 }
