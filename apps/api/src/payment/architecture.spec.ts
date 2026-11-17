@@ -9,6 +9,7 @@ import {
 import { Public } from '../auth/decorators/public.decorator.js';
 import { DepositPaymentController } from './deposit/deposit-payment.controller.js';
 import { PatientWalletController } from '../wallet/balance/patient-wallet.controller.js';
+import { PaymentPolicyController } from './policy/payment-policy.controller.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import {
   findForbiddenSql,
@@ -215,6 +216,10 @@ describe('QTT-01 mọi route có @Roles hợp lệ; @Public chỉ ở route IPN 
         DepositPaymentController,
       ]),
     ).toEqual([]);
+  });
+
+  it('controller THẬT của cấu hình chính sách cọc (B10, CSD-14): mọi route có @Roles hợp lệ, không @Public', () => {
+    expect(findPaymentRouteViolations([PaymentPolicyController])).toEqual([]);
   });
 
   it('danh sách @Public cho phép không vượt trần hai route IPN', () => {
