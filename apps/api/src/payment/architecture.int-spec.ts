@@ -11,6 +11,7 @@ import { PaymentRecorder } from './ports/payment-recorder.js';
 import { PaymentSummaryReader } from './ports/payment-summary.reader.js';
 import { PaymentPortsModule } from './ports/payment-ports.module.js';
 import { WalletBalanceReader } from '../wallet/balance/wallet-balance.reader.js';
+import { RefundService } from '../wallet/refund/refund.service.js';
 import { WalletLedger } from '../wallet/ledger/wallet-ledger.js';
 import { WalletModule } from '../wallet/wallet.module.js';
 
@@ -54,12 +55,13 @@ describe('QTT-11 cây import của AppModule có payment', () => {
     }
   });
 
-  it('WalletModule nhập PaymentPortsModule MỘT chiều (Q22): PaymentPortsModule không nhập lại WalletModule; WalletModule chỉ xuất WalletLedger và WalletBalanceReader (B1)', () => {
+  it('WalletModule nhập PaymentPortsModule MỘT chiều (Q22): PaymentPortsModule không nhập lại WalletModule; WalletModule chỉ xuất WalletLedger, WalletBalanceReader (B1) và RefundService (B8)', () => {
     expect(importsOf(WalletModule)).toEqual([PaymentPortsModule]);
     expect(importsOf(PaymentPortsModule)).not.toContain(WalletModule);
     expect(Reflect.getMetadata('exports', WalletModule) as unknown[]).toEqual([
       WalletLedger,
       WalletBalanceReader,
+      RefundService,
     ]);
   });
 });

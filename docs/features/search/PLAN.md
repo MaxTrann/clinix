@@ -34,7 +34,7 @@
 cho TCBS b1–b2, trang chủ (Q21) và ô tìm kiếm tổng "Trang chủ - Tìm kiếm" (Q20).
 
 **`[SAU]` — không làm trong đợt này (nhóm quyết "phần khung giờ để sau"):** TCBS b7, b10, b11–b14 (tính trạng thái khung giờ, hiển thị khung giờ, chuyển sang "Đặt lịch khám"),
-A2 (đăng ký chờ), A3 (bác sĩ không có lịch ngày đã chọn), A4 (Khách vãng lai chọn khung giờ → đăng nhập → khôi phục lựa chọn), bộ chọn "ngày muốn khám" của b4–b5.
+A2 (đăng ký chờ), A3 (bác sĩ không có lịch ngày đã chọn), A4 (Khách vãng lai chọn khung giờ → đăng nhập → khôi phục lựa chọn), bộ chọn "ngày muốn khám" của b4–b5. **Đã làm phần web (K2) ở Search UI PR-C2, 17/11/2026 (TRACKING mục 10):** dải "Ngày khám" 7 ngày, lưới khung giờ ở ba trang (chuyên khoa, Đội ngũ bác sĩ, Bước 3), b10 (bấm giờ `ConTrong` sang Bước 4 với `?khungGioId=`, chưa giữ chỗ), A3, A4 (khách chưa đăng nhập đi qua cổng có sẵn, `from` giữ `khungGioId`); còn `[SAU]`: A2 đăng ký chờ (K4) và tab Lịch khám của chi tiết bác sĩ.
 Các task này ghi ở mục 6.6 kèm điều kiện để làm. API thiết kế sao cho phần khung giờ **cắm thêm endpoint mới**, không đổi hợp đồng đã có (mục 5.6).
 
 **Cập nhật 17/11/2026 (Search Slots PR-C1):** API khung giờ công khai đã làm (K1): TCBS b7, b11–b14 và phần API của b10, A3 (backend; mục 5.5, 5.6, TRACKING mục 9). Còn `[SAU]`: web (K2 ở PR-C2: dải 7 ngày, lưới khung giờ, A3/7b), chuyển sang Đặt lịch (K3, phần web của b10), A4, đăng ký chờ A2 (K4).
@@ -275,15 +275,15 @@ Frame đã đọc: "Trang chủ" `257:2`, "Trang chủ - Tìm kiếm" `258:2`, "
 - **Chuyên khoa** (`217:2`): breadcrumb; "Khám chuyên khoa"; "8 chuyên khoa, 7 chuyên khoa hiện đã có bác sĩ."; ô "Tìm chuyên khoa, ví dụ: tim mạch"; lưới thẻ (ảnh minh hoạ, tên, mô tả 2 dòng, "N bác sĩ"/"Sắp có bác sĩ").
   **Không có** bộ lọc chi nhánh hay trạng thái (Q1, Q5).
 - **Chi tiết chuyên khoa** (`259:2`): ảnh, tên, mô tả, "2 bác sĩ", "Giá khám từ 350.000đ · cọc 100.000đ", nút "Đặt lịch khám"; "Bác sĩ chuyên khoa …": dải 7 ngày, thẻ bác sĩ bên trái (ảnh, chuyên khoa, tên, sao +
-  "(1 đánh giá)"/"Chưa có đánh giá", "12 năm kinh nghiệm", chi nhánh, "Giá khám", "Cọc", "Xem hồ sơ", "Nhắn tin") và khung giờ bên phải (`[SAU]`; trạng thái "Bác sĩ không có lịch làm việc ngày này" = A3).
-- **Đội ngũ bác sĩ** (`260:2`): ô "Tìm theo tên bác sĩ hoặc chuyên khoa", chọn "Tất cả chuyên khoa", "Chi nhánh — Tất cả chi nhánh", "Ngày khám" (dải 7 ngày — `[SAU]`); "12 bác sĩ · lịch Hôm nay 18/10"; thẻ như trên.
+  "(1 đánh giá)"/"Chưa có đánh giá", "12 năm kinh nghiệm", chi nhánh, "Giá khám", "Cọc", "Xem hồ sơ", "Nhắn tin") và khung giờ bên phải (đã làm ở Search UI PR-C2; trạng thái "Bác sĩ không có lịch làm việc ngày này" = A3).
+- **Đội ngũ bác sĩ** (`260:2`): ô "Tìm theo tên bác sĩ hoặc chuyên khoa", chọn "Tất cả chuyên khoa", "Chi nhánh — Tất cả chi nhánh", "Ngày khám" (dải 7 ngày — đã làm ở Search UI PR-C2); "12 bác sĩ · lịch Hôm nay 18/10"; thẻ như trên.
   **Không có** lọc giá, đánh giá, dịch vụ (Q11, Q12).
 - **Chi tiết bác sĩ** (`653:2`–`658:2`): đầu trang (tên, chuyên khoa, điểm, kinh nghiệm, "30 phút/lượt", chi nhánh, giá, cọc); tab Lịch khám (`[SAU]`), Giới thiệu (mô tả chuyên môn + "Nội dung minh họa"),
   Phòng khám (địa chỉ, giờ làm việc), Hướng dẫn (5 bước đặt khám, tĩnh), Đánh giá (phân bố sao, nhận xét kèm tên người đánh giá — `[SAU]`, Q16); khối phải "Thông tin khám" (dịch vụ, giá, cọc, thời gian/lượt,
   **"Đặt trước tối đa 7 ngày"** — L14), "Nhắn tin với bác sĩ", "Địa chỉ phòng khám", "Hỗ trợ đặt lịch"; câu "Bạn cần đăng nhập để hoàn tất đặt lịch…" (A4 — `[SAU]`).
 - **Đặt lịch khám - Bước 1–3** (`444:2`–`446:2`, khung Bệnh nhân có thanh bước 1–6): Bước 1 thẻ nhóm dịch vụ ("Chưa thể đặt lịch online cho nhóm này" cho nhóm sắp triển khai); Bước 2 danh sách dịch vụ của nhóm
   (mô tả, "Giá dịch vụ", "Cọc"/"Không cần cọc", "Phụ phí bác sĩ (nếu có) sẽ được cộng thêm…"); Bước 3 "Dịch vụ: Tim mạch", dải ngày, thẻ bác sĩ + khung giờ chia "Buổi sáng"/"Buổi chiều", 4 trạng thái,
-  "Không có chi nhánh nào cung cấp dịch vụ này vào ngày …" (`[SAU]`). Đây là cơ sở của Q10.
+  "Không có chi nhánh nào cung cấp dịch vụ này vào ngày …" (`[SAU]`, KHÔNG làm ở Search UI PR-C2: cần dữ liệu cấp dịch vụ mà API khung giờ không có, TRACKING mục 10.2 Y4). Đây là cơ sở của Q10.
 - **Lệch WCAG 2.2 AA cần nhóm sửa Figma (Q26, đo khi làm FE bằng màu thật):** chữ trắng trên nút cam "Đặt lịch khám"/"Tìm kiếm"; chữ vàng trên nền xanh ngọc của hero; chữ xám nhạt "Vui lòng chọn ngày khác",
   "Chưa có đánh giá"; nhãn "Sắp có bác sĩ" xám trên xám; chữ cam "Cọc …" trên nền vàng nhạt.
 - **Phải bỏ/sửa theo quyết định đã chốt:** "Đặt trước tối đa 7 ngày" (quy tắc 38); "Giữ chỗ 15 phút" ghi cứng (cấu hình `thoi_gian_giu_cho`); ảnh chân dung bác sĩ (Q14); giờ ghi cứng ở chân trang (Q19e).
@@ -513,7 +513,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 03/11/2026: *
 | ID | Việc | Điều kiện bắt đầu | Truy vết |
 |---|---|---|---|
 | K1 | Endpoint đọc khung giờ (5.6) gọi **bộ tính khung giờ dùng chung** (chủ theo Q18); bỏ khung trùng nghỉ phép đã duyệt; ngày chi nhánh nghỉ ⇒ `ChiNhanhNghi` + thứ; quá giờ ⇒ `HetHan` (`nowVN()`); ô ngoài giờ nhận khám hiện hành bị ẨN, không ném lỗi (KGI-05); xử lý H12 | `doctor` có `lich_lam_viec` thật; migration `yeu_cau_nghi_phep`; `booking` có giữ chỗ (`DangGiuCho`) và bộ tính khung giờ; Q18 đã chốt | TCBS b7, b11–b14, A3/7a — **ĐÃ LÀM (backend) ở Search Slots PR-C1, 17/11/2026** (`GET /public/doctor-slots`, mục 5.6; kết quả ở TRACKING mục 9) |
-| K2 | FE: dải 7 ngày (mặc định "ngày gần nhất" — Q18), khung giờ theo buổi, 4 trạng thái (rõ/mờ/không bấm được), "Bác sĩ không có lịch khám ngày này" / "Chi nhánh nghỉ vào Thứ …" + gợi ý đổi ngày | K1 | TCBS b4–b5 (ngày), b8 (khung giờ), A3/7b |
+| K2 | **☑ phần web đã làm ở Search UI PR-C2 (17/11/2026, TRACKING mục 10); thẻ Bước 3 chỉ có lưới, KHÔNG có thanh "Đã chọn … Tiếp tục" của Figma `447:2`, `448:2` (T5).** FE: dải 7 ngày (mặc định "ngày gần nhất" — Q18), khung giờ theo buổi, 4 trạng thái (rõ/mờ/không bấm được), "Bác sĩ không có lịch làm việc ngày này" (nguyên văn Figma) / "Chi nhánh nghỉ vào Thứ …" + gợi ý đổi ngày | K1 | TCBS b4–b5 (ngày), b8 (khung giờ), A3/7b |
 | K3 | Bấm khung Còn trống ⇒ "Đặt lịch khám" điền sẵn (b10); Khách vãng lai: giữ tạm lựa chọn, chuyển Đăng nhập/Đăng ký, khôi phục sau khi xong (A4) — **cùng cơ chế** với "Trò chuyện với Trợ lý AI" A6 | K2; `booking` có trang đặt lịch; cơ chế lưu tạm lựa chọn đã chốt (dùng chung với Trợ lý AI); auth hỗ trợ quay lại trang sau đăng nhập | TCBS b10, A4 |
 | K4 | Bấm khung Đã đặt/Đang giữ chỗ ⇒ popup xác nhận đăng ký chờ cho ca chứa khung đó ⇒ "Đăng ký chờ và phản hồi lời mời" điền sẵn; huỷ ⇒ đóng popup | K2; module `waitlist` | TCBS A2/8a–8c |
 | K5 | Đổi `DoctorRatingReader` sang bảng thật (chỉ `bi_an = false`); tab "Đánh giá" danh sách nhận xét (trường do module đánh giá quyết) | Migration `danh_gia_bac_si` (chủ theo Q16) | TCBS b8, b9 (điểm đánh giá) |
@@ -686,7 +686,7 @@ Loại: **U** = unit, **I** = tích hợp MySQL thật (`*.int-spec.ts`), **E** 
 | KGI-01 | Ca 07:30–12:00, dịch vụ 50 phút | 07:30–08:20, 08:20–09:10, …; phần dư cuối ca không sinh khung | TCBS b11 |
 | KGI-02 | Khung `DaDat`, `DangGiuCho`, đã qua giờ (`nowVN()` giả) | Trả đủ 4 trạng thái; quá giờ ⇒ `HetHan` | TCBS b12–b14 |
 | KGI-03 | Nghỉ phép đã duyệt cả ngày / theo ca; nghỉ phép chờ duyệt | Khung trùng nghỉ đã duyệt HOẶC chờ duyệt không hiện (doctor Q1: `ChoDuyet` cũng chặn); mọi ca bị phủ ⇒ `KhongCoLich` (`NghiPhep` của reader được gộp, Đại chọn 17/11/2026), không lộ lý do | TCBS b7, b12 (sửa 17/11/2026: bản cũ ghi "chờ duyệt không ảnh hưởng") |
-| KGI-04 | Chi nhánh nghỉ / thứ chưa khai báo / không có lịch làm việc | `ChiNhanhNghi` + thứ / như nghỉ `[Q4]` / `KhongCoLich`; FE "Chi nhánh nghỉ vào Thứ …" / "Bác sĩ không có lịch khám ngày này" | TCBS A3/7a–7b |
+| KGI-04 | Chi nhánh nghỉ / thứ chưa khai báo / không có lịch làm việc | `ChiNhanhNghi` + thứ / như nghỉ `[Q4]` / `KhongCoLich`; FE "Chi nhánh nghỉ vào Thứ …" / "Bác sĩ không có lịch làm việc ngày này" (nguyên văn Figma, sửa ở Search UI PR-C2) | TCBS A3/7a–7b |
 | KGI-05 | Dữ liệu lịch làm việc không hợp lệ | Reader ẨN ô ngoài giờ nhận khám hiện hành thay vì ném lỗi; endpoint không có lỗi này (`[ĐỒNG BỘ TL]` 2.4 b14: Đại tự sửa, 17/11/2026) | TCBS b14 |
 | KGI-06 | Bấm Còn trống (đã đăng nhập / Khách vãng lai) | Sang "Đặt lịch khám" điền sẵn / đăng nhập rồi khôi phục lựa chọn | TCBS b10, A4 |
 | KGI-07 | Bấm Đã đặt/Đang giữ chỗ; xác nhận / huỷ popup | Sang đăng ký chờ điền sẵn bác sĩ/ngày/ca / đóng popup | TCBS A2 |
