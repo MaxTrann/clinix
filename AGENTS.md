@@ -77,6 +77,8 @@ Nếu issue hoặc plan dẫn tới thứ không có trong repo (ví dụ đoạ
 6. Cấu hình mới → `.env.example`. Lối tắt kỹ thuật → `docs/TECH_DEBT.md`.
 7. **`AI_USAGE_LOG.md`**: người dùng ghi một dòng (bảng 1) cho mỗi lần dùng AI có ảnh hưởng repo — công cụ ghi đúng tên (ví dụ "Codex" kèm model), người dùng là chính họ; lỗi AI
    phát hiện ghi bảng 2 kèm mã `AI-BUG-nnn` trong commit sửa. Bạn **nhắc** và có thể soạn nháp dòng này; **chỉ sửa file khi người dùng đồng ý**.
+   **Ngoại lệ đã được cho phép (04/11/2026):** khi người dùng là Trung (`junUTE`), bạn **tự ghi** dòng mới vào `TRUNG_AI_USAGE_LOG.md` (bảng 1, mục mới nhất ở đầu bảng,
+   số mục kế tiếp; công cụ ghi đúng tên + model; chỉ ghi việc thật đã làm và kết quả kiểm chứng thật, không bịa). Không tự sửa `AI_USAGE_LOG.md` của Đại.
 8. Cuối phiên, báo: file đã đổi, test đã chạy và kết quả, tài liệu đã/chưa đồng bộ, câu hỏi còn mở, **gợi ý** tiêu đề commit/PR.
 
 **Commit/PR:** Conventional Commits, tiêu đề PR = commit cuối (squash). Ví dụ `feat(admin): thêm quản lý chuyên khoa`. Scope hợp lệ (`commitlint.config.cjs`):
