@@ -23,7 +23,7 @@ beforeAll(async () => {
   service = new PublicDoctorService(
     new PublicDoctorRepository(db, prices),
     prices,
-    new DoctorRatingReader(),
+    new DoctorRatingReader(db),
   );
 });
 beforeEach(async () => {
