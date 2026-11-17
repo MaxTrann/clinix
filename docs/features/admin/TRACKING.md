@@ -740,3 +740,19 @@ Chưa có lỗi nào đủ nặng để đánh mã AI-BUG (đều bị chính te
 - **Hàng AI log 138** `[đề xuất]` (chèn khi mở PR: Đại chọn 17/11/2026 để phiên kiểm chèn đúng thứ tự; ô PR và squash còn `[cần điền]`, điền ở PR kế tiếp, không push bổ sung; Đại KHÔNG đánh mã AI-BUG-057): nháp ở scratchpad, 10 ô, kèm script chèn chạy khô.
 - **Nhắc `[ĐỒNG BỘ TL]` ngoài repo (Đại hoặc Trung làm):** use case 2.4 và test case Word `DV b4` ở repo `TLCN_CLINIX` (biên giá 0,01 cũ; luật mới số nguyên đồng, biên 1); test case Word của cột "Số dịch vụ" (trước là "—", nay là số thật); Figma không có trạng thái cho cột này.
 - **Việc còn nợ:** F6b (sửa lịch chi nhánh đã có, tái dùng `TimeInput24` và panel Áp dụng nhanh); quy tắc focus toàn cục (TECH_DEBT 169, PR `focus-global`); hai ý hỏi Trung ở 8.7 (biên giá 1 đồng; nút Xóa nhóm vẫn bấm được khi nhóm còn dịch vụ); `[cần điền]` số PR, hash commit, số chính thức khi gộp.
+
+## 9. Cụm 4 đến 9, làm chung Đại và Trung (từ 17/11/2026)
+
+Quy ước và phân công: [`PHAN_CONG_CHUNG.md`](PHAN_CONG_CHUNG.md); issue ở milestone `admin` (epic 497 đến 501, task 502 đến 528). Mỗi task thêm MỘT mục con trong phần của người làm task (`9A.n` cho Đại, `9B.n` cho Trung); không sửa phần của người kia. Đại chèn mục mới ngay trước dòng đánh dấu hết phần của Đại; Trung thêm ở cuối file.
+
+### 9A. Phần của Đại (cụm 4 Cấu hình hệ thống, cụm 6 Nhân sự và kích hoạt, cụm 7 Tài khoản)
+
+Chưa có mục nào.
+
+<!-- HẾT PHẦN CỦA ĐẠI -->
+
+### 9B. Phần của Trung (cụm 8 Hồ sơ bác sĩ, cụm 9 Yêu cầu thay đổi chi nhánh)
+
+Phần này nằm ở cuối file: Trung thêm mục con mới (`9B.n`) ngay sau mục con trước, không chèn vào giữa file.
+
+Chưa có mục nào.

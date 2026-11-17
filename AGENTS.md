@@ -77,6 +77,8 @@ Nếu issue hoặc plan dẫn tới thứ không có trong repo (ví dụ đoạ
 6. Cấu hình mới → `.env.example`. Lối tắt kỹ thuật → `docs/TECH_DEBT.md`.
 7. **`AI_USAGE_LOG.md`**: người dùng ghi một dòng (bảng 1) cho mỗi lần dùng AI có ảnh hưởng repo — công cụ ghi đúng tên (ví dụ "Codex" kèm model), người dùng là chính họ; lỗi AI
    phát hiện ghi bảng 2 kèm mã `AI-BUG-nnn` trong commit sửa. Bạn **nhắc** và có thể soạn nháp dòng này; **chỉ sửa file khi người dùng đồng ý**.
+   **Ngoại lệ đã được cho phép (04/11/2026):** khi người dùng là Trung (`junUTE`), bạn **tự ghi** dòng mới vào `TRUNG_AI_USAGE_LOG.md` (bảng 1, mục mới nhất ở đầu bảng,
+   số mục kế tiếp; công cụ ghi đúng tên + model; chỉ ghi việc thật đã làm và kết quả kiểm chứng thật, không bịa). Không tự sửa `AI_USAGE_LOG.md` của Đại.
 8. Cuối phiên, báo: file đã đổi, test đã chạy và kết quả, tài liệu đã/chưa đồng bộ, câu hỏi còn mở, **gợi ý** tiêu đề commit/PR.
 
 **Commit/PR:** Conventional Commits, tiêu đề PR = commit cuối (squash). Ví dụ `feat(admin): thêm quản lý chuyên khoa`. Scope hợp lệ (`commitlint.config.cjs`):
@@ -89,6 +91,7 @@ Tiêu đề ≤ 100 ký tự. PR cần **người còn lại approve** và CI xa
 - Đừng sửa file thuộc module của người kia nếu không cần; cần thì nói trước. Chỗ **dùng chung dễ xung đột**: `docs/database/*`, `.env.example`, `docker-compose*.yml`,
   `.github/workflows/*`, `apps/web/nginx.conf`, `package.json`/lock. Giữ PR nhỏ, `git pull` bản mới trước khi bắt đầu, và báo người kia khi đổi các file này.
 - Phối hợp thứ tự migration/đổi schema với `auth` (plan admin mục 3.3, 6.6).
+- **Phần admin còn lại (cụm 4 đến 9, milestone `admin`)**: Đại và Trung cùng làm theo `docs/features/admin/PHAN_CONG_CHUNG.md` (chia task, thư mục riêng, file dùng chung, cách giảm xung đột); đọc trước khi chạm module `admin`.
 
 ## 7. Những lỗi AI đã từng mắc ở repo này (đừng lặp lại)
 
