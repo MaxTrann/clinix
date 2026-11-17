@@ -15,7 +15,8 @@ describe('B3 service — DV-08/14/15/16/20', () => {
     nhomDichVuId: '1',
     ten: 'Khám tổng quát',
     thoiLuong: 30,
-    giaMacDinh: '100.00',
+    // Dòng đọc từ DB: cột decimal(12,2) luôn trả hai số lẻ
+    giaMacDinh: '100000.00',
   };
   const manager = {} as EntityManager;
   const transaction = () =>
@@ -32,7 +33,7 @@ describe('B3 service — DV-08/14/15/16/20', () => {
         nhomDichVuId: '1',
         ten: 'Mới',
         thoiLuong: 30,
-        giaMacDinh: '100.00',
+        giaMacDinh: '100000',
       }),
     ).toThrow('KHONG_DU_QUYEN');
     expect(() => service.update(branch, '5', { ten: 'Mới' })).toThrow(
@@ -92,12 +93,12 @@ describe('B3 service — DV-08/14/15/16/20', () => {
       ...current,
       tenNhom: 'Nhóm',
       ten: 'Tên mới',
-      giaMacDinh: '200.00',
+      giaMacDinh: '200000.00',
     });
 
     await expect(
-      service.update(system, '5', { ten: 'Tên mới', giaMacDinh: '200.00' }),
-    ).resolves.toMatchObject({ ten: 'Tên mới', giaMacDinh: '200.00' });
+      service.update(system, '5', { ten: 'Tên mới', giaMacDinh: '200000' }),
+    ).resolves.toMatchObject({ ten: 'Tên mới', giaMacDinh: '200000.00' });
     expect(active).not.toHaveBeenCalled();
     expect(future).not.toHaveBeenCalled();
   });
@@ -120,7 +121,7 @@ describe('B3 service — DV-08/14/15/16/20', () => {
         nhomDichVuId: '1',
         ten: 'Mẫu',
         thoiLuong: 30,
-        giaMacDinh: '100.00',
+        giaMacDinh: '100000',
       }),
     ).rejects.toMatchObject({ status: 409, maLoi: 'TEN_DICH_VU_TRUNG' });
 
@@ -132,7 +133,7 @@ describe('B3 service — DV-08/14/15/16/20', () => {
         nhomDichVuId: '1',
         ten: 'Mẫu',
         thoiLuong: 30,
-        giaMacDinh: '100.00',
+        giaMacDinh: '100000',
       }),
     ).rejects.toBe(unrelated);
   });
@@ -153,7 +154,7 @@ describe('B3 service — DV-08/14/15/16/20', () => {
         nhomDichVuId: '1',
         ten: 'Mẫu',
         thoiLuong: 30,
-        giaMacDinh: '100.00',
+        giaMacDinh: '100000',
       }),
     ).rejects.toMatchObject({
       status: 400,
@@ -188,5 +189,29 @@ describe('B3 service — DV-08/14/15/16/20', () => {
       { nhomDichVuId: '2', thoiLuong: 45 },
       'Khám tổng quát',
     );
+  });
+
+  // PR3-A02: sửa dịch vụ không đổi giá thì KHÔNG bắt nhập lại giá, và cũng không ghi đè giá cũ (có thể còn phần lẻ trong DB)
+  it('PR3-A02: PATCH không gửi giá thì câu UPDATE không đụng gia_mac_dinh; có gửi thì ghi đúng chuỗi', async () => {
+    const row = { ...current, tenNhom: 'Nhóm' };
+    const query = vi.fn().mockResolvedValue([row]);
+    const fake = { query } as unknown as EntityManager;
+
+    await repo.update(fake, '5', '1', { ten: 'Tên mới' }, 'Tên mới');
+    const [withoutPrice, withoutPriceParameters] = query.mock.calls[0] as [
+      string,
+      unknown[],
+    ];
+    expect(withoutPrice).not.toContain('gia_mac_dinh');
+    expect(withoutPriceParameters).toEqual(['1', 'Tên mới', '5']);
+
+    query.mockClear();
+    await repo.update(fake, '5', '1', { giaMacDinh: '150000' }, 'Khám');
+    const [withPrice, withPriceParameters] = query.mock.calls[0] as [
+      string,
+      unknown[],
+    ];
+    expect(withPrice).toContain('gia_mac_dinh=?');
+    expect(withPriceParameters).toEqual(['1', '150000', '5']);
   });
 });

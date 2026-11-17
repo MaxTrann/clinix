@@ -95,4 +95,11 @@ describe('B2 DTO — DV-01/02/04/16', () => {
     for (const id of ['0', '-1', '01', '1.5', 'x', '9223372036854775808', 1])
       await expect(parse(ServiceGroupIdDto, { id })).rejects.toThrow();
   });
+  // PR3-A08 (bài học K3): MySQL tự ép chuỗi như '1abc' hay ' 2' về số, nên id phải bị DTO chặn TRƯỚC khi tới câu SQL
+  it.each(['1abc', ' 2', '2 ', '1e0', '3.0', '', '+1', '0x1'])(
+    'PR3-A08: ID nhóm %j không qua DTO',
+    async (id) => {
+      await expect(parse(ServiceGroupIdDto, { id })).rejects.toThrow();
+    },
+  );
 });

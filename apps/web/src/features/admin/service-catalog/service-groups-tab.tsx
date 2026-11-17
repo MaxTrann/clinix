@@ -203,11 +203,8 @@ export function ServiceGroupsTab({ canEdit }: { canEdit: boolean }) {
                         <td className="px-[15px] py-[11.25px] text-[13.125px] font-medium">
                           {group.ten}
                         </td>
-                        <td
-                          className="px-[15px] py-[11.25px] text-center text-[13.125px] text-text-muted"
-                          title="API B2 chưa trả số dịch vụ theo nhóm"
-                        >
-                          —<span className="sr-only">Chưa có từ API</span>
+                        <td className="px-[15px] py-[11.25px] text-center text-[13.125px] text-text-secondary">
+                          {group.soDichVu}
                         </td>
                         <td className="px-[15px] py-[11.25px] text-center text-[13.125px] text-text-secondary">
                           {group.thuTuHienThi}

@@ -1,21 +1,26 @@
 import { request } from '../../../shared/api/client';
+import { readServiceGroupPage } from './service-group-reader';
 import type {
   CatalogListQuery,
   PagedResult,
   ServiceCatalogItem,
   ServiceGroup,
   ServiceGroupInput,
+  ServiceGroupListItem,
   ServiceInput,
 } from './service-catalog-types';
 
-export function listServiceGroups(
+// Đọc bằng bộ đọc chặt: phản hồi sai hình dạng ném UnexpectedResponseError (hộp lỗi), không vẽ dữ liệu dở
+export async function listServiceGroups(
   query: CatalogListQuery,
   signal?: AbortSignal,
-): Promise<PagedResult<ServiceGroup>> {
-  return request('/admin/service-groups', {
-    query: { page: query.page, pageSize: query.pageSize, q: query.q },
-    signal,
-  });
+): Promise<PagedResult<ServiceGroupListItem>> {
+  return readServiceGroupPage(
+    await request('/admin/service-groups', {
+      query: { page: query.page, pageSize: query.pageSize, q: query.q },
+      signal,
+    }),
+  );
 }
 
 export function createServiceGroup(

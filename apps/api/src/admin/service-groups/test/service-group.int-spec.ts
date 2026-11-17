@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import type { DataSource } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import {
   createTestDataSource,
   readTestDbSettings,
@@ -238,5 +238,162 @@ describe('B2 DV — MySQL thật', () => {
     await expect(
       service.remove(system, row.nhomDichVuId),
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  describe('PR3-A05: số dịch vụ theo nhóm (soDichVu)', () => {
+    // Tên dịch vụ phải khác nhau trong cùng nhóm (UNIQUE nhóm + tên)
+    const addServices = async (id: string, count: number) => {
+      for (let index = 1; index <= count; index += 1)
+        await db.query(
+          'INSERT INTO dich_vu_kham (nhom_dich_vu_id,ten,thoi_luong,gia_mac_dinh) VALUES (?, ?, 30, 100)',
+          [id, `Dịch vụ ${index}`],
+        );
+    };
+    const counts = (items: { ten: string; soDichVu: number }[]) =>
+      items.map(({ ten, soDichVu }) => ({ ten, soDichVu }));
+
+    it('nhóm 0, 1, nhiều dịch vụ: nhóm rỗng KHÔNG biến mất, hai nhóm không đếm chéo', async () => {
+      await create('Rỗng', 1);
+      const one = await create('Một', 2);
+      const many = await create('Nhiều', 3);
+      await addServices(one.nhomDichVuId, 1);
+      await addServices(many.nhomDichVuId, 3);
+
+      const { items, total } = await service.list(system, query());
+
+      expect(total).toBe(3);
+      expect(counts(items)).toEqual([
+        { ten: 'Rỗng', soDichVu: 0 },
+        { ten: 'Một', soDichVu: 1 },
+        { ten: 'Nhiều', soDichVu: 3 },
+      ]);
+      for (const item of items) expect(typeof item.soDichVu).toBe('number');
+    });
+
+    it('total là số NHÓM (không phải số dịch vụ), trang 2 và lọc q vẫn đúng số của từng nhóm', async () => {
+      const a = await create('A', 0);
+      const b = await create('B', 1);
+      const c = await create('C 50%_!', 2);
+      await addServices(a.nhomDichVuId, 2);
+      await addServices(b.nhomDichVuId, 2);
+      await addServices(c.nhomDichVuId, 1);
+
+      expect(
+        await service.list(system, query({ page: 2, pageSize: 1 })),
+      ).toMatchObject({
+        total: 3,
+        page: 2,
+        pageSize: 1,
+        items: [{ ten: 'B', soDichVu: 2 }],
+      });
+      for (const q of ['%', '_', '!'])
+        expect(await service.list(system, query({ q }))).toMatchObject({
+          total: 1,
+          items: [{ ten: 'C 50%_!', soDichVu: 1 }],
+        });
+      expect(
+        await service.list(system, query({ q: "' OR 1=1 --" })),
+      ).toMatchObject({ total: 0, items: [] });
+    });
+
+    it('số được đếm lúc đọc: thêm một dịch vụ thì tăng 1, xoá thì giảm 1', async () => {
+      const row = await create('Đổi số');
+      const soDichVu = async () =>
+        (await service.list(system, query())).items[0]!.soDichVu;
+      expect(await soDichVu()).toBe(0);
+      await addServices(row.nhomDichVuId, 2);
+      expect(await soDichVu()).toBe(2);
+      await db.query(
+        'DELETE FROM dich_vu_kham WHERE nhom_dich_vu_id=? AND ten=?',
+        [row.nhomDichVuId, 'Dịch vụ 1'],
+      );
+      expect(await soDichVu()).toBe(1);
+    });
+
+    it('thứ tự ổn định khi phân trang: nhiều nhóm cùng thứ tự, ghép các trang không trùng không sót', async () => {
+      for (let index = 1; index <= 5; index += 1) {
+        const row = await create(`G${index}`, 0);
+        await addServices(row.nhomDichVuId, index - 1);
+      }
+      const pages = [
+        await service.list(system, query({ page: 1, pageSize: 2 })),
+        await service.list(system, query({ page: 2, pageSize: 2 })),
+        await service.list(system, query({ page: 3, pageSize: 2 })),
+      ];
+      expect(counts(pages.flatMap((page) => page.items))).toEqual([
+        { ten: 'G1', soDichVu: 0 },
+        { ten: 'G2', soDichVu: 1 },
+        { ten: 'G3', soDichVu: 2 },
+        { ten: 'G4', soDichVu: 3 },
+        { ten: 'G5', soDichVu: 4 },
+      ]);
+      expect(pages.map((page) => page.total)).toEqual([5, 5, 5]);
+    });
+
+    it('id bigint vượt Number safe giữ chính xác trong danh sách có đếm', async () => {
+      await db.query(
+        'ALTER TABLE nhom_dich_vu AUTO_INCREMENT=9007199254740993',
+      );
+      const row = await create('Bigint đếm');
+      await addServices(row.nhomDichVuId, 2);
+      expect((await service.list(system, query())).items).toEqual([
+        {
+          nhomDichVuId: '9007199254740993',
+          ten: 'Bigint đếm',
+          thuTuHienThi: 0,
+          soDichVu: 2,
+        },
+      ]);
+    });
+
+    it.each([1, 25])(
+      'số câu SQL của list không phụ thuộc số nhóm: %i nhóm đều đúng 2 câu (không N+1)',
+      async (groupCount) => {
+        for (let index = 1; index <= groupCount; index += 1) {
+          const row = await create(`Nhóm ${String(index).padStart(2, '0')}`, 0);
+          await addServices(row.nhomDichVuId, index % 3);
+        }
+        const statements: string[] = [];
+        // Chỉ bọc `manager.query` của giao dịch đọc, chạy câu thật bên dưới
+        const counting = new ServiceGroupRepository({
+          transaction: (
+            level: 'REPEATABLE READ',
+            work: (manager: EntityManager) => Promise<unknown>,
+          ) =>
+            db.transaction(level, (manager) => {
+              const original = manager.query.bind(manager);
+              manager.query = ((sql: string, parameters?: unknown[]) => {
+                statements.push(sql);
+                return original(sql, parameters);
+              }) as typeof manager.query;
+              return work(manager);
+            }),
+        } as unknown as DataSource);
+
+        const result = await counting.list(query({ pageSize: 100 }));
+
+        expect(result.items).toHaveLength(groupCount);
+        expect(statements).toHaveLength(2);
+        expect(result.items.map((item) => item.soDichVu)).toEqual(
+          Array.from({ length: groupCount }, (_x, i) => (i + 1) % 3),
+        );
+      },
+    );
+
+    it('create/update vẫn trả đúng ba khoá, không có soDichVu', async () => {
+      const row = await create('Ba khoá', 4);
+      expect(Object.keys(row).sort()).toEqual([
+        'nhomDichVuId',
+        'ten',
+        'thuTuHienThi',
+      ]);
+      expect(
+        Object.keys(
+          await service.update(system, row.nhomDichVuId, {
+            ten: 'Ba khoá đổi',
+          }),
+        ).sort(),
+      ).toEqual(['nhomDichVuId', 'ten', 'thuTuHienThi']);
+    });
   });
 });
