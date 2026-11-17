@@ -23,6 +23,8 @@ export interface LockedService {
   ten: string;
   thoiLuong: number;
   giaMacDinh: string;
+  // `muc_dat_coc` hiện hành, đọc dưới cùng khoá X: `update` không cho hạ giá xuống dưới cọc (payment B10, PLAN 4.7 #1)
+  mucDatCoc: string;
 }
 
 const SELECT_SERVICE =
@@ -74,7 +76,7 @@ export class ServiceRepository {
     id: string,
   ): Promise<LockedService | null> {
     const rows: LockedService[] = await manager.query(
-      'SELECT CAST(dich_vu_kham_id AS CHAR) AS dichVuKhamId, CAST(nhom_dich_vu_id AS CHAR) AS nhomDichVuId, ten, thoi_luong AS thoiLuong, CAST(gia_mac_dinh AS CHAR) AS giaMacDinh FROM dich_vu_kham WHERE dich_vu_kham_id=? FOR UPDATE',
+      'SELECT CAST(dich_vu_kham_id AS CHAR) AS dichVuKhamId, CAST(nhom_dich_vu_id AS CHAR) AS nhomDichVuId, ten, thoi_luong AS thoiLuong, CAST(gia_mac_dinh AS CHAR) AS giaMacDinh, CAST(muc_dat_coc AS CHAR) AS mucDatCoc FROM dich_vu_kham WHERE dich_vu_kham_id=? FOR UPDATE',
       [id],
     );
     return rows[0] ?? null;
