@@ -83,6 +83,8 @@ const NAMED_ALLOWANCE = new Map<string, readonly string[]>([
   ['../../../auth', ['ROLE_HOME_PATHS']],
   ['../../components/modal-frame', ['ModalFrame']],
   ['../../reception/use-reception-data', ['useReceptionDoctors']],
+  // doctor-exam F8: `hide-rules.ts` dùng lại chuẩn hoá và đếm của hộp ghi hồ sơ (F3), như `patient/rating-rules.ts`; tên khác của file này (ví dụ `saveExamRecord`) vẫn bị chặn
+  ['../exam-record-form', ['normalizeText', 'textLength']],
   ['../exam-messages', ['formatCount']],
   ['../patient/patient-exam-format', ['formatRatingDate', 'formatVisitTime']],
   ['../patient/rating-text', ['starName']],
@@ -128,6 +130,10 @@ describe('doctor-exam F7 — vệ sinh dữ liệu và import của trang Kiểm
         './use-reviews.ts',
         './review-detail-dialog.tsx',
         './reviews-table.tsx',
+        './hide-dialog.tsx',
+        './use-hide.ts',
+        './hide-rules.ts',
+        './hide-failure.ts',
         '../api/admin-review-readers.ts',
         '../api/admin-review-types.ts',
       ]),
@@ -191,13 +197,17 @@ describe('doctor-exam F7 — vệ sinh dữ liệu và import của trang Kiểm
       "const m = import('../../../booking');",
       "import '../../../booking';",
       "import { normalizeText } from '../exam-messages';",
+      // F8: chỉ đúng hai tên `normalizeText`, `textLength` của `../exam-record-form` được nhập
+      "import { saveExamRecord } from '../exam-record-form';",
+      "import { normalizeText, validateRecord } from '../exam-record-form';",
+      "import * as form from '../exam-record-form';",
     ]) {
       expect(violations(code), code).not.toEqual([]);
     }
     // Đúng tên được phép thì qua
     expect(
       violations(
-        "import { AdminTable, type AdminTableColumn } from '../../../admin';\nimport { useReceptionDoctors } from '../../reception/use-reception-data';",
+        "import { AdminTable, type AdminTableColumn } from '../../../admin';\nimport { useReceptionDoctors } from '../../reception/use-reception-data';\nimport { normalizeText, textLength } from '../exam-record-form';",
       ),
     ).toEqual([]);
   });

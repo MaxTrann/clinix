@@ -226,6 +226,7 @@ describe('doctor-exam F7 — bảng và hộp (WKD-19)', () => {
         onPageChange={vi.fn()}
         showBranch
         onOpen={vi.fn()}
+        onHide={vi.fn()}
       />,
     );
     const comment = screen.getByText(/Tốt, sẽ giới thiệu/);

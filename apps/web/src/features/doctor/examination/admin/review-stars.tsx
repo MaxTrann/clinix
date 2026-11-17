@@ -8,10 +8,14 @@ const STAR_SLOTS = [1, 2, 3, 4, 5] as const;
 export function ReviewStars({
   value,
   large = false,
+  small = false,
 }: {
   value: number;
   large?: boolean;
+  // Cỡ 12 px của khung tóm tắt ở hộp "Ẩn đánh giá" (Figma `571:854`)
+  small?: boolean;
 }) {
+  const size = large ? 'size-[16px]' : small ? 'size-[12px]' : 'size-[13px]';
   return (
     <span
       role="img"
@@ -22,7 +26,7 @@ export function ReviewStars({
         <Star
           key={slot}
           aria-hidden="true"
-          className={`${large ? 'size-[16px]' : 'size-[13px]'} ${
+          className={`${size} ${
             slot <= value ? 'fill-current text-amber-600' : 'text-gray-500'
           }`}
         />
