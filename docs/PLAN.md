@@ -53,6 +53,7 @@ nghiệm thu tối thiểu) và use case đã chốt (77 UC, xem repo `TLCN_CLIN
 - [ ] Tra cứu chi nhánh / chuyên khoa / bác sĩ / lịch trống.
 - [ ] **Đặt lịch (booking) cốt lõi** — luồng quan trọng nhất theo SOW 5.1.2; cần giữ chỗ/transaction chống double-booking (rủi ro đã ghi ở SOW 7.1), kèm test case cho tình huống đặt đồng thời.
 - [ ] Theo dõi / cập nhật trạng thái lịch hẹn.
+- [ ] Khám bệnh: xác nhận hoàn thành ca khám, ghi và xem hồ sơ khám, đánh giá bác sĩ, kiểm duyệt đánh giá (phần khám bệnh của module `doctor`) — kế hoạch và kết quả ở `docs/features/doctor-exam/PLAN.md`, `TRACKING.md`; tick khi task X3 của scope xong.
 - [ ] Chức năng quản trị tối thiểu.
 
 Mỗi mục trên, khi làm, luôn kèm 3 việc: viết test (TC2.5); đối chiếu/cập nhật sơ đồ thiết kế nếu

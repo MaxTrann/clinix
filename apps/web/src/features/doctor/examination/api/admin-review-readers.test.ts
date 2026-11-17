@@ -3,6 +3,7 @@ import { UnexpectedResponseError } from '../../../../shared/api/errors';
 import {
   parseAdminReviewDetail,
   parseAdminReviewPage,
+  parseHideResult,
 } from './admin-review-readers';
 
 // doctor-exam F7: WKD-11 (bộ đọc danh sách chặt) và WKD-12 (bộ đọc chi tiết, `danhGiaId` BIGINT dạng chuỗi, `lyDoAn` chỉ khi đã ẩn). Dữ liệu giả.
@@ -275,5 +276,55 @@ describe('doctor-exam F7 — bộ đọc chi tiết Admin (WKD-12)', () => {
     rejects(() => parseAdminReviewDetail(detail({ biAn: 'true' })));
     rejects(() => parseAdminReviewDetail(null));
     rejects(() => parseAdminReviewDetail([]));
+  });
+});
+
+// doctor-exam F8, WKD-21 [đề xuất]: bộ đọc 200 của `POST …/hide`: ĐÚNG `{ danhGiaId (chuỗi chữ số), biAn: true }`; sai hình dạng ⇒ `UnexpectedResponseError` ("chưa rõ": máy chủ có thể đã ẩn); khoá thừa bị BỎ như các bộ đọc khác.
+describe('doctor-exam F8 — bộ đọc 200 của ẩn đánh giá (WKD-21)', () => {
+  it('WKD-21 hình dạng đúng ⇒ chép đúng hai khoá; khoá thừa (`lyDoAn`, `nhanXet`, `thua`) bị BỎ', () => {
+    expect(parseHideResult({ danhGiaId: '41', biAn: true })).toEqual({
+      danhGiaId: '41',
+      biAn: true,
+    });
+    const parsed = parseHideResult({
+      danhGiaId: '41',
+      biAn: true,
+      lyDoAn: 'lý do',
+      nhanXet: 'x',
+      thua: 1,
+    });
+    expect(Object.keys(parsed).sort()).toEqual(['biAn', 'danhGiaId']);
+  });
+
+  it('WKD-21 `danhGiaId` là BIGINT dạng chuỗi chữ số giữ NGUYÊN (lớn hơn 2^53 không mất chữ số); số, rỗng, có chữ, âm, thập phân, null, vắng ⇒ lỗi', () => {
+    const id = '9007199254740993123';
+    expect(parseHideResult({ danhGiaId: id, biAn: true }).danhGiaId).toBe(id);
+    for (const bad of [
+      41,
+      41.5,
+      '',
+      'abc',
+      '41a',
+      '-41',
+      '4.1',
+      null,
+      undefined,
+    ]) {
+      rejects(() => parseHideResult({ danhGiaId: bad, biAn: true }));
+    }
+  });
+
+  it('WKD-21 `biAn` PHẢI đúng `true`: `false`, `"true"`, `1`, `null`, vắng ⇒ lỗi', () => {
+    for (const bad of [false, 'true', 1, 0, null, undefined]) {
+      rejects(() => parseHideResult({ danhGiaId: '41', biAn: bad }));
+    }
+  });
+
+  it('WKD-21 thiếu khoá và thân không phải đối tượng (null, mảng, chuỗi, số, rỗng) ⇒ lỗi', () => {
+    rejects(() => parseHideResult({ danhGiaId: '41' }));
+    rejects(() => parseHideResult({ biAn: true }));
+    for (const bad of [null, [], 'ok', 7, undefined, {}]) {
+      rejects(() => parseHideResult(bad));
+    }
   });
 });

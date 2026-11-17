@@ -36,10 +36,11 @@
 - Các endpoint tra cứu phục vụ biểu mẫu (danh sách chi nhánh/chuyên khoa/dịch vụ theo chi nhánh), dữ liệu mẫu (seed) và script tạo Admin Toàn hệ thống đầu tiên — Q30, Q44 đã chốt.
 
 **Không làm (module/use case khác — kể cả khi Figma đã có frame):**
-- "Xem nhật ký hành động (Audit Log)" (màn xem; nút "Xem nhật ký" ở trang Nhân sự là của use case đó). Riêng tab "Lịch sử thay đổi" của Cài đặt hệ thống: Q37 đã chốt — làm ở mức đọc audit `CapNhatCauHinh`.
+- "Xem nhật ký hành động (Audit Log)" (màn xem; nút "Xem nhật ký" ở trang Nhân sự là của use case đó). Riêng tab "Lịch sử thay đổi" của Cài đặt hệ thống: Q37 đã chốt — làm ở mức đọc audit `CapNhatCauHinh`. **Khi làm màn "Nhật ký hành động": PHẢI che nội dung `truoc`/`sau` của hành động `SuaGhiChuKham` (dữ liệu sức khoẻ: chỉ hiện nhãn "đã sửa hồ sơ khám", hoặc chỉ cho Toàn hệ thống); `AnDanhGia` không có tên, SĐT, nhận xét (`TECH_DEBT` 153; doctor-exam Q15, E11).**
 - "Cấu hình chính sách đặt cọc / hủy / hoàn tiền" (`dich_vu_kham.muc_dat_coc`, `moc_hoan_tien`) — frame "Admin - Đặt cọc và hoàn tiền".
 - Cấu hình bảng **phụ phí bác sĩ** (`phu_phi_bac_si`) — frame "Admin - Phụ phí bác sĩ" **không nằm trong 8 use case**; module này chỉ **đọc** để hiển thị phụ phí hiện hành (Q21).
-- "Điều chỉnh số lần no-show" (UC 52 trong Figma), "Trung tâm thông báo" (màn hình), "Gửi email thông báo theo sự kiện" (đầy đủ), lịch làm việc bác sĩ, đặt lịch, ví/thanh toán/rút tiền, bài viết, kiểm duyệt đánh giá, thống kê, tra cứu công khai chi nhánh/chuyên khoa/bác sĩ.
+- "Điều chỉnh số lần no-show" (UC 52 trong Figma), "Trung tâm thông báo" (màn hình), "Gửi email thông báo theo sự kiện" (đầy đủ), lịch làm việc bác sĩ, đặt lịch, ví/thanh toán/rút tiền, bài viết, thống kê, tra cứu công khai chi nhánh/chuyên khoa/bác sĩ.
+- "Kiểm duyệt đánh giá" **không thuộc module `admin` nhưng đã làm ở scope doctor-exam** (xem [`docs/features/doctor-exam/PLAN.md`](../doctor-exam/PLAN.md) 5.8, 5.13) `[đề xuất]`: API `GET /admin/doctor-ratings`, `GET /admin/doctor-ratings/:id`, `POST /admin/doctor-ratings/:id/hide` (B7 #488, B8 #531), trang `/admin/kiem-duyet-danh-gia` (F7 #536, F8 #543); phía `admin` chỉ có mục menu `to` ở `admin-sidebar.tsx`.
 - Đổi mật khẩu, đăng xuất, "Thông tin cá nhân" (auth / module khác). Trang giữ chỗ Quản trị viên của auth F1 được thay bằng trang Admin ở task F1 (admin).
 
 ## 2. Hiện trạng repo (đã kiểm tra 25/10/2026)

@@ -135,10 +135,13 @@ export function setupReviewsHarness() {
   const handlers: {
     list: (url: URL) => Reply;
     detail: (id: string, url: URL) => Reply;
+    // `POST /admin/doctor-ratings/:id/hide` (F8): `body` là thân JSON đã đọc ra
+    hide: (id: string, body: unknown) => Reply;
     doctors: () => Reply;
   } = {
     list: () => jsonResponse(pageBody()),
     detail: (id) => jsonResponse(detailBody({ danhGiaId: id })),
+    hide: (id) => jsonResponse({ danhGiaId: id, biAn: true }),
     doctors: () =>
       jsonResponse({
         items: DOCTORS,
@@ -154,6 +157,7 @@ export function setupReviewsHarness() {
     resetAuthForTest();
     handlers.list = () => jsonResponse(pageBody());
     handlers.detail = (id) => jsonResponse(detailBody({ danhGiaId: id }));
+    handlers.hide = (id) => jsonResponse({ danhGiaId: id, biAn: true });
     handlers.doctors = () =>
       jsonResponse({
         items: DOCTORS,
@@ -165,8 +169,17 @@ export function setupReviewsHarness() {
     fetchMock.mockImplementation((input, init) => {
       const url = new URL(String(input), 'http://localhost');
       const detail = /\/admin\/doctor-ratings\/([^/]+)$/.exec(url.pathname);
+      const hide = /\/admin\/doctor-ratings\/([^/]+)\/hide$/.exec(url.pathname);
       if (url.pathname.endsWith('/admin/me'))
         return Promise.resolve(jsonResponse(scope));
+      if (hide !== null && init?.method === 'POST')
+        return abortable(
+          handlers.hide(
+            decodeURIComponent(hide[1]),
+            JSON.parse(String(init.body)),
+          ),
+          init.signal,
+        );
       if (url.pathname.endsWith('/admin/doctor-shifts/doctors'))
         return abortable(handlers.doctors(), init?.signal);
       if (detail !== null)
@@ -234,6 +247,13 @@ export function setupReviewsHarness() {
         String(input).includes('/admin/doctor-ratings') &&
         (init?.method ?? 'GET') !== 'GET',
     );
+  // Các `POST …/hide` đã gửi: đường dẫn và thân JSON đã đọc ra, theo thứ tự
+  const hideCalls = () =>
+    writeCalls().map(([input, init]) => ({
+      pathname: new URL(String(input), 'http://localhost').pathname,
+      method: init?.method,
+      body: JSON.parse(String(init?.body)) as unknown,
+    }));
 
   return {
     handlers,
@@ -243,5 +263,6 @@ export function setupReviewsHarness() {
     listCalls,
     detailCalls,
     writeCalls,
+    hideCalls,
   };
 }
