@@ -202,6 +202,10 @@ describe('Admin F1 shell', () => {
     expect(
       screen.getByRole('link', { name: 'Thông tin phòng khám' }),
     ).toHaveAttribute('href', '/admin/thong-tin-phong-kham');
+    // doctor-exam F7 (WKD-01): mục "Kiểm duyệt đánh giá" có `to`
+    expect(
+      screen.getByRole('link', { name: 'Kiểm duyệt đánh giá' }),
+    ).toHaveAttribute('href', '/admin/kiem-duyet-danh-gia');
     const disabledItems = navigation.querySelectorAll('button');
     expect(disabledItems.length).toBeGreaterThan(0);
     expect([...disabledItems].every((item) => item.disabled)).toBe(true);

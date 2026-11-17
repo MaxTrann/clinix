@@ -116,7 +116,11 @@ const MENU_GROUPS: MenuGroup[] = [
     label: 'Nội dung',
     items: [
       { label: 'Bài viết', icon: 'posts' },
-      { label: 'Kiểm duyệt đánh giá', icon: 'reviews' },
+      {
+        label: 'Kiểm duyệt đánh giá',
+        icon: 'reviews',
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/kiem-duyet-danh-gia`,
+      },
       { label: 'Đặt cọc & Hoàn tiền', icon: 'deposit', systemOnly: true },
       { label: 'Email Preview', icon: 'email', systemOnly: true },
     ],

@@ -5,6 +5,7 @@ import { AdminLayout } from '../features/admin/admin-layout';
 import { RequireAuth, ROLE_HOME_PATHS, type VaiTro } from '../features/auth';
 import {
   ADMIN_APPROVALS_ROUTES,
+  ADMIN_REVIEWS_ROUTES,
   ADMIN_SCHEDULE_ROUTES,
   DOCTOR_PATHS,
   DOCTOR_ROUTES,
@@ -110,6 +111,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
       ...ADMIN_PROFILE_ROUTES,
       ...ADMIN_SCHEDULE_ROUTES,
       ...ADMIN_APPROVALS_ROUTES,
+      // doctor-exam F7: Kiểm duyệt đánh giá của Quản trị viên (đã bọc AdminScopeGuard)
+      ...ADMIN_REVIEWS_ROUTES,
       // booking F10: Lịch hẹn của Quản trị viên (đã bọc AdminScopeGuard)
       ...ADMIN_APPOINTMENT_ROUTES,
     ],
