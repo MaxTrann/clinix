@@ -1,4 +1,4 @@
-import { declarationsOf, readCssSource } from '../testing/css-source';
+import { declarationsOf, readCssSource } from '../../../test/css-source';
 
 // AF2-08 và AF2-10 phần kiểu của trang chuyên khoa (PR1 mục 2 và 4). Vitest chạy `css: false` nên khoá giá trị trong nguồn CSS;
 // khoảng cách thật đo bằng Chromium so với Figma `540:635`.

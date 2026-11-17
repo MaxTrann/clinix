@@ -98,4 +98,57 @@
     outline: 2px solid var(--color-brand);
     outline-offset: 2px;
   }
+
+  /* Ô chữ khi focus: vòng teal 2px LÙI VÀO TRONG, phủ đúng viền 1px và 1px bên trong, ô không to ra, mép ngoài giữ nguyên (quy tắc FE của Đại 16/11/2026).
+     Dùng `outline` vì không phụ thuộc `border-color`, `box-shadow`: lớp `utilities` (`border-gray-300`, `ring-*`, `shadow-*`) thắng lớp base bất kể độ
+     đặc hiệu, còn `outline` thì không tiện ích nào của ô chạm tới. Dùng `:focus` (không `-visible`) để vòng hiện ở MỌI tiêu điểm, kể cả bấm chuột vào
+     `select`, không tuỳ heuristic của từng trình duyệt. Mã KHÁC không tự viết viền focus cho ô: test `focus-hygiene`, ADR 0004, TRACKING admin mục 7.
+     Danh sách loại `input` loại trừ phải GIỐNG hệt ở khối ô lỗi bên dưới (test `focus-ring` khoá). */
+  input:not(
+      [type='checkbox'],
+      [type='radio'],
+      [type='file'],
+      [type='range'],
+      [type='color'],
+      [type='button'],
+      [type='submit'],
+      [type='reset'],
+      [type='image']
+    ):focus,
+  textarea:focus,
+  select:focus {
+    outline: 2px solid var(--color-brand);
+    outline-offset: -2px;
+  }
+
+  /* Ô đang lỗi: đổi màu vòng, đứng SAU khối trên (cùng độ ưu tiên, khối sau thắng). Không đụng `div role="radiogroup"` có `aria-invalid` (ô sao) */
+  input:not(
+      [type='checkbox'],
+      [type='radio'],
+      [type='file'],
+      [type='range'],
+      [type='color'],
+      [type='button'],
+      [type='submit'],
+      [type='reset'],
+      [type='image']
+    )[aria-invalid='true']:focus,
+  textarea[aria-invalid='true']:focus,
+  select[aria-invalid='true']:focus {
+    outline-color: var(--color-danger);
+  }
+}
+
+/* Khung bọc ô (ô tìm có biểu tượng bên trái, vùng thả ảnh): khung vẽ vòng khi bên trong có tiêu điểm, ô nhập bên trong tắt vòng của chính nó để
+   không hiện hai vòng. Chỉ bọc ô nhập, không bọc nút (nút trong khung sẽ làm khung sáng lên cùng vòng của nút). Dùng bằng `className="field-frame"`. */
+@utility field-frame {
+  &:focus-within {
+    outline: 2px solid var(--color-brand);
+    outline-offset: -2px;
+  }
+
+  & :is(input, textarea, select) {
+    outline: none;
+    box-shadow: none;
+  }
 }

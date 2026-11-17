@@ -251,7 +251,7 @@ export function SpecialtyPage() {
       )}
 
       <div className={styles.toolbar}>
-        <label className={styles.searchBox}>
+        <label className={`${styles.searchBox} field-frame`}>
           <img src="/assets/admin/specialties/search.svg" alt="" />
           <input
             type="search"

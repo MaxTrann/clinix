@@ -41,20 +41,6 @@
   font: inherit;
 }
 
-/* Ô nhập: viền teal đè lên đúng vị trí viền xám (bóng TRONG), mép ngoài không nhích ra; nút giữ outline (PR1 mục 1) */
-.searchField input:focus-visible {
-  border-color: #0092b8;
-  outline: none;
-  box-shadow: inset 0 0 0 1px #0092b8;
-}
-
-.pagination button:focus-visible,
-.dialogActions button:focus-visible,
-.panelHeader button:focus-visible {
-  outline: 2px solid #0092b8;
-  outline-offset: 2px;
-}
-
 .tableSection {
   overflow: hidden;
   border: 1px solid #f3f4f6;

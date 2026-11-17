@@ -718,7 +718,7 @@ export function BranchPage() {
         Danh sách chi nhánh
       </h2>
       <div className={styles.toolbar}>
-        <label className={styles.searchBox}>
+        <label className={`${styles.searchBox} field-frame`}>
           <img src="/assets/admin/specialties/search.svg" alt="" />
           <span className={styles.visuallyHidden}>Tìm chi nhánh</span>
           <input
