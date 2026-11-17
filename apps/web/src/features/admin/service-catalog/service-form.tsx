@@ -26,7 +26,7 @@ interface ServiceFormProps {
 // Ô nhập dùng chung; ô giá thay `px-*` bằng `pl-*` + `pr-9` để chừa chỗ cho hậu tố "đ" mà không để hai lớp padding phải cùng tồn tại
 // (thứ tự trong CSS build quyết định lớp nào thắng, nên chỉ dùng MỘT lớp padding phải cho mỗi ô)
 const FIELD_BASE =
-  'mt-[3.75px] block min-h-[39.1px] w-full rounded-[13.375px] border border-[#e5e7eb] bg-white py-[9.375px] text-[13.125px] font-normal text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand focus:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:bg-surface-muted';
+  'mt-[3.75px] block min-h-[39.1px] w-full rounded-[13.375px] border border-[#e5e7eb] bg-white py-[9.375px] text-[13.125px] font-normal text-text-primary transition placeholder:text-text-muted disabled:bg-surface-muted';
 const FIELD_CLASS = `${FIELD_BASE} px-[11.25px]`;
 const PRICE_FIELD_CLASS = `${FIELD_BASE} pl-[11.25px] pr-9`;
 
@@ -285,7 +285,7 @@ export function ServiceForm({
       <div className="mt-[18.75px] flex flex-wrap justify-end gap-[11.25px]">
         <button
           type="button"
-          className="rounded-[13.375px] border border-[#e5e7eb] px-[15px] py-[7.5px] text-[13.125px] font-medium text-[#4a5565] hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-60"
+          className="rounded-[13.375px] border border-[#e5e7eb] px-[15px] py-[7.5px] text-[13.125px] font-medium text-[#4a5565] hover:bg-surface-muted disabled:opacity-60"
           onClick={onCancel}
           disabled={pending}
         >
@@ -294,7 +294,7 @@ export function ServiceForm({
         {/* Không mờ khi tên trống (Đại chọn 16/11/2026): bấm Lưu thì câu lỗi hiện dưới ô. Chỉ mờ khi đang lưu hoặc chưa có nhóm nào để chọn */}
         <button
           type="submit"
-          className="inline-flex items-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60"
+          className="inline-flex items-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover disabled:cursor-wait disabled:opacity-60"
           disabled={pending || groups.length === 0}
         >
           <img

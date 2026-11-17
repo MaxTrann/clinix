@@ -1,4 +1,4 @@
-import { declarationsOf, readCssSource } from '../testing/css-source';
+import { declarationsOf, readCssSource } from '../../../test/css-source';
 
 // CN b1 (PR1 mục 8) phần kiểu của thẻ chi nhánh. Đo Chromium 16/11/2026 ở 375px: nút "Sửa lịch / dịch vụ" (135px, không xuống dòng)
 // nằm cạnh khiến danh sách giờ nhận khám chỉ còn 55,9px nên mỗi dòng giờ ngắt thành 4 đến 8 dòng và thẻ cao 1100px. Màn hẹp phải xếp
@@ -50,12 +50,10 @@ describe('AF6-06 kiểu panel Áp dụng nhanh', () => {
     expect(declarationsOf(css, '.dayPick')).toContain('white-space: nowrap;');
   });
 
-  it('radio chọn buổi là radio thật vẽ lại: tròn, có viền focus như checkbox', () => {
+  it('radio chọn buổi là radio thật vẽ lại: tròn; viền focus do lớp base lo (không còn khối `.radio:focus-visible`: FG-03, FG-06)', () => {
     expect(declarationsOf(css, '.radio')).toContain('appearance: none;');
     expect(declarationsOf(css, '.radio')).toContain('border-radius: 50%;');
-    expect(declarationsOf(css, '.radio:focus-visible')).toContain(
-      'outline: 2px solid #0092b8;',
-    );
+    expect(declarationsOf(css, '.radio:focus-visible')).toBe('');
   });
 
   it('nút Áp dụng dùng chữ #007595 trên nền trắng (5,28:1, ADR 0004), không dùng nền #0092b8 với chữ trắng', () => {
@@ -83,13 +81,10 @@ describe('AF6-06 kiểu panel Áp dụng nhanh', () => {
   });
 });
 
-describe('AF6-06 ô giờ 24h giữ viền focus của PR1', () => {
-  it('khai báo focus của .timeRange input vẫn là viền teal + bóng trong, tắt outline', () => {
-    const declarations = declarationsOf(css, '.timeRange input:focus-visible');
-
-    expect(declarations).toContain('border-color: #0092b8;');
-    expect(declarations).toContain('box-shadow: inset 0 0 0 1px #0092b8;');
-    expect(declarations).toContain('outline: none;');
+describe('AF6-06 ô giờ 24h: viền focus do lớp base lo (quy tắc toàn hệ thống, TRACKING admin mục 7)', () => {
+  it('.timeRange input không còn khối focus riêng và không tắt outline (nếu tắt, quy tắc `:focus` của lớp base thua vì CSS Module thắng lớp base)', () => {
+    expect(declarationsOf(css, '.timeRange input:focus-visible')).toBe('');
+    expect(declarationsOf(css, '.timeRange input')).not.toContain('outline');
   });
 
   it('quy tắc nền/viền thường của ô giờ KHÔNG chọn theo type (áp được cho ô chữ), và có trạng thái vô hiệu', () => {

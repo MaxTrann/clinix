@@ -1,4 +1,4 @@
-import { declarationsOf, readCssSource } from '../testing/css-source';
+import { declarationsOf, readCssSource } from '../../../test/css-source';
 
 // AF1-13 (PR1 mục 3) phần kiểu: hộp xác nhận tone `warning` theo Figma `733:599` (popup "Ngừng hoạt động chuyên khoa?").
 // Vitest chạy `css: false` nên khoá giá trị ngay trong nguồn CSS; kích thước thật và tương phản đo bằng Chromium.

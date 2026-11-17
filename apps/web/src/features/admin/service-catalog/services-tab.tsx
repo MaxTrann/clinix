@@ -79,7 +79,7 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
   }
 
   const inputClass =
-    'h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-brand focus:shadow-[inset_0_0_0_1px_var(--color-brand)] sm:max-w-sm';
+    'h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-text-primary placeholder:text-text-muted sm:max-w-sm';
 
   return (
     <div className="space-y-4" data-testid="AF3-services-panel">
@@ -90,7 +90,7 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
             <ErrorState error={groupsState.error} onRetry={retryGroups} />
             <button
               type="button"
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-brand"
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted"
               onClick={() => setCreateOpen(false)}
             >
               Đóng
@@ -149,7 +149,7 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
             {canEdit && (
               <button
                 type="button"
-                className="inline-flex min-h-[33.75px] items-center justify-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="inline-flex min-h-[33.75px] items-center justify-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover"
                 onClick={openCreate}
                 data-testid="AF3-add-service"
               >
@@ -244,7 +244,7 @@ export function ServicesTab({ canEdit }: { canEdit: boolean }) {
                           <td className="px-5 py-3 text-right">
                             <button
                               type="button"
-                              className="inline-flex size-7 items-center justify-center rounded-md text-[#0092b8] hover:bg-info-surface focus-visible:outline-2 focus-visible:outline-brand"
+                              className="inline-flex size-7 items-center justify-center rounded-md text-[#0092b8] hover:bg-info-surface"
                               aria-label={`Sửa ${service.ten}`}
                               title="Sửa"
                               onClick={() => openEdit(service)}

@@ -104,27 +104,6 @@
   font-size: 13.125px;
 }
 
-/* Ô nhập: viền teal đè lên đúng vị trí viền xám (bóng TRONG), mép ngoài không nhích ra; nút giữ outline (PR1 mục 1).
-   `input:not([type='file'])` để ĐỦ độ ưu tiên thắng `.formField input:not([type='file'])` (viền xám) ở dưới: đo Chromium 16/11/2026
-   thấy bản `.formField input:focus-visible` thua nó (bằng độ ưu tiên, đứng trước) nên viền xám vẫn nằm ngoài cùng */
-.searchBox:focus-within,
-.filterField select:focus-visible,
-.formField input:not([type='file']):focus-visible,
-.formField textarea:focus-visible,
-.imageDropzone:focus-within {
-  border-color: #0092b8;
-  outline: none;
-  box-shadow: inset 0 0 0 1px #0092b8;
-}
-
-.addButton:focus-visible,
-.rowActions button:focus-visible,
-.dialogHeader button:focus-visible,
-.dialogActions button:focus-visible {
-  outline: 2px solid #0092b8;
-  outline-offset: 2px;
-}
-
 .searchBox input::placeholder {
   color: rgb(15 23 42 / 50%);
 }
@@ -380,12 +359,6 @@
 .formField input[aria-invalid='true'],
 .formField textarea[aria-invalid='true'] {
   border-color: #f04438;
-}
-
-.formField input[aria-invalid='true']:focus-visible,
-.formField textarea[aria-invalid='true']:focus-visible {
-  border-color: #f04438;
-  box-shadow: inset 0 0 0 1px #f04438;
 }
 
 .fieldError,
