@@ -101,6 +101,23 @@ describe('kích thước thanh menu công khai theo Figma 257:6 (UIS-02)', () =>
     }
   });
 
+  it('UIA-06 nút "Đặt lịch khám" của header cam theo token (`bg-cta`) với chữ gray-900, hover `bg-cta-hover`; không còn `bg-amber-500`', () => {
+    renderHeader();
+    const link = screen.getByRole('link', { name: 'Đặt lịch khám' });
+    expect(link).toHaveClass('bg-cta', 'text-gray-900', 'hover:bg-cta-hover');
+    expect(link).not.toHaveClass('bg-amber-500');
+    expect(link).not.toHaveClass('hover:bg-amber-400');
+    expect(link).not.toHaveClass('text-white');
+  });
+
+  it('UIA-06 ca âm: chưa có đường dẫn đặt lịch ⇒ nút vô hiệu vẫn xám, không cam', () => {
+    renderHeader({ bookingItem: { label: 'Đặt lịch khám' } });
+    const button = screen.getByRole('button', { name: /Đặt lịch khám/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveClass('bg-gray-100', 'text-gray-500');
+    expect(button).not.toHaveClass('bg-cta');
+  });
+
   it('UIS-02 hàng hành động: khe 11,25 px, co lại được (`min-w-0`) để nhãn dài bị cắt thay vì tràn khung', () => {
     renderHeader();
     const row = screen.getByRole('link', {

@@ -351,3 +351,90 @@ describe('FG-08 danh sách ngoại lệ: có lý do và không để ngoại l�
     }
   });
 });
+
+// ----- FG-11, FG-12 (search UI PR-A, G6; hồi quy của PR "focus toàn hệ thống") -----
+// Ô `border-0` / `border-none` nằm trong thẻ bo tròn có biểu tượng và nút (ô tìm Trang chủ) bị quy tắc base vẽ vòng 2 px quanh CHÍNH ô, ra hình
+// chữ nhật nằm trong khung. Khung phải là phần tử `field-frame` (nhãn bọc biểu tượng và ô) để vòng bo theo khung. Quét ở mức FILE: không biết
+// phần tử cha của thẻ, nên file có ô không viền thì phải dùng lớp `field-frame` ở đâu đó trong chính file đó (chú thích không tính).
+
+// Thẻ mở `<input …>`, `<textarea …>`, `<select …>`; đếm ngoặc nhọn và nháy để dấu `>` của hàm mũi tên trong `{…}` không cắt cụt thẻ
+function fieldOpeningTags(code: string): string[] {
+  const tags: string[] = [];
+  for (const match of code.matchAll(/<(?:input|textarea|select)(?=[\s/>])/g)) {
+    const start = match.index ?? 0;
+    let depth = 0;
+    let quote = '';
+    let end = start;
+    for (; end < code.length; end += 1) {
+      const char = code.charAt(end);
+      if (quote) {
+        if (char === quote) quote = '';
+      } else if (char === '"' || char === "'" || char === '`') {
+        quote = char;
+      } else if (char === '{') {
+        depth += 1;
+      } else if (char === '}') {
+        depth -= 1;
+      } else if (char === '>' && depth === 0) {
+        break;
+      }
+    }
+    tags.push(code.slice(start, end + 1));
+  }
+  return tags;
+}
+
+// tiện ích `border-0`, `border-none` (kể cả có biến thể `md:`); `border-t-0`, `border-gray-200`, `border` không tính
+const BORDERLESS = /^(?:[^:]+:)*!?border-(?:0|none)$/;
+
+function borderlessFields(source: string): string[] {
+  return fieldOpeningTags(strip(source)).filter((tag) =>
+    tag.split(SPLIT).some((token) => BORDERLESS.test(token)),
+  );
+}
+
+function borderlessFieldViolations(source: string): string[] {
+  const hasFrame = strip(source).split(SPLIT).includes('field-frame');
+  return hasFrame ? [] : borderlessFields(source);
+}
+
+describe('FG-11 ô không viền phải nằm trong file có khung `field-frame`', () => {
+  it('FG-11 bộ quét thấy ô không viền thật (ô tìm Trang chủ) và không file nào có ô không viền mà thiếu `field-frame`', () => {
+    const withBorderless = CODE_FILES.filter(
+      ([, source]) => borderlessFields(source).length > 0,
+    ).map(([file]) => file);
+    expect(withBorderless).toContain('features/search/home/global-search.tsx');
+    const found = CODE_FILES.flatMap(([file, source]) =>
+      borderlessFieldViolations(source).map(
+        (tag) => `${file}: ${tag.slice(0, 80)}`,
+      ),
+    );
+    expect(found).toEqual([]);
+  });
+});
+
+describe('FG-12 đối chứng của FG-11: BẮT mẫu xấu và KHÔNG báo nhầm mẫu lành', () => {
+  it('FG-12 bắt 5 mẫu xấu (ô không viền, không có khung)', () => {
+    for (const bad of [
+      '<input className="border-0 bg-white" />',
+      '<textarea className={`flex-1 border-none`} />',
+      '<select className="w-full md:border-0">{options}</select>',
+      '<input onChange={(event) => set(event.target.value)} className="min-w-0 border-0" />',
+      '/* field-frame chỉ nhắc trong chú thích */ <input className="border-0" />',
+    ]) {
+      expect(borderlessFieldViolations(bad), bad).not.toEqual([]);
+    }
+  });
+
+  it('FG-12 KHÔNG báo nhầm 5 mẫu lành (có khung, có viền, không phải ô, `border-t-0`, chú thích)', () => {
+    for (const fine of [
+      '<label className="field-frame"><input className="border-0" /></label>',
+      '<input className="border border-gray-200" />',
+      '<button className="border-0">Gửi</button>',
+      '<input onChange={(event) => set(event)} className="border-t-0 border-gray-200" />',
+      '// <input className="border-0" /> chỉ nhắc trong chú thích\nconst a = 1;',
+    ]) {
+      expect(borderlessFieldViolations(fine), fine).toEqual([]);
+    }
+  });
+});

@@ -87,11 +87,11 @@ export function SpecialtyDetailPage() {
                   </span>
                 )}
               </div>
-              {/* Figma 259:88: cam #fe9a00; chữ trắng của Figma chỉ đạt 2,13:1 nên dùng chữ gray-900 như nút ở header (8,31:1; Q26, ADR 0004) */}
+              {/* Figma 259:88: cam; chữ trắng của Figma chỉ đạt 2,13:1 nên dùng chữ gray-900 trên nền cam token `cta` như nút ở header (10,30:1; ADR 0004) */}
               {state.data.soBacSi > 0 && (
                 <Link
                   to={BOOKING_PATH}
-                  className="mt-5 inline-flex h-12 items-center gap-2 rounded-[13.375px] bg-amber-500 px-5 text-sm font-medium text-gray-900 hover:bg-amber-400"
+                  className="mt-5 inline-flex h-12 items-center gap-2 rounded-[13.375px] bg-cta px-5 text-sm font-medium text-gray-900 hover:bg-cta-hover"
                 >
                   <CalendarDays className="size-4" aria-hidden="true" />
                   {SPECIALTY_BOOKING_LABEL}

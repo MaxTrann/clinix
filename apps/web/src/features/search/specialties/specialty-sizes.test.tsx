@@ -209,12 +209,15 @@ describe('trang Chi tiết chuyên khoa theo Figma 259:2 (UIS-09)', () => {
     expect(link).toHaveClass(
       'h-12',
       'rounded-[13.375px]',
-      'bg-amber-500',
+      // Cam theo token `cta` (search UI PR-A, G1; trước đó `bg-amber-500`)
+      'bg-cta',
+      'hover:bg-cta-hover',
       'text-gray-900',
       'px-5',
       'gap-2',
       'mt-5',
     );
+    expect(link).not.toHaveClass('bg-amber-500');
     expect(link).not.toHaveClass('text-white');
     expect(link.querySelector('svg')).toHaveClass('size-4');
   });

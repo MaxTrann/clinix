@@ -1,7 +1,9 @@
-import { onlyDigits } from '../digit-caret';
+import { onlyDigits } from './digit-caret';
 
 // Ô giá của dịch vụ khám chỉ nhận SỐ NGUYÊN ĐỒNG (Trung đồng ý A1, A2): giá giữ trong state dạng chuỗi chữ số, hiển thị ngăn nghìn
 // bằng dấu chấm. Tối đa 10 chữ số vì API nhận `^\d{1,10}`. Tất cả ở đây là hàm thuần để test không cần trình duyệt.
+// Đã đưa lên `shared/` để bộ lọc giá của `search` dùng chung (search UI PR-A, G4): API search nhận tới 12 chữ số nên nơi đó truyền
+// `maxDigits` = 12; không truyền thì giữ 10 và hành vi của admin không đổi.
 
 export const MAX_PRICE_DIGITS = 10;
 
@@ -37,6 +39,7 @@ export function applyTextChange(
   nextText: string,
   caret: number,
   direction: 'backward' | 'forward',
+  maxDigits = MAX_PRICE_DIGITS,
 ): PriceEdit {
   const previousDigits = onlyDigits(previousText);
   let digits = onlyDigits(nextText);
@@ -56,8 +59,8 @@ export function applyTextChange(
     }
   }
 
-  // Quá 10 chữ số: bỏ chữ số vừa gõ, giữ giá trị cũ
-  if (digits.length > MAX_PRICE_DIGITS) {
+  // Quá `maxDigits` chữ số: bỏ chữ số vừa gõ, giữ giá trị cũ
+  if (digits.length > maxDigits) {
     const extra = digits.length - previousDigits.length;
     return {
       digits: previousDigits,
@@ -75,18 +78,19 @@ export function applyTextChange(
   };
 }
 
-// Dán hoặc thả chữ vào vùng chọn [start, end) của chuỗi đang hiển thị. `null` khi kết quả quá 10 chữ số (bỏ cả lần dán).
+// Dán hoặc thả chữ vào vùng chọn [start, end) của chuỗi đang hiển thị. `null` khi kết quả quá `maxDigits` chữ số (bỏ cả lần dán).
 export function insertText(
   currentText: string,
   start: number,
   end: number,
   pasted: string,
+  maxDigits = MAX_PRICE_DIGITS,
 ): PriceEdit | null {
   const before = onlyDigits(currentText.slice(0, start));
   const after = onlyDigits(currentText.slice(end));
   const inserted = pasteDigits(pasted);
   const stripped = stripLeadingZeros(before + inserted + after);
-  if (stripped.digits.length > MAX_PRICE_DIGITS) return null;
+  if (stripped.digits.length > maxDigits) return null;
   return {
     digits: stripped.digits,
     caretDigits: Math.max(

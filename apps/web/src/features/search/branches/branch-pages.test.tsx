@@ -290,6 +290,18 @@ describe('Trang Chi tiết chi nhánh', () => {
     expect(detailCall?.headers.get('Authorization')).toBeNull();
   });
 
+  it('UIA-06 "Chọn làm chi nhánh của tôi" cam theo token (`bg-cta`) với chữ gray-900, không còn `bg-amber-500`', async () => {
+    renderAt('/chi-nhanh/3');
+    await screen.findByRole('heading', { name: 'Chi nhánh Hà Nội' });
+    const button = screen.getByRole('button', {
+      name: 'Chọn làm chi nhánh của tôi',
+    });
+    expect(button).toHaveClass('bg-cta', 'text-gray-900', 'hover:bg-cta-hover');
+    expect(button).not.toHaveClass('bg-amber-500');
+    expect(button).not.toHaveClass('hover:bg-amber-400');
+    expect(button).not.toHaveClass('text-white');
+  });
+
   it('TCN-13 + CNC-08 "Chọn làm chi nhánh của tôi" đổi bộ chọn trên header và lưu NguoiDung', async () => {
     renderAt('/chi-nhanh/3');
     await screen.findByRole('heading', { name: 'Chi nhánh Hà Nội' });

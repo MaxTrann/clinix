@@ -1,3 +1,4 @@
+import { CalendarDays } from 'lucide-react';
 import { Link } from 'react-router';
 import { PUBLIC_CONTAINER } from '../layout';
 import { BOOKING_PATH } from '../search-paths';
@@ -68,15 +69,13 @@ export function HomeProcess() {
           ))}
         </ol>
         <div className="mt-10 text-center">
+          {/* Figma 257:849: cam, chữ trắng (2,13:1). Nền token `cta` với chữ gray-900 (10,30:1); icon `currentColor` cùng cỡ 18,75 px thay ảnh nét trắng
+              (search UI PR-A, G1). */}
           <Link
             to={BOOKING_PATH}
-            className="inline-flex items-center gap-2 rounded-[13.375px] bg-brand-strong px-8 py-3 font-medium text-white"
+            className="inline-flex items-center gap-2 rounded-[13.375px] bg-cta px-8 py-3 font-medium text-gray-900 hover:bg-cta-hover"
           >
-            <img
-              src="/assets/search/home/calendar.svg"
-              alt=""
-              aria-hidden="true"
-            />
+            <CalendarDays className="size-5" aria-hidden="true" />
             Đặt lịch khám
           </Link>
         </div>

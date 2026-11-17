@@ -220,14 +220,14 @@ function DoctorDetailContent({ doctor }: { doctor: DoctorDetail }) {
               valueClass="text-gray-700"
             />
           </dl>
-          {/* Cam của Figma (nút "Chọn ngày khám") giữ xanh theo ADR 0004 (F14-N (f)); chỉ đổi cỡ, bo góc và biểu tượng */}
+          {/* Cam của Figma (nút "Chọn ngày khám"): nền token `cta` với chữ gray-900 (10,30:1), thay quyết định xanh của F14-N (f) (search UI PR-A, G1) */}
           <button
             type="button"
             onClick={() => {
               setTab('lich');
               tabRefs.current.lich?.focus();
             }}
-            className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-[13.375px] bg-brand-strong text-sm font-medium text-white"
+            className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-[13.375px] bg-cta text-sm font-medium text-gray-900 hover:bg-cta-hover"
           >
             <CalendarDays className="size-4" aria-hidden="true" />
             Chọn ngày khám

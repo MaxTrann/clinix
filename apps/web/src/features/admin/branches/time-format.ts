@@ -1,4 +1,7 @@
-import { caretAfterDigits, onlyDigits } from '../digit-caret';
+import {
+  caretAfterDigits,
+  onlyDigits,
+} from '../../../shared/masked-input/digit-caret';
 
 // Ô giờ 24h gõ tay (thay `<input type="time">` hiện AM/PM theo cài đặt Windows), admin PR2 mục 6.4. Hàm thuần để test không cần
 // trình duyệt. Chỉ định dạng; giờ có HỢP LỆ hay không do `isTime` (cùng quy tắc API) quyết định, nên "24:00" hay "12:60" vẫn để
