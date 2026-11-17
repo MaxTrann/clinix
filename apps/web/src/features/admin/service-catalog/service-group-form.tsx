@@ -65,7 +65,7 @@ export function ServiceGroupForm({
   }
 
   const fieldClass =
-    'mt-[3.75px] block min-h-[39.1px] w-full rounded-[13.375px] border border-[#e5e7eb] bg-white px-[11.25px] py-[9.375px] text-[13.125px] font-normal text-text-primary outline-none transition placeholder:text-text-muted focus:border-brand focus:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:bg-surface-muted';
+    'mt-[3.75px] block min-h-[39.1px] w-full rounded-[13.375px] border border-[#e5e7eb] bg-white px-[11.25px] py-[9.375px] text-[13.125px] font-normal text-text-primary transition placeholder:text-text-muted disabled:bg-surface-muted';
 
   return (
     <form
@@ -171,7 +171,7 @@ export function ServiceGroupForm({
       <div className="mt-[18.75px] flex flex-wrap justify-end gap-[11.25px]">
         <button
           type="button"
-          className="rounded-[13.375px] border border-[#e5e7eb] px-[15px] py-[7.5px] text-[13.125px] font-medium text-[#4a5565] hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-60"
+          className="rounded-[13.375px] border border-[#e5e7eb] px-[15px] py-[7.5px] text-[13.125px] font-medium text-[#4a5565] hover:bg-surface-muted disabled:opacity-60"
           onClick={onCancel}
           disabled={pending}
         >
@@ -180,7 +180,7 @@ export function ServiceGroupForm({
         {/* Không mờ khi tên trống (Đại chọn 16/11/2026): bấm Lưu thì câu lỗi hiện dưới ô tên */}
         <button
           type="submit"
-          className="inline-flex items-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-60"
+          className="inline-flex items-center gap-[7.5px] rounded-[13.375px] bg-brand px-[15px] py-[7.5px] text-[13.125px] font-medium text-white hover:bg-brand-hover disabled:cursor-wait disabled:opacity-60"
           disabled={pending}
         >
           <img

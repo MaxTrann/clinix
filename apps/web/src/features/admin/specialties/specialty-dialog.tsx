@@ -330,7 +330,7 @@ export function SpecialtyDialog({
               </div>
             ) : (
               <label
-                className={styles.imageDropzone}
+                className={`${styles.imageDropzone} field-frame`}
                 htmlFor="specialty-image"
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {

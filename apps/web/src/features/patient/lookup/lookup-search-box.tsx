@@ -19,7 +19,7 @@ export interface LookupSearchBoxProps {
 // Ô tìm của trang tra cứu (patient F8; Figma `483:2` đến `505:2`): kính lúp bên trái, nút "Xóa tìm kiếm" bên phải khi có chữ, ô rộng tối đa 480 px.
 // Riêng tư (H5, TRACKING F8-H): từ khoá là dữ liệu cá nhân nên không `name`, không `<form>` (trình duyệt chỉ lưu lịch sử khi gửi form) và
 // `autoComplete="off"`. Không dùng `type="search"`: Chrome tự thêm nút xoá thứ hai. Không `maxLength`: nó đếm UTF-16 và cắt im lặng.
-// Viền focus theo ADR 0004 (outline brand toàn cục, 3,62:1); Figma `505:2` vẽ viền cyan dày.
+// Viền focus do lớp base lo (vòng teal 2 px lùi vào trong, ADR 0004, 3,62:1): không tự viết `focus-visible:`; Figma `505:2` vẽ viền cyan dày.
 export function LookupSearchBox({
   value,
   hint,
@@ -67,7 +67,7 @@ export function LookupSearchBox({
           onKeyDown={handleKeyDown}
           onCompositionStart={() => onComposingChange(true)}
           onCompositionEnd={() => onComposingChange(false)}
-          className="block h-[2.6067rem] w-full rounded-xl border border-gray-200 bg-gray-50 pr-[2.25rem] pl-[2.5rem] text-sm text-slate-900 focus-visible:border-brand"
+          className="block h-[2.6067rem] w-full rounded-xl border border-gray-200 bg-gray-50 pr-[2.25rem] pl-[2.5rem] text-sm text-slate-900"
         />
         {value !== '' && (
           // Biểu tượng 15 px của Figma nằm trong vùng bấm 24 × 24 (WCAG 2.2 mục 2.5.8)

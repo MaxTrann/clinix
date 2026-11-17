@@ -140,13 +140,6 @@
   background: #f8fafc;
 }
 
-.overviewLink:focus-visible,
-.logoutButton:focus-visible,
-.headerLogout:focus-visible {
-  outline: 2px solid #0092b8;
-  outline-offset: 2px;
-}
-
 .activeLink,
 .activeLink:hover {
   background: #0092b8;
@@ -207,11 +200,6 @@
 
 .menuItemLink:hover {
   background: #f8fafc;
-}
-
-.menuItemLink:focus-visible {
-  outline: 2px solid #0092b8;
-  outline-offset: 2px;
 }
 
 .activeLink.menuItemLink,

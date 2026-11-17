@@ -130,27 +130,14 @@
   padding: 9.375px 11.25px 9.375px 33.75px;
   border: 1px solid #e5e7eb;
   border-radius: 13.375px;
-  outline: none;
   background: #fff;
   color: #0f172a;
   font-size: 13.125px;
   line-height: 18.75px;
 }
 
-/* Ô nhập: viền teal đè lên đúng vị trí viền xám (bóng TRONG), mép ngoài không nhích ra (PR1 mục 1) */
-.input:focus-visible {
-  border-color: #0092b8;
-  outline: none;
-  box-shadow: inset 0 0 0 1px #0092b8;
-}
-
 .input[aria-invalid='true'] {
   border-color: #d92d20;
-}
-
-.input[aria-invalid='true']:focus-visible {
-  border-color: #d92d20;
-  box-shadow: inset 0 0 0 1px #d92d20;
 }
 
 .input:disabled {
@@ -254,12 +241,6 @@
 
 .saveButton:hover:not(:disabled) {
   background: #007f9f;
-}
-
-.saveButton:focus-visible,
-.cancelButton:focus-visible {
-  outline: 2px solid #0092b8;
-  outline-offset: 2px;
 }
 
 .saveButton:disabled {

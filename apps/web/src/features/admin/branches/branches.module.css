@@ -50,13 +50,6 @@
   font-size: 13.125px;
 }
 
-/* Ô nhập: viền teal đè lên đúng vị trí viền xám (bóng TRONG), mép ngoài không nhích ra; nút giữ outline (PR1 mục 1) */
-.searchBox:focus-within {
-  border-color: #0092b8;
-  outline: none;
-  box-shadow: inset 0 0 0 1px #0092b8;
-}
-
 .searchBox input::placeholder {
   color: rgb(15 23 42 / 50%);
 }
@@ -94,14 +87,6 @@
 .addButton:hover,
 .submitButton:hover:not(:disabled) {
   background: #007f9f;
-}
-
-.addButton:focus-visible,
-.submitButton:focus-visible,
-.cancelButton:focus-visible,
-.pagination button:focus-visible {
-  outline: 2px solid #0092b8;
-  outline-offset: 2px;
 }
 
 .addButton img,
@@ -170,7 +155,6 @@
   padding: 9.375px 11.25px;
   border: 1px solid #e5e7eb;
   border-radius: 13.375px;
-  outline: none;
   background: #fff;
   color: #0f172a;
   font: inherit;
@@ -185,30 +169,15 @@
   padding: 9.375px 11.25px;
   border: 1px solid #e5e7eb;
   border-radius: 13.375px;
-  outline: none;
   background: #fff;
   color: #0f172a;
   font: inherit;
   font-size: 13.125px;
 }
 
-.formField input:focus-visible,
-.formFieldWide input:focus-visible,
-.timeRange input:focus-visible {
-  border-color: #0092b8;
-  outline: none;
-  box-shadow: inset 0 0 0 1px #0092b8;
-}
-
 .formField input[aria-invalid='true'],
 .formFieldWide input[aria-invalid='true'] {
   border-color: #d92d20;
-}
-
-.formField input[aria-invalid='true']:focus-visible,
-.formFieldWide input[aria-invalid='true']:focus-visible {
-  border-color: #d92d20;
-  box-shadow: inset 0 0 0 1px #d92d20;
 }
 
 .formField input:disabled,
@@ -315,11 +284,6 @@
     11px 11px no-repeat;
 }
 
-.checkbox:focus-visible {
-  outline: 2px solid #0092b8;
-  outline-offset: 2px;
-}
-
 .checkbox:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -368,7 +332,6 @@
   padding: 4px 7px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  outline: none;
   background: #fff;
   color: #0f172a;
   font: inherit;
@@ -528,11 +491,6 @@
   border-color: #0075ff;
   background-color: #0075ff;
   box-shadow: inset 0 0 0 2.5px #fff;
-}
-
-.radio:focus-visible {
-  outline: 2px solid #0092b8;
-  outline-offset: 2px;
 }
 
 .radio:disabled {
@@ -730,11 +688,6 @@
   color: #007595;
   text-decoration: underline;
   white-space: nowrap;
-}
-
-.mapLink:focus-visible {
-  outline: 2px solid #0092b8;
-  outline-offset: 2px;
 }
 
 .emptyState {

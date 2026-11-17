@@ -40,7 +40,7 @@ export function ServiceCatalogPage() {
             id="service-groups-tab"
             aria-selected={activeTab === 'groups'}
             aria-controls="service-groups-panel"
-            className={`-mb-px inline-flex items-center gap-[7.5px] border-b-[1.6px] px-[18.75px] py-[9.375px] text-[13.125px] font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${activeTab === 'groups' ? 'border-[#0092b8] text-[#007595]' : 'border-transparent text-[#6a7282] hover:text-text-primary'}`}
+            className={`-mb-px inline-flex items-center gap-[7.5px] border-b-[1.6px] px-[18.75px] py-[9.375px] text-[13.125px] font-medium transition ${activeTab === 'groups' ? 'border-[#0092b8] text-[#007595]' : 'border-transparent text-[#6a7282] hover:text-text-primary'}`}
             onClick={() => setActiveTab('groups')}
             data-testid="AF3-groups-tab"
           >
@@ -53,7 +53,7 @@ export function ServiceCatalogPage() {
             id="catalog-services-tab"
             aria-selected={activeTab === 'services'}
             aria-controls="catalog-services-panel"
-            className={`-mb-px inline-flex items-center gap-[7.5px] border-b-[1.6px] px-[18.75px] py-[9.375px] text-[13.125px] font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${activeTab === 'services' ? 'border-[#0092b8] text-[#007595]' : 'border-transparent text-[#6a7282] hover:text-text-primary'}`}
+            className={`-mb-px inline-flex items-center gap-[7.5px] border-b-[1.6px] px-[18.75px] py-[9.375px] text-[13.125px] font-medium transition ${activeTab === 'services' ? 'border-[#0092b8] text-[#007595]' : 'border-transparent text-[#6a7282] hover:text-text-primary'}`}
             onClick={() => setActiveTab('services')}
             data-testid="AF3-services-tab"
           >
