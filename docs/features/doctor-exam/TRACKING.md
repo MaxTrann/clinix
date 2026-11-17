@@ -4344,6 +4344,6 @@ Ghi chú đọc bảng: các số "13/15", "6 ca" là số ca đỏ trong `exam-
 ### 27.8.6 Việc còn lại và điều cần báo
 
 - **Báo Trung trước khi mở PR (PLAN 6.7):** `[ĐỤNG database]` (`seed-config.ts`, `seed.service.ts`, `apps/api/package.json`, `docs/DEV_SETUP.md`) và `[ĐỤNG booking]` (`appointments/architecture.spec.ts`: đúng một dòng đổi và một dòng chú thích; số đo M21a, M21b ở 27.8.4). Thân PR có `Closes #406` và `Refs #390`.
-- **Hỏi Đại trước khi ghi:** `AI_USAGE_LOG.md` (hàng 144 `[đề xuất]`; không sửa ô PR/squash/CI của hàng 133 đến 143) và `docs/TECH_DEBT.md` (177 `[đề xuất]`, chỉ khi có lối tắt thật).
+- **Hỏi Đại trước khi ghi:** `AI_USAGE_LOG.md` (hàng 144 `[đề xuất]`; không sửa ô PR/squash/CI của hàng 133 đến 143) và `docs/TECH_DEBT.md` (178 `[đề xuất]`, chỉ khi có lối tắt thật).
 - **Rủi ro CI chưa đo ở máy (CI đo):** jscpd (khung `exam-demo.int-spec.ts` giống `doctor-demo.int-spec.ts`), gitleaks.
 - **Chờ:** số PR, kết quả CI, Trung approve, squash `[cần điền]`.
