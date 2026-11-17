@@ -2,12 +2,14 @@ import { useSearchParams } from 'react-router';
 import { getSpecialties } from '../api/search-service';
 import { Breadcrumb } from '../breadcrumb';
 import { useRemote } from '../../../shared/hooks/use-remote';
+import { DateStrip } from '../slots/date-strip';
+import { useSlotDate } from '../slots/use-slot-date';
 import { DoctorFilters } from './doctor-filters';
 import { DoctorResults } from './doctor-results';
 import { useDoctorSearch } from './use-doctor-search';
 import { PUBLIC_CONTAINER } from '../layout';
 
-// Trang "Đội ngũ bác sĩ" (Figma 260:2): không bắt chọn dịch vụ (Q11). Bỏ dải "Ngày khám" và khung giờ (`[SAU]`);
+// Trang "Đội ngũ bác sĩ" (Figma 260:2): không bắt chọn dịch vụ (Q11). Có dải "Ngày khám" và khung giờ (search PR-C2);
 // thêm lọc giá/đánh giá/sắp xếp theo Q12 (chưa có frame Figma). Nhịp dọc theo Figma 260:52 đến 260:158 (search F14, B1):
 // đường dẫn → H1 18,75; H1 → dòng mô tả 5,625; mô tả → bộ lọc 22,5.
 export function DoctorTeamPage() {
@@ -32,6 +34,7 @@ function DoctorTeamContent({
   serviceId: string;
 }) {
   const search = useDoctorSearch({ initialQuery, dichVuKhamId: serviceId });
+  const slotDate = useSlotDate();
   // Danh sách chuyên khoa cho ô chọn; lỗi tải thì ô chỉ còn "Tất cả chuyên khoa", danh sách bác sĩ vẫn dùng được
   const specialties = useRemote(
     (signal) => getSpecialties({ chiNhanhId: null }, signal),
@@ -62,6 +65,14 @@ function DoctorTeamContent({
           onChange={search.change}
         />
       </div>
+      <div className="mt-5">
+        <DateStrip
+          dates={slotDate.dates}
+          value={slotDate.date}
+          today={slotDate.today}
+          onChange={slotDate.setDate}
+        />
+      </div>
       <div className="mt-6">
         <DoctorResults
           state={search.doctors.state}
@@ -69,6 +80,8 @@ function DoctorTeamContent({
           page={search.page}
           onPageChange={search.setPage}
           onResetFilters={search.reset}
+          slotDate={slotDate}
+          variant="team"
         />
       </div>
     </main>
