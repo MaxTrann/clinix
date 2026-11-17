@@ -28,6 +28,8 @@ export interface PaymentRowInput {
   trangThai?: TrangThaiGiaoDichThanhToan;
   trangThaiDoiSoat?: TrangThaiDoiSoat;
   nguoiThuId?: string | null;
+  /** Giờ tạo, dạng `YYYY-MM-DD HH:mm:ss` (giờ VN); mặc định `FIXTURE_TIME` */
+  thoiDiemTao?: string;
 }
 
 export interface LedgerRowInput {
@@ -39,6 +41,8 @@ export interface LedgerRowInput {
   giaoDichThanhToanId?: string | null;
   lichSuHoanTienId?: string | null;
   yeuCauRutTienId?: string | null;
+  /** Giờ ghi sổ, dạng `YYYY-MM-DD HH:mm:ss`; mặc định `FIXTURE_TIME` */
+  thoiDiem?: string;
 }
 
 export class WalletFixtures {
@@ -94,7 +98,7 @@ export class WalletFixtures {
           : null,
         input.trangThaiDoiSoat ?? 'KhongCan',
         input.nguoiThuId ?? null,
-        FIXTURE_TIME,
+        input.thoiDiemTao ?? FIXTURE_TIME,
       ],
     );
     return String(result.insertId);
@@ -114,7 +118,7 @@ export class WalletFixtures {
         input.giaoDichThanhToanId ?? null,
         input.lichSuHoanTienId ?? null,
         input.yeuCauRutTienId ?? null,
-        FIXTURE_TIME,
+        input.thoiDiem ?? FIXTURE_TIME,
       ],
     );
     return String(result.insertId);
@@ -149,6 +153,7 @@ export class WalletFixtures {
     soTien: string;
     trangThai?: TrangThaiYeuCauRutTien;
     nguoiXuLyId?: string;
+    thoiDiemYeuCau?: string;
   }): Promise<string> {
     const handled = (input.trangThai ?? 'ChoDuyet') !== 'ChoDuyet';
     const result: { insertId: string } = await this.db.query(
@@ -159,7 +164,7 @@ export class WalletFixtures {
         input.soTien,
         input.trangThai ?? 'ChoDuyet',
         handled ? (input.nguoiXuLyId ?? null) : null,
-        FIXTURE_TIME,
+        input.thoiDiemYeuCau ?? FIXTURE_TIME,
         handled ? FIXTURE_TIME : null,
       ],
     );
