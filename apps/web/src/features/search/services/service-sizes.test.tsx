@@ -311,7 +311,7 @@ describe('Đặt lịch bước 2 "Dịch vụ khám" theo Figma 445:2 (UIS-11)'
 });
 
 describe('Đặt lịch bước 3 "Bác sĩ" theo Figma 446:2 (UIS-11)', () => {
-  it('UIS-11 nút "Chọn lại dịch vụ khám" và H1 "Chọn bác sĩ" cùng kiểu với bước 2; bộ lọc Q12 vẫn có', async () => {
+  it('UIS-11 nút "Chọn lại dịch vụ khám" và H1 "Chọn bác sĩ và khung giờ" cùng kiểu với bước 2; bộ lọc Q12 vẫn có', async () => {
     render(
       <MemoryRouter initialEntries={['/dat-lich/nhom/1/dich-vu/10']}>
         <Routes>
@@ -334,7 +334,11 @@ describe('Đặt lịch bước 3 "Bác sĩ" theo Figma 446:2 (UIS-11)', () => {
       'text-base',
       'font-medium',
     );
-    const h1 = screen.getByRole('heading', { name: 'Chọn bác sĩ', level: 1 });
+    // Tiêu đề Bước 3 nay theo Figma 446:133 (search PR-C2; F14 D7 đã ghi "khung giờ [SAU]"); các khẳng định lớp bên dưới giữ nguyên
+    const h1 = screen.getByRole('heading', {
+      name: 'Chọn bác sĩ và khung giờ',
+      level: 1,
+    });
     expect(h1).toHaveClass('mt-2', 'text-2xl', 'font-bold');
     expect(h1).not.toHaveClass('text-3xl');
     expect(h1).not.toHaveClass('font-semibold');

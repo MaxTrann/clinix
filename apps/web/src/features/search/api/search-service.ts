@@ -15,6 +15,8 @@ import type {
   SpecialtyDetail,
   SpecialtyPage,
 } from './search-types';
+import { parseDoctorSlots } from './slot-readers';
+import type { DoctorSlotsById, DoctorSlotsQuery } from './slot-types';
 
 // Mọi lời gọi của module search đi qua đây và dùng `skipAuthToken`: route công khai không đọc token, nên không gắn
 // Authorization và không kích hoạt làm mới phiên khi token cũ hết hạn (H7, CC-08).
@@ -170,4 +172,18 @@ export function getDoctors(
     },
     signal,
   });
+}
+
+// Khung giờ công khai (search PR-C2; TCBS b7, b11 đến b14): MỘT lời gọi cho cả trang bác sĩ và MỘT ngày (T4). `bacSiIds` ngăn dấu phẩy, đúng thứ tự trang.
+// Phản hồi qua bộ đọc chặt (sai hình dạng ⇒ UnexpectedResponseError). Máy chủ trả `no-store` vì khung giờ đổi liên tục.
+export async function getDoctorSlots(
+  params: DoctorSlotsQuery,
+  signal?: AbortSignal,
+): Promise<DoctorSlotsById> {
+  const raw = await request<unknown>('public/doctor-slots', {
+    ...PUBLIC_OPTIONS,
+    query: { bacSiIds: params.bacSiIds.join(','), ngay: params.ngay },
+    signal,
+  });
+  return parseDoctorSlots(raw, params.ngay, params.bacSiIds);
 }

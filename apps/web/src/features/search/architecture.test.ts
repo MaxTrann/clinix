@@ -100,4 +100,30 @@ describe('search UI PR-B — không import chéo search ⇄ booking (UIB-08)', (
       ]),
     );
   });
+
+  // search PR-C2 (mã ca SLT-87): dải ngày và lưới khung giờ dùng `bookingInfoPath` từ `shared/routes`, không import `features/booking`
+  it('SLT-87 bộ quét thấy thư mục slots/ và bộ đọc khung giờ; không file nào trong đó import features/booking', () => {
+    const slotSources = Object.fromEntries(
+      Object.entries(SEARCH_SOURCES).filter(
+        ([key]) => key.startsWith('./slots/') || key.startsWith('./api/slot-'),
+      ),
+    );
+    expect(Object.keys(slotSources)).toEqual(
+      expect.arrayContaining([
+        './slots/date-strip.tsx',
+        './slots/doctor-slot-grid.tsx',
+        './slots/doctor-slot-panel.tsx',
+        './slots/slot-cell.tsx',
+        './slots/use-doctor-slots.ts',
+        './api/slot-readers.ts',
+      ]),
+    );
+    expect(
+      violations(slotSources, searchUrl, (feature) => feature === 'booking'),
+    ).toEqual([]);
+    // Liên kết sang Bước 4 đi qua đường dẫn dùng chung của `shared/routes`
+    expect(slotSources['./slots/slot-cell.tsx']).toContain(
+      'shared/routes/booking-paths',
+    );
+  });
 });

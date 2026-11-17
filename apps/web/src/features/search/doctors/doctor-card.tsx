@@ -5,6 +5,7 @@ import {
   MessageSquare,
   Star,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { DoctorItem } from '../api/search-types';
 import { doctorDisplayName, doctorInitials } from '../format/doctor-title';
@@ -62,9 +63,16 @@ export function DoctorRating({
 }
 
 // Thẻ bác sĩ NGANG (Figma 260:162; search F14, UIS-10): hai cột 517 : 621, cột trái đệm 18,75 chứa ảnh chữ 72 px, tên, điểm, kinh nghiệm, chi nhánh,
-// giá + chip cọc và hai nút NẰM NGANG cao 45; cột phải chừa vùng khung giờ (`[SAU]`, K2 thay sau). Ảnh là chữ viết tắt (Q14).
+// giá + chip cọc và hai nút NẰM NGANG cao 45; cột phải là vùng khung giờ (`schedule`, search PR-C2). Ảnh là chữ viết tắt (Q14).
 // Dùng chung cho F5, F6 và chi tiết chuyên khoa. Đệm, khe, cỡ chữ theo lưới 15 px của gốc `html` (`p-5` = 18,75; `gap-4` = 15).
-export function DoctorCard({ doctor }: { doctor: DoctorItem }) {
+export function DoctorCard({
+  doctor,
+  schedule,
+}: {
+  doctor: DoctorItem;
+  // Vùng khung giờ của cột phải (search PR-C2); không truyền thì giữ câu chừa chỗ cũ
+  schedule?: ReactNode;
+}) {
   return (
     <li className="grid overflow-hidden rounded-[15px] border border-gray-200 bg-white md:grid-cols-[517fr_621fr]">
       <div className="p-5 md:border-r md:border-gray-100">
@@ -142,8 +150,10 @@ export function DoctorCard({ doctor }: { doctor: DoctorItem }) {
           </button>
         </div>
       </div>
-      <div className="border-t border-gray-100 bg-gray-50/60 p-5 md:border-t-0">
-        <p className="text-sm text-gray-600">{SCHEDULE_PLACEHOLDER}</p>
+      <div className="min-w-0 border-t border-gray-100 bg-gray-50/60 p-5 md:border-t-0">
+        {schedule ?? (
+          <p className="text-sm text-gray-600">{SCHEDULE_PLACEHOLDER}</p>
+        )}
       </div>
     </li>
   );
