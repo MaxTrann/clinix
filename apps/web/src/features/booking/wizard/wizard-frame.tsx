@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
-import { BookingStepper, type StepLinks } from './booking-stepper';
-import type { StepNumber } from './wizard-steps';
+import {
+  BookingStepper,
+  type StepLinks,
+} from '../../../shared/ui/booking-stepper';
+import type { StepNumber } from '../../../shared/ui/wizard-steps';
 
 // Khung của MỘT trang trong wizard: thanh bước ở trên, nội dung của bước ở dưới. Nằm trong khung công khai (`PublicLayout`, Q36).
 export function WizardFrame({
