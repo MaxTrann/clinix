@@ -250,6 +250,24 @@ describe('Trang Đội ngũ bác sĩ', () => {
     );
   });
 
+  it('UIA-05 Đội ngũ bác sĩ: gõ "500000" ở "Giá từ (đ)" hiện "500.000" và API nhận giaTu=500000; dán "2.000.000" ở "Giá đến (đ)" gửi giaDen=2000000', async () => {
+    renderAt('/bac-si');
+    await screen.findByText(/Nguyễn Minh Anh/);
+    fireEvent.change(screen.getByLabelText('Giá từ (đ)'), {
+      target: { value: '500000' },
+    });
+    const to = screen.getByLabelText('Giá đến (đ)');
+    to.focus();
+    fireEvent.paste(to, { clipboardData: { getData: () => '2.000.000' } });
+    expect(screen.getByLabelText('Giá từ (đ)')).toHaveValue('500.000');
+    expect(to).toHaveValue('2.000.000');
+    await waitFor(() => {
+      const last = doctorCalls[doctorCalls.length - 1];
+      expect(last.searchParams.get('giaTu')).toBe('500000');
+      expect(last.searchParams.get('giaDen')).toBe('2000000');
+    });
+  });
+
   it('TBS-21 rỗng: thông báo + "Xoá bộ lọc", không gợi ý chọn dịch vụ', async () => {
     doctors = [];
     renderAt('/bac-si');
@@ -285,6 +303,20 @@ describe('Chi tiết chuyên khoa: bác sĩ của chuyên khoa', () => {
     expect(first.searchParams.get('chuyenKhoaId')).toBe('10');
     expect(first.searchParams.has('dichVuKhamId')).toBe(false);
     expect(screen.queryByLabelText('Chuyên khoa')).not.toBeInTheDocument();
+  });
+
+  it('UIA-05 Chi tiết chuyên khoa: ô giá hiện "500.000", API nhận giaTu=500000 và vẫn giữ chuyên khoa', async () => {
+    renderAt('/chuyen-khoa/10');
+    await screen.findByText(/Nguyễn Minh Anh/);
+    fireEvent.change(screen.getByLabelText('Giá từ (đ)'), {
+      target: { value: '500000' },
+    });
+    expect(screen.getByLabelText('Giá từ (đ)')).toHaveValue('500.000');
+    await waitFor(() => {
+      const last = doctorCalls[doctorCalls.length - 1];
+      expect(last.searchParams.get('giaTu')).toBe('500000');
+      expect(last.searchParams.get('chuyenKhoaId')).toBe('10');
+    });
   });
 
   it('TBS-21 đổi bộ lọc vẫn giữ chuyên khoa', async () => {

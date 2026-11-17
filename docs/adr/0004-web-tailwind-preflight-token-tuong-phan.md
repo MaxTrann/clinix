@@ -25,7 +25,7 @@ Không có Preflight thì nút và ô nhập Tailwind giữ kiểu mặc định
 
 Thống kê class màu trong Make (54 file, bỏ `components/ui`): 6.297 lượt, 15 họ màu. gray 58,0%, cyan 19,1%, red 9,4%, amber 6,2%, green 3,9%; mười họ còn lại mỗi họ từ 1,1% trở xuống. Năm frame đăng nhập dùng cyan, red và xám.
 
-Khai 13 token trong `@theme` ở `src/styles/index.css`, trỏ về thang Tailwind (ví dụ `--color-brand: var(--color-cyan-600)`), không chép mã màu:
+Khai 13 token trong `@theme` ở `src/styles/index.css`, trỏ về thang Tailwind (ví dụ `--color-brand: var(--color-cyan-600)`), không chép mã màu. Thêm ngày 17/11/2026 (search UI PR-A) hai token `cta`, `cta-hover` cho nút cam, ghi ở hai dòng cuối bảng:
 
 | Token | Thang | Màu đo | Dùng cho | Nguồn | Lượt trong Make |
 |---|---|---|---|---|---|
@@ -42,6 +42,8 @@ Khai 13 token trong `@theme` ở `src/styles/index.css`, trỏ về thang Tailwi
 | `success` | green-700 | `#008236` | Chữ thành công | chỉ từ Make | text 67 |
 | `success-soft` | green-50 | `#f0fdf4` | Nền thành công | chỉ từ Make | bg 55 |
 | `success-line` | green-200 | `#b9f8cf` | Viền thành công | chỉ từ Make | border 39 |
+| `cta` | amber-400 | `#ffb900` | CHỈ nền nút gọi hành động cam ("Tìm kiếm", "Đặt lịch khám", "Chọn ngày khám", "Chọn làm chi nhánh của tôi"); chữ trên nó LUÔN là gray-900 | Figma `257:2`, `257:68`; Đại chọn bậc sáng amber-400 thay amber-500 `#fe9a00` ngày 17/11/2026 | bg-amber-500 21 |
+| `cta-hover` | amber-300 | `#ffd230` | Hover của nút `cta` (nhạt hơn, không đậm hơn như `hover:bg-amber-600` của Make) | search UI PR-A | hover:bg-amber-600 16 |
 
 Bảng đổi khi port từ Make (bước thay thế cơ học):
 
@@ -95,12 +97,23 @@ Số dưới đây tính bằng script từ màu đo thật trong Chrome: comput
 | Phụ đề gray-500 trên `brand-soft` | #6a7282 / #ecfeff | 4,65:1 | 4,5:1 | Đạt |
 | Tiêu đề gray-900 trên `brand-soft` | #101828 / #ecfeff | 17,06:1 | 4,5:1 | Đạt |
 | Viền ô nhập gray-200 trên trắng | #e5e7eb / #ffffff | 1,24:1 | 3:1 | Không đạt |
+| Chữ gray-900 trên `cta` | #101828 / #ffb900 | 10,30:1 | 4,5:1 | Đạt |
+| Chữ gray-900 trên `cta-hover` | #101828 / #ffd230 | 12,26:1 | 4,5:1 | Đạt |
+| Chữ trắng trên cam amber-500 (Figma) | #ffffff / #fe9a00 | 2,13:1 | 4,5:1 | Không đạt, KHÔNG dùng |
+| Số liệu banner amber-300 trên `brand-strong` (chữ lớn 28 px đậm) | #ffd230 / #007595 | 3,65:1 | 3:1 | Đạt |
+| Chữ `danger` trên `danger-soft` (hover của Make) | #e7000b / #fef2f2 | 4,36:1 | 4,5:1 | Không đạt, hover dùng `danger-strong` (5,87:1) |
 
 `amber` và `green` đo ra đạt ở sắc 700 trên nền nhạt nên không cần sắc đậm hơn. Viền ô nhập giữ theo Figma là khoảng trống đã biết (`docs/TECH_DEBT.md` dòng 51): ô nhập vẫn nhận ra được nhờ nhãn và placeholder, nhưng chưa đạt 3:1. Cặp màu mới trong mã phải tính theo cách trên trước khi dùng.
 
+## Màu CTA và nền banner Trang chủ (search UI PR-A, 17/11/2026; đảo quyết định 15/11/2026 "màu giữ ADR 0004")
+
+Nút cam của Figma (`#fe9a00`, chữ trắng 2,13:1) KHÔNG dùng chữ trắng: mọi nút CTA cam dùng token `cta` với chữ gray-900. Số liệu ở banner Trang chủ dùng vàng `text-amber-300` (`#ffd230`) như Figma, chữ lớn 28 px đậm cần 3:1 và đạt 3,65:1 (3,15:1 chỗ đè vòng tròn trắng 8% sẵn có).
+
+Nền banner theo phương án B: gradient của Figma `257:2` (`#007595`, `#0092b8`, `#00bba7`) nhưng vùng có chữ giữ `#007595` (lớp `hero-gradient` ở `styles/index.css`). **Không cần ngoại lệ AA.** Số đo ngày 17/11/2026 (hộp chữ thật từ Chromium, hiệu chuẩn trắng trên `#007595` = 5,28:1): nền A (gradient phủ cả banner đúng Figma) KHÔNG đạt AA ở 6/8 khối chữ ở 1440 và 768 px, 7/8 ở 375 px (số vàng 2,29, 2,04, 1,85:1; mô tả 3,75:1; chip 3,44:1 ở 1440 px); nền B cho cùng số với nền phẳng cũ ở mọi bề rộng. Ở 768 và 375 px nền B phẳng hoàn toàn; gradient chỉ thấy ở màn rộng, phía phải. Điểm dừng `820px` và `1120px` chỉnh theo khung 1440 (`docs/TECH_DEBT.md` nếu có lối tắt).
+
 ## Việc nhóm cần sửa trong Figma
 
-Mã đã đậm hơn Figma ở các chỗ sau, Figma phải sửa theo: nút chính và liên kết `#0092b8` thành `#007595`, hover nút thành `#005f78`; chữ trong hộp lỗi `#e7000b` thành `#c10007`; viền focus thành `#0092b8`, Figma chưa có frame focus; placeholder thành `#6a7282`. Khoảng trống còn mở: viền ô nhập `#e5e7eb` chỉ đạt 1,24:1, nhóm cần chọn màu đạt 3:1.
+Mã đã đậm hơn Figma ở các chỗ sau, Figma phải sửa theo: nút chính và liên kết `#0092b8` thành `#007595`, hover nút thành `#005f78`; chữ trong hộp lỗi `#e7000b` thành `#c10007`; viền focus thành `#0092b8`, Figma chưa có frame focus; placeholder thành `#6a7282`. Khoảng trống còn mở: viền ô nhập `#e5e7eb` chỉ đạt 1,24:1, nhóm cần chọn màu đạt 3:1. Thêm 17/11/2026 (search UI PR-A): nút cam chữ trắng `#ffffff` thành chữ `#101828` (nền cam sáng `#ffb900`, hover `#ffd230`); nền banner Trang chủ gradient phủ cả banner thành gradient có vùng chữ giữ `#007595` (phương án B); hover của "Đăng xuất" trong menu tên người dùng `#e7000b` trên `#fef2f2` thành chữ `#c10007`; Figma chưa có frame focus cho ô tìm có biểu tượng đặt trong khung bo tròn (`field-frame`) `[ĐỒNG BỘ TL]`.
 
 ## Giá trị `[...]`
 

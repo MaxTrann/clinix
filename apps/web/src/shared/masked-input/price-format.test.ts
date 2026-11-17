@@ -1,4 +1,4 @@
-import { caretAfterDigits } from '../digit-caret';
+import { caretAfterDigits } from './digit-caret';
 import {
   applyTextChange,
   formatThousands,
@@ -207,6 +207,60 @@ describe('insertText (dán và thả chữ)', () => {
     expect(insertText('15', 2, 2, 'abc')).toEqual({
       digits: '15',
       caretDigits: 2,
+    });
+  });
+});
+
+// UIA-03 (search UI PR-A, G4): bộ lọc giá của search nhận tới 12 chữ số như API (`^\d{1,12}$`), còn mặc định vẫn 10 để admin KHÔNG đổi hành vi.
+describe('maxDigits tuỳ chọn (UIA-03)', () => {
+  it('UIA-03 mặc định vẫn là 10: chữ số thứ 11 bị bỏ khi gõ, dán 11 chữ số bị bỏ lần dán', () => {
+    expect(
+      applyTextChange('9.999.999.999', '99.999.999.999', 2, 'backward'),
+    ).toEqual({ digits: '9999999999', caretDigits: 1 });
+    expect(insertText('', 0, 0, '12345678901')).toBeNull();
+  });
+
+  it('UIA-03 maxDigits 12: gõ đúng 12 chữ số được nhận, ngăn nghìn đủ 3 cấp', () => {
+    expect(
+      applyTextChange('12.345.678.901', '12.345.678.9012', 15, 'backward', 12),
+    ).toEqual({ digits: '123456789012', caretDigits: 12 });
+    expect(formatThousands('123456789012')).toBe('123.456.789.012');
+  });
+
+  it('UIA-03 maxDigits 12: chữ số thứ 13 bị bỏ, giá trị cũ giữ nguyên, con trỏ lùi theo', () => {
+    // gõ thêm một chữ số 9 ở đầu của 999.999.999.999
+    expect(
+      applyTextChange('999.999.999.999', '9999.999.999.999', 1, 'backward', 12),
+    ).toEqual({ digits: '999999999999', caretDigits: 0 });
+    // gõ ở cuối: con trỏ về cuối giá trị cũ (12 chữ số)
+    expect(
+      applyTextChange(
+        '999.999.999.999',
+        '999.999.999.9999',
+        16,
+        'backward',
+        12,
+      ),
+    ).toEqual({ digits: '999999999999', caretDigits: 12 });
+  });
+
+  it('UIA-03 maxDigits 12: dán 11 và 12 chữ số được nhận, 13 chữ số bỏ cả lần dán, dán thêm vào ô đã đủ 12 chữ số bị bỏ', () => {
+    expect(insertText('', 0, 0, '12345678901', 12)).toEqual({
+      digits: '12345678901',
+      caretDigits: 11,
+    });
+    expect(insertText('', 0, 0, '123456789012', 12)).toEqual({
+      digits: '123456789012',
+      caretDigits: 12,
+    });
+    expect(insertText('', 0, 0, '1234567890123', 12)).toBeNull();
+    expect(insertText('123456789012', 12, 12, '1', 12)).toBeNull();
+  });
+
+  it('UIA-03 maxDigits 12: dán có dấu chấm và đuôi lẻ vẫn ra chữ số thuần ("1.500.000,50" ⇒ 1500000)', () => {
+    expect(insertText('', 0, 0, '1.500.000,50', 12)).toEqual({
+      digits: '1500000',
+      caretDigits: 7,
     });
   });
 });

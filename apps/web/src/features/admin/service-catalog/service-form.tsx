@@ -5,8 +5,11 @@ import {
   validateServiceInput,
   type ServiceFieldErrors,
 } from './catalog-validation';
-import { formatThousands, parseApiPrice } from './price-format';
-import { PriceInput } from './price-input';
+import {
+  formatThousands,
+  parseApiPrice,
+} from '../../../shared/masked-input/price-format';
+import { PriceInput } from '../../../shared/masked-input/price-input';
 import type {
   ServiceCatalogItem,
   ServiceGroup,

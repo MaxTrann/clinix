@@ -275,14 +275,37 @@ describe('Luồng chọn dịch vụ → bác sĩ', () => {
     });
   });
 
-  it('TBS-17 lỗi ô giá: báo dưới ô và không gọi API với giá sai', async () => {
+  it('UIA-05 Bước 3: gõ "500000" ở "Giá từ (đ)" hiện "500.000" nhưng API nhận giaTu=500000 (chữ số thuần), "Giá đến" dán "1.500.000,50" hiện "1.500.000" và gửi giaDen=1500000', async () => {
+    renderAt(DOCTORS_PATH);
+    await screen.findByText(/Nguyễn Minh Anh/);
+    fireEvent.change(screen.getByLabelText('Giá từ (đ)'), {
+      target: { value: '500000' },
+    });
+    const to = screen.getByLabelText('Giá đến (đ)');
+    to.focus();
+    fireEvent.paste(to, { clipboardData: { getData: () => '1.500.000,50' } });
+    expect(screen.getByLabelText('Giá từ (đ)')).toHaveValue('500.000');
+    expect(to).toHaveValue('1.500.000');
+    await waitFor(() => {
+      const last = doctorCalls[doctorCalls.length - 1];
+      expect(last.searchParams.get('giaTu')).toBe('500000');
+      expect(last.searchParams.get('giaDen')).toBe('1500000');
+    });
+  });
+
+  // Đổi có chủ ý (search UI PR-A, G4; phiên kiểm duyệt 17/11/2026): trước đây nửa đầu ca này gõ "-5" và đòi lỗi "Giá phải là số không âm".
+  // Ô giá nay chỉ nhận chữ số (như ô giá admin: bỏ ký tự không phải số, không báo lỗi) nên "-5" chỉ còn "5"; trang Đội ngũ bác sĩ không nhận
+  // `giaTu` từ URL nên ca cũ không thể chuyển sang đi qua URL. Luật lỗi "không phải số" vẫn khoá bằng ca đơn vị `doctor-format.test.ts`
+  // và UIS-10 (truyền `errors` qua props). Nửa sau (giá từ > giá đến) GIỮ NGUYÊN.
+  it('TBS-17 lỗi ô giá: gõ -5 ⇒ ô chỉ còn 5, không lỗi; giá từ > giá đến báo lỗi dưới ô và không gọi API với giá sai', async () => {
     renderAt(DOCTORS_PATH);
     await screen.findByText(/Nguyễn Minh Anh/);
     const before = doctorCalls.length;
     fireEvent.change(screen.getByLabelText('Giá từ (đ)'), {
       target: { value: '-5' },
     });
-    expect(await screen.findByText(PRICE_NOT_NUMBER_MESSAGE)).toBeVisible();
+    expect(screen.getByLabelText('Giá từ (đ)')).toHaveValue('5');
+    expect(screen.queryByText(PRICE_NOT_NUMBER_MESSAGE)).toBeNull();
     // Giá từ > giá đến cũng báo lỗi
     fireEvent.change(screen.getByLabelText('Giá từ (đ)'), {
       target: { value: '500' },

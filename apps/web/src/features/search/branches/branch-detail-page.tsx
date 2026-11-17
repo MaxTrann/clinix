@@ -121,7 +121,7 @@ function BranchDetailBody({
           <button
             type="button"
             onClick={onChoose}
-            className="rounded-[0.625rem] bg-amber-500 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-amber-400"
+            className="rounded-[0.625rem] bg-cta px-4 py-2 text-sm font-medium text-gray-900 hover:bg-cta-hover"
           >
             {CHOOSE_BRANCH_LABEL}
           </button>

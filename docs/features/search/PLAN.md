@@ -707,6 +707,22 @@ Mức W (`css: false`): khoá LỚP CSS và nội dung, không đo bố cục; s
 | UIS-11 | Đặt lịch bước 1–3: H1, lưới, thẻ nhóm và dịch vụ, nút quay lại | H1 22,5 đậm; khe 15; thẻ bo 15, chân thẻ neo đáy; "Sắp triển khai" xám LIỀN; nút quay lại cao ≥ 45 lệch trái 7,5 | `444:133`, `444:184`, `445:139`, `445:343`, `445:337` | C |
 | UIS-12 | Chi nhánh (KHÔNG có frame; tham chiếu GIÁN TIẾP từ Chuyên khoa) | Nhịp dọc, đường dẫn, ô tìm, thẻ như Chuyên khoa | — | C |
 
+### 7.12 Sửa nhanh giao diện công khai theo Figma (UIA) — task "Search UI PR-A" (mã `UIA-nn`, `FG-11`, `FG-12` là `[đề xuất]`)
+
+Sau khi Đại test tay Search 19/19 Đạt (17/11/2026): sáu điểm sửa G1 đến G6 (kế hoạch, câu hỏi và kết quả ở TRACKING mục 7). Mức W (`css: false`) cộng quét nguồn; màu, tương phản và điểm ảnh thật đo bằng Chromium. Đảo quyết định 15/11/2026 "màu giữ ADR 0004": nút cam chữ gray-900, số liệu hero vàng, nền hero gradient B.
+
+| ID | Kịch bản | Mong đợi | Phủ | Loại |
+|---|---|---|---|---|
+| UIA-01 | Ô tìm Trang chủ (ô `border-0` trong khung bo tròn) | Nhãn có `field-frame` và `rounded-l-2xl`; ô còn `border-0`; nút "Tìm kiếm" nằm NGOÀI khung; chỉ một `field-frame` | G6, hồi quy PR #492 | C |
+| FG-11, FG-12 | Quét tĩnh toàn web: `<input>`, `<textarea>`, `<select>` có `border-0` hoặc `border-none` phải ở file có `field-frame`; đối chứng | 0 vi phạm; bắt 5 mẫu xấu, không báo nhầm 5 mẫu lành | G6 | C |
+| UIA-02 | Menu tên người dùng | Icon `User` cùng cỡ icon đăng xuất; đúng một đường kẻ giữa hai mục; "Đăng xuất" `text-danger`, hover `bg-danger-soft` + `text-danger-strong`; nhãn "Trang của tôi" giữ (Q19b) | G5, Make `PublicHeader.tsx` 249 đến 268 | C |
+| UIA-03 | Hàm thuần định dạng giá với tham số `maxDigits` | Mặc định 10 (admin không đổi); 12 cho bộ lọc giá của search; biên 12 và 13 chữ số | G4 | C |
+| UIA-04 | `PriceInput` dùng chung (`shared/masked-input`) | `showSuffix`, `placeholder`, `maxDigits`, `onTooLong` tuỳ chọn; mặc định giữ hành vi admin | G4 | C |
+| UIA-05 | Hai ô giá của bộ lọc bác sĩ (Bước 3, Đội ngũ bác sĩ, Chi tiết chuyên khoa) | "500.000" khi gõ, dán, xoá; giá trị trong state và lên API là chữ số thuần; "-5" ⇒ "5" không lỗi (đổi có chủ ý nửa đầu TBS-17); lỗi khoảng giá giữ nguyên | G4 | C |
+| UIA-06 | Sáu nút CTA cam | `bg-cta text-gray-900 hover:bg-cta-hover`; không `bg-amber-500`, không chữ trắng; `--color-cta` = amber-400 (`#ffb900`) | G1, Figma `257:2`, `257:68`, `259:88` | C |
+| UIA-07 | Số liệu hero | `text-amber-300`; nhãn không vàng | G2, Make `HomePage.tsx` 324 | C |
+| UIA-08 | Nền hero | Lớp `hero-gradient`; vùng chữ phẳng `#007595` tới `max(57%, 820px)`; màu lấy từ token | G3, Figma `257:2` | C |
+
 ## 8. Gom cụm (nhóm đồng ý 03/11/2026; cụm 4 xếp sau cùng)
 
 **Người làm: Trung (`junUTE`)** — full-stack trọn module; mỗi task một PR. Thứ tự theo phụ thuộc thật; bảng xếp theo **thứ tự làm**:

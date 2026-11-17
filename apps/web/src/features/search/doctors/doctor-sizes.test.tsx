@@ -598,10 +598,14 @@ describe('trang Chi tiết bác sĩ theo Figma 653:2 (UIS-10)', () => {
     expect(choose).toHaveClass(
       'h-12',
       'rounded-[13.375px]',
-      'bg-brand-strong',
-      'text-white',
+      // Cam theo token `cta` với chữ gray-900 (search UI PR-A, G1; trước đó `bg-brand-strong` + `text-white`)
+      'bg-cta',
+      'hover:bg-cta-hover',
+      'text-gray-900',
       'gap-2',
     );
+    expect(choose).not.toHaveClass('bg-brand-strong');
+    expect(choose).not.toHaveClass('text-white');
     expect(choose.querySelector('svg')).toHaveClass('size-4');
     const message = screen.getByRole('button', { name: 'Nhắn tin với bác sĩ' });
     expect(message).toBeDisabled();
