@@ -2,6 +2,15 @@ import { request } from '../../../../shared/api/client';
 import { UnexpectedResponseError } from '../../../../shared/api/errors';
 import type { ExamRecordNote, SaveBody } from '../exam-record-form';
 import {
+  parseAdminReviewDetail,
+  parseAdminReviewPage,
+} from './admin-review-readers';
+import type {
+  AdminReviewDetail,
+  AdminReviewPage,
+  AdminReviewQuery,
+} from './admin-review-types';
+import {
   parseExamDetail,
   parseExamListPage,
   parseRatingResult,
@@ -140,4 +149,37 @@ export async function submitRating(
     { method: 'POST', json: body, signal },
   );
   return parseRatingResult(created);
+}
+
+// Hợp đồng `GET /admin/doctor-ratings` (doctor-exam B7, PLAN 5.8; Quản trị viên, cả hai phạm vi): query `trangThai` (`HienThi` | `DaAn`), `soSao`, `bacSiId`, `chiNhanhId` (chỉ Toàn hệ thống), `q` (≤ 100), `page`, `pageSize` (≤ 50); KHÔNG thân.
+// 200 qua bộ đọc CHẶT (khoá lạ bị bỏ, sai hình dạng ⇒ `UnexpectedResponseError`). Client bỏ khoá `undefined`. Tên người đặt và nhận xét là dữ liệu người dùng: không vào log hay URL của trình duyệt (chỉ là query gửi đi; `q` KHÔNG lên URL của trang).
+export async function listAdminReviews(
+  query: AdminReviewQuery,
+  signal?: AbortSignal,
+): Promise<AdminReviewPage> {
+  const body = await request<unknown>('/admin/doctor-ratings', {
+    query: {
+      trangThai: query.trangThai,
+      soSao: query.soSao,
+      bacSiId: query.bacSiId,
+      chiNhanhId: query.chiNhanhId,
+      q: query.q,
+      page: query.page,
+      pageSize: query.pageSize,
+    },
+    signal,
+  });
+  return parseAdminReviewPage(body);
+}
+
+// Hợp đồng `GET /admin/doctor-ratings/:id` (B7): mọi lỗi "không thấy" (không có, sai dạng id, ngoài phạm vi) là CÙNG 404 `KHONG_TIM_THAY`. Id là BIGINT dạng chuỗi, đi qua `encodeURIComponent`; không tự gửi lại.
+export async function getAdminReview(
+  danhGiaId: string,
+  signal?: AbortSignal,
+): Promise<AdminReviewDetail> {
+  const body = await request<unknown>(
+    `/admin/doctor-ratings/${encodeURIComponent(danhGiaId)}`,
+    { signal },
+  );
+  return parseAdminReviewDetail(body);
 }
