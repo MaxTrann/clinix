@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { PriceInput } from './price-input';
 
@@ -266,5 +266,94 @@ describe('PriceInput: dán và thả chữ (điều kiện E)', () => {
 
     expect(state()).toBe('70');
     expect(input()).toHaveValue('70');
+  });
+});
+
+// UIA-04 (search UI PR-A, G4): ô giá dùng chung cho bộ lọc giá của search. Mặc định giữ nguyên hành vi của admin (hậu tố "đ", placeholder "0",
+// tối đa 10 chữ số, `onTooLong` bắt buộc ở admin nhưng không bắt buộc ở nơi khác).
+function PropsHarness({
+  initial = '',
+  ...rest
+}: { initial?: string } & Partial<ComponentProps<typeof PriceInput>>) {
+  const [digits, setDigits] = useState(initial);
+  return (
+    <>
+      <label htmlFor="price">Giá mặc định (VND)</label>
+      <PriceInput
+        id="price"
+        digits={digits}
+        onDigitsChange={setDigits}
+        className="field"
+        invalid={false}
+        {...rest}
+      />
+      <output data-testid="digits">{digits}</output>
+    </>
+  );
+}
+
+describe('PriceInput: thuộc tính tuỳ chọn (UIA-04)', () => {
+  it('UIA-04 mặc định: có hậu tố "đ" và placeholder "0" (admin không đổi)', () => {
+    render(<PropsHarness />);
+
+    expect(screen.getByText('đ')).toBeInTheDocument();
+    expect(input()).toHaveAttribute('placeholder', '0');
+  });
+
+  it('UIA-04 showSuffix={false}: không có hậu tố "đ" và ô vẫn định dạng "500.000"', () => {
+    render(<PropsHarness initial="500000" showSuffix={false} />);
+
+    expect(screen.queryByText('đ')).toBeNull();
+    expect(input()).toHaveValue('500.000');
+  });
+
+  it('UIA-04 placeholder rỗng: ô không có chữ gợi ý (bộ lọc giá chưa có frame Figma)', () => {
+    render(<PropsHarness placeholder="" />);
+
+    expect(input().placeholder).toBe('');
+  });
+
+  it('UIA-04 maxDigits 12: gõ chữ số thứ 12 được, thứ 13 bị bỏ; dán 12 chữ số được, 13 chữ số bị bỏ và báo onTooLong một lần', () => {
+    const onTooLong = vi.fn();
+    render(<PropsHarness maxDigits={12} onTooLong={onTooLong} />);
+    input().focus();
+
+    fireEvent.paste(input(), {
+      clipboardData: { getData: () => '12345678901' },
+    });
+    typeInto('12.345.678.9012', 15);
+    expect(state()).toBe('123456789012');
+    expect(input()).toHaveValue('123.456.789.012');
+
+    typeInto('123.456.789.0123', 16);
+    expect(state()).toBe('123456789012');
+
+    fireEvent.paste(input(), {
+      clipboardData: { getData: () => '1234567890123' },
+    });
+    expect(state()).toBe('123456789012');
+    expect(onTooLong).toHaveBeenCalledTimes(1);
+  });
+
+  it('UIA-04 không truyền maxDigits: vẫn 10 chữ số (dán 11 chữ số bị bỏ)', () => {
+    render(<PropsHarness />);
+    input().focus();
+
+    fireEvent.paste(input(), {
+      clipboardData: { getData: () => '12345678901' },
+    });
+
+    expect(state()).toBe('');
+  });
+
+  it('UIA-04 onTooLong không bắt buộc: dán quá giới hạn không ném lỗi, giá trị cũ giữ nguyên', () => {
+    render(<PropsHarness initial="500" />);
+    input().focus();
+
+    fireEvent.paste(input(), {
+      clipboardData: { getData: () => '12345678901' },
+    });
+
+    expect(state()).toBe('500');
   });
 });

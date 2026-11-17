@@ -102,8 +102,8 @@ export function PublicActions({
       {bookingItem.to ? (
         <Link
           to={bookingItem.to}
-          // Figma: chữ trắng trên cam `#fe9a00` không đạt tương phản (Q26) nên dùng chữ đậm tối trên nền cam
-          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[0.625rem] bg-amber-500 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-amber-400"
+          // Figma: chữ trắng trên cam không đạt tương phản (2,13:1) nên dùng chữ gray-900 trên nền cam token `cta` (10,30:1; search UI PR-A, G1)
+          className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[0.625rem] bg-cta px-4 py-2 text-sm font-medium text-gray-900 hover:bg-cta-hover"
         >
           <CalendarDays className="size-4" aria-hidden="true" />
           {bookingItem.label}

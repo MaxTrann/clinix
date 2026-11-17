@@ -80,7 +80,9 @@ export function GlobalSearch() {
     >
       {/* Figma 257:68: ô cao 52,5 px = đệm 30 + dòng 22,5 (`text-base`, quy tắc base của `input` là `text-sm`); nút `px-7` = 26,25 px. */}
       <div className="flex overflow-hidden rounded-2xl bg-white shadow-xl">
-        <label className="flex min-w-0 flex-1 items-center gap-3 px-4">
+        {/* Ô không viền (`border-0`) nằm trong thẻ bo tròn: vòng focus do khung này vẽ (`field-frame`), bo góc trái theo thẻ (`rounded-l-2xl`),
+            vế phải thẳng sát nút. Nút "Tìm kiếm" nằm ngoài nhãn để không làm khung sáng lên khi nút nhận tiêu điểm (search UI PR-A, G6). */}
+        <label className="field-frame flex min-w-0 flex-1 items-center gap-3 rounded-l-2xl px-4">
           <img src="/assets/search/home/search.svg" alt="" aria-hidden="true" />
           <span className="sr-only">Tìm bác sĩ, chuyên khoa, dịch vụ</span>
           <input
@@ -132,7 +134,7 @@ export function GlobalSearch() {
         </label>
         <button
           type="submit"
-          className="bg-brand-strong px-7 font-medium text-white"
+          className="bg-cta px-7 font-medium text-gray-900 hover:bg-cta-hover"
         >
           Tìm kiếm
         </button>

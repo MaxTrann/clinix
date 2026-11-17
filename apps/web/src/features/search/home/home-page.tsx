@@ -63,10 +63,11 @@ export function HomePage() {
 
   return (
     <main>
-      {/* Q26: nền brand-strong giữ chữ trắng đủ tương phản; không dùng gradient sáng phía sau chữ. */}
+      {/* Nền gradient của Figma 257:2 nhưng vùng có chữ giữ `#007595` (phương án B, Đại chọn 17/11/2026; lớp `hero-gradient` ở `styles/index.css`):
+          chữ trắng giữ 5,28:1, không có chữ nào nằm trên vùng sáng. `bg-brand-strong` là màu dự phòng khi trình duyệt không hiểu gradient. */}
       <section
         aria-labelledby="home-title"
-        className="relative bg-brand-strong text-white"
+        className="hero-gradient relative bg-brand-strong text-white"
       >
         <div
           aria-hidden="true"
@@ -112,7 +113,10 @@ export function HomePage() {
                   ].map(([label, count]) => (
                     <div key={label} className="flex flex-col">
                       <dt className="order-2 text-sm">{label}</dt>
-                      <dd className="order-1 text-3xl font-bold">{count}</dd>
+                      {/* Số vàng `#ffd230` như Figma 257:2 (3,65:1 trên #007595; chữ lớn 28 px đậm cần 3:1), nhãn giữ trắng */}
+                      <dd className="order-1 text-3xl font-bold text-amber-300">
+                        {count}
+                      </dd>
                     </div>
                   ))}
                 </dl>

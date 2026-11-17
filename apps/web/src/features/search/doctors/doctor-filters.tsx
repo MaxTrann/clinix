@@ -1,4 +1,5 @@
 import { ChevronDown, Search } from 'lucide-react';
+import { PriceInput } from '../../../shared/masked-input/price-input';
 import type {
   BranchSummary,
   DoctorSort,
@@ -11,6 +12,10 @@ import {
   type DoctorFilterErrors,
   type DoctorFilterValues,
 } from './doctor-filter-rules';
+
+// Ô giá hiển thị ngăn nghìn "500.000", giá trị trong state và lên API là chuỗi chữ số thuần (search UI PR-A, G4). Tối đa 12 chữ số khớp API
+// (`PRICE_PATTERN = ^\d{1,12}$` của `doctor-filter.parser.ts`); bộ định dạng dùng chung với admin ở `shared/masked-input` (mặc định 10).
+const PRICE_MAX_DIGITS = 12;
 
 export const ALL_BRANCHES_LABEL = 'Tất cả chi nhánh';
 export const ALL_SPECIALTIES_LABEL = 'Tất cả chuyên khoa';
@@ -162,16 +167,15 @@ export function DoctorFilters({
           <label htmlFor="doctor-price-from" className={LABEL}>
             Giá từ (đ)
           </label>
-          <input
+          <PriceInput
             id="doctor-price-from"
-            inputMode="numeric"
-            maxLength={12}
-            value={values.giaTu}
-            onChange={(event) => onChange({ giaTu: event.target.value })}
-            aria-invalid={errors.giaTu ? true : undefined}
-            aria-describedby={
-              errors.giaTu ? 'doctor-price-from-error' : undefined
-            }
+            digits={values.giaTu}
+            onDigitsChange={(digits) => onChange({ giaTu: digits })}
+            maxDigits={PRICE_MAX_DIGITS}
+            showSuffix={false}
+            placeholder=""
+            invalid={Boolean(errors.giaTu)}
+            describedBy={errors.giaTu ? 'doctor-price-from-error' : undefined}
             className={`${FIELD} mt-1 px-3`}
           />
           {errors.giaTu && (
@@ -188,16 +192,15 @@ export function DoctorFilters({
           <label htmlFor="doctor-price-to" className={LABEL}>
             Giá đến (đ)
           </label>
-          <input
+          <PriceInput
             id="doctor-price-to"
-            inputMode="numeric"
-            maxLength={12}
-            value={values.giaDen}
-            onChange={(event) => onChange({ giaDen: event.target.value })}
-            aria-invalid={errors.giaDen ? true : undefined}
-            aria-describedby={
-              errors.giaDen ? 'doctor-price-to-error' : undefined
-            }
+            digits={values.giaDen}
+            onDigitsChange={(digits) => onChange({ giaDen: digits })}
+            maxDigits={PRICE_MAX_DIGITS}
+            showSuffix={false}
+            placeholder=""
+            invalid={Boolean(errors.giaDen)}
+            describedBy={errors.giaDen ? 'doctor-price-to-error' : undefined}
             className={`${FIELD} mt-1 px-3`}
           />
           {errors.giaDen && (

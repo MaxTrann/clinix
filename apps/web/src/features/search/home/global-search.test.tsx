@@ -221,3 +221,35 @@ it('UIS-04 (search F14, G2): ô nhập chữ 15 px (cao ô 52,5 px) và nút "T�
   expect(button).not.toHaveClass('border-l');
   expect(button).not.toHaveClass('px-5');
 });
+
+it('UIA-06 (search UI PR-A, G1): nút "Tìm kiếm" cam theo token (`bg-cta` #ffb900) với chữ gray-900 (10,30:1), hover `bg-cta-hover`; không còn xanh `brand-strong` hay chữ trắng (2,13:1 trên cam)', () => {
+  openSearch();
+  const button = screen.getByRole('button', { name: 'Tìm kiếm' });
+  expect(button).toHaveClass('bg-cta', 'text-gray-900', 'hover:bg-cta-hover');
+  expect(button).not.toHaveClass('bg-brand-strong');
+  expect(button).not.toHaveClass('text-white');
+  expect(button).not.toHaveClass('bg-amber-500');
+  // Kích thước giữ nguyên (UIS-04): `px-7`, `font-medium`
+  expect(button).toHaveClass('px-7', 'font-medium');
+});
+
+it('UIA-01 (search UI PR-A, G6): ô tìm không viền nằm trong khung `field-frame` bo trái; nút "Tìm kiếm" nằm ngoài khung', () => {
+  const { container } = openSearch();
+  const input = screen.getByRole('combobox');
+  const frame = input.closest('.field-frame');
+  // Ô `border-0` trong khung bo tròn: quy tắc base vẽ vòng quanh chính ô sẽ ra hình chữ nhật trong khung (hồi quy của PR #492),
+  // nên khung (nhãn bọc biểu tượng và ô) vẽ vòng và ô bên trong tắt vòng của nó.
+  expect(frame).not.toBeNull();
+  expect(frame?.tagName).toBe('LABEL');
+  // Góc trái theo bo của thẻ trắng (`rounded-2xl`); vế phải thẳng sát nút
+  expect(frame).toHaveClass('rounded-l-2xl');
+  expect(frame).not.toHaveClass('rounded-2xl');
+  expect(frame?.querySelector('img')).not.toBeNull();
+  expect(frame).toContainElement(input);
+  expect(input).toHaveClass('border-0');
+  // Nút không nằm trong khung: nếu có, khung sáng lên mỗi khi nút nhận tiêu điểm
+  expect(frame).not.toContainElement(
+    screen.getByRole('button', { name: 'Tìm kiếm' }),
+  );
+  expect(container.querySelectorAll('.field-frame')).toHaveLength(1);
+});

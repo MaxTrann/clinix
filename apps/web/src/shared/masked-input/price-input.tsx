@@ -5,11 +5,12 @@ import {
   type DragEvent,
   type KeyboardEvent,
 } from 'react';
-import { caretAfterDigits } from '../digit-caret';
+import { caretAfterDigits } from './digit-caret';
 import {
   applyTextChange,
   formatThousands,
   insertText,
+  MAX_PRICE_DIGITS,
   type PriceEdit,
 } from './price-format';
 
@@ -18,12 +19,18 @@ interface PriceInputProps {
   // Giá dạng chuỗi chữ số thuần ("150000"); ô hiển thị "150.000" kèm hậu tố "đ" nằm ngoài giá trị
   digits: string;
   onDigitsChange: (digits: string) => void;
-  // Dán hoặc thả quá 10 chữ số: lần đó bị bỏ, nơi dùng báo lỗi
-  onTooLong: () => void;
+  // Dán hoặc thả quá `maxDigits` chữ số: lần đó bị bỏ, nơi dùng báo lỗi (không truyền thì bỏ lặng lẽ)
+  onTooLong?: () => void;
   className: string;
   invalid: boolean;
   describedBy?: string;
   disabled?: boolean;
+  // Số chữ số tối đa; mặc định 10 (admin), bộ lọc giá của search truyền 12 cho khớp API
+  maxDigits?: number;
+  // Hậu tố "đ" trang trí (đặt cho ô cao 39,1 px của admin); bộ lọc giá của search đã ghi "(đ)" ở nhãn nên tắt
+  showSuffix?: boolean;
+  // Chữ gợi ý; mặc định "0" (admin), truyền chuỗi rỗng khi không muốn có
+  placeholder?: string;
 }
 
 // Ô giá chỉ nhận số nguyên đồng (admin PR2 mục 6.3). Tự ngăn nghìn khi gõ, dán và thả chữ; giữ con trỏ đúng; xóa qua dấu chấm không
@@ -37,6 +44,9 @@ export function PriceInput({
   invalid,
   describedBy,
   disabled,
+  maxDigits = MAX_PRICE_DIGITS,
+  showSuffix = true,
+  placeholder = '0',
 }: PriceInputProps) {
   // Phím cuối do keydown ghi lại, chỉ để biết Backspace hay Delete khi sự kiện input không có `inputType` (đường phụ)
   const lastKey = useRef('');
@@ -65,14 +75,21 @@ export function PriceInput({
         input.value,
         input.selectionStart ?? input.value.length,
         forward ? 'forward' : 'backward',
+        maxDigits,
       ),
     );
   }
 
   function insert(input: HTMLInputElement, text: string) {
     const start = input.selectionStart ?? shown.length;
-    const edit = insertText(shown, start, input.selectionEnd ?? start, text);
-    if (edit === null) onTooLong();
+    const edit = insertText(
+      shown,
+      start,
+      input.selectionEnd ?? start,
+      text,
+      maxDigits,
+    );
+    if (edit === null) onTooLong?.();
     else show(input, edit);
   }
 
@@ -95,7 +112,7 @@ export function PriceInput({
         value={shown}
         inputMode="numeric"
         autoComplete="off"
-        placeholder="0"
+        placeholder={placeholder}
         disabled={disabled}
         aria-invalid={invalid}
         aria-describedby={describedBy}
@@ -107,12 +124,14 @@ export function PriceInput({
         onDrop={handleDrop}
       />
       {/* Hậu tố chỉ để nhìn; nhãn "Giá mặc định (VND)" đã nêu đơn vị cho trình đọc màn hình */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 right-[11.25px] flex h-[39.1px] items-center text-[13.125px] text-text-secondary"
-      >
-        đ
-      </span>
+      {showSuffix && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 right-[11.25px] flex h-[39.1px] items-center text-[13.125px] text-text-secondary"
+        >
+          đ
+        </span>
+      )}
     </span>
   );
 }

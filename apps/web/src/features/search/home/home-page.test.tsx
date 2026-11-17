@@ -496,6 +496,54 @@ it('UIS-06: có điểm đánh giá ⇒ huy hiệu sao ở góc ảnh (điểm m
   expect(within(doctors).queryByText('Chưa có đánh giá')).toBeNull();
 });
 
+it('UIA-06 (search UI PR-A, G1): nút "Đặt lịch khám" cuối Trang chủ cam theo token (`bg-cta`) với chữ gray-900; biểu tượng lịch là icon `currentColor` (không còn ảnh nét trắng trên nền cam)', () => {
+  openHome();
+  const process = screen.getByRole('region', {
+    name: 'Đặt lịch khám tại CLINIX',
+  });
+  const link = within(process).getByRole('link', { name: 'Đặt lịch khám' });
+  expect(link).toHaveClass('bg-cta', 'text-gray-900', 'hover:bg-cta-hover');
+  expect(link).not.toHaveClass('bg-brand-strong');
+  expect(link).not.toHaveClass('text-white');
+  expect(link.querySelector('img')).toBeNull();
+  expect(link.querySelector('svg')).toHaveClass('size-5');
+  // Ô số của bốn bước vẫn xanh `brand-strong` (không phải nút CTA)
+  const steps = within(process).getAllByRole('listitem');
+  expect(steps[0].querySelector('.size-10')).toHaveClass('bg-brand-strong');
+});
+
+it('UIA-07 (search UI PR-A, G2): ba số liệu của hero vàng `text-amber-300` (3,65:1 trên #007595; chữ lớn 28 px đậm), nhãn giữ trắng, phần nhấn của h1 giữ vàng', async () => {
+  openHome();
+  const hero = screen.getByRole('region', {
+    name: /Đặt lịch khám đúng bác sĩ/,
+  });
+  const numbers = await within(hero).findAllByRole('definition');
+  const labels = within(hero).getAllByRole('term');
+  expect(numbers).toHaveLength(3);
+  expect(labels).toHaveLength(3);
+  for (const number of numbers) {
+    expect(number).toHaveClass('text-amber-300', 'text-3xl', 'font-bold');
+    expect(number).not.toHaveClass('text-white');
+  }
+  for (const label of labels) {
+    expect(label).not.toHaveClass('text-amber-300');
+  }
+  expect(within(hero).getByText('đúng bác sĩ, đúng giờ')).toHaveClass(
+    'text-amber-300',
+  );
+});
+
+it('UIA-08 (search UI PR-A, G3): nền hero dùng lớp gradient `hero-gradient` (vùng chữ phẳng, phía phải chuyển sang #0092b8 rồi #00bba7), giữ màu nền dự phòng `bg-brand-strong` và chữ trắng', () => {
+  openHome();
+  const hero = screen.getByRole('region', {
+    name: /Đặt lịch khám đúng bác sĩ/,
+  });
+  expect(hero).toHaveClass('hero-gradient', 'bg-brand-strong', 'text-white');
+  // Nền trang trí không bắt sự kiện và vẫn có đúng hai vòng tròn trắng 8% (UIS-03)
+  expect(hero.firstElementChild).toHaveClass('pointer-events-none');
+  expect(hero.firstElementChild?.children).toHaveLength(2);
+});
+
 it('UIS-07 (search F14, G3): khối quy trình theo Figma 257:849: nút "Đặt lịch khám" và ô số bước bo 13,375 px, đoạn mô tả dòng 1,625', () => {
   openHome();
   const process = screen.getByRole('region', {
