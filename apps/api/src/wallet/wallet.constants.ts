@@ -8,6 +8,23 @@ export const TOPUP_MIN = '50000.00';
 export const TOPUP_MAX = '2000000.00';
 export const WITHDRAW_MIN = '10000.00';
 
+/**
+ * Cửa sổ "nạp chờ xác nhận" (PLAN payment 4.7 #2, Đại đồng ý 16/11/2026): giao dịch nạp `DangXuLy` quá số phút này kể từ lúc tạo thì KHÔNG còn tính vào `napChoXacNhan` và hiện nhãn
+ * "Chưa nhận kết quả" ở lịch sử; trạng thái trong DB vẫn `DangXuLy` (chỉ lọc khi hiển thị, IPN đến muộn vẫn được xử lý). VNPAY 90 phút `[đề xuất]`, MoMo tạm bằng VNPAY (X2, X3 đo lại).
+ */
+export const TOPUP_PENDING_WINDOW_MINUTES = {
+  VNPay: 90,
+  MoMo: 90,
+} as const;
+
+/** Cổng nạp ví mà API này biết (khớp `phuong_thuc` của `giao_dich_thanh_toan`). */
+export const TOPUP_GATEWAYS = ['VNPay', 'MoMo'] as const;
+export type TopupGateway = (typeof TOPUP_GATEWAYS)[number];
+
+/** Phân trang "Lịch sử giao dịch" ví `[đề xuất]`: mặc định 20, tối đa 50 mỗi trang (như danh sách hồ sơ khám). */
+export const WALLET_HISTORY_DEFAULT_PAGE_SIZE = 20;
+export const WALLET_HISTORY_MAX_PAGE_SIZE = 50;
+
 /** Số lần ghi `lich_su_hoan_tien` tự động tối đa cho MỘT khoản thanh toán: một lần đầu cộng ba lần `RefundRetryJob` thử lại `[đề xuất]` (PLAN 5.6). */
 export const REFUND_MAX_ATTEMPTS = 4;
 /** Số lần job đối soát nạp ví thử lại một giao dịch `ChoDoiSoat` trước khi chuyển Quản trị viên xử lý (2.4 NTV b16 đến b18). */
