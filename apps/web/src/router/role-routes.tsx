@@ -27,6 +27,7 @@ import {
   PATIENT_APPOINTMENT_ROUTES,
   RECEPTION_APPOINTMENT_ROUTES,
 } from '../features/booking';
+import { PATIENT_WALLET_ROUTES } from '../features/wallet';
 import { ShellContentError } from '../shared/ui/shell-content-error';
 import { DOCTOR_NAV, PATIENT_NAV, RECEPTION_NAV } from './role-nav';
 
@@ -52,6 +53,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
           ...PATIENT_APPOINTMENT_ROUTES,
           // doctor-exam F5: Hồ sơ khám bệnh của Bệnh nhân
           ...PATIENT_EXAM_ROUTES,
+          // payment F1: Ví của tôi
+          ...PATIENT_WALLET_ROUTES,
         ],
       },
     ],
