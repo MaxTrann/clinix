@@ -23,6 +23,7 @@ import {
   PATIENT_APPOINTMENTS_PATH,
   RECEPTION_APPOINTMENTS_PATH,
 } from '../shared/routes/booking-paths';
+import { PATIENT_WALLET_PATH } from '../shared/routes/wallet-paths';
 import type { RoleNavItem } from '../shared/ui/role-shell';
 
 // Menu của các khung theo vai trò (Q21d). Module có trang mới chỉ thêm `to` cho mục của mình ở đây và ghép route ở role-routes.tsx;
@@ -44,7 +45,8 @@ export const PATIENT_NAV: { items: RoleNavItem[]; footerItems: RoleNavItem[] } =
         icon: ClipboardList,
         to: PATIENT_EXAM_RECORDS_PATH,
       },
-      { label: 'Ví của tôi', icon: Wallet },
+      // payment F1: trang Ví của tôi (không `end`: trang kết quả nạp của F2 nằm dưới đường dẫn này vẫn sáng mục)
+      { label: 'Ví của tôi', icon: Wallet, to: PATIENT_WALLET_PATH },
       { label: 'Danh sách chờ', icon: ListOrdered },
       { label: 'Tin nhắn', icon: MessageCircle },
       { label: 'Thông báo', icon: Bell },
