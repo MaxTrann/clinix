@@ -18,6 +18,7 @@ export const SEED_COMMANDS = [
   'config-dev',
   'search-demo',
   'doctor-demo',
+  'exam-demo',
 ] as const;
 export type SeedCommand = (typeof SEED_COMMANDS)[number];
 export type SeedEnv = Record<string, string | undefined>;
@@ -74,7 +75,8 @@ export function readSeedConfig(
   if (
     selected === 'dev-accounts' ||
     selected === 'first-admin' ||
-    selected === 'search-demo'
+    selected === 'search-demo' ||
+    selected === 'exam-demo'
   ) {
     config.password = required(
       env,

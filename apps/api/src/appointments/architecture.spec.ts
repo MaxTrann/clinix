@@ -65,8 +65,11 @@ describe('AR-01 chỉ appointments/ ghi lich_hen và khung_gio (H7)', () => {
     const withoutExceptions = findWriteViolations(files, []);
     expect(withoutExceptions.length).toBeGreaterThan(0);
     // Doctor chỉ có đúng hai kiểu ghi khung_gio được phép (D7): chèn ô ConTrong khi sinh và xoá ô ConTrong khi gỡ ca; không UPDATE.
+    // Ngoại lệ có sẵn thứ hai (ALLOWED_WRITES, `database/seeds/`): seed dữ liệu mẫu chỉ INSERT lich_hen (doctor-exam B10: exam-demo), không UPDATE.
     for (const line of withoutExceptions)
-      expect(line).toMatch(/(?:INSERT INTO|DELETE FROM) khung_gio/);
+      expect(line).toMatch(
+        /(?:INSERT INTO|DELETE FROM) khung_gio|^database\/seeds\/[\w.-]+: INSERT INTO lich_hen /,
+      );
     expect(
       withoutExceptions.some((line) =>
         line.startsWith('scheduling/slots/slot-generator.ts:'),
