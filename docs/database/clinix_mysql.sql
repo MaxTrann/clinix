@@ -50,6 +50,9 @@
 -- 16/11/2026 (module payment và wallet, task P1): lich_su_hoan_tien thêm cột loai (TuDong | DacBiet; Q23); bảng mới lan_doi_soat_nap_vi (mỗi dòng một lần đối soát nạp ví,
 -- UNIQUE (giao_dich_thanh_toan_id, so_lan_thu), nguoi_xu_ly_id trống cho job; Q9); ENUM nhat_ky_hanh_dong.hanh_dong thêm DuyetRutTien, TuChoiRutTien và
 -- loai_doi_tuong thêm yeu_cau_rut_tien (Q17); DBML thêm hai khối Enum (loai_hoan_tien_enum, ket_qua_doi_soat_enum) => 46 bảng, 32 khối Enum DBML. Chuyển đổi từ DB cũ: mục "payment P1" ở cuối clinix_quy_tac_nghiep_vu.md.
+-- 17/11/2026 (module doctor-exam, task D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE hay ALTER TABLE nào: COMMENT của ho_so_kham và
+-- danh_gia_bac_si đứng trong phần được schema-parity so với migration nên giữ nguyên. Thêm mục "doctor-exam D1" (hồ sơ khám và đánh giá bác sĩ) ở cuối clinix_quy_tac_nghiep_vu.md, ba dòng
+-- quy tắc service ở khối bên dưới và bốn khối TRUY VẤN MẪU ở cuối file; các số bảng, enum, CHECK ở các dòng trên không đổi.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -124,6 +127,9 @@
 --   * Lịch đã trả đủ trước khi đến quầy: tiếp đón theo luồng Cập nhật trạng thái lịch hẹn, KHÔNG tạo giao dịch tiền mặt bằng 0
 --   * Giới tính (tai_khoan.gioi_tinh, ho_so_nguoi_than.gioi_tinh) chỉ nhận Nam, Nu, Khac (mã ASCII; giao diện hiển thị Nam, Nữ, Khác); DB không có CHECK nên service là chốt chặn duy nhất; tai_khoan.gioi_tinh được để trống, ho_so_nguoi_than.gioi_tinh bắt buộc (patient Q3)
 --   * Mối quan hệ của hồ sơ người thân (ho_so_nguoi_than.moi_quan_he) đã chốt đúng 8 giá trị Cha, Me, Vo, Chong, Con, AnhChiEm, OngBa, Khac (Khac cho quan hệ không có trong danh sách), do ENUM bảo vệ; bỏ [đề xuất] (patient Q15)
+--   * Hồ sơ khám và đánh giá (doctor-exam D1): chỉ Bác sĩ phụ trách của lịch ghi và sửa hồ sơ, khi lịch DaTiepDon hoặc HoanThanh, trong MỘT giao dịch khóa lich_hen theo khóa chính rồi ho_so_kham theo lich_hen_id (tầng 6b) trước khi INSERT/UPDATE; gửi đánh giá (Bệnh nhân chủ lịch, lịch HoanThanh) không khóa tường minh, UNIQUE lich_hen_id chống đua (lỗi 1062 là DA_DANH_GIA); chỉ Bác sĩ phụ trách và Bệnh nhân chủ lịch (lịch HoanThanh) đọc nội dung hồ sơ, Lễ tân và Quản trị viên không đọc
+--   * Ẩn đánh giá (doctor-exam D1) MỘT chiều, không có đường hiện lại: Quản trị viên chỉ đặt bi_an = 1 kèm ly_do_an 10 đến 255 ký tự; chỉ khóa danh_gia_bac_si (không khóa lich_hen); ghi nhật ký AnDanhGia cùng giao dịch với chi_nhanh_id của lịch; Quản trị viên Chi nhánh chỉ ẩn đánh giá của lịch thuộc chi nhánh mình (ngoài phạm vi là 404)
+--   * Điểm trung bình của bác sĩ tính khi đọc bằng GROUP BY, chỉ lấy bi_an = 0, không lưu cột và không cache (Q9 đã chốt; triển khai ở task B9, issue #405); xem truy vấn mẫu cuối file
 -- ============================================================================
 
 SET NAMES utf8mb4;
@@ -1365,6 +1371,38 @@ ALTER TABLE `thong_tin_phong_kham` ADD CONSTRAINT `chk_phong_kham_mot_dong` CHEC
 -- UPDATE benh_nhan SET so_lan_no_show = so_lan_no_show + 1 WHERE tai_khoan_id = :benh_nhan_id;
 -- SELECT so_lan_no_show, khoa_dat_lich_do_no_show FROM benh_nhan WHERE tai_khoan_id = :benh_nhan_id;
 -- UPDATE benh_nhan SET khoa_dat_lich_do_no_show = 1 WHERE tai_khoan_id = :benh_nhan_id AND khoa_dat_lich_do_no_show = 0;   -- chỉ khi số mới >= nguong_no_show và cờ đang tắt; ROW_COUNT 1 = vừa khóa
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): GHI VÀ SỬA HỒ SƠ KHÁM của Bác sĩ (doctor-exam B2) — MỘT giao dịch READ COMMITTED; thứ tự khóa: lich_hen THEO KHÓA CHÍNH (6) rồi ho_so_kham THEO lich_hen_id (6b); KHÔNG khóa khung_gio.
+-- Đọc thường lịch theo mã và bac_si_id = tài khoản trong token NGOÀI giao dịch để lấy lich_hen_id; SAU khi khóa KIỂM LẠI bác sĩ, trạng thái (chỉ DaTiepDon hoặc HoanThanh) và ngày tái khám (không trước ngày khám, không quá 365 ngày sau).
+-- Chưa có dòng ho_so_kham thì INSERT (cap_nhat_lan_cuoi = :now cắt giây); có dòng thì so token cap_nhat_lan_cuoi người dùng đã thấy rồi UPDATE (cap_nhat_lan_cuoi = max(:now, cũ + 1 giây)); nhật ký SuaGhiChuKham chỉ khi lịch HoanThanh và đã có dòng hồ sơ.
+-- ============================================================================
+-- SELECT bac_si_id, trang_thai, chi_nhanh_id, DATE_FORMAT(thoi_gian, '%Y-%m-%d') AS ngay_kham FROM lich_hen WHERE lich_hen_id = :lich_hen_id FOR UPDATE;
+-- SELECT ho_so_kham_id, trieu_chung, chan_doan_so_bo, huong_xu_ly, DATE_FORMAT(ngay_tai_kham_du_kien, '%Y-%m-%d') AS ngay_tai_kham_du_kien, cap_nhat_lan_cuoi FROM ho_so_kham WHERE lich_hen_id = :lich_hen_id FOR UPDATE;
+-- INSERT INTO ho_so_kham (lich_hen_id, trieu_chung, chan_doan_so_bo, huong_xu_ly, ngay_tai_kham_du_kien, cap_nhat_lan_cuoi) VALUES (:lich_hen_id, :trieu_chung, :chan_doan_so_bo, :huong_xu_ly, :ngay_tai_kham_hoac_null, :now);
+-- UPDATE ho_so_kham SET trieu_chung = :trieu_chung, chan_doan_so_bo = :chan_doan_so_bo, huong_xu_ly = :huong_xu_ly, ngay_tai_kham_du_kien = :ngay_tai_kham_hoac_null, cap_nhat_lan_cuoi = :moc_moi WHERE ho_so_kham_id = :ho_so_kham_id;
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): GỬI ĐÁNH GIÁ bác sĩ của Bệnh nhân (doctor-exam B6) — sở hữu TRƯỚC trạng thái; KHÔNG khóa lich_hen tường minh (HoanThanh là trạng thái cuối, chủ lịch bất biến); UNIQUE lich_hen_id chống gửi hai lần (lỗi 1062 là DA_DANH_GIA, không phải 500).
+-- bi_an = 0 và ly_do_an = NULL là hằng trong câu (chk_danh_gia_an); so_sao phải là số nguyên 1 đến 5 (service chặn 3.5 vì tinyint làm tròn).
+-- ============================================================================
+-- SELECT lich_hen_id, trang_thai FROM lich_hen WHERE benh_nhan_id = :benh_nhan_id AND ma_lich_hen = :ma_lich_hen;   -- đọc thường, không có dòng => 404; trang_thai khác HoanThanh => 409 LICH_HEN_CHUA_HOAN_THANH
+-- INSERT INTO danh_gia_bac_si (lich_hen_id, so_sao, nhan_xet, bi_an, ly_do_an, thoi_diem_tao) VALUES (:lich_hen_id, :so_sao, :nhan_xet_hoac_null, 0, NULL, :now);
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): ẨN ĐÁNH GIÁ của Quản trị viên (doctor-exam B8) — MỘT chiều, không có câu nào đặt bi_an về 0. Đọc thường NGOÀI giao dịch đánh giá kèm chi_nhanh_id của lịch để kiểm phạm vi (ngoài phạm vi => 404, TRƯỚC mọi khóa);
+-- trong giao dịch chỉ khóa danh_gia_bac_si (6b), KHÔNG khóa lich_hen. UPDATE phải ảnh hưởng đúng 1 dòng (0 dòng = đã ẩn => 409 DANH_GIA_DA_AN, không nhật ký); rồi ghi nhat_ky_hanh_dong (hanh_dong = 'AnDanhGia', loai_doi_tuong = 'danh_gia_bac_si',
+-- ma_doi_tuong = :danh_gia_bac_si_id, chi_nhanh_id = chi nhánh của LỊCH, chi_tiet_thay_doi = {"truoc":{"bi_an":false},"sau":{"bi_an":true},"ly_do":"...","bac_si_id":"..."}) trong CÙNG giao dịch.
+-- ============================================================================
+-- SELECT dg.danh_gia_bac_si_id, lh.bac_si_id, lh.chi_nhanh_id FROM danh_gia_bac_si dg INNER JOIN lich_hen lh ON lh.lich_hen_id = dg.lich_hen_id WHERE dg.danh_gia_bac_si_id = :danh_gia_bac_si_id;
+-- SELECT bi_an FROM danh_gia_bac_si WHERE danh_gia_bac_si_id = :danh_gia_bac_si_id FOR UPDATE;
+-- UPDATE danh_gia_bac_si SET bi_an = 1, ly_do_an = :ly_do_an WHERE danh_gia_bac_si_id = :danh_gia_bac_si_id AND bi_an = 0;   -- đúng 1 dòng
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): ĐIỂM TRUNG BÌNH và số lượt của các bác sĩ (Q9 đã chốt; triển khai ở task B9, issue #405) — tính khi đọc, loại đánh giá đã ẩn; bác sĩ suy qua lich_hen.bac_si_id (danh_gia_bac_si không có cột bác sĩ).
+-- Bác sĩ không có dòng nào thì không có hàng trả về (nơi gọi đổi thành điểm null và 0 lượt); ROUND trên DECIMAL làm tròn nửa lên (đã đo ở task X1, M5).
+-- ============================================================================
+-- SELECT lh.bac_si_id, ROUND(AVG(dg.so_sao), 1) AS diem, COUNT(*) AS so_danh_gia FROM danh_gia_bac_si dg JOIN lich_hen lh ON lh.lich_hen_id = dg.lich_hen_id WHERE dg.bi_an = 0 AND lh.bac_si_id IN (:bac_si_id_1, :bac_si_id_2) GROUP BY lh.bac_si_id;
 
 
 -- P7 (28/10/2026): bổ sung quản lý ảnh Cloudinary; giữ URL chuyên khoa cũ.
