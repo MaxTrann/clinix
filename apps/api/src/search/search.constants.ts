@@ -21,7 +21,21 @@ export const SEARCH_ERROR_CODES = {
   INVALID_RATING: 'DIEM_KHONG_HOP_LE',
   /** `sapXep` ngoài danh sách trắng. */
   INVALID_SORT: 'SAP_XEP_KHONG_HOP_LE',
+  /** `bacSiIds` của API khung giờ thiếu, rỗng hoặc có phần tử không phải id BIGINT dương. */
+  INVALID_DOCTOR_IDS: 'DANH_SACH_BAC_SI_KHONG_HOP_LE',
+  /** Quá `SLOT_MAX_DOCTORS` id KHÁC NHAU trong một lời gọi khung giờ. */
+  TOO_MANY_DOCTORS: 'QUA_NHIEU_BAC_SI',
+  /** `ngay` của API khung giờ thiếu, sai dạng `YYYY-MM-DD` hoặc không phải ngày có thật. */
+  INVALID_DATE: 'NGAY_KHONG_HOP_LE',
+  /** `ngay` đúng dạng nhưng ngoài `[hôm nay, hôm nay + SLOT_WINDOW_DAYS - 1]` giờ Việt Nam. */
+  DATE_OUT_OF_RANGE: 'NGAY_NGOAI_KHOANG',
 } as const;
+
+/** Cửa sổ ngày của API khung giờ công khai: hôm nay đến hôm nay + 6 (dải 7 ngày ở Figma). Chỉ là giới hạn HIỂN THỊ, KHÔNG phải giới hạn đặt trước (quy tắc 38). */
+export const SLOT_WINDOW_DAYS = 7;
+
+/** Số bác sĩ KHÁC NHAU tối đa mỗi lời gọi khung giờ = `pageSize` lớn nhất của danh sách công khai (web gửi id của MỘT trang); có ca khoá hai số này bằng nhau (KGC-16). */
+export const SLOT_MAX_DOCTORS = 100;
 
 /** Mọi route của module nằm dưới tiền tố này (Q22); tiền tố `/api` do proxy thêm. */
 export const PUBLIC_ROUTE_PREFIX = 'public';

@@ -21,10 +21,16 @@ import { PublicClinicInfoService } from './site/public-clinic-info.service.js';
 import { PublicOverviewRepository } from './site/public-overview.repository.js';
 import { PublicOverviewService } from './site/public-overview.service.js';
 import { PublicSiteController } from './site/public-site.controller.js';
+import { SchedulingModule } from '../scheduling/scheduling.module.js';
+import { PublicSlotController } from './slots/public-slot.controller.js';
+import { PublicSlotRepository } from './slots/public-slot.repository.js';
+import { PublicSlotService } from './slots/public-slot.service.js';
 
 // Module tra cứu công khai (chỉ đọc). Các task B2–B9 thêm controller/provider vào đây.
 // Không import module admin: chúng không export gì; DataSource có sẵn toàn cục từ DatabaseModule.
+// Search Slots PR-C1: import SchedulingModule (do `doctor` sở hữu, đã xuất AvailableSlotsReader) để đọc khung giờ trống; không import appointments/doctor.
 @Module({
+  imports: [SchedulingModule],
   controllers: [
     PublicSiteController,
     PublicBranchController,
@@ -32,6 +38,7 @@ import { PublicSiteController } from './site/public-site.controller.js';
     PublicServiceController,
     PublicDoctorController,
     PublicSuggestionController,
+    PublicSlotController,
   ],
   providers: [
     PublicClinicInfoService,
@@ -48,6 +55,8 @@ import { PublicSiteController } from './site/public-site.controller.js';
     PublicDoctorRepository,
     PublicSuggestionService,
     PublicSuggestionRepository,
+    PublicSlotService,
+    PublicSlotRepository,
     ExamPriceReader,
     DoctorRatingReader,
   ],
