@@ -7,6 +7,7 @@ import {
   type SourceFile,
 } from '../appointments/testing/architecture-rules.js';
 import { Public } from '../auth/decorators/public.decorator.js';
+import { DepositPaymentController } from './deposit/deposit-payment.controller.js';
 import { PatientWalletController } from '../wallet/balance/patient-wallet.controller.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import {
@@ -207,8 +208,13 @@ describe('QTT-14 nguoi_thu_id và nguoi_xu_ly_id chỉ lấy từ token', () => 
 });
 
 describe('QTT-01 mọi route có @Roles hợp lệ; @Public chỉ ở route IPN trong danh sách', () => {
-  it('controller THẬT của ví (B1): mọi route có @Roles hợp lệ, không @Public', () => {
-    expect(findPaymentRouteViolations([PatientWalletController])).toEqual([]);
+  it('controller THẬT của ví (B1) và thanh toán cọc (B5): mọi route có @Roles hợp lệ, không @Public', () => {
+    expect(
+      findPaymentRouteViolations([
+        PatientWalletController,
+        DepositPaymentController,
+      ]),
+    ).toEqual([]);
   });
 
   it('danh sách @Public cho phép không vượt trần hai route IPN', () => {
