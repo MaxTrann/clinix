@@ -17,6 +17,8 @@ describe('B3 service — DV-08/14/15/16/20', () => {
     thoiLuong: 30,
     // Dòng đọc từ DB: cột decimal(12,2) luôn trả hai số lẻ
     giaMacDinh: '100000.00',
+    // payment B10: cọc hiện hành của dịch vụ (0 = không cọc, nên các ca DV-* cũ không bị nhánh GIA_DUOI_MUC_COC chạm tới)
+    mucDatCoc: '0.00',
   };
   const manager = {} as EntityManager;
   const transaction = () =>

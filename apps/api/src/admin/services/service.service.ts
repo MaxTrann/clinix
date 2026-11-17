@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { QueryFailedError, type EntityManager } from 'typeorm';
 import { AppException } from '../../common/errors/app.exception.js';
 import { nowVN } from '../../common/time/time.js';
+import { compareMoney } from '../../pricing/money.js';
 import type { AdminScope } from '../../rbac/admin-scope.js';
 import { BranchAccessPolicy } from '../../rbac/branch-access.policy.js';
 import type {
@@ -64,6 +65,16 @@ export class ServiceService {
     return this.write(async (manager) => {
       const current = await this.services.lock(manager, id);
       if (!current) throw new AppException(404, 'KHONG_TIM_THAY');
+
+      // payment B10 (PLAN 4.7 #1): không cho hạ giá xuống dưới mức cọc hiện hành. Đọc `muc_dat_coc` dưới CÙNG khoá X với đường `PUT /admin/payment-policy` kiểm chiều ngược lại
+      // (cọc ≤ giá), nên hai đường nối đuôi nhau và sau cả hai luôn có cọc ≤ giá (CSD-19). Bằng đúng cọc là hợp lệ; dịch vụ cọc 0đ hạ giá tuỳ ý (giá luôn ≥ 1).
+      if (
+        input.giaMacDinh !== undefined &&
+        compareMoney(input.giaMacDinh, current.mucDatCoc) < 0
+      )
+        throw new AppException(409, 'GIA_DUOI_MUC_COC', {
+          thongBao: 'Giá mặc định không được thấp hơn mức đặt cọc của dịch vụ.',
+        });
 
       const groupId = input.nhomDichVuId ?? current.nhomDichVuId;
       await this.lockGroupOrThrow(manager, groupId);
