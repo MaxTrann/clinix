@@ -7,6 +7,8 @@ import { DOCTOR_LEAVE_PORT } from '../appointments/ports/doctor-leave.port.js';
 import { walkModuleTree } from '../doctor/testing/architecture-scan.js';
 import { PaymentModule } from './payment.module.js';
 import { PaymentChain } from './ports/payment-chain.js';
+import { PaymentRecorder } from './ports/payment-recorder.js';
+import { PaymentSummaryReader } from './ports/payment-summary.reader.js';
 import { PaymentPortsModule } from './ports/payment-ports.module.js';
 import { WalletBalanceReader } from '../wallet/balance/wallet-balance.reader.js';
 import { WalletLedger } from '../wallet/ledger/wallet-ledger.js';
@@ -37,11 +39,11 @@ describe('QTT-11 cây import của AppModule có payment', () => {
     expect(tree.references.has(WalletModule)).toBe(true);
   });
 
-  it('PaymentPortsModule là lá: không nhập module nào; chỉ xuất PaymentChain', () => {
+  it('PaymentPortsModule là lá: không nhập module nào; xuất PaymentChain, PaymentRecorder, PaymentSummaryReader (B2)', () => {
     expect(importsOf(PaymentPortsModule)).toEqual([]);
     expect(
       Reflect.getMetadata('exports', PaymentPortsModule) as unknown[],
-    ).toEqual([PaymentChain]);
+    ).toEqual([PaymentChain, PaymentRecorder, PaymentSummaryReader]);
   });
 
   it('chiều phụ thuộc: PaymentModule nhập PaymentPortsModule; không module lá nào nhập PaymentModule hay AppointmentsModule', () => {

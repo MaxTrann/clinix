@@ -15,6 +15,7 @@ import { CreateAppointmentService } from '../create/create-appointment.service.j
 import { RefundPolicyReader } from '../create/refund-policy.js';
 import { withBookingTransaction } from '../locking/booking-transaction.js';
 import type { DoctorLeavePort } from '../ports/doctor-leave.port.js';
+import type { PaymentPort } from '../ports/payment.port.js';
 import { BookabilityReader } from '../slots/bookability.reader.js';
 import { SlotHoldService } from '../slots/slot-hold.service.js';
 import { AppointmentTransitionService } from '../state/appointment-transition.service.js';
@@ -252,6 +253,8 @@ export interface CreateWorldOptions {
   random?: CodeSuffixSource;
   /** B16a: cổng nghỉ phép THẬT (ví dụ `new LeaveReader()`) đưa vào `BookabilityReader` thay cho `w.leave`; vắng thì dùng bản `Fake` `w.leave` như cũ */
   leave?: DoctorLeavePort;
+  /** payment B2: cổng ghi giao dịch 0đ THẬT (`PaymentRecorder`) đưa vào `CreateAppointmentService` thay cho `w.payment`; vắng thì dùng bản `Fake` như cũ */
+  payment?: PaymentPort;
 }
 
 /** Thế giới đặt được của `BookingFixtures.world()` cộng `CreateAppointmentService` thật, `BookingChecksService` thật và các cổng `Fake`. */
@@ -282,7 +285,7 @@ export async function createAppointmentWorld(
     reader,
     new SlotHoldService(),
     summaries,
-    payment,
+    options.payment ?? payment,
     notifier,
     options.random ?? randomCodeSuffix,
   );
