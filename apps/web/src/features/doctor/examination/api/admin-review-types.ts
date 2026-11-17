@@ -37,6 +37,12 @@ export interface AdminReviewPage {
   demTheoTrangThai: AdminReviewCounts;
 }
 
+// 200 của `POST /admin/doctor-ratings/:id/hide` (B8, PLAN 5.8): ĐÚNG hai khoá; `danhGiaId` là BIGINT dạng chuỗi, `biAn` luôn `true` (không có route hiện lại, Q8)
+export interface HideResult {
+  danhGiaId: string;
+  biAn: true;
+}
+
 // Tham số của danh sách; khoá `undefined` không được gửi. `chiNhanhId` chỉ có tác dụng với Toàn hệ thống (Admin Chi nhánh bị máy chủ ép), nên web không gửi khi là Admin Chi nhánh.
 export interface AdminReviewQuery {
   trangThai?: AdminReviewStatus;

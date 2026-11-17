@@ -7,7 +7,7 @@ import {
   UnexpectedResponseError,
 } from '../../../../shared/api/errors';
 import { jsonResponse } from '../../testing/fetch-routing';
-import { getAdminReview, listAdminReviews } from './exam-api';
+import { getAdminReview, hideAdminReview, listAdminReviews } from './exam-api';
 
 // doctor-exam F7, WKD-13 [đề xuất]: lớp gọi API của trang Kiểm duyệt đánh giá (hợp đồng B7). Mọi lời gọi đi qua `request()` của `shared/api/client`; bộ đọc chặt kiểm riêng ở `admin-review-readers.test.ts`. Dữ liệu giả.
 const fetchMock = vi.fn<typeof fetch>();
@@ -188,5 +188,121 @@ describe('doctor-exam F7 — lời gọi API của Admin (WKD-13)', () => {
     const detail = await getAdminReview('41');
     expect(detail.lyDoAn).toBeNull();
     expect(Object.keys(detail)).not.toContain('thua');
+  });
+});
+
+// doctor-exam F8, WKD-21 [đề xuất]: `POST /admin/doctor-ratings/:id/hide` (hợp đồng B8): đường dẫn, thân `{ lyDo }`, `signal`, lỗi đi nguyên, 200 qua bộ đọc chặt, KHÔNG tự gửi lại.
+describe('doctor-exam F8 — lời gọi ẩn đánh giá (WKD-21)', () => {
+  const HIDDEN = { danhGiaId: '41', biAn: true };
+  const sentBody = () =>
+    JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<
+      string,
+      unknown
+    >;
+
+  it('WKD-21 POST đúng đường dẫn `/api/admin/doctor-ratings/<id>/hide`, thân CHỈ `{ lyDo }`, `Content-Type` JSON, không query; trả hai khoá', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(HIDDEN));
+    const result = await hideAdminReview('41', 'Lăng mạ bác sĩ trong nhận xét');
+    const call = firstCall();
+    expect(call.pathname).toBe('/api/admin/doctor-ratings/41/hide');
+    expect(call.search).toBe('');
+    expect(call.init?.method).toBe('POST');
+    expect(sentBody()).toEqual({ lyDo: 'Lăng mạ bác sĩ trong nhận xét' });
+    expect(new Headers(call.init?.headers).get('Content-Type')).toContain(
+      'application/json',
+    );
+    expect(result).toEqual(HIDDEN);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('WKD-21 id đi qua `encodeURIComponent` (không chèn được `/` hay `?` vào đường dẫn); lý do nhiều dòng, dấu và emoji đi NGUYÊN trong thân, KHÔNG vào URL', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ ...HIDDEN, danhGiaId: 'a/b?c' }),
+    );
+    const reason = 'Dòng một\nDòng hai 😀 “trích dẫn”';
+    await expect(hideAdminReview('a/b?c', reason)).rejects.toBeInstanceOf(
+      UnexpectedResponseError,
+    );
+    const call = firstCall();
+    expect(call.pathname).toBe('/api/admin/doctor-ratings/a%2Fb%3Fc/hide');
+    expect(call.search).toBe('');
+    expect(sentBody().lyDo).toBe(reason);
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('Dòng');
+  });
+
+  it('WKD-21 truyền `signal` xuống `fetch`; đã huỷ ⇒ `RequestAbortedError`', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(HIDDEN));
+    const controller = new AbortController();
+    await hideAdminReview('41', 'Lý do đủ dài rồi', controller.signal);
+    expect(fetchMock.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+
+    fetchMock.mockReset();
+    controller.abort();
+    await expect(
+      hideAdminReview('41', 'Lý do đủ dài rồi', controller.signal),
+    ).rejects.toBeInstanceOf(RequestAbortedError);
+  });
+
+  it('WKD-21 lỗi của máy chủ đi NGUYÊN (`ApiError` với `maLoi`, `loi[]`), và KHÔNG tự gửi lại ở bất kỳ lỗi nào (đúng MỘT `fetch`)', async () => {
+    for (const [status, body] of [
+      [
+        400,
+        {
+          maLoi: 'DU_LIEU_KHONG_HOP_LE',
+          thongBao: 'x',
+          loi: [{ truong: 'lyDo', ma: 'LY_DO_QUA_NGAN' }],
+        },
+      ],
+      [404, { maLoi: 'KHONG_TIM_THAY', thongBao: 'x' }],
+      [409, { maLoi: 'DANH_GIA_DA_AN', thongBao: 'x' }],
+      [503, { maLoi: 'HE_THONG_DANG_BAN', thongBao: 'x' }],
+    ] as const) {
+      fetchMock.mockReset();
+      fetchMock.mockResolvedValue(jsonResponse(body, status));
+      const error = await hideAdminReview('41', 'Lý do đủ dài rồi').catch(
+        (caught: unknown) => caught,
+      );
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).maLoi).toBe(body.maLoi);
+      expect((error as ApiError).loi).toEqual(
+        'loi' in body ? body.loi : undefined,
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('WKD-21 mất mạng ⇒ `NetworkError`, không tự gửi lại; 200 sai hình dạng (`biAn` false, thiếu khoá, không phải JSON đối tượng) ⇒ `UnexpectedResponseError`', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(
+      hideAdminReview('41', 'Lý do đủ dài rồi'),
+    ).rejects.toBeInstanceOf(NetworkError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    for (const body of [
+      { danhGiaId: '41', biAn: false },
+      { danhGiaId: '41' },
+      { biAn: true },
+      [],
+      'ok',
+    ]) {
+      fetchMock.mockReset();
+      fetchMock.mockResolvedValue(jsonResponse(body));
+      await expect(
+        hideAdminReview('41', 'Lý do đủ dài rồi'),
+      ).rejects.toBeInstanceOf(UnexpectedResponseError);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('WKD-21 `danhGiaId` trả về KHÁC id đã gửi ⇒ `UnexpectedResponseError` ("chưa rõ", không coi là đã ẩn đúng đánh giá)', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ danhGiaId: '42', biAn: true }));
+    await expect(
+      hideAdminReview('41', 'Lý do đủ dài rồi'),
+    ).rejects.toBeInstanceOf(UnexpectedResponseError);
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(jsonResponse(HIDDEN));
+    await expect(hideAdminReview('41', 'Lý do đủ dài rồi')).resolves.toEqual(
+      HIDDEN,
+    );
   });
 });

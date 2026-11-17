@@ -4,11 +4,13 @@ import type { ExamRecordNote, SaveBody } from '../exam-record-form';
 import {
   parseAdminReviewDetail,
   parseAdminReviewPage,
+  parseHideResult,
 } from './admin-review-readers';
 import type {
   AdminReviewDetail,
   AdminReviewPage,
   AdminReviewQuery,
+  HideResult,
 } from './admin-review-types';
 import {
   parseExamDetail,
@@ -182,4 +184,22 @@ export async function getAdminReview(
     { signal },
   );
   return parseAdminReviewDetail(body);
+}
+
+// Hợp đồng `POST /admin/doctor-ratings/:id/hide` (doctor-exam B8, PLAN 5.8; Q8; Quản trị viên, cả hai phạm vi): thân `{ lyDo }` (đã chuẩn hoá ở `hide-rules.ts`); 200 đúng `{ danhGiaId, biAn: true }`. Lỗi: 400 `DU_LIEU_KHONG_HOP_LE` kèm
+// `loi[{ truong: 'lyDo', ma }]` (`LY_DO_BAT_BUOC`, `LY_DO_QUA_NGAN`, `LY_DO_QUA_DAI`, `NOI_DUNG_KHONG_HOP_LE`; không giá trị), 404 `KHONG_TIM_THAY` (không có, sai dạng id, ngoài phạm vi: cùng thân), 409 `DANH_GIA_DA_AN`, 503 `HE_THONG_DANG_BAN`, 403, 401.
+// Ẩn là MỘT CHIỀU (không có route hiện lại) và lần gửi thứ hai nhận 409, nên nơi gọi KHÔNG BAO GIỜ tự gửi lại. Id đi qua `encodeURIComponent`. 200 sai hình dạng, hay `danhGiaId` trả về khác id đã gửi, ⇒ `UnexpectedResponseError`: nơi gọi coi là "chưa rõ"
+// (máy chủ có thể đã ẩn), KHÔNG phải thành công. Lý do là dữ liệu của người dùng: không vào log hay URL (chỉ nằm trong thân gửi đi).
+export async function hideAdminReview(
+  danhGiaId: string,
+  lyDo: string,
+  signal?: AbortSignal,
+): Promise<HideResult> {
+  const body = await request<unknown>(
+    `/admin/doctor-ratings/${encodeURIComponent(danhGiaId)}/hide`,
+    { method: 'POST', json: { lyDo }, signal },
+  );
+  const result = parseHideResult(body);
+  if (result.danhGiaId !== danhGiaId) throw new UnexpectedResponseError(200);
+  return result;
 }

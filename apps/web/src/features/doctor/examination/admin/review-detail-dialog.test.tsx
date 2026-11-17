@@ -73,17 +73,49 @@ describe('hộp Chi tiết đánh giá — nội dung (WKD-04)', () => {
     expect(within(box).queryByText('Lý do ẩn')).toBeNull();
   });
 
-  it('WKD-04 F7 chỉ ĐỌC: không nút `Ẩn`/`Ẩn đánh giá` ở hàng lẫn ở hộp, chỉ có `Đóng` và ×; không lời gọi ghi nào', async () => {
+  it('WKD-04 hộp chi tiết đánh giá Hiển thị: có `Ẩn đánh giá` giữa × và `Đóng`; mở rồi đóng không lời gọi ghi', async () => {
     const box = await openRow1();
+    await within(box).findByText('CLX-20260611-00006 · 09:30 11/06/2026');
+    const names = within(box)
+      .getAllByRole('button')
+      .map((button) => button.getAttribute('aria-label') ?? button.textContent);
+    expect(names).toEqual(['Đóng hộp thoại', 'Ẩn đánh giá', 'Đóng']);
+    fireEvent.click(within(box).getByRole('button', { name: 'Đóng' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(writeCalls()).toHaveLength(0);
+  });
+
+  it('WKD-04 hộp chi tiết đánh giá Đã ẩn: CHỈ có × và `Đóng`, không `Ẩn đánh giá` (Q8: ẩn là một chiều); hàng Đã ẩn không nút `Ẩn`', async () => {
+    handlers.detail = (id) =>
+      jsonResponse(detailBody({ danhGiaId: id, biAn: true }));
+    await renderPage();
+    await screen.findByRole('table');
+    open(ROW_3);
+    const box = await dialog();
     await within(box).findByText('CLX-20260611-00006 · 09:30 11/06/2026');
     const names = within(box)
       .getAllByRole('button')
       .map((button) => button.getAttribute('aria-label') ?? button.textContent);
     expect(names).toEqual(['Đóng hộp thoại', 'Đóng']);
     fireEvent.click(within(box).getByRole('button', { name: 'Đóng' }));
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Ẩn/ })).toBeNull();
+    expect(
+      screen.queryByRole('button', {
+        name: 'Ẩn đánh giá của Lê Văn C về Lê Thảo Vy',
+      }),
+    ).toBeNull();
     expect(writeCalls()).toHaveLength(0);
+  });
+
+  it('WKD-04 hộp đang tải hay lỗi chưa biết trạng thái: CHƯA có `Ẩn đánh giá` (chỉ hiện khi chi tiết đã tải xong và còn Hiển thị)', async () => {
+    handlers.detail = () => new Promise<Response>(() => undefined);
+    await renderPage();
+    await screen.findByRole('table');
+    open(ROW_1);
+    const box = await dialog();
+    expect(await within(box).findByText('Đang tải chi tiết…')).toBeVisible();
+    expect(
+      within(box).queryByRole('button', { name: 'Ẩn đánh giá' }),
+    ).toBeNull();
   });
 
   it('WKD-04 đánh giá đã ẩn: nhãn "Đã ẩn" và "Lý do ẩn" nguyên văn (nhiều dòng giữ nguyên)', async () => {

@@ -1,5 +1,7 @@
 import { ApiError } from '../../../../shared/api/errors';
 import type { AdminReviewStatus } from '../api/admin-review-types';
+import { formatCount } from '../exam-messages';
+import { HIDE_REASON_MAX, HIDE_REASON_MIN } from './hide-rules';
 
 // Chữ của trang "Kiểm duyệt đánh giá" của Quản trị viên (doctor-exam F7; Figma `514:2`, `570:2`, `633:2`; PLAN 5.14). Chữ có trong Figma: tiêu đề, "Toàn hệ thống", "Chi nhánh: <tên>", "hiển thị", "đã ẩn", nhãn lọc, chữ trong ô lọc, tên cột,
 // "Hiển thị", "Đã ẩn", `Xem`, "Chi tiết đánh giá", nhãn các trường của hộp, `Đóng`. Còn lại là [đề xuất] ĐÃ ĐƯỢC ĐẠI DUYỆT trực tiếp 17/11/2026 (Figma không có frame cho các trạng thái này). Lỗi mạng, hết giờ, chung: câu của `shared/api/error-message`.
@@ -64,6 +66,43 @@ export function viewLabel(author: string, doctor: string): string {
   return author.trim() === ''
     ? `${REVIEWS_TEXT.view} đánh giá về ${doctor}`
     : `${REVIEWS_TEXT.view} đánh giá của ${author} về ${doctor}`;
+}
+
+// Chữ của hộp "Ẩn đánh giá" và thông báo sau thao tác (doctor-exam F8; Figma `571:2`; PLAN 5.14). Chữ có trong Figma: `title`, `warning`, `reasonLabel`, `placeholder`, `cancel`, `confirm`, `hide` (nút `Ẩn` ở hàng, `514:439`),
+// `hideReview` (nút ở chân hộp chi tiết, `570:916`). Có trong PLAN 5.14: `required`, `rejected`, `already`, `busy`. Còn lại là [đề xuất] ĐÃ ĐƯỢC ĐẠI DUYỆT trực tiếp 17/11/2026 (Figma không có khung cho bộ đếm, lỗi theo ô, đang gửi, thành công, "chưa rõ").
+// `sessionExpired`, `forbidden` chép chữ của F1, F3, F6 (cùng câu cho cùng mã lỗi). Số trong chữ lấy từ hằng của `hide-rules.ts` (MỘT nơi).
+export const HIDE_TEXT = {
+  title: 'Ẩn đánh giá',
+  warning:
+    'Đánh giá sẽ không còn hiển thị công khai nhưng vẫn được lưu trong hệ thống để truy vết. Hành động này sẽ được ghi vào Nhật ký hành động.',
+  reasonLabel: 'Lý do ẩn',
+  placeholder: `Nhập lý do ẩn đánh giá (tối thiểu ${HIDE_REASON_MIN} ký tự)...`,
+  cancel: 'Hủy',
+  confirm: 'Xác nhận ẩn',
+  hiding: 'Đang ẩn...',
+  hide: 'Ẩn',
+  hideReview: 'Ẩn đánh giá',
+  required: 'Vui lòng nhập lý do ẩn.',
+  tooShort: `Lý do ẩn cần ít nhất ${HIDE_REASON_MIN} ký tự.`,
+  tooLong: `Tối đa ${formatCount(HIDE_REASON_MAX)} ký tự.`,
+  rejected: 'Nội dung có đoạn giống mật khẩu hoặc mã bí mật; hãy viết lại.',
+  hidden: 'Đã ẩn đánh giá.',
+  already: 'Đánh giá này đã được ẩn.',
+  notFound: DETAIL_TEXT.notFound,
+  reloaded: 'Đã tải lại danh sách.',
+  reload: 'Tải lại danh sách',
+  busy: 'Hệ thống đang bận, thử lại sau ít phút.',
+  sessionExpired: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+  forbidden: 'Bạn không có quyền thực hiện thao tác này.',
+  unsure:
+    'Chưa rõ đánh giá đã được ẩn chưa (mất kết nối hoặc quá thời gian chờ). Lý do của bạn vẫn còn ở đây.',
+} as const;
+
+// "Ẩn đánh giá của <tên> về <bác sĩ>"; tên người đặt rỗng ⇒ bỏ cụm "của …" (như `viewLabel`)
+export function hideLabel(author: string, doctor: string): string {
+  return author.trim() === ''
+    ? `${HIDE_TEXT.hideReview} về ${doctor}`
+    : `${HIDE_TEXT.hideReview} của ${author} về ${doctor}`;
 }
 
 // Chữ thay thế khi chuỗi rỗng hay chỉ khoảng trắng
