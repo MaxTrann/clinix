@@ -8,10 +8,12 @@ import { walkModuleTree } from '../doctor/testing/architecture-scan.js';
 import { PaymentModule } from './payment.module.js';
 import { PaymentChain } from './ports/payment-chain.js';
 import { PaymentPortsModule } from './ports/payment-ports.module.js';
+import { WalletLedger } from '../wallet/ledger/wallet-ledger.js';
+import { WalletModule } from '../wallet/wallet.module.js';
 
 // payment P4 — QTT-11 (cây import của AppModule) và HDT-11 (AppointmentsModule dựng được cùng hai module lá, không forwardRef; M16). Phần quét mã nguồn của QTT-11: architecture.spec.ts.
 // Nằm ở *.int-spec.ts vì import AppModule cần biến môi trường test (như AR-03 của booking); không dùng DB (DataSource giả ở HDT-11).
-// Chưa có WalletModule (P3 thêm): ca "WalletModule nhập PaymentPortsModule một chiều" và đưa WalletModule vào HDT-11 do P3 bổ sung.
+// Từ payment P3 có WalletModule: ca "WalletModule nhập PaymentPortsModule một chiều" và đưa WalletModule vào HDT-11 (M16) nằm ở đây.
 const noDatabase = (token: unknown) =>
   token === DataSource ? ({} as DataSource) : undefined;
 
@@ -28,6 +30,10 @@ describe('QTT-11 cây import của AppModule có payment', () => {
     ).toHaveLength(1);
     expect(tree.references.has(PaymentModule)).toBe(true);
     expect(tree.references.has(PaymentPortsModule)).toBe(true);
+    expect(importsOf(AppModule).filter((m) => m === WalletModule)).toHaveLength(
+      1,
+    );
+    expect(tree.references.has(WalletModule)).toBe(true);
   });
 
   it('PaymentPortsModule là lá: không nhập module nào; chỉ xuất PaymentChain', () => {
@@ -39,29 +45,46 @@ describe('QTT-11 cây import của AppModule có payment', () => {
 
   it('chiều phụ thuộc: PaymentModule nhập PaymentPortsModule; không module lá nào nhập PaymentModule hay AppointmentsModule', () => {
     expect(importsOf(PaymentModule)).toContain(PaymentPortsModule);
-    for (const leaf of [PaymentPortsModule]) {
+    for (const leaf of [PaymentPortsModule, WalletModule]) {
       expect(importsOf(leaf)).not.toContain(PaymentModule);
       expect(importsOf(leaf)).not.toContain(AppointmentsModule);
     }
   });
+
+  it('WalletModule nhập PaymentPortsModule MỘT chiều (Q22): PaymentPortsModule không nhập lại WalletModule; WalletModule chỉ xuất WalletLedger', () => {
+    expect(importsOf(WalletModule)).toEqual([PaymentPortsModule]);
+    expect(importsOf(PaymentPortsModule)).not.toContain(WalletModule);
+    expect(Reflect.getMetadata('exports', WalletModule) as unknown[]).toEqual([
+      WalletLedger,
+    ]);
+  });
 });
 
 describe('HDT-11 AppointmentsModule dựng được cùng hai module lá, không forwardRef (M16)', () => {
-  it('dựng AppointmentsModule, PaymentModule và PaymentPortsModule cùng lúc: Nest compile được, PaymentChain tiêm được (không cần DB)', async () => {
+  it('dựng AppointmentsModule, PaymentModule, WalletModule và PaymentPortsModule cùng lúc: Nest compile được, PaymentChain và WalletLedger tiêm được (không cần DB)', async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [AppointmentsModule, PaymentModule, PaymentPortsModule],
+      imports: [
+        AppointmentsModule,
+        PaymentModule,
+        WalletModule,
+        PaymentPortsModule,
+      ],
     })
       .useMocker(noDatabase)
       .compile();
-    const chain = moduleRef.get(PaymentChain, { strict: false });
-    expect(chain).toBeInstanceOf(PaymentChain);
+    expect(moduleRef.get(PaymentChain, { strict: false })).toBeInstanceOf(
+      PaymentChain,
+    );
+    expect(moduleRef.get(WalletLedger, { strict: false })).toBeInstanceOf(
+      WalletLedger,
+    );
     await moduleRef.close();
   });
 
   it('overrideProvider thay được một cổng của AppointmentsModule khi có hai module lá trong cây (M16)', async () => {
     const fake = { findBlockingLeave: () => Promise.resolve(null) };
     const moduleRef = await Test.createTestingModule({
-      imports: [AppointmentsModule, PaymentModule],
+      imports: [AppointmentsModule, PaymentModule, WalletModule],
     })
       .overrideProvider(DOCTOR_LEAVE_PORT)
       .useValue(fake)

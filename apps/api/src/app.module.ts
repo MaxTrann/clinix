@@ -20,6 +20,7 @@ import { MailModule } from './mail/mail.module.js';
 import { SearchModule } from './search/search.module.js';
 import { PatientModule } from './patient/patient.module.js';
 import { PaymentModule } from './payment/payment.module.js';
+import { WalletModule } from './wallet/wallet.module.js';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { PaymentModule } from './payment/payment.module.js';
     DoctorModule,
     AppointmentsModule,
     PaymentModule,
+    WalletModule,
     NotificationsModule,
     AuthModule,
     RbacModule,
