@@ -7,6 +7,9 @@ import { LoadingState } from '../../../shared/ui/loading-state';
 import { getServices } from '../api/search-service';
 import { BOOKING_PATH, serviceListPath } from '../search-paths';
 import { useRemote } from '../../../shared/hooks/use-remote';
+import { BookingSlotBanner } from '../slots/booking-slot-banner';
+import { DateStrip } from '../slots/date-strip';
+import { useSlotDate } from '../slots/use-slot-date';
 import { DoctorFilters } from './doctor-filters';
 import {
   DOCTOR_EMPTY_HINT_WITH_SERVICE,
@@ -17,11 +20,12 @@ import { PUBLIC_STEP_CONTAINER } from '../layout';
 
 export const SERVICE_NOT_FOUND_MESSAGE = 'Không tìm thấy dịch vụ này.';
 
-// Bước 3 "Bác sĩ" (Figma 446:2, không khung giờ): bác sĩ nhận dịch vụ đã chọn + bộ lọc. Tên dịch vụ lấy từ danh sách của nhóm.
+// Bước 3 "Bác sĩ" (Figma 446:2: banner, dải ngày và khung giờ của search PR-C2): bác sĩ nhận dịch vụ đã chọn + bộ lọc. Tên dịch vụ lấy từ danh sách của nhóm.
 // Thanh bước nối được Bước 1 và Bước 2: đường dẫn Bước 3 mang cả id nhóm lẫn id dịch vụ.
 export function DoctorListPage() {
   const { groupId = '', serviceId = '' } = useParams();
   const search = useDoctorSearch({ dichVuKhamId: serviceId });
+  const slotDate = useSlotDate();
   // Không lọc theo chi nhánh khi tra tên: dịch vụ vẫn có tên dù chi nhánh đang chọn không cung cấp
   const services = useRemote(
     (signal) => getServices(groupId, null, signal),
@@ -55,7 +59,9 @@ export function DoctorListPage() {
         <ChevronLeft className="size-4" aria-hidden="true" />
         Chọn lại dịch vụ khám
       </Link>
-      <h1 className="mt-2 text-2xl font-bold text-gray-900">Chọn bác sĩ</h1>
+      <h1 className="mt-2 text-2xl font-bold text-gray-900">
+        Chọn bác sĩ và khung giờ
+      </h1>
       {service && (
         <p className="mt-1 text-gray-600">
           Dịch vụ: <strong className="text-gray-900">{service.ten}</strong>
@@ -76,12 +82,21 @@ export function DoctorListPage() {
         </div>
       ) : (
         <>
+          <BookingSlotBanner />
           <div className="mt-6">
             <DoctorFilters
               values={search.values}
               errors={search.errors}
               branches={search.branches}
               onChange={search.change}
+            />
+          </div>
+          <div className="mt-5">
+            <DateStrip
+              dates={slotDate.dates}
+              value={slotDate.date}
+              today={slotDate.today}
+              onChange={slotDate.setDate}
             />
           </div>
           <div className="mt-6">
@@ -93,6 +108,8 @@ export function DoctorListPage() {
               onResetFilters={search.reset}
               emptyAction={backToServices}
               emptyHint={DOCTOR_EMPTY_HINT_WITH_SERVICE}
+              slotDate={slotDate}
+              variant="booking"
             />
           </div>
         </>

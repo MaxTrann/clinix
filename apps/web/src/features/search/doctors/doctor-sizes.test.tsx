@@ -381,6 +381,19 @@ describe('trang Đội ngũ bác sĩ theo Figma 260:2 (UIS-10)', () => {
     window.localStorage.clear();
     resetSelectedBranchForTest();
     vi.mocked(api.getDoctors).mockResolvedValue(page([DOCTOR, DOCTOR]));
+    // Thẻ nay có lưới khung giờ (search PR-C2): một lời gọi `getDoctorSlots` cho cả trang
+    vi.mocked(api.getDoctorSlots).mockResolvedValue(
+      new Map([
+        [
+          DOCTOR.bacSiId,
+          {
+            bacSiId: DOCTOR.bacSiId,
+            trangThaiNgay: 'KhongCoLich',
+            khungGio: [],
+          },
+        ],
+      ]),
+    );
     vi.mocked(api.getBranches).mockResolvedValue(page([BRANCH]));
     vi.mocked(api.getSpecialties).mockResolvedValue({
       ...page([SPECIALTY]),
@@ -403,13 +416,20 @@ describe('trang Đội ngũ bác sĩ theo Figma 260:2 (UIS-10)', () => {
     expect(form.parentElement).not.toHaveClass('border');
     expect(form.parentElement).not.toHaveClass('p-5');
     await screen.findAllByRole('heading', { level: 2 });
-    const results = form.parentElement?.nextElementSibling as HTMLElement;
+    // Giữa bộ lọc và kết quả nay có dải "Ngày khám" (search PR-C2): bộ lọc → dải 18,75; dải → kết quả vẫn 22,5
+    const strip = form.parentElement?.nextElementSibling as HTMLElement;
+    expect(strip).toHaveClass('mt-5');
+    expect(within(strip).getByText('Ngày khám')).toBeInTheDocument();
+    const results = strip.nextElementSibling as HTMLElement;
     expect(results).toHaveClass('mt-6');
   });
 
   it('UIS-10 danh sách: dòng đếm cách thẻ 15 (mb-4), thẻ cách nhau 18,75 (gap-5); đường dẫn "Trang chủ" rồi "Bác sĩ" là trang hiện tại', async () => {
     openTeam();
-    const count = await screen.findByText('2 bác sĩ');
+    // Dòng đếm của Đội ngũ bác sĩ nay có hậu tố "· lịch Hôm nay d/m" (Figma 260:2; search PR-C2)
+    const count = await screen.findByText(
+      /^2 bác sĩ · lịch Hôm nay \d{1,2}\/\d{1,2}$/,
+    );
     expect(count).toHaveClass('mb-4');
     expect(count.nextElementSibling).toHaveClass('gap-5');
     expect(count.nextElementSibling).not.toHaveClass('gap-4');

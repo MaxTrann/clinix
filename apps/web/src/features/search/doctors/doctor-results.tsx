@@ -3,12 +3,20 @@ import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import type { DoctorItem, Paged } from '../api/search-types';
 import type { RemoteState } from '../../../shared/hooks/use-remote';
+import { DoctorSlotPanel } from '../slots/doctor-slot-panel';
+import { dateLabel } from '../slots/slot-dates';
+import { BOOKING_PICK_SLOT_HINT } from '../slots/slot-text';
+import { useDoctorSlots } from '../slots/use-doctor-slots';
+import type { SlotDate } from '../slots/use-slot-date';
 import { DoctorCard } from './doctor-card';
 
 export const DOCTOR_EMPTY_MESSAGE = 'Không tìm thấy bác sĩ phù hợp';
 export const DOCTOR_EMPTY_HINT = 'Hãy đổi bộ lọc để xem thêm bác sĩ.';
 export const DOCTOR_EMPTY_HINT_WITH_SERVICE =
   'Hãy đổi bộ lọc hoặc chọn dịch vụ khác.';
+
+// Trang nào đang dùng danh sách: chuyên khoa và Đội ngũ bác sĩ (thẻ có tiêu đề "Lịch khám …"), Bước 3 đặt lịch (chỉ lưới); Đội ngũ bác sĩ còn thêm "· lịch Hôm nay" ở dòng đếm
+export type ResultsVariant = 'specialty' | 'team' | 'booking';
 
 interface DoctorResultsProps {
   state: RemoteState<Paged<DoctorItem>>;
@@ -19,6 +27,9 @@ interface DoctorResultsProps {
   // Gợi ý thêm khi rỗng (F5: liên kết "Chọn dịch vụ khác")
   emptyAction?: ReactNode;
   emptyHint?: string;
+  // Ngày đang xem và kiểu đặt lưới khung giờ trong thẻ (search PR-C2)
+  slotDate: SlotDate;
+  variant: ResultsVariant;
 }
 
 // Kết quả danh sách bác sĩ: đang tải / lỗi (có "Thử lại") / rỗng (A1) / danh sách + phân trang. Bộ lọc đứng ngoài nên không mất khi lỗi (TBS-22).
@@ -30,6 +41,8 @@ export function DoctorResults({
   onResetFilters,
   emptyAction,
   emptyHint = DOCTOR_EMPTY_HINT,
+  slotDate,
+  variant,
 }: DoctorResultsProps) {
   if (state.status === 'loading') return <LoadingState />;
   if (state.status === 'error') {
@@ -53,12 +66,12 @@ export function DoctorResults({
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
   return (
     <div>
-      <p className="mb-4 text-sm text-gray-600">{total} bác sĩ</p>
-      <ul className="flex flex-col gap-5">
-        {items.map((doctor) => (
-          <DoctorCard key={doctor.bacSiId} doctor={doctor} />
-        ))}
-      </ul>
+      <p className="mb-4 text-sm text-gray-600">
+        {total} bác sĩ
+        {variant === 'team' &&
+          ` · lịch ${dateLabel(slotDate.date, slotDate.today)}`}
+      </p>
+      <DoctorList items={items} slotDate={slotDate} variant={variant} />
       {lastPage > 1 && (
         <nav
           aria-label="Phân trang"
@@ -85,6 +98,46 @@ export function DoctorResults({
           </button>
         </nav>
       )}
+      {variant === 'booking' && (
+        <p className="mt-5 text-center text-[15px] text-gray-500">
+          {BOOKING_PICK_SLOT_HINT}
+        </p>
+      )}
     </div>
+  );
+}
+
+// Danh sách thẻ + MỘT lời gọi khung giờ cho cả trang (T4). Chỉ được gắn khi đã có danh sách nên không gọi lúc đang tải, lỗi hay rỗng.
+function DoctorList({
+  items,
+  slotDate,
+  variant,
+}: {
+  items: DoctorItem[];
+  slotDate: SlotDate;
+  variant: ResultsVariant;
+}) {
+  const slots = useDoctorSlots(
+    items.map((doctor) => doctor.bacSiId),
+    slotDate.date,
+  );
+  return (
+    <ul className="flex flex-col gap-5">
+      {items.map((doctor) => (
+        <DoctorCard
+          key={doctor.bacSiId}
+          doctor={doctor}
+          schedule={
+            <DoctorSlotPanel
+              bacSiId={doctor.bacSiId}
+              slots={slots.state}
+              retry={slots.retry}
+              slotDate={slotDate}
+              variant={variant === 'booking' ? 'booking' : 'listing'}
+            />
+          }
+        />
+      ))}
+    </ul>
   );
 }

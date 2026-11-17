@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PaymentPolicyModule } from './policy/payment-policy.module.js';
 import { AppointmentsModule } from '../appointments/appointments.module.js';
 import { WalletModule } from '../wallet/wallet.module.js';
 import { DepositPaymentController } from './deposit/deposit-payment.controller.js';
@@ -12,7 +13,13 @@ import { PaymentPortsModule } from './ports/payment-ports.module.js';
 // `AppointmentsModule` (gọi `confirmPaid`) và `WalletModule` (`WalletLedger`, `WalletBalanceReader`); P5 sẽ thêm `AuditModule`. KHÔNG `forwardRef`: `AppointmentsModule` chỉ nhập hai module LÁ (B7, Đại).
 // B5: `deposit/` (hai route thanh toán cọc bằng ví).
 @Module({
-  imports: [AppointmentsModule, WalletModule, PaymentPortsModule],
+  // B10: PaymentPolicyModule (cấu hình chính sách cọc, chỉ cần RbacModule). Task sau thêm module của mình vào cùng mảng này.
+  imports: [
+    AppointmentsModule,
+    WalletModule,
+    PaymentPortsModule,
+    PaymentPolicyModule,
+  ],
   controllers: [DepositPaymentController],
   providers: [DepositRepository, DepositPaymentService],
 })
