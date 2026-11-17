@@ -48,3 +48,21 @@ export const WALLET_ERROR_CODES = {
 
 export type WalletErrorCode =
   (typeof WALLET_ERROR_CODES)[keyof typeof WALLET_ERROR_CODES];
+
+/**
+ * Hoàn cọc tự động (payment B8; PLAN 5.6.1). `RefundRetryJob` chạy MỖI PHÚT (cùng nhịp `HOLD_EXPIRY_CRON` của booking, lệch giây để hai job không dồn một lúc); mỗi lượt quét theo lô để một lượt không chiếm
+ * kết nối quá lâu. Số lô tối đa và cỡ lô theo nếp `BOOKING_JOB_*` của booking.
+ */
+export const REFUND_RETRY_CRON = '40 * * * * *';
+export const REFUND_RETRY_JOB_NAME = 'wallet-refund-retry';
+export const REFUND_RETRY_BATCH_SIZE = 100;
+export const REFUND_RETRY_MAX_BATCHES = 10;
+
+/** `loai_su_kien` của thông báo hoàn cọc (PLAN 5.12; chữ `[đề xuất]`). Cột là `varchar(100)` nên không cần đổi DDL. */
+export const REFUND_NOTIFICATION_EVENTS = {
+  REFUNDED: 'HoanCocThanhCong',
+  NEEDS_ATTENTION: 'HoanCocCanXuLy',
+} as const;
+
+/** `thong_bao.noi_dung` tối đa 500 ký tự (cột `varchar(500)`). */
+export const NOTIFICATION_MAX_LENGTH = 500;

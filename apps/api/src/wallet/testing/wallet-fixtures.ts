@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { DataSource } from 'typeorm';
 import { AdminFixtures } from '../../admin/testing/admin-fixtures.js';
+import { addMoney } from '../../pricing/money.js';
 import type {
   LoaiGiaoDichThanhToan,
   PhuongThucThanhToan,
@@ -169,6 +170,46 @@ export class WalletFixtures {
       ],
     );
     return String(result.insertId);
+  }
+
+  /**
+   * Khoản cọc ĐÃ TRẢ bằng ví của một lịch, NHẤT QUÁN với sổ cái (IVT-01, IVT-04, IVT-05): nạp đúng số tiền trước (`NapVi` + dòng `Nap`), rồi `ThanhToanLichHen` qua `Vi` + dòng `ThanhToan` số âm.
+   * `so_du` sau cùng bằng `so_du` trước đó (nạp rồi trừ ngay), nên gọi nhiều lần liên tiếp vẫn nhất quán. Điều kiện: ví đang nhất quán sẵn (sổ cái rỗng và `so_du` 0, hay do `fundWallet` dựng). Trả `giao_dich_thanh_toan_id`.
+   */
+  async insertWalletDeposit(input: {
+    viNoiBoId: string;
+    lichHenId: string;
+    soTien: string;
+  }): Promise<string> {
+    const before = (await this.readWallet(input.viNoiBoId)).soDu;
+    const topup = await this.insertPayment({
+      viNoiBoId: input.viNoiBoId,
+      loai: 'NapVi',
+      phuongThuc: 'VNPay',
+      soTien: input.soTien,
+    });
+    await this.insertLedgerRow({
+      viNoiBoId: input.viNoiBoId,
+      loai: 'Nap',
+      soTien: input.soTien,
+      soDuSau: addMoney(before, input.soTien),
+      giaoDichThanhToanId: topup,
+    });
+    const paymentId = await this.insertPayment({
+      viNoiBoId: input.viNoiBoId,
+      lichHenId: input.lichHenId,
+      loai: 'ThanhToanLichHen',
+      phuongThuc: 'Vi',
+      soTien: input.soTien,
+    });
+    await this.insertLedgerRow({
+      viNoiBoId: input.viNoiBoId,
+      loai: 'ThanhToan',
+      soTien: `-${input.soTien}`,
+      soDuSau: before,
+      giaoDichThanhToanId: paymentId,
+    });
+    return paymentId;
   }
 
   /**
