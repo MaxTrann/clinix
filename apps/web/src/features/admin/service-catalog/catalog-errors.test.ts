@@ -26,6 +26,12 @@ describe('feedbackFor: lỗi gắn ô thì không có banner (AF3-10)', () => {
       'thoiLuong',
       'Không thể đổi thời lượng vì dịch vụ đang được lịch hẹn hoặc khung giờ sử dụng.',
     ],
+    // payment F5 (TECH_DEBT 175 (b)): 409 của B10 khi hạ giá dưới mức cọc, trước đây rơi vào câu chung "Không lưu được dữ liệu"
+    [
+      'GIA_DUOI_MUC_COC',
+      'giaMacDinh',
+      'Giá mặc định không được thấp hơn mức đặt cọc của dịch vụ. Hãy giảm mức cọc ở mục Đặt cọc & Hoàn tiền trước.',
+    ],
   ])('AF3-10 %s: chữ chỉ ở ô %s, không banner', (maLoi, field, text) => {
     const feedback = feedbackFor(apiError(maLoi));
 

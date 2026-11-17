@@ -3,3 +3,8 @@
 // `ROLE_HOME_PATHS.BenhNhan`. Đoạn đường là nhãn menu không dấu (nếp `lich-hen-cua-toi` của booking).
 export const PATIENT_WALLET_SEGMENT = 'vi-cua-toi';
 export const PATIENT_WALLET_PATH = `/benh-nhan/${PATIENT_WALLET_SEGMENT}`;
+
+// Màn "Đặt cọc & Hoàn tiền" của Quản trị viên (payment F5; Figma `553:2`; tên đường dẫn là [đề xuất]). `*_SEGMENT` tương đối với `/admin` cho route con của khung Admin, `*_PATH` đầy đủ cho mục menu
+// ở `features/admin/components/admin-sidebar.tsx`. Đoạn đường là nhãn menu không dấu. Ca WP-02 khoá nó nằm dưới `ROLE_HOME_PATHS.QuanTriVien`.
+export const ADMIN_DEPOSIT_POLICY_SEGMENT = 'dat-coc-hoan-tien';
+export const ADMIN_DEPOSIT_POLICY_PATH = `/admin/${ADMIN_DEPOSIT_POLICY_SEGMENT}`;
