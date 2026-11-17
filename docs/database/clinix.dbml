@@ -8,6 +8,7 @@
 // 08/11/2026 (module patient, task B7): chỉ sửa chữ, không đổi bảng, cột, enum, constraint: mở rộng quy tắc 53 (clinix_quy_tac_nghiep_vu.md mục 2) thêm phần chi tiết một bệnh nhân (GET /reception/patients/:id): cùng phạm vi và cùng tập tra cứu được với danh sách, mười trường gồm số lần vắng khám và danh sách người thân ở cả hai trạng thái hiệu lực, 404 chung cho id không có, không phải Bệnh nhân, chưa xác minh hay sai dạng, chỉ đọc, không ghi nhật ký hành động (Q20 = A).
 // 10/11/2026 (module booking, task P7): thong_bao thêm lich_hen_id (ref: >? lich_hen, nullable) và index unique (lich_hen_id, tai_khoan_id, loai_su_kien); không thêm bảng, enum hay CHECK.
 // 16/11/2026 (module payment và wallet, task P1): lich_su_hoan_tien thêm cột loai (loai_hoan_tien_enum: TuDong | DacBiet; Q23); bảng mới lan_doi_soat_nap_vi (ket_qua_doi_soat_enum; Q9); enum nhật ký thêm DuyetRutTien, TuChoiRutTien, yeu_cau_rut_tien (Q17) => 46 bảng, 32 khối Enum.
+// 17/11/2026 (module doctor-exam, task D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa Note nào của Table: Note của ho_so_kham và danh_gia_bac_si giữ khớp COMMENT trong clinix_mysql.sql (được schema-parity so với migration). Thêm mục "doctor-exam D1" (hồ sơ khám và đánh giá bác sĩ) vào cuối clinix_quy_tac_nghiep_vu.md và bốn khối TRUY VẤN MẪU vào cuối clinix_mysql.sql.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17
@@ -654,6 +655,7 @@ Table yeu_cau_doi_lich_ngoai_chinh_sach {
   Note: 'Ràng buộc: khi đã xử lý (khác ChoDuyet) thì bắt buộc có ghi_chu_xu_ly.'
 }
 
+// Quy tắc service của hồ sơ khám (doctor-exam D1): chỉ Bác sĩ phụ trách ghi, khi lịch DaTiepDon hoặc HoanThanh, khóa lich_hen rồi ho_so_kham; chỉ Bác sĩ phụ trách và Bệnh nhân chủ lịch (lịch HoanThanh) đọc nội dung, Lễ tân và Quản trị viên không đọc. Chi tiết: mục "doctor-exam D1" ở cuối clinix_quy_tac_nghiep_vu.md.
 Table ho_so_kham {
   ho_so_kham_id bigint [pk, increment]
   lich_hen_id bigint [not null, unique, ref: - lich_hen.lich_hen_id]
@@ -789,6 +791,7 @@ Table lan_doi_soat_nap_vi {
 
 // ===================== CỤM 6: KHÁM & ĐÁNH GIÁ =====================
 
+// Quy tắc service của đánh giá (doctor-exam D1): ẩn đánh giá MỘT chiều (không có đường hiện lại); điểm trung bình tính khi đọc, loại đánh giá bi_an (Q9 đã chốt; triển khai ở task B9, issue #405). Chi tiết ở cùng mục của clinix_quy_tac_nghiep_vu.md.
 Table danh_gia_bac_si {
   danh_gia_bac_si_id bigint [pk, increment]
   lich_hen_id bigint [not null, unique, ref: - lich_hen.lich_hen_id, note: 'Tối đa 1 đánh giá cho mỗi lịch hẹn; bác sĩ và bệnh nhân suy ra qua lich_hen']
