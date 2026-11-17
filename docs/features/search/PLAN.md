@@ -37,6 +37,8 @@ cho TCBS b1–b2, trang chủ (Q21) và ô tìm kiếm tổng "Trang chủ - Tì
 A2 (đăng ký chờ), A3 (bác sĩ không có lịch ngày đã chọn), A4 (Khách vãng lai chọn khung giờ → đăng nhập → khôi phục lựa chọn), bộ chọn "ngày muốn khám" của b4–b5.
 Các task này ghi ở mục 6.6 kèm điều kiện để làm. API thiết kế sao cho phần khung giờ **cắm thêm endpoint mới**, không đổi hợp đồng đã có (mục 5.6).
 
+**Cập nhật 17/11/2026 (Search Slots PR-C1):** API khung giờ công khai đã làm (K1): TCBS b7, b11–b14 và phần API của b10, A3 (backend; mục 5.5, 5.6, TRACKING mục 9). Còn `[SAU]`: web (K2 ở PR-C2: dải 7 ngày, lưới khung giờ, A3/7b), chuyển sang Đặt lịch (K3, phần web của b10), A4, đăng ký chờ A2 (K4).
+
 **Không làm:** đặt lịch, giữ chỗ, danh sách chờ (`booking`, `waitlist`); lịch làm việc bác sĩ, nghỉ phép (`doctor`); tạo/kiểm duyệt đánh giá (module sở hữu `danh_gia_bac_si`, Q16);
 nhắn tin (nút "Nhắn tin" trên thẻ bác sĩ); bài viết (mục "Cẩm nang"); quản trị chi nhánh, chuyên khoa, dịch vụ, hồ sơ bác sĩ, bảng phụ phí (`admin`); khung Bệnh nhân/Lễ tân (`patient`), khung Bác sĩ (`doctor`).
 Không có use case nào của module này **tải ảnh lên** (chỉ hiển thị ảnh chuyên khoa đã có theo ADR 0001), nên không có câu hỏi nơi lưu tệp ảnh.
@@ -135,11 +137,11 @@ Không có use case nào của module này **tải ảnh lên** (chỉ hiển th
 | L11 | Điểm đánh giá trung bình ↔ `danh_gia_bac_si` **chưa có migration**; có đánh giá bị ẩn (`bi_an`) | | Q16 |
 | L12 | Giá khám = giá dịch vụ + phụ phí ↔ DB: giá trị phụ phí `[cần điền]`, ý nghĩa "tắt mốc cao rơi xuống mốc thấp" `[cần điền]` — **admin Q21 đã chốt** (quyết định giá của nhóm) nhưng 3 file DB chưa cập nhật (admin D6) | Không bàn lại; module này chỉ dùng hàm chung | Q15 |
 | L13 | Figma có **ảnh chân dung bác sĩ** ↔ schema `bac_si` không có cột ảnh; `tai_khoan.anh_dai_dien` thuộc "ảnh đại diện" mà patient Q4 đã **hoãn** | | Q14 |
-| L14 | Figma "Chi tiết bác sĩ" có "**Đặt trước tối đa 7 ngày**" ↔ quy tắc DB 38: **không** có giới hạn số ngày đặt trước | | Q14 |
+| L14 | Figma "Chi tiết bác sĩ" có "**Đặt trước tối đa 7 ngày**" ↔ quy tắc DB 38: **không** có giới hạn số ngày đặt trước | Cửa sổ 7 ngày của API khung giờ công khai (hôm nay đến hôm nay + 6) chỉ là giới hạn HIỂN THỊ của dải ngày, KHÔNG phải giới hạn đặt trước (Search Slots PR-C1, 17/11/2026) | Q14 |
 | L15 | Figma thẻ bác sĩ có "**Cọc**", "30 phút/lượt", nút "**Nhắn tin**"; "Chi tiết chuyên khoa" có "**Giá khám từ … · cọc …**" và danh sách bác sĩ ↔ 2.4 TCCN b6 chuyên khoa chỉ "tên, mô tả, hình ảnh"; TCBS b8 không nêu cọc | Không mâu thuẫn dữ liệu (có cột), chỉ vượt 2.4 | Q9, Q14 |
 | L16 | 2.4 TCCN A2 có **bộ chọn chi nhánh trên thanh điều hướng** ↔ Figma "Trang chủ": thanh điều hướng **không có**; **không có** frame công khai danh sách/chi tiết chi nhánh | | Q7, Q8, Q19 |
 | L17 | Figma chân trang ghi cứng "Thứ 2 – Thứ 6: 7:30 – 17:00 / Thứ 7: 7:30 – 12:00 / Chủ nhật: Nghỉ" ↔ giờ là **theo từng chi nhánh** (`chi_nhanh_lich_hoat_dong`); `thong_tin_phong_kham` không có giờ; địa chỉ, email `[cần điền]` trong Figma | | Q19 |
-| L18 | TCBS b4 "ngày muốn khám (mặc định **ngày gần nhất**)" — "gần nhất" là hôm nay hay ngày gần nhất có khung giờ? | Chỉ ảnh hưởng phần `[SAU]` | Q18 |
+| L18 | TCBS b4 "ngày muốn khám (mặc định **ngày gần nhất**)" — "gần nhất" là hôm nay hay ngày gần nhất có khung giờ? | Chỉ ảnh hưởng phần `[SAU]`; **đã chốt 17/11/2026 (T4): hôm nay theo giờ VN** (cửa sổ hôm nay đến hôm nay + 6) | Q18 |
 | L19 | 2.4 TCCN TĐK "chi nhánh đang chọn … **lưu tạm** phía trình duyệt" cho "**phiên làm việc này**" ↔ A2 "**lần đầu vào hệ thống** (chưa có lựa chọn lưu sẵn)" — lưu theo phiên hay lâu dài? Đổi chi nhánh ở TCBS b5 có cập nhật giá trị chung không (TCCN b3 nói có, cho bộ lọc của TCCN)? | | Q7 |
 | L20 | Figma "Trang chủ - Tìm kiếm" (ô tìm tổng, gợi ý có nhãn loại "Chuyên khoa") và các con số "8 Chuyên khoa · 12 Bác sĩ · 10 Dịch vụ khám" — không thuộc rõ use case nào | | Q20, Q21 |
 
@@ -206,7 +208,7 @@ Cột "Chặn" giữ làm lịch sử (thẻ `[CHỜ Qn]` tương ứng đã b�
 | Q15 | **Giá khám áp dụng**: chỗ đặt phép tính, lúc nào có, lọc theo giá thế nào | (a) Trung (chủ cả admin B12 lẫn `search`) tự tách `computeSurcharge` (đang "SOẠN TRƯỚC") thành **PR nhỏ đi TRƯỚC task B4 của `search`**, gồm cả hàm cộng `giaKham = giaMacDinh + phuPhi` trên chuỗi decimal (không `number`) để `search` và `booking` dùng **cùng một** hàm; đặt ở `apps/api/src/pricing/` hoặc chỗ Trung chọn; **cấm công thức phụ phí lần hai**. (b) `search` đọc **toàn bộ** quy tắc `phu_phi_bac_si` (bảng nhỏ) một lần mỗi request rồi gọi hàm chung. (c) Lọc/sắp theo giá làm **trong bộ nhớ**: SQL lọc mọi điều kiện khác, tính giá từng bác sĩ bằng hàm chung, rồi lọc giá/đánh giá, sắp xếp, cắt trang — không viết công thức phụ phí trong SQL (H3); ghi `TECH_DEBT` (ổn ở quy mô TLCN). (d) Chưa có hàm ⇒ B4, B5, B6 `[CHỜ admin B12]`; **không** có cách làm tạm bằng số tự đặt | B4, B5, B6 |
 | Q16 | **Điểm đánh giá trung bình** (L11) | Chỉ tính đánh giá **đang hiển thị** (`bi_an = false`); trung bình làm tròn **1 chữ số thập phân** (trả chuỗi `"4.3"`), kèm `soDanhGia`; 0 lượt ⇒ `diemTrungBinh: null` ("Chưa có đánh giá"). Bảng chưa có ⇒ API trả `null`/0 cho mọi bác sĩ (hợp đồng không đổi khi có bảng — K5). Migration `danh_gia_bac_si`: do module sở hữu use case đánh giá tạo (hoặc admin theo Q41) — nhóm chỉ định chủ. Tab "Đánh giá" (danh sách nhận xét kèm tên người đánh giá) để module đánh giá quyết định trường hiển thị — `[SAU]` | B5, B6 |
 | Q17 | **Lễ tân** có thấy khác Khách vãng lai không (L10); token sai/hết hạn | **Không khác**: endpoint `@Public` không đọc token (mục 2) nên mọi vai trò thấy cùng dữ liệu; Lễ tân tự chọn chi nhánh như mọi người (không tự điền chi nhánh của Lễ tân — sẽ cần `GET /profile` của `patient` B1). Token sai/hết hạn/thu hồi: bị bỏ qua, kết quả như không có token (giữ hành vi auth, không sửa guard). Sửa 2.4 TCBS ghi rõ (D2) | — (ghi test CC-02, CC-03) |
-| Q18 | **Phần `[SAU]`**: chủ sở hữu bộ tính khung giờ "dùng chung cho tra cứu, đặt lịch, đổi lịch, Trợ lý AI" (b11); "ngày gần nhất" (L18) | Bộ tính khung giờ thuộc **`booking`** (chủ của giữ chỗ/đặt lịch, cần khoá hàng) `[đề xuất]`, đặt ở thư mục dùng chung kiểu `apps/api/src/appointments/` (patient Q13); `search` chỉ mở endpoint đọc (K1). "Ngày gần nhất" = **hôm nay** theo giờ VN `[đề xuất]`. Không chặn task nào của đợt này | K1–K4 |
+| Q18 | **Phần `[SAU]`**: chủ sở hữu bộ tính khung giờ "dùng chung cho tra cứu, đặt lịch, đổi lịch, Trợ lý AI" (b11); "ngày gần nhất" (L18) | Bộ tính khung giờ thuộc **`booking`** (chủ của giữ chỗ/đặt lịch, cần khoá hàng) `[đề xuất]`, đặt ở thư mục dùng chung kiểu `apps/api/src/appointments/` (patient Q13); `search` chỉ mở endpoint đọc (K1). "Ngày gần nhất" = **hôm nay** theo giờ VN `[đề xuất]`. Không chặn task nào của đợt này. **Đã trả lời (T4, 17/11/2026):** endpoint thuộc `search`; MỘT lời gọi cho cả trang và MỘT ngày; ngày mặc định = hôm nay giờ VN; cửa sổ 7 ngày. Chủ bộ đọc khung giờ là `doctor` (`AvailableSlotsReader`, doctor Q1, 08/11/2026), không phải `booking` | K1–K4 |
 
 **Giao diện và chung**
 
@@ -385,16 +387,18 @@ Mọi truy vấn đếm (`soBacSi`, con số trang chủ, `giaKhamTu`) dùng **c
 | `GET /public/services?nhomDichVuId=&chiNhanhId=` | TCBS b2–b3 | `{ items: [{ dichVuKhamId, ten, nhomDichVu: {id, ten}, thoiLuong, giaMacDinh, mucDatCoc, soBacSi }] }` |
 | `GET /public/doctors?dichVuKhamId=&chuyenKhoaId=&chiNhanhId=&q=&giaTu=&giaDen=&diemTu=&sapXep=&page=&pageSize=` | TCBS b4–b6, b8 (tóm tắt), A1 | `Paged<{ bacSiId, hoTen, chucDanh, soNamKinhNghiem, chuyenKhoa: {chuyenKhoaId, ten}, chiNhanh: {chiNhanhId, ten, diaChi}, dichVu: {dichVuKhamId, ten, thoiLuong}, gia: {giaMacDinh, phuPhi, giaKham, mucDatCoc}, danhGia: {diemTrungBinh, soDanhGia} }>`; rỗng ⇒ `items: []`, `total: 0` (không 404) |
 | `GET /public/doctors/:id` | TCBS b9 | Như một phần tử danh sách + `moTaChuyenMon`, `chiNhanh.lichHoatDong` (cùng dạng chi tiết chi nhánh). Không công khai/không có/sai dạng ⇒ 404 cùng thân |
+| `GET /public/doctor-slots?bacSiIds=&ngay=` | TCBS b7, b10 (phần API), b11–b14, A3 | `{ ngay, items: [{ bacSiId, trangThaiNgay, thuNghi?, khungGio: [{ khungGioId, batDau, ketThuc, ca, trangThai }] }] }`; ≤ 100 bác sĩ, MỘT ngày, `no-store`; chi tiết ở 5.6 |
 | `GET /public/clinic-info` | Bổ trợ (chân trang) | `{ tenThuongHieu, diaChiTruSo, duongDayNong, email }` (NULL được; chưa có dòng ⇒ mọi trường `null`, không 404) |
 | `GET /public/overview` | Bổ trợ (trang chủ, Q21) | `{ soChuyenKhoa, soBacSi, soDichVu }` |
 | `GET /public/suggestions?q=` | Q20 | `{ chuyenKhoa: [{chuyenKhoaId, ten}], dichVu: [{dichVuKhamId, ten}], bacSi: [{bacSiId, hoTen, chucDanh}] }` mỗi nhóm ≤ 5; `q` rỗng ⇒ mảng rỗng |
 
-### 5.6 Chừa chỗ cho phần khung giờ `[SAU]` — hợp đồng hiện tại **không đổi**
+### 5.6 Khung giờ công khai (K1: API làm ở Search Slots PR-C1, web ở PR-C2) — hợp đồng danh sách và chi tiết bác sĩ **không đổi**
 
 - Danh sách và chi tiết bác sĩ **không** nhận tham số ngày và **không** có trường khung giờ: ngày chỉ ảnh hưởng khung giờ, không lọc bác sĩ (TCBS A3: bác sĩ không có lịch vẫn hiện) ⇒ không mâu thuẫn 2.4.
-- Phần sau **thêm endpoint mới** (K1): `GET /public/doctors/schedules?ngay=YYYY-MM-DD&bacSiId=…` (nhiều bác sĩ của một trang, ≤ `pageSize`) và `GET /public/doctors/:id/schedule?ngay=` ⇒
-  `{ bacSiId, ngay, trangThaiNgay: 'CoLich' | 'KhongCoLich' | 'ChiNhanhNghi', thuNghi?, khungGio: [{ batDau, ketThuc, ca, trangThai: 'ConTrong' | 'DaDat' | 'DangGiuCho' | 'HetHan' }] }`
-  (thời lượng lấy từ dịch vụ của bác sĩ — mỗi bác sĩ một dịch vụ). Lỗi dữ liệu lịch không hợp lệ (b14) ⇒ mã lỗi riêng do bộ tính khung giờ định nghĩa.
+- **Endpoint (đã làm ở Search Slots PR-C1, 17/11/2026; thiết kế và kết quả ở TRACKING mục 9):** `GET /public/doctor-slots?bacSiIds=12,15&ngay=YYYY-MM-DD` — MỘT lời gọi cho cả trang bác sĩ và MỘT ngày (T4). Đường dẫn riêng, không nằm dưới `public/doctors/` để `:id` không bắt nhầm `slots`; chỉ GET, `@Public`, `Cache-Control: no-store`.
+- `bacSiIds`: id BIGINT dương ngăn dấu phẩy (không khoảng trắng, không số 0 đứng đầu), bỏ trùng giữ thứ tự, **tối đa 100 id khác nhau** (= `pageSize` lớn nhất của danh sách). `ngay`: `YYYY-MM-DD` có thật, trong `[hôm nay, hôm nay + 6]` giờ Việt Nam; đây là cửa sổ HIỂN THỊ của dải ngày, KHÔNG phải giới hạn đặt trước (quy tắc 38 giữ nguyên, xem L14). Sai ⇒ 400 `BO_LOC_KHONG_HOP_LE` kèm `loi[{ truong, ma }]`, báo mọi lỗi một lượt; mã trường `DANH_SACH_BAC_SI_KHONG_HOP_LE`, `QUA_NHIEU_BAC_SI`, `NGAY_KHONG_HOP_LE`, `NGAY_NGOAI_KHOANG`.
+- 200: `{ ngay, items: [{ bacSiId, trangThaiNgay: 'CoLich' hoặc 'KhongCoLich' hoặc 'ChiNhanhNghi', thuNghi?, khungGio: [{ khungGioId, batDau, ketThuc, ca, trangThai: 'ConTrong' hoặc 'DaDat' hoặc 'DangGiuCho' hoặc 'HetHan' }] }] }`; `items` đúng thứ tự `bacSiIds` đã bỏ trùng, mỗi id đúng MỘT phần tử. `batDau`, `ketThuc` là ISO 8601 UTC (web định dạng giờ bằng múi giờ `Asia/Ho_Chi_Minh`). `thuNghi` (thứ ISO 1–7) chỉ có khi `ChiNhanhNghi`. **`NghiPhep` của `AvailableSlotsReader` được GỘP vào `KhongCoLich`** (Đại chọn 17/11/2026: không lộ việc xin nghỉ phép, kể cả đơn `ChoDuyet`; web chỉ cần hai thông báo "Chi nhánh nghỉ vào Thứ …" và "Bác sĩ không có lịch khám ngày này"). `CoLich` có thể đi với `khungGio` rỗng. Không có `giuChoDen`, id lịch hẹn, người đặt hay lý do nghỉ phép.
+- Bác sĩ không công khai (cùng điều kiện `PUBLIC_DOCTOR_CONDITION`) hoặc không tồn tại ⇒ cùng MỘT phần tử `{ bacSiId, trangThaiNgay: 'KhongCoLich', khungGio: [] }`, không 404, không gọi reader với id ẩn. Một câu lọc công khai cộng `AvailableSlotsReader.listMany` = đúng 4 `SELECT` trong một giao dịch chỉ đọc `REPEATABLE READ`. Reader ẨN ô ngoài giờ nhận khám hiện hành thay vì ném lỗi, nên b14 ("lịch không hợp lệ ⇒ lỗi") không có lỗi riêng: `[ĐỒNG BỘ TL]` 2.4, Đại tự sửa (TRACKING mục 9).
 - FE: thẻ bác sĩ có **vùng chừa sẵn** bên phải (bố cục Figma) — đợt này hiện câu "Lịch khám sẽ hiển thị ở bước đặt lịch" `[đề xuất]` hoặc thu hẹp thẻ; K2 thay vùng này bằng khung giờ, không đổi thẻ.
 - Chuyển sang "Đặt lịch khám" (b10) truyền `{ chiNhanhId, dichVuKhamId, bacSiId, ngayGio }` qua query/trạng thái điều hướng — hợp đồng ghi ở PLAN `booking`.
 
@@ -508,7 +512,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 03/11/2026: *
 
 | ID | Việc | Điều kiện bắt đầu | Truy vết |
 |---|---|---|---|
-| K1 | Endpoint đọc khung giờ (5.6) gọi **bộ tính khung giờ dùng chung** (chủ theo Q18); bỏ khung trùng nghỉ phép đã duyệt; ngày chi nhánh nghỉ ⇒ `ChiNhanhNghi` + thứ; quá giờ ⇒ `HetHan` (`nowVN()`); lịch không hợp lệ ⇒ lỗi; xử lý H12 | `doctor` có `lich_lam_viec` thật; migration `yeu_cau_nghi_phep`; `booking` có giữ chỗ (`DangGiuCho`) và bộ tính khung giờ; Q18 đã chốt | TCBS b7, b11–b14, A3/7a |
+| K1 | Endpoint đọc khung giờ (5.6) gọi **bộ tính khung giờ dùng chung** (chủ theo Q18); bỏ khung trùng nghỉ phép đã duyệt; ngày chi nhánh nghỉ ⇒ `ChiNhanhNghi` + thứ; quá giờ ⇒ `HetHan` (`nowVN()`); ô ngoài giờ nhận khám hiện hành bị ẨN, không ném lỗi (KGI-05); xử lý H12 | `doctor` có `lich_lam_viec` thật; migration `yeu_cau_nghi_phep`; `booking` có giữ chỗ (`DangGiuCho`) và bộ tính khung giờ; Q18 đã chốt | TCBS b7, b11–b14, A3/7a — **ĐÃ LÀM (backend) ở Search Slots PR-C1, 17/11/2026** (`GET /public/doctor-slots`, mục 5.6; kết quả ở TRACKING mục 9) |
 | K2 | FE: dải 7 ngày (mặc định "ngày gần nhất" — Q18), khung giờ theo buổi, 4 trạng thái (rõ/mờ/không bấm được), "Bác sĩ không có lịch khám ngày này" / "Chi nhánh nghỉ vào Thứ …" + gợi ý đổi ngày | K1 | TCBS b4–b5 (ngày), b8 (khung giờ), A3/7b |
 | K3 | Bấm khung Còn trống ⇒ "Đặt lịch khám" điền sẵn (b10); Khách vãng lai: giữ tạm lựa chọn, chuyển Đăng nhập/Đăng ký, khôi phục sau khi xong (A4) — **cùng cơ chế** với "Trò chuyện với Trợ lý AI" A6 | K2; `booking` có trang đặt lịch; cơ chế lưu tạm lựa chọn đã chốt (dùng chung với Trợ lý AI); auth hỗ trợ quay lại trang sau đăng nhập | TCBS b10, A4 |
 | K4 | Bấm khung Đã đặt/Đang giữ chỗ ⇒ popup xác nhận đăng ký chờ cho ca chứa khung đó ⇒ "Đăng ký chờ và phản hồi lời mời" điền sẵn; huỷ ⇒ đóng popup | K2; module `waitlist` | TCBS A2/8a–8c |
@@ -681,9 +685,9 @@ Loại: **U** = unit, **I** = tích hợp MySQL thật (`*.int-spec.ts`), **E** 
 |---|---|---|---|
 | KGI-01 | Ca 07:30–12:00, dịch vụ 50 phút | 07:30–08:20, 08:20–09:10, …; phần dư cuối ca không sinh khung | TCBS b11 |
 | KGI-02 | Khung `DaDat`, `DangGiuCho`, đã qua giờ (`nowVN()` giả) | Trả đủ 4 trạng thái; quá giờ ⇒ `HetHan` | TCBS b12–b14 |
-| KGI-03 | Nghỉ phép đã duyệt cả ngày / theo ca; nghỉ phép chờ duyệt | Khung trùng nghỉ đã duyệt không hiện; chờ duyệt không ảnh hưởng | TCBS b7, b12 |
+| KGI-03 | Nghỉ phép đã duyệt cả ngày / theo ca; nghỉ phép chờ duyệt | Khung trùng nghỉ đã duyệt HOẶC chờ duyệt không hiện (doctor Q1: `ChoDuyet` cũng chặn); mọi ca bị phủ ⇒ `KhongCoLich` (`NghiPhep` của reader được gộp, Đại chọn 17/11/2026), không lộ lý do | TCBS b7, b12 (sửa 17/11/2026: bản cũ ghi "chờ duyệt không ảnh hưởng") |
 | KGI-04 | Chi nhánh nghỉ / thứ chưa khai báo / không có lịch làm việc | `ChiNhanhNghi` + thứ / như nghỉ `[Q4]` / `KhongCoLich`; FE "Chi nhánh nghỉ vào Thứ …" / "Bác sĩ không có lịch khám ngày này" | TCBS A3/7a–7b |
-| KGI-05 | Dữ liệu lịch làm việc không hợp lệ | Lỗi có mã để nơi gọi xử lý | TCBS b14 |
+| KGI-05 | Dữ liệu lịch làm việc không hợp lệ | Reader ẨN ô ngoài giờ nhận khám hiện hành thay vì ném lỗi; endpoint không có lỗi này (`[ĐỒNG BỘ TL]` 2.4 b14: Đại tự sửa, 17/11/2026) | TCBS b14 |
 | KGI-06 | Bấm Còn trống (đã đăng nhập / Khách vãng lai) | Sang "Đặt lịch khám" điền sẵn / đăng nhập rồi khôi phục lựa chọn | TCBS b10, A4 |
 | KGI-07 | Bấm Đã đặt/Đang giữ chỗ; xác nhận / huỷ popup | Sang đăng ký chờ điền sẵn bác sĩ/ngày/ca / đóng popup | TCBS A2 |
 | KGI-08 | Chạy lại toàn bộ ca TBS-*, TCK-*, CC-* sau khi thêm khung giờ | Vẫn xanh (hợp đồng cũ không đổi) | Mục 5.6 |
@@ -722,6 +726,22 @@ Sau khi Đại test tay Search 19/19 Đạt (17/11/2026): sáu điểm sửa G1 
 | UIA-06 | Sáu nút CTA cam | `bg-cta text-gray-900 hover:bg-cta-hover`; không `bg-amber-500`, không chữ trắng; `--color-cta` = amber-400 (`#ffb900`) | G1, Figma `257:2`, `257:68`, `259:88` | C |
 | UIA-07 | Số liệu hero | `text-amber-300`; nhãn không vàng | G2, Make `HomePage.tsx` 324 | C |
 | UIA-08 | Nền hero | Lớp `hero-gradient`; vùng chữ phẳng `#007595` tới `max(57%, 820px)`; màu lấy từ token | G3, Figma `257:2` | C |
+
+### 7.13 Khung giờ công khai (KGC) — task Search Slots PR-C1, `GET /public/doctor-slots` (mã `KGC-nn` là `[đề xuất]`; thiết kế và kết quả ở TRACKING mục 9)
+
+| Mã | Tầng | Nội dung | Phủ |
+|---|---|---|---|
+| KGC-01 đến KGC-06 | đơn vị | Tách `bacSiIds` (bỏ trùng giữ thứ tự), `bacSiIds` sai (16 dạng), trần 100 id KHÁC NHAU (100 đạt, 101 hỏng, 101 token trùng đạt), `ngay` sai dạng (13 dạng), biên cửa sổ hôm nay đến hôm nay + 6 (qua tháng, năm, năm nhuận), báo mọi lỗi một lượt | TCBS b7, b11 |
+| KGC-07, KGC-11, KGC-12 | đơn vị (giả repository, reader, DataSource) | Ranh "hôm nay" trượt đúng nửa đêm giờ VN; reader chỉ nhận id công khai, đúng ngày và đúng đối tượng `now`; cùng một giao dịch chỉ đọc; không bác sĩ công khai ⇒ không gọi reader; sai tham số ⇒ 400 trước khi chạm DB | TCBS b12–b14, AN |
+| KGC-08 đến KGC-10 | đơn vị (mapper thuần) | Chọn từng trường (không lộ `giuChoDen`, `lichHenId`, `lyDo`…); `NghiPhep` ⇒ `KhongCoLich`; `thuNghi` chỉ có ở `ChiNhanhNghi`; bác sĩ ẩn hoặc không tồn tại ⇒ cùng một phần tử, đúng thứ tự | KGI-02 đến KGI-04, AN |
+| KGC-13, KGC-14 | quét văn bản | Câu lọc THẬT: một `SELECT`, nguyên văn `PUBLIC_DOCTOR_CONDITION`, không ghi, không khoá, không `NOW()`; mã `search/slots/` không câu ghi, không import `appointments/` hay `doctor/` | H5, CC-07 |
+| KGC-15, KGC-16 | đơn vị | `SearchModule` import `SchedulingModule`, cây không chu trình, route `public/doctor-slots` đạt kiểm route công khai; `SLOT_MAX_DOCTORS` bằng `pageSize` lớn nhất | CC-04 |
+| KGC-20 đến KGC-26 | int (MySQL thật) | Ngày có lịch, `KhongCoLich`, `ChiNhanhNghi`, `CaToi`, nghỉ phép (`ChoDuyet`, `DaDuyet`, `TheoCa`, `TuChoi`), bốn trạng thái ô, bốn loại bác sĩ ẩn, thứ tự và bỏ trùng, biên ngày với `now` ghim (23:59:59 và 00:00:00 giờ VN) | KGI-01 đến KGI-04, AN |
+| KGC-27, KGC-28, KGC-33 | int | Đúng 4 `SELECT` cho 1 và 100 id; chỉ đọc (dữ liệu y nguyên); giao dịch `REPEATABLE READ` và `READ ONLY` | H14 (doctor), CC-07 |
+| KGC-29, KGC-30 | int (tất định) | KHÔNG khoá (đọc trả ngay khi bên khác đang `FOR UPDATE`); nhất quán MỘT thời điểm (commit hoán đổi xen giữa câu lọc và câu đọc ca không lọt vào phản hồi) | KGI-02 |
+| KGC-31 | int | Chạy lại cả file `public-slot.int-spec.ts` với `TZ=UTC` | múi giờ (sửa CI #480) |
+| KGC-32 | int (đồng thời) | 4 người đọc × ≥ 250 lượt song song với giữ chỗ, đặt, thả và hoán đổi: 0 lỗi, 0 phản hồi nửa vời | KGI-02 |
+| KGC-40 đến KGC-46 | e2e (AppModule) | Không token ⇒ 200 và cùng thân với token hợp lệ hay sai; `no-store` ở 200 và 400; 400 từng mã; không lộ dữ liệu; bác sĩ ẩn cùng thân; đọc sau ghi bằng `SlotHoldService` thật; POST, PUT, PATCH, DELETE ⇒ 404 | CC-01 đến CC-07, AN, KGI-08 |
 
 ### 7.14 Thanh 6 bước và dải nhắc đăng nhập ở đặt lịch bước 1 đến 3 (UIB) — task "Search UI PR-B" (mã `UIB-nn` là `[đề xuất]`)
 
