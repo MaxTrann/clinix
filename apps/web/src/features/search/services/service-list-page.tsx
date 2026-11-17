@@ -1,6 +1,7 @@
 import { ChevronLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import { useSelectedBranch } from '../../../shared/branch-selection';
+import { BookingStepper } from '../../../shared/ui/booking-stepper';
 import { EmptyState } from '../../../shared/ui/empty-state';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
@@ -61,7 +62,10 @@ function ServiceCard({
   );
 }
 
-// Bước 2 "Dịch vụ khám" (Figma 445:2). Tên nhóm lấy từ danh sách nhóm vì API dịch vụ không trả riêng.
+// Thanh bước chỉ nối được Bước 1 (đường dẫn Bước 2 chỉ mang id nhóm).
+const STEPPER_LINKS = { 1: BOOKING_PATH } as const;
+
+// Bước 2 "Dịch vụ khám" (Figma 445:2: thanh bước, liên kết "Chọn lại…", tiêu đề). Tên nhóm lấy từ danh sách nhóm vì API dịch vụ không trả riêng.
 export function ServiceListPage() {
   const { groupId = '' } = useParams();
   const { selection } = useSelectedBranch();
@@ -81,9 +85,10 @@ export function ServiceListPage() {
 
   return (
     <main className={PUBLIC_STEP_CONTAINER}>
+      <BookingStepper current={2} links={STEPPER_LINKS} />
       <Link
         to={BOOKING_PATH}
-        className="-ml-2 inline-flex min-h-12 items-center gap-1.5 px-2 text-base font-medium text-gray-700 hover:underline"
+        className="mt-8 -ml-2 inline-flex min-h-12 items-center gap-1.5 px-2 text-base font-medium text-gray-700 hover:underline"
       >
         <ChevronLeft className="size-4" aria-hidden="true" />
         Chọn lại nhóm dịch vụ

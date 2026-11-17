@@ -1,4 +1,7 @@
-import { WIZARD_STEPS, type StepNumber } from '../wizard-steps';
+import {
+  WIZARD_STEPS,
+  type StepNumber,
+} from '../../../../shared/ui/wizard-steps';
 
 // THÂN TẠM của khung F3: chỉ nhãn bước (chữ Figma), một câu báo chưa có nội dung và một chỗ trống có `data-testid` để test tìm.
 // Không tiêu đề tự đặt, không gọi API. F4 đến F7 thay file `*-step.tsx` của mình bằng nội dung thật; file này sẽ hết người dùng thì xoá.
