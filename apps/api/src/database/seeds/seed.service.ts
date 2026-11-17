@@ -7,6 +7,8 @@ import { normalizePhone } from '../../auth/validation/phone-policy.js';
 import { CONFIG_DEMO } from './catalog-data.js';
 import { DEV_ACCOUNTS } from './dev-account-data.js';
 import { DoctorDemoRepository } from './doctor-demo.repository.js';
+import { EXAM_DEMO_PATIENTS } from './exam-demo-data.js';
+import { ExamDemoRepository } from './exam-demo.repository.js';
 import { DEMO_DOCTORS } from './search-demo-data.js';
 import { SearchDemoRepository } from './search-demo.repository.js';
 import type { SeedConfig } from './seed-config.js';
@@ -56,16 +58,17 @@ export async function runSeed(
   if (
     config.command === 'first-admin' ||
     config.command === 'dev-accounts' ||
-    config.command === 'search-demo'
+    config.command === 'search-demo' ||
+    config.command === 'exam-demo'
   ) {
     if (!config.password || checkPassword(config.password))
       throw new SeedError('SEED_PASSWORD_INVALID');
-    const profiles =
-      config.command === 'first-admin'
-        ? [config.admin]
-        : config.command === 'search-demo'
-          ? DEMO_DOCTORS
-          : DEV_ACCOUNTS;
+    const profiles = {
+      'first-admin': [config.admin],
+      'search-demo': DEMO_DOCTORS,
+      'exam-demo': EXAM_DEMO_PATIENTS,
+      'dev-accounts': DEV_ACCOUNTS,
+    }[config.command];
     for (const input of profiles) {
       if (
         !input ||
@@ -87,6 +90,11 @@ export async function runSeed(
     }
     if (config.command === 'search-demo') {
       const demo = new SearchDemoRepository(manager);
+      await demo.run(hash!);
+      return demo.counts;
+    }
+    if (config.command === 'exam-demo') {
+      const demo = new ExamDemoRepository(manager);
       await demo.run(hash!);
       return demo.counts;
     }

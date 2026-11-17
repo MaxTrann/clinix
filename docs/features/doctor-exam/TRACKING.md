@@ -38,6 +38,7 @@ chỗ nào phát sinh vấn đề). Giữ vĩnh viễn trong repo, không xoá s
 | 16/11/2026 | **Task B7 (#403, Epic #390): danh sách và chi tiết đánh giá cho quản trị viên (backend, chỉ đọc)** (nhánh `feat/doctor-exam-b7`, nền `origin/main` = `d6dcf3a`): `GET /admin/doctor-ratings` và `GET /admin/doctor-ratings/:id` (mã mới ở `doctor/examination/moderation/`: controller, dto, mapper, repository, rules, service; `testing/moderation-stack.ts`; sửa `examination.module.ts` +8/−2 và `examination.constants.ts` +7, KHÔNG thêm mã lỗi): danh sách đúng HAI câu SQL trong một `runReadOnly` (đếm theo `bi_an` suy `total` và `demTheoTrangThai`; trang phân trang TRƯỚC rồi nối tên bác sĩ, chi nhánh, người đặt SAU), chi tiết MỘT câu; phạm vi theo `lich_hen.chi_nhanh_id`; `LIKE` thoát `!`, `%`, `_`; `lyDoAn` vắng khoá khi chưa ẩn; nhận xét cắt 200 đơn vị UTF-16 | KDD-01, KDD-02, KDD-03, KDD-11, KDD-12, QHK-06 (phần xem), QHK-07, QHK-11 và phần B7 của QHK-01, QHK-08, QHK-09, QHK-12; cùng KDD-16…KDD-22 `[đề xuất]` | Pass ở máy: đơn vị 104 ca mới, int 32, e2e 29; đối chứng cuối: vitest cả `src/doctor` 44 file 550 ca, int 13 file 206 ca, e2e 5 file 95 ca, int B7 ở `TZ=UTC` 32/32, `npm test` cả `apps/api` 294 file 5.431 ca xanh, `build` thoát 0, `tsc` và `oxlint` thoát 0, `prettier --check` sạch ở file B7; **M8 đo lại ĐẠT 7/7 kịch bản (S3 92,83 ms; X1: 143,4)**; đột biến 31 (M1 đến M24, E1 đến E3, ba ca kèm K1 đến K3), 81 lượt, 0 ca không ai bắt, 6 lệch dự đoán | Mã viết trước test nên không có pha đỏ; ba ca KDD-17 đỏ lần đầu do lỗi test (gọi `recordStatements` nhiều lần trong một ca, `.catch` nuốt lỗi); lỗ `Number(['1'])` ở `PageQueryDto`; MySQL ép chuỗi `01` thành id 1 (K3); câu đếm nối `lich_hen` vô điều kiện làm S1 và S5 chậm hơn X1; lệnh nền bị hệ thống dừng một lần vì thiếu RAM (cây sạch, không tự chạy lại); chi tiết ở 23.8 đến 23.11; PR, CI, Trung approve, squash `[cần điền]` |
 | 16/11/2026 | **Task F6 (#412, Epic #390): thẻ hồ sơ và đánh giá bác sĩ ở chi tiết lịch hẹn của Bệnh nhân (web, `[ĐỤNG booking]`)** (nhánh `feat/doctor-exam-f6`, nền `origin/main` = `7723666`): trong `features/doctor/examination/patient/` 12 file mã mới (`patient-exam-sections.tsx`: `PatientExamSections({ maLichHen, trangThai, children })` với `children` render-prop `{ record, rating }`; `exam-card.tsx`, `exam-record-section.tsx`, `rating-section.tsx`, `rating-summary.tsx`, `rating-form.tsx`, `star-input.tsx` (`radiogroup` theo WAI-ARIA), `star-icon-class.ts`, `use-rating.ts` (gửi MỘT lần, cờ `useRef`, không tự gửi lại), `rating-rules.ts`, `rating-failure.ts`, `rating-text.ts`) cùng hai file hỗ trợ `testing/`; sửa `api/exam-api.ts` (+`submitRating`), `api/patient-exam-readers.ts` (đọc thêm `danhGia` và `coTheDanhGia`, ép `coTheDanhGia === (danhGia === null)`, `parseRatingResult`), `api/patient-exam-types.ts`, `patient/patient-exam-format.ts` (+`formatRatingDate`), `index.ts` (+5), bộ quét `patient-exam-hygiene.test.ts` (cho phép THEO TÊN `normalizeText`, `textLength`, `formatCount`); `features/booking/appointments/patient/detail/appointment-detail-page.tsx` (bọc `DetailColumns` trong `PatientExamSections`: hồ sơ cột trái, đánh giá cột phải; chỉ khi `HoanThanh`) và `detail-info.tsx` (chú thích); 11 file test mới (175 ca) và 5 file test có sẵn mở rộng hoặc sửa | WDG-01…WDG-10, WXH-09; WDG-11…WDG-18 và WXH-18 `[đề xuất]`; BDK-02, BDK-09 (phần thẻ đánh giá), WXH-16 (bộ quét theo TÊN); LCT-01 (sửa cho `HoanThanh`) | Pass ở máy 16/11/2026: vitest từng file (số ở 24.8); cả `src/features/doctor` 41 file 880 ca, `src/features/booking` 89 file 1.247 ca, `src/router` 7 file 85 ca (chạy lại SAU đột biến và sau lần sửa mã cuối), `npm run build`, `tsc -b`, `eslint` 39 file, `prettier --check` thoát 0; đột biến 19 ca cộng 1 đối chứng: BẮT 18, SỐNG SÓT 1 (M10, tương đương, nói trước); X1 và M18 ở TZ +07 sống như dự đoán; đo Chromium (1440, 1280, 375 px, DPR 1,25) khớp Figma `422:2` đến `425:2` trong ≤ 1,03 px (hai chỗ do viền 0,8 thay 1), `scrollWidth` bằng `clientWidth` ở sáu trạng thái, chữ ≥ 4,5:1, sao đặc `amber-600` 3,20:1; PR, CI, Trung approve, squash `[cần điền]` | Chromium bắt MỘT lỗi của chính mã, đã sửa (test đỏ rồi xanh): ô nhận xét cao 105,65 so 95,75 (`rows` 4) và thiếu khe 6,5 trước bộ đếm. Dự đoán đột biến lệch ở M3, M6, M7, M8, M9, M14 (đều "bắt nhiều hơn dự đoán" hay gán mã khác nhóm; 24.8). Không có pha đỏ trước mã ở các thành phần giao diện (nói thẳng). Ghi `TECH_DEBT` 168 (hai lối tắt). Chi tiết ở 24.8 |
 | 17/11/2026 | **Task F7 (#413, Epic #390): trang "Kiểm duyệt đánh giá" của quản trị viên (web, `[ĐỤNG admin]`, `[ĐỤNG router]`, `[ĐỤNG doctor]`, `[ĐỤNG patient]`)** (nhánh `feat/doctor-exam-f7`, nền `origin/main` = `6cf84e4`): thư mục mới `features/doctor/examination/admin/` (14 file mã: trang, hook lọc và tải, bộ lọc, bảng, chip, hộp "Chi tiết đánh giá" là HỘP GIỮA theo Figma `570:2` (không phải ngăn phải), route `AdminScopeGuard policy="Any"`) và bộ đọc chặt `api/admin-review-*`; hai hàm GET ở `exam-api.ts`; MỘT thuộc tính `to` ở `admin-sidebar.tsx`, hai dòng route, sửa AQ-03 (chín liên kết) và AF1-06; ô tìm 300 ms không lên URL, lọc Chi nhánh chỉ Toàn hệ thống, Bác sĩ và Chi nhánh lấy từ `useReceptionDoctors('admin')` (TECH_DEBT 175); nút `Ẩn` và hộp ẩn là F8 (Đại 17/11/2026) | WKD-01…WKD-04 (phần `Xem`), WKD-09, WKD-10, WKD-11…WKD-19 `[đề xuất]` | Pass ở máy: 172 ca mới (chín file); cả thư mục `features/doctor` 1.052, `features/admin` 439, `features/patient` 1.034, `src/router` 85 ca xanh; `build` exit 0; đột biến 24 ca (bắt 23, sống sót 1 tương đương); đo Chromium khớp Figma ≤ 1 px; chi tiết 26.8; PR, CI, Trung approve `[cần điền]` | Chromium bắt 5 lỗi mã mà happy-dom không thấy (gốc rem 15 px, ô chọn kế thừa chữ đậm, `AdminSearchInput` làm thẻ lọc cao hơn Figma 6,75 px, cột phần trăm, khoảng cách khối): đã sửa; PLAN dòng F7, F8 và WKD-05, WKD-06 (là hộp ẩn của F8) đã sửa; bộ đọc Admin lặp khoảng 40 dòng hàm nhỏ của bộ đọc Bệnh nhân (jscpd có thể báo) |
+| 17/11/2026 | **Task B10 (#406, Epic #390): seed `exam-demo` cho hồ sơ khám và đánh giá (backend, `[ĐỤNG database]`, `[ĐỤNG booking]`)** (nhánh `feat/doctor-exam-b10`, nền `origin/main` = `6e2572b`; `origin/main` đã tới `45d6cf8`, không chạm file của B10): thư mục `database/seeds/` mới `exam-demo-data.ts` (324 dòng), `exam-demo.repository.ts` (406), `exam-demo-data.spec.ts` (211), `exam-demo.int-spec.ts` (553); sửa `seed-config.ts` (+3 −1), `seed.service.ts` (+15 −7), `seed-config.spec.ts` (+26 −1), `apps/api/package.json` (một dòng `seed:exam-demo`), `docs/DEV_SETUP.md` (+2), và MỘT dòng ở `appointments/architecture.spec.ts` (+4 −1, Đại đồng ý). Seed: 34 lịch (3 `DaTiepDon`, 31 `HoanThanh`), 29 hồ sơ khám, 29 đánh giá (4 ẩn kèm nhật ký `AnDanhGia`), 6 bệnh nhân mẫu, 3 hồ sơ người thân, khoá `ma_lich_hen` `CLX-00000000-E0001` đến `E0034`; chạy lại không thêm gì (`created = 151` rồi `0`). Kế hoạch 27.1 đến 27.7, kết quả 27.8 | EDS-01…EDS-16 `[đề xuất]` (PLAN mục 7 không có mã cho B10) | Pass ở máy 17/11/2026: đơn vị 11 + 29 + 8 ca, int 15 (múi giờ mặc định và `TZ=UTC`), hồi quy ba int seed 16 + 6 + 6, bộ quét kiến trúc 94 + 12 + 21 + 37, `npm test` cả `apps/api` 307 file 5.706 ca, `lint` và `build` thoát 0; đột biến 22 ca: 21 bắt, 1 sống sót (M19, giới hạn); chi tiết 27.8 | (1) AR-01 cấm `UPDATE khung_gio` ở seeds ⇒ mỗi lịch mẫu ở một ca MỚI, `DaTiepDon` lùi ngày nếu `doctor-demo` đã phân công hôm nay (Đại chấp nhận); (2) ca "bộ quét THẤY câu ghi thật" của booking đỏ vì seed có `INSERT INTO lich_hen` ⇒ sửa một dòng (Đại đồng ý), M21a và M21b chứng minh vẫn bắt câu ghi ngoài seeds; (3) IVK-04 buộc đánh giá ẩn có nhật ký ⇒ seed ghi bằng `AuditService` thật; (4) lệch dự đoán đột biến M1, M2, M9, M10 (27.8.4); (5) `tsc` còn một lỗi có sẵn ở `payment/architecture.spec.ts` (cùng trên `origin/main`); (6) `AI_USAGE_LOG.md`, `docs/TECH_DEBT.md` chưa ghi (hỏi Đại); PR, CI, Trung approve `[cần điền]` |
 
 ## 2. Kết quả test theo use case
 
@@ -99,7 +100,7 @@ Ghi câu trả lời cho các câu hỏi ở PLAN.md mục 4.2 và ngày chốt,
 | Q22 tên endpoint và đường dẫn web | `[CHỜ]` | | |
 | Q23 404 cùng thân, 409 | `[CHỜ]` | | Sửa 2.4 (L5) |
 | Q24 `coHoSoKham` và `ghiChuKham` ở B5 | **Theo đề xuất** (Đại trả lời trực tiếp bằng hộp câu hỏi ở cửa sổ B3, 15/11/2026): chi tiết giữ 11 khoá, `ghiChuKham` là `null` hoặc đối tượng năm khoá; danh sách thêm đúng `coHoSoKham` (9 khoá), không nội dung; `LEFT JOIN` ở MỘT chỗ mỗi câu. Kèm hai câu mới cùng ngày: (b) lịch ngoài `DaTiepDon`/`HoanThanh` có hồ sơ ⇒ `ghiChuKham` `null` và `coHoSoKham` `false`, lọc NGAY trong `ON` của `LEFT JOIN`; (g) cột chữ NULL ⇒ chuỗi rỗng | 15/11/2026 | B3 làm theo đây (mục 17); F3, F4 dùng hợp đồng này |
-| Q25 seed `exam-demo` | `[CHỜ]` | | B10 tuỳ chọn |
+| Q25 seed `exam-demo` | **LÀM, mức GỌN** (Đại, 17/11/2026: muốn có để kiểm tay và soạn bộ test case cuối của doctor) | 17/11/2026 | B10 làm theo mục 27; dữ liệu và số lượng ở 27.3 là `[đề xuất]`, câu (c) và (h) và việc sửa một dòng ở `appointments/architecture.spec.ts` Đại trả lời trực tiếp bằng hộp câu hỏi cùng ngày |
 | P2 (#392) hai luật của nhật ký `SuaGhiChuKham` chặt hơn chữ của issue | **QUYẾT ĐỊNH MỚI ngoài PLAN do Đại duyệt:** (1) mỗi khoá của `SuaGhiChuKham` phải thật sự đổi (`truoc` khác `sau`); (2) `ngay_tai_kham_du_kien` chỉ nhận `null` hoặc ngày `YYYY-MM-DD` có thật. Chuỗi rỗng `""` được nhận ở ba trường văn bản (`trieu_chung`, `chan_doan_so_bo`, `huong_xu_ly`) và **bị từ chối** ở `ngay_tai_kham_du_kien` (không phải ngày thật); audit không đặt luật "bắt buộc" của Q2 | 14/11/2026 (Đại trả lời trực tiếp câu hỏi của phiên P2; phiên kiểm chuyển lại cùng nội dung) | Nêu ở thân PR P2; B2 chỉ được gửi các khoá thật sự đổi |
 | F1 (#407) Figma `461:2`: hàng xác nhận tại chỗ hay hộp modal | **Theo Figma: dòng xác nhận tại chỗ** (Đại trả lời trực tiếp, qua phiên kiểm, 15/11/2026): `role="group"`, tiêu điểm vào `Hủy`, Esc = `Hủy`, trả tiêu điểm về nút `Hoàn thành ca khám`, không lớp phủ, không `inert` nền; sau 200 hoặc 409 `HoanThanh` tiêu điểm chuyển sang dòng `role="status"` (lựa chọn "vùng hợp lý" ghi lại theo yêu cầu) | 15/11/2026 | Khác chữ PLAN 4.5, 5.13, WHT-02, WHT-09 và issue ("hộp", `useModalDialog`, `inert`): đã sửa PLAN trong cùng PR; `complete-dialog.tsx` đổi tên `complete-confirm.tsx`; màu nút theo ADR 0004 (`bg-brand-strong`), không theo Figma `#00a63e` (3,22:1). Ở PR ghi "theo Figma 461:2" |
 | F2 (#408) thiết kế thẻ hồ sơ chỉ đọc | **Phiên kiểm duyệt (ủy quyền của Đại), 15/11/2026:** (a) XOÁ `detail/record-card.tsx` và `recordMessage` của booking, trang dùng thẳng `ExamRecordCard` qua `features/doctor/index.ts` (Q20 phương án C); props F2 chỉ `{ trangThai, ghiChuKham }` (`maLichHen`, `nguoiKham`, `onChanged` thêm ở F3); thêm `exam-record-text.ts`. (b) Giữ bốn câu của F11, nhãn đúng Figma, ẩn khối "Ngày tái khám dự kiến" khi `null` `[đề xuất]`. (c) "Đã tiếp đón đã có hồ sơ" theo `462:2` (L7: Figma thiếu frame, đề xuất nhóm bổ sung); hai trạng thái "chưa có" theo Figma (biểu tượng + câu, CHƯA dòng phụ và nút: F3, lệch có chủ ý); giữ hộp xám F11 cho nhóm ngoài hai đích. (d) Bộ đọc BỎ khoá thừa (lệch chữ prompt "không chấp nhận khoá lạ"; theo PLAN 5.13 và mọi bộ đọc của booking, để B3 thêm khoá không làm hỏng trang); thiếu khoá hay sai kiểu ⇒ không dùng được; thêm MỘT chữ `export` cho `readNullableDate` (file thứ sáu, `[ĐỤNG booking]`). (e) WHS-11…WHS-13 `[đề xuất]`; WHS-08 và WHS-10 chỉ "phần F2". (g) TECH_DEBT chỉ khi có lối tắt thật: sau đó đo ra lỗi tràn ngang của `DetailFact`, `DetailRow` (ngoài phạm vi) ⇒ dòng 156, Đại chọn sửa ở PR booking riêng | 15/11/2026 | Màu theo ADR 0004: nhãn và "Cập nhật lúc" `gray-600` (Figma `#6a7282` và `#99a1af` 2,6:1). Q6 đã được Đại trả lời cùng lượt (hàng Q6 ở trên) |
@@ -4088,3 +4089,261 @@ Cả bốn lần `vitest` thoát 0, không in `AggregateError ECONNREFUSED` (TEC
 - **F8 (#414):** xem khối "Cảnh báo từ F7" ở mục 7 (chỗ cắm nút `Ẩn` ở hàng và ở hộp, hai ca của F7 phải đổi khi thêm nút, lỗi `NOI_DUNG_KHONG_HOP_LE` hiện theo trường `lyDo`).
 - **Rủi ro CI chưa đo ở máy (CI đo):** jscpd (bộ đọc Admin lặp khoảng 40 dòng hàm nhỏ của bộ đọc Bệnh nhân; cách gọn là rút ra `shared/api/`, ngoài phạm vi F7, cần hỏi), gitleaks.
 - **Chờ:** số PR, kết quả CI, Trung approve, squash; điền ô PR cuối của hàng AI log 141 khi Đại báo (không sửa hàng 133 đến 140).
+
+## 27. Kế hoạch task B10 (17/11/2026; **ĐÃ DUYỆT (phiên kiểm độc lập, ủy quyền của Đại, 17/11/2026; Đại trả lời TRỰC TIẾP (c) và (h) theo đề xuất) và đã làm xong ở máy: kết quả thật ở 27.8**; Q25 đã trả lời: Đại muốn có seed để kiểm tay và soạn bộ test case cuối của doctor, làm GỌN)
+
+Task B10 (#406, Epic #390, milestone `doctor-exam`, Iteration 8, ước `[đề xuất]` **3 đến 4 giờ**, mức GỌN): lệnh `seed:exam-demo` (chỉ dev, từ chối production) nạp lịch hẹn `DaTiepDon` và `HoanThanh` kèm hồ sơ khám và đánh giá để Đại kiểm tay F2 đến F7. Nhánh `feat/doctor-exam-b10`, nền `6e2572b`; `origin/main` đã tới `45d6cf8` (payment B5, #534: chỉ đổi `payment/**` và hai file nhật ký/tài liệu, **không chạm file nào của B10**, nhưng cần `git pull` tay trước khi mở PR). Chỉ backend (`apps/api`) và tài liệu. Model: Claude Sonnet 5.5. **Không làm:** B9 (điểm đánh giá thật ở `search`), F8 (hộp ẩn), D1, D2, sửa DDL hay migration, sửa `appointments/testing/architecture-rules.ts`.
+
+### 27.1 Điều đọc từ mã thật (đối chiếu từng chỗ, không tin lời prompt)
+
+- **AR-01 chặn `UPDATE khung_gio` ở `database/seeds/`:** `appointments/testing/architecture-rules.ts` dòng 97 đến 101 chỉ cho seed `INSERT INTO lich_hen` và `INSERT INTO khung_gio` (lý do ghi sẵn: "dữ liệu mẫu chỉ chèn, không đổi trạng thái"). Hệ quả thiết kế: **không thể** đổi một ô `ConTrong` do `doctor-demo` sinh thành `DaDat`; mỗi lịch mẫu phải nằm ở **một ca MỚI do chính seed tạo**: `INSERT lich_lam_viec` → `INSERT khung_gio` ô `DaDat` TRƯỚC → `syncShiftSlots` (`ON DUPLICATE KEY` không đổi ô có sẵn) điền các ô còn lại `ConTrong` → `INSERT lich_hen`. Mã seed không được chứa `UPDATE lich_hen` hay `UPDATE khung_gio` và không ghi qua thực thể `LichHen`, `KhungGio` (bộ quét AR-01 bắt cả hai; chỉ được SQL thô `INSERT INTO`).
+- **`khung_gio_dang_giu` không phải bảng** (lời issue ghi "khung giờ `DaDat`, `khung_gio_dang_giu`"): là **cột sinh** UNIQUE của `lich_hen` (`IF(trang_thai IN (...), khung_gio_id, NULL)`), nên chỉ cần ô ở `DaDat` và lịch ở trạng thái giữ chỗ; không có gì để `INSERT` riêng.
+- **IVK-04** (`doctor/examination/testing/exam-invariants.ts`): đánh giá `bi_an = 1` phải có **đúng một** dòng `nhat_ky_hanh_dong` `AnDanhGia` `ThanhCong`. Seed đánh giá ẩn mà không ghi nhật ký thì dữ liệu của chính seed vi phạm bất biến ⇒ seed ghi nhật ký bằng `AuditService` thật (`new AuditService(new AuditRepository())`, chạy trong giao dịch của `seedTransaction`; chỉ IMPORT, không sửa `audit/**`) (câu (f)).
+- **Mã lịch hẹn** (`appointments/appointment-code.ts`): `^CLX-\d{8}-[0-9A-HJKMNP-TV-Z]{5}$`; phần tám chữ số **không được kiểm là ngày thật**; `ma_lich_hen` UNIQUE.
+- `tai_khoan` chỉ UNIQUE `email` (SĐT không UNIQUE). `dev-accounts` chỉ có **một** bệnh nhân (`patient@example.invalid`, có `benh_nhan` và `vi_noi_bo`, **không** hồ sơ người thân).
+- `doctor-demo` (tiền lệ): `DoctorDemoRepository(manager, now = nowVN())`, add-only, tự khoá chạy lại bằng dấu ổn định, phân công **từ ngày mai của lần chạy nó** (không có ca hôm nay hay quá khứ).
+- AR-09 chỉ cấm ghi `ho_so_kham` ở `appointments/`; `database/seeds/` không bị cấm. `tien_coc_snapshot = 0` ở catalog nên lịch mẫu không cần `giao_dich_thanh_toan`.
+
+### 27.2 Thiết kế
+
+**File (M = mới, S = sửa):** M `database/seeds/exam-demo-data.ts` (hằng: bệnh nhân, người thân, 34 mẫu, nội dung chữ), M `exam-demo.repository.ts` (ghi; có thể tách `exam-demo-slot.ts` nếu quá 250 dòng), M `exam-demo-data.spec.ts` (kiểm dữ liệu thuần, không DB), M `exam-demo.int-spec.ts` (MySQL thật), S `seed-config.ts` (thêm `'exam-demo'` vào `SEED_COMMANDS`; thêm vào khối đọc `SEED_DEV_PASSWORD`: 2 chỗ), S `seed.service.ts` (nhập kho; thêm `exam-demo` vào điều kiện băm mật khẩu, vòng kiểm hồ sơ `profiles` dùng danh sách bệnh nhân mẫu, nhánh `seedTransaction`: 3 chỗ), S `seed-config.spec.ts` (thêm ca), S `apps/api/package.json` (**1 dòng** `seed:exam-demo`, `[ĐỤNG database]`), S `docs/DEV_SETUP.md` (một đoạn ngắn cạnh mục `doctor-demo`, vì mục đó liệt kê từng seed), S `PLAN.md` (tick B10 ở 6.3, bỏ `[CHỜ Q25]`) và `TRACKING.md` (mục này). **Không đổi:** `seed.ts`, `seed-cli.ts`, `seed-error.ts` (mã lỗi mới là chuỗi, `SeedError` nhận chuỗi bất kỳ), `.env.example` (`SEED_DEV_PASSWORD` đã có), `docs/database/*`, migration, `search/**`, `admin/**`, `appointments/**`, `audit/**`, workflow.
+
+**Luồng `ExamDemoRepository.run(hash)`** (một giao dịch của `seedTransaction`; `now` nhận qua constructor như `doctor-demo`, để test chạy "ngày trôi"):
+1. **Tiền đề, báo lỗi rõ, không tự chạy seed khác:** thiếu một trong chín bác sĩ (`doctor@example.invalid` và `bacsi01` đến `bacsi08`) ⇒ `SEED_DOCTORS_REQUIRED` (cố ý KHÔNG lọc `DangHoatDong`: đánh giá của bác sĩ đã ngừng vẫn là lịch sử hợp lệ); thiếu `patient@example.invalid` hoặc `admin.system@example.invalid` ⇒ `SEED_DEV_ACCOUNTS_REQUIRED`. **Không yêu cầu `doctor-demo` đã chạy** (thứ tự khuyên dùng: `catalog`, `dev-accounts`, `search-demo`, `doctor-demo`, `exam-demo`).
+2. **Người:** sáu bệnh nhân mẫu (`tai_khoan` + `benh_nhan` + `vi_noi_bo` 0 đồng, `DangHoatDong`, đã xác minh, mật khẩu = băm của `SEED_DEV_PASSWORD` như `search-demo`; email có sẵn mà không phải `BenhNhan` ⇒ `SEED_ACCOUNT_CONFLICT`, rollback); ba hồ sơ người thân của `patient@example.invalid` (khoá: `benh_nhan_id` + `ho_ten`; một hồ sơ `trang_thai_hieu_luc = 0` để thử Q18).
+3. **Mỗi mẫu** (khoá nhận diện = `ma_lich_hen` cố định, mục 27.3): đã có lịch mang mã đó ⇒ **bỏ qua cả nhóm** (lịch, hồ sơ, đánh giá, nhật ký; không bao giờ sửa, nên không phá dữ liệu Đại đã thử bằng giao diện: hoàn thành ca, ghi hồ sơ, gửi đánh giá, ẩn). Chưa có ⇒ **chọn chỗ**: duyệt `d = daysAgo, daysAgo + 1, … (≤ 30 ngày)` và `ca ∈ {CaSang, CaChieu}`; lấy ngày–ca đầu tiên mà (i) chi nhánh của bác sĩ mở ca đó (`BranchHoursReader` + `shiftWindow`, như `doctor-demo`) và (ii) **bác sĩ chưa có `lich_lam_viec` ở ngày–ca đó** (ca của `doctor-demo` hay của mẫu trước đều bị bỏ qua, vì không được `UPDATE` ô); không tìm được ⇒ `SEED_EXAM_SLOT_UNAVAILABLE`. Ô đặt = `generateSlotStarts(window.khoang, thoiLuong)[thứ tự mẫu mod số ô]`. Rồi `INSERT lich_lam_viec`, `INSERT khung_gio` (`DaDat`), `syncShiftSlots`, `INSERT lich_hen` (`chi_nhanh_id`, `dich_vu_kham_id`, `gia_snapshot` lấy từ bác sĩ và dịch vụ; `thoi_gian` = `ngay_gio` của ô; `thoi_diem_tao` = `thoi_gian − 3 ngày`; `cap_nhat_lan_cuoi` = `thoi_gian + 45 phút` cho `HoanThanh`; `ly_do_kham` mang dấu `[Mẫu exam-demo]` để người đọc nhận ra; giờ ghi bằng CHUỖI, không qua `Date`), `INSERT ho_so_kham` (nếu mẫu có hồ sơ; `cap_nhat_lan_cuoi` = `min(thoi_gian + 30 phút, bây giờ)`), `INSERT danh_gia_bac_si` (nếu có; `thoi_diem_tao` = `thoi_gian + 3 giờ`, không vượt bây giờ), và nếu đánh giá ẩn: `AuditService.record` `AnDanhGia` (người thực hiện `admin.system@example.invalid`, `branchId` = chi nhánh của lịch).
+4. **Đếm:** `created` = số hàng thêm vào các bảng `tai_khoan`, `benh_nhan`, `vi_noi_bo`, `ho_so_nguoi_than`, `lich_lam_viec`, `lich_hen`, `ho_so_kham`, `danh_gia_bac_si`, `nhat_ky_hanh_dong` (không đếm `khung_gio`); `skipped` đối xứng (một mẫu bỏ qua cộng đúng số hàng lẽ ra tạo) để `lần hai: skipped = lần một: created + skipped` (như HD-11b). CLI in `Seed exam-demo: created=N, skipped=M.` và câu "Dữ liệu minh họa/dev…" có sẵn; không in tên, email, nội dung khám.
+5. **An toàn:** chặn production có sẵn ở `readSeedConfig` (mọi lệnh khác `first-admin`); chỉ INSERT; không `UPDATE`/`DELETE`; không email thật (`@example.invalid`), không gửi thư, không tạo phiên; mật khẩu chỉ qua `SEED_DEV_PASSWORD` (không vào file, chat hay log).
+
+### 27.2a Bổ sung theo phiên kiểm (17/11/2026; không cần hỏi Đại; 27.1 đến 27.7 ở trên giữ nguyên bản đã gửi)
+
+**(1) Bản ghi đi kèm của bệnh nhân mẫu, đối chiếu với `dev-accounts`** (nguồn: `SeedRepository.createAccount` và `devAccount` nhánh `BenhNhan`, `seed.repository.ts`; DDL `docs/database/clinix_mysql.sql`; chỉ đọc)
+
+| Bảng | `dev-accounts` đặt cho `patient@example.invalid` | `exam-demo` đặt cho mỗi bệnh nhân mẫu |
+|---|---|---|
+| `tai_khoan` | `email`, `ho_ten`, `so_dien_thoai`, `loai_tai_khoan = BenhNhan`, `mat_khau_bam` = băm Argon2id của `SEED_DEV_PASSWORD`, `trang_thai = DangHoatDong`, `da_xac_minh_email = 1`; cột khác để mặc định (`ngay_sinh`, `gioi_tinh`, `dia_chi`, `anh_dai_dien` NULL; `so_lan_dang_nhap_sai = 0`; `khoa_dang_nhap_den` NULL) | **giống hệt**; email `benhnhan0X@example.invalid` (miền `example.invalid` như `dev-accounts`, không email thật; tám bác sĩ `search-demo` dùng `example.com` nhưng đó là seed khác, không đụng) |
+| `benh_nhan` | `tai_khoan_id`; `so_lan_no_show = 0`, `khoa_dat_lich_do_no_show = 0` (mặc định) | giống hệt |
+| `vi_noi_bo` | `benh_nhan_id`, `so_du = 0.00`, `so_tien_dang_giu = 0.00` | giống hệt (trang "Ví của tôi" chạy được) |
+| `ma_xac_thuc`, `phien_dang_nhap` | không tạo (đã xác minh; phiên do đăng nhập tạo) | không tạo |
+| `ho_so_nguoi_than` (chỉ cho `patient@example.invalid`) | không có | 3 dòng: `benh_nhan_id`, `ho_ten`, `ngay_sinh` (NOT NULL), `gioi_tinh` (NOT NULL: `Nam`/`Nu`), `moi_quan_he`, `trang_thai_hieu_luc` (hai dòng 1, một dòng 0); `dia_chi`, `so_dien_thoai` NULL |
+
+Kiểm bằng test EDS-15 (27.4): so từng cột `tai_khoan` của bệnh nhân mẫu với dòng của `patient@example.invalid`.
+
+**(2) Email:** mọi email seed mới thuộc `@example.invalid`; không gửi thư (seed không gọi `MailService`).
+
+**(3) Ca và khung giờ quá khứ không làm hỏng bộ đọc khung giờ công khai của C1** (nhánh `feat/search-slots-api-c1`, #537 chưa vào `main`; đã ĐỌC `public-slot.service.ts` và `public-slot-query.parser.ts` của nhánh đó và `scheduling/slots/available-slots.reader.ts`, `slot-status.rules.ts` của `main`): `PublicSlotService.list` chỉ gọi `AvailableSlotsReader.listMany` (đã có trên `main`); `parseDay` của C1 chỉ nhận ngày trong cửa sổ `[hôm nay, hôm nay + 6]` (ngày đã qua ⇒ 400 `DATE_OUT_OF_RANGE`), nên ca quá khứ không bao giờ được hỏi tới ở API công khai; với `ngay` = hôm nay, reader **suy trạng thái khi đọc**: `deriveSlotStatus` trả `HetHan` khi `ngay_gio <= now` (xét TRƯỚC nên ô `DaDat` quá giờ vẫn là `HetHan`), ô `DaDat` còn ở tương lai là `DaDat`. Đặt lịch mới: `appointments/slots/bookability.rules.ts` bước 3 đòi giờ bắt đầu `> now`. Hệ quả: ô quá khứ của ca mẫu (các ô `ConTrong` còn lại do `syncShiftSlots`) hiện `HetHan`, không bao giờ `ConTrong` và không đặt được; ô `DaDat` của lịch mẫu không bị đặt lại. **Có chủ ý, ghi rõ:** ca của `DaTiepDon` ngày hôm nay có các ô `ConTrong` ở phần còn lại của ngày; chúng đặt được như mọi ca hôm nay (giống ca thật), không phải lỗi. Test EDS-16 chạy `AvailableSlotsReader` THẬT trên một ca quá khứ và ca hôm nay với `now` ghim (27.4); khi C1 vào `main` không cần đổi gì vì C1 chỉ bọc reader này.
+
+**(4) `origin/main` đã tới `45d6cf8`:** đúng; phiên kiểm gộp `main` bằng script git của nó (Đại không cần pull tay; bản ghi ở 27 đầu mục còn dòng "cần `git pull` tay" là cũ).
+
+**(5) Phạm vi duyệt (phiên kiểm):** DUYỆT kỹ thuật toàn bộ; duyệt luôn (e), (f), (g), mã `EDS`, 20 ca đột biến (M19 sống sót phân loại giới hạn). **Chỉ Đại quyết, hỏi trực tiếp:** (c) chạm `seed-config.ts`, `seed.service.ts`, `package.json`, `docs/DEV_SETUP.md` (file nền chung) và (h) chấp nhận hạn chế AR-01 (ca mới, `DaTiepDon` lùi ngày). Ước giờ tăng 0,5 giờ cho EDS-15, EDS-16: **3,5 đến 4,5 giờ**.
+
+### 27.3 Dữ liệu mẫu dự kiến (`[đề xuất]`, chốt ở câu (a); mọi nội dung chữ là câu mẫu, không có nội dung y tế thật, không có dạng bí mật: `redactText(x) === x` kiểm ở EDS-14)
+
+**Khoá:** `ma_lich_hen` = `CLX-00000000-E0001` … `CLX-00000000-E0034` (đúng mẫu Q13; phần ngày `00000000` không bao giờ trùng mã thật vì mã thật mang ngày hiện hành; thấy ngay là mẫu; `ma_lich_hen` UNIQUE nên khoá này do DB bảo đảm cả khi chạy đua). Ngày khám tính từ **ngày chạy lần đầu** (`daysAgo` trong dữ liệu), lần sau không đổi vì khoá là mã, không phải ngày.
+
+**Tổng:** 34 lịch (3 `DaTiepDon`, 31 `HoanThanh`), 29 hồ sơ khám, **29 đánh giá (25 hiển thị, 4 đã ẩn)**, 6 bệnh nhân mẫu, 3 hồ sơ người thân, 34 ca mới. Chi nhánh có đánh giá: CN1 = 14, CN2 = 5, CN3 = 5, CN4 = 5 (Admin Chi nhánh `admin.branch` gán CN1 chỉ thấy 14; Admin Toàn hệ thống thấy 29 = 20 + 9, đủ hai trang). Sao: 5★ ×10, 4★ ×8, 3★ ×5, 2★ ×3, 1★ ×3.
+
+**Bác sĩ `doctor@example.invalid` (CN1; Đại đăng nhập được):** 12 lịch, `patient@example.invalid` là người đặt ở bảy lịch đầu (E0001 đến E0007; ngày tính theo lần chạy ngày 17/11/2026)
+
+| Mã | Ngày (trước hôm nay) | Trạng thái | Người khám | Hồ sơ | Đánh giá | Dùng để kiểm |
+|---|---|---|---|---|---|---|
+| E0001 | 0 | DaTiepDon | bản thân | không | — | `Ghi hồ sơ khám`, `Hoàn thành ca khám` (F1, F3) |
+| E0002 | 0 | DaTiepDon | người thân (Cha) | có, ngày tái khám | — | `Chỉnh sửa ghi chú`, hoàn thành khi đã có hồ sơ |
+| E0003 | 3 | HoanThanh | bản thân | có, ngày tái khám | 5★, nhận xét 3 dòng | thẻ hồ sơ và đánh giá ở chi tiết (F5, F6) |
+| E0004 | 8 | HoanThanh | người thân (Mẹ) | có | chưa | nút `Đánh giá ngay` (F6) |
+| E0005 | 15 | HoanThanh | bản thân | **không** | chưa | "Chưa có hồ sơ khám" (F5, F6) |
+| E0006 | 22 | HoanThanh | bản thân | có | 1★, **ẩn** | Bệnh nhân vẫn thấy đánh giá của mình (Q19) |
+| E0007 | 40 | HoanThanh | người thân (hồ sơ **ngừng dùng**) | có | 4★, không nhận xét | lọc người khám gồm hồ sơ ngừng (Q18); lịch thuộc tháng 10 |
+| E0008 | 1 | HoanThanh | bệnh nhân mẫu 1 | có | 5★, nhận xét ngắn | |
+| E0009 | 5 | HoanThanh | bệnh nhân mẫu 2 | không | 3★, nhận xét | đánh giá không phụ thuộc hồ sơ (DGB-13) |
+| E0010 | 10 | HoanThanh | bệnh nhân mẫu 3 | có | 2★, nhận xét có `%` và `_` | thoát ký tự `LIKE` ở ô tìm (KDD) |
+| E0011 | 18 | HoanThanh | bệnh nhân mẫu 4 | có | 4★, nhận xét **đúng 1.000 đơn vị UTF-16** | biên độ dài, cắt 200 ở danh sách, đầy đủ ở chi tiết |
+| E0012 | 27 | HoanThanh | bệnh nhân mẫu 5 | có | 5★, không nhận xét | |
+
+**Tám bác sĩ `search-demo` (mật khẩu `SEED_DEV_PASSWORD`):** `bacsi01` và `bacsi02` ở CN1, `bacsi03` và `bacsi04` ở CN2, `bacsi05` và `bacsi06` ở CN3, `bacsi07` và `bacsi08` ở CN4
+
+| Mã | Bác sĩ | Lịch | Ghi chú nội dung |
+|---|---|---|---|
+| E0013 | `bacsi01` | DaTiepDon, không hồ sơ; người đặt = bệnh nhân mẫu 6 (tên 85 ký tự) | thử tên rất dài ở trang Bác sĩ |
+| E0014 đến E0016 | `bacsi01` | HoanThanh; 5★ (nhận xét giả dạng spam: `<script>alert(1)</script>` và "Click vào đây để nhận quà…" là **chữ thuần**, WKD-10), 4★ (nhận xét có **emoji nằm đúng điểm cắt 200**), 3★ (không nhận xét, không hồ sơ) | |
+| E0017 đến E0019 | `bacsi02` | HoanThanh; 5★, 2★ **ẩn**, 4★ | |
+| E0020 đến E0022 | `bacsi03` | HoanThanh; 1★ **ẩn**, 5★, 3★ (không nhận xét) | |
+| E0023, E0024 | `bacsi04` | HoanThanh; 4★, 5★ | |
+| E0025 đến E0027 | `bacsi05` | HoanThanh; 3★ **ẩn**, 5★, 4★ (không nhận xét) | |
+| E0028, E0029 | `bacsi06` | HoanThanh; 2★, 5★ | |
+| E0030 đến E0032 | `bacsi07` | HoanThanh; 4★, 5★ (không nhận xét), 1★ | |
+| E0033, E0034 | `bacsi08` | HoanThanh; 3★, 4★ | |
+
+Bệnh nhân mẫu: `benhnhan01@example.invalid` đến `benhnhan06@example.invalid`, SĐT `0900000201` đến `0900000206`, họ tên có dấu (một tên 85 ký tự), người đặt xoay vòng; tên, email, SĐT là `[đề xuất]`. Bốn lý do ẩn (10 đến 255 ký tự, câu mẫu như "Nội dung xúc phạm cá nhân bác sĩ, vi phạm quy tắc cộng đồng (dữ liệu minh họa)."). Hồ sơ khám: 5 mẫu chữ xoay vòng, một số nhiều dòng; ngày tái khám = ngày khám + 14 ngày ở E0002, E0003 (đúng khoảng 5.2).
+
+**"Tài khoản nào thấy gì"** (bản nháp; bản đầy đủ sau khi chạy ở 27.8): `patient@example.invalid` thấy E0001 và E0002 ở "Lịch hẹn", E0003 đến E0007 ở "Hồ sơ khám bệnh" (tháng 11 và 10); `doctor@example.invalid` thấy 12 lịch của mình (hai `DaTiepDon`); `bacsi01` đến `bacsi08` thấy lịch của riêng họ; `admin.system` thấy 29 đánh giá (hai trang), `admin.branch` thấy 14 của CN1; `receptionist` không thấy nội dung hồ sơ hay đánh giá. Điểm trung bình công khai của bác sĩ **chưa đổi** (B9 chưa làm: `DoctorRatingReader` vẫn bản tạm).
+
+### 27.4 Bảng test (mã `[đề xuất]`: tiền tố **`EDS`** = Exam Demo Seed, đã quét `docs/` và `apps/`: chưa ai dùng; mỗi `it` ghi mã ở tên)
+
+| Mã | Loại | Nội dung |
+|---|---|---|
+| EDS-01 | int | trên nền `catalog`, `dev-accounts`, `search-demo`: đúng số hàng từng bảng (`lich_hen` 34 = 3 + 31, `ho_so_kham` 29, `danh_gia_bac_si` 29 với 4 ẩn, `nhat_ky_hanh_dong` `AnDanhGia` 4, `tai_khoan` mới 6, `ho_so_nguoi_than` 3, `lich_lam_viec` 34); `created` = 151 `[đề xuất]` |
+| EDS-02 | int | **chạy hai lần không trùng:** lần hai `created = 0`, `skipped` = `created + skipped` lần một, số hàng mọi bảng bị chạm không đổi |
+| EDS-03 | int | **ngày trôi:** lần hai với `now` lùi/tiến 3 và 40 ngày vẫn không thêm gì (khoá là mã, không phải ngày) |
+| EDS-04 | int | bất biến: `assertExamInvariants` (IVK-01 đến IVK-05) và `assertBookingInvariants` (INV khung giờ) trên toàn bộ dữ liệu seed; mỗi lịch tối đa một hồ sơ và một đánh giá |
+| EDS-05 | int | hình dạng lịch: `ma_lich_hen` khớp `APPOINTMENT_CODE_PATTERN`; ô `DaDat` với `khung_gio_dang_giu = khung_gio_id`; `thoi_gian` = `ngay_gio`; `chi_nhanh_id` và `dich_vu_kham_id` khớp bác sĩ; ô thuộc đúng ca và ngày của bác sĩ, nằm trên lưới (`ngay_gio` thuộc `generateSlotStarts`); mỗi ca mới đủ số ô của cửa sổ ca |
+| EDS-06 | int | đánh giá: đủ 1 đến 5 sao, ≥ 3 đánh giá ẩn đều có lý do 10 đến 255, đánh giá chưa ẩn không có lý do; có nhận xét 1.000, nhiều dòng, không nhận xét; đánh giá và hồ sơ sau giờ khám và không vượt bây giờ |
+| EDS-07 | int | phủ kịch bản: `HoanThanh` không hồ sơ, `HoanThanh` có hồ sơ chưa đánh giá, `DaTiepDon` có và không hồ sơ, lịch người thân (kể cả hồ sơ ngừng), đánh giá ở ≥ 2 chi nhánh (đúng 14, 5, 5, 5), `admin.branch` chỉ thấy 14 qua truy vấn phạm vi chi nhánh |
+| EDS-08 | int | thiếu tiền đề: thiếu `dev-accounts` ⇒ `SEED_DEV_ACCOUNTS_REQUIRED`; thiếu bác sĩ ⇒ `SEED_DOCTORS_REQUIRED`; cả hai **rollback**, 0 hàng mới |
+| EDS-09 | int | không ghi đè: sau lần một, sửa tay một đánh giá, một hồ sơ và đổi một lịch `DaTiepDon` thành `HoanThanh`; chạy lại giữ nguyên các thay đổi đó |
+| EDS-10 | int | email bệnh nhân mẫu đã dùng cho tài khoản khác loại ⇒ `SEED_ACCOUNT_CONFLICT`, rollback toàn bộ |
+| EDS-11 | int | nền có `doctor-demo` chạy từ hôm qua (hôm nay đã có ca): `DaTiepDon` lùi về ngày chưa có ca, **không** ô `ConTrong` nào của `doctor-demo` bị đổi, `assertBookingInvariants` sạch |
+| EDS-12 | spec | `readSeedConfig('exam-demo', …)`: đọc `SEED_DEV_PASSWORD`, thiếu ⇒ `SEED_ENV_INVALID`, yếu ⇒ `SEED_PASSWORD_INVALID`; chặn production (thêm vào `it.each` của SD-03); lệnh có trong `SEED_COMMANDS` |
+| EDS-13 | int | **chạy vào Chủ nhật** (`now` = 22/11/2026): `DaTiepDon` của CN1 (nghỉ Chủ nhật) lùi về thứ Bảy, vẫn đủ 34 lịch, bất biến sạch |
+| EDS-14 | spec | dữ liệu thuần (không DB): 34 mã duy nhất và đúng mẫu, đủ 1 đến 5 sao, 4 ẩn có lý do, 25 hiển thị, tên và email và SĐT qua `isValidFullName`, `isValidEmail`, `normalizePhone`, nhận xét ≤ 1.000 UTF-16 (một đúng 1.000, một có cặp thay thế ở vị trí 199–200), mọi chuỗi qua `redactText(x) === x`, số mẫu theo chi nhánh |
+| EDS-15 | int | bệnh nhân mẫu **cùng hình dạng với `dev-accounts`**: mỗi người có đủ `tai_khoan`, `benh_nhan`, `vi_noi_bo` (0,00 và 0,00); so từng cột `tai_khoan` với dòng `patient@example.invalid` (cùng giá trị ở mọi cột trừ email, họ tên, SĐT, băm mật khẩu, `thoi_diem_tao`); băm khác NULL; email thuộc `example.invalid`; hồ sơ người thân có `ngay_sinh`, `gioi_tinh`, `moi_quan_he` hợp lệ và đúng chủ |
+| EDS-16 | int | **ca và khung giờ quá khứ không làm hỏng bộ đọc khung giờ công khai:** chạy `AvailableSlotsReader` THẬT (`listMany`, `now` ghim) trên một ca quá khứ và ca hôm nay của seed: ô quá khứ đều `HetHan` (không có `ConTrong`), ô `DaDat` của lịch mẫu không là `ConTrong`, `trangThaiNgay` là `CoLich`, không ném lỗi |
+
+Lượt chạy: từng file `vitest` (`exam-demo-data.spec.ts`, `seed-config.spec.ts`) rồi int-spec **hai lần** (một lần múi giờ mặc định, một lần `$env:TZ='UTC'`, `TEST_DB_NAME=clinix_exam_b10_test`), cộng lượt chạy lại lần hai trong chính EDS-02. `readSeedConfig` từ chối `TZ` khác `Asia/Ho_Chi_Minh` ở CLI thật nên `TZ` chỉ đặt cho vitest.
+
+### 27.5 Đột biến dự đoán (**ghi 17/11/2026, TRƯỚC khi có mã, KHÔNG sửa sau khi thấy kết quả**; dự kiến 20 ca, tối thiểu 8; mỗi ca một vitest một file; sao lưu NGOÀI repo kèm SHA-256 từng ca, khôi phục và kiểm SHA sau từng ca, 0 file `*.mut`; chuỗi cũ phải xuất hiện ĐÚNG MỘT lần, kiểm khô trước bằng Python, không chạy vitest; chạy đối chứng đầu và cuối; chuỗi thay thế không đặt tên `secret`, `token`, `password` cho chuỗi dài; lượt chạy là lane NẶNG: hỏi phiên kiểm trước)
+
+| M | Đột biến | Dự đoán: ai bắt |
+|---|---|---|
+| M1 | bỏ kiểm "đã có lịch mang mã này" (luôn tạo) | EDS-02 đỏ (lần hai ném 1062 trên `ma_lich_hen`; bắt bằng ràng buộc DB, không bằng khẳng định) |
+| M2 | khoá nhận diện đổi sang (bác sĩ, ngày tính từ `now`) | EDS-03 đỏ (ngày trôi tạo thêm lịch) |
+| M3 | `ly_do_an` của đánh giá ẩn đặt `null` | EDS-01 đỏ (CHECK `chk_danh_gia_an`) |
+| M4 | bỏ ghi nhật ký `AnDanhGia` | EDS-04 đỏ (IVK-04) và EDS-01 (đếm 0 ≠ 4) |
+| M5 | ghi hồ sơ cho cả mẫu "không hồ sơ" | EDS-01 và EDS-07 đỏ (34 hồ sơ ≠ 29) |
+| M6 | đánh giá gắn vào lịch mẫu ở trạng thái `DaTiepDon` (đổi trạng thái của một mẫu có đánh giá) | EDS-04 đỏ (IVK-02) và EDS-07 |
+| M7 | chèn ô `ConTrong` thay `DaDat` | EDS-04 đỏ (INV khung giờ của booking) và EDS-05 |
+| M8 | `thoi_gian` lệch 1 phút so với `ngay_gio` | EDS-05 đỏ |
+| M9 | bỏ kiểm "bác sĩ đã có ca ngày–ca đó" khi chọn chỗ | EDS-11 đỏ (1062 trên `(lich_lam_viec_id, ngay_gio)`; bắt bằng DB) |
+| M10 | bỏ kiểm chi nhánh nghỉ (`window.ok`) | EDS-13 (Chủ nhật) đỏ |
+| M11 | `thoi_diem_tao` của đánh giá lùi trước giờ khám | EDS-06 đỏ |
+| M12 | bỏ báo `SEED_DEV_ACCOUNTS_REQUIRED` khi thiếu `admin.system` | EDS-08 đỏ |
+| M13 | lịch người thân gắn sai chủ (`benh_nhan_id` ≠ chủ hồ sơ) | EDS-01 đỏ (khoá ngoại kép `fk_lich_hen_ho_so_chu_so_huu`; bắt bằng DB) |
+| M14 | bỏ `'exam-demo'` khỏi `SEED_COMMANDS` | EDS-12 đỏ |
+| M15 | `readSeedConfig` không đòi mật khẩu cho `exam-demo` | EDS-12 đỏ |
+| M16 | `runSeed` không băm mật khẩu cho `exam-demo` (`hash` rỗng) | EDS-01 đỏ (CHECK `chk_tai_khoan_mat_khau`) |
+| M17 | dữ liệu: hai mẫu trùng `ma_lich_hen` | EDS-14 đỏ |
+| M18 | dữ liệu: bỏ hết đánh giá 1★ | EDS-14 đỏ |
+| M19 | thứ tự ô luôn bằng 0 (mọi lịch dồn giờ đầu ca) | **dự đoán SỐNG SÓT (giới hạn, không phải lỗ hổng):** mỗi mẫu có ca riêng nên không va chạm, chỉ mất sự đa dạng giờ khám; không thêm ca test vì hậu quả chỉ thẩm mỹ |
+| M20 | dữ liệu: `daysAgo` của một mẫu `HoanThanh` đảo dấu (ca nằm ở tương lai) | EDS-16 đỏ (ô `ConTrong` tương lai xuất hiện ở lịch khả dụng) và EDS-06 (đánh giá và hồ sơ vượt bây giờ) |
+| M21a | **thêm theo phiên kiểm (B10-2):** tệp tạm `src/search/zz-b10-mutation.ts` chứa câu `INSERT INTO lich_hen` NGOÀI `database/seeds/` (chạy `appointments/architecture.spec.ts`; xoá tệp sau ca) | **dự đoán ĐỎ** ở hai ca: AR-01 "cây `src/` thật" (câu ghi ngoài ngoại lệ) và "bộ quét THẤY câu ghi thật" (dòng `search/...` không khớp biểu thức đã nới, vì biểu thức chỉ nhận `^database/seeds/`) |
+| M21b | **thêm theo phiên kiểm:** tệp tạm `src/database/seeds/zz-b10-mutation.ts` chứa câu `UPDATE lich_hen` (seed chỉ được `INSERT`) | **dự đoán ĐỎ** ở hai ca: AR-01 "cây `src/` thật" (`UPDATE lich_hen` không nằm trong ngoại lệ của seeds) và "bộ quét THẤY câu ghi thật" (dòng `UPDATE lich_hen` không khớp biểu thức đã nới) |
+
+**Ghi chú sau kiểm khô (17/11/2026, TRƯỚC khi chạy; bảng dự đoán ở trên giữ nguyên):** (1) kiểm khô bằng `mutate.mjs dry` (đọc file, không chạy vitest): 20 ca M1 đến M20 và hai tệp tạm M21a, M21b, mọi chuỗi cũ xuất hiện đúng một lần, tệp tạm chưa tồn tại; SHA-256 bốn file đích đã ghi (`exam-demo.repository.ts`, `exam-demo-data.ts`, `seed-config.ts`, `seed.service.ts`). (2) **M12:** đọc lại thấy EDS-08 bản đầu (a và b) KHÔNG bắt được ca này, vì ở (a) thiếu cả bệnh nhân lẫn Admin nên mã vẫn đúng nhờ kiểm bệnh nhân; nên **thêm EDS-08c** (đã có bệnh nhân và bác sĩ, thiếu riêng `admin.system`) vào `exam-demo.int-spec.ts` TRƯỚC khi chạy; dự đoán M12 giữ "EDS-08 đỏ", nay nhờ EDS-08c. (3) **M9:** có thể vỡ sớm hơn dự đoán ở UNIQUE của `lich_lam_viec` (bác sĩ, ngày, ca) thay vì UNIQUE của `khung_gio`; vẫn do DB bắt; nếu thấy sẽ ghi là lệch cấp ràng buộc. (4) **M10, M20, M2** còn có thể đỏ ở nhiều ca hơn dự đoán (lỗi `TypeError` hay 1062 sớm); ghi lệch nếu thấy. (5) Đối chứng đầu và cuối gồm bốn file, mỗi file một tiến trình: `exam-demo.int-spec.ts`, `exam-demo-data.spec.ts`, `seed-config.spec.ts`, `appointments/architecture.spec.ts`. (6) Mỗi ca một vitest một file: M1 đến M13, M16, M19, M20 chạy `exam-demo.int-spec.ts`; M14, M15 chạy `seed-config.spec.ts`; M17, M18 chạy `exam-demo-data.spec.ts`; M21a, M21b chạy `appointments/architecture.spec.ts`.
+
+### 27.6 File dự kiến đổi, rủi ro, việc không làm
+
+- **Rủi ro:** (1) **bất biến khi chèn trực tiếp** (không qua service): giảm bằng cách chạy lại `assertExamInvariants` và `assertBookingInvariants` trên dữ liệu seed (EDS-04) và dùng `syncShiftSlots`/`shiftWindow` sản xuất; (2) **ngày trôi làm idempotent sai:** khoá là mã cố định, không phải ngày (EDS-03); (3) **trùng dữ liệu thật của Đại:** mã `CLX-00000000-…` không thể trùng mã thật; email `benhnhan0X@example.invalid` đã có mà khác loại ⇒ dừng và rollback, không ghi đè; (4) **va chạm ca với `doctor-demo`** vì không được `UPDATE khung_gio`: lịch mẫu lùi về ngày chưa có ca (nếu `doctor-demo` đã chạy N ngày trước thì `DaTiepDon` có thể nằm ở ngày chạy `doctor-demo`, không phải hôm nay; ghi rõ ở DEV_SETUP) (câu (h)); (5) **jscpd:** int-spec mới có khung `config()`/`seedPrerequisites()` giống `doctor-demo.int-spec.ts` (CI đo, không chạy tay); (6) AR-01 quét văn bản nguồn: mã seed không được chứa `UPDATE lich_hen`, `UPDATE khung_gio` hay ghi qua thực thể `LichHen`, `KhungGio` (chạy `appointments/architecture.spec.ts` để chứng minh Pass; ca sửa tay trong `exam-demo.int-spec.ts` dùng SQL thô như `doctor-demo.int-spec.ts` HD-11d đã làm, và bộ quét không tính file test).
+- **Lệnh Đại chạy** (sau khi PR vào `main`; KHÔNG chạy ở máy này trên DB `clinix`): `npm run seed:exam-demo` trong `apps/api` với `SEED_DEV_PASSWORD` đặt trong môi trường của tiến trình, sau `catalog`, `dev-accounts`, `search-demo` (và `doctor-demo` nếu muốn có khung giờ tương lai).
+- **Giờ ước `[đề xuất]`:** 3 đến 4 giờ (dữ liệu và repository 1,5 giờ; test 1,5 giờ; đột biến, tài liệu 1 giờ).
+
+### 27.7 Câu hỏi (mỗi câu kèm đề xuất; (e) theo prompt; chưa có câu nào cần quyết định sản phẩm mới)
+
+- **(a) Bảng dữ liệu mẫu và số lượng:** đề xuất như 27.3: 34 lịch, 29 hồ sơ, 29 đánh giá (4 ẩn), 6 bệnh nhân mẫu, 3 hồ sơ người thân. Đủ cho 2 trang ở Admin Toàn hệ thống và chạm mọi nhánh của F2 đến F7 mà không phình.
+- **(b) Khoá idempotent và ngày trôi:** `ma_lich_hen` cố định `CLX-00000000-E0001…E0034` (phương án thay: dấu `[Mẫu exam-demo]` trong `ly_do_kham`, bị từ chối vì chữ do người dùng sửa được còn mã thì UNIQUE do DB giữ); có lịch mã đó ⇒ bỏ qua cả nhóm; ngày khám cố định theo lần chạy đầu.
+- **(c) Chạm file nền chung:** `seed-config.ts` (+1 phần tử trong `SEED_COMMANDS`, +1 điều kiện `selected === 'exam-demo'` ở khối mật khẩu), `seed.service.ts` (+3 chỗ), `apps/api/package.json` (+1 dòng script), `docs/DEV_SETUP.md` (+ một đoạn ngắn khoảng ba dòng cạnh đoạn `doctor-demo` có sẵn, vì mục đó liệt kê từng seed; rút còn một dòng nếu Đại muốn). **Không** chạm `architecture-rules.ts`, `seed.ts`, `seed-cli.ts`. Đề xuất: đồng ý cả bốn.
+- **(d) Mã test mới:** `EDS-01…EDS-16` (27.4; EDS-15 và EDS-16 thêm theo phiên kiểm) và 20 ca đột biến (27.5; thêm M20). Đề xuất: đồng ý.
+- **(e) Tiêu đề PR** (74 ký tự, ≤ 100): `feat(db): thêm seed exam-demo cho hồ sơ khám và đánh giá (doctor-exam B10)`; thân PR có `Closes #406`, `Refs #390`, `[ĐỤNG database]` (báo Trung trước khi mở PR: `seed-config.ts`, `seed.service.ts`, `package.json` là nền chung).
+- **(f) Nhật ký `AnDanhGia` cho bốn đánh giá ẩn** (do `audit/**` ghi qua `AuditService` thật): đề xuất **có**, để dữ liệu seed thoả IVK-04 như dữ liệu do luồng thật tạo ra; không có thì bất biến của chính module vỡ ngay trên dữ liệu mẫu.
+- **(g) Mật khẩu sáu bệnh nhân mẫu = `SEED_DEV_PASSWORD`** (như `search-demo`), nên `exam-demo` đòi biến này; Đại đăng nhập được mọi tài khoản mẫu để soạn test case. Đề xuất: đồng ý. (Phương án thay: tài khoản không đăng nhập được, mất khả năng kiểm F6 bằng người đặt khác.)
+- **(h) Hạn chế do AR-01:** vì seed không được `UPDATE khung_gio`, lịch mẫu nằm ở ca mới và `DaTiepDon` lùi về ngày chưa có ca nếu `doctor-demo` đã phân công hôm nay. Đề xuất: **chấp nhận** (mô tả ở DEV_SETUP). Phương án thay: thêm `UPDATE khung_gio` vào `ALLOWED_WRITES` cho `database/seeds/` (file `appointments/testing/architecture-rules.ts` của booking, **ngoài phạm vi, không đề xuất**; chỉ làm khi Đại muốn DaTiepDon luôn đúng hôm nay).
+- **(i) Giờ của lịch `DaTiepDon` "hôm nay":** ô đặt là ô thứ k của ca nên có thể ở sau giờ chạy seed (ví dụ chạy lúc 09:00, ô 14:00). `complete` không kiểm thời gian nên không ảnh hưởng thử nghiệm. Đề xuất: chấp nhận, không thêm logic.
+
+**`[cần điền]`:** số PR, kết quả CI, Trung approve. **`[đề xuất]`:** mọi tên, email, SĐT, nội dung chữ mẫu, số lượng ở 27.3, mã `EDS`, `created = 151`, giờ ước.
+
+### 27.8 Kết quả B10 (17/11/2026; **đã làm xong ở máy**: mã và test, int-spec hai múi giờ, hồi quy ba int-spec seed, 22 đột biến, bộ quét kiến trúc, `lint`, `npm test` cả bộ `apps/api`, `build`; PR, CI, Trung approve, squash `[cần điền]`; 27.1 đến 27.7 giữ nguyên bản đã gửi, kể cả dự đoán đột biến)
+
+**Đại trả lời TRỰC TIẾP bằng hộp câu hỏi (17/11/2026), cả ba theo đề xuất:** (c) cho sửa bốn file nền chung (`seed-config.ts`, `seed.service.ts`, `package.json`, `docs/DEV_SETUP.md`); (h) chấp nhận hạn chế AR-01 (mỗi lịch ở ca mới, `DaTiepDon` lùi ngày nếu `doctor-demo` đã phân công hôm nay); và một câu **phát sinh khi chạy** `appointments/architecture.spec.ts`: ca "bộ quét THẤY câu ghi thật" đỏ vì seed có `INSERT INTO lich_hen` (đã được `ALLOWED_WRITES` cho `database/seeds/`) ⇒ Đại chọn "Sửa 1 dòng của ca đó". Phiên kiểm duyệt (ủy quyền) duyệt (e), (f), (g), mã `EDS`, 20 ca đột biến cộng M21.
+
+### 27.8.1 File đã đổi (M = mới, S = sửa; dòng đếm bằng `wc -l` và `git diff --numstat`)
+
+| File | | Dòng | Ghi chú |
+|---|---|---|---|
+| `apps/api/src/database/seeds/exam-demo-data.ts` | M | 324 | 34 mẫu, 6 bệnh nhân, 3 người thân, chữ mẫu; `fit` dựng nhận xét đúng 1.000 đơn vị |
+| `apps/api/src/database/seeds/exam-demo.repository.ts` | M | 406 | `ExamDemoRepository(manager, now)`: tiền đề, người, chọn chỗ, lịch, hồ sơ, đánh giá, nhật ký |
+| `apps/api/src/database/seeds/exam-demo-data.spec.ts` | M | 211 | EDS-14 (11 ca, không DB) |
+| `apps/api/src/database/seeds/exam-demo.int-spec.ts` | M | 553 | EDS-01 đến EDS-11, EDS-13, EDS-15, EDS-16 (15 ca, MySQL thật) |
+| `apps/api/src/database/seeds/seed-config.ts` | S | +3 −1 | `'exam-demo'` vào `SEED_COMMANDS`; vào điều kiện đọc `SEED_DEV_PASSWORD` `[ĐỤNG database]` |
+| `apps/api/src/database/seeds/seed.service.ts` | S | +15 −7 | băm mật khẩu và nhánh `exam-demo`; bảng tra `profiles` theo lệnh thay chuỗi `?:` lồng nhau `[ĐỤNG database]` |
+| `apps/api/src/database/seeds/seed-config.spec.ts` | S | +26 −1 | EDS-12 (2 ca) và `exam-demo` trong SD-03 (chặn production) |
+| `apps/api/package.json` | S | +2 −1 | một dòng script `seed:exam-demo` (dòng trước thêm dấu phẩy) `[ĐỤNG database]` |
+| `apps/api/src/appointments/architecture.spec.ts` | S | +4 −1 | **`[ĐỤNG booking]`:** ca "bộ quét THẤY câu ghi thật" nhận thêm đúng dòng `database/seeds/…: INSERT INTO lich_hen` (biểu thức khớp `…khung_gio` đổi thành `…khung_gio\|^database\/seeds\/[\w.-]+: INSERT INTO lich_hen `); `architecture-rules.ts` KHÔNG đổi |
+| `docs/DEV_SETUP.md` | S | +2 | một đoạn `exam-demo` cạnh đoạn `doctor-demo` |
+| `docs/features/doctor-exam/PLAN.md`, `TRACKING.md` | S | | tick B10 ở 6.3, Q25 đã trả lời, mục 27 này |
+
+Không đổi: `seed.ts`, `seed-cli.ts`, `seed-error.ts`, `.env.example`, `docs/database/*`, migration, `search/**`, `admin/**`, `audit/**`, `.github/workflows/*`; `AI_USAGE_LOG.md` và `docs/TECH_DEBT.md` CHƯA sửa (hỏi Đại trước).
+
+### 27.8.2 Test đã chạy (ở máy; mỗi lệnh MỘT tiến trình, RAM trống đo bằng lệnh riêng trước từng lệnh: 3,56 đến 6,58 GB, không lần nào dưới 2,4 GB)
+
+| Lệnh | Kết quả |
+|---|---|
+| `vitest run src/database/seeds/exam-demo-data.spec.ts` | 11/11 xanh |
+| `vitest run src/database/seeds/seed-config.spec.ts` | 29/29 xanh |
+| `vitest run src/database/seeds/seed-runner.spec.ts` | 8/8 xanh |
+| `vitest run src/appointments/architecture.spec.ts` | **lần đầu 93/94 (1 đỏ)**, lỗi nguyên văn: `expected 'database/seeds/exam-demo.repository.t…' to match /(?:INSERT INTO\|DELETE FROM) khung_gio/` (ca "bộ quét THẤY câu ghi thật"; ca AR-01 "cây `src/` thật" xanh); sau sửa 1 dòng: **94/94 xanh** |
+| `vitest run` `doctor/architecture.spec.ts`, `doctor/examination/examination.architecture.spec.ts`, `payment/architecture.spec.ts` | 12, 21, 37 ca xanh |
+| int `exam-demo.int-spec.ts` (`TEST_DB_NAME=clinix_exam_b10_test`), lượt 1 (múi giờ mặc định) | 15/15 xanh, 29,8 giây |
+| int `exam-demo.int-spec.ts`, lượt 2 `TZ=UTC` (vitest in "Start at 10:19") | 15/15 xanh, 29,1 giây |
+| int `exam-demo.int-spec.ts`, sau khi thêm EDS-08c: đối chứng đầu và cuối của lane đột biến (múi giờ mặc định), rồi lượt cuối `TZ=UTC` trên mã cuối | 15/15 (30,8 giây), 15/15 (33,1 giây), 15/15 (33,0 giây, "Start at 10:37") |
+| int hồi quy ba file seed có sẵn (đã sửa `seed.service.ts`): `seed.int-spec.ts`, `search-demo.int-spec.ts`, `doctor-demo.int-spec.ts` | 16/16, 6/6, 6/6 xanh (24,5, 12,9, 21,6 giây) |
+| `npm test` cả `apps/api` | **307 file, 5.706 ca xanh, 0 đỏ, 0 bỏ qua**, 23,9 giây, thoát 0 |
+| `npm run lint` (oxlint `--type-aware`), hai lượt (trước và sau đột biến) | thoát 0, không in cảnh báo |
+| `npm run build` (`nest build`) | thoát 0, 17,5 giây; `apps/api/dist` đã có sẵn từ trước (ignored), không xoá; `dist/database/seeds/exam-demo.repository.js` có |
+| `prettier --check` chín file đã đổi | sạch |
+| `tsc --noEmit -p tsconfig.json` | **một lỗi có sẵn, không thuộc B10:** `src/payment/architecture.spec.ts(238,8): error TS2555: Expected at least 1 arguments, but got 0.` (cùng dòng trên `origin/main`; `nest build` dùng `tsconfig.build.json` nên không bị) |
+
+**Chưa chạy (và lý do):** `seed:exam-demo` thật (cả lệnh `npm run` lẫn CLI) trên DB `clinix` của Đại (cấm theo prompt; `runSeed` đã chạy qua EDS-01w trên DB test, còn `seed-cli.ts` không đổi); `npm run test:e2e` (không có route mới); `schema-parity`, `migrations`, `upload` int-spec (CI chạy); `npm run dup` (jscpd, CI đo: rủi ro là khung `config()`/`prerequisites()` của `exam-demo.int-spec.ts` giống `doctor-demo.int-spec.ts`); gitleaks (CI đo; biến test `password` gán chuỗi tính từ `randomBytes`, như `doctor-demo.int-spec.ts`).
+
+### 27.8.3 Số hàng thật (EDS-01, `now` ghim thứ Tư 18/11/2026 10:00 giờ VN, trên nền `catalog` + `dev-accounts` + `search-demo`)
+
+`created = 151`, `skipped = 0`: `tai_khoan` +6, `benh_nhan` +6, `vi_noi_bo` +6, `ho_so_nguoi_than` +3, `lich_lam_viec` +34, `lich_hen` +34 (3 `DaTiepDon`, 31 `HoanThanh`), `ho_so_kham` +29, `danh_gia_bac_si` +29 (4 `bi_an = 1`), `nhat_ky_hanh_dong` +4 (`AnDanhGia`, `ThanhCong`), `khung_gio` ở `DaDat` 34 (cộng các ô `ConTrong` do `syncShiftSlots`: 8 ô mỗi ca sáng của dịch vụ 30 phút). **Chạy hai lần (EDS-02, EDS-03):** lần hai `created = 0`, `skipped = 151` (= `created` lần một), snapshot 10 bảng không đổi; lùi/tiến `now` 3 và 40 ngày vẫn `created = 0`. **Bất biến (EDS-04):** `assertExamInvariants` (IVK-01 đến IVK-05) và `assertBookingInvariants` sạch. **Ca quá khứ (EDS-16):** `AvailableSlotsReader` thật: ngày quá khứ chỉ có `HetHan`; hôm nay, ô đã qua giờ là `HetHan`, ô `DaDat` của E0002 còn ở tương lai là `DaDat`.
+
+### 27.8.4 Đột biến (17/11/2026; lượt B10-3; **22 ca: 21 BỊ BẮT, 1 SỐNG SÓT**; mỗi ca một vitest một file; sao lưu NGOÀI repo và SHA-256 bốn file đích khớp baseline sau từng ca và sau cả chuỗi; hai tệp tạm `zz-b10-mutation.ts` xoá ngay sau M21a và M21b; `git status` không có `zz-` hay `*.mut`; đối chứng đầu và cuối xanh 15, 11, 29, 94)
+
+| M | Dự đoán (27.5, ghi trước) | Thực tế (nguyên văn) | |
+|---|---|---|---|
+| M1 | EDS-02 đỏ | **3 ca đỏ:** EDS-02, EDS-03, EDS-09; `Duplicate entry 'CLX-00000000-E0001' for key 'lich_hen.ma_lich_hen'` | lệch (nhiều ca hơn) |
+| M2 | EDS-03 đỏ | **3 ca đỏ:** EDS-02, EDS-03, EDS-09; `Duplicate entry 'CLX-00000000-E0003' for key 'lich_hen.ma_lich_hen'` | lệch (thêm EDS-02, EDS-09) |
+| M3 | EDS-01 đỏ (CHECK) | 13/15 đỏ; `Check constraint 'chk_danh_gia_an' is violated.` | đúng |
+| M4 | EDS-04 và EDS-01 đỏ | 6 ca đỏ (EDS-01, EDS-01w, EDS-02, EDS-04, …) | đúng |
+| M5 | EDS-01 và EDS-07 đỏ | 6 ca đỏ (EDS-01, EDS-01w, EDS-02, EDS-07, …) | đúng |
+| M6 | EDS-04 và EDS-07 đỏ | 5 ca đỏ (EDS-01, EDS-04, EDS-07, EDS-11, …) | đúng |
+| M7 | EDS-04 và EDS-05 đỏ | 6 ca đỏ (EDS-01, EDS-04, EDS-05, EDS-11, …) | đúng |
+| M8 | EDS-05 đỏ | 1 ca đỏ: EDS-05 | đúng |
+| M9 | EDS-11 đỏ (1062 trên `khung_gio`) | **13/15 đỏ**; lỗi đầu `Duplicate entry '3-2026-11-18-CaSang' for key 'lich_lam_viec.lich_lam_viec_index_3'` (UNIQUE bác sĩ, ngày, ca; E0001 và E0002 cùng ca hôm nay) | lệch (ràng buộc khác, nhiều ca hơn; đã báo trước ở ghi chú (3)) |
+| M10 | EDS-13 (Chủ nhật) đỏ | **13/15 đỏ**; `TypeError: Cannot read properties of undefined (reading 'tuGiay')` ở `generateSlotStarts` (mọi lượt quét gặp ngày chi nhánh nghỉ, không riêng Chủ nhật của EDS-13) | lệch (ghi chú (4)) |
+| M11 | EDS-06 đỏ | 1 ca đỏ: EDS-06 | đúng |
+| M12 | EDS-08 đỏ | 1 ca đỏ: EDS-08 (nhờ EDS-08c thêm TRƯỚC khi chạy) | đúng |
+| M13 | EDS-01 đỏ (khoá ngoại kép) | 13/15 đỏ; `foreign key constraint fails … CONSTRAINT fk_lich_hen_ho_so_chu_so_huu` | đúng |
+| M14 | EDS-12 đỏ | `seed-config.spec`: 3 ca đỏ (EDS-12 hai ca và SD-03 chặn production `exam-demo`) | đúng |
+| M15 | EDS-12 đỏ | `seed-config.spec`: 2 ca đỏ (EDS-12) | đúng |
+| M16 | EDS-01 đỏ (CHECK mật khẩu) | 1 ca đỏ: EDS-01 qua `runSeed`; `Check constraint 'chk_tai_khoan_mat_khau' is violated.` | đúng |
+| M17 | EDS-14 đỏ | `exam-demo-data.spec`: 1 ca đỏ (mã duy nhất) | đúng |
+| M18 | EDS-14 đỏ | `exam-demo-data.spec`: 1 ca đỏ (phân bố sao) | đúng |
+| M19 | **SỐNG SÓT** (giới hạn) | **SỐNG SÓT**, 15/15 xanh | đúng; **giới hạn, không phải lỗ hổng**: mỗi mẫu có ca riêng nên không va chạm, chỉ mất đa dạng giờ khám; không thêm ca test |
+| M20 | EDS-16 và EDS-06 đỏ | 2 ca đỏ: EDS-06, EDS-16 | đúng |
+| M21a | đỏ ở hai ca của `appointments/architecture.spec` | 2 ca đỏ: "cây `src/` thật" và "bộ quét THẤY câu ghi thật" | đúng |
+| M21b | đỏ ở hai ca của `appointments/architecture.spec` | 2 ca đỏ: cùng hai ca | đúng |
+
+Ghi chú đọc bảng: các số "13/15", "6 ca" là số ca đỏ trong `exam-demo.int-spec.ts`; hai ca xanh còn lại ở M3, M9, M10, M13 là hai ca dừng trước bước chọn chỗ (EDS-08, EDS-10), **suy từ mã, không đo riêng**. M21a và M21b chứng minh biểu thức đã nới ở dòng sửa của booking **chỉ** nhận `INSERT INTO lich_hen` từ `database/seeds/`: câu ghi ở thư mục khác và `UPDATE lich_hen` trong seeds vẫn làm cả hai ca đỏ.
+### 27.8.5 "Tài khoản nào thấy gì" và lệnh Đại chạy
+
+**Lệnh** (trong `apps/api`, sau khi PR vào `main`; KHÔNG chạy ở máy này trên DB `clinix`): đặt `SEED_DEV_PASSWORD` trong môi trường của tiến trình (không gõ vào lệnh, chat hay file), rồi `npm run seed:catalog`, `npm run seed:dev-accounts`, `npm run seed:search-demo`, (`npm run seed:doctor-demo` nếu muốn khung giờ tương lai), cuối cùng `npm run seed:exam-demo`; kỳ vọng dòng `Seed exam-demo: created=151, skipped=0.` lần đầu và `created=0, skipped=151` lần hai. Xem các dòng mẫu: `SELECT ma_lich_hen, trang_thai, thoi_gian FROM lich_hen WHERE ma_lich_hen LIKE 'CLX-00000000-E%' ORDER BY ma_lich_hen;` (không có lệnh xoá: seed chỉ INSERT).
+
+| Tài khoản (mật khẩu `SEED_DEV_PASSWORD`) | Thấy gì |
+|---|---|
+| `patient@example.invalid` (Bệnh nhân) | "Lịch hẹn": E0001 (`DaTiepDon`, bản thân), E0002 (`DaTiepDon`, người thân Cha); "Hồ sơ khám bệnh" và chi tiết (F5, F6): E0003 (bản thân, hồ sơ, đánh giá 5★ đã gửi), E0004 (người thân Mẹ, hồ sơ, **chưa đánh giá**: `Đánh giá ngay`), E0005 (bản thân, **chưa có hồ sơ khám**, chưa đánh giá), E0006 (hồ sơ, đánh giá 1★ **đã bị ẩn** mà người đặt vẫn thấy: Q19), E0007 (người thân Lê Thị Cúc, **hồ sơ đã ngừng dùng**, 4★ không nhận xét; cách 40 ngày nên rơi sang tháng 10); lọc người khám: bản thân, Mẹ, Lê Thị Cúc |
+| `benhnhan01@example.invalid` đến `benhnhan06@example.invalid` (Bệnh nhân) | mỗi người 4 đến 5 lịch `HoanThanh` (`benhnhan06` còn E0013 `DaTiepDon`), đa số có hồ sơ và đã đánh giá; ví 0 đồng; `benhnhan06` có tên 85 ký tự |
+| `doctor@example.invalid` (Bác sĩ, CN1) | 12 lịch: **E0001** (`DaTiepDon`, chưa hồ sơ: `Ghi hồ sơ khám`, `Hoàn thành ca khám`), **E0002** (`DaTiepDon`, đã có hồ sơ và ngày tái khám: `Chỉnh sửa ghi chú`), E0003 đến E0012 (`HoanThanh`; E0005 và E0009 không hồ sơ) |
+| `bacsi01@example.com` đến `bacsi08@example.com` (Bác sĩ; CN1, CN1, CN2, CN2, CN3, CN3, CN4, CN4) | lịch của riêng từng người: `bacsi01` E0013 (`DaTiepDon`) và E0014 đến E0016; `bacsi02` E0017 đến E0019; `bacsi03` E0020 đến E0022; `bacsi04` E0023, E0024; `bacsi05` E0025 đến E0027; `bacsi06` E0028, E0029; `bacsi07` E0030 đến E0032; `bacsi08` E0033, E0034 |
+| `admin.system@example.invalid` (Admin Toàn hệ thống) | trang "Kiểm duyệt đánh giá" (F7): **29** đánh giá = 20 + 9 (hai trang), 25 hiển thị và 4 đã ẩn (E0006, E0018, E0020, E0025); lọc theo sao (đủ 1 đến 5), bác sĩ, chi nhánh (4), trạng thái, ô tìm (tên người đặt và nhận xét); nhận xét: một đúng 1.000 ký tự (E0011), một nhiều dòng (E0003), một có `%` và `_` (E0010), một chữ giống HTML/spam (E0014), một có emoji ở điểm cắt 200 (E0015), sáu đánh giá không nhận xét |
+| `admin.branch@example.invalid` (Admin Chi nhánh, CN1) | **14** đánh giá của CN1 (hai đã ẩn: E0006, E0018); không thấy 15 đánh giá của CN2 đến CN4 |
+| `receptionist@example.invalid` (Lễ tân) | không có màn hồ sơ khám hay đánh giá |
+
+**Còn nhớ khi kiểm tay:** điểm đánh giá công khai của bác sĩ (danh sách, chi tiết bác sĩ) **chưa đổi** vì B9 chưa làm (`DoctorRatingReader` vẫn bản tạm); ngày của E0001, E0002, E0013 là hôm nay nếu bác sĩ chưa có ca hôm nay, ngược lại lùi về ngày gần nhất chưa có ca (DEV_SETUP); seed chưa ghi `thong_bao` `LichHenHoanThanh` cho các lịch `HoanThanh` mẫu (chuông thông báo chưa có giao diện).
+
+### 27.8.6 Việc còn lại và điều cần báo
+
+- **Báo Trung trước khi mở PR (PLAN 6.7):** `[ĐỤNG database]` (`seed-config.ts`, `seed.service.ts`, `apps/api/package.json`, `docs/DEV_SETUP.md`) và `[ĐỤNG booking]` (`appointments/architecture.spec.ts`: đúng một dòng đổi và một dòng chú thích; số đo M21a, M21b ở 27.8.4). Thân PR có `Closes #406` và `Refs #390`.
+- **Hỏi Đại trước khi ghi:** `AI_USAGE_LOG.md` (hàng 144 `[đề xuất]`; không sửa ô PR/squash/CI của hàng 133 đến 143) và `docs/TECH_DEBT.md` (177 `[đề xuất]`, chỉ khi có lối tắt thật).
+- **Rủi ro CI chưa đo ở máy (CI đo):** jscpd (khung `exam-demo.int-spec.ts` giống `doctor-demo.int-spec.ts`), gitleaks.
+- **Chờ:** số PR, kết quả CI, Trung approve, squash `[cần điền]`.
