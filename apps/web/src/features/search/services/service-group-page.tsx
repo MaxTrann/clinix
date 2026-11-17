@@ -6,12 +6,14 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { useSelectedBranch } from '../../../shared/branch-selection';
+import { BookingStepper } from '../../../shared/ui/booking-stepper';
 import { EmptyState } from '../../../shared/ui/empty-state';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { getServiceGroups } from '../api/search-service';
 import type { ServiceGroupItem } from '../api/search-types';
 import { formatMoney } from '../format/money';
+import { GuestLoginBanner } from '../guest-login-banner';
 import { serviceListPath } from '../search-paths';
 import { useRemote } from '../../../shared/hooks/use-remote';
 import { PUBLIC_STEP_CONTAINER } from '../layout';
@@ -98,7 +100,8 @@ function GroupCard({
   );
 }
 
-// Bước 1 "Nhóm dịch vụ" (Figma 444:2, không có thanh bước). Lọc theo chi nhánh đang chọn.
+// Bước 1 "Nhóm dịch vụ" (Figma 444:2: thanh bước ở đầu trang). Lọc theo chi nhánh đang chọn.
+// Khách chưa đăng nhập thấy thêm dải nhắc đăng nhập dưới danh sách (Make; search UI PR-B).
 export function ServiceGroupPage() {
   const { selection } = useSelectedBranch();
   const branchId = selection?.chiNhanhId ?? null;
@@ -109,7 +112,10 @@ export function ServiceGroupPage() {
 
   return (
     <main className={PUBLIC_STEP_CONTAINER}>
-      <h1 className="text-2xl font-bold text-gray-900">Đặt lịch khám bệnh</h1>
+      <BookingStepper current={1} />
+      <h1 className="mt-8 text-2xl font-bold text-gray-900">
+        Đặt lịch khám bệnh
+      </h1>
       <p className="mt-1 text-gray-600">
         Chọn nhóm dịch vụ phù hợp với nhu cầu của bạn
       </p>
@@ -122,15 +128,18 @@ export function ServiceGroupPage() {
           <EmptyState message={SERVICE_GROUP_EMPTY_MESSAGE} />
         )}
         {state.status === 'ready' && state.data.items.length > 0 && (
-          <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {state.data.items.map((item, index) => (
-              <GroupCard
-                key={item.nhomDichVuId}
-                item={item}
-                Icon={ICONS[index % ICONS.length]}
-              />
-            ))}
-          </ul>
+          <>
+            <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {state.data.items.map((item, index) => (
+                <GroupCard
+                  key={item.nhomDichVuId}
+                  item={item}
+                  Icon={ICONS[index % ICONS.length]}
+                />
+              ))}
+            </ul>
+            <GuestLoginBanner />
+          </>
         )}
       </div>
     </main>

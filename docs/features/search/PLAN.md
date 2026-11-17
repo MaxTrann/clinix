@@ -484,7 +484,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 03/11/2026: *
 | ☑ | F2 | "Chi nhánh đang chọn": `shared/branch-selection/` (kho lưu + `try/catch`, `nearestBranch`, Geolocation), `BranchPicker` trên header, khởi tạo lần đầu (A2), chân trang hiện giờ của chi nhánh đang chọn | F1, B1 | TCCN TĐK, A2/*a–*c, b3 | `feat(web)` |
 | ☑ | F3 | Trang danh sách + chi tiết chi nhánh (giờ nhận khám 7 ngày, "Nghỉ", "Chọn làm chi nhánh của tôi"), tìm kiếm, rỗng A1 + "Xoá bộ lọc" | F2, B1 | TCCN b1–b6 (chi nhánh), A1/4a–4c | `[PHỤ THUỘC nhóm: frame Figma trang chi nhánh]` — trong lúc chờ làm theo bố cục Q8 · `feat(web)` |
 | ☑ | F4 | Trang "Chuyên khoa" (`217:2`) + đầu trang "Chi tiết chuyên khoa" (`259:2`: ảnh, tên, mô tả, số bác sĩ, giá từ), mặc định lọc theo chi nhánh đang chọn | F2, B2 | TCCN b1–b6 (chuyên khoa), A1 | `feat(web)` (dòng "giá từ" hiện khi B2 có `giaKhamTu`) |
-| ☑ | F5 | Luồng TCBS: nhóm dịch vụ (`444:2` không có thanh bước) → dịch vụ (`445:2`) → danh sách bác sĩ (`446:2` **không** khung giờ) với bộ lọc chi nhánh (điền sẵn chi nhánh đang chọn), tên, giá, đánh giá, sắp xếp; `DoctorCard`; rỗng A1 + quay lại chọn dịch vụ khác; huỷ yêu cầu cũ khi đổi bộ lọc | F1, F2, B3, B5 | TCBS b1–b6, b8 (tóm tắt), A1/6a–6c | `[CHỜ admin B12]` (qua B5) · `[PHỤ THUỘC nhóm: frame hai ô lọc giá/đánh giá]` — trong lúc chờ làm theo Q12 · `feat(web)` |
+| ☑ | F5 | Luồng TCBS: nhóm dịch vụ (`444:2`) → dịch vụ (`445:2`) → danh sách bác sĩ (`446:2` **không** khung giờ); **cả ba khung có thanh 6 bước ở đầu trang** (đã sửa dòng ghi nhầm "`444:2` không có thanh bước"; search UI PR-B, mục 7.14) với bộ lọc chi nhánh (điền sẵn chi nhánh đang chọn), tên, giá, đánh giá, sắp xếp; `DoctorCard`; rỗng A1 + quay lại chọn dịch vụ khác; huỷ yêu cầu cũ khi đổi bộ lọc | F1, F2, B3, B5 | TCBS b1–b6, b8 (tóm tắt), A1/6a–6c | `[CHỜ admin B12]` (qua B5) · `[PHỤ THUỘC nhóm: frame hai ô lọc giá/đánh giá]` — trong lúc chờ làm theo Q12 · `feat(web)` |
 | ☑ | F6 | "Đội ngũ bác sĩ" `/bac-si` (`260:2`, bỏ dải ngày) + danh sách bác sĩ trong "Chi tiết chuyên khoa", dùng lại `DoctorCard`/bộ lọc của F5 | F5, F4 | TCBS b4–b6, b8 (điểm vào khác — Q11) | `feat(web)` |
 | ☑ | F7 | Chi tiết bác sĩ `/bac-si/:id` (`653:2`–`657:2`): tab Giới thiệu, Phòng khám, Hướng dẫn (tĩnh), Đánh giá (chỉ điểm + số lượt — Q16); tab Lịch khám chừa chỗ `[SAU]`; "Nhắn tin" vô hiệu; bỏ "Đặt trước tối đa 7 ngày" | F5, B6 | TCBS b9 | `feat(web)` |
 | ☑ | F8 | Trang chủ thật (`257:2`) theo Q21; xoá `pages/home-page.tsx` và trang chủ tạm của F1, giữ hành vi không chuyển người đã đăng nhập | F1, F4, F5, B9 | Điểm vào TCCN b1, TCBS b1 | Triển khai/kiểm local 08/11/2026; chờ PR/review/merge (#175); xem TRACKING · `feat(web)` |
@@ -722,6 +722,23 @@ Sau khi Đại test tay Search 19/19 Đạt (17/11/2026): sáu điểm sửa G1 
 | UIA-06 | Sáu nút CTA cam | `bg-cta text-gray-900 hover:bg-cta-hover`; không `bg-amber-500`, không chữ trắng; `--color-cta` = amber-400 (`#ffb900`) | G1, Figma `257:2`, `257:68`, `259:88` | C |
 | UIA-07 | Số liệu hero | `text-amber-300`; nhãn không vàng | G2, Make `HomePage.tsx` 324 | C |
 | UIA-08 | Nền hero | Lớp `hero-gradient`; vùng chữ phẳng `#007595` tới `max(57%, 820px)`; màu lấy từ token | G3, Figma `257:2` | C |
+
+### 7.14 Thanh 6 bước và dải nhắc đăng nhập ở đặt lịch bước 1 đến 3 (UIB) — task "Search UI PR-B" (mã `UIB-nn` là `[đề xuất]`)
+
+Góp ý G7 (17/11/2026; kế hoạch, câu hỏi và kết quả ở TRACKING mục 8). Thanh bước chuyển từ `features/booking/wizard` lên `shared/ui` (T3, Trung đồng ý) và đổi hình học theo Figma `444:67` cho cả sáu bước (Đại chọn B). Dải nhắc đăng nhập CHỈ ở Bước 1, dưới danh sách thẻ: cả ba khung Figma `444:2`, `445:2`, `446:2` là bệnh nhân đã đăng nhập nên KHÔNG có dải; nguồn là Make `BookingWizard.tsx` dòng 1637 đến 1642 (Đại chọn, 17/11/2026). Mức W (`css: false`) cộng quét nguồn; kích thước thật đo bằng Chromium.
+
+| ID | Kịch bản | Mong đợi | Phủ | Loại |
+|---|---|---|---|---|
+| UIB-01 | Bước 1 (`/dat-lich`) | Thanh bước tên "Các bước đặt lịch", sáu nhãn Figma theo thứ tự; mục 1 đang thực hiện, mục 2 đến 6 chưa thực hiện; không liên kết nào | G7, Figma `444:67` | C |
+| UIB-02 | Bước 2 | Mục 2 đang thực hiện; mục 1 đã hoàn thành kèm liên kết "Quay lại bước 1: Nhóm dịch vụ" về `/dat-lich`; mục 3 đến 6 không liên kết | G7, Figma `445:2` | C |
+| UIB-03 | Bước 3 | Mục 3 đang thực hiện; liên kết bước 1 về `/dat-lich`, bước 2 về `/dat-lich/nhom/<id nhóm>`; mục 4 đến 6 không liên kết | G7, Figma `446:2` | C |
+| UIB-04 | Id nhóm lạ (`a/b`, `x y`, `100%`, `q?x=1&y=2#f`) ở Bước 3 | Liên kết bước 2 được mã hoá, giải mã lại đúng id, không vỡ URL | G7 | C |
+| UIB-05 | Thứ tự trong `main` | Bước 1: thanh bước, H1; Bước 2 và 3: thanh bước, liên kết "Chọn lại…" (`mt-8`), H1; đúng một H1 | G7, Figma `444:124` | C |
+| UIB-06 | Bước 1, khách, danh sách đã tải | Dải ngay sau danh sách, chữ nguyên văn của Make, "đăng nhập" là liên kết tới `LOGIN_PATH`; không `role`, không nút; token `bg-warning-soft`, `border-warning-line`, `text-amber-900` | G7, Make `BookingWizard.tsx` 1637 đến 1642 | C |
+| UIB-07 | Trạng thái phiên và trang | Dải KHÔNG hiện ở `checking`, `error`, đã đăng nhập (bốn vai trò), khi danh sách đang tải, lỗi hay rỗng, và ở Bước 2, 3; `checking` ⇒ `unauthenticated` thì hiện đúng một lần | G7, Đại chọn chỉ Bước 1 | C |
+| UIB-08 | Kiến trúc | `features/search` không import `features/booking`; `shared/ui/booking-stepper.tsx` và `wizard-steps.ts` không import `features/`; có đối chứng bắt mẫu xấu và không báo nhầm mẫu lành (BWZ-08 chỉ khoá chiều ngược lại) | T3 | C |
+| UIB-09 | Hình học thanh bước theo Figma (khoá tên lớp) | Năm mục đầu `flex-[147_0_0]`, mục cuối 75 px; ô vòng và nhãn 75 px; vòng `size-9`, đang chọn viền 1,6 px và vành là bóng `shadow-[0_0_0_4px_var(--color-cyan-100)]` (không dùng `ring-*`: FG-05 cấm); nhãn `text-[13px]` dòng 16,25, đang chọn đậm `text-cyan-800`; đường nối `bg-brand` khi đã qua, `bg-gray-200` khi chưa; không có đường nối ở mục cuối | Đại chọn B, Figma `444:67`, `446:67` | C |
+| BWZ-03, WZ-14 | Thanh bước (booking F3) | GIỮ NGUYÊN 5 ca, chỉ chuyển file sang `shared/ui/booking-stepper.test.tsx` | booking F3 | C |
 
 ## 8. Gom cụm (nhóm đồng ý 03/11/2026; cụm 4 xếp sau cùng)
 

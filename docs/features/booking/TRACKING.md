@@ -2234,8 +2234,8 @@ features/booking/
   api/booking-types.ts        # EligibilityResult (F4 đến F7 thêm kiểu của relatives, checks, appointments)
   api/booking-service.ts      # getEligibility(signal) gọi request('booking/eligibility')
   api/booking-errors.ts       # hằng mã lỗi FE dùng + bookingErrorMessage(error) theo maLoi (F5 thêm mã 5.14)
-  wizard/wizard-steps.ts      # 6 nhãn Figma, kiểu StepNumber (hằng thuần)
-  wizard/booking-stepper.tsx  # BookingStepper({ current, links? })
+  shared/ui/wizard-steps.ts      # 6 nhãn Figma, kiểu StepNumber (hằng thuần); chuyển từ wizard/ ở search UI PR-B (17/11/2026)
+  shared/ui/booking-stepper.tsx  # BookingStepper({ current, links? }); chuyển từ wizard/, hình học theo Figma 444:67 (search UI PR-B)
   wizard/booking-wizard-layout.tsx  # khung chung: BookingDraftProvider + stepper + Outlet
   wizard/booking-draft-context.tsx  # context BỘ NHỚ: { khungGioId, hoSoNguoiThanId, lyDoKham } (Q38)
   wizard/slot-id.ts           # readSlotId(searchParams): luật như isBigintId của backend

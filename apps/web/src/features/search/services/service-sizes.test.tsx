@@ -112,7 +112,10 @@ describe('Đặt lịch bước 1 "Nhóm dịch vụ" theo Figma 444:2 (UIS-11)'
     expect(h1).not.toHaveClass('font-semibold');
     expect(screen.getByText(/Chọn nhóm dịch vụ phù hợp/)).toHaveClass('mt-1');
     await screen.findByText('Khám chuyên khoa');
-    const grid = screen.getByRole('list');
+    // Từ search UI PR-B trang có thêm danh sách `ol` của thanh bước nên lấy lưới theo thẻ nhóm, không theo vai trò `list`
+    const grid = screen
+      .getByText('Khám chuyên khoa')
+      .closest('ul') as HTMLElement;
     expect(grid.parentElement).toHaveClass('mt-6');
     expect(grid).toHaveClass('grid', 'gap-4', 'md:grid-cols-3');
     expect(grid).not.toHaveClass('gap-5');

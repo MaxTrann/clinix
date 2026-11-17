@@ -1,10 +1,11 @@
 import { ChevronLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '../../../shared/api/errors';
+import { BookingStepper } from '../../../shared/ui/booking-stepper';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { getServices } from '../api/search-service';
-import { serviceListPath } from '../search-paths';
+import { BOOKING_PATH, serviceListPath } from '../search-paths';
 import { useRemote } from '../../../shared/hooks/use-remote';
 import { DoctorFilters } from './doctor-filters';
 import {
@@ -17,6 +18,7 @@ import { PUBLIC_STEP_CONTAINER } from '../layout';
 export const SERVICE_NOT_FOUND_MESSAGE = 'Không tìm thấy dịch vụ này.';
 
 // Bước 3 "Bác sĩ" (Figma 446:2, không khung giờ): bác sĩ nhận dịch vụ đã chọn + bộ lọc. Tên dịch vụ lấy từ danh sách của nhóm.
+// Thanh bước nối được Bước 1 và Bước 2: đường dẫn Bước 3 mang cả id nhóm lẫn id dịch vụ.
 export function DoctorListPage() {
   const { groupId = '', serviceId = '' } = useParams();
   const search = useDoctorSearch({ dichVuKhamId: serviceId });
@@ -42,9 +44,13 @@ export function DoctorListPage() {
 
   return (
     <main className={PUBLIC_STEP_CONTAINER}>
+      <BookingStepper
+        current={3}
+        links={{ 1: BOOKING_PATH, 2: serviceListPath(groupId) }}
+      />
       <Link
         to={serviceListPath(groupId)}
-        className="-ml-2 inline-flex min-h-12 items-center gap-1.5 px-2 text-base font-medium text-gray-700 hover:underline"
+        className="mt-8 -ml-2 inline-flex min-h-12 items-center gap-1.5 px-2 text-base font-medium text-gray-700 hover:underline"
       >
         <ChevronLeft className="size-4" aria-hidden="true" />
         Chọn lại dịch vụ khám
