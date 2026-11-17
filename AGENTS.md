@@ -91,6 +91,7 @@ Tiêu đề ≤ 100 ký tự. PR cần **người còn lại approve** và CI xa
 - Đừng sửa file thuộc module của người kia nếu không cần; cần thì nói trước. Chỗ **dùng chung dễ xung đột**: `docs/database/*`, `.env.example`, `docker-compose*.yml`,
   `.github/workflows/*`, `apps/web/nginx.conf`, `package.json`/lock. Giữ PR nhỏ, `git pull` bản mới trước khi bắt đầu, và báo người kia khi đổi các file này.
 - Phối hợp thứ tự migration/đổi schema với `auth` (plan admin mục 3.3, 6.6).
+- **Phần admin còn lại (cụm 4 đến 9, milestone `admin`)**: Đại và Trung cùng làm theo `docs/features/admin/PHAN_CONG_CHUNG.md` (chia task, thư mục riêng, file dùng chung, cách giảm xung đột); đọc trước khi chạm module `admin`.
 
 ## 7. Những lỗi AI đã từng mắc ở repo này (đừng lặp lại)
 
