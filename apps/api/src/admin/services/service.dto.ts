@@ -22,12 +22,11 @@ const isPositiveBigint = (value: unknown): boolean =>
   /^[1-9]\d{0,18}$/u.test(value) &&
   BigInt(value) <= 9223372036854775807n;
 
-const isPositiveDecimal = (value: unknown): boolean => {
-  if (typeof value !== 'string' || !/^\d{1,10}(?:\.\d{1,2})?$/u.test(value))
-    return false;
-  const [whole, fraction = ''] = value.split('.');
-  return BigInt(`${whole}${fraction.padEnd(2, '0')}`) > 0n;
-};
+// Giá là số nguyên đồng (PR3 Admin Catalog, khớp ô giá của web): 1 đến 10 chữ số ASCII, không số 0 đứng đầu, nên luôn ≥ 1 và
+// ≤ 9.999.999.999, vừa cột `decimal(12,2)`. Không nhận phần lẻ kể cả ".00"; giá cũ có phần lẻ trong DB vẫn đọc ra đúng như DB.
+const WHOLE_AMOUNT = /^[1-9][0-9]{0,9}$/u;
+const isPositiveWholeAmount = (value: unknown): boolean =>
+  typeof value === 'string' && WHOLE_AMOUNT.test(value);
 
 export class CreateServiceDto {
   @ValidateBy({
@@ -51,9 +50,9 @@ export class CreateServiceDto {
 
   @IsString({ message: 'GIA_MAC_DINH_KHONG_HOP_LE' })
   @ValidateBy({
-    name: 'isPositiveDecimal',
+    name: 'isPositiveWholeAmount',
     validator: {
-      validate: isPositiveDecimal,
+      validate: isPositiveWholeAmount,
       defaultMessage: () => 'GIA_MAC_DINH_KHONG_HOP_LE',
     },
   })
@@ -86,9 +85,9 @@ export class UpdateServiceDto {
   @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString({ message: 'GIA_MAC_DINH_KHONG_HOP_LE' })
   @ValidateBy({
-    name: 'isPositiveDecimal',
+    name: 'isPositiveWholeAmount',
     validator: {
-      validate: isPositiveDecimal,
+      validate: isPositiveWholeAmount,
       defaultMessage: () => 'GIA_MAC_DINH_KHONG_HOP_LE',
     },
   })

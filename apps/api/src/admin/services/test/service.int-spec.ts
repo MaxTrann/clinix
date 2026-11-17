@@ -33,7 +33,7 @@ describe('B3 DV — MySQL thật', () => {
       nhomDichVuId,
       ten,
       thoiLuong: 30,
-      giaMacDinh: '100.00',
+      giaMacDinh: '100000',
       ...overrides,
     });
   const shiftedDay = (offset: number): string => {
@@ -58,7 +58,7 @@ describe('B3 DV — MySQL thật', () => {
   it('DV-07/08/09/10/11: tạo đủ field, nhóm không tồn tại trả400', async () => {
     const row = await create(' Khám\t tổng quát ', groupId, {
       thoiLuong: 45,
-      giaMacDinh: '250.50',
+      giaMacDinh: '250500',
     });
     expect(row).toMatchObject({
       dichVuKhamId: expect.any(String),
@@ -66,7 +66,7 @@ describe('B3 DV — MySQL thật', () => {
       tenNhom: expect.any(String),
       ten: 'Khám tổng quát',
       thoiLuong: 45,
-      giaMacDinh: '250.50',
+      giaMacDinh: '250500.00',
     });
     await expect(
       create('Nhóm thiếu', '9223372036854775807'),
@@ -178,9 +178,9 @@ describe('B3 DV — MySQL thật', () => {
     await expect(
       service.update(system, doctor.profile.dichVuKhamId, {
         ten: 'Tên được sửa',
-        giaMacDinh: '200.00',
+        giaMacDinh: '200000',
       }),
-    ).resolves.toMatchObject({ ten: 'Tên được sửa', giaMacDinh: '200.00' });
+    ).resolves.toMatchObject({ ten: 'Tên được sửa', giaMacDinh: '200000.00' });
     const snapshots: { giaSnapshot: string; giaMacDinh: string }[] =
       await db.query(
         'SELECT h.gia_snapshot AS giaSnapshot, s.gia_mac_dinh AS giaMacDinh FROM lich_hen h INNER JOIN dich_vu_kham s ON s.dich_vu_kham_id=h.dich_vu_kham_id WHERE h.lich_hen_id=?',
@@ -188,7 +188,7 @@ describe('B3 DV — MySQL thật', () => {
       );
     expect(snapshots[0]).toEqual({
       giaSnapshot: '123.45',
-      giaMacDinh: '200.00',
+      giaMacDinh: '200000.00',
     });
   });
 
@@ -233,13 +233,49 @@ describe('B3 DV — MySQL thật', () => {
     await expect(
       service.update(system, row.dichVuKhamId, {
         ten: 'Không lưu',
-        giaMacDinh: '999.00',
+        giaMacDinh: '999000',
       }),
     ).rejects.toThrow('B3 rollback');
     await expect(service.get(system, row.dichVuKhamId)).resolves.toMatchObject({
       ten: 'Giữ nguyên',
-      giaMacDinh: '100.00',
+      giaMacDinh: '100000.00',
     });
+  });
+
+  // PR3-A03: giá là số nguyên đồng ở API, cột vẫn decimal(12,2). Giá cũ có phần lẻ (nhập tay hay từ luật cũ) vẫn đọc ra đúng như DB.
+  it('PR3-A03: lưu giá số nguyên ra decimal(12,2); giá cũ có phần lẻ đọc nguyên văn, sửa tên không đụng, sửa giá thành số nguyên', async () => {
+    const created = await create('Giá nguyên', groupId, {
+      giaMacDinh: '150000',
+    });
+    expect(created.giaMacDinh).toBe('150000.00');
+
+    const legacy = await create('Giá cũ lẻ');
+    await db.query(
+      'UPDATE dich_vu_kham SET gia_mac_dinh=? WHERE dich_vu_kham_id=?',
+      ['350000.50', legacy.dichVuKhamId],
+    );
+    await expect(
+      service.get(system, legacy.dichVuKhamId),
+    ).resolves.toMatchObject({ giaMacDinh: '350000.50' });
+    expect(
+      (await service.list(system, query({ q: 'Giá cũ lẻ' }))).items,
+    ).toMatchObject([{ giaMacDinh: '350000.50' }]);
+
+    // Sửa tên mà KHÔNG gửi giá: không bắt nhập lại, giá lẻ cũ giữ nguyên
+    await expect(
+      service.update(system, legacy.dichVuKhamId, { ten: 'Giá cũ lẻ đổi tên' }),
+    ).resolves.toMatchObject({
+      ten: 'Giá cũ lẻ đổi tên',
+      giaMacDinh: '350000.50',
+    });
+    // Gửi giá số nguyên mới thì ghi đè
+    await expect(
+      service.update(system, legacy.dichVuKhamId, { giaMacDinh: '350001' }),
+    ).resolves.toMatchObject({ giaMacDinh: '350001.00' });
+    // Biên lớn nhất của luật (10 chữ số) vừa cột decimal(12,2)
+    await expect(
+      create('Biên lớn', groupId, { giaMacDinh: '9999999999' }),
+    ).resolves.toMatchObject({ giaMacDinh: '9999999999.00' });
   });
 
   it('DV-07/13: bigint ID lớn hơn Number.MAX_SAFE_INTEGER được giữ nguyên', async () => {

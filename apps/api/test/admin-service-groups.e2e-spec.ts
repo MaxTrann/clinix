@@ -105,7 +105,18 @@ describe('B2 DV — HTTP AppModule/auth/C1/MySQL thật', () => {
       { nhomDichVuId: '2' },
     ])
       expectErrorResponse(await patch(id, input), 400, 'DU_LIEU_KHONG_HOP_LE');
-    for (const badId of ['0', '-1', 'abc', '9223372036854775808']) {
+    // Bài học K3: MySQL ép '1abc', ' 2', '1e0', '3.0', '01' về số nên id phải bị chặn ở DTO, không tới câu SQL
+    for (const badId of [
+      '0',
+      '-1',
+      'abc',
+      '9223372036854775808',
+      '1abc',
+      ' 2',
+      '1e0',
+      '3.0',
+      '01',
+    ]) {
       expectErrorResponse(
         await patch(badId, { ten: 'X' }),
         400,
@@ -247,6 +258,47 @@ describe('B2 DV — HTTP AppModule/auth/C1/MySQL thật', () => {
       items: [{ ten: 'C 50%_!' }],
     });
   });
+  // PR3-A06: GET danh sách có soDichVu (số), cả hai phạm vi Admin thấy cùng số; POST vẫn trả đúng ba khoá
+  it('PR3-A06: GET trả soDichVu kiểu số (0 cho nhóm rỗng), Admin Chi nhánh thấy cùng số, POST không có soDichVu', async () => {
+    const empty = await post({ ten: 'Rỗng', thuTuHienThi: 0 }).expect(201);
+    expect(Object.keys(empty.body).sort()).toEqual([
+      'nhomDichVuId',
+      'ten',
+      'thuTuHienThi',
+    ]);
+    const used = await post({ ten: 'Có hai dịch vụ', thuTuHienThi: 1 }).expect(
+      201,
+    );
+    for (const ten of ['Mẫu 1', 'Mẫu 2'])
+      await db.query(
+        'INSERT INTO dich_vu_kham (nhom_dich_vu_id,ten,thoi_luong,gia_mac_dinh) VALUES (?, ?, 30,100)',
+        [used.body.nhomDichVuId, ten],
+      );
+
+    const listed = (await get().expect(200)).body;
+    expect(listed).toEqual({
+      items: [
+        {
+          nhomDichVuId: empty.body.nhomDichVuId,
+          ten: 'Rỗng',
+          thuTuHienThi: 0,
+          soDichVu: 0,
+        },
+        {
+          nhomDichVuId: used.body.nhomDichVuId,
+          ten: 'Có hai dịch vụ',
+          thuTuHienThi: 1,
+          soDichVu: 2,
+        },
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    });
+    for (const item of listed.items)
+      expect(typeof item.soDichVu).toBe('number');
+    expect((await get(branchToken).expect(200)).body).toEqual(listed);
+  });
   it('DV-04/05: lỗi DB sau DELETE rollback, HTTP không lộ lỗi gốc', async () => {
     const row = await post({ ten: 'Giữ' }).expect(201);
     const repo = app.get(ServiceGroupRepository),
@@ -258,6 +310,7 @@ describe('B2 DV — HTTP AppModule/auth/C1/MySQL thật', () => {
     const response = await remove(String(row.body.nhomDichVuId));
     expectErrorResponse(response, 500, 'LOI_HE_THONG');
     expect(JSON.stringify(response.body)).not.toContain('B2 injected');
-    expect((await get()).body.items).toEqual([row.body]);
+    // Danh sách có thêm `soDichVu` (PR3); nhóm này không có dịch vụ nên là 0
+    expect((await get()).body.items).toEqual([{ ...row.body, soDichVu: 0 }]);
   });
 });

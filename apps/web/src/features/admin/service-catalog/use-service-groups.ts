@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RequestAbortedError } from '../../../shared/api/errors';
 import { listServiceGroups } from './service-catalog-service';
-import type { PagedResult, ServiceGroup } from './service-catalog-types';
+import type {
+  PagedResult,
+  ServiceGroupListItem,
+} from './service-catalog-types';
 
 export type CatalogListState<T> =
   | { status: 'loading' }
@@ -12,12 +15,12 @@ export function useServiceGroups(
   page: number,
   pageSize: number,
   query: string,
-): { state: CatalogListState<ServiceGroup>; retry: () => void } {
+): { state: CatalogListState<ServiceGroupListItem>; retry: () => void } {
   const [attempt, setAttempt] = useState(0);
   const requestKey = `${page}|${pageSize}|${query}|${attempt}`;
   const [result, setResult] = useState<{
     key: string;
-    state: CatalogListState<ServiceGroup>;
+    state: CatalogListState<ServiceGroupListItem>;
   }>({
     key: '',
     state: { status: 'loading' },

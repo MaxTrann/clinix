@@ -14,7 +14,7 @@ const FIELD_MESSAGES: Record<string, string> = {
   NHOM_DICH_VU_ID_KHONG_HOP_LE: 'Vui lòng chọn nhóm dịch vụ hợp lệ.',
   TEN_DICH_VU_KHONG_HOP_LE: 'Tên dịch vụ cần có từ 1 đến 100 ký tự.',
   THOI_LUONG_KHONG_HOP_LE: 'Thời lượng phải là số nguyên dương.',
-  // Web chỉ gửi số nguyên đồng; API tới PR3 vẫn nhận phần lẻ nên câu này chưa phản ánh hết luật của API (TRACKING admin 6.9)
+  // Web chỉ gửi số nguyên đồng và API (từ PR3) cũng từ chối phần lẻ, nên câu này khớp luật ở cả hai phía (TRACKING admin 8.1)
   GIA_MAC_DINH_KHONG_HOP_LE: 'Giá phải là số nguyên đồng lớn hơn 0.',
 };
 

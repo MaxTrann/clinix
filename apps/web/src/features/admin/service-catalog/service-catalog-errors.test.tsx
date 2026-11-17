@@ -7,7 +7,10 @@ import {
 } from '@testing-library/react';
 import { AdminMeProvider } from '../admin-me-context';
 import { ServiceCatalogPage } from './service-catalog-page';
-import type { ServiceCatalogItem, ServiceGroup } from './service-catalog-types';
+import type {
+  ServiceCatalogItem,
+  ServiceGroupListItem,
+} from './service-catalog-types';
 
 // AF3-10 và AF3-04/05 ở mức cả trang (admin PR2 mục 6.2, 6.3): lỗi máy chủ chỉ hiện MỘT chỗ qua đường thật (tab → form → API client),
 // giá gửi lên API là chuỗi chữ số thuần, và các ca không được im lặng.
@@ -19,9 +22,9 @@ function response(body: unknown, status = 200): Response {
   });
 }
 
-const groups: ServiceGroup[] = [
-  { nhomDichVuId: '1', ten: 'Khám tổng quát', thuTuHienThi: 1 },
-  { nhomDichVuId: '2', ten: 'Xét nghiệm', thuTuHienThi: 2 },
+const groups: ServiceGroupListItem[] = [
+  { nhomDichVuId: '1', ten: 'Khám tổng quát', thuTuHienThi: 1, soDichVu: 1 },
+  { nhomDichVuId: '2', ten: 'Xét nghiệm', thuTuHienThi: 2, soDichVu: 0 },
 ];
 
 const service: ServiceCatalogItem = {
@@ -266,6 +269,70 @@ describe('Dịch vụ khám: lỗi một chỗ, giá nguyên đồng (AF3-04, AF
       await screen.findByText('Tên dịch vụ đã tồn tại trong nhóm này.'),
     ).toBeInTheDocument();
     expect(alertTexts()).toEqual(['Tên dịch vụ đã tồn tại trong nhóm này.']);
+  });
+
+  // PR3-W04: API (PR3) từ chối giá có phần lẻ. Nếu vẫn trả GIA_MAC_DINH_KHONG_HOP_LE cho giá mà web đã gửi đúng chuỗi chữ số thì lỗi phải
+  // hiện MỘT chỗ dưới ô giá (không banner) ở cả đường tạo lẫn đường sửa, và giá người dùng đã nhập không bị mất.
+  const PRICE_TEXT = 'Giá phải là số nguyên đồng lớn hơn 0.';
+  const priceRejected = () =>
+    error(400, 'DU_LIEU_KHONG_HOP_LE', [
+      { truong: 'giaMacDinh', ma: 'GIA_MAC_DINH_KHONG_HOP_LE' },
+    ]);
+
+  it('PR3-W04 tạo dịch vụ: API trả lỗi giá ⇒ một vùng báo dưới ô giá, ô giá aria-invalid, không banner, giá còn nguyên', async () => {
+    route((_url, method) => (method === 'POST' ? priceRejected() : undefined));
+    await openServicesTab();
+    fireEvent.click(screen.getByTestId('AF3-add-service'));
+    fireEvent.change(screen.getByLabelText(/Tên dịch vụ/), {
+      target: { value: 'Siêu âm' },
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: /Nhóm dịch vụ/ }), {
+      target: { value: '2' },
+    });
+    fireEvent.change(screen.getByLabelText(/Thời lượng/), {
+      target: { value: '20' },
+    });
+    fireEvent.change(screen.getByLabelText(/Giá mặc định/), {
+      target: { value: '150.000' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Lưu dịch vụ/ }));
+
+    expect(await screen.findByText(PRICE_TEXT)).toBeInTheDocument();
+    expect(alertTexts()).toEqual([PRICE_TEXT]);
+    const price = screen.getByLabelText(/Giá mặc định/);
+    expect(price).toHaveAttribute('aria-invalid', 'true');
+    expect(price).toHaveAccessibleDescription(
+      expect.stringContaining(PRICE_TEXT),
+    );
+    expect(price).toHaveValue('150.000');
+    const [, init] = callsWith('POST')[0] ?? [];
+    expect(JSON.parse(String(init?.body)).giaMacDinh).toBe('150000');
+  });
+
+  it('PR3-W04 sửa dịch vụ: API trả lỗi giá ⇒ một vùng báo dưới ô giá, ô giá aria-invalid, không banner, giá còn nguyên', async () => {
+    route((_url, method) => (method === 'PATCH' ? priceRejected() : undefined));
+    await openServicesTab();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Sửa Khám nội tổng quát' }),
+    );
+    const form = screen.getByRole('form', { name: 'Chỉnh sửa dịch vụ khám' });
+    fireEvent.change(within(form).getByLabelText(/Giá mặc định/), {
+      target: { value: '350.000' },
+    });
+
+    fireEvent.click(within(form).getByRole('button', { name: /Lưu dịch vụ/ }));
+
+    expect(await screen.findByText(PRICE_TEXT)).toBeInTheDocument();
+    expect(alertTexts()).toEqual([PRICE_TEXT]);
+    const price = within(form).getByLabelText(/Giá mặc định/);
+    expect(price).toHaveAttribute('aria-invalid', 'true');
+    expect(price).toHaveAccessibleDescription(
+      expect.stringContaining(PRICE_TEXT),
+    );
+    expect(price).toHaveValue('350.000');
+    const [, init] = callsWith('PATCH')[0] ?? [];
+    expect(JSON.parse(String(init?.body)).giaMacDinh).toBe('350000');
   });
 
   it('AF3-10 mất kết nối khi lưu: banner là chỗ duy nhất', async () => {

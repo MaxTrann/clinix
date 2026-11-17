@@ -11,6 +11,11 @@ export interface ServiceGroup {
   thuTuHienThi: number;
 }
 
+// Một dòng của DANH SÁCH nhóm: thêm số dịch vụ khám thuộc nhóm (POST/PATCH nhóm chỉ trả `ServiceGroup`)
+export interface ServiceGroupListItem extends ServiceGroup {
+  soDichVu: number;
+}
+
 export interface ServiceCatalogItem {
   dichVuKhamId: string;
   nhomDichVuId: string;

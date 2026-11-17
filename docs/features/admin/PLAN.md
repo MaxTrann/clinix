@@ -480,10 +480,15 @@ Mọi endpoint ghi chạy trong **một** giao dịch ở tầng service; DTO `w
 **Contract B2 đã triển khai local ngày 31/10/2026** (người dùng duyệt tại `working-doc/B2/plan.md`, issue #56):
 
 - `GET /admin/service-groups` cho hai phạm vi Admin: `page,pageSize` theo P6, `q?` trim tối đa 200 ký tự tìm tên với escape `%`, `_`, `!`; sắp `thu_tu_hien_thi ASC,ten ASC,nhom_dich_vu_id ASC`, items/total cùng snapshot; trả `{items,total,page,pageSize}`.
-- ServiceGroup chỉ gồm `{nhomDichVuId,ten,thuTuHienThi}`; ID bigint dạng chuỗi. POST nhận `{ten,thuTuHienThi?}`, mặc định thứ tự 0, trả 201 ServiceGroup. PATCH `/:id` nhận một hoặc nhiều trường `{ten?,thuTuHienThi?}`, trả 200 ServiceGroup. Bỏ trường khi PATCH giữ giá trị cũ.
+- ServiceGroup chỉ gồm `{nhomDichVuId,ten,thuTuHienThi}` (riêng dòng của danh sách `GET` có thêm `soDichVu` từ admin PR3, xem đoạn "Cập nhật hợp đồng B2/B3 ở admin PR3" ngay dưới); ID bigint dạng chuỗi. POST nhận `{ten,thuTuHienThi?}`, mặc định thứ tự 0, trả 201 ServiceGroup. PATCH `/:id` nhận một hoặc nhiều trường `{ten?,thuTuHienThi?}`, trả 200 ServiceGroup. Bỏ trường khi PATCH giữ giá trị cũ.
 - Tên trim/gộp khoảng trắng, 1–100 ký tự; DB so trùng theo `utf8mb4_unicode_ci`. Thứ tự là JSON number nguyên 0…2147483647. Null/chuỗi số/PATCH rỗng/trường lạ bị 400 `DU_LIEU_KHONG_HOP_LE`.
 - POST/PATCH/DELETE chỉ Toàn hệ thống, kiểm lại scope tại service. DELETE nhóm rỗng trả 204 không body; PATCH/DELETE ID hợp lệ không tồn tại (kể cả xóa lặp) trả 404 `KHONG_TIM_THAY`; ID sai trả 400. Nhóm còn dịch vụ: 409 `NHOM_DICH_VU_CON_DICH_VU`; trùng tên: 409 `TEN_NHOM_DICH_VU_TRUNG`; auth 401/403 theo contract chung.
 - Ghi trong transaction; sửa/xóa khóa nhóm, UNIQUE chống race tên và FK chống dịch vụ mồ côi; không nhận trạng thái, không thêm audit action, schema hoặc endpoint detail ngoài scope B2. D2 Word và F3 còn nghiệm thu riêng.
+
+**Cập nhật hợp đồng B2/B3 ở admin PR3 (17/11/2026, Đại chốt; không đổi schema, không migration):**
+
+- `GET /admin/service-groups`: mỗi dòng của `items` thêm `soDichVu` (số nguyên ≥ 0 = số dịch vụ khám thuộc nhóm, nhóm rỗng ra 0, đếm mọi dịch vụ vì `dich_vu_kham` không có cờ hoạt động). Đếm trong CÙNG câu SQL có `LIMIT` (`LEFT JOIN` + `COUNT(d.dich_vu_kham_id)`, không N+1); `total` vẫn là số NHÓM. `POST`/`PATCH` nhóm vẫn trả `{nhomDichVuId,ten,thuTuHienThi}`, không có `soDichVu`; không có `GET /:id` của nhóm.
+- B3 `giaMacDinh` là chuỗi SỐ NGUYÊN đồng khớp `^[1-9][0-9]{0,9}$` (1 đến 9.999.999.999, vừa `decimal(12,2)`), cho cả `POST` và `PATCH`; phần lẻ kể cả `.00`, số 0 đứng đầu, `0`, âm, chữ, khoảng trắng, số JSON đều bị 400 `DU_LIEU_KHONG_HOP_LE` kèm `loi[{truong:'giaMacDinh',ma:'GIA_MAC_DINH_KHONG_HOP_LE'}]`. `PATCH` không gửi `giaMacDinh` thì không đụng giá; giá cũ có phần lẻ trong DB đọc ra đúng như DB (không migration). `[ĐỒNG BỘ TL]` use case 2.4 và test case Word `DV b4` (biên 0,01 cũ) ở repo `TLCN_CLINIX`.
 
 **Contract B4 đã chốt với người dùng ngày 01/11/2026** (issue #58; chi tiết `working-doc/B4/plan.md`):
 
@@ -848,7 +853,7 @@ Ca có `[Qn]` phụ thuộc điểm còn mở — mong đợi là đề xuất. 
 | DV-07 | Tạo dịch vụ hợp lệ | Có dòng; `muc_dat_coc = 0` mặc định | DV b4–b5 | I |
 | DV-08 | Nhóm không tồn tại / nhóm id âm / null | `NHOM_DICH_VU_KHONG_TON_TAI` | DV A1/4a | I |
 | DV-09 | Tên dịch vụ rỗng / chỉ khoảng trắng | 400 | DV A1/4a | U |
-| DV-10 | Giá: 0, âm, không phải số, vượt `decimal(12,2)`, > 2 chữ số thập phân; biên 0,01 | Không hợp lệ ⇒ 400; biên hợp lệ qua | DV b4 | U |
+| DV-10 | Giá là SỐ NGUYÊN đồng (đổi ở admin PR3, 17/11/2026): 0, âm, không phải số, có phần lẻ (kể cả `.00`), số 0 đứng đầu, quá 10 chữ số; biên 1 và 9999999999 | Không hợp lệ ⇒ 400 `DU_LIEU_KHONG_HOP_LE` kèm `loi[].ma = GIA_MAC_DINH_KHONG_HOP_LE`; biên hợp lệ qua | DV b4 `[ĐỒNG BỘ TL]` (Word còn ghi biên 0,01) | U |
 | DV-11 | Thời lượng: 0, âm, 30,5, chuỗi, rất lớn; biên 1 | Không hợp lệ ⇒ 400; 1 hợp lệ | DV b4 | U |
 | DV-12 | Sửa giá dịch vụ khi đã có lịch hẹn | `lich_hen.gia_snapshot` **không đổi** | DV hậu điều kiện; mô tả | I |
 | DV-13 | Đổi nhóm của dịch vụ | Thành công; quan hệ cập nhật | DV b5 | I |

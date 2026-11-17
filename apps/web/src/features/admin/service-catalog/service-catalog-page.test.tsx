@@ -1,8 +1,14 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import type { AdminMe } from '../admin-me';
 import { AdminMeProvider } from '../admin-me-context';
 import { ServiceCatalogPage } from './service-catalog-page';
-import type { ServiceGroup } from './service-catalog-types';
+import type { ServiceGroupListItem } from './service-catalog-types';
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -11,12 +17,12 @@ function response(body: unknown, status = 200): Response {
   });
 }
 
-const groups: ServiceGroup[] = [
-  { nhomDichVuId: '1', ten: 'Khám tổng quát', thuTuHienThi: 1 },
-  { nhomDichVuId: '2', ten: 'Xét nghiệm', thuTuHienThi: 2 },
+const groups: ServiceGroupListItem[] = [
+  { nhomDichVuId: '1', ten: 'Khám tổng quát', thuTuHienThi: 1, soDichVu: 3 },
+  { nhomDichVuId: '2', ten: 'Xét nghiệm', thuTuHienThi: 2, soDichVu: 0 },
 ];
 
-function page(items: ServiceGroup[]) {
+function page(items: ServiceGroupListItem[]) {
   return { items, total: items.length, page: 1, pageSize: 20 };
 }
 
@@ -26,6 +32,14 @@ function renderPage(scope: AdminMe = { phamVi: 'ToanHeThong' }) {
       <ServiceCatalogPage />
     </AdminMeProvider>,
   );
+}
+
+// Chữ của cột "Số dịch vụ" (ô thứ hai) ở từng dòng dữ liệu của bảng nhóm
+function serviceCounts(): (string | null)[] {
+  return screen
+    .getAllByRole('row')
+    .slice(1)
+    .map((row) => within(row).getAllByRole('cell')[1]?.textContent ?? null);
 }
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -40,7 +54,7 @@ afterEach(() => {
 });
 
 describe('ServiceCatalogPage (F3)', () => {
-  it('AF3-01 hiển thị hai tab và danh sách nhóm; số dịch vụ để trống khi API chưa trả', async () => {
+  it('AF3-01 hiển thị hai tab và danh sách nhóm kèm số dịch vụ thật của từng nhóm', async () => {
     fetchMock.mockResolvedValueOnce(response(page(groups)));
     renderPage();
 
@@ -50,8 +64,9 @@ describe('ServiceCatalogPage (F3)', () => {
       'true',
     );
     expect(screen.getByRole('tab', { name: /Dịch vụ khám/ })).toBeVisible();
-    // B2 chưa trả số dịch vụ theo nhóm: ô hiện "—", không bịa số
-    expect(screen.getAllByText('—')).toHaveLength(groups.length);
+    // PR3: API trả `soDichVu`, ô hiện số thật (không còn "—")
+    expect(serviceCounts()).toEqual(['3', '0']);
+    expect(screen.queryByText('—')).toBeNull();
     expect(
       screen.getByRole('button', { name: /Thêm nhóm/ }),
     ).toBeInTheDocument();
@@ -67,7 +82,12 @@ describe('ServiceCatalogPage (F3)', () => {
         response(
           page([
             ...groups,
-            { nhomDichVuId: '3', ten: 'Tầm soát', thuTuHienThi: 3 },
+            {
+              nhomDichVuId: '3',
+              ten: 'Tầm soát',
+              thuTuHienThi: 3,
+              soDichVu: 0,
+            },
           ]),
         ),
       );

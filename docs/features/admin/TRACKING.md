@@ -372,3 +372,187 @@ Khoảng 8 đến 9 giờ làm việc: test + mã 5 đến 6 giờ, đột biế
 ### 6.14 Việc còn nợ
 
 Quy tắc focus toàn cục (TECH_DEBT 169); PR3 (`soDichVu`, giá số nguyên ở API, từ chối phần lẻ, ép số nguyên cho khớp chữ `GIA_MAC_DINH_KHONG_HOP_LE`); sửa lịch chi nhánh đã có (F6b) nên dùng lại `TimeInput24` và panel Áp dụng nhanh; nhắc sửa Figma ở 6.8 và đổi kỳ vọng test case của Trung ở 6.9; Đã ghi (Đại đồng ý 16/11/2026, `origin/main` lúc ghi: TECH_DEBT 169, AI log 135, AI-BUG-053; chèn theo số, không đè dòng 167, 133 của B7 hay 168, 134 của F6): `docs/TECH_DEBT.md` dòng 170, `AI_USAGE_LOG.md` hàng 136, AI-BUG-054 (sự cố ghi rỗng file) và AI-BUG-055 (dải trống CSS); đối chiếu lại `origin/main` ngay trước khi merge vì nhánh này chưa có commit B7 (#488) và payment P2 (#486); `[cần điền]` số PR và hash commit.
+
+## 8. Số dịch vụ theo nhóm và giá số nguyên ở API (PR3, 17/11/2026) — mã, test và đo đã xong; hàng AI log 138 do phiên kiểm chèn vào commit của PR này khi mở PR
+
+Người làm: Đại (`MaxTrann`), trên module của Trung (`junUTE`). Nhánh `feat/admin-catalog-pr3`, tiếp PR2 (#490, `76f530d`); `origin/main` lúc lập kế hoạch là `bc56388` (có F6 #491), cây sạch, `HEAD...origin/main` = 0 0. Phạm vi `[đề xuất]`: `apps/api/src/admin/**`, `apps/api/test/admin-*.e2e-spec.ts`, `apps/web/src/features/admin/service-catalog/**` và tài liệu. **`[ĐỤNG admin]`** **`[ĐỤNG api]`** (Trung review). Không migration, không `docs/database/*`, không đổi luật giá của booking/payment, không đụng viền focus (việc của PR focus), không sửa lịch chi nhánh (F6b). Kế hoạch ĐÃ ĐƯỢC DUYỆT (17/11/2026): phiên kiểm độc lập duyệt phần kỹ thuật; quyết định sản phẩm ở 8.7 do Đại trả lời trực tiếp. Mã, test và đo đã xong (kết quả ở 8.11 đến 8.13); hàng AI log 138 do phiên kiểm chèn vào commit của PR này khi mở PR (Đại chọn 17/11/2026). Mục này đánh số 8 (không phải 7) vì mục 7 của file này thuộc PR "viền focus toàn hệ thống".
+
+### 8.1 Hợp đồng API: trước và sau
+
+**`GET /admin/service-groups`** (cả hai phạm vi Admin; thêm khoá, không bớt, không đổi thứ tự hay phân trang):
+
+```json
+// Trước
+{ "items": [ { "nhomDichVuId": "1", "ten": "Khám tổng quát", "thuTuHienThi": 1 } ],
+  "total": 1, "page": 1, "pageSize": 20 }
+// Sau: soDichVu là số nguyên >= 0, đếm dịch vụ khám thuộc nhóm (nhóm rỗng ra 0)
+{ "items": [ { "nhomDichVuId": "1", "ten": "Khám tổng quát", "thuTuHienThi": 1, "soDichVu": 3 },
+             { "nhomDichVuId": "2", "ten": "Xét nghiệm",     "thuTuHienThi": 2, "soDichVu": 0 } ],
+  "total": 2, "page": 1, "pageSize": 20 }
+```
+
+`POST`/`PATCH /admin/service-groups` giữ ba khoá (không có `soDichVu`); web tải lại danh sách sau khi lưu. `DELETE` không đổi; nhóm không có `GET /:id` nên không có chỗ nào khác trả nhóm.
+
+**`POST`/`PATCH /admin/services`, trường `giaMacDinh`** (chuỗi, cột DB `decimal(12,2)` giữ nguyên):
+
+| Đầu vào | Trước | Sau |
+|---|---|---|
+| `"150000"`, `"1"`, `"9999999999"` | nhận | nhận (lưu `150000.00`) |
+| `"150000.00"`, `"100.5"`, `"0.01"`, `"9999999999.99"` | nhận | **400** |
+| `"0"`, `"007"`, `"0001"`, `""`, `" 150000"`, `"150000 "`, `"1e5"`, `"-5"`, `"1,5"`, số JSON `150000`, `null`, 11 chữ số | 400 trừ `"007"`, `"0001"` (nhận) | 400 |
+
+Luật `[đề xuất]`: `^[1-9][0-9]{0,9}$` (chỉ chữ số ASCII, 1 đến 10 chữ số, không số 0 đứng đầu; ≥ 1 và ≤ 9.999.999.999 nên luôn vừa `decimal(12,2)`). Lỗi vẫn theo khuôn chung của DTO: **`400` với `maLoi: "DU_LIEU_KHONG_HOP_LE"` và `loi: [{ "truong": "giaMacDinh", "ma": "GIA_MAC_DINH_KHONG_HOP_LE" }]`** (đề bài viết "400 `GIA_MAC_DINH_KHONG_HOP_LE`"; tôi hiểu `GIA_MAC_DINH_KHONG_HOP_LE` là mã ở `loi[].ma` như mọi lỗi ô của DTO, đúng nơi web đang đọc ở `catalog-errors.ts`; không đổi `maLoi` cấp trên vì sẽ lệch khuôn lỗi chung). `PATCH` không gửi `giaMacDinh` thì không đụng giá (`service.service.ts` dòng 56 đến 62 chỉ cần MỘT trong bốn trường; `service.repository.ts` chỉ nối `gia_mac_dinh=?` khi có giá).
+
+### 8.2 Thiết kế
+
+- **Câu SQL danh sách nhóm** (một câu có LIMIT, không N+1; câu đếm `total` có sẵn giữ nguyên nên cả hàm vẫn đúng 2 câu trong giao dịch `REPEATABLE READ`): theo mẫu `public-service.repository.ts` (`findGroups`):
+  `SELECT CAST(g.nhom_dich_vu_id AS CHAR) AS nhomDichVuId, g.ten, g.thu_tu_hien_thi AS thuTuHienThi, COUNT(d.dich_vu_kham_id) AS soDichVu FROM nhom_dich_vu g LEFT JOIN dich_vu_kham d ON d.nhom_dich_vu_id = g.nhom_dich_vu_id [WHERE g.ten LIKE ? ESCAPE '!'] GROUP BY g.nhom_dich_vu_id, g.ten, g.thu_tu_hien_thi ORDER BY g.thu_tu_hien_thi ASC, g.ten ASC, g.nhom_dich_vu_id ASC LIMIT ? OFFSET ?`.
+  `LEFT JOIN` để nhóm rỗng không biến mất; `COUNT(d.dich_vu_kham_id)` (không `COUNT(*)`, vì `COUNT(*)` đếm cả dòng NULL của nhóm rỗng thành 1). `COUNT` về từ driver có thể là chuỗi nên repository ép `Number()` (như `total`). Kiểu trả mới `ServiceGroupListItem = ServiceGroup & { soDichVu: number }`; `ServiceGroup` giữ nguyên cho `get/create/update`. Câu `WHERE` bây giờ phải ghi `g.ten` (bí danh), còn câu đếm `total` vẫn `FROM nhom_dich_vu` không bí danh: tách hai chuỗi `WHERE` cho khỏi nhầm.
+- **Cột giá**: chỉ đổi hàm `isPositiveDecimal` ở `service.dto.ts` (dùng chung cho Create và Update) thành `isPositiveWholeAmount` theo regex 8.1; hai decorator `@IsString` và `@ValidateBy` giữ, cùng mã `GIA_MAC_DINH_KHONG_HOP_LE`. Không đổi service hay repository của dịch vụ. Giá cũ có phần lẻ trong DB: **đọc trả đúng như DB** (`CAST(gia_mac_dinh AS CHAR)` vẫn ra `"350000.50"`), web đã có dòng gợi ý ở form sửa (PR2) và luôn gửi chuỗi chữ số nên không bao giờ gửi lại giá lẻ.
+- **Web**: `ServiceGroupListItem` ở `service-catalog-types.ts`; **bộ đọc chặt** `service-group-reader.ts` (mới, ~40 dòng, tự có `readRecord`/số nguyên, KHÔNG import `features/booking`): kiểm `items` là mảng, MỖI dòng có `nhomDichVuId` (chuỗi chữ số), `ten` (chuỗi), `thuTuHienThi` và `soDichVu` (số nguyên an toàn, `>= 0`), cùng `total`, `page`, `pageSize` (số nguyên); sai chỗ nào thì ném `UnexpectedResponseError` cho CẢ danh sách (không vẽ dòng dở, không "NaN"); chỉ chép các khoá cần. `listServiceGroups` gọi bộ đọc nên cả tab Nhóm lẫn hộp chọn nhóm của tab Dịch vụ khám đều được bảo vệ (`useServiceGroups` dùng chung). Ô cột "Số dịch vụ" hiện số thật, kể cả `0`; bỏ `title="API B2 chưa trả…"` và chữ ẩn "Chưa có từ API"; chữ dùng `text-text-secondary` như cột Thứ tự `[đề xuất]` (là dữ liệu thật, không còn là chỗ trống `text-text-muted`). Số hiện nguyên (`3`, `12`), không ngăn nghìn `[đề xuất]`. Sửa chữ chú thích ở `catalog-errors.ts` dòng 17 (không còn "API tới PR3 vẫn nhận phần lẻ"); không đổi hành vi.
+- **Đối chiếu với xoá nhóm**: nhóm còn dịch vụ thì KHÔNG xoá được (`NHOM_DICH_VU_CON_DICH_VU`, SVCGRP_003), nên số này cho Admin biết trước nhóm nào xoá được. PR này KHÔNG vô hiệu nút Xóa theo số (số có thể cũ sau thao tác của người khác; API vẫn là chốt) và không đổi hộp xác nhận.
+
+### 8.3 Phát hiện khi kiểm kê (chưa có trong đề bài)
+
+1. **`admin-fixtures.ts` KHÔNG cần đổi** (đề bài nhắc `'100000.00'`): dòng 82 và 206 ghi THẲNG vào DB bằng repository TypeORM (không qua DTO), và `100000.00` là dạng `decimal(12,2)` đúng; đổi sẽ chỉ làm diff phình. Ba file test của dịch vụ (`service.service.spec.ts`, `service.int-spec.ts`, `admin-services.e2e-spec.ts`) mới là nơi gửi giá qua API/service; xem 8.4.
+2. **PLAN `docs/features/admin/PLAN.md` dòng 851, test case DV-10** ghi "Giá: 0, âm, không phải số, vượt `decimal(12,2)`, > 2 chữ số thập phân; biên **0,01**: biên hợp lệ qua"; PR3 làm biên hợp lệ thành **1 đồng** và `0,01` bị từ chối. Đây là lệch giữa test case (và có thể use case 2.4/test case Word `DV b4`, ngoài repo) với mã: theo AGENTS mục 1.6 tôi báo, không tự chọn bên (xem câu (f) ở 8.7). Cũng dòng 480 đến 486 (Contract B2) ghi "ServiceGroup chỉ gồm `{nhomDichVuId,ten,thuTuHienThi}`", sẽ không còn đúng cho `GET` danh sách.
+3. **Seed**: `seeds/catalog-data.ts` chỉ có giá chẵn (`200000.00`, `500000.00`, `150000.00`, …), nên dữ liệu mẫu từ seed không có giá lẻ; giá lẻ (nếu có) chỉ do nhập tay qua API cũ hoặc SQL trực tiếp.
+4. **Bài học K3 (id số bị MySQL ép kiểu)**: `GET /admin/service-groups` không nhận id; hai route `:id` (`PATCH`/`DELETE` nhóm, `GET`/`PATCH` dịch vụ) đều đi qua DTO có regex `^[1-9]\d{0,18}$` (`ServiceGroupIdDto`, `ServiceIdDto`), không phải `ParseRecordIdPipe` của doctor. Nhưng test hiện chỉ ghim `'0', '-1', '01', '1.5'(nhóm), 'x'(nhóm)`; chưa có `'1abc'`, `' 2'`, `'1e0'`, `'3.0'`. PR3 thêm ca ghim đủ năm dạng cho cả hai DTO (PR3-A08), không đổi mã.
+5. **TECH_DEBT/AI log trên `origin/main` lúc này**: TECH_DEBT lớn nhất 170, AI log lớn nhất 136, AI-BUG lớn nhất 055. PR focus (cửa sổ `focus-global`) giữ AI log 137 và AI-BUG-056 (nếu có); số 171 của TECH_DEBT dành cho PR focus nếu phát sinh nợ mới (theo phiên kiểm, PR focus hiện chưa thêm dòng TECH_DEBT nào); số `[đề xuất]` cho PR này: TECH_DEBT 172, AI log 138, AI-BUG-057 (không dùng: Đại chọn không đánh mã); đối chiếu lại `origin/main` ngay trước khi hỏi Đại ghi.
+
+### 8.4 Bảng test (mã `[đề xuất]`, tiền tố `PR3-A` = API, `PR3-W` = web; không trùng AF1…AF6, DV-01…21; viết TRƯỚC, phải đỏ đúng lý do)
+
+| Mã | File (cạnh mã) | Phủ |
+|---|---|---|
+| PR3-A01 | `services/test/service.dto.spec.ts` (sửa; thay các giá `0.01`, `9999999999.99`, `100.5`, `0001.20`, `100.00`, `250.00`) | Create VÀ Update cùng bảng: nhận `"1"`, `"150000"`, `"9999999999"`; từ chối `""`, `"0"`, `"007"`, `"0150000"`, `"1.5"`, `"1.50"`, `"150000.00"`, `"1,5"`, `" 150000"`, `"150000 "`, `"150000\n"`, `"x150000"`, `"150000x"`, `"1e5"`, `"+5"`, `"-5"`, chữ số không phải ASCII `"١٢٣"`, 10 và 11 chữ số, số JSON, `null`; kiểm `loi` CÓ `{truong:'giaMacDinh', ma:'GIA_MAC_DINH_KHONG_HOP_LE'}` (không chỉ `maLoi`) |
+| PR3-A02 | `services/test/service.service.spec.ts` (sửa giá `100.00`/`200.00` thành số nguyên) + ca mới | PATCH không gửi `giaMacDinh`: câu UPDATE KHÔNG chứa `gia_mac_dinh`; PATCH rỗng vẫn 400 |
+| PR3-A03 | `services/test/service.int-spec.ts` (MySQL thật; sửa `100.00`, `250.50`, `200.00`, `999.00` và thêm ca) | tạo `"150000"` ⇒ đọc `"150000.00"`; giá cũ lẻ chèn thẳng `"350000.50"`: `list`/`get` trả nguyên văn, PATCH chỉ đổi tên giữ `"350000.50"`, PATCH `"350001"` ⇒ `"350001.00"`; `gia_snapshot` của lịch hẹn không đổi (DV-12) |
+| PR3-A04 | `service-groups/test/service-group.repository.spec.ts` (mới, DataSource giả, không DB) | đúng 2 lệnh `manager.query` cho 1 nhóm và cho 25 nhóm (không N+1); câu items có `LEFT JOIN dich_vu_kham`, `COUNT(d.dich_vu_kham_id)`, `GROUP BY`, `LIMIT ? OFFSET ?`; tham số đúng thứ tự (q, pageSize, offset); `soDichVu` về chuỗi `'3'`/`'0'` thì ra số `3`/`0`; câu `total` không chứa `JOIN` |
+| PR3-A05 | `service-groups/test/service-group.int-spec.ts` (MySQL thật; thêm ca) | nhóm 0, 1, 3 dịch vụ ⇒ `soDichVu` 0, 1, 3 và nhóm rỗng KHÔNG biến mất; hai nhóm không đếm chéo; `total` là số NHÓM (3 nhóm 5 dịch vụ ⇒ 3); trang 2 (`pageSize` 1) đúng số của nhóm ở trang đó; lọc `q` (có `%`, `_`, `!`) vẫn đúng số; thêm một dịch vụ rồi `list` ⇒ tăng 1, xoá dịch vụ ⇒ giảm; thứ tự `thu_tu_hien_thi, ten, id` giữ; số câu `em.query` của `list` bằng nhau với 1 nhóm và 25 nhóm (đếm bằng `interceptQuery` có sẵn ở `appointments/testing/query-spy.ts`, hoặc bản chép nhỏ trong file nếu không muốn admin import từ `appointments`); `create`/`update` vẫn trả đúng ba khoá |
+| PR3-A06 | `test/admin-service-groups.e2e-spec.ts` (sửa) | HTTP: `GET` trả `soDichVu` kiểu số cho nhóm có và không có dịch vụ; Admin Chi nhánh thấy cùng số (DV-16); `POST` 201 vẫn không có `soDichVu` |
+| PR3-A07 | `test/admin-services.e2e-spec.ts` (sửa các giá `250.00`, `300.50`, `1.00`, `1.001`, `0.00`, `10.00`, `100.00`) | HTTP: `POST "250"` ⇒ 201 `"250.00"`; `POST`/`PATCH` `"250.00"`, `"1.5"`, `"0"` ⇒ 400 có `loi.ma = GIA_MAC_DINH_KHONG_HOP_LE`; `PATCH` không giá trên dịch vụ có giá lẻ cũ giữ `"350000.50"` |
+| PR3-A08 | `service-groups/test/service-group.dto.spec.ts` và `services/test/service.dto.spec.ts` (thêm hàng, bài học K3) | `ServiceGroupIdDto` và `ServiceIdDto` từ chối `'01'`, `'1abc'`, `' 2'`, `'1e0'`, `'3.0'`, `'1.5'`, `'x'` |
+| PR3-W01 | `service-catalog/service-group-reader.test.ts` (mới) | hợp lệ (có nhóm 0); từ chối: thân không phải object, `items` không phải mảng, thiếu `soDichVu`, `soDichVu` chuỗi `'3'`, âm, lẻ, `null`, `Infinity`; `thuTuHienThi` chuỗi; `nhomDichVuId` số, rỗng, không phải chữ số; thiếu `total`/`page`/`pageSize`; MỘT dòng cuối sai trong 20 dòng ⇒ cả danh sách bị từ chối; khoá thừa không chép theo |
+| PR3-W02 | `service-catalog/service-catalog-page.test.tsx` (sửa AF3-01 và dữ liệu mẫu `groups`) | cột hiện `0`, `1`, `12`; KHÔNG còn "—" và không `title` cũ; trang 2 hiện số của dòng trang 2 |
+| PR3-W03 | `service-catalog/service-catalog-page.test.tsx` | phản hồi 200 sai hình (thiếu `soDichVu`) ⇒ một hộp lỗi + nút "Thử lại", KHÔNG hàng bảng, không "—"/"NaN"; thử lại với thân đúng ⇒ bảng hiện; cùng thân sai ở tab Dịch vụ khám (hộp chọn nhóm) ⇒ hộp lỗi |
+| PR3-W04 | `service-catalog/service-catalog-errors.test.tsx` (sửa dữ liệu nhóm; thêm ca) | API trả `400 DU_LIEU_KHONG_HOP_LE` + `loi[giaMacDinh]` cho giá mà web đã gửi đúng chuỗi chữ số: ĐƯỜNG TẠO và ĐƯỜNG SỬA đều hiện đúng MỘT vùng `role="alert"` dưới ô giá ("Giá phải là số nguyên đồng lớn hơn 0."), ô giá `aria-invalid`, 0 banner, giá đã nhập còn nguyên; body đã gửi có `"giaMacDinh":"150000"` |
+| PR3-W05 | `service-catalog/service-catalog-focus.test.tsx` (chỉ dữ liệu mẫu nhóm, nếu thiếu `soDichVu`) | không đổi kỳ vọng focus (KHÔNG đụng phần focus) |
+
+Ngoài ra chạy lại cả `features/admin`, `features/doctor/admin/approvals` và `npm run build` sau lần sửa mã cuối.
+
+### 8.5 Đột biến: DỰ ĐOÁN ghi trước khi chạy (không sửa sau)
+
+Đề bài yêu cầu ít nhất 10 ca; đề xuất chạy cả M1 đến M18 (mỗi ca một lần vitest đúng file; ca M8 đến M13 và M18 cần MySQL nên chạy ở lượt "RẢNH"), cộng M19 dự đoán sống sót. Sao lưu ngoài repo kèm SHA-256, khôi phục và kiểm SHA sau từng ca, 0 file `*.mut`.
+
+| # | Đột biến | Dự đoán: bắt bởi |
+|---|---|---|
+| M1 | bỏ neo `^` của regex giá | PR3-A01 (`"x150000"`) |
+| M2 | bỏ neo `$` | PR3-A01 (`"150000x"`, `"1.5"`, `"1.50"`, `"150000.00"`) |
+| M3 | cho `.00`: `(?:\.00)?` | PR3-A01 (`"150000.00"`) |
+| M4 | cho số 0 đứng đầu: `[0-9]{1,10}` (còn kiểm `> 0`) | PR3-A01 (`"007"`, `"0150000"`) |
+| M5 | `{0,9}` ⇒ `{0,10}` (nhận 11 chữ số) | PR3-A01 (11 chữ số) |
+| M6 | bỏ `@ValidateBy` giá ở `UpdateServiceDto` (chỉ Update) | PR3-A01 (bảng Update), PR3-A07 |
+| M7 | đổi `ma` thành mã khác | PR3-A01 (kiểm `loi`) |
+| M8 | `LEFT JOIN` ⇒ `INNER JOIN` (nhóm rỗng biến mất) | PR3-A04 (chuỗi SQL), PR3-A05 (nhóm 0 dịch vụ) |
+| M9 | `COUNT(d.dich_vu_kham_id)` ⇒ `COUNT(*)` (nhóm rỗng ra 1) | PR3-A05 (nhóm 0), PR3-A04 |
+| M10 | điều kiện nối `d.nhom_dich_vu_id = g.nhom_dich_vu_id` thành so với chính `d` (đếm chéo mọi nhóm) | PR3-A05 (hai nhóm không đếm chéo) |
+| M11 | bỏ `LIMIT ? OFFSET ?` của câu items | PR3-A05 (trang 2), DV-16 có sẵn, PR3-A04 |
+| M12 | đếm bằng vòng lặp gọi thêm một câu cho mỗi dòng (N+1) | PR3-A04, PR3-A05 (số câu 1 và 25 nhóm) |
+| M13 | bỏ `Number()` của `soDichVu` (giữ chuỗi `'3'`) | PR3-A04, PR3-A05 |
+| M14 | web: cột hiện "—" khi `soDichVu === 0` (`soDichVu \|\| '—'`) | PR3-W02 |
+| M15 | web: bộ đọc nhận `soDichVu` dạng chuỗi | PR3-W01 |
+| M16 | web: bộ đọc chỉ kiểm dòng đầu | PR3-W01 (dòng cuối sai) |
+| M17 | web: `listServiceGroups` bỏ qua bộ đọc | PR3-W03 |
+| M18 | `total` đếm sau phép nối (số dịch vụ thay vì số nhóm) | PR3-A05 (`total` 3 nhóm 5 dịch vụ) |
+
+**Dự đoán: M1 đến M18 đều bị bắt (18/18).** Ca có thể SỐNG SÓT vì tương đương, nêu trước: **M19 (bỏ `g.ten, g.thu_tu_hien_thi` khỏi `GROUP BY`, chỉ còn `g.nhom_dich_vu_id`)** sống sót vì MySQL 8 coi các cột này phụ thuộc hàm vào khoá chính của `g` (`ONLY_FULL_GROUP_BY` vẫn chấp nhận); tôi giữ ba cột như `findGroups` của search cho tường minh. Ca lệch so với dự đoán ghi nguyên văn hai phía.
+
+### 8.6 Kế hoạch đo (ĐÃ CHẠY xong khi phiên kiểm báo "RẢNH" 17/11/2026; kết quả ở 8.11 và 8.12)
+
+1. `vitest run src/features/admin src/features/doctor/admin` (web, một tiến trình); `vitest run` các spec đơn vị của `admin/services` và `admin/service-groups` (api).
+2. Int-spec của `admin/service-groups` và `admin/services` trên DB riêng `clinix_admin_pr3_test` (`TEST_DB_NAME`, tự tạo; không đụng `clinix`, `clinix_test`, `clinix_migration_test`, `clinix_ref_test`, `clinix_v7b_test`, `clinix_b*_test`, `clinix_exam_*_test`; không `SET GLOBAL`; không `schema-parity`, `migrations`, `upload`); e2e `admin-service-groups` và `admin-services`; `npm run build`.
+3. **EXPLAIN ANALYZE** (spec đo tạm rồi xoá, nạp bằng `INSERT … SELECT`, khoảng 30 nhóm và vài trăm dịch vụ): DỰ ĐOÁN trước khi đo: nhánh `d` dùng chỉ mục `dich_vu_kham_index_nhom_ten (nhom_dich_vu_id, ten)` bằng `Covering index lookup` (id là khoá chính nên có trong mọi chỉ mục phụ), không quét toàn bảng `dich_vu_kham`; tổng thời gian câu items dưới 5 ms (mốc `[đề xuất]`, chưa là tiêu chí SLO của đồ án). Nếu plan khác dự đoán thì ghi hai phía.
+4. **Chromium** (Vite `127.0.0.1 --strictPort`, cổng 5173 hoặc 5199, kiểm cả `[::1]`; một trình duyệt; ngữ cảnh khai báo 1440, 768, 375 ở DPR 1,25; chặn `/api/` bằng `url.pathname.startsWith('/api/')`; mock dán vào lệnh; không file trong repo): tab Nhóm dịch vụ với các số `0`, `3`, `12`, `9999`: căn giữa dưới tiêu đề (tâm ô số lệch tâm tiêu đề ≤ 1 px), không tràn ngang trang ở cả ba cỡ (bảng `min-w-[700px]` nằm trong vùng cuộn riêng ở 375), số `0` hiện "0" không phải "—", `soDichVu` không bị cắt, màu chữ như cột Thứ tự, thùng rác/bút chì không đổi vị trí. Xong thì đóng, tắt Vite, kiểm cổng trống, xoá `.playwright-mcp` mới tạo.
+
+### 8.7 Câu hỏi cho Đại (kèm đề xuất) và điểm cần Trung quyết
+
+(a) **Luật giá ở API:** từ chối MỌI giá có phần lẻ kể cả `"150000.00"` bằng `400` (đề xuất; khớp web luôn gửi chuỗi chữ số, đơn giản, không làm tròn ngầm), hay chấp nhận `.00` rồi làm tròn? (b) **Giá cũ có phần lẻ trong DB:** không migration, đọc trả nguyên văn (đề xuất); seed không có giá lẻ nên chỉ dữ liệu nhập tay mới có. Nếu Đại muốn một câu SQL để Trung xử lý tay (chỉ đọc, KHÔNG chạy trên DB `clinix`): `SELECT dich_vu_kham_id, ten, gia_mac_dinh FROM dich_vu_kham WHERE gia_mac_dinh <> FLOOR(gia_mac_dinh);`. (c) **`soDichVu`:** đếm MỌI dịch vụ thuộc nhóm (đề xuất; `dich_vu_kham` không có cờ hoạt động, và đúng điều kiện chặn xoá của FK) hay chỉ dịch vụ đang được chi nhánh nào đó dùng? (d) **Có trả `soDichVu` ở `POST`/`PATCH` nhóm không:** không, chỉ danh sách (đề xuất; web tải lại danh sách sau lưu; không có `GET /:id` của nhóm). (e) **TECH_DEBT 170 và AI log:** đề xuất ĐÁNH DẤU phần "Web và API chưa cùng luật giá" là ĐÃ XỬ LÝ ở PR3 và giữ phần F6b (đổi nội dung một dòng có sẵn: cần Đại đồng ý riêng); nếu PR3 để lại nợ mới thì thêm dòng 172 `[đề xuất]` (chèn theo số, không nối cuối); AI log hàng 138 `[đề xuất]`, AI-BUG-057 nếu có lỗi (056 do PR focus giữ); hỏi Đại trước khi ghi cả hai file. (f) **File ngoài danh sách đề bài, cần Đại đồng ý:** `docs/features/admin/PLAN.md` `[ĐỒNG BỘ TL]`: (i) dòng 851 test case DV-10, đổi "> 2 chữ số thập phân; biên 0,01" thành luật số nguyên đồng, biên 1; (ii) thêm MỘT đoạn ngắn "Cập nhật PR3" ngay sau Contract B2 ghi `soDichVu` ở `GET` danh sách và luật giá số nguyên. Đại hoặc Trung cần nhắc sửa **use case 2.4 và test case Word `DV b4` (giá 0,01)** ở repo `TLCN_CLINIX` (tôi không có file). Không sửa `working-doc/B2|B3` (hồ sơ lịch sử).
+
+**Đại đã trả lời trực tiếp bằng hộp câu hỏi (17/11/2026):** (a) từ chối MỌI giá có phần lẻ, kể cả `"150000.00"`; (c) `soDichVu` đếm mọi dịch vụ thuộc nhóm; (e) ĐÁNH DẤU phần giá của TECH_DEBT 170 là ĐÃ XỬ LÝ và giữ phần F6b; (f) CÓ cho sửa `docs/features/admin/PLAN.md` trong PR này. (b) và (d) làm theo đề xuất (phiên kiểm xác nhận Đại đã chốt từ trước: giá cũ hiển thị đúng như DB; `soDichVu` chỉ ở danh sách). Phiên kiểm duyệt kế hoạch kỹ thuật 17/11/2026 (SQL, mã lỗi `loi[].ma`, regex giá, bộ đọc web, 18 đột biến cộng M19, ca K3); điều kiện thêm: kiểm thứ tự ổn định khi phân trang và `ONLY_FULL_GROUP_BY` của MySQL 8.4 (đã kiểm ở int-spec, xem 8.11), và có test hộp chọn nhóm của tab Dịch vụ khám (PR3-W03, ca thứ ba).
+
+**Điểm cần Trung quyết:** (1) biên giá nhỏ nhất là 1 đồng, không còn 0,01 (đổi so với DV-10); (2) nút Xóa nhóm vẫn bấm được khi nhóm còn dịch vụ (API quyết bằng 409), số chỉ để thông tin; (3) thân phản hồi sai hình ở danh sách nhóm giờ báo lỗi thay vì vẽ dở.
+
+### 8.8 Không làm trong PR này
+
+Đổi cột DB, `docs/database/*`, migration; luật giá của booking/payment/search; thêm trường tìm kiếm mới; viền focus (PR focus, `focus-global`); sửa form sửa lịch chi nhánh (F6b); vô hiệu hoá nút Xóa theo số; sửa `admin-fixtures.ts`; ghi `docs/TECH_DEBT.md`, `AI_USAGE_LOG.md`, `docs/features/admin/PLAN.md` khi Đại chưa đồng ý (sau đó Đại đồng ý sửa `PLAN.md`, đổi dòng 170 và thêm dòng 172 của TECH_DEBT ngày 17/11/2026, xem 8.14; hàng AI log 138 do phiên kiểm chèn vào commit của PR này khi mở PR, xem 8.14). Hai cửa sổ cùng sửa `features/admin`: tôi chỉ chạm `service-groups-tab.tsx` (ô cột "Số dịch vụ", import kiểu) và các file `service-catalog/*` ở 8.2/8.4; trước khi báo xong sẽ `git fetch` xem `origin/main` có đổi các file đó chưa và báo phiên kiểm.
+
+### 8.9 Ước lượng `[đề xuất]` và chỗ còn trống
+
+Khoảng 6 đến 7 giờ làm việc: test + mã API 2 giờ, test + mã web 1,5 giờ, đột biến 1,5 giờ (19 ca), đo (vitest + int + e2e + build + EXPLAIN + Chromium) 1 giờ, tài liệu và báo cáo 0,5 giờ. Model: Claude Sonnet 5.5 (lập kế hoạch, viết mã, chạy kiểm). Rủi ro: phản hồi nhóm thêm khoá bắt buộc nên MỌI test web đang mock `/admin/service-groups` thiếu `soDichVu` sẽ đỏ cho tới khi cập nhật (ba file: `service-catalog-page.test.tsx`, `service-catalog-errors.test.tsx`, `service-catalog-focus.test.tsx`; có thể thêm vài file khác cùng thư mục, sẽ `grep` lại lúc làm); GROUP BY trên cả bảng nhóm trước LIMIT (nhóm chỉ vài chục dòng nên chấp nhận được, EXPLAIN ở 8.6 kiểm lại). `[cần điền]`: số PR, hash commit, số TECH_DEBT/AI log chính thức khi gộp.
+
+### 8.10 Làm khác kế hoạch (đối chiếu 8.2 và 8.4)
+
+Mã test giữ nguyên như bảng 8.4; các khác biệt thật:
+
+1. **PR3-W02 và PR3-W03** (cột "Số dịch vụ", thân sai hình) nằm ở file MỚI `service-catalog/service-group-count.test.tsx` (7 ca), không ở `service-catalog-page.test.tsx`, để không động thêm vào các file đang bị `focus-global` sửa. Ca AF3-01 trong `service-catalog-page.test.tsx` vẫn sửa (đổi "—" thành số) cùng dữ liệu mẫu `groups`.
+2. **PR3-W04** (lỗi giá từ API, đường tạo và đường sửa) ở `service-catalog-errors.test.tsx`, đúng kế hoạch (2 ca).
+3. **PR3-W05 KHÔNG cần**: `service-catalog-focus.test.tsx` chỉ mock danh sách rỗng (hợp lệ với bộ đọc chặt), không đổi.
+4. **PR3-A02 xanh ngay khi viết** (khoá hành vi có sẵn: PATCH không gửi giá thì câu UPDATE không có `gia_mac_dinh`); không có bước "đỏ trước" cho ca này.
+5. **Thêm sửa một ca e2e có sẵn** của nhóm (`DV-04/05: lỗi DB sau DELETE rollback…`): nó so danh sách với thân POST ba khoá bằng `toEqual`, nên phải thêm `soDichVu: 0` (xem 8.13).
+6. `admin-fixtures.ts` không đổi (8.3 mục 1). Không đụng dòng focus nào của `service-groups-tab.tsx` (chỉ đổi ô cột "Số dịch vụ", 2 dòng thêm, 5 dòng bớt).
+
+### 8.11 Kết quả kiểm tra (số thật, 17/11/2026)
+
+- **Đỏ rồi xanh** (test viết trước): DTO giá **8/83 đỏ** (`007`, `0001`, `0150000`, `1.5`, `1.50`, `150000.00`, `0.01`, `9999999999.99`; 75 ca còn lại xanh sẵn, gồm 18 ca K3 vì regex id đã chặn) rồi 83/83 ở hai file DTO; repository **3/5 đỏ** (COUNT còn là chuỗi `'3'`; SQL cũ không `LEFT JOIN`, không bí danh `g`) rồi 5/5; bộ đọc: chạy khi chưa có module thì báo "Failed to resolve import" rồi 32/32 (chuyển tạm file mã ra scratchpad, trả lại, SHA-256 khớp); cột: **6/58 đỏ** (AF3-01, bốn ca PR3-W02 và ca "thử lại" của PR3-W03, đều "—Chưa có từ API") rồi xanh; hai ca còn lại của PR3-W03 và hai ca PR3-W04 xanh ngay khi nối bộ đọc ở tầng service (trước khi sửa cột).
+- **Vitest từng file** (một tiến trình, RAM trống 5,0 đến 5,5 GB): API `service.dto.spec` 56, `service-group.dto.spec` 27, `service.service.spec` 9, `service-group.service.spec` 8, `service-group.repository.spec` (mới) 5: **105/105**. Web `service-group-reader.test` (mới) 32, `service-group-count.test` (mới) 7, `service-catalog-page.test` 8, `service-catalog-errors.test` 11, cộng bảy file còn lại của `service-catalog` 169: **227/227**.
+- **Lượt máy nặng** (phiên kiểm báo "RẢNH" 17/11/2026; RAM trống thấp nhất 5.024 MB, CPU ≤ 12%; MySQL 8.4.11 của `clinix-app-db-1` với `sql_mode` mặc định có `ONLY_FULL_GROUP_BY`): (1) int-spec `admin/service-groups` và `admin/services` trên DB riêng `clinix_admin_pr3_test`: 2 file **29/29**; (2) e2e `admin-service-groups` và `admin-services`: **16/16** (lần đầu 14/16, hai ca đỏ do lỗi của tôi, xem 8.13); (3) vitest `features/admin` và `features/doctor/admin`: 35 file **626/626** (PR2: 30 file 532/532); (4) `npm run build` web exit 0 (`tsc -b` và `vite build` 6,4 s) và `nest build` api exit 0; (5) EXPLAIN và (6) Chromium: xem 8.12.
+- **Lint và kiểu**: `eslint src/features/admin` exit 0; `tsc -p tsconfig.app.json` (web) 0 lỗi; `oxlint --type-aware src/admin` và hai file e2e exit 0; Prettier sạch ở file sửa và file mới (web dùng `--end-of-line auto` vì cây `apps/web` là CRLF, cây `apps/api` là LF); `git diff --check` sạch. **`tsc` api có MỘT lỗi CÓ SẴN, không do PR này:** `src/payment/architecture.spec.ts(233,8): error TS2555: Expected at least 1 arguments, but got 0`; xác nhận bằng cách `git archive HEAD apps/api` (HEAD = `origin/main` = `bc56388`) ra thư mục sạch ngoài repo, nối `node_modules` bằng junction rồi chạy `tsc --noEmit -p tsconfig.json`: cùng một lỗi trên bản sạch (đã dọn thư mục và gỡ junction); `nest build` không dính vì file spec nằm ngoài build. jscpd, gitleaks, schema-parity, migrations, upload: CI đo (không chạy ở máy).
+
+### 8.12 Đột biến, EXPLAIN và Chromium
+
+**Đột biến** (script ngoài repo, mỗi ca sao lưu ngoài repo kèm SHA-256, một lần vitest đúng file, khôi phục byte-đúng và kiểm SHA sau từng ca; 0 file `*.mut`; SHA-256 (12 ký tự đầu) khớp sau khôi phục: `service.dto.ts` `b44758802a3f`, `service-group.repository.ts` `60c4769adca5`, `service-groups-tab.tsx` `6f7bd00b0bcc`, `service-group-reader.ts` `d4022be0825a`, `service-catalog-service.ts` `b7567b7eaa57`). Số ca đỏ (đơn vị / int, `-` = không chạy int):
+
+| # | Kết quả | Đỏ đơn vị / int | Dự đoán 8.5 |
+|---|---|---|---|
+| M1 bỏ `^` | bắt | 13 / - | khớp |
+| M2 bỏ `$` | bắt | 11 / - | khớp |
+| M3 cho `.00` | bắt | 1 / - | khớp |
+| M4 cho số 0 đứng đầu | bắt | 4 / - | khớp |
+| M5 `{0,10}` (11 chữ số) | bắt | 1 / - | khớp |
+| M6 bỏ kiểm giá ở Update | bắt | 23 / - | khớp |
+| M7 đổi `ma` | bắt | 26 / - | khớp |
+| M8 `INNER JOIN` | bắt | 1 / 6 | khớp |
+| M9 `COUNT(*)` | bắt | 1 / 4 | khớp |
+| M10 nối sai điều kiện | bắt | 1 / 4 | khớp |
+| M11 bỏ `LIMIT OFFSET` | bắt | 1 / 3 | khớp |
+| M12 N+1 | bắt | 3 / 2 | khớp |
+| M13 bỏ `Number()` | bắt | 1 / 7 | khớp |
+| M14 hiện "—" khi 0 | bắt | 1 / - | khớp |
+| M15 bộ đọc nhận `soDichVu` chuỗi | bắt | 9 / - | khớp |
+| M16 bộ đọc chỉ kiểm dòng đầu | bắt | 1 / - | khớp |
+| M17 bỏ bộ đọc ở `listServiceGroups` | bắt | 3 / - | khớp |
+| M18 `total` đếm sau phép nối | bắt | 1 / 4 | khớp |
+| M19 bỏ hai cột khỏi `GROUP BY` | **bắt ở đơn vị, SỐNG SÓT ở int** | 1 / 0 | **LỆCH** (xem dưới) |
+
+**18/18 bị bắt như dự đoán. Lệch ở M19:** dự đoán "sống sót vì tương đương" đúng ở tầng MySQL thật (int 19/19 xanh với `GROUP BY g.nhom_dich_vu_id`: các cột kia phụ thuộc hàm vào khoá chính nên `ONLY_FULL_GROUP_BY` chấp nhận), nhưng ca PR3-A04 do tôi viết ghim NGUYÊN chuỗi `GROUP BY g.nhom_dich_vu_id, g.ten, g.thu_tu_hien_thi` nên bắt luôn mutant tương đương này ở tầng đơn vị. Tôi quên điều đó lúc dự đoán (xem 8.13). Giữ nguyên ca A04: chấp nhận được vì cấu trúc câu SQL được ghim có chủ ý, nhưng ai đổi sang `GROUP BY` một cột sẽ phải sửa test.
+
+**EXPLAIN ANALYZE** (spec đo tạm `zz-explain.int-spec.ts`, nạp bằng `INSERT … SELECT`, lấy đúng câu SQL từ repository thật; ĐÃ XOÁ, `git status` không còn `zz-`): DỰ ĐOÁN 8.6: dùng `dich_vu_kham_index_nhom_ten` dạng covering, không quét toàn bảng `dich_vu_kham`, câu items dưới 5 ms ở quy mô khoảng 30 nhóm. Kết quả: **khớp**: `Covering index lookup on d using dich_vu_kham_index_nhom_ten (nhom_dich_vu_id=g.nhom_dich_vu_id)` ở mọi ca; nhánh `g` là `Table scan` (bảng nhóm chỉ vài chục dòng). 30 nhóm × 15 dịch vụ (450): câu items **0,32 ms** (lọc `q`: 0,13 ms), hàm `list()` cả hai câu và giao dịch trung bình **3,75 ms** (lọc: 3,55 ms). Ca thêm ngoài tiêu chí: 300 nhóm × 50 dịch vụ (15.000): câu items 8,12 ms (lọc: 2,76 ms), `list()` 10,95 ms (lọc: 6,12 ms): vượt mốc 5 ms của tôi vì `GROUP BY` gom hết nhóm trước `LIMIT` (rủi ro đã nêu ở 8.9); danh mục thật của đồ án chỉ vài chục nhóm.
+
+**Chromium** (Vite `127.0.0.1:5199 --strictPort`, một trình duyệt, ba ngữ cảnh khai báo 1440 × 900, 768 × 1024, 375 × 812, `devicePixelRatio` 1,25, `/api/` chặn bằng hàm điều kiện `url.pathname.startsWith('/api/')`, mock dán vào lệnh, chỉ bốn lời gọi: `POST /auth/refresh`, `GET /auth/me`, `GET /admin/me`, `GET /admin/service-groups`; ảnh lưu ngoài repo; xong thì đóng, tắt Vite (3 tiến trình), `5173` và `5199` (cả IPv6) trống, không có `.playwright-mcp` hay ảnh ở gốc repo). Dữ liệu: nhóm với `soDichVu` 0, 3, 12, 9999 và một tên nhóm rất dài. Kết quả ở **cả ba cỡ**: ô cột "Số dịch vụ" hiện đúng `0`, `3`, `12`, `9999`; không còn "—", không còn chữ ẩn "Chưa có từ API" hay `title` cũ; `text-align: center` giống tiêu đề, **lệch tâm so với tiêu đề 0 px ở cả 4 hàng** (ô rộng 165 px); chữ 13,125 px màu `rgb(74, 85, 101)` (`text-text-secondary`, như cột Thứ tự), tương phản **7,56:1** trên nền trắng; ô không bị cắt (`scrollWidth` ≤ `clientWidth`); trang không tràn ngang (`scrollWidth` = `clientWidth`: 1425, 753, 360). Hàng có tên dài cao 60,4 px (1440) và 79,15 px (768, 375); ở ảnh chụp số nằm giữa hàng theo chiều dọc (không đo bằng số). Ở 1440 bảng 838 px không cần cuộn; ở 768 vùng bảng cuộn trong khung (700 > 481) nhưng cột vẫn nằm trong vùng nhìn; **ở 375 vùng bảng rộng 258 px cuộn ngang trong khung (bảng `min-w-[700px]`, có từ trước) và cột "Số dịch vụ" (bên trái 334,8 px) nằm NGOÀI vùng nhìn cho tới khi cuộn ngang trong vùng bảng** (thanh cuộn hiện ở ảnh chụp). Đó là bố cục có sẵn (cột này trước đây cũng ở ngoài vùng nhìn ở 375 px), PR3 không đổi; ai muốn thấy số ngay trên điện thoại thì phải đổi bố cục bảng (ngoài phạm vi, hỏi Trung/Figma).
+
+### 8.13 Lỗi của chính tôi trong PR này
+
+1. **Test mới PR3-A06 sai thứ tự khoá sau `sort()`:** tôi viết `['nhomDichVuId', 'thuTuHienThi', 'ten']` trong khi `'ten' < 'thuTuHienThi'` theo thứ tự chữ cái; đỏ ở lần e2e đầu, sửa thành `['nhomDichVuId', 'ten', 'thuTuHienThi']`.
+2. **Quên quét test CÓ SẴN khi đổi hình dạng phản hồi danh sách:** ca e2e `DV-04/05: lỗi DB sau DELETE rollback…` so `get().body.items` với `[row.body]` bằng `toEqual`; danh sách giờ có `soDichVu`, nên đỏ. Tôi chỉ `grep` mã nguồn và test đơn vị/int mà chưa `grep` e2e (`toEqual([`). Bắt được nhờ chạy e2e trước khi commit; sửa thành `[{ ...row.body, soDichVu: 0 }]`. Bài học: thêm khoá vào phản hồi thì `grep` mọi nơi so cả đối tượng (unit, int, e2e, web) trước khi chạy.
+3. **Dự đoán M19 sai ở tầng đơn vị:** xem 8.12 (quên rằng A04 ghim nguyên chuỗi `GROUP BY`).
+4. **Nhận định "lỗi `tsc` payment có sẵn" ban đầu chưa kiểm bằng lệnh** (chỉ suy từ việc file không nằm trong diff); sau đó kiểm trên bản sạch `HEAD` (8.11).
+5. **Bảng kế hoạch 8.4 ghi PR3-W02/W03 vào `service-catalog-page.test.tsx`** nhưng làm ở file mới để tránh đụng file đang bị `focus-global` sửa (8.10 mục 1); không phải lỗi mã, chỉ lệch kế hoạch.
+
+Chưa có lỗi nào đủ nặng để đánh mã AI-BUG (đều bị chính test bắt trước khi commit): Đại chọn KHÔNG đánh mã AI-BUG-057 (17/11/2026); số 057 để dành, 056 do PR focus giữ.
+
+### 8.14 Tài liệu đã đồng bộ
+
+- **Đã ghi (Đại đồng ý trực tiếp 17/11/2026):** `docs/features/admin/PLAN.md` `[ĐỒNG BỘ TL]`: dòng test case DV-10 (giá số nguyên đồng, biên 1 và 9999999999), một chú thích ở Contract B2 (`soDichVu` ở dòng của danh sách) và một đoạn "Cập nhật hợp đồng B2/B3 ở admin PR3" ngay sau Contract B2; `docs/TECH_DEBT.md` dòng 170: phần "Web và API chưa cùng luật giá" ghi ĐÃ XỬ LÝ ở PR3, giữ phần F6b (trạng thái vẫn Mở); không đụng dòng 169 của PR focus; **dòng TECH_DEBT 172 `[đề xuất]` MỚI** (ba lối tắt của PR3: bộ đọc web chép tay vài hàm nhỏ vì admin không được import `features/booking`; `GROUP BY` gom hết nhóm trước `LIMIT`, 8 ms ở 300 nhóm × 50 dịch vụ; ở 375 px cột "Số dịch vụ" phải cuộn ngang trong vùng bảng), chèn theo số ngay sau dòng 170 (Đại đồng ý ghi ngay 17/11/2026; số 171 dành cho PR focus nếu phát sinh nợ mới, nếu không 172 vẫn là số đã chọn; số 172 là `[đề xuất]`, kiểm lại `origin/main` lúc gộp). Số dòng thêm/xoá ghi ở báo cáo cuối.
+- **Hàng AI log 138** `[đề xuất]` (chèn khi mở PR: Đại chọn 17/11/2026 để phiên kiểm chèn đúng thứ tự; ô PR và squash còn `[cần điền]`, điền ở PR kế tiếp, không push bổ sung; Đại KHÔNG đánh mã AI-BUG-057): nháp ở scratchpad, 10 ô, kèm script chèn chạy khô.
+- **Nhắc `[ĐỒNG BỘ TL]` ngoài repo (Đại hoặc Trung làm):** use case 2.4 và test case Word `DV b4` ở repo `TLCN_CLINIX` (biên giá 0,01 cũ; luật mới số nguyên đồng, biên 1); test case Word của cột "Số dịch vụ" (trước là "—", nay là số thật); Figma không có trạng thái cho cột này.
+- **Việc còn nợ:** F6b (sửa lịch chi nhánh đã có, tái dùng `TimeInput24` và panel Áp dụng nhanh); quy tắc focus toàn cục (TECH_DEBT 169, PR `focus-global`); hai ý hỏi Trung ở 8.7 (biên giá 1 đồng; nút Xóa nhóm vẫn bấm được khi nhóm còn dịch vụ); `[cần điền]` số PR, hash commit, số chính thức khi gộp.

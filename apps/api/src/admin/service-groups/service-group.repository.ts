@@ -12,8 +12,16 @@ export interface ServiceGroup {
   ten: string;
   thuTuHienThi: number;
 }
+/** Một dòng của DANH SÁCH: thêm số dịch vụ khám thuộc nhóm (POST/PATCH nhóm vẫn trả `ServiceGroup` ba khoá). */
+export interface ServiceGroupListItem extends ServiceGroup {
+  soDichVu: number;
+}
 const SELECT_GROUP =
   'SELECT CAST(nhom_dich_vu_id AS CHAR) AS nhomDichVuId,ten,thu_tu_hien_thi AS thuTuHienThi FROM nhom_dich_vu';
+// Đếm trong CÙNG câu có LIMIT (không N+1; PR3 admin catalog). LEFT JOIN để nhóm rỗng vẫn có dòng; đếm `d.dich_vu_kham_id`
+// chứ không `COUNT(*)` vì nhóm rỗng có một dòng `d` toàn NULL (COUNT(*) ra 1). Chỉ mục `dich_vu_kham_index_nhom_ten` phục vụ phép nối.
+const SELECT_GROUP_WITH_COUNT =
+  'SELECT CAST(g.nhom_dich_vu_id AS CHAR) AS nhomDichVuId, g.ten, g.thu_tu_hien_thi AS thuTuHienThi, COUNT(d.dich_vu_kham_id) AS soDichVu FROM nhom_dich_vu g LEFT JOIN dich_vu_kham d ON d.nhom_dich_vu_id = g.nhom_dich_vu_id';
 
 @Injectable()
 export class ServiceGroupRepository {
@@ -23,17 +31,25 @@ export class ServiceGroupRepository {
     return this.db.transaction('READ COMMITTED', work);
   }
 
-  list(input: ServiceGroupListDto): Promise<Paged<ServiceGroup>> {
-    const where = input.q ? " WHERE ten LIKE ? ESCAPE '!'" : '';
+  list(input: ServiceGroupListDto): Promise<Paged<ServiceGroupListItem>> {
+    // Câu items dùng bí danh `g` (có nối bảng), câu total không nối nên giữ tên cột trần.
+    const itemsWhere = input.q ? " WHERE g.ten LIKE ? ESCAPE '!'" : '';
+    const totalWhere = input.q ? " WHERE ten LIKE ? ESCAPE '!'" : '';
     const parameters = input.q ? [`%${escapeLikePattern(input.q)}%`] : [];
     // items và total cùng snapshot; danh mục chung không lọc chi nhánh.
     return this.db.transaction('REPEATABLE READ', async (manager) => {
-      const items: ServiceGroup[] = await manager.query(
-        `${SELECT_GROUP}${where} ORDER BY thu_tu_hien_thi ASC,ten ASC,nhom_dich_vu_id ASC LIMIT ? OFFSET ?`,
-        [...parameters, input.pageSize, input.offset],
-      );
+      const rows: (ServiceGroup & { soDichVu: string | number })[] =
+        await manager.query(
+          `${SELECT_GROUP_WITH_COUNT}${itemsWhere} GROUP BY g.nhom_dich_vu_id, g.ten, g.thu_tu_hien_thi ORDER BY g.thu_tu_hien_thi ASC, g.ten ASC, g.nhom_dich_vu_id ASC LIMIT ? OFFSET ?`,
+          [...parameters, input.pageSize, input.offset],
+        );
+      // COUNT là BIGINT nên driver có thể trả chuỗi: ép về số như `total`
+      const items = rows.map((row) => ({
+        ...row,
+        soDichVu: Number(row.soDichVu),
+      }));
       const counts: { total: string | number }[] = await manager.query(
-        `SELECT COUNT(*) AS total FROM nhom_dich_vu${where}`,
+        `SELECT COUNT(*) AS total FROM nhom_dich_vu${totalWhere}`,
         parameters,
       );
       return {
