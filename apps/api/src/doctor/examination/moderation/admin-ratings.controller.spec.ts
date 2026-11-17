@@ -12,6 +12,7 @@ import { RouteParamtypes } from '@nestjs/common/enums/route-paramtypes.enum.js';
 import { Reflector } from '@nestjs/core';
 import { vi } from 'vitest';
 import { AppException } from '../../../common/errors/app.exception.js';
+import type { AuthenticatedUser } from '../../../auth/decorators/current-user.decorator.js';
 import { IS_PUBLIC_KEY } from '../../../auth/decorators/public.decorator.js';
 import { ROLES_KEY } from '../../../auth/decorators/roles.decorator.js';
 import { ADMIN_SCOPE_KEY, type AdminScope } from '../../../rbac/admin-scope.js';
@@ -24,9 +25,12 @@ import {
   type AdminRatingsPage,
 } from './admin-ratings.dto.js';
 import type { AdminRatingsService } from './admin-ratings.service.js';
+import { HideRatingDto } from './rating-hide.dto.js';
+import type { RatingHideService } from './rating-hide.service.js';
 
 // doctor-exam B7 — AdminRatingsController: chỉ nhận/trả, không DB (PLAN 5.8, 5.11; KDD-11, KDD-12, KDD-16, QHK-01, QHK-09, QHK-12). Hành vi qua HTTP thật (guard trước pipe, no-store, 404 cùng thân): test/doctor-exam-admin-ratings.e2e-spec.ts.
 // `@RequireAdminScope` CHƯA có bộ quét chung (QHK-09 chỉ quét `@Roles`): ca riêng ở đây khẳng định MỖI route có đủ ba thứ.
+// B8 thêm route `hide` (`POST :id/hide`): bảng route thành BA dòng (KDD-13: không route hiện lại); mọi khẳng định của hai route đọc GIỮ NGUYÊN. Hành vi qua HTTP thật của `hide`: test/doctor-exam-admin-hide-rating.e2e-spec.ts.
 const SCOPE: AdminScope = { kind: 'ChiNhanh', chiNhanhId: '7' };
 const PAGE: AdminRatingsPage = {
   items: [],
@@ -38,32 +42,36 @@ const PAGE: AdminRatingsPage = {
 const DETAIL = { danhGiaId: '501' } as AdminRatingDetail;
 
 const proto = AdminRatingsController.prototype;
-const handlerOf = (name: 'list' | 'detail') =>
+const handlerOf = (name: 'list' | 'detail' | 'hide') =>
   Reflect.get(proto, name) as (...args: unknown[]) => unknown;
+// Hai route ĐỌC (B7): các ca bên dưới áp cho từng dòng này. Route ghi `hide` (B8) có describe riêng.
 const ROUTES = [
   ['list', ''],
   ['detail', ':id'],
 ] as const;
+const ACTOR = { accountId: '3' } as AuthenticatedUser;
+const HIDDEN = { danhGiaId: '501', biAn: true } as const;
 
 function setup() {
   const list = vi.fn((..._args: unknown[]) => Promise.resolve(PAGE));
   const get = vi.fn((..._args: unknown[]) => Promise.resolve(DETAIL));
-  const controller = new AdminRatingsController({
-    list,
-    get,
-  } as unknown as AdminRatingsService);
-  return { controller, list, get };
+  const hide = vi.fn((..._args: unknown[]) => Promise.resolve(HIDDEN));
+  const controller = new AdminRatingsController(
+    { list, get } as unknown as AdminRatingsService,
+    { hide } as unknown as RatingHideService,
+  );
+  return { controller, list, get, hide };
 }
 
-describe('AdminRatingsController: metadata của hai route', () => {
-  it('KDD-16 chỉ có đúng hai route, cả hai GET (B7 chỉ ĐỌC; ẩn là B8)', () => {
+describe('AdminRatingsController: metadata của các route', () => {
+  it('KDD-16, KDD-13 chỉ có đúng BA route: hai GET (đọc) và một POST `:id/hide`; không route hiện lại, không PUT, PATCH, DELETE', () => {
     expect(Reflect.getMetadata(PATH_METADATA, AdminRatingsController)).toBe(
       'admin/doctor-ratings',
     );
     const methods = Object.getOwnPropertyNames(proto).filter(
       (name) => name !== 'constructor',
     );
-    expect(methods.toSorted()).toEqual(['detail', 'list']);
+    expect(methods.toSorted()).toEqual(['detail', 'hide', 'list']);
     for (const [name, path] of ROUTES) {
       expect(Reflect.getMetadata(METHOD_METADATA, handlerOf(name))).toBe(
         RequestMethod.GET,
@@ -72,6 +80,12 @@ describe('AdminRatingsController: metadata của hai route', () => {
         path === '' ? '/' : path,
       );
     }
+    expect(Reflect.getMetadata(METHOD_METADATA, handlerOf('hide'))).toBe(
+      RequestMethod.POST,
+    );
+    expect(Reflect.getMetadata(PATH_METADATA, handlerOf('hide'))).toBe(
+      ':id/hide',
+    );
   });
 
   it.each(ROUTES)(
@@ -142,6 +156,65 @@ describe('AdminRatingsController: metadata của hai route', () => {
     expect(
       keys.filter((key) => key.startsWith(`${String(RouteParamtypes.QUERY)}:`)),
     ).toEqual([]);
+  });
+});
+
+describe('B8 route `hide` (POST :id/hide): metadata', () => {
+  const hide = () => handlerOf('hide');
+
+  it('QHK-09, KDD-11: có @Roles("QuanTriVien") và @RequireAdminScope("Any") NGAY TRÊN route (AdminScopeGuard), không @Public', () => {
+    const reflector = new Reflector();
+    expect(reflector.get<string[]>(ROLES_KEY, hide())).toStrictEqual([
+      'QuanTriVien',
+    ]);
+    expect(reflector.get<string>(ADMIN_SCOPE_KEY, hide())).toBe('Any');
+    expect(Reflect.getMetadata(GUARDS_METADATA, hide())).toEqual([
+      AdminScopeGuard,
+    ]);
+    expect(reflector.get<boolean>(IS_PUBLIC_KEY, hide())).toBeUndefined();
+  });
+
+  it('QHK-12: Cache-Control: no-store khai bằng @Header (áp sau guard và TRƯỚC pipe nên 400 do thân và 404 do id cũng có); 200 tường minh (đổi trạng thái của tài nguyên có sẵn, không tạo mới)', () => {
+    expect(Reflect.getMetadata(HEADERS_METADATA, hide())).toEqual([
+      { name: 'Cache-Control', value: 'no-store' },
+    ]);
+    expect(Reflect.getMetadata(HTTP_CODE_METADATA, hide())).toBe(200);
+  });
+
+  it('KDD-12, QHK-03: `:id` qua ParseRecordIdPipe; thân là HideRatingDto (import giá trị); người ẩn từ @CurrentUser; KHÔNG Query', () => {
+    const args = Reflect.getMetadata(
+      ROUTE_ARGS_METADATA,
+      AdminRatingsController,
+      'hide',
+    ) as Record<string, { data?: unknown; pipes?: unknown[] }>;
+    const keys = Object.keys(args);
+    const kinds = (type: RouteParamtypes) =>
+      keys.filter((key) => key.startsWith(`${String(type)}:`));
+    expect(keys).toHaveLength(4); // phạm vi của Admin, người dùng, id, thân
+    expect(kinds(RouteParamtypes.QUERY)).toEqual([]);
+    expect(kinds(RouteParamtypes.BODY)).toHaveLength(1);
+    expect(kinds(RouteParamtypes.PARAM)).toHaveLength(1);
+    const param = Object.entries(args).find(([key]) =>
+      key.startsWith(`${String(RouteParamtypes.PARAM)}:`),
+    )?.[1];
+    expect(param?.data).toBe('id');
+    expect(param?.pipes).toEqual([ParseRecordIdPipe]);
+    const paramTypes = Reflect.getMetadata(
+      'design:paramtypes',
+      proto,
+      'hide',
+    ) as unknown[];
+    expect(paramTypes).toContain(HideRatingDto);
+  });
+
+  it('KDD-04: chuyển phạm vi, NGƯỜI ẨN từ access token (không từ thân), id đã qua pipe và thân nguyên vẹn; trả kết quả của service', async () => {
+    const t = setup();
+    const body = { lyDo: 'Nội dung quảng cáo, không liên quan' };
+    expect(await t.controller.hide(SCOPE, ACTOR, '501', body)).toBe(HIDDEN);
+    expect(t.hide).toHaveBeenCalledTimes(1);
+    expect(t.hide.mock.calls[0]).toEqual([SCOPE, '3', '501', body]);
+    expect(t.list).not.toHaveBeenCalled();
+    expect(t.get).not.toHaveBeenCalled();
   });
 });
 
