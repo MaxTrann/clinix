@@ -1,4 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react';
+import { EyeOff } from 'lucide-react';
 import { useRemote } from '../../../../shared/hooks/use-remote';
 import { ErrorState } from '../../../../shared/ui/error-state';
 import { LoadingState } from '../../../../shared/ui/loading-state';
@@ -6,7 +7,7 @@ import { ModalFrame } from '../../components/modal-frame';
 import type { AdminReviewDetail } from '../api/admin-review-types';
 import { getAdminReview } from '../api/exam-api';
 import { ReviewDetailBody } from './review-detail-body';
-import { DETAIL_TEXT, isReviewNotFound } from './reviews-text';
+import { DETAIL_TEXT, HIDE_TEXT, isReviewNotFound } from './reviews-text';
 
 interface DialogProps {
   danhGiaId: string;
@@ -16,16 +17,19 @@ interface DialogProps {
   // 404 (đánh giá không còn hay ngoài phạm vi): danh sách đang hiện đã lệch máy chủ nên phải tải lại (`onGone` phải ổn định, gọi MỘT lần khi gặp 404)
   onGone: () => void;
   showBranch: boolean;
+  // `Ẩn đánh giá` (doctor-exam F8): nơi gọi ĐÓNG hộp này rồi mở hộp ẩn thay; chi tiết đã tải được truyền đi làm tóm tắt
+  onHide: (detail: AdminReviewDetail) => void;
 }
 
 // Hộp "Chi tiết đánh giá" (doctor-exam F7; Figma `570:2` là HỘP GIỮA 480 px, không phải ngăn phải: Đại duyệt 17/11/2026 dùng `ModalFrame` chung của doctor, có nút × và nền `inert`, `Esc`, bẫy tiêu điểm của `useModalDialog`; PLAN gọi "ngăn").
-// Chỉ có `Đóng`: nút `Ẩn đánh giá` là của F8 (#414). Chi tiết lấy THEO id (`GET /admin/doctor-ratings/:id`) mỗi lần mở và mỗi khi đổi id nên chi tiết của hàng trước không bao giờ hiện cho hàng sau. Lỗi: 404 ⇒ câu riêng không có `Thử lại` và tải lại danh sách; lỗi khác ⇒ `ErrorState` kèm `Thử lại`.
+// Chân hộp: `Ẩn đánh giá` (F8, #414; CHỈ khi hộp đã tải xong và đánh giá còn `Hiển thị`) rồi `Đóng`. Chi tiết lấy THEO id (`GET /admin/doctor-ratings/:id`) mỗi lần mở và mỗi khi đổi id nên chi tiết của hàng trước không bao giờ hiện cho hàng sau. Lỗi: 404 ⇒ câu riêng không có `Thử lại` và tải lại danh sách; lỗi khác ⇒ `ErrorState` kèm `Thử lại`.
 export function ReviewDetailDialog({
   danhGiaId,
   returnFocusRef,
   onClose,
   onGone,
   showBranch,
+  onHide,
 }: DialogProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const { state, retry } = useRemote<AdminReviewDetail>(
@@ -67,6 +71,16 @@ export function ReviewDetailDialog({
         )}
       </div>
       <div className="flex justify-end gap-[7.5px] border-t border-gray-100 px-[22.5px] py-[15px]">
+        {state.status === 'ready' && !state.data.biAn && (
+          <button
+            type="button"
+            onClick={() => onHide(state.data)}
+            className="inline-flex h-[35.35px] items-center gap-[5.625px] rounded-[13.375px] border border-red-200 bg-white px-[15px] text-[13.125px] font-medium text-danger-strong hover:bg-danger-soft"
+          >
+            <EyeOff aria-hidden="true" className="size-[15px]" />
+            {HIDE_TEXT.hideReview}
+          </button>
+        )}
         <button
           ref={closeRef}
           type="button"

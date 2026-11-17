@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router';
+import { ADMIN_DEPOSIT_POLICY_PATH } from '../../../shared/routes/wallet-paths';
 import { ROLE_HOME_PATHS, useAuth } from '../../auth';
 import type { AdminMe } from '../admin-me';
 import styles from './admin-layout.module.css';
@@ -121,7 +122,13 @@ const MENU_GROUPS: MenuGroup[] = [
         icon: 'reviews',
         to: `${ROLE_HOME_PATHS.QuanTriVien}/kiem-duyet-danh-gia`,
       },
-      { label: 'Đặt cọc & Hoàn tiền', icon: 'deposit', systemOnly: true },
+      // payment F5: màn Đặt cọc & Hoàn tiền (chỉ Toàn hệ thống: `systemOnly`, route cũng bọc AdminScopeGuard ToanHeThong)
+      {
+        label: 'Đặt cọc & Hoàn tiền',
+        icon: 'deposit',
+        systemOnly: true,
+        to: ADMIN_DEPOSIT_POLICY_PATH,
+      },
       { label: 'Email Preview', icon: 'email', systemOnly: true },
     ],
   },

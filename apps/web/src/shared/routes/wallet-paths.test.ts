@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { ROLE_HOME_PATHS } from '../../features/auth';
 import { PATIENT_APPOINTMENTS_PATH } from './booking-paths';
-import { PATIENT_WALLET_PATH, PATIENT_WALLET_SEGMENT } from './wallet-paths';
+import {
+  ADMIN_DEPOSIT_POLICY_PATH,
+  ADMIN_DEPOSIT_POLICY_SEGMENT,
+  PATIENT_WALLET_PATH,
+  PATIENT_WALLET_SEGMENT,
+} from './wallet-paths';
 
 // payment F1, phần của WVI-03. Mã WP-01 là [đề xuất]: khoá đường dẫn "Ví của tôi" nằm dưới gốc khu Bệnh nhân (nếp BP-09 của booking).
 describe('payment F1 — đường dẫn "Ví của tôi"', () => {
@@ -13,6 +18,18 @@ describe('payment F1 — đường dẫn "Ví của tôi"', () => {
     expect(PATIENT_WALLET_PATH).not.toBe(PATIENT_APPOINTMENTS_PATH);
     for (const home of Object.values(ROLE_HOME_PATHS)) {
       expect(PATIENT_WALLET_PATH).not.toBe(home);
+    }
+  });
+});
+
+describe('payment F5 — đường dẫn "Đặt cọc & Hoàn tiền" của Quản trị viên', () => {
+  it('WCP-05 WP-02 nằm dưới gốc khu Quản trị viên, đoạn đường là nhãn menu không dấu, khác mọi gốc khu', () => {
+    expect(ADMIN_DEPOSIT_POLICY_SEGMENT).toBe('dat-coc-hoan-tien');
+    expect(ADMIN_DEPOSIT_POLICY_PATH).toBe(
+      `${ROLE_HOME_PATHS.QuanTriVien}/${ADMIN_DEPOSIT_POLICY_SEGMENT}`,
+    );
+    for (const home of Object.values(ROLE_HOME_PATHS)) {
+      expect(ADMIN_DEPOSIT_POLICY_PATH).not.toBe(home);
     }
   });
 });

@@ -5,6 +5,7 @@ import type {
   AdminReviewDetail,
   AdminReviewItem,
   AdminReviewPage,
+  HideResult,
 } from './admin-review-types';
 
 // Bộ đọc CHẶT hai phản hồi của Quản trị viên (doctor-exam F7; WKD-11, WKD-12; như F2, F4, F5, F6): chép từng khoá cần dùng, khoá lạ bị BỎ, thiếu khoá hay sai kiểu ở BẤT KỲ chỗ nào ⇒ `UnexpectedResponseError`
@@ -108,6 +109,14 @@ export function parseAdminReviewPage(body: unknown): AdminReviewPage {
     pageSize: readCount(page.pageSize),
     demTheoTrangThai: readCounts(page.demTheoTrangThai),
   };
+}
+
+// 200 của `POST …/hide` (F8; WKD-21): đúng `{ danhGiaId, biAn: true }`. `danhGiaId` là chuỗi chữ số giữ NGUYÊN; `biAn` phải đúng `true`; thiếu khoá hay sai kiểu ⇒ `UnexpectedResponseError` (nơi gọi coi là "chưa rõ", máy chủ có thể đã ẩn); khoá thừa bị BỎ như các bộ đọc khác.
+export function parseHideResult(body: unknown): HideResult {
+  const result = readObject(body);
+  const danhGiaId = readBigId(result.danhGiaId);
+  if (result.biAn !== true) fail();
+  return { danhGiaId, biAn: true };
 }
 
 // `lyDoAn` là khoá TUỲ CHỌN: vắng khi chưa ẩn (và khi đã ẩn mà không có lý do lưu). Có mặt khi chưa ẩn, hay không phải chuỗi (kể cả `null`), là hình dạng LẠ ⇒ lỗi, không đoán.

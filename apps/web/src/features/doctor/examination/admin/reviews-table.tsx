@@ -1,13 +1,13 @@
-import { Eye } from 'lucide-react';
 import { AdminTable, type AdminTableColumn } from '../../../admin';
 import type {
   AdminReviewItem,
   AdminReviewPage,
 } from '../api/admin-review-types';
+import { ReviewRowActions } from './review-row-actions';
 import { ReviewStars } from './review-stars';
 import { ReviewStatusPill } from './review-status-pill';
 import { formatSentDate } from './reviews-format';
-import { COLUMN_TEXT, orNone, REVIEWS_TEXT, viewLabel } from './reviews-text';
+import { COLUMN_TEXT, orNone, REVIEWS_TEXT } from './reviews-text';
 
 // Độ rộng cột THEO PIXEL lấy từ Figma (`514:2`, tổng 1168,4 px; `633:2` cho Admin Chi nhánh, không cột Chi nhánh). `AdminTable` chia cột cố định khi có `width`: pixel (không phần trăm) để bảng KHÔNG bị bóp khi khung hẹp
 // (đo Chromium ở 375 px: phần trăm làm hàng cao 397 px) mà rộng ra tới 1168 px rồi cuộn NGANG TRONG khung bảng; khung rộng hơn thì các cột nở theo tỉ lệ.
@@ -38,12 +38,15 @@ interface TableProps {
   // Chỉ Admin Toàn hệ thống thấy cột Chi nhánh (WKD-02)
   showBranch: boolean;
   onOpen: (danhGiaId: string, opener: HTMLElement) => void;
+  // Nút `Ẩn` chỉ ở hàng `Hiển thị` (doctor-exam F8)
+  onHide: (item: AdminReviewItem, opener: HTMLElement) => void;
 }
 
 // Nội dung đã bị máy chủ cắt (≤ 200 đơn vị UTF-16); ở đây chỉ hiện tối đa hai dòng (Figma `514:419`). Chữ thuần do React vẽ: `whitespace-pre-wrap` giữ xuống dòng, `wrap-anywhere` cho chuỗi dài không dấu cách bẻ dòng; không biến thành liên kết (WKD-10).
 function columnsFor(
   showBranch: boolean,
   onOpen: TableProps['onOpen'],
+  onHide: TableProps['onHide'],
 ): AdminTableColumn<AdminReviewItem>[] {
   const widths = showBranch ? SYSTEM_WIDTHS : BRANCH_WIDTHS;
   const columns: Omit<AdminTableColumn<AdminReviewItem>, 'width'>[] = [
@@ -110,15 +113,7 @@ function columnsFor(
       id: 'thaoTac',
       header: REVIEWS_TEXT.action,
       cell: (item) => (
-        <button
-          type="button"
-          aria-label={viewLabel(item.nguoiDanhGia.hoTen, item.bacSi.hoTen)}
-          onClick={(event) => onOpen(item.danhGiaId, event.currentTarget)}
-          className="inline-flex items-center gap-[3.75px] rounded-[9.375px] border border-gray-200 bg-white px-[11.25px] py-[5.625px] text-[11.25px] leading-[15px] font-medium text-gray-600 hover:bg-gray-50"
-        >
-          <Eye aria-hidden="true" className="size-[13.125px]" />
-          {REVIEWS_TEXT.view}
-        </button>
+        <ReviewRowActions item={item} onOpen={onOpen} onHide={onHide} />
       ),
     },
   ];
@@ -131,11 +126,12 @@ export function ReviewsTable({
   onPageChange,
   showBranch,
   onOpen,
+  onHide,
 }: TableProps) {
   return (
     <AdminTable
       label={REVIEWS_TEXT.tableLabel}
-      columns={columnsFor(showBranch, onOpen)}
+      columns={columnsFor(showBranch, onOpen, onHide)}
       rows={data.items}
       getRowKey={(item) => item.danhGiaId}
       page={page}
