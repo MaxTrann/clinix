@@ -53,19 +53,20 @@ describe('AR-07 phương thức công khai của AppointmentTransitionService (�
       expect(methods).not.toContain(name);
   });
 
-  it('hai tên được phép đều là phương thức công khai thật', () => {
+  it('các tên được phép đều là phương thức công khai thật', () => {
     for (const name of ALLOWED_OUTSIDE_METHODS) expect(methods).toContain(name);
   });
 });
 
-describe('AR-07 ngoài appointments/ chỉ gọi confirmPaid và complete', () => {
+describe('AR-07 ngoài appointments/ chỉ gọi confirmPaid, complete và checkIn (payment B6)', () => {
   it('cây src/ thật: không file nào ngoài appointments/ gọi phương thức khác của AppointmentTransitionService', () => {
     expect(files.length).toBeGreaterThan(100);
     expect(findTransitionSurfaceViolations(files, methods)).toEqual([]);
   });
 
   // B14 (OVR-16): `restoreConfirmed` là PHẦN GHI của override (audit cùng giao dịch ở AdminOverrideService), nên module khác gọi thẳng cũng bị bắt; phương thức được đọc từ nguồn lớp nên tự được phủ, ca này chứng minh
-  it.each(['expire', 'cancel', 'checkIn', 'markNoShow', 'restoreConfirmed'])(
+  // payment B6 (QTT-10): `checkIn` thành được phép (thu tiền mặt tại quầy), nên rời khỏi danh sách đột biến; `cancel` vẫn bị bắt
+  it.each(['expire', 'cancel', 'markNoShow', 'restoreConfirmed'])(
     'đột biến: file của module lạ gọi .%s() của AppointmentTransitionService bị bắt (kể cả phương thức B10, B12, B14 sắp thêm)',
     (method) => {
       const source = `import { AppointmentTransitionService } from '../appointments/state/appointment-transition.service.js';
@@ -90,12 +91,13 @@ class X { constructor(private readonly t: AppointmentTransitionService) {} run()
     },
   );
 
-  it('không bắt nhầm: gọi confirmPaid và complete; file không nhắc AppointmentTransitionService; comment; file trong appointments/', () => {
+  it('không bắt nhầm: gọi confirmPaid, complete và checkIn (payment B6); file không nhắc AppointmentTransitionService; comment; file trong appointments/', () => {
     const call = (method: string) =>
       `import { AppointmentTransitionService } from 'x';\nthis.t.${method}(em, {});`;
     const clean = [
       file('payment/a.ts', call('confirmPaid')),
       file('doctor/b.ts', call('complete')),
+      file('payment/f.ts', call('checkIn')),
       file(
         'doctor/c.ts',
         'this.runner.expire({}); this.cancellation.cancel({});',

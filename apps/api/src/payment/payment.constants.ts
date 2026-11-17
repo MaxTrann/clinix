@@ -5,6 +5,17 @@ export const PAYMENT_ERROR_CODES = {
   HOLD_EXPIRED: 'HET_HAN_GIU_CHO', // 409: lịch đã bị huỷ do hết hạn giữ chỗ (ví chưa bị trừ)
   NOT_AWAITING_PAYMENT: 'LICH_HEN_KHONG_CHO_THANH_TOAN', // 409, kèm chiTiet.trangThai
   NO_DEPOSIT_REQUIRED: 'LICH_HEN_KHONG_CAN_COC', // 409: cọc 0đ, không có gì để thanh toán
+  // B6: thu tiền mặt tại quầy (PLAN 5.7, 5.14)
+  NOT_COLLECTABLE: 'LICH_HEN_KHONG_CHO_THU_TIEN', // 409, kèm chiTiet.trangThai: lịch không còn `DaXacNhan`
+  NOTHING_TO_COLLECT: 'KHONG_CON_PHAI_THU', // 409: số còn phải thu bằng 0
+  AMOUNT_MISMATCH: 'SO_TIEN_KHONG_KHOP', // 409, kèm chiTiet.conPhaiThu
+} as const;
+
+/** Câu chữ của các mã B6 (PLAN 5.14; `[đề xuất]`). */
+export const PAYMENT_ERROR_MESSAGES = {
+  LICH_HEN_KHONG_CHO_THU_TIEN: 'Lịch hẹn không còn ở trạng thái đã xác nhận.',
+  KHONG_CON_PHAI_THU: 'Lịch hẹn không còn khoản phải thu.',
+  SO_TIEN_KHONG_KHOP: 'Số tiền thu không khớp số còn phải thu.',
 } as const;
 
 export type PaymentErrorCode =
