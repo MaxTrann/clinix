@@ -14,8 +14,12 @@ import { PaymentPortsModule } from './ports/payment-ports.module.js';
 // B5: `deposit/` (hai route thanh toán cọc bằng ví).
 @Module({
   // B10: PaymentPolicyModule (cấu hình chính sách cọc, chỉ cần RbacModule). Task sau thêm module của mình vào cùng mảng này.
-  imports: [PaymentPortsModule, PaymentPolicyModule],
-  imports: [AppointmentsModule, WalletModule, PaymentPortsModule],
+  imports: [
+    AppointmentsModule,
+    WalletModule,
+    PaymentPortsModule,
+    PaymentPolicyModule,
+  ],
   controllers: [DepositPaymentController],
   providers: [DepositRepository, DepositPaymentService],
 })
