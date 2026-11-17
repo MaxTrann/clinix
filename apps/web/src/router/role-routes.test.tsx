@@ -17,6 +17,7 @@ import {
   PATIENT_APPOINTMENTS_PATH,
   RECEPTION_APPOINTMENTS_PATH,
 } from '../shared/routes/booking-paths';
+import { PATIENT_WALLET_PATH } from '../shared/routes/wallet-paths';
 import { createFakeProfileApi } from '../features/patient/testing/fake-profile-api';
 import { apiError, createFakeAuthApi } from '../test/fake-auth-api';
 import { fakeMatchMedia } from '../test/fake-match-media';
@@ -101,16 +102,20 @@ describe('khung Bệnh nhân', () => {
     expect(
       within(menu).getByRole('link', { name: 'Hồ sơ người khám' }),
     ).toHaveAttribute('href', PATIENT_PATHS.profile);
-    // "Hồ sơ người khám" (patient F1), "Lịch hẹn của tôi" (booking F1) và "Hồ sơ khám bệnh" (doctor-exam F5, WXH-01) có trang; năm mục còn lại vô hiệu (KG-04). Đổi có duyệt ở booking F1 và doctor-exam F5 (Đại, 16/11/2026).
-    expect(within(menu).getAllByRole('link')).toHaveLength(3);
+    // "Hồ sơ người khám" (patient F1), "Lịch hẹn của tôi" (booking F1), "Hồ sơ khám bệnh" (doctor-exam F5, WXH-01) và "Ví của tôi" (payment F1, WVI-03) có trang;
+    // bốn mục còn lại vô hiệu (KG-04). Đổi có duyệt ở booking F1 và doctor-exam F5 (Đại, 16/11/2026); payment F1 đổi 3 ⇒ 4 liên kết, 5 ⇒ 4 nút vô hiệu.
+    expect(within(menu).getAllByRole('link')).toHaveLength(4);
     expect(
       within(menu).getByRole('link', { name: 'Lịch hẹn của tôi' }),
     ).toHaveAttribute('href', PATIENT_APPOINTMENTS_PATH);
     expect(
       within(menu).getByRole('link', { name: 'Hồ sơ khám bệnh' }),
     ).toHaveAttribute('href', `${ROLE_HOME_PATHS.BenhNhan}/ho-so-kham-benh`);
+    expect(
+      within(menu).getByRole('link', { name: 'Ví của tôi' }),
+    ).toHaveAttribute('href', PATIENT_WALLET_PATH);
     const disabledItems = within(menu).getAllByRole('button');
-    expect(disabledItems).toHaveLength(5);
+    expect(disabledItems).toHaveLength(4);
     for (const button of disabledItems) expect(button).toBeDisabled();
     expect(
       within(aside).getByRole('link', { name: 'Về trang chủ' }),

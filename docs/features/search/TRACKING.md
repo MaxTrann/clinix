@@ -413,6 +413,184 @@ K1: ô tìm Trang chủ không to ra khi focus (Δ hộp = 0); K2: vòng 2 px te
 
 **Giới hạn của khẳng định.** Mock dữ liệu (không API, không DB thật); chỉ Chromium (Firefox, Safari chưa đo); gradient nội suy ở oklab (trình duyệt cho màu `oklch`), điểm dừng của vùng phẳng không phụ thuộc nội suy; menu tài khoản đo ở 1440 px (dưới 1280 px menu nằm trong ngăn kéo, đã có test `public-shell`, chưa đo bằng Chromium); chưa so ảnh với Figma bằng mắt (ảnh ở scratchpad cho Đại xem); `jscpd`, `gitleaks`, schema-parity, migrations, upload: CI đo (mức Gọn).
 
+## 8. Kế hoạch Search UI PR-B — thanh 6 bước và dải nhắc đăng nhập ở đặt lịch bước 1 đến 3 (G7) — **Đại đã trả lời câu (a) đến (d) ngày 17/11/2026; chờ phiên kiểm duyệt kế hoạch** (lập 17/11/2026, plan-first, Claude Code với Claude Sonnet 5.5; nhánh `feat/search-ui-figma-b` trên `origin/main` `6cf84e4`; Đại sửa, Trung review; thân PR ghi `Refs #156` vì Epic đã đóng và PR-B không có issue riêng; `[ĐỤNG shared]`, `[ĐỤNG booking]`, `[ĐỤNG search]`)
+
+Nguồn: `Tom_Tat_Gop_Y_Search_Gui_Trung_2026-11-17.docx` mục G7. **T3 (Trung đồng ý 17/11/2026):** nâng `BookingStepper` cùng `WIZARD_STEPS`, `StepNumber`, `StepLinks` lên `shared/ui`, Đại sửa cả hai bên trong CÙNG PR, không import chéo giữa `features/search` và `features/booking`. Chỉ frontend `apps/web` và tài liệu: không đổi API, DB, `router/`, `styles/`, `vite.config`.
+
+### 8.1 Kiểm kê đã đọc (đúng với mã ở `6cf84e4`; ★ = lệch với đề bài hoặc Figma, cần Đại quyết)
+
+| Mã | Đã kiểm | Hệ quả |
+|---|---|---|
+| K1 | Thanh bước nằm ở `features/booking/wizard/{booking-stepper.tsx, booking-stepper.test.tsx, wizard-steps.ts}`. Quét cả `apps/web/src`: chỉ bốn file nhắc tới chúng, ngoài ba file trên còn `wizard-frame.tsx` và `steps/step-placeholder.tsx`. Thanh bước chỉ import `lucide-react`, `react-router` và `wizard-steps` (không import `features/` nào) | Chuyển lên `shared/ui` không tạo vòng phụ thuộc; chỉ HAI file booking đổi dòng import |
+| K2 | Ba trang search không có thanh bước. Thứ tự trong `main` hiện nay: (liên kết "Chọn lại…") rồi `h1`. Figma `445:2`, `446:2`: thanh bước, liên kết "Chọn lại…", `h1`; Figma `444:2`: thanh bước, `h1` | Thêm thanh bước lên đầu `main` |
+| K3 ★ | **Cả ba khung Figma `444:2`, `445:2`, `446:2` là bệnh nhân ĐÃ đăng nhập** (header "Nguyễn Văn A"; đã xem metadata `444:2` và ảnh chụp ba khung): **KHÔNG khung nào có dải vàng.** Dải chỉ có ở **Make**: `D:\du_lieu\TLCN_CLINIX\THIET_KE_UI\Figma_Make_Sync\source_snapshot\src\app\pages\patient\BookingWizard.tsx` dòng 1637 đến 1642, nằm trong khối **Bước 1**, **dưới danh sách thẻ** (`mt-5`), điều kiện `!currentUser`. Bước 2 và Bước 3 của Make KHÔNG có dải này (Bước 3 của Make chỉ có hộp "Cần đăng nhập để tiếp tục" SAU khi chọn khung giờ: thuộc PR-C2). Đề bài và G7 ghi "bước 1 đến 3" | Câu (b): dải ở Bước 1 hay ở cả ba bước |
+| K4 ★ | Thanh bước hiện có (booking F3) KHÁC Figma `444:67` về hình học: F3-D (TRACKING booking) chỉ lấy nhãn và trạng thái từ Figma, chưa so số đo | Bảng 8.2; câu (c) |
+| K5 | Phiên: `useAuth()` (xuất từ `features/auth/index.ts`; search đã dùng ở `public-layout.tsx`, `home-page.tsx`) có `status` là `checking`, `authenticated`, `unauthenticated` hoặc `error`; khởi tạo `checking`; `main.tsx` gọi `restoreSession()` trước khi render; khách ⇒ `/auth/refresh` 401 ⇒ `unauthenticated`; mất mạng ở bước này ⇒ `error`, KHÔNG phải đã đăng xuất (`auth-session.ts` `applyFailure`) | Thiết kế 8.3 (d) |
+| K6 | Test cũ: `service-sizes.test.tsx` đặt `status: 'unauthenticated'` ở MỌI ca nên dải sẽ hiện trong các ca đó; dòng 115 `screen.getByRole('list')` sẽ gặp HAI danh sách (thanh bước là `ol`) ⇒ phải đổi có chủ ý. File khác (`booking-flow`, `public-layout`, `routes`, `home-page`) chỉ biết khi chạy lại | Mục "ca cũ" ở 8.4 |
+| K7 | Đề bài ghi chiều `features/search` ⇒ `features/booking` "đã có test": **không đúng.** BWZ-08 (`features/booking/architecture.test.ts`) chỉ khoá chiều booking ⇒ ngoài; đã tìm ở `layout.test.ts`, `cta-token.test.ts`, `doctor/architecture.test.ts`: không file nào khoá chiều ngược lại | Thêm UIB-08 |
+
+### 8.2 Thanh bước hiện có so với Figma `444:67` (cột Figma lấy bằng `get_design_context` và `get_metadata`; cột web SUY RA TỪ MÃ, chắc về cấu trúc, số đo Chromium sẽ xác nhận)
+
+| Điểm | Figma | Web hiện có |
+|---|---|---|
+| Khoảng cách tâm đến tâm giữa hai vòng | 147 px (tâm đầu 37,5; tâm cuối 772,5 trong 810 px) | 135 px (810 chia 6, `flex-1`; tâm 67,5 đến 742,5): lệch 30 px ở hai đầu, 18 và 6 px ở giữa |
+| Vòng | 33,75 px | `size-9` = 33,75 px (khớp) |
+| Vòng đang chọn | nền trắng, viền 1,6 px, vành ngoài 4 px `#cefafe`, số 13,125 px đậm | viền 2 px, không vành |
+| Nhãn | 13 px, ô rộng 75 px (hai nhãn đầu xuống 2 dòng), dòng cao 16,25 px, đậm khi đang chọn | `text-xs` = 11,25 px (gốc 15 px), rộng theo ô 135 px, `font-medium` khi đang chọn |
+| Đường nối | dài 94,5 px, hở 9,375 px mỗi bên vòng, dày 1,875 px | chạy suốt từ tâm sang tâm, nằm sau vòng, dày 1,875 px |
+| Chiều cao thanh | 74,25 px (nhãn 2 dòng) | `[đo]` |
+| Bước 4 đến 6 | cùng thành phần | CÙNG mã ⇒ sửa ở đây là đổi giao diện cả sáu bước |
+
+**Đại chọn B (17/11/2026): sửa hình học khớp Figma trong PR này, cho cả sáu bước.** Chữ nhãn (6 nhãn), `aria-current`, "Quay lại bước N: nhãn", chữ cho trình đọc màn hình: GIỮ NGUYÊN (đã khớp Figma và Đại dặn không đổi). Màu theo token (ADR 0004): `brand-strong` thay `#0092b8` ở chữ và nền nút tròn (nhãn đang chọn `#005f78` Figma: dùng `brand-strong` hoặc `gray-900` như hiện nay, chọn khi đo tương phản); vành ngoài `#cefafe` là `cyan-100` của thang chuẩn (ADR 0004 giữ thang chuẩn cho các sắc không đổi). Figma chỉ có khung 1440 px, KHÔNG có khung di động: dưới 840 px là quyết định của mình, xem (f).
+
+### 8.3 Thiết kế
+
+- **(a) Chuyển lên `shared/ui`** (tạo file mới giống nội dung rồi xoá file cũ để lịch sử rõ): `booking-stepper.tsx`, `booking-stepper.test.tsx`, `wizard-steps.ts`; giữ tên `BookingStepper`, `WIZARD_STEPS`, `StepNumber`, `StepLinks` (không đổi tên để diff nhỏ). `[ĐỤNG booking]`: `wizard/wizard-frame.tsx` (hai dòng import) và `wizard/steps/step-placeholder.tsx` (một dòng import), KHÔNG đổi hành vi. Lý do một bản: hai thanh bước sẽ lệch nhau (đã lệch Figma một lần) và tránh import chéo (T3).
+- **(b) Dải vàng (Đại chọn CHỈ Bước 1, dưới danh sách thẻ, như Make; Bước 2 và 3 KHÔNG có dải):** file mới `features/search/guest-login-banner.tsx` (`GuestLoginBanner`, không prop), đặt trong `ServiceGroupPage` sau `<ul>` với `mt-5` (Make) và chỉ khi danh sách đã tải xong (không đứng một mình giữa `LoadingState` và `ErrorState`). Chữ NGUYÊN VĂN của Make: "Bạn có thể xem dịch vụ và lịch trống trước. Cần đăng nhập để hoàn tất đặt lịch ở bước 4.", chữ "đăng nhập" là `Link` tới `LOGIN_PATH` (như nút "Đăng nhập" ở header). Lớp theo token: nền `bg-warning-soft`, viền `border-warning-line`, chữ `text-amber-900` như Make (tương phản đo bằng script trước khi chốt), biểu tượng `Info` `size-5` `aria-hidden`. KHÔNG `role="alert"` hay `status` (dải hiện SAU khi phiên khôi phục xong, không nên đọc chen và không được chiếm tiêu điểm), KHÔNG nút đóng (Make không có). Đặt ở `features/search` vì chỉ search dùng; lên `shared/ui` khi có module thứ hai cần.
+- **(c) `links`:** Bước 1 không có; Bước 2 `{ 1: BOOKING_PATH }`; Bước 3 `{ 1: BOOKING_PATH, 2: serviceListPath(groupId) }` (đủ id vì đường dẫn Bước 3 mang `groupId` và `serviceId`; `serviceListPath` đã `encodeURIComponent`). Lấy từ `../search-paths` (re-export của `shared/routes/booking-paths`), như mã hiện nay.
+- **(d) Phiên:** dải CHỈ khi `status === 'unauthenticated'`. `checking` và `error` KHÔNG vẽ (không nói "cần đăng nhập" khi chưa biết, nhất là khi lỗi mạng); người đã đăng nhập mọi vai trò không thấy. Hành vi thực tế: khách thấy dải sau khi `/auth/refresh` trả 401 (một vòng gọi mạng sau khi mở trang). Đặt DƯỚI danh sách như Make nên chỉ đẩy chân trang xuống, không đẩy phần đang đọc; số đo thật ở 8.6.
+- **(e) Thứ tự trong `main`:** Bước 1: thanh bước, `h1`; Bước 2 và 3: thanh bước, liên kết "Chọn lại…", `h1`. Khoảng cách từ đáy thanh bước đến phần sau là `mt-8` (30 px khi gốc 15 px): Figma `444:124` đặt `h1` cách đáy thanh bước đúng 30 px và `WizardFrame` của booking đã dùng `mt-8`. Khung ngoài giữ `PUBLIC_STEP_CONTAINER` (đệm trên 37,5 px đúng Figma `444:67` y = 37,5).
+- **(f) Hình học thanh bước theo Figma (B, `[đề xuất]`, chốt khi đo):** làm đúng cấu trúc `444:67` bằng px (Tailwind arbitrary, gốc 15 px không ảnh hưởng giá trị px): năm mục đầu `flex-[147_0_0] min-w-px`, mục cuối rộng 75 px; ô vòng và nhãn `w-[75px]` kèm `max-w-full`; nhãn 13 px, dòng cao 16,25 px, `pt` 7,5 px, đậm khi đang chọn; vòng đang chọn viền 1,6 px và vành `shadow-[0_0_0_4px]` `cyan-100`; đường nối dài 94,5 px, cao 1,875 px, `top` 17 px, hở 9,375 px mỗi bên vòng, `brand-strong` khi đã qua (token thay `#0092b8`) và `gray-200` khi chưa tới. **Dưới 840 px** (không có khung Figma): giữ cùng cấu trúc, tỉ lệ co theo `flex`; nếu ở 375 px (khoảng cách tâm (345 − 75) / 5 = 54 px, nhỏ hơn ô nhãn 75 px) nhãn va nhau hoặc thanh tràn ngang thì lùi về cách hiện có của booking ở màn hẹp (các mục đều nhau, nhãn xuống dòng) bằng một điểm gãy; kiểm bằng Chromium, không đoán. Phần booking bước 4 đến 6 đổi hình dạng (cùng thành phần), KHÔNG đổi hành vi, liên kết hay chữ.
+
+### 8.4 Bảng test (mức W: vitest `css:false`; mã `UIB-nn` là `[đề xuất]`, đã quét `docs` và `apps`: chưa dùng; kích thước thật chỉ Chromium thấy)
+
+| Mã | Nội dung | File |
+|---|---|---|
+| UIB-01 | Bước 1 (`/dat-lich`): thanh bước tên "Các bước đặt lịch", sáu nhãn Figma theo thứ tự, mục 1 là `aria-current="step"` và "đang thực hiện", mục 2 đến 6 "chưa thực hiện", KHÔNG liên kết nào trong thanh | `features/search/booking-steps.test.tsx` (mới) |
+| UIB-02 | Bước 2: mục 2 hiện tại; mục 1 "đã hoàn thành" kèm liên kết "Quay lại bước 1: Nhóm dịch vụ" ⇒ `/dat-lich`; mục 3 đến 6 không liên kết | cùng file |
+| UIB-03 | Bước 3: mục 3 hiện tại; liên kết bước 1 ⇒ `/dat-lich`, bước 2 ⇒ `/dat-lich/nhom/<id nhóm>`; mục 4 đến 6 không liên kết | cùng file |
+| UIB-04 | Ca biên: id nhóm lạ (`a/b`, `x y`, `%`, `?x=1`) ở Bước 3 ⇒ `href` của bước 2 là dạng đã mã hoá, giải mã lại đúng id, không vỡ URL | cùng file |
+| UIB-05 | Thứ tự trong `main`: Bước 1 thanh bước trước `h1`; Bước 2 và 3 thanh bước trước liên kết "Chọn lại…" trước `h1`; vẫn đúng một `h1`; lớp `mt-8` phía sau thanh bước | cùng file |
+| UIB-06 | Dải ở Bước 1 khi `unauthenticated` và danh sách đã tải: chữ nguyên văn (`textContent`), "đăng nhập" là liên kết tới `LOGIN_PATH`, không `role` `alert` hay `status`, không nút, biểu tượng `aria-hidden`; lớp `bg-warning-soft`, `border-warning-line`, `text-amber-900` (MỘT `expect` cho mỗi lớp, tránh `not.toHaveClass(a, b)` yếu) | cùng file |
+| UIB-07 | Bước 1: dải KHÔNG hiện ở `checking`, `error`, `authenticated` (BenhNhan, LeTan, BacSi, QuanTriVien); đổi `checking` ⇒ `unauthenticated` thì dải hiện đúng MỘT lần; dải không hiện khi danh sách đang tải, lỗi hay rỗng. **Bước 2 và Bước 3 KHÔNG có dải dù `unauthenticated`** (câu (b)) | cùng file |
+| UIB-08 | Kiến trúc: không file mã nào của `features/search` import `features/booking` (quét `import.meta.glob ?raw`, kèm đối chứng bắt mẫu xấu như BWZ-08); `shared/ui/booking-stepper.tsx` và `wizard-steps.ts` không import `features/` | `features/search/architecture.test.ts` (mới) |
+| BWZ-03, WZ-14 | Giữ nguyên 5 ca thanh bước, chỉ đổi chỗ file; chạy lại toàn bộ `features/booking` (wizard-routes, confirm, done, info, appointments) KHÔNG sửa ca nào | `shared/ui/booking-stepper.test.tsx` |
+| Ca cũ đổi có chủ ý | `service-sizes.test.tsx` dòng 115 (`getByRole('list')` ⇒ lấy danh sách thẻ trong `main`, không lẫn `ol` của thanh bước); ca khác chỉ biết khi chạy lại: ghi nguyên văn cả hai phía, không sửa lặng lẽ | `service-sizes.test.tsx` và file bị ảnh hưởng |
+| UIB-09 | Hình học theo Figma (câu (c) = B), khoá TÊN LỚP phần có ý nghĩa, MỘT `expect` cho mỗi lớp: vòng 33,75 px (`size-9`), cỡ nhãn 13 px, vành 4 px của vòng đang chọn, `flex-[147_0_0]` của năm mục đầu, ô nhãn 75 px; phần còn lại (kích thước đường nối, khoảng hở 9,375 px) ghi "chỉ Chromium thấy" vì `css:false` | `shared/ui/booking-stepper.test.tsx` (thêm ca vào file đã chuyển) |
+
+### 8.5 Đột biến (21 ca; DỰ ĐOÁN GHI TRƯỚC khi chạy, không sửa sau; sao lưu ngoài repo + SHA-256, 0 file `*.mut`, mỗi ca một vitest một file, chuỗi cũ phải xuất hiện ĐÚNG MỘT lần, kiểm khô trước)
+
+Bốn loại: **A** kho trình duyệt, URL, log; **B** tính ở máy khách, không dùng giá trị máy chủ; **C** chặn theo trạng thái; **D** giao diện (lớp, thứ tự, chữ). Loại A chỉ áp dụng nhánh URL (liên kết mã hoá id): PR không thêm `localStorage`, `sessionStorage`, query hay log mới nên các nhánh kho và log KHÔNG áp dụng (không có dữ liệu mới để mutate).
+
+**Dự đoán: 19 BẮT, 2 SỐNG (M15, M21).** B: M1 Bước 1 `current={1}` ⇒ `{2}` (BẮT: UIB-01); M2 Bước 2 `current` ⇒ 1 (BẮT: UIB-02); M3 Bước 3 `current` ⇒ 4 (BẮT: UIB-03); M4 Bước 3 bỏ liên kết bước 2 (BẮT: UIB-03); M5 Bước 2 liên kết bước 1 trỏ `serviceListPath(groupId)` thay `BOOKING_PATH` (BẮT: UIB-02). A: M6 Bước 3 ghép chuỗi thô, bỏ `encodeURIComponent` ở liên kết bước 2 (BẮT: UIB-04). C: M7 `=== 'unauthenticated'` ⇒ `!== 'unauthenticated'` (BẮT: UIB-06, UIB-07); M8 ⇒ `!== 'authenticated'` (hiện ở `checking` và `error`; BẮT: UIB-07); M9 ⇒ thêm `|| status === 'error'` (BẮT: UIB-07); M10 bỏ điều kiện, dải luôn hiện (BẮT: UIB-07). D: M11 Bước 2 đặt thanh bước SAU `h1` (BẮT: UIB-05); M12 chữ "lịch trống" ⇒ "lịch khám" (BẮT: UIB-06); M13 liên kết trong dải ⇒ `/` (BẮT: UIB-06); M14 thêm `role="alert"` cho dải (BẮT: UIB-06); **M15 dải `p-4` ⇒ `p-3` (SỐNG: lớp đệm không được khoá, tương đương với test, đo bằng Chromium như M7 của PR-A)**; M16 đổi nhãn "Bác sĩ & giờ" ⇒ "Bác sĩ" trong `wizard-steps.ts` (BẮT: BWZ-03); M17 `BookingStepper` bỏ `aria-current` (BẮT: BWZ-03). Hình học (câu (c) = B): M18 vòng `size-9` ⇒ `size-8` (BẮT: UIB-09); M19 nhãn 13 px ⇒ `text-xs` (BẮT: UIB-09); M20 bỏ vành 4 px của vòng đang chọn (BẮT: UIB-09); **M21 đường nối dài 94,5 px ⇒ 80 px (SỐNG: kích thước đường nối không được khoá vì `css:false`, chỉ Chromium thấy)**. Ở loại C, "dải ở Bước 2 hoặc 3" là mutant ngược của câu (b): M22 thêm `GuestLoginBanner` vào `ServiceListPage` (BẮT: UIB-07) nằm ngoài 21 ca, dự đoán BẮT.
+
+### 8.6 Kế hoạch đo Chromium (khi phiên kiểm độc lập báo "RẢNH"; Vite `127.0.0.1:5199 --strictPort`, KHÔNG dùng 5173 và 3307, không đụng project `clinixqa`; mock `/api` dán thẳng vào lệnh, không tạo file trong repo; MỘT Chromium, context riêng DPR 1,25 như PR-A, 1440, 1280 và 375 px; báo trước khi mở, đóng ngay sau khi đo; xoá `.playwright-mcp/` và ảnh)
+
+Ba trang × (khách `/auth/refresh` 401; bệnh nhân đã đăng nhập qua `/auth/refresh` 200 và `/auth/me`). Số đo so Figma bằng `get_design_context` trên nút nhỏ, dung sai ≤ 1 px: vòng 33,75; khoảng tâm 147; cỡ nhãn 13 px; vành 4 px; đường nối 94,5 × 1,875 và hở 9,375; chiều cao thanh 74,25 (nhãn 2 dòng); đáy thanh đến `h1` 30 px; chiều cao và đệm dải (Make `p-4`, `mt-5`, `rounded-xl`; không có số Figma). **Trước và sau**: đo thanh bước ở `/dat-lich/thong-tin` (Bước 4 của booking) MỘT lần ở 1440 và 375 px để ghi nhận hình dạng cả sáu bước đã đổi. `document.documentElement.scrollWidth` bằng `clientWidth` ở cả ba cỡ (ở 375 px nhãn xuống dòng trong ô `flex-1 min-w-0`, thanh KHÔNG cuộn ngang: đúng cách booking đang xử lý, giữ nguyên). Tương phản chữ nhãn và chữ dải ≥ 4,5:1, ký hiệu vòng ≥ 3:1 (script đọc màu oklch). Focus: Tab vào "Quay lại bước 1" ở Bước 2, 3: viền focus nền tảng (`outline-offset: -2px`) không bị cắt ở mép. Nhấp nháy: ghi thời điểm dải xuất hiện sau khi tải và tọa độ `h1`, danh sách, thanh bước TRƯỚC và SAU khi dải hiện (kỳ vọng không đổi vì dải nằm dưới). Chỗ khác Figma ghi là lệch có chủ ý kèm lý do.
+
+### 8.7 Câu hỏi cho Đại và đề xuất (hỏi bằng hộp câu hỏi; ★ = chỉ Đại quyết)
+
+| Câu | Hỏi | Đề xuất | Trả lời |
+|---|---|---|---|
+| (a) ★ | Cho chạm `shared/ui` (chuyển `booking-stepper.tsx`, `booking-stepper.test.tsx`, `wizard-steps.ts`) và `features/booking/wizard` (CHỈ đường import ở `wizard-frame.tsx`, `steps/step-placeholder.tsx`) | Có; T3 đã chốt; thanh bước không import `features/` nên không có vòng phụ thuộc | **Đại chọn Có, đúng danh sách này (17/11/2026).** Lưu ý: câu (c) = B thêm việc đổi HÌNH DẠNG thanh bước trong `shared/ui/booking-stepper.tsx` (không thêm file ngoài danh sách) |
+| (b) ★ | Dải vàng ở đâu: Figma KHÔNG có dải ở cả ba khung; Make chỉ có ở Bước 1, dưới danh sách. Đề bài ghi bước 1 đến 3 | Bước 1 dưới danh sách, đúng nguồn duy nhất (Make); thêm vào Bước 2, 3 chỉ là một dòng cho mỗi trang nếu Đại muốn, nhưng đó là thiết kế mới ngoài Figma và Make (Bước 3 của Make có hộp riêng sau khi chọn giờ, việc của PR-C2) | **Đại chọn CHỈ Bước 1, dưới danh sách (17/11/2026)**; Bước 2, 3 không có dải |
+| (c) ★ | Hình dạng thanh bước: giữ như hiện có (A) hay sửa cho khớp Figma `444:67` ở bảng 8.2 (B). B đổi giao diện cả bước 4 đến 6 của booking (không đổi hành vi) | B nếu Đại muốn bám Figma như các góp ý G1 đến G6 (nếu giữ A thì ba trang mới hiện thanh bước lệch 30 px ở hai đầu và nhãn nhỏ hơn Figma); A thì ghi lệch vào `docs/TECH_DEBT.md` 175 | **Đại chọn B (17/11/2026):** sửa khớp Figma trong PR này, cho cả sáu bước; thêm khoảng 1,5 giờ (tổng khoảng 6 giờ), thêm UIB-09 và M18 đến M21 |
+| (d) | Nơi đặt dải: `features/search/` hay `shared/ui/` | `features/search/` (chỉ search dùng; đưa lên khi có chỗ dùng thứ hai) | **Đại chọn `features/search/` (17/11/2026)** |
+| (e) | Mã test mới | `UIB-01` đến `UIB-09` | chờ phiên kiểm duyệt (đề xuất của mình, chưa hỏi Đại) |
+| (f) | Tiêu đề PR (86 ký tự, ≤ 100): `feat(web): thanh 6 bước và dải nhắc đăng nhập ở đặt lịch bước 1 đến 3 (search UI PR-B)`; thân PR: `Refs #156`, `[ĐỤNG shared]`, `[ĐỤNG booking]` (đổi đường import và hình dạng thanh bước; KHÔNG đổi hành vi, liên kết, chữ), `[ĐỤNG search]`. Chữ "bước 1 đến 3" trong tiêu đề vẫn đúng cho thanh bước; dải chỉ ở Bước 1 | Dùng | chờ phiên kiểm duyệt |
+
+### 8.8 Ước giờ, rủi ro, tài liệu, việc KHÔNG làm
+
+**Ước giờ `[đề xuất]` (Đại chọn B): khoảng 6 giờ** (chuyển `shared/ui` và đổi import 0,5; sửa hình học thanh bước 1,5; ba trang và dải 0,75; test 1,25; hồi quy từng file 0,5; đột biến 0,5; đo Chromium 0,75; tài liệu 0,25), trên mức 3 đến 4 giờ của đề bài vì có sửa hình học dùng chung cho cả sáu bước, 21 ca đột biến và phần đo. **Rủi ro:** (1) chạm `shared/` và booking ⇒ chạy lại cả `features/booking` và `src/shared`; (2) ca cũ vỡ vì thêm `ol` và dải (K6); (3) dải hiện muộn sau `/auth/refresh` ⇒ đo nhấp nháy; (4) **thanh sáu bước ở dưới 840 px, nhất là 375 px: Figma không có khung di động**, khoảng cách tâm 54 px nhỏ hơn ô nhãn 75 px; phương án lùi ở 8.3 (f); (5) đổi hình dạng thanh bước của booking (bước 4 đến 6) ngoài phạm vi "chỉ đổi import" của đề bài: đã được Đại chọn ở câu (c), nhưng cần ghi rõ trong thân PR để Trung review đúng.
+
+**Tài liệu cùng PR (`[ĐỒNG BỘ TL]`):** `docs/features/search/PLAN.md` sửa dòng 487 ghi nhầm "`444:2` không có thanh bước" (cả ba khung đều có thanh) và thêm mục UIB; TRACKING này (kết quả ở mục 8, ghi lại việc sửa dòng 487); `docs/features/booking/PLAN.md` dòng 395 (cây thư mục) và `docs/features/booking/TRACKING.md` dòng 2237, 2238 (cây thư mục F3-E) trỏ đường dẫn mới; các dòng lịch sử nhắc `booking-stepper.tsx` (PLAN booking 769, 773; TRACKING booking 55, 3413 đến 3517, 4112, 4171) GIỮ nguyên (ghi đúng thời điểm đó). `docs/TECH_DEBT.md` dòng 124 chỉ chỗ sửa là `booking-stepper.tsx` của F3: đường dẫn nay đã đổi, và hàng 175 `[đề xuất]` CHỈ nếu có lối tắt thật khi làm (chọn B nên lệch hình học 8.2 không còn là nợ; có thể có lối lùi ở màn hẹp 8.3 (f)): **hỏi Đại TRƯỚC khi ghi**. `AI_USAGE_LOG.md`: KHÔNG sửa khi chưa được phép; nháp hàng 142 `[đề xuất]` ở báo cáo cuối (trên `origin/main` lớn nhất 140, F7 giữ 141; AI-BUG `[đề xuất]` 059 nếu có lỗi AI).
+
+**KHÔNG làm:** dải "Ngày khám" và khung giờ (PR-C1, PR-C2); mô tả nhóm dịch vụ và thẻ "Sắp triển khai" (quyết định 15/11); màu nút, số liệu, banner (PR-A đã xong); sidebar Admin (G9); đổi chữ nhãn bước; `apps/api`, `docs/database/*`, `router/`, `styles/`, `vite.config`, `features/admin/**`, `features/doctor/**`, `features/booking/testing/*`; kiểm bằng máy đọc màn hình thật (kiểm tay). **Mức Gọn:** không chạy tay `jscpd`, `gitleaks`, schema-parity, migrations, upload (CI đo). **`[cần điền]`:** số PR, mã squash, kết quả CI, Trung approve (chỉ điền khi Đại báo). **`[đề xuất]`:** mã `UIB-nn`, tên file `guest-login-banner.tsx`, `booking-steps.test.tsx`, `architecture.test.ts`, đột biến M1 đến M22, số hàng AI log 142 và TECH_DEBT 175, ước giờ.
+
+### 8.9 Kết quả giai đoạn 1: mã, test từng file và đo Chromium (17/11/2026; phiên kiểm duyệt kế hoạch và cấp "RẢNH (1)" cho Chromium TRƯỚC đột biến và hồi quy cả thư mục, đổi thứ tự so với 8.6 vì Chromium có thể buộc sửa mã; RAM trống trước lệnh vitest 2.794 đến 4.046 MB, trước Chromium 3.402 MB)
+
+**Mã `apps/web/src`:** chuyển `booking-stepper.tsx`, `booking-stepper.test.tsx`, `wizard-steps.ts` từ `features/booking/wizard/` sang `shared/ui/` (tạo mới giống byte rồi xoá cũ; SHA-256 khớp trước khi sửa; sao lưu ngoài repo); `[ĐỤNG booking]` chỉ đổi dòng import ở `wizard/wizard-frame.tsx` và `wizard/steps/step-placeholder.tsx`; viết lại hình học `BookingStepper` theo Figma `444:67`, `446:67`, `449:67`; file mới `features/search/guest-login-banner.tsx`; `[ĐỤNG search]` ba trang thêm thanh bước (`mt-8` cho phần tử kế tiếp) và dải ở Bước 1 (sau `<ul>`, trong nhánh danh sách đã tải). Không đổi API, DB, `router/`, `styles/`, `vite.config`.
+
+**Test mới 30 ca:** `features/search/booking-steps.test.tsx` 21 (UIB-01 1, UIB-02 1, UIB-03 1, UIB-04 4, UIB-05 3, UIB-06 2, UIB-07 9), `features/search/architecture.test.ts` 5 (UIB-08), `shared/ui/booking-stepper.test.tsx` +4 (UIB-09; 5 ca BWZ-03 và WZ-14 chuyển nguyên văn, 9 ca). **Ca cũ đổi có chủ ý: DUY NHẤT 1** (`service-sizes.test.tsx` dòng 115, lỗi trước khi sửa "Found multiple elements with the role list"). Trước: `const grid = screen.getByRole('list');`. Sau: `const grid = screen.getByText('Khám chuyên khoa').closest('ul') as HTMLElement;` (prettier xuống 3 dòng, thêm 1 dòng chú thích); mọi `expect` phía sau giữ nguyên. **Đỏ trước khi sửa mã (đúng lý do):** UIB-09 4/4 đỏ; `booking-steps` 13/21 đỏ (8 ca âm "không hiện dải" xanh từ đầu, là ca bảo vệ); UIB-08 chạy sau khi có mã.
+
+**Hai lỗi do hồi quy và Chromium bắt được (không phải do test mới):** (1) `focus-hygiene` FG-05 đỏ vì tôi dùng `ring-4 ring-cyan-100` cho vành 4 px; luật cấm mọi `ring-*` (viền focus chỉ một nguồn) nên đổi sang bóng `shadow-[0_0_0_4px_var(--color-cyan-100)]` (đúng Figma `shadow-[0px_0px_0px_4px_#cefafe]`), không thêm ngoại lệ vào `styles/`; (2) **Chromium ở 375 px: đường nối đè lên vòng 3,13 px** vì khi viết lại tôi bỏ `relative z-10` của vòng (bản cũ của booking có); thêm lại và khoá bằng UIB-09 (đột biến M23 bỏ `z-10`, dự đoán GHI TRƯỚC khi chạy đột biến: BẮT). Đo lại: điểm trong vùng chồng nay trúng vòng (`elementFromPoint`), `scrollWidth` bằng `clientWidth`.
+
+**Hồi quy từng file (một tiến trình mỗi file), xanh:** search `service-sizes` 10, `booking-flow` 13, `doctor-sizes` 25, `home-page` 20, `public-layout` 12, `public-header-sizes` 10, `specialty-sizes` 11, `layout` 15, `cta-token` 8, `booking-steps` 21, `architecture` 5; `booking/wizard` 15 file (`confirm-create` 38, `confirm-flow` 5, `confirm-panel` 28, `create-failure` 23, `refund-policy-lines` 5, `done-failure` 5, `done-flow` 6, `done-receipt` 11, `done-states` 8, `eligibility-gate` 11, `info-draft` 11, `info-step` 47, `visit-reason-rules` 8, `slot-id` 3, `wizard-routes` 8); `router/routes` 9; `styles/focus-hygiene` 14; `shared`: `booking-paths` 15, `role-shell` 26, `status` 11, `booking-stepper` 9; `booking/architecture` 4. Sau hai lần sửa (bóng, `z-10`) chạy lại: `booking-stepper` 9, `booking-steps` 21, `wizard-routes` 8, `focus-hygiene` 14, `architecture` 5 xanh; `tsc -b` mã thoát 0, `eslint src/features/search src/shared src/features/booking/wizard` mã thoát 0, `prettier --check` sạch. **Chưa chạy (chờ lượt):** vitest cả thư mục và `build`; đột biến 23 ca và đo 768, 1024 px đã chạy, kết quả ở 8.10.
+
+**Đo Chromium (Vite `127.0.0.1:5199 --strictPort`, một Chromium, context riêng, `devicePixelRatio` đọc được 1,25; mock `/api` dán vào lệnh, không file trong repo; khách = `/auth/refresh` 401, bệnh nhân = 200 + `/auth/me` BenhNhan):**
+
+| Điểm đo | Figma | Web đo thật | Kết luận |
+|---|---|---|---|
+| Khung thanh bước (1440 và 1280 px, Bước 1, 2, 3, và Bước 4 của booking) | 810 px, y = 37,5 | 810 px, đệm trên 37,5 | khớp; 1280 giống hệt 1440 |
+| Tâm vòng (so với mép trái thanh) | 37,5; 184,5; 331,5; 478,5; 625,5; 772,5 (cách 147) | đúng sáu số đó | khớp |
+| Vòng, ô vòng và nhãn | 33,75; 75; 75 | 33,75; 75; 75 | khớp |
+| Nhãn | 13 px, dòng 16,25; hai nhãn đầu 2 dòng, 3 đến 6 một dòng (Bước 4: "Người khám" đang chọn đậm cũng 2 dòng, như Figma `449:106`) | `13px/16.25px`; dòng `[2,2,1,1,1,1]` (Bước 4: `[2,2,1,2,1,1]`) | khớp |
+| Đường nối | x = 63,75 + 147k, dài 94,5, dày 1,875, `top` 17 | đúng từng số; hở 9,375 mỗi bên vòng (`overlap` −9,38) | khớp |
+| Vành vòng đang chọn | viền 1,6; bóng 4 px `#cefafe` | `1.6px #007595`; `#cefafe 0 0 0 4px` | khớp (màu viền lệch có chủ ý, dưới) |
+| Chiều cao thanh | 74,25 (Figma tính nhãn 2 dòng = 33) | 73,75 (2 × 16,25 = 32,5) | lệch 0,5 px, trong dung sai 1 px |
+| Đáy thanh đến phần kế tiếp | Bước 1: 30 đến `h1`; Bước 2, 3: 30 đến liên kết "Chọn lại…" (Figma `445:343` y 141,75), 82,5 đến `h1` (`445:130` y 194,25) | Bước 1: 30; Bước 2 và 3: 30 và 82,5 | khớp |
+| `scrollWidth` − `clientWidth` | — | 0 ở 1440, 1280, 375 (cả ba trang và Bước 4; 1425, 1265, 360 là bề rộng trừ thanh cuộn 15 px) | đạt |
+| Tương phản chữ (trên nền `#ffffff`, đọc màu qua canvas 8 bit) | — | nhãn đã qua `#007595` **5,28**; đang chọn `#005f78` **7,22**; chưa tới `#4a5565` **7,56**; số trong vòng: đang chọn 5,28, chưa tới (trên `#f3f4f6`) 6,87; dấu tích trắng trên `#007595` 5,28 | đạt ≥ 4,5 (ký hiệu ≥ 3) |
+| Không chữ: viền vòng đang chọn `#007595` | — | 5,28:1; đường nối đã qua `#0092b8` 3,62:1; đường nối chưa tới `#e5e7eb` 1,24:1 | đường nối xám dưới 3:1 là nếp có sẵn (trang trí, trạng thái còn có chữ) |
+| Focus (Tab vào "Quay lại bước 1…") | — | `solid 1.6px`, lệch 1,6 px ra ngoài, màu brand; không tổ tiên nào `overflow` khác `visible`; hộp liên kết 75 × 73,75 | không bị cắt (đo bằng kiểu tính toán, không đếm điểm ảnh) |
+| 375 px | không có khung Figma | tâm vòng 25; 76; 127; 178; 229; 292,5 (cách 51); ô nhãn 50, 50, 50, 50, 50, 75; nhãn 2 dòng; **khe chữ nhỏ nhất 2,93 đến 3,38 px (không va, nhưng chật)**; đường nối 23,5 px; thanh không cuộn | **không dùng phương án lùi** (không va nhãn, không tràn) |
+| Dải vàng (Bước 1, khách; không có số Figma, so Make `mt-5 p-4 rounded-xl text-[15px]`) | — | cao 54,1 (1 dòng) ở 1440, rộng 810, cách danh sách 18,75, đệm 15, viền 0,8 `#fee685`, bo 11,25, chữ 15/22,5 `#7b3306` trên `#fffbeb` **8,73:1**, liên kết đậm gạch chân cùng màu, biểu tượng 18,75 `aria-hidden`, không `role`; ở 375 px 3 dòng, cao 99,1, rộng 330 (15 đến 345) | đạt |
+| Nhấp nháy (khách, Bước 1; mock `/auth/refresh` trễ 300 ms) | — | t = 326 ms thanh bước và `h1` (202,1); 381 ms danh sách (280,8 đến 481,1); **641 ms dải hiện ở 499,9; `h1`, danh sách, thanh bước KHÔNG dịch**; chỉ chiều cao trang 900 → 967 (chân trang xuống). Không trễ: danh sách và dải cùng một lượt | không đẩy phần đang đọc |
+| Dải không hiện | — | bệnh nhân Bước 1: không; khách Bước 2 và 3: không (và thanh bước có đúng 1 và 2 liên kết `/dat-lich`, `/dat-lich/nhom/1`) | đúng |
+
+**Lệch Figma có chủ ý (kèm lý do):** (1) vòng đã qua nền `#007595` (`brand-strong`) thay `#0092b8`: chữ trắng trên `#0092b8` chỉ 3,62:1 (ADR 0004); đường nối đã qua giữ `#0092b8` đúng Figma vì là nền trang trí; (2) chữ và số chưa tới `gray-600` `#4a5565` thay `#6a7282` (số trong vòng `#6a7282` trên `#f3f4f6` dưới 4,5:1); (3) dấu tích là `Check` của `lucide-react` 15 px thay vì tệp SVG của Figma (cùng hình, không tải thêm tài nguyên); (4) chiều cao thanh lệch 0,5 px (làm tròn 16,5 so 16,25 của Figma). **Giới hạn của khẳng định:** mock dữ liệu (không API, không DB thật); chỉ Chromium; chưa đo dưới 375 px (768 và 1024 px đo ở 8.10); không thu nhật ký console (404 của mock cho `clinic-info`, `specialties` là dự kiến); focus đọc bằng kiểu tính toán, chưa đếm điểm ảnh; chưa so ảnh với Figma bằng mắt ngoài việc xem hai ảnh chụp (ở scratchpad ngoài repo: `prb_chromium_s3_1440.png`, `prb_chromium_s1_guest_1440.png`, `prb_chromium_s1_guest_375.png`, `prb_chromium_s3_375.png`). Đã đóng context và tab, dừng Vite (PID kiểm `CommandLine` trước khi `taskkill`), cổng 5199 chỉ còn `TimeWait`, không có `.playwright-mcp/` hay ảnh ở gốc repo, `git status` không file lạ.
+
+### 8.10 Kết quả lượt "RẢNH (2)": đo bổ sung 768 và 1024 px, rồi 23 đột biến (17/11/2026; phiên kiểm cấp một lô, đo TRƯỚC rồi đột biến; RAM trống trước Chromium 2.569 MB, trước các ca đột biến 2.450 đến 3.494 MB)
+
+**Đo bổ sung (Vite 5199, một Chromium, DPR 1,25, mock như 8.9; Bước 1 khách, Bước 2 và 3 bệnh nhân, Bước 4 của booking bệnh nhân). Không phải sửa mã.**
+
+| Điểm đo | 1024 px | 768 px |
+|---|---|---|
+| Bề rộng thanh bước | 810 | 722,8 (viewport 768 trừ thanh cuộn 15 và đệm 30) |
+| Khoảng cách tâm vòng (cả năm khoảng) | 147 (như 1440) | 129,55 đến 129,57 (= (722,8 − 75) / 5 = 129,56) |
+| Ô vòng và nhãn | 75 px | 75 px |
+| Dòng của sáu nhãn (Bước 4) | `[2,2,1,1,1,1]` (`[2,2,1,2,1,1]`) | `[2,2,1,1,1,1]` (`[2,2,1,2,1,1]`) |
+| Khe chữ nhỏ nhất giữa hai nhãn liền kề | 74,04 đến 88,11 px | 56,60 đến 70,68 px |
+| Độ dài đường nối nhỏ nhất | 94,5 | 77,05 (= 129,56 − 75 + 22,5) |
+| Đường nối đè vòng (hình học) | 0 px | 0 px |
+| `scrollWidth` − `clientWidth` | 1009 − 1009 = 0 | 753 − 753 = 0 |
+| Phần tử vượt mép phải | không | không |
+| Dải vàng (Bước 1, khách) | 1 dòng, cao 54,1, rộng 810, mép phải 909,4 | 1 dòng, cao 54,1, rộng 722,8, mép phải 737,8 |
+
+Nhãn luôn 13 px; không có chỗ nào va hay tràn từ 768 đến 1440 px, nên không cần phương án lùi. Khoảng chật duy nhất vẫn là 375 px (khe chữ 2,93 px, 8.9). Đã đóng context, tab, dừng Vite (kiểm `CommandLine` trước khi `taskkill`), cổng 5199 chỉ còn `TimeWait`, không `.playwright-mcp/` hay ảnh ở gốc repo.
+
+**Đột biến: 23 ca, 21 BẮT, 2 SỐNG; KHỚP dự đoán 23/23 (không có ca lệch).** Mỗi ca một vitest một file (`booking-steps.test.tsx` 21 ca hoặc `booking-stepper.test.tsx` 9 ca); danh sách và dự đoán ở `mut_spec.json` (ngoài repo), kiểm khô bằng Python rồi lại bằng chính script (0 lỗi; mọi chuỗi cũ đúng một lần); sao lưu ngoài repo + SHA-256 trước và sau (sáu file: `service-group-page.tsx`, `service-list-page.tsx`, `doctor-list-page.tsx`, `guest-login-banner.tsx`, `booking-stepper.tsx`, `wizard-steps.ts`), **khôi phục khớp SHA sau từng ca**, 0 file `*.mut`, `git status` sau giống hệt trước. **Đối chứng đầu và cuối đều xanh** (`booking-steps` 21/21, `booking-stepper` 9/9). Dự đoán ghi ở 8.5 trước khi chạy (M23 thêm sau M22, dự đoán BẮT cũng ghi trước).
+
+| Ca | Biến đổi | Dự đoán → thực tế | Mã ca đỏ (số ca đỏ) |
+|---|---|---|---|
+| M1 | Bước 1 `current={1}` ⇒ `{2}` | BẮT → BẮT | UIB-01 (1) |
+| M2 | Bước 2 `current` ⇒ 1 | BẮT → BẮT | UIB-02 (1) |
+| M3 | Bước 3 `current` ⇒ 4 | BẮT → BẮT | UIB-03 (1) |
+| M4 | Bước 3 bỏ liên kết bước 2 | BẮT → BẮT | UIB-03, UIB-04 (5) |
+| M5 | Bước 2 liên kết bước 1 trỏ `serviceListPath(groupId)` | BẮT → BẮT | UIB-02 (1) |
+| M6 | Bước 3 ghép chuỗi thô, bỏ `encodeURIComponent` | BẮT → BẮT | UIB-04 (4, đủ bốn id lạ) |
+| M7 | `!== 'unauthenticated'` ⇒ `===` | BẮT → BẮT | UIB-06, UIB-07 (9) |
+| M8 | điều kiện ⇒ `=== 'authenticated'` (hiện ở `checking` và `error`) | BẮT → BẮT | UIB-07 (3) |
+| M9 | thêm `&& status !== 'error'` (hiện ở `error`) | BẮT → BẮT | UIB-07 (1) |
+| M10 | bỏ điều kiện, dải luôn hiện | BẮT → BẮT | UIB-07 (7) |
+| M11 | Bước 2: thanh bước đặt SAU liên kết "Chọn lại…" | BẮT → BẮT | UIB-05 (1) |
+| M12 | chữ "lịch trống" ⇒ "lịch khám" | BẮT → BẮT | UIB-06, UIB-07 (3) |
+| M13 | liên kết trong dải ⇒ `/` | BẮT → BẮT | UIB-06 (1) |
+| M14 | dải thêm `role="alert"` | BẮT → BẮT | UIB-06 (1) |
+| **M15** | dải `p-4` ⇒ `p-3` | **SỐNG → SỐNG** | — (lớp đệm không được khoá, tương đương với test; Chromium đo đệm 15 px, cao 54,1, đúng Make `p-4`) |
+| M16 | nhãn "Bác sĩ & giờ" ⇒ "Bác sĩ" ở `wizard-steps.ts` | BẮT → BẮT | BWZ-03, UIB-09 (2) |
+| M17 | `BookingStepper` bỏ `aria-current` | BẮT → BẮT | BWZ-03 (2) |
+| M18 | vòng `size-9` ⇒ `size-8` | BẮT → BẮT | UIB-09 (1) |
+| M19 | nhãn `text-[13px]` ⇒ `text-xs` | BẮT → BẮT | UIB-09 (1) |
+| M20 | bỏ vành 4 px của vòng đang chọn | BẮT → BẮT | UIB-09 (1) |
+| **M21** | đường nối ngắn lại (`±11,25` ⇒ `±3,75` px) | **SỐNG → SỐNG** | — (kích thước đường nối không khoá vì `css: false`, chỉ Chromium thấy: đo 94,5 ở 1440, 1280 và 1024, 77,05 ở 768) |
+| M22 | thêm `GuestLoginBanner` vào Bước 2 | BẮT → BẮT | UIB-05, UIB-07 (2) |
+| M23 | bỏ `relative z-10` của vòng | BẮT → BẮT | UIB-09 (1) |
+
+**Phân loại 2 ca sống sót:** cả hai là khoảng cách và kích thước thuần (đệm của dải, độ dài đường nối) mà vitest chạy `css: false` không đo được; không khoá tên lớp vì khoá `p-4` hay `±11,25px` chỉ là chép lại mã. Cách kiểm đã làm là số đo Chromium (8.9 và bảng trên), cùng nếp với M7 của PR-A. **Ghi chú về độ chính xác của dự đoán:** dự đoán ở 8.5 chỉ ghi BẮT hay SỐNG và một mã ca; có bốn ca đỏ thêm ngoài mã đã dự đoán (M4 thêm UIB-04, M12 thêm UIB-07, M16 thêm UIB-09, M22 thêm UIB-05), không làm đổi kết quả bắt hay sống.
+
+### 8.11 Kết quả lượt "RẢNH (3)": hồi quy cả thư mục và build trên mã CUỐI (17/11/2026; sau đột biến, SHA-256 sáu file đã khớp, 0 file `*.mut`; tuần tự MỘT tiến trình mỗi lần; RAM trống trước lệnh 3.298 đến 3.482 MB)
+
+| Lệnh | File | Ca xanh | Đỏ | Bỏ qua | Thời gian |
+|---|---|---|---|---|---|
+| `vitest run src/features/search` | 26 | 291 | 0 | 0 | 7,38 giây |
+| `vitest run src/features/booking` | 88 | 1.242 | 0 | 0 | 19,31 giây |
+| `vitest run src/shared` | 13 | 242 | 0 | 0 | 1,91 giây |
+| `vitest run src/router` | 7 | 85 | 0 | 0 | 5,18 giây |
+| **Tổng bốn thư mục** | **134** | **1.860** | **0** | **0** | |
+
+`features/booking` có stderr `AggregateError` với `connect ECONNREFUSED ::1:80` và `127.0.0.1:80` (6 dòng khớp mẫu), là TECH_DEBT 162 có sẵn, mã thoát vẫn 0. **`npm run build` (`tsc -b && vite build`) mã thoát 0:** 2.513 module, 5,04 giây; `dist` 1.637 KB; `index.html` 1,30 kB; CSS chính `index-DaFAhz-r.css` 81,54 kB (gzip 16,70 kB); JS lớn nhất `index-*.js` 409,75 kB (gzip 119,68 kB). Kiểm CSS đầu ra bằng Python (13/13 có): bóng vành `shadow-[0_0_0_4px_var(--color-cyan-100)]` (kèm biến `--color-cyan-100: oklch(95.6% .045 203.388)`), `flex-[147_0_0]`, `w-[75px]`, `border-[1.6px]`, `text-[13px]`, `leading-[16.25px]`, `top-[17px]`, `h-[1.875px]`, `z-10`, `text-cyan-800`, `bg-warning-soft`, `border-warning-line`, `text-amber-900`. **Lỗi của chính tôi trong lượt này (không ảnh hưởng mã):** lần kiểm CSS đầu chọn nhầm file `clinic-info-page-*.css` và dùng `grep` thoát ký tự sai cho lớp có `[`; đã dựng lại và kiểm bằng Python. Đã xoá `apps/web/dist`; `git status` không có `dist`, `*.tsbuildinfo`, `.playwright-mcp/` hay `*.mut`. **Chưa làm (CI đo, mức Gọn):** `jscpd`, `gitleaks`, các kiểm tra khác của CI. `[cần điền]`: số PR, mã squash, kết quả CI, Trung approve (chỉ điền khi Đại báo).
+
 ## 9. Kế hoạch Search Slots PR-C1 — API khung giờ trống công khai (backend; góp ý G8 của Đại, 17/11/2026) — **kế hoạch ĐÃ DUYỆT 17/11/2026** (phiên kiểm duyệt kỹ thuật; Đại chọn câu (b), (f), (j); xem 9.9) (lập 17/11/2026, plan-first; nhánh `feat/search-slots-api-c1` trên `origin/main` `6cf84e4`; thân PR ghi `Refs #156`, không có issue riêng vì Epic 156 đã đóng; Trung đã đồng ý T4 và T6; mức kiểm ĐẦY ĐỦ; **web (`DateStrip`, `DoctorSlotGrid`) là PR-C2, KHÔNG làm ở PR này**)
 
 Nguồn: `Tom_Tat_Gop_Y_Search_Gui_Trung_2026-11-17.docx` mục G8, T4, T6; Figma `259:2`, `260:2`, `446:2` đến `448:2` (**chỉ đọc qua tóm tắt PLAN 4.4 và docx; chưa mở Figma trực tiếp trong PR này**). Đã trả lời (T4, 17/11/2026): endpoint thuộc `search`; MỘT lời gọi cho cả trang (danh sách bác sĩ của trang và MỘT ngày); ngày mặc định là hôm nay giờ Việt Nam; cửa sổ 7 ngày (hôm nay đến hôm nay + 6); bấm một giờ sang bước 4 với `khungGioId` (việc của web). **Bước 0 (17/11/2026):** `git status` sạch; `HEAD...origin/main` = `0 0`; PR mở duy nhất là #378 (dependabot, TypeScript 7.0.2, không liên quan); Node `v22.23.4`; `origin/main` có B8 `6cf84e4` và PR-A `30ade2e`; MySQL `clinix-app-db-1` lên 4 ngày, khoẻ; RAM trống lúc bắt đầu 3.169 MB. Số hàng đã kiểm trên `origin/main`: `AI_USAGE_LOG.md` lớn nhất 140, `TECH_DEBT.md` lớn nhất 173.
