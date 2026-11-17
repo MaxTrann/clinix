@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { readSeedConfig, type SeedEnv } from './seed-config.js';
+import { readSeedConfig, SEED_COMMANDS, type SeedEnv } from './seed-config.js';
 import { seedCli } from './seed-cli.js';
 import { CONFIG_DEMO } from './catalog-data.js';
 import { validateDemoConfig } from './seed.service.js';
@@ -41,6 +41,30 @@ describe('doctor B18 — cấu hình lệnh doctor-demo', () => {
   });
 });
 
+describe('doctor-exam B10 — cấu hình lệnh exam-demo', () => {
+  it('EDS-12 exam-demo là lệnh hợp lệ và đọc SEED_DEV_PASSWORD (tạo bệnh nhân mẫu có mật khẩu)', () => {
+    expect(SEED_COMMANDS).toContain('exam-demo');
+    const env = environment();
+    const config = readSeedConfig('exam-demo', env);
+    expect(config.command).toBe('exam-demo');
+    expect(config.password === env.SEED_DEV_PASSWORD).toBe(true);
+  });
+  it('EDS-12 thiếu SEED_DEV_PASSWORD ⇒ SEED_ENV_INVALID, mật khẩu yếu ⇒ SEED_PASSWORD_INVALID', () => {
+    expect(() =>
+      readSeedConfig('exam-demo', {
+        ...environment(),
+        SEED_DEV_PASSWORD: undefined,
+      }),
+    ).toThrow(expect.objectContaining({ code: 'SEED_ENV_INVALID' }));
+    expect(() =>
+      readSeedConfig('exam-demo', {
+        ...environment(),
+        SEED_DEV_PASSWORD: 'abc',
+      }),
+    ).toThrow(expect.objectContaining({ code: 'SEED_PASSWORD_INVALID' }));
+  });
+});
+
 describe('C5 SD-03/04 — validation và lỗi CLI trước khi kết nối', () => {
   it.each([
     'catalog',
@@ -48,6 +72,7 @@ describe('C5 SD-03/04 — validation và lỗi CLI trước khi kết nối', ()
     'config-dev',
     'search-demo',
     'doctor-demo',
+    'exam-demo',
   ])(
     'SD-03 chặn production %s ngay cả khi chưa có cấu hình DB',
     async (command) => {
