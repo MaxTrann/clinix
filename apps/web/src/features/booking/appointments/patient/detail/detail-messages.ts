@@ -15,6 +15,7 @@ import {
   notCancellableMessage,
 } from '../../common/failure-text';
 import { REFUND_TEXT } from '../../common/refund-text';
+import { STATUS_STEP_TEXT } from '../../common/status-steps';
 import { LIST_TEXT } from '../list-messages';
 
 // Chữ của trang chi tiết lịch hẹn và hộp huỷ (booking F2). Chữ của Figma `420:2`, `426:2`, `691:2`, `421:2` khi có (đã bỏ các chuỗi mô phỏng, PLAN 4.4); còn lại
@@ -50,14 +51,13 @@ export const DETAIL_TEXT = {
   counter: 'Thu tại quầy',
   noCollect: 'Không thu',
   costNote: 'Giá khám chỉ mang tính tham khảo. Thanh toán trực tiếp tại quầy.',
-  waitingDeposit: 'Chờ xác nhận thanh toán cọc',
+  // Cùng một câu với dải của thanh trạng thái (`StatusTimeline`, booking F13): lấy từ MỘT chỗ
+  waitingDeposit: STATUS_STEP_TEXT.pendingPayment,
   payBefore: 'Hạn thanh toán',
   payButton: 'Thanh toán',
   payNotReady: 'Chưa được triển khai',
+  // Chữ "Chưa đến", "Đã qua", "Hiện tại" của các bước nằm ở `common/status-steps.ts` (`STATUS_STEP_TEXT`)
   timelineTitle: 'Trạng thái lịch hẹn',
-  upcoming: 'Chưa đến',
-  passed: 'Đã qua',
-  current: 'Hiện tại',
   cancelButton: 'Hủy lịch hẹn',
 } as const;
 

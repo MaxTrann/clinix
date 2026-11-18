@@ -38,10 +38,7 @@ export const DETAIL_TEXT = {
   notProvided: 'Chưa cập nhật',
   noReason: 'Không có',
   bookedOn: 'Ngày đặt lịch',
-  pendingPayment: 'Chờ xác nhận thanh toán cọc',
-  // Chữ phụ của bước (Figma): B5 không trả mốc thời gian của từng bước nên bước đã qua hay đang ở chỉ có "Chưa ghi nhận" [cần điền]
-  stepNotRecorded: 'Chưa ghi nhận',
-  stepUpcoming: 'Chưa đến',
+  // Chữ của các bước và dải chờ thanh toán nằm ở `common/status-steps.ts` (`STATUS_STEP_TEXT`, dùng chung ba vai trò, booking F13); chữ "Chưa ghi nhận" của Figma đã bỏ ở đây
 } as const;
 
 export const DETAIL_FAILURE_TEXTS: DetailFailureTexts = {
