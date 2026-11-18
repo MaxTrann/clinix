@@ -1,9 +1,9 @@
 import { Banknote, CreditCard, type LucideIcon } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { WALLET_TEXT } from './wallet-text';
 
-// Thẻ "Thao tác ví" với hai tab Nạp tiền, Rút tiền (payment F1; Figma `417:222`). F1 chỉ dựng KHUNG: nội dung tab do F2 (nạp, cần B4) và F6 (rút, cần B11) thay vào
-// (Trung chọn 17/11/2026). Tab đang chọn là trạng thái RIÊNG của thẻ này: lỗi tải số dư hay lịch sử không gỡ thẻ nên không làm mất tab (WVI-07).
+// Thẻ "Thao tác ví" với hai tab Nạp tiền, Rút tiền (payment F1; Figma `417:222`). Nội dung tab do trang truyền vào: F2 (`TopupPanel` của payment) cho tab nạp;
+// tab rút chờ F6 (cần B11), chưa có thì hiện câu "đang phát triển" (Trung chọn 17/11/2026). Tab đang chọn là trạng thái RIÊNG của thẻ này: lỗi tải số dư hay lịch sử không gỡ thẻ nên không làm mất tab (WVI-07).
 type TabKey = 'topup' | 'withdraw';
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
@@ -11,7 +11,13 @@ const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: 'withdraw', label: WALLET_TEXT.withdrawTab, icon: Banknote },
 ];
 
-export function WalletActions() {
+export function WalletActions({
+  topup,
+}: {
+  /** Nội dung tab Nạp tiền; `undefined` ⇒ câu "đang phát triển". */
+  topup?: ReactNode;
+}) {
+  const content: Record<TabKey, ReactNode> = { topup, withdraw: undefined };
   const [active, setActive] = useState<TabKey>('topup');
   const baseId = useId();
   const tabId = (key: TabKey) => `${baseId}-tab-${key}`;
@@ -70,9 +76,11 @@ export function WalletActions() {
           hidden={key !== active}
           className="p-[18px]"
         >
-          <p className="rounded-[8px] border border-dashed border-gray-200 bg-gray-50 px-[12px] py-[40px] text-center text-[13px] text-gray-500">
-            {WALLET_TEXT.tabComingSoon}
-          </p>
+          {content[key] ?? (
+            <p className="rounded-[8px] border border-dashed border-gray-200 bg-gray-50 px-[12px] py-[40px] text-center text-[13px] text-gray-500">
+              {WALLET_TEXT.tabComingSoon}
+            </p>
+          )}
         </div>
       ))}
     </section>

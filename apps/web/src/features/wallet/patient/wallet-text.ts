@@ -16,8 +16,12 @@ export const WALLET_TEXT = {
   actionsSubtitle: 'Nạp tiền vào ví hoặc yêu cầu rút tiền về tài khoản.',
   topupTab: 'Nạp tiền',
   withdrawTab: 'Rút tiền',
-  // [đề xuất] Nội dung hai tab do payment F2 (nạp) và F6 (rút) làm; F1 chỉ dựng khung (Trung chọn 17/11/2026)
+  // [đề xuất] Nội dung tab rút do payment F6 làm; chưa có thì hiện câu này (Trung chọn 17/11/2026)
   tabComingSoon: 'Chức năng đang được phát triển.',
+  // [đề xuất] payment F2: tab nạp chờ hạn mức và cổng của lần tải số dư; lỗi thì chưa có gì để hiện
+  topupLoading: 'Đang tải thông tin nạp tiền...',
+  topupUnavailable:
+    'Chưa tải được thông tin nạp tiền. Hãy bấm "Thử lại" ở phần số dư phía trên.',
 
   latestWithdrawal: 'Yêu cầu rút gần nhất',
   noWithdrawal: 'Chưa có yêu cầu rút tiền',

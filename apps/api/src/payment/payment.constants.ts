@@ -9,13 +9,28 @@ export const PAYMENT_ERROR_CODES = {
   NOT_COLLECTABLE: 'LICH_HEN_KHONG_CHO_THU_TIEN', // 409, kèm chiTiet.trangThai: lịch không còn `DaXacNhan`
   NOTHING_TO_COLLECT: 'KHONG_CON_PHAI_THU', // 409: số còn phải thu bằng 0
   AMOUNT_MISMATCH: 'SO_TIEN_KHONG_KHOP', // 409, kèm chiTiet.conPhaiThu
+  // B4: nạp ví qua cổng (PLAN 5.4, 5.14)
+  GATEWAY_NOT_CONFIGURED: 'CONG_THANH_TOAN_CHUA_CAU_HINH', // 503: thiếu biến môi trường của cổng, không tạo dòng
+  GATEWAY_ERROR: 'CONG_THANH_TOAN_LOI', // 503 (PLAN ghi 502; `AppException` chỉ cho 4xx và 503): tạo yêu cầu với cổng lỗi (dòng nạp chuyển `ThatBai`)
 } as const;
 
-/** Câu chữ của các mã B6 (PLAN 5.14; `[đề xuất]`). */
+/** `loai_su_kien` của thông báo nạp ví (PLAN 5.12; chữ `[đề xuất]`). Cột `varchar(100)` nên không cần đổi DDL. */
+export const TOPUP_NOTIFICATION_EVENTS = {
+  SUCCEEDED: 'NapViThanhCong',
+  FAILED: 'NapViThatBai',
+} as const;
+
+/** Mã lý do ghi ở `lan_doi_soat_nap_vi.ly_do` khi lần cộng đầu (lúc xác minh IPN) lỗi: dạng MÃ, không văn bản lỗi gốc (PLAN 5.4 Q9). */
+export const TOPUP_FIRST_CREDIT_FAILED = 'CONG_VI_LOI_KHI_XAC_MINH';
+
+/** Câu chữ của các mã B6 và B4 (PLAN 5.14; `[đề xuất]`). `SO_TIEN_NGOAI_HAN_MUC` là mã của ví (`wallet.constants.ts`) nhưng nạp ví ném ở `payment/`. */
 export const PAYMENT_ERROR_MESSAGES = {
   LICH_HEN_KHONG_CHO_THU_TIEN: 'Lịch hẹn không còn ở trạng thái đã xác nhận.',
   KHONG_CON_PHAI_THU: 'Lịch hẹn không còn khoản phải thu.',
   SO_TIEN_KHONG_KHOP: 'Số tiền thu không khớp số còn phải thu.',
+  CONG_THANH_TOAN_CHUA_CAU_HINH: 'Cổng thanh toán hiện chưa sẵn sàng.',
+  CONG_THANH_TOAN_LOI: 'Không kết nối được cổng thanh toán. Vui lòng thử lại.',
+  SO_TIEN_NGOAI_HAN_MUC: 'Số tiền nằm ngoài hạn mức cho phép.',
 } as const;
 
 export type PaymentErrorCode =

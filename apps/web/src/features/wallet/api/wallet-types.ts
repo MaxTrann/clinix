@@ -29,12 +29,21 @@ export interface LatestWithdrawal {
   thoiDiemYeuCau: string;
 }
 
-// Chỉ các khoá F1 hiển thị. `hanMucNap`, `congThanhToan` là của tab Nạp tiền (F2) nên F1 không đọc.
+/** Hạn mức một lần nạp (Q20), chuỗi decimal như mọi số tiền. */
+export interface TopupLimits {
+  toiThieu: string;
+  toiDa: string;
+}
+
+// Các khoá trang ví dùng. `hanMucNap`, `congThanhToan` chỉ CHUYỂN TIẾP cho tab Nạp tiền (payment F2): ví không tự hiểu tên cổng (`congThanhToan` là chuỗi thô,
+// payment lọc theo danh sách cổng nó biết), nên `wallet` không phụ thuộc kiểu của `payment`.
 export interface WalletOverview {
   soDuKhaDung: string;
   soTienDangGiu: string;
   napChoXacNhan: string;
   yeuCauRutGanNhat: LatestWithdrawal | null;
+  hanMucNap: TopupLimits;
+  congThanhToan: string[];
 }
 
 export interface WalletTransaction {
