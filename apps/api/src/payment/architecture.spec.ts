@@ -8,6 +8,7 @@ import {
 } from '../appointments/testing/architecture-rules.js';
 import { Public } from '../auth/decorators/public.decorator.js';
 import { DepositPaymentController } from './deposit/deposit-payment.controller.js';
+import { CashPaymentController } from './cash/cash-payment.controller.js';
 import { PatientWalletController } from '../wallet/balance/patient-wallet.controller.js';
 import { PaymentPolicyController } from './policy/payment-policy.controller.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -77,8 +78,15 @@ describe('QTT-08 payment/ và wallet/ không ghi lich_hen, khung_gio và không 
 });
 
 describe('QTT-09 mọi checkIn ở payment/ chỉ actor ThanhToan', () => {
-  it('cây thật đạt (hiện chưa có lời gọi nào: B6 thêm)', () => {
+  it('TTQ-15 ★ cây thật đạt, và CÓ lời gọi thật để quét (B6: `payment/cash/`), nên luật không xanh vì danh sách rỗng', () => {
     expect(findCheckInActorViolations(real)).toEqual([]);
+    const callers = real.filter(
+      (f) =>
+        f.path.startsWith('payment/') && /\.\s*checkIn\s*\(/.test(f.source),
+    );
+    expect(callers.map((f) => f.path)).toContain(
+      'payment/cash/cash-payment.service.ts',
+    );
   });
 
   it('đúng: actor ThanhToan, kể cả khi đối số xuống nhiều dòng và có ngoặc lồng', () => {
@@ -209,11 +217,12 @@ describe('QTT-14 nguoi_thu_id và nguoi_xu_ly_id chỉ lấy từ token', () => 
 });
 
 describe('QTT-01 mọi route có @Roles hợp lệ; @Public chỉ ở route IPN trong danh sách', () => {
-  it('controller THẬT của ví (B1) và thanh toán cọc (B5): mọi route có @Roles hợp lệ, không @Public', () => {
+  it('controller THẬT của ví (B1), thanh toán cọc (B5) và thu tiền mặt (B6): mọi route có @Roles hợp lệ, không @Public', () => {
     expect(
       findPaymentRouteViolations([
         PatientWalletController,
         DepositPaymentController,
+        CashPaymentController,
       ]),
     ).toEqual([]);
   });

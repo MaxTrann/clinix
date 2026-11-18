@@ -7,10 +7,14 @@ import type { SourceFile } from './architecture-rules.js';
 // Hàm THUẦN nhận `{ path, source }[]` như `architecture-rules.ts`. GIỚI HẠN ĐÃ BIẾT: khớp theo TÊN phương thức trong file có nhắc `AppointmentTransitionService`; file dùng cả hai dịch vụ và gọi `.cancel(` của
 // `AppointmentCancellationService` sẽ bị bắt nhầm (hiện không có file nào): khi đó tách file hay thêm ngoại lệ có lý do.
 
-/** Phương thức module khác được gọi (hợp đồng D6 và Q20). */
+/**
+ * Phương thức module khác được gọi (hợp đồng D6 và Q20). payment B6 (PLAN payment E7, E10; QTT-10) thêm `checkIn`: thu tiền mặt tại quầy tiếp đón trong CÙNG giao dịch ghi tiền, và CHỈ với
+ * `actor: 'ThanhToan'` (luật QTT-09 của `payment/testing/payment-architecture-rules.ts` canh đối số); `cancel`, `expire`, `markNoShow`, `restoreConfirmed` vẫn cấm.
+ */
 export const ALLOWED_OUTSIDE_METHODS: readonly string[] = [
   'confirmPaid',
   'complete',
+  'checkIn',
 ];
 
 const CLASS_HEADER = 'export class AppointmentTransitionService';
