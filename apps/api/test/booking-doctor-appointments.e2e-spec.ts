@@ -424,7 +424,7 @@ describe('GET /doctor/appointments — bộ lọc, ô tìm, kiểm query', () =>
 });
 
 describe('GET /doctor/appointments/:maLichHen', () => {
-  it('DSB-06, DSB-08 chi tiết: đúng mười một khoá, giá trị đúng; chưa có hồ sơ thì `ghiChuKham` null (kể cả lịch HoanThanh; có hồ sơ: khối HDK-01 bên dưới); không khoá lộ id, email, băm, giá, lý do huỷ; không SĐT bác sĩ', async () => {
+  it('DSB-06, DSB-08 chi tiết: đúng mười hai khoá (booking B19: thêm `moc`), giá trị đúng; chưa có hồ sơ thì `ghiChuKham` null (kể cả lịch HoanThanh; có hồ sơ: khối HDK-01 bên dưới); không khoá lộ id, email, băm, giá, lý do huỷ; không SĐT bác sĩ', async () => {
     const w = await world();
     const res = await get(`/${C.a1}`, w.tokenA1);
     expect(res.status).toBe(200);
@@ -655,7 +655,7 @@ const flagsOf = (res: { body: unknown }) =>
   );
 
 describe('GET /doctor/appointments[/:maLichHen] — hồ sơ khám (B3)', () => {
-  it('HDK-01, HDK-15 chi tiết có hồ sơ: 200, `no-store`, ĐÚNG mười một khoá, `ghiChuKham` đúng năm khoá và NGUYÊN VĂN (HTML, emoji ghép, CRLF, TAB, khoảng trắng hai đầu, ngày cuối năm); `capNhatLanCuoi` ISO UTC; không khoá cấm; bác sĩ khác 404', async () => {
+  it('HDK-01, HDK-15 chi tiết có hồ sơ: 200, `no-store`, ĐÚNG mười hai khoá, `ghiChuKham` đúng năm khoá và NGUYÊN VĂN (HTML, emoji ghép, CRLF, TAB, khoảng trắng hai đầu, ngày cuối năm); `capNhatLanCuoi` ISO UTC; không khoá cấm; bác sĩ khác 404', async () => {
     const w = await world();
     const raw = {
       trieuChung: '  <script>alert("x")</script> & <b>đậm</b>  ',
@@ -684,7 +684,7 @@ describe('GET /doctor/appointments[/:maLichHen] — hồ sơ khám (B3)', () => 
     expect((await get(`/${C.c2}`, w.tokenA2)).status).toBe(404);
   });
 
-  it('HDK-01, Q16 hồ sơ MỒ CÔI ở DaXacNhan (a1) và ChoThanhToan (a2) ⇒ chi tiết `ghiChuKham` null, danh sách `coHoSoKham` false; chi tiết vẫn mười một khoá', async () => {
+  it('HDK-01, Q16 hồ sơ MỒ CÔI ở DaXacNhan (a1) và ChoThanhToan (a2) ⇒ chi tiết `ghiChuKham` null, danh sách `coHoSoKham` false; chi tiết vẫn mười hai khoá', async () => {
     const w = await world();
     await dfx.insertRecord(w.apps.a1.lichHenId);
     await dfx.insertRecord(w.apps.a2.lichHenId);

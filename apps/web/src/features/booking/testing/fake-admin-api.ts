@@ -94,6 +94,7 @@ export function makeAdminDetail(
     hanThanhToan: null,
     chuyenDuoc: ['DaTiepDon', 'VangMat', 'DaHuy'],
     conPhaiThu: '300000.00',
+    moc: { xacNhan: null, tiepDon: null, hoanThanh: null },
     lichSuTrangThai: [makeHistoryEntry()],
     ...overrides,
   };

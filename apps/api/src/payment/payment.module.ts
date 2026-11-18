@@ -17,6 +17,9 @@ import { IpnService } from './gateway/ipn/ipn.service.js';
 import { VnpayIpnController } from './gateway/ipn/vnpay-ipn.controller.js';
 import { PaymentPolicyModule } from './policy/payment-policy.module.js';
 import { PaymentPortsModule } from './ports/payment-ports.module.js';
+import { ReconcileRepository } from './reconcile/reconcile.repository.js';
+import { ReconcileService } from './reconcile/reconcile.service.js';
+import { TopupReconcileJob } from './reconcile/topup-reconcile.job.js';
 import { PatientTopupController } from './topup/patient-topup.controller.js';
 import { TopupNotifier } from './topup/topup-notifier.js';
 import { TopupRepository } from './topup/topup.repository.js';
@@ -29,6 +32,7 @@ import { TopupService } from './topup/topup.service.js';
 // B5: `deposit/` (hai route thanh toán cọc bằng ví). B10: `PaymentPolicyModule`. B6: `cash/` (thu tiền mặt tại quầy) nhập `RbacModule` (chi nhánh của Lễ tân) và `SystemConfigModule` (cửa sổ tiếp đón);
 // cả hai là module lá, không nhập ngược `PaymentModule`.
 // B4: `topup/` (tạo nạp ví, xem trạng thái) và `gateway/ipn/` (IPN của VNPAY); `GatewayRegistry` tạo MỘT lần lúc khởi động từ biến môi trường (thiếu biến ⇒ cổng "chưa cấu hình", API vẫn chạy).
+// B14: `reconcile/` (job đối soát nạp ví `TopupReconcileJob`, chạy mỗi phút; `ScheduleModule.forRoot()` đã có ở `app.module.ts`).
 @Module({
   imports: [
     AppointmentsModule,
@@ -54,6 +58,9 @@ import { TopupService } from './topup/topup.service.js';
     TopupNotifier,
     IpnService,
     { provide: GatewayRegistry, useFactory: () => createGatewayRegistry() },
+    ReconcileRepository,
+    ReconcileService,
+    TopupReconcileJob,
   ],
 })
 export class PaymentModule {}

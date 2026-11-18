@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
-import type { TrangThaiGiaoDichThanhToan } from '../entities/payment-enums.js';
+import type {
+  TrangThaiDoiSoat,
+  TrangThaiGiaoDichThanhToan,
+} from '../entities/payment-enums.js';
 import type { TopupGateway } from '../../wallet/wallet.constants.js';
 
 // SQL của nạp ví (payment B4; PLAN 5.4). Mọi câu nhận `em` của người gọi (đọc thường hay trong giao dịch). Không `NOW()`: giờ do service truyền (QTT-08).
@@ -13,6 +16,8 @@ export interface TopupRow {
   phuongThuc: TopupGateway;
   soTien: string;
   trangThai: TrangThaiGiaoDichThanhToan;
+  /** B14: `ChoDoiSoat` = cổng đã báo thu tiền nhưng chưa cộng được ví (job đối soát cộng lại). */
+  trangThaiDoiSoat: TrangThaiDoiSoat;
   thoiDiemTao: Date;
   /** Đã có dòng sổ cái `Nap` cho giao dịch này chưa (tiền đã vào ví). */
   daCongVi: boolean;
@@ -25,6 +30,7 @@ const SELECT_TOPUP = `
          g.phuong_thuc AS phuongThuc,
          g.so_tien AS soTien,
          g.trang_thai AS trangThai,
+         g.trang_thai_doi_soat AS trangThaiDoiSoat,
          g.thoi_diem_tao AS thoiDiemTao,
          EXISTS (SELECT 1 FROM giao_dich_vi d WHERE d.giao_dich_thanh_toan_id = g.giao_dich_thanh_toan_id AND d.loai = 'Nap') AS daCongVi
     FROM giao_dich_thanh_toan g

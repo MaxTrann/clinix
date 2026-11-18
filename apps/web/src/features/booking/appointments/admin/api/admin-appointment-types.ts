@@ -1,6 +1,7 @@
 import type { AppointmentState } from '../../common/appointment-status';
 import type { OperationsAppointmentDetail } from '../../common/operations-appointment';
 import type { RefundAmount } from '../../common/refund-types';
+import type { StatusMilestones } from '../../common/status-notes';
 
 // Kiểu dữ liệu của "Lịch hẹn" của Quản trị viên (booking F10; hợp đồng đọc từ mã backend B4 và B14: TRACKING 3.33.1, 3.31, 3.35). Dòng danh sách, trang và chi tiết 16 khoá có CÙNG
 // hình dạng với Lễ tân nên dùng chung `common/operations-appointment.ts`; ở đây chỉ có phần riêng của Quản trị viên.
@@ -22,6 +23,8 @@ export interface HistoryEntry {
 
 // Chi tiết: mười sáu khoá của Lễ tân cộng `lichSuTrangThai` (đúng mười bảy khoá). Thứ tự mục do máy chủ quyết (`TaoLich` đầu, phần còn lại theo thời điểm tăng dần): web không sắp lại.
 export interface AdminAppointmentDetail extends OperationsAppointmentDetail {
+  // Mốc từng bước (booking B19), CHỈ ở chi tiết Quản trị viên: Lễ tân nhận khoá này từ API nhưng bộ đọc của Lễ tân không chép theo
+  moc: StatusMilestones;
   lichSuTrangThai: HistoryEntry[];
 }
 

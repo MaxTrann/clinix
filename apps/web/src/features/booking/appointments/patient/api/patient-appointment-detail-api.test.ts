@@ -28,6 +28,11 @@ const DETAIL = {
   thanhToan: null,
   hoanTien: null,
   thoiGianMayChu: '2026-10-18T02:00:00.123Z',
+  moc: {
+    xacNhan: '2026-10-16T03:00:00.000Z',
+    tiepDon: null,
+    hoanThanh: null,
+  },
 };
 const PAYMENT = {
   daThu: '100000.00',
@@ -57,7 +62,7 @@ const without = <T extends object>(value: T, key: keyof T) => {
 };
 
 describe('parsePatientAppointmentDetail', () => {
-  it('LCT-05 đủ mười sáu khoá ⇒ giữ nguyên mười hai khoá của danh sách, lyDoKham, thanhToan, hoanTien, thoiGianMayChu', () => {
+  it('LCT-05 đủ mười bảy khoá ⇒ giữ nguyên mười hai khoá của danh sách, lyDoKham, thanhToan, hoanTien, thoiGianMayChu, moc (booking B19)', () => {
     expect(parsePatientAppointmentDetail(DETAIL)).toEqual(DETAIL);
   });
 
@@ -105,11 +110,48 @@ describe('parsePatientAppointmentDetail', () => {
       'thanhToan',
       'hoanTien',
       'thoiGianMayChu',
+      'moc',
       'choPhepHuy',
       'giaSnapshot',
     ] as const) {
       unusable(without(DETAIL, key));
     }
+  });
+
+  it('MOW-03 moc: đúng ba khoá, mỗi khoá ISO hoặc null; thiếu khoá con, sai dạng ngày, sai kiểu hay không phải đối tượng ⇒ không dùng được; khoá thừa không lọt ra', () => {
+    const ALL = {
+      xacNhan: '2026-10-16T03:00:00.000Z',
+      tiepDon: '2026-10-18T01:20:00.000Z',
+      hoanThanh: '2026-10-18T02:00:00.000Z',
+    };
+    const NONE = { xacNhan: null, tiepDon: null, hoanThanh: null };
+    expect(parsePatientAppointmentDetail({ ...DETAIL, moc: ALL }).moc).toEqual(
+      ALL,
+    );
+    expect(parsePatientAppointmentDetail({ ...DETAIL, moc: NONE }).moc).toEqual(
+      NONE,
+    );
+    expect(
+      JSON.stringify(
+        parsePatientAppointmentDetail({
+          ...DETAIL,
+          moc: { ...ALL, mocKhac: 'LO_RA' },
+        }),
+      ),
+    ).not.toContain('LO_RA');
+    for (const moc of [
+      null,
+      [],
+      'moc',
+      { xacNhan: ALL.xacNhan, tiepDon: null },
+      { ...ALL, tiepDon: 'hôm qua' },
+      { ...ALL, hoanThanh: '' },
+      { ...ALL, xacNhan: 5 },
+      { ...ALL, tiepDon: undefined },
+    ])
+      expect(() => parsePatientAppointmentDetail({ ...DETAIL, moc })).toThrow(
+        UnexpectedResponseError,
+      );
   });
 
   it('LCT-05 sai kiểu hay sai hình dạng ⇒ phản hồi không dùng được', () => {

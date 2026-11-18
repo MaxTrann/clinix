@@ -1,5 +1,6 @@
 import type { AppointmentState } from '../../common/appointment-status';
 import type { StatusCounts } from '../../common/status-counts';
+import type { StatusMilestones } from '../../common/status-notes';
 
 // Kiểu dữ liệu của "Lịch hẹn" của Bác sĩ (booking F11; hợp đồng `GET /doctor/appointments` ở PLAN 5.8, 5.9, TRACKING 3.20.1).
 
@@ -54,6 +55,8 @@ export interface DoctorAppointmentDetail extends DoctorAppointment {
   ghiChuKham: DoctorExamRecord | null;
   chiNhanh: string;
   ngayDat: string;
+  // Mốc từng bước (booking B19): giờ dưới từng bước của thanh trạng thái; lịch cũ ba `null`
+  moc: StatusMilestones;
 }
 
 // `{ items, total, page, pageSize, demTheoTrangThai }`: số đếm đủ sáu khoá, áp mọi bộ lọc TRỪ `trangThai[]`

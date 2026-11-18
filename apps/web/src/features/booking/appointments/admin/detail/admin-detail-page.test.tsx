@@ -521,3 +521,74 @@ describe('panel "Lịch sử trạng thái" (QT-02)', () => {
     expect(screen.queryByText(/LoaiMoiCuaMayChu/)).toBeNull();
   });
 });
+
+describe('MOW-06 booking B19 — Quản trị viên: giờ THẬT dưới từng bước của thanh trạng thái', () => {
+  const MOC = {
+    xacNhan: '2026-10-16T03:00:00.000Z',
+    tiepDon: '2026-10-19T07:20:00.000Z',
+    hoanThanh: '2026-10-19T08:05:00.000Z',
+  };
+  const openAdmin = (over: Parameters<typeof openAdminDetail>[0]) =>
+    openAdminDetail({ chuyenDuoc: [], ...over });
+  const steps = () =>
+    within(screen.getByRole('list', { name: 'Trạng thái lịch hẹn' }))
+      .getAllByRole('listitem')
+      .map((step) => step.textContent);
+
+  it('HoanThanh: ba giờ HH:mm dd/MM theo giờ Việt Nam dưới đúng ba bước (03:00Z ⇒ 10:00)', async () => {
+    await openAdmin({ trangThai: 'HoanThanh', moc: MOC });
+    expect(steps()).toEqual([
+      'Đã xác nhận10:00 16/10Đã qua',
+      'Đã tiếp đón14:20 19/10Đã qua',
+      'Hoàn thành15:05 19/10Hiện tại',
+    ]);
+  });
+
+  it('DaTiepDon: giờ ở bước đã qua và bước hiện tại, "Chưa đến" ở bước Hoàn thành dù API có giờ hoàn thành', async () => {
+    await openAdmin({ trangThai: 'DaTiepDon', moc: MOC });
+    expect(steps()).toEqual([
+      'Đã xác nhận10:00 16/10Đã qua',
+      'Đã tiếp đón14:20 19/10Hiện tại',
+      'Hoàn thànhChưa đến',
+    ]);
+  });
+
+  it('lịch cũ (cả ba mốc null) ⇒ "—" ở bước đã qua và hiện tại, không bịa giờ; mỗi bước độc lập (chỉ tiếp đón có giờ)', async () => {
+    await openAdmin({
+      trangThai: 'HoanThanh',
+      moc: {
+        xacNhan: null,
+        tiepDon: '2026-10-19T07:20:00.000Z',
+        hoanThanh: null,
+      },
+    });
+    expect(steps()).toEqual([
+      'Đã xác nhận—Đã qua',
+      'Đã tiếp đón14:20 19/10Đã qua',
+      'Hoàn thành—Hiện tại',
+    ]);
+  });
+
+  it('theo NGÀY giờ Việt Nam, không theo múi giờ máy: 17:30Z ⇒ 00:30 ngày hôm sau', async () => {
+    await openAdmin({
+      trangThai: 'DaXacNhan',
+      moc: {
+        xacNhan: '2026-10-16T17:30:00.000Z',
+        tiepDon: null,
+        hoanThanh: null,
+      },
+    });
+    expect(steps()[0]).toBe('Đã xác nhận00:30 17/10Hiện tại');
+  });
+
+  it.each(['ChoThanhToan', 'DaHuy', 'VangMat'] as const)(
+    'MOW-08 trạng thái %s: KHÔNG hiện giờ nào dù API có mốc (giữ bố cục F13: ba bước "Chưa đến")',
+    async (trangThai) => {
+      await openAdmin({ trangThai, moc: MOC });
+      expect(screen.queryAllByTestId('timeline-note')).toHaveLength(0);
+      expect(document.body.textContent).not.toMatch(
+        /10:00 16\/10|14:20 19\/10|15:05 19\/10/,
+      );
+    },
+  );
+});

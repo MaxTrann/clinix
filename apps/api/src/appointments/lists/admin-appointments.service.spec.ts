@@ -13,7 +13,7 @@ import type { OperationsAppointmentDetailRow } from './operations-appointments.r
 import type { OperationsAppointmentsService } from './operations-appointments.service.js';
 
 // Task B4 — AdminAppointmentsService với phụ thuộc GIẢ và `runReadOnly` giả (không DB): thứ tự giảm dần (ADL-01), phạm vi đi nguyên vào dịch vụ dùng chung (DSV-02, DSV-03), kiểm hình dạng phạm vi
-// lúc chạy (ADL-08), 404 cùng một nhánh (DSV-09, QB-05), `chuyenDuoc[]` theo ma trận Q24 (ADL-03), `conPhaiThu` chỉ ở `DaXacNhan` (ADL-04), hình dạng 17 khoá (ADL-02). Chạy thật trên MySQL:
+// lúc chạy (ADL-08), 404 cùng một nhánh (DSV-09, QB-05), `chuyenDuoc[]` theo ma trận Q24 (ADL-03), `conPhaiThu` chỉ ở `DaXacNhan` (ADL-04), hình dạng 18 khoá (ADL-02). Chạy thật trên MySQL:
 // admin-appointments.int-spec.ts. Mã ADL-nn là PLAN 7.39 `[đề xuất]`; DSV-nn, QB-nn là PLAN 7.7, 7.9.
 const hoisted = vi.hoisted(() => ({
   manager: { id: 'manager-cua-mot-giao-dich' },
@@ -64,6 +64,9 @@ function detailRow(
     lichHenId: '4242',
     lyDoKham: 'Đau đầu',
     lyDoHuy: null,
+    thoiDiemXacNhan: null,
+    thoiDiemTiepDon: null,
+    thoiDiemHoanThanh: null,
     ...overrides,
   };
 }
@@ -231,7 +234,7 @@ describe('chi tiết: chuyenDuoc[] và conPhaiThu (ADL-03, ADL-04)', () => {
 });
 
 describe('chi tiết: hình dạng và panel (ADL-02, LSD-01)', () => {
-  it('ADL-02 đúng 17 khoá, không `lichHenId`, không `thanhToan`, `hoanTien`, `thoiGianMayChu`, email, ngày sinh; giá trị ánh xạ đúng', async () => {
+  it('ADL-02 đúng 18 khoá (có `moc`), không `lichHenId`, không `thanhToan`, `hoanTien`, `thoiGianMayChu`, email, ngày sinh; giá trị ánh xạ đúng', async () => {
     const detail = await service.detail(ALL_SCOPE, CODE);
     expect(Object.keys(detail).sort()).toStrictEqual([
       'bacSi',
@@ -246,6 +249,7 @@ describe('chi tiết: hình dạng và panel (ADL-02, LSD-01)', () => {
       'lyDoHuy',
       'lyDoKham',
       'maLichHen',
+      'moc',
       'nguoiDat',
       'nguoiKham',
       'thoiGian',

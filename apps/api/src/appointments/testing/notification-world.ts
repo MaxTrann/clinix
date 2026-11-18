@@ -1,5 +1,6 @@
 import type { DataSource, EntityManager } from 'typeorm';
 import { SystemConfigRepository } from '../../admin/system-config/system-config.repository.js';
+import { nowVN, toSecond } from '../../common/time/time.js';
 import { FakeMailService } from '../../mail/testing/fake-mail.service.js';
 import { SystemConfigService } from '../../admin/system-config/system-config.service.js';
 import { ExamPriceReader } from '../../pricing/exam-price.reader.js';
@@ -80,10 +81,11 @@ export const runConfirmPaid = (
   transition: AppointmentTransitionService,
   lichHenId: string,
   soTienDaThu = '100000.00',
+  now: Date = toSecond(nowVN()),
 ) =>
   withBookingTransaction(
     db,
-    (em) => transition.confirmPaid(em, { lichHenId, soTienDaThu }),
+    (em) => transition.confirmPaid(em, { lichHenId, soTienDaThu, now }),
     { label: 'test-confirm-paid' },
   );
 

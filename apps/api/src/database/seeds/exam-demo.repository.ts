@@ -265,8 +265,9 @@ export class ExamDemoRepository {
     const done = sample.state === 'HoanThanh';
     const lichHenId = await this.insert(
       `INSERT INTO lich_hen (ma_lich_hen, khung_gio_id, benh_nhan_id, ho_so_nguoi_than_id, bac_si_id, chi_nhanh_id, dich_vu_kham_id,
-                            thoi_gian, gia_snapshot, trang_thai, ly_do_kham, thoi_diem_tao, cap_nhat_lan_cuoi)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                            thoi_gian, gia_snapshot, trang_thai, ly_do_kham, thoi_diem_tao, cap_nhat_lan_cuoi,
+                            thoi_diem_xac_nhan, thoi_diem_tiep_don, thoi_diem_hoan_thanh)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         sample.code,
         placed.khungGioId,
@@ -283,6 +284,13 @@ export class ExamDemoRepository {
         done
           ? addSeconds(placed.ngayGio, 45 * 60)
           : earlier(placed.ngayGio, this.nowText),
+        // Ba mốc từng bước (booking B19) `[đề xuất]` là DỮ LIỆU GIẢ suy ra từ giờ hẹn: xác nhận lúc đặt (cọc 0đ), tiếp đón 10 phút trước giờ hẹn, hoàn thành 45 phút sau giờ hẹn;
+        // kẹp không vượt giờ hiện tại (lịch DaTiepDon hôm nay có thể ở sau giờ chạy seed). Lịch HoanThanh luôn có đủ ba mốc, lịch DaTiepDon không có mốc hoàn thành.
+        addSeconds(placed.ngayGio, -3 * 86400),
+        earlier(addSeconds(placed.ngayGio, -10 * 60), this.nowText),
+        done
+          ? earlier(addSeconds(placed.ngayGio, 45 * 60), this.nowText)
+          : null,
       ],
     );
     this.counts.created++;

@@ -98,11 +98,14 @@ describe('CKI-01 kết quả có kiểu và thứ tự kiểm của checkIn (L�
     expect(await s.run(s.leTan())).toEqual({ kind: 'CheckedIn' });
     expect(s.em.labels).toEqual(['lock lich_hen', 'write lich_hen']);
     expect(s.askedAfter).toEqual([1]);
+    // MOC-08: tham số (đích, mốc tiếp đón = now của lượt, lịch, nguồn); mốc nằm CÙNG câu UPDATE với trạng thái
     expect(s.em.queries[1]?.params).toEqual([
       'DaTiepDon',
+      THOI_GIAN,
       LICH_HEN_ID,
       'DaXacNhan',
     ]);
+    expect(s.em.queries[1]?.sql).toContain('thoi_diem_tiep_don = ?');
   });
 
   it('không có lịch đó: NotFound, chỉ một câu khoá, không hỏi tiền, không ghi', async () => {

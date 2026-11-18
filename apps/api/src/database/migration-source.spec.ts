@@ -5,6 +5,11 @@ import {
   TaoBangHoSoKham1793620800000,
 } from './migrations/1793620800000-tao-bang-ho-so-kham.js';
 import { MIGRATIONS } from './migrations/index.js';
+import {
+  MOC_THOI_GIAN_LICH_HEN_COLUMNS,
+  MOC_THOI_GIAN_LICH_HEN_UP_SQL,
+  MocThoiGianLichHen1793793600000,
+} from './migrations/1793793600000-moc-thoi-gian-lich-hen.js';
 import { TAO_BANG_MOC_HOAN_TIEN_SQL } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import {
   NHAT_KY_RUT_TIEN_DOWN_SQL,
@@ -20,6 +25,7 @@ import {
   officialStatementsFor,
   targetTable,
   maskAuditEnums,
+  maskLichHenMoc,
   maskThongBaoLichHen,
 } from './testing/official-schema.js';
 
@@ -76,7 +82,10 @@ describe('migration P2 khớp schema SQL chính thức', () => {
     const official =
       officialStatementsFor(STAFF_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    expect(TAO_BANG_NHAN_SU_SQL.map(normalizeStatement)).toEqual(official);
+    // Ba cột mốc của lich_hen được thêm ở migration booking B19 (sau migration này): phần B19 được che, xem MOC-01, MOC-02 ở dưới.
+    expect(TAO_BANG_NHAN_SU_SQL.map(normalizeStatement)).toEqual(
+      maskLichHenMoc(official),
+    );
   });
 
   it('mọi câu migration chỉ tác động tám bảng nhân sự và bảng nền P2', () => {
@@ -206,6 +215,110 @@ describe('migration booking P7 (thong_bao.lich_hen_id) khớp schema SQL chính 
     const otherTable =
       "CREATE TABLE `khac` (\n  `lich_hen_id` bigint COMMENT 'x',\n  `a` int\n)";
     expect(maskThongBaoLichHen([otherTable])).toEqual([otherTable]);
+  });
+});
+
+// Booking B19 (issue #551) — ba cột mốc của lich_hen. MOC-01, MOC-02 là phần chữ DDL (không cần DB). MOC-03 (SHOW CREATE TABLE) ở schema-parity.int-spec.ts,
+// MOC-04 (up, down) ở migrations.int-spec.ts.
+describe('migration booking B19 (lich_hen: ba cột mốc thời gian) khớp schema SQL chính thức', () => {
+  const MOC_COLUMNS = [
+    'thoi_diem_xac_nhan',
+    'thoi_diem_tiep_don',
+    'thoi_diem_hoan_thanh',
+  ] as const;
+  const lichHen = officialStatementsFor(['lich_hen']).map(normalizeStatement);
+  const isLichHenTable = (sql: string): boolean =>
+    sql.startsWith('CREATE TABLE `lich_hen` (');
+  const createTable = lichHen.find(isLichHenTable) ?? '';
+  const lines = createTable.split('\n');
+  const indexOfColumn = (name: string): number =>
+    lines.findIndex((line) => line.startsWith(`  \`${name}\` `));
+  const columnLine = (name: string): string =>
+    (lines[indexOfColumn(name)] ?? '').trim().replace(/,$/, '');
+  const previousColumn = (name: string): string | undefined =>
+    /^ {2}`(\w+)`/.exec(lines[indexOfColumn(name) - 1] ?? '')?.[1];
+  const buildAddColumn = (name: string, line: string): string =>
+    `ALTER TABLE \`lich_hen\` ADD COLUMN ${line} AFTER \`${previousColumn(name)}\``;
+
+  it('MOC-01: mỗi câu ADD COLUMN trùng TỪNG KÝ TỰ dòng cột ở CREATE TABLE lich_hen chính thức và đúng cột đứng trước; ba cột liền nhau, ngay trước cap_nhat_lan_cuoi', () => {
+    expect(MOC_THOI_GIAN_LICH_HEN_UP_SQL).toHaveLength(3);
+    MOC_COLUMNS.forEach((name, position) => {
+      expect(indexOfColumn(name), name).toBeGreaterThan(0);
+      expect(MOC_THOI_GIAN_LICH_HEN_UP_SQL[position], name).toBe(
+        buildAddColumn(name, columnLine(name)),
+      );
+    });
+    // Thứ tự cột: thoi_diem_tao, rồi ba cột mốc, rồi cap_nhat_lan_cuoi (không chèn cột nào giữa chừng)
+    expect(MOC_COLUMNS.map(previousColumn)).toEqual([
+      'thoi_diem_tao',
+      'thoi_diem_xac_nhan',
+      'thoi_diem_tiep_don',
+    ]);
+    expect(
+      /^ {2}`(\w+)`/.exec(
+        lines[indexOfColumn('thoi_diem_hoan_thanh') + 1] ?? '',
+      )?.[1],
+    ).toBe('cap_nhat_lan_cuoi');
+    // Ca âm: chỉ khác cách gõ dấu tiếng Việt (hủy / huỷ) ở COMMENT cũng không còn trùng
+    const first = columnLine('thoi_diem_xac_nhan');
+    expect(first).toContain('hủy');
+    expect(
+      buildAddColumn('thoi_diem_xac_nhan', first.replace('hủy', 'huỷ')),
+    ).not.toBe(MOC_THOI_GIAN_LICH_HEN_UP_SQL[0]);
+  });
+
+  it('MOC-02: danh sách cột mà `down` gỡ đúng là ba cột mà `up` thêm, cùng thứ tự (thiếu một cột thì down để sót cột)', () => {
+    expect([...MOC_THOI_GIAN_LICH_HEN_COLUMNS]).toEqual([...MOC_COLUMNS]);
+    MOC_THOI_GIAN_LICH_HEN_UP_SQL.forEach((statement, position) => {
+      expect(statement).toContain(
+        `ADD COLUMN \`${MOC_THOI_GIAN_LICH_HEN_COLUMNS[position]}\` datetime`,
+      );
+    });
+  });
+
+  it('MOC-02: đúng 3 câu ADD COLUMN chỉ tác động lich_hen (không chỉ mục, khóa ngoại, CHECK); name trùng tên lớp, có timestamp 13 chữ số và lớn hơn mọi migration đứng trước', () => {
+    for (const statement of MOC_THOI_GIAN_LICH_HEN_UP_SQL) {
+      expect(statement).toMatch(/^ALTER TABLE `lich_hen` ADD COLUMN /);
+      expect(statement).toMatch(/ datetime COMMENT '/);
+      expect(targetTable(statement)).toBe('lich_hen');
+    }
+    const timestampOf = (name: string): number =>
+      Number(/(\d{13})$/.exec(name)?.[1]);
+    const migration = new MocThoiGianLichHen1793793600000();
+    expect(migration.name).toBe(MocThoiGianLichHen1793793600000.name);
+    const index = MIGRATIONS.findIndex((item) => item.name === migration.name);
+    expect(index, 'đã đăng ký ở MIGRATIONS').toBeGreaterThan(0);
+    for (const earlier of MIGRATIONS.slice(0, index)) {
+      expect(timestampOf(earlier.name), earlier.name).toBeLessThan(
+        timestampOf(migration.name),
+      );
+    }
+  });
+
+  it('MOC-02: mặt nạ bỏ đúng ba dòng cột khỏi CREATE TABLE lich_hen, giữ nguyên mọi câu và mọi dòng khác; không che nhầm bảng khác', () => {
+    const masked = maskLichHenMoc(lichHen);
+    expect(masked).toHaveLength(lichHen.length);
+    const after = masked.find(isLichHenTable) ?? '';
+    for (const name of MOC_COLUMNS) {
+      expect(createTable).toContain(`\`${name}\``);
+      expect(after).not.toContain(name);
+    }
+    expect(after.split('\n')).toEqual(
+      lines.filter(
+        (line) =>
+          !MOC_COLUMNS.some((name) => line.startsWith(`  \`${name}\` `)),
+      ),
+    );
+    // Mọi câu không phải CREATE TABLE lich_hen giữ nguyên chữ và thứ tự
+    expect(masked.filter((sql) => !isLichHenTable(sql))).toEqual(
+      lichHen.filter((sql) => !isLichHenTable(sql)),
+    );
+    // Ca âm: bảng KHÁC có dòng cột cùng chữ không bị che; câu không phải CREATE TABLE không bị đổi
+    const otherTable =
+      "CREATE TABLE `khac` (\n  `thoi_diem_tiep_don` datetime COMMENT 'x',\n  `a` int\n)";
+    expect(maskLichHenMoc([otherTable])).toEqual([otherTable]);
+    const alter = MOC_THOI_GIAN_LICH_HEN_UP_SQL[0] ?? '';
+    expect(maskLichHenMoc([alter])).toEqual([alter]);
   });
 });
 

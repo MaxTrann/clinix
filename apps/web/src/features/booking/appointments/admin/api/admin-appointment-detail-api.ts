@@ -3,6 +3,7 @@ import { parseOperationsDetail } from '../../common/operations-appointment';
 import {
   readIsoDateTime,
   readList,
+  readMilestones,
   readRecord,
   readText,
 } from '../../common/response-readers';
@@ -43,13 +44,15 @@ function parseHistoryEntry(raw: unknown): HistoryEntry | null {
   return isHistoryKind(loai) ? { ...entry, loai } : null;
 }
 
-// Đủ mười bảy khoá: mười sáu khoá của Lễ tân (dùng chung `parseOperationsDetail`) cộng `lichSuTrangThai` (mảng; có thể rỗng khi đọc lỗi, bình thường luôn có `TaoLich`).
+// Đủ mười tám khoá: mười sáu khoá của Lễ tân (dùng chung `parseOperationsDetail`) cộng `moc` (booking B19) và `lichSuTrangThai` (mảng; có thể rỗng khi đọc lỗi, bình thường luôn có `TaoLich`).
 export function parseAdminAppointmentDetail(
   raw: unknown,
 ): AdminAppointmentDetail {
   const body = readRecord(raw);
   return {
     ...parseOperationsDetail(body),
+    // `moc` chỉ đọc ở đây (booking B19): bộ đọc chung với Lễ tân KHÔNG đòi khoá này vì giao diện Lễ tân không hiện giờ từng bước
+    moc: readMilestones(body.moc),
     lichSuTrangThai: readList(body.lichSuTrangThai)
       .map(parseHistoryEntry)
       .filter((entry): entry is HistoryEntry => entry !== null),

@@ -2,6 +2,7 @@ import { request } from '../../../../../shared/api/client';
 import {
   readIsoDateTime,
   readRecord,
+  readMilestones,
   readText,
 } from '../../common/response-readers';
 import {
@@ -40,6 +41,7 @@ export function parseDoctorAppointmentDetail(
     ghiChuKham: parseExamRecord(body.ghiChuKham),
     chiNhanh: readText(body.chiNhanh),
     ngayDat: readIsoDateTime(body.ngayDat),
+    moc: readMilestones(body.moc),
   };
 }
 

@@ -14,7 +14,7 @@ import {
 const good = () => makeAdminDetail() as unknown as Record<string, unknown>;
 
 describe('parseAdminAppointmentDetail', () => {
-  it('AQD-02 đúng MƯỜI BẢY khoá: mười sáu khoá của Lễ tân cộng `lichSuTrangThai`; khoá thừa không lọt', () => {
+  it('AQD-02 đúng MƯỜI TÁM khoá: mười sáu khoá của Lễ tân cộng `moc` (booking B19) và `lichSuTrangThai`; khoá thừa không lọt', () => {
     const parsed = parseAdminAppointmentDetail({
       ...good(),
       email: 'lo.ra@example.com',
@@ -35,6 +35,7 @@ describe('parseAdminAppointmentDetail', () => {
         'lyDoHuy',
         'lyDoKham',
         'maLichHen',
+        'moc',
         'nguoiDat',
         'nguoiKham',
         'thoiGian',

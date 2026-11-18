@@ -97,6 +97,22 @@ const THONG_BAO_LICH_HEN_INDEX =
 const THONG_BAO_LICH_HEN_FOREIGN_KEY =
   /^ALTER TABLE `thong_bao` ADD FOREIGN KEY \(`lich_hen_id`\) /;
 
+const LICH_HEN_MOC_COLUMN_LINES =
+  /\n {2}`thoi_diem_(?:xac_nhan|tiep_don|hoan_thanh)` datetime COMMENT '[^']*',(?=\n)/g;
+
+/**
+ * Che phần booking B19 (ba cột mốc thoi_diem_xac_nhan, thoi_diem_tiep_don, thoi_diem_hoan_thanh) khỏi các câu CHÍNH THỨC của bảng `lich_hen`. Migration nhân sự (P2) tạo
+ * `lich_hen` trước khi ba cột này có; migration B19 thêm bằng ALTER ... ADD COLUMN nên không thể trùng chữ với CREATE TABLE. Chỉ bỏ ba dòng cột trong CREATE TABLE `lich_hen`
+ * (không đụng bảng khác, không đụng cột khác); trạng thái cuối được so bằng SHOW CREATE TABLE (MOC-03). Nhận câu ĐÃ chuẩn hóa xuống dòng (normalizeStatement).
+ */
+export function maskLichHenMoc(statements: readonly string[]): string[] {
+  return statements.map((statement) =>
+    statement.startsWith('CREATE TABLE `lich_hen` (')
+      ? statement.replace(LICH_HEN_MOC_COLUMN_LINES, '')
+      : statement,
+  );
+}
+
 /**
  * Che phần booking P7 (thong_bao.lich_hen_id) khỏi các câu CHÍNH THỨC của bảng vận hành. Migration vận hành (P3) tạo
  * `thong_bao` trước khi cột này có; migration P7 thêm bằng ALTER nên không thể trùng chữ với CREATE TABLE. Bỏ đúng ba thứ:

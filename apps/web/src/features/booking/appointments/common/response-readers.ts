@@ -1,6 +1,7 @@
 import { UnexpectedResponseError } from '../../../../shared/api/errors';
 import { isDecimalAmount, isIsoDateTime } from './appointment-format';
 import type { RefundAmount } from './refund-types';
+import type { StatusMilestones } from './status-notes';
 
 // Bộ đọc phản hồi JSON cho các danh sách lịch hẹn của booking (F1; F2, F8, F10, F11 dùng lại). Mỗi hàm trả đúng kiểu hoặc ném
 // `UnexpectedResponseError`: phản hồi 200 mà sai hình dạng cùng loại với HTML 502 (không dùng được), vì vẽ dữ liệu sai là trang trắng.
@@ -53,6 +54,22 @@ export function readId(value: unknown): string {
 export function readIsoDateTime(value: unknown): string {
   const text = readText(value);
   return isIsoDateTime(text) ? text : unusableResponse();
+}
+
+// Mốc của MỘT bước: ISO 8601 hoặc `null` (khoá luôn có mặt, vì API B19 trả cả ba)
+function readNullableIsoDateTime(value: unknown): string | null {
+  return value === null ? null : readIsoDateTime(value);
+}
+
+// Khoá `moc` của chi tiết (booking B19): đối tượng đúng ba khoá `xacNhan`, `tiepDon`, `hoanThanh`, mỗi khoá ISO hoặc `null`. Thiếu `moc`, không phải đối tượng, thiếu khoá, sai dạng ngày ⇒ không dùng được
+// (vẽ sai giờ là bịa số liệu). Khoá thừa của đối tượng không được chép theo.
+export function readMilestones(raw: unknown): StatusMilestones {
+  const moc = readRecord(raw);
+  return {
+    xacNhan: readNullableIsoDateTime(moc.xacNhan),
+    tiepDon: readNullableIsoDateTime(moc.tiepDon),
+    hoanThanh: readNullableIsoDateTime(moc.hoanThanh),
+  };
 }
 
 export function readAmount(value: unknown): string {

@@ -1,4 +1,5 @@
 import { IsIn, IsOptional } from 'class-validator';
+import type { StatusMilestones } from './status-milestones.mapper.js';
 import { TRANG_THAI_LICH_HEN } from '../../admin/entities/enums.js';
 import { PageQueryDto } from '../../common/paging/page-query.dto.js';
 import type { Paged } from '../../common/paging/paged.js';
@@ -108,9 +109,9 @@ export interface PatientAppointmentItem {
 }
 
 /**
- * Chi tiết MỘT lịch hẹn (task B2; PLAN booking 5.8, 5.9, L17; TRACKING 3.15.1): ĐÚNG mười sáu khoá = mười hai khoá của một dòng danh sách (cùng hàm ánh xạ) cộng
+ * Chi tiết MỘT lịch hẹn (task B2; PLAN booking 5.8, 5.9, L17; TRACKING 3.15.1): ĐÚNG mười bảy khoá = mười hai khoá của một dòng danh sách (cùng hàm ánh xạ) cộng
  * `lyDoKham` (chuỗi hoặc `null`), `thanhToan` và `hoanTien` (`null` tới khi `payment` và `wallet` có, qua cổng), `thoiGianMayChu` (ISO 8601 UTC, giữ mili giây:
- * để giao diện bù lệch đồng hồ khi đếm ngược theo `hanThanhToan`). Không `lich_hen_id`, `benh_nhan_id`, `khung_gio_id`, `ho_so_nguoi_than_id`, không email hay SĐT
+ * để giao diện bù lệch đồng hồ khi đếm ngược theo `hanThanhToan`) và `moc` (booking B19: ba mốc `xacNhan`, `tiepDon`, `hoanThanh`). Không `lich_hen_id`, `benh_nhan_id`, `khung_gio_id`, `ho_so_nguoi_than_id`, không email hay SĐT
  * của bác sĩ (LSH-14), không `lyDoHuy` (chờ F2, B12 và Figma `691:2` chốt: thêm khoá sau là cộng thêm).
  */
 export interface PatientAppointmentDetail extends PatientAppointmentItem {
@@ -118,6 +119,8 @@ export interface PatientAppointmentDetail extends PatientAppointmentItem {
   thanhToan: PaymentView | null;
   hoanTien: RefundView | null;
   thoiGianMayChu: string;
+  /** Mốc từng bước (booking B19): ISO 8601 UTC hoặc `null` từng bước; lịch cũ ba `null` */
+  moc: StatusMilestones;
 }
 
 /** Số lịch theo từng trạng thái hiển thị: đủ sáu khoá, trạng thái không có dòng nào là `0`. */

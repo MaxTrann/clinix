@@ -21,8 +21,11 @@ import { AppointmentTransitionService } from './appointment-transition.service.j
 import { isHoldExpiredCancellation } from './confirm-paid.js';
 
 // Task B11 — CFP-01…CFP-05 (PLAN booking 7.30; TRACKING 3.24.3): `AppointmentTransitionService.confirmPaid` với `EntityManager` GIẢ (không DB). HG-11, HG-12, HG-13, CG-02, DT-03 và chuỗi khoá thật
-// (CFP-06…CFP-08) ở confirm-paid.int-spec.ts và confirm-paid.concurrency.int-spec.ts. `confirmPaid` không nhận `now` và không đọc đồng hồ (Q4).
+// (CFP-06…CFP-08) ở confirm-paid.int-spec.ts và confirm-paid.concurrency.int-spec.ts. `confirmPaid` nhận `now` CHỈ để ghi `thoi_diem_xac_nhan` (booking B19) và không so nó với đồng hồ hay hạn (Q4).
 const LICH_HEN_ID = '41';
+// Mốc của lượt thanh toán có mili giây: `thoi_diem_xac_nhan` phải nhận mốc đã cắt xuống giây (booking B19)
+const NOW = new Date('2026-11-18T10:15:30.789+07:00');
+const NOW_SECOND = new Date('2026-11-18T10:15:30+07:00');
 const KHUNG_GIO_ID = '7';
 const BENH_NHAN_ID = '77';
 
@@ -84,7 +87,11 @@ function setup(script: Script = defaultScript()) {
     notifier,
   );
   const confirm = (soTienDaThu = '150000.00') =>
-    service.confirmPaid(em.em, { lichHenId: LICH_HEN_ID, soTienDaThu });
+    service.confirmPaid(em.em, {
+      lichHenId: LICH_HEN_ID,
+      soTienDaThu,
+      now: NOW,
+    });
   return { em, notifier, order, service, confirm };
 }
 
@@ -168,8 +175,10 @@ describe('CFP-02 kết quả có kiểu và thứ tự câu của confirmPaid', 
     );
     expect(updateLich?.sql).toContain("trang_thai = 'DaXacNhan'");
     expect(updateLich?.sql).toContain('han_thanh_toan = NULL');
+    expect(updateLich?.sql).toContain('thoi_diem_xac_nhan = ?');
     expect(updateLich?.sql).toContain("trang_thai = 'ChoThanhToan'");
-    expect(updateLich?.params).toEqual([LICH_HEN_ID]);
+    // MOC-07: tham số là mốc (đã cắt giây) rồi lịch; mốc nằm CÙNG câu với trạng thái
+    expect(updateLich?.params).toEqual([NOW_SECOND, LICH_HEN_ID]);
     const updateSlot = em.queries.find(({ sql }) =>
       sql.startsWith('UPDATE khung_gio'),
     );
@@ -177,6 +186,22 @@ describe('CFP-02 kết quả có kiểu và thứ tự câu của confirmPaid', 
     expect(updateSlot?.sql).toContain('giu_cho_den = NULL');
     expect(updateSlot?.sql).toContain("trang_thai = 'DangGiuCho'");
     expect(updateSlot?.params).toEqual([KHUNG_GIO_ID]);
+  });
+
+  it('MOC-07: mốc chỉ ghi vào thoi_diem_xac_nhan (không đụng hai mốc sau), không sửa Date của người gọi, còn đúng một UPDATE lich_hen', async () => {
+    const { em, confirm } = setup();
+    const before = NOW.getTime();
+    await confirm();
+    const writes = em.queries.filter(({ sql }) =>
+      sql.startsWith('UPDATE lich_hen'),
+    );
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.sql).not.toContain('thoi_diem_tiep_don');
+    expect(writes[0]?.sql).not.toContain('thoi_diem_hoan_thanh');
+    expect(NOW.getTime()).toBe(before);
+    const stamp = writes[0]?.params[0];
+    expect(stamp).toBeInstanceOf(Date);
+    expect((stamp as Date).getMilliseconds()).toBe(0);
   });
 
   it('Q4: không đọc đồng hồ (đồng hồ ở năm 2100, hạn giữ chỗ đã qua từ lâu): vẫn Confirmed', async () => {
@@ -261,7 +286,11 @@ describe('CFP-02 (DI) Nest dựng được dịch vụ với cổng thông báo 
     const em = scriptedEm(defaultScript());
     const outcome = await moduleRef
       .get(AppointmentTransitionService)
-      .confirmPaid(em.em, { lichHenId: LICH_HEN_ID, soTienDaThu: '1.00' });
+      .confirmPaid(em.em, {
+        lichHenId: LICH_HEN_ID,
+        soTienDaThu: '1.00',
+        now: NOW,
+      });
     expect(outcome).toEqual({ kind: 'Confirmed' });
     expect(notifier.notifyCall.count).toBe(1);
     expect(moduleRef.get(AppointmentQueries)).toBeInstanceOf(
@@ -310,6 +339,7 @@ describe('CFP-03 thông báo LichHenDaXacNhan: trong giao dịch của người 
       await service.confirmPaid(em.em, {
         lichHenId: LICH_HEN_ID,
         soTienDaThu: '1.00',
+        now: NOW,
       }),
     ).toEqual({ kind: 'Confirmed' });
     script.appointment = lockedAppointment('DaXacNhan');
@@ -317,6 +347,7 @@ describe('CFP-03 thông báo LichHenDaXacNhan: trong giao dịch của người 
       await service.confirmPaid(em.em, {
         lichHenId: LICH_HEN_ID,
         soTienDaThu: '1.00',
+        now: NOW,
       }),
     ).toEqual({ kind: 'AlreadyConfirmed' });
     expect(notifier.notifyCall.count).toBe(1);
@@ -408,6 +439,7 @@ describe('CFP-05 soTienDaThu: chỉ kiểm định dạng, không phán xét s�
         service.confirmPaid(em.em, {
           lichHenId: LICH_HEN_ID,
           soTienDaThu: value as unknown as string,
+          now: NOW,
         }),
       ).rejects.toBeInstanceOf(RangeError);
       expect(em.queries).toHaveLength(0);

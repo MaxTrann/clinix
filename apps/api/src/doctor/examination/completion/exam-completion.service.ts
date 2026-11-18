@@ -51,6 +51,7 @@ export class ExamCompletionService {
         const result = await this.transition.complete(em, {
           lichHenId: owned.lichHenId,
           bacSiId,
+          now,
         });
         if (result.kind === 'Completed')
           await this.notifier.notifyCompleted(em, {
