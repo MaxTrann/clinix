@@ -1,9 +1,15 @@
 import { TOPUP_GATEWAYS, type TopupGateway } from '../wallet.constants.js';
 
 // Cổng nạp ví ĐÃ CẤU HÌNH, để `GET /patient/wallet` chỉ liệt kê cổng dùng được (PLAN 5.11 #1, SDV-04). Một cổng coi là đã cấu hình khi MỌI biến của nó có giá trị (không rỗng).
-// Tên biến `[đề xuất]`: B3 (VNPAY) và B16 (MoMo) chốt tên thật khi thêm bộ điều hợp, khi đó sửa đúng bảng dưới (một chỗ). Chưa cấu hình gì ⇒ danh sách rỗng (web ẩn mục nạp tiền).
+// Tên biến VNPay đã chốt ở B3, khớp `payment/gateway/vnpay/vnpay-config.ts` (test CGS-12 canh hai nơi không lệch; `wallet` là module lá nên không import ngược `payment`).
+// MoMo vẫn `[đề xuất]`, B16 chốt. Chưa cấu hình gì ⇒ danh sách rỗng (web ẩn mục nạp tiền).
 const GATEWAY_ENV: Record<TopupGateway, readonly string[]> = {
-  VNPay: ['VNPAY_TMN_CODE', 'VNPAY_HASH_SECRET'],
+  VNPay: [
+    'VNPAY_TMN_CODE',
+    'VNPAY_HASH_SECRET',
+    'VNPAY_PAY_URL',
+    'VNPAY_RETURN_URL',
+  ],
   MoMo: ['MOMO_PARTNER_CODE', 'MOMO_SECRET_KEY'],
 };
 
