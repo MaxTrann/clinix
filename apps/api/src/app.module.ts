@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module.js';
 import { SystemConfigModule } from './admin/system-config/system-config.module.js';
+import { SystemConfigAdminModule } from './admin/system-config/system-config-admin.module.js';
 import { SpecialtyModule } from './admin/specialties/specialty.module.js';
 import { ServiceGroupModule } from './admin/service-groups/service-group.module.js';
 import { ServiceModule } from './admin/services/service.module.js';
@@ -28,6 +29,7 @@ import { WalletModule } from './wallet/wallet.module.js';
     ScheduleModule.forRoot(),
     DatabaseModule,
     SystemConfigModule,
+    SystemConfigAdminModule,
     SpecialtyModule,
     ServiceGroupModule,
     ServiceModule,
