@@ -54,7 +54,7 @@ export function feedbackFor(error: unknown): FormFeedback {
       fields.nhomDichVuId =
         'Nhóm dịch vụ không còn tồn tại. Hãy chọn nhóm khác.';
       return { message: '', fields };
-    // payment B10 (PLAN 4.7 #1): hạ giá xuống dưới mức đặt cọc hiện hành của dịch vụ (TECH_DEBT 175 (b))
+    // payment B10 (PLAN 4.7 #1): hạ giá xuống dưới mức đặt cọc hiện hành của dịch vụ (TECH_DEBT 179 (b))
     case 'GIA_DUOI_MUC_COC':
       fields.giaMacDinh =
         'Giá mặc định không được thấp hơn mức đặt cọc của dịch vụ. Hãy giảm mức cọc ở mục Đặt cọc & Hoàn tiền trước.';

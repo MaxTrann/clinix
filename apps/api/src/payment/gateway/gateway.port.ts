@@ -43,6 +43,8 @@ export type GatewayAck = Readonly<Record<string, string>>;
 
 export interface PaymentGatewayPort {
   readonly gateway: TopupGateway;
+  /** Đủ biến môi trường hay chưa. Dịch vụ nạp kiểm TRƯỚC khi ghi dòng giao dịch (NTV-04: chưa cấu hình ⇒ 503, không tạo dòng). */
+  readonly configured: boolean;
   createPayment(input: CreatePaymentInput): Promise<{ redirectUrl: string }>;
   /** Hàm THUẦN: không DB, không mạng, không ném lỗi với mọi đầu vào. */
   verifyIpn(
