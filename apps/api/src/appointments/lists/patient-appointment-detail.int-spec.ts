@@ -74,6 +74,7 @@ const DETAIL_KEYS = [
   'hoanTien',
   'lyDoKham',
   'maLichHen',
+  'moc',
   'nguoiKham',
   'thanhToan',
   'thoiGian',
@@ -110,8 +111,8 @@ async function rejection(promise: Promise<unknown>): Promise<AppException> {
 const bodyOf = (error: AppException) =>
   JSON.stringify(toErrorResponse(error).body);
 
-describe('LSH-10 chi tiết: đủ mười sáu khoá, hai cổng THẬT (Noop) cho null', () => {
-  it('LSH-10 lịch bản thân DaXacNhan: đúng mười sáu khoá; thanhToan, hoanTien là null; lyDoKham, thoiGianMayChu đúng; cùng mười hai khoá với dòng danh sách', async () => {
+describe('LSH-10 chi tiết: đủ mười bảy khoá, hai cổng THẬT (Noop) cho null', () => {
+  it('LSH-10 lịch bản thân DaXacNhan: đúng mười bảy khoá (booking B19: thêm `moc`); thanhToan, hoanTien là null; lyDoKham, thoiGianMayChu đúng; cùng mười hai khoá với dòng danh sách', async () => {
     const s = await lf.scene({
       doctorName: 'Bác Sĩ Chi Tiết',
       patientName: 'Bệnh Nhân Chi Tiết',

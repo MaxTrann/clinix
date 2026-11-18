@@ -2,6 +2,7 @@ import type { PaymentView } from '../ports/payment.port.js';
 import type { RefundView } from '../ports/wallet.port.js';
 import { canTransition } from '../state/appointment-state.matrix.js';
 import { toItemCore } from './list-item.mapper.js';
+import { toMilestones } from './status-milestones.mapper.js';
 import type {
   PatientAppointmentDetail,
   PatientAppointmentItem,
@@ -52,7 +53,7 @@ function toRefund(view: RefundView | null): RefundView | null {
   };
 }
 
-/** Chi tiết = mười hai khoá của `toItem` cộng bốn khoá. `serverTime` do người gọi lấy (đồng hồ giả được trong test); ISO 8601 UTC, GIỮ mili giây (3.15.1, câu (d)). */
+/** Chi tiết = mười hai khoá của `toItem` cộng năm khoá (`lyDoKham`, `thanhToan`, `hoanTien`, `thoiGianMayChu`, `moc`). `serverTime` do người gọi lấy (đồng hồ giả được trong test); ISO 8601 UTC, GIỮ mili giây (3.15.1, câu (d)). */
 export function toDetail(
   row: PatientAppointmentDetailRow,
   extras: {
@@ -67,5 +68,6 @@ export function toDetail(
     thanhToan: toPayment(extras.thanhToan),
     hoanTien: toRefund(extras.hoanTien),
     thoiGianMayChu: extras.serverTime.toISOString(),
+    moc: toMilestones(row),
   };
 }

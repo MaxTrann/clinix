@@ -2,6 +2,7 @@ import { request } from '../../../../../shared/api/client';
 import {
   readAmount,
   readIsoDateTime,
+  readMilestones,
   readRecord,
   readText,
   unusableResponse,
@@ -38,7 +39,7 @@ function parseRefund(raw: unknown): RefundSummary | null {
   return { soTien: readAmount(view.soTien), trangThai };
 }
 
-// Đủ mười sáu khoá: mười hai của dòng danh sách (dùng lại `parseAppointment` của F1) + `lyDoKham`, `thanhToan`, `hoanTien`, `thoiGianMayChu`.
+// Đủ mười bảy khoá: mười hai của dòng danh sách (dùng lại `parseAppointment` của F1) + `lyDoKham`, `thanhToan`, `hoanTien`, `thoiGianMayChu`, `moc` (booking B19).
 // Thiếu một khoá (kể cả `thanhToan` hay `hoanTien`, vốn có thể `null` nhưng luôn có mặt) ⇒ phản hồi không dùng được.
 export function parsePatientAppointmentDetail(
   raw: unknown,
@@ -50,6 +51,7 @@ export function parsePatientAppointmentDetail(
     thanhToan: parsePayment(body.thanhToan),
     hoanTien: parseRefund(body.hoanTien),
     thoiGianMayChu: readIsoDateTime(body.thoiGianMayChu),
+    moc: readMilestones(body.moc),
   };
 }
 

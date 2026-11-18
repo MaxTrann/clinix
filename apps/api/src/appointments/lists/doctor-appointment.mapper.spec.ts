@@ -71,6 +71,9 @@ function detailRow(
     huongXuLy: null,
     ngayTaiKhamDuKien: null,
     capNhatLanCuoi: null,
+    thoiDiemXacNhan: null,
+    thoiDiemTiepDon: null,
+    thoiDiemHoanThanh: null,
     ...overrides,
   };
 }
@@ -129,11 +132,34 @@ describe('toDoctorItem: dòng danh sách (DSB-06, DSB-12)', () => {
   });
 });
 
+describe('MOC-20 toDoctorDetail: khoá `moc` (booking B19)', () => {
+  it('ba mốc ISO 8601 UTC theo mã bước; cột NULL ⇒ null; lịch cũ ba null trong MỘT đối tượng', () => {
+    expect(
+      toDoctorDetail(
+        detailRow({
+          thoiDiemXacNhan: new Date('2026-11-01T02:00:00.000Z'),
+          thoiDiemTiepDon: new Date('2026-11-10T01:20:00.000Z'),
+          thoiDiemHoanThanh: new Date('2026-11-10T02:05:09.000Z'),
+        }),
+      ).moc,
+    ).toStrictEqual({
+      xacNhan: '2026-11-01T02:00:00.000Z',
+      tiepDon: '2026-11-10T01:20:00.000Z',
+      hoanThanh: '2026-11-10T02:05:09.000Z',
+    });
+    expect(toDoctorDetail(detailRow()).moc).toStrictEqual({
+      xacNhan: null,
+      tiepDon: null,
+      hoanThanh: null,
+    });
+  });
+});
+
 describe('toDoctorDetail: chi tiết (DSB-06, DSB-08)', () => {
-  it('DSB-06 ĐÚNG mười một khoá cấp một = tám khoá lõi cộng `ghiChuKham`, `chiNhanh`, `ngayDat`; KHÔNG `lyDoHuy`, KHÔNG `coHoSoKham` (cờ chỉ của danh sách)', () => {
+  it('DSB-06 ĐÚNG mười hai khoá cấp một = tám khoá lõi cộng `ghiChuKham`, `chiNhanh`, `ngayDat`, `moc` (booking B19); KHÔNG `lyDoHuy`, KHÔNG `coHoSoKham` (cờ chỉ của danh sách)', () => {
     const detail = toDoctorDetail(detailRow());
     expect(Object.keys(detail).sort()).toStrictEqual(
-      [...CORE_KEYS, 'chiNhanh', 'ghiChuKham', 'ngayDat'].sort(),
+      [...CORE_KEYS, 'chiNhanh', 'ghiChuKham', 'moc', 'ngayDat'].sort(),
     );
     expect(detail).not.toHaveProperty('coHoSoKham');
     expect(detail).not.toHaveProperty('lyDoHuy');
@@ -163,10 +189,10 @@ describe('toDoctorDetail: chi tiết (DSB-06, DSB-08)', () => {
 
   it('DSB-06 chi tiết dùng CHUNG lõi với dòng: tám khoá lõi y hệt `toDoctorItem` (trừ `coHoSoKham`)', () => {
     const base = row({ quanHe: 'Me', soDienThoai: null });
-    const { ghiChuKham, chiNhanh, ngayDat, ...rest } = toDoctorDetail(
+    const { ghiChuKham, chiNhanh, ngayDat, moc, ...rest } = toDoctorDetail(
       detailRow({ ...base }),
     );
-    expect([ghiChuKham, chiNhanh, ngayDat]).toHaveLength(3);
+    expect([ghiChuKham, chiNhanh, ngayDat, moc]).toHaveLength(4);
     const { coHoSoKham, ...core } = toDoctorItem(base);
     expect(typeof coHoSoKham).toBe('boolean');
     expect(rest).toStrictEqual(core);
@@ -319,10 +345,10 @@ describe('HDK-01 `ghiChuKham` ở chi tiết: `null` hoặc đối tượng ĐÚ
     },
   );
 
-  it('HDK-01 chi tiết có hồ sơ vẫn ĐÚNG mười một khoá cấp một và KHÔNG có `coHoSoKham` (cờ chỉ của danh sách); không hàng thô thừa', () => {
+  it('HDK-01 chi tiết có hồ sơ vẫn ĐÚNG mười hai khoá cấp một và KHÔNG có `coHoSoKham` (cờ chỉ của danh sách); không hàng thô thừa', () => {
     const detail = toDoctorDetail(withRecord());
     expect(Object.keys(detail).sort()).toStrictEqual(
-      [...CORE_KEYS, 'chiNhanh', 'ghiChuKham', 'ngayDat'].sort(),
+      [...CORE_KEYS, 'chiNhanh', 'ghiChuKham', 'moc', 'ngayDat'].sort(),
     );
     expect(detail).not.toHaveProperty('coHoSoKham');
     expect(detail).not.toHaveProperty('coHoSo');

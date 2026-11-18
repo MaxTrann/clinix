@@ -10,6 +10,7 @@ import type {
   DoctorAppointmentRow,
 } from './doctor-appointments.repository.js';
 import { VISIT_PROFILE_SELF } from './list-query.rules.js';
+import { toMilestones } from './status-milestones.mapper.js';
 
 // Ánh xạ hàng thô của Bác sĩ sang JSON (task B5; TRACKING 3.20 B5-F). Chỉ liệt kê từng khoá (không trải hàng thô): cột thừa của repository không bao giờ ra ngoài (DSB-06). Cố ý KHÔNG dùng
 // `toItemCore` của `list-item.mapper.ts`: hàm đó mang giá, cọc, hạn thanh toán, tên bác sĩ, người đặt (H10).
@@ -65,7 +66,7 @@ function toExamRecord(
   };
 }
 
-/** Chi tiết: ĐÚNG mười một khoá cấp một = tám khoá lõi cộng `ghiChuKham` (`null` hoặc đối tượng năm khoá), `chiNhanh`, `ngayDat`. KHÔNG `coHoSoKham`, KHÔNG `lyDoHuy`. */
+/** Chi tiết: ĐÚNG mười hai khoá cấp một = tám khoá lõi cộng `ghiChuKham` (`null` hoặc đối tượng năm khoá), `chiNhanh`, `ngayDat`, `moc` (booking B19). KHÔNG `coHoSoKham`, KHÔNG `lyDoHuy`. */
 export function toDoctorDetail(
   row: DoctorAppointmentDetailRow,
 ): DoctorAppointmentDetail {
@@ -74,5 +75,6 @@ export function toDoctorDetail(
     ghiChuKham: toExamRecord(row),
     chiNhanh: row.chiNhanh,
     ngayDat: row.ngayDat.toISOString(),
+    moc: toMilestones(row),
   };
 }

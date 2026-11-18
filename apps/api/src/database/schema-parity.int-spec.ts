@@ -7,6 +7,7 @@ import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-s
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
 import {
   maskAuditEnums,
+  maskLichHenMoc,
   maskThongBaoLichHen,
   normalizeStatement,
   officialStatementsFor,
@@ -115,6 +116,7 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
 
   // TBLH-10: gồm cả thong_bao.lich_hen_id (thứ tự cột, COMMENT, chỉ mục thong_bao_index_lich_hen, thong_bao_ibfk_3).
   // MHT-03: gồm cả moc_hoan_tien (COMMENT, UNIQUE moc_hoan_tien_index_1, khóa ngoại moc_hoan_tien_ibfk_1, CHECK chk_moc_hoan_ty_le).
+  // MOC-03: gồm cả ba cột mốc của lich_hen (thoi_diem_xac_nhan, thoi_diem_tiep_don, thoi_diem_hoan_thanh: thứ tự cột sau thoi_diem_tao, kiểu, NULL, COMMENT).
   // MGK-05: gồm cả ho_so_kham và danh_gia_bac_si (UNIQUE lich_hen_id, khóa ngoại *_ibfk_1, COMMENT bảng và cột, hai CHECK chk_danh_gia_*).
   it('SHOW CREATE TABLE của DB dựng bằng migration giống hệt DB dựng thẳng từ file SQL chính thức', async () => {
     const tables = (await listTables(migrated)).filter(
@@ -180,7 +182,10 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     const official =
       officialStatementsFor(STAFF_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    expect(TAO_BANG_NHAN_SU_SQL.map(normalizeStatement)).toEqual(official);
+    // Ba cột mốc của lich_hen được thêm ở migration booking B19 (sau migration này): phần B19 được che, xem MOC-01, MOC-02 và MOC-03
+    expect(TAO_BANG_NHAN_SU_SQL.map(normalizeStatement)).toEqual(
+      maskLichHenMoc(official),
+    );
   });
 
   it('mọi câu lệnh trong migration P2 chỉ tác động tám bảng được giao', () => {

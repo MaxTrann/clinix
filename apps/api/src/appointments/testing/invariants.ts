@@ -1,4 +1,4 @@
-// Bất biến khung giờ ↔ lịch hẹn INV-01…INV-05 của booking (PLAN booking 5.2, 7.11; TRACKING 3.6 P2-H), nếp `doctor/testing/invariants.ts`: mỗi hàm CHỈ ĐỌC và trả danh sách vi phạm
+// Bất biến khung giờ ↔ lịch hẹn INV-01…INV-05 và mốc thời gian ↔ trạng thái INV-06 (booking B19) của booking (PLAN booking 5.2, 7.11; TRACKING 3.6 P2-H), nếp `doctor/testing/invariants.ts`: mỗi hàm CHỈ ĐỌC và trả danh sách vi phạm
 // (rỗng = đúng); `assertBookingInvariants` chạy cả năm và ném lỗi nêu bất biến nào vỡ. Gọi cuối MỖI ca ghi và ca đồng thời (DT-*, từ B6 trở đi). Chạy trên toàn bộ hai bảng:
 // DB test nhỏ, và một dòng sai ở đâu cũng là lỗi.
 //
@@ -111,7 +111,22 @@ export function checkOrphanHeldSlots(
   );
 }
 
-/** Chạy cả năm bất biến; ném lỗi nêu rõ bất biến nào vỡ (gọi cuối mỗi ca ghi và ca đồng thời). */
+/**
+ * INV-06 (booking B19, TRACKING 3.46): mốc thời gian từng bước khớp trạng thái. `thoi_diem_hoan_thanh` khác NULL chỉ khi lịch `HoanThanh` (không vai nào đi ra khỏi `HoanThanh` nên mốc không bao giờ phải xoá);
+ * `thoi_diem_tiep_don` khác NULL chỉ khi lịch `DaTiepDon`, `HoanThanh` hoặc `DaHuy` (về `DaXacNhan` hay sang `VangMat` thì mốc bị xoá; huỷ giữ nguyên). `thoi_diem_xac_nhan` không bị ràng buộc: lịch cũ NULL, lịch lùi vẫn giữ.
+ */
+export function checkMilestonesMatchState(db: Queryable): Promise<Violation[]> {
+  return rows(
+    db,
+    `SELECT CAST(lich_hen_id AS CHAR) AS lichHenId, trang_thai AS trangThai, ${ts('thoi_diem_tiep_don')} AS tiepDon, ${ts('thoi_diem_hoan_thanh')} AS hoanThanh
+       FROM lich_hen
+      WHERE (thoi_diem_hoan_thanh IS NOT NULL AND trang_thai <> 'HoanThanh')
+         OR (thoi_diem_tiep_don IS NOT NULL AND trang_thai NOT IN ('DaTiepDon', 'HoanThanh', 'DaHuy'))
+      ORDER BY lich_hen_id`,
+  );
+}
+
+/** Chạy cả sáu bất biến; ném lỗi nêu rõ bất biến nào vỡ (gọi cuối mỗi ca ghi và ca đồng thời). */
 export async function assertBookingInvariants(
   db: Queryable,
   options: { exceptSlotIds?: readonly string[] } = {},
@@ -122,6 +137,7 @@ export async function assertBookingInvariants(
     'INV-03': await checkConfirmedSlotState(db),
     'INV-04': await checkBookedSlotHasOneHolder(db),
     'INV-05': await checkOrphanHeldSlots(db, options),
+    'INV-06': await checkMilestonesMatchState(db),
   };
   // Mỗi bất biến vỡ một dòng: mã, số hàng vi phạm, và chính các hàng đó (khác doctor `assertInvariants` để jscpd không báo trùng)
   const lines = Object.entries(results)

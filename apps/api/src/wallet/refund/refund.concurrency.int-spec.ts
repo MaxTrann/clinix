@@ -22,6 +22,7 @@ import {
   statusWorld,
 } from '../../appointments/testing/status-world.js';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
+import { nowVN, toSecond } from '../../common/time/time.js';
 import { PaymentChain } from '../../payment/ports/payment-chain.js';
 import { paymentWorld } from '../../payment/testing/payment-world.js';
 import { WalletLedger } from '../ledger/wallet-ledger.js';
@@ -360,6 +361,7 @@ describe('DTT-16 hoàn cọc đua với confirmPaid, checkIn, markNoShow trên C
                     transition.confirmPaid(em, {
                       lichHenId: lich.lichHenId,
                       soTienDaThu: '100000.00',
+                      now: toSecond(nowVN()),
                     }),
                   { label: 'dtt16-confirm-paid' },
                 ),

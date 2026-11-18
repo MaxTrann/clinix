@@ -40,7 +40,7 @@ import { OperationsAppointmentsRepository } from './operations-appointments.repo
 import { OperationsAppointmentsService } from './operations-appointments.service.js';
 
 // Task B4 — danh sách và chi tiết lịch hẹn của QUẢN TRỊ VIÊN ở tầng dịch vụ trên MySQL 8.4 THẬT (PLAN booking 7.7, 7.9, 7.39; TRACKING 3.33.3): phạm vi `ChiNhanh` và `ToanHeThong` (DSV-02, DSV-03), thứ tự
-// GIẢM dần (ADL-01), 404 cùng thân và nhật ký không bị đọc khi ngoài phạm vi (DSV-09, QB-05), hình dạng 17 khoá (ADL-02), `chuyenDuoc[]` theo ma trận Q24 khi KHÔNG có cấu hình hệ thống (ADL-03), `conPhaiThu` qua cổng
+// GIẢM dần (ADL-01), 404 cùng thân và nhật ký không bị đọc khi ngoài phạm vi (DSV-09, QB-05), hình dạng 18 khoá (ADL-02), `chuyenDuoc[]` theo ma trận Q24 khi KHÔNG có cấu hình hệ thống (ADL-03), `conPhaiThu` qua cổng
 // (ADL-04), panel trong cùng MỘT giao dịch (LSD-02, LSD-03), phân trang (ADL-09). Truy vấn dùng chung (bộ lọc, `q`, sắp xếp) đã kiểm đủ ở operations-appointments.int-spec.ts (B3): ở đây mỗi mã một ca qua dịch vụ
 // Quản trị viên, không lặp ma trận. Bộ đọc nhật ký: appointment-history.reader.int-spec.ts. HTTP thật: test/booking-admin-appointments.e2e-spec.ts. Dữ liệu giả (email đuôi example.com, SĐT minh hoạ).
 // Đồng hồ ứng dụng giả = T0 (02/11/2026 08:00 giờ VN); danh sách không dùng giờ hiện tại.
@@ -280,7 +280,7 @@ describe('DSV-09, QB-05 chi tiết ngoài phạm vi', () => {
 });
 
 describe('ADL-02, ADL-03, ADL-04 chi tiết', () => {
-  it('ADL-02 đúng 17 khoá; lịch bản thân: giá trị đúng, `lichSuTrangThai` có mục TaoLich; không `lichHenId`, `thanhToan`, `hoanTien`, `thoiGianMayChu`, email', async () => {
+  it('ADL-02 đúng 18 khoá (booking B19: thêm `moc`); lịch bản thân: giá trị đúng, `lichSuTrangThai` có mục TaoLich; không `lichHenId`, `thanhToan`, `hoanTien`, `thoiGianMayChu`, email', async () => {
     const w = await afx.world();
     const detail = await service.detail(within(w.branchA), CODES.a1);
     expect(Object.keys(detail).sort()).toStrictEqual(ADMIN_DETAIL_KEYS);

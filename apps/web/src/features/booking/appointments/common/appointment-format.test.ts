@@ -3,6 +3,7 @@ import {
   formatVietnamDate,
   formatVietnamShortDate,
   formatVietnamTime,
+  formatVietnamTimeDayMonth,
   formatVietnamWeekdayDate,
   formatVnd,
   isDecimalAmount,
@@ -203,5 +204,40 @@ describe('booking F9 — ngày đầy đủ giờ Việt Nam', () => {
     expect(formatVietnamDate('2026-10-19T17:00:00.000Z')).toBe('20/10/2026');
     expect(formatVietnamDate('2026-12-31T17:00:00.000Z')).toBe('01/01/2027');
     expect(formatVietnamDate('2028-02-28T17:00:00.000Z')).toBe('29/02/2028');
+  });
+});
+
+describe('booking B19 — giờ và ngày/tháng của dòng phụ thanh trạng thái', () => {
+  it('MOW-01 formatVietnamTimeDayMonth: HH:mm dd/MM theo giờ Việt Nam (03:00Z ⇒ 10:00 cùng ngày), không năm', () => {
+    expect(formatVietnamTimeDayMonth('2026-10-16T03:00:00.000Z')).toBe(
+      '10:00 16/10',
+    );
+    expect(formatVietnamTimeDayMonth('2026-10-19T07:20:45.999Z')).toBe(
+      '14:20 19/10',
+    );
+  });
+
+  it('MOW-01 theo NGÀY giờ Việt Nam, không cắt chuỗi và không theo múi giờ máy: 17:30Z ⇒ 00:30 ngày hôm sau, qua tháng, qua năm', () => {
+    expect(formatVietnamTimeDayMonth('2026-10-16T16:59:59.000Z')).toBe(
+      '23:59 16/10',
+    );
+    expect(formatVietnamTimeDayMonth('2026-10-16T17:30:00.000Z')).toBe(
+      '00:30 17/10',
+    );
+    expect(formatVietnamTimeDayMonth('2026-10-31T17:30:00.000Z')).toBe(
+      '00:30 01/11',
+    );
+    expect(formatVietnamTimeDayMonth('2026-12-31T17:00:00.000Z')).toBe(
+      '00:00 01/01',
+    );
+  });
+
+  it('MOW-01 nửa đêm là 00:00 chứ không phải 24:00 (hourCycle h23); giờ và phút luôn hai chữ số', () => {
+    expect(formatVietnamTimeDayMonth('2026-10-17T17:00:00.000Z')).toBe(
+      '00:00 18/10',
+    );
+    expect(formatVietnamTimeDayMonth('2026-10-18T00:05:00.000Z')).toBe(
+      '07:05 18/10',
+    );
   });
 });

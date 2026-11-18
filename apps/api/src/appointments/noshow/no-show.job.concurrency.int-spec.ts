@@ -1,5 +1,6 @@
 import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
 import type { CancelOutcome } from '../cancel/cancel.types.js';
+import { nowVN, toSecond } from '../../common/time/time.js';
 import { withBookingTransaction } from '../locking/booking-transaction.js';
 import type {
   CheckInOutcome,
@@ -462,6 +463,7 @@ describe('NSJ-10 job tự Vắng mặt cùng lúc confirmPaid hay expire của C
             stack.transition.confirmPaid(em, {
               lichHenId,
               soTienDaThu: '0.00',
+              now: toSecond(nowVN()),
             }),
           { label: 'confirm-paid-vs-job' },
         ),

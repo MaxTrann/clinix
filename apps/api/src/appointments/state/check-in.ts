@@ -140,10 +140,12 @@ export async function checkInWithin(
   if (!decision.ok) return refusalOf(decision, row.trangThai);
 
   // Bước 5: `UPDATE` có điều kiện trạng thái nguồn. Không còn đúng 1 hàng dưới khoá là dữ liệu lệch: ném `Error` để người gọi hoàn tác trọn.
+  // Mốc `thoi_diem_tiep_don` = `now` ghi cùng câu `UPDATE` (booking B19): hoàn tác cùng trạng thái nếu giao dịch lỗi
   const changed = await setStatus(em, {
     lichHenId: input.lichHenId,
     from: row.trangThai,
     to: 'DaTiepDon',
+    now,
   });
   if (!changed)
     throw new Error(

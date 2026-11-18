@@ -6,6 +6,7 @@ import { DetailFailure } from '../../common/detail-failure';
 import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
 import { readListSearch } from '../../common/list-search';
 import { StatusTimeline } from '../../common/status-timeline';
+import { buildStepNotes } from '../../common/status-notes';
 import { BookedOnRow } from './booked-on-row';
 import { DETAIL_FAILURE_TEXTS, DETAIL_TEXT } from './detail-messages';
 import { AppointmentHero, ExamineeCard, ScheduleCard } from './detail-sections';
@@ -75,6 +76,7 @@ export function DoctorDetailPage({ maLichHen }: { maLichHen: string }) {
                   trangThai={ready.data.trangThai}
                   title={DETAIL_TEXT.sections.timeline}
                   unknown="hide"
+                  notes={buildStepNotes(ready.data.moc)}
                   pendingRole="status"
                   footer={<BookedOnRow ngayDat={ready.data.ngayDat} />}
                 />

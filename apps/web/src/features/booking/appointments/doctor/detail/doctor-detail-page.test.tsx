@@ -270,8 +270,8 @@ describe('booking F11 — chi tiết của Bác sĩ: hồ sơ khám và trạng 
     await openDoctorDetail({ trangThai: 'DaTiepDon' });
     const steps = within(card('Trạng thái ca khám')).getAllByRole('listitem');
     expect(steps.map((step) => step.textContent)).toEqual([
-      'Đã xác nhậnĐã qua',
-      'Đã tiếp đónHiện tại',
+      'Đã xác nhận—Đã qua',
+      'Đã tiếp đón—Hiện tại',
       'Hoàn thànhChưa đến',
     ]);
     expect(steps.map((step) => step.getAttribute('aria-current'))).toEqual([
@@ -316,7 +316,11 @@ describe('booking F11 — chi tiết của Bác sĩ: hồ sơ khám và trạng 
     expect(timeline.queryByRole('status')).toBeNull();
     expect(
       timeline.getAllByRole('listitem').map((step) => step.textContent),
-    ).toEqual(['Đã xác nhậnĐã qua', 'Đã tiếp đónĐã qua', 'Hoàn thànhHiện tại']);
+    ).toEqual([
+      'Đã xác nhận—Đã qua',
+      'Đã tiếp đón—Đã qua',
+      'Hoàn thành—Hiện tại',
+    ]);
   });
 
   it('DAD-09 mã trạng thái lạ (kể cả DaDoiLich): chip "Chưa xác định", KHÔNG vẽ bước nào, không lộ mã thô; hàng "Ngày đặt lịch" vẫn có', async () => {
@@ -561,4 +565,73 @@ describe('booking F11 — chi tiết của Bác sĩ: lỗi, quay lại, riêng t
     expect(document.querySelector('ol')).not.toBeNull();
     expect(screen.getAllByText('Đã xác nhận').length).toBeGreaterThan(0);
   });
+});
+
+describe('MOW-04 booking B19 — Bác sĩ: giờ THẬT dưới từng bước của thanh trạng thái', () => {
+  const MOC = {
+    xacNhan: '2026-10-16T03:00:00.000Z',
+    tiepDon: '2026-10-19T07:20:00.000Z',
+    hoanThanh: '2026-10-19T08:05:00.000Z',
+  };
+  const steps = () =>
+    within(card('Trạng thái ca khám'))
+      .getAllByRole('listitem')
+      .map((step) => step.textContent);
+
+  it('HoanThanh: ba giờ HH:mm dd/MM theo giờ Việt Nam dưới đúng ba bước (03:00Z ⇒ 10:00)', async () => {
+    await openDoctorDetail({ trangThai: 'HoanThanh', moc: MOC });
+    expect(steps()).toEqual([
+      'Đã xác nhận10:00 16/10Đã qua',
+      'Đã tiếp đón14:20 19/10Đã qua',
+      'Hoàn thành15:05 19/10Hiện tại',
+    ]);
+  });
+
+  it('DaTiepDon: giờ ở bước đã qua và bước hiện tại, "Chưa đến" ở bước Hoàn thành dù API có giờ hoàn thành', async () => {
+    await openDoctorDetail({ trangThai: 'DaTiepDon', moc: MOC });
+    expect(steps()).toEqual([
+      'Đã xác nhận10:00 16/10Đã qua',
+      'Đã tiếp đón14:20 19/10Hiện tại',
+      'Hoàn thànhChưa đến',
+    ]);
+  });
+
+  it('lịch cũ (cả ba mốc null) ⇒ "—" ở bước đã qua và hiện tại, không bịa giờ; mỗi bước độc lập (chỉ tiếp đón có giờ)', async () => {
+    await openDoctorDetail({
+      trangThai: 'HoanThanh',
+      moc: {
+        xacNhan: null,
+        tiepDon: '2026-10-19T07:20:00.000Z',
+        hoanThanh: null,
+      },
+    });
+    expect(steps()).toEqual([
+      'Đã xác nhận—Đã qua',
+      'Đã tiếp đón14:20 19/10Đã qua',
+      'Hoàn thành—Hiện tại',
+    ]);
+  });
+
+  it('theo NGÀY giờ Việt Nam, không theo múi giờ máy: 17:30Z ⇒ 00:30 ngày hôm sau', async () => {
+    await openDoctorDetail({
+      trangThai: 'DaXacNhan',
+      moc: {
+        xacNhan: '2026-10-16T17:30:00.000Z',
+        tiepDon: null,
+        hoanThanh: null,
+      },
+    });
+    expect(steps()[0]).toBe('Đã xác nhận00:30 17/10Hiện tại');
+  });
+
+  it.each(['ChoThanhToan', 'DaHuy', 'VangMat'] as const)(
+    'MOW-08 trạng thái %s: KHÔNG hiện giờ nào dù API có mốc (giữ bố cục F13: ba bước "Chưa đến")',
+    async (trangThai) => {
+      await openDoctorDetail({ trangThai, moc: MOC });
+      expect(screen.queryAllByTestId('timeline-note')).toHaveLength(0);
+      expect(document.body.textContent).not.toMatch(
+        /10:00 16\/10|14:20 19\/10|15:05 19\/10/,
+      );
+    },
+  );
 });
