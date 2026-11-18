@@ -11,7 +11,8 @@ import {
 
 const HEX_SHA256 = /^[0-9a-f]{64}$/;
 // Id bigint dạng chuỗi, không có số 0 đứng đầu (tối đa 19 chữ số), cùng quy ước với token.service của auth
-const ID_PATTERN = /^[1-9][0-9]{0,18}$/;
+// Xuất ra để B16 (kích hoạt công khai) kiểm id người dùng gửi bằng ĐÚNG dạng mà `buildActivationUrl` đã sinh
+export const ID_PATTERN = /^[1-9][0-9]{0,18}$/;
 
 /** 32 byte ngẫu nhiên an toàn, mã hoá base64url (43 ký tự). */
 export function generateActivationToken(): string {
