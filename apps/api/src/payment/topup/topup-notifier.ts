@@ -19,6 +19,16 @@ export function buildTopupFailedText(soTien: string): string {
   return `Giao dịch nạp ${formatVnd(soTien)}đ vào ví không thành công. Ví của bạn không thay đổi.`;
 }
 
+// B14 (`[đề xuất]`): câu cho Bệnh nhân khi job cộng lại thành công, và cho Quản trị viên khi hết lượt thử. Câu của Quản trị viên chỉ có MÃ giao dịch nội bộ (để tìm ở
+// màn "Nạp ví chưa cộng", B15): không tên, không số tiền của Bệnh nhân (PLAN 5.12: không dữ liệu cá nhân ngoài chủ sở hữu).
+export function buildTopupReconciledText(soTien: string): string {
+  return `Giao dịch nạp ${formatVnd(soTien)}đ đã được đối soát và cộng vào số dư khả dụng của ví.`;
+}
+
+export function buildTopupNeedsAttentionText(giaoDichId: string): string {
+  return `Giao dịch nạp ví #${giaoDichId} đã được cổng thanh toán xác nhận nhưng chưa cộng được vào ví sau 3 lần thử tự động. Vui lòng xử lý ở mục Nạp ví chưa cộng.`;
+}
+
 @Injectable()
 export class TopupNotifier {
   async notifySucceeded(
@@ -43,5 +53,32 @@ export class TopupNotifier {
       TOPUP_NOTIFICATION_EVENTS.FAILED,
       input.now,
     ]);
+  }
+
+  async notifyReconciled(
+    em: EntityManager,
+    input: { benhNhanId: string; soTien: string; now: Date },
+  ): Promise<void> {
+    await em.query(INSERT_SQL, [
+      input.benhNhanId,
+      buildTopupReconciledText(input.soTien),
+      TOPUP_NOTIFICATION_EVENTS.RECONCILED,
+      input.now,
+    ]);
+  }
+
+  /** Mỗi Quản trị viên `ToanHeThong` đang hoạt động một dòng. Danh sách rỗng ⇒ không ghi gì. */
+  async notifyNeedsAttention(
+    em: EntityManager,
+    input: { giaoDichId: string; adminIds: readonly string[]; now: Date },
+  ): Promise<void> {
+    const text = buildTopupNeedsAttentionText(input.giaoDichId);
+    for (const adminId of input.adminIds)
+      await em.query(INSERT_SQL, [
+        adminId,
+        text,
+        TOPUP_NOTIFICATION_EVENTS.NEEDS_ATTENTION,
+        input.now,
+      ]);
   }
 }

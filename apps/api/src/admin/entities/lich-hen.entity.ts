@@ -95,6 +95,16 @@ export class LichHen {
   })
   thoiDiemTao!: Date;
 
+  // Ba mốc thời gian từng bước (booking B19, issue #551): NULL ở lịch tạo trước B19 hoặc bước chưa tới; ghi cùng câu với `trang_thai` ở `appointments/state/` và `appointments/create/`
+  @Column({ name: 'thoi_diem_xac_nhan', type: 'datetime', nullable: true })
+  thoiDiemXacNhan!: Date | null;
+
+  @Column({ name: 'thoi_diem_tiep_don', type: 'datetime', nullable: true })
+  thoiDiemTiepDon!: Date | null;
+
+  @Column({ name: 'thoi_diem_hoan_thanh', type: 'datetime', nullable: true })
+  thoiDiemHoanThanh!: Date | null;
+
   @Column({
     name: 'cap_nhat_lan_cuoi',
     type: 'datetime',

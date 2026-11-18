@@ -29,7 +29,10 @@ export interface LichHenInsertRow {
   hanThanhToan: Date | null;
   /** Đã chuẩn hoá (Q9); rỗng đã đổi thành `null` ở DTO */
   lyDoKham: string | null;
-  /** Mốc `now` của luồng (`toSecond`): ghi tường minh để đồng hồ giả test được và khớp mốc của `han_thanh_toan` */
+  /**
+   * Mốc `now` của luồng (`toSecond`): ghi tường minh để đồng hồ giả test được và khớp mốc của `han_thanh_toan`. Lịch cọc 0đ (`trangThai` là `DaXacNhan`) còn dùng đúng mốc này làm
+   * `thoi_diem_xac_nhan` (booking B19): lịch vừa được tạo cũng là lúc được xác nhận, không cần tham số thứ hai.
+   */
   thoiDiemTao: Date;
 }
 
@@ -42,8 +45,8 @@ export type InsertLichHenOutcome =
 
 const INSERT_SQL = `INSERT INTO lich_hen
   (ma_lich_hen, khung_gio_id, benh_nhan_id, ho_so_nguoi_than_id, bac_si_id, chi_nhanh_id, dich_vu_kham_id, thoi_gian,
-   gia_snapshot, tien_coc_snapshot, chinh_sach_hoan_snapshot, trang_thai, han_thanh_toan, ly_do_kham, thoi_diem_tao)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+   gia_snapshot, tien_coc_snapshot, chinh_sach_hoan_snapshot, trang_thai, han_thanh_toan, ly_do_kham, thoi_diem_tao, thoi_diem_xac_nhan)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 export async function insertLichHen(
   em: EntityManager,
@@ -68,6 +71,8 @@ export async function insertLichHen(
       row.hanThanhToan,
       row.lyDoKham,
       row.thoiDiemTao,
+      // Cọc 0đ: tạo là xác nhận (cùng một mốc); có cọc: NULL tới khi `confirmPaid` ghi giờ thanh toán
+      row.trangThai === 'DaXacNhan' ? row.thoiDiemTao : null,
     ]);
     return { kind: 'Inserted', lichHenId: String(result.insertId) };
   } catch (error) {

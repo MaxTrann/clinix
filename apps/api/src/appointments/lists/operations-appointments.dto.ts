@@ -1,4 +1,5 @@
 import { TRANG_THAI_LICH_HEN } from '../../admin/entities/enums.js';
+import type { StatusMilestones } from './status-milestones.mapper.js';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import { PageQueryDto } from '../../common/paging/page-query.dto.js';
 import type { Paged } from '../../common/paging/paged.js';
@@ -75,16 +76,18 @@ export interface OperationsAppointmentItem extends ItemCore {
   nguoiDat: { hoTen: string; soDienThoai: string };
 }
 
-/** Phần chi tiết DÙNG CHUNG cho Lễ tân và Quản trị viên: mười một khoá của dòng cộng ba khoá (Q32). `lyDoHuy` là chữ tự do của Lễ tân hay Quản trị viên (Q27: chỉ nhân sự được thấy). */
+/** Phần chi tiết DÙNG CHUNG cho Lễ tân và Quản trị viên: mười một khoá của dòng cộng bốn khoá (Q32; `moc` thêm ở booking B19). `lyDoHuy` là chữ tự do của Lễ tân hay Quản trị viên (Q27: chỉ nhân sự được thấy). */
 export interface OperationsAppointmentDetail extends OperationsAppointmentItem {
   lyDoKham: string | null;
   lyDoHuy: string | null;
   /** ISO 8601 UTC */
   hanThanhToan: string | null;
+  /** Mốc từng bước (booking B19): ISO 8601 UTC hoặc `null` từng bước; lịch cũ ba `null`. Lễ tân nhận dữ liệu nhưng giao diện Lễ tân không hiện */
+  moc: StatusMilestones;
 }
 
 /**
- * Chi tiết cho Lễ tân: ĐÚNG 16 khoá = chi tiết dùng chung cộng `chuyenDuoc` (các trạng thái Lễ tân được chuyển tới, từ ma trận P1) và `conPhaiThu` (chuỗi decimal, CHỈ ở `DaXacNhan`;
+ * Chi tiết cho Lễ tân: ĐÚNG 17 khoá = chi tiết dùng chung cộng `chuyenDuoc` (các trạng thái Lễ tân được chuyển tới, từ ma trận P1) và `conPhaiThu` (chuỗi decimal, CHỈ ở `DaXacNhan`;
  * trạng thái khác là `null`).
  */
 export interface ReceptionAppointmentDetail extends OperationsAppointmentDetail {

@@ -230,7 +230,13 @@ describe('booking F11 — bộ dựng query của Bác sĩ', () => {
   });
 });
 
-const ELEVEN_KEYS = [...EIGHT_KEYS, 'chiNhanh', 'ghiChuKham', 'ngayDat'].sort();
+const TWELVE_KEYS = [
+  ...EIGHT_KEYS,
+  'chiNhanh',
+  'ghiChuKham',
+  'moc',
+  'ngayDat',
+].sort();
 
 // Hồ sơ khám (doctor-exam F2; hình dạng nguồn `ExamRecordView` của B2): đúng năm khoá. Dữ liệu giả.
 const RECORD = {
@@ -243,12 +249,12 @@ const RECORD = {
 const RECORD_KEYS = Object.keys(RECORD).sort();
 
 describe('booking F11 — bộ đọc chi tiết của Bác sĩ', () => {
-  it('DAD-02 chi tiết có đúng mười một khoá, `ghiChuKham` là null; khoá thừa (giá, cọc, email, lý do hủy, tên bác sĩ) bị bỏ', () => {
+  it('DAD-02 chi tiết có đúng mười hai khoá, `ghiChuKham` là null; khoá thừa (giá, cọc, email, lý do hủy, tên bác sĩ) bị bỏ', () => {
     const detail = parseDoctorAppointmentDetail({
       ...makeDoctorDetail(),
       ...EXTRA,
     });
-    expect(Object.keys(detail).sort()).toEqual(ELEVEN_KEYS);
+    expect(Object.keys(detail).sort()).toEqual(TWELVE_KEYS);
     expect(detail.ghiChuKham).toBeNull();
     expect(detail.chiNhanh).toBe('CLINIX Chi nhánh Quận 3');
     expect(detail.ngayDat).toBe('2026-10-16T03:00:00.000Z');
@@ -264,7 +270,7 @@ describe('booking F11 — bộ đọc chi tiết của Bác sĩ', () => {
     }
   });
 
-  it('DAD-02 (F2) `ghiChuKham` là đối tượng đúng năm khoá ⇒ đọc đúng; vẫn đúng mười một khoá cấp một; khoá THỪA trong đối tượng bị bỏ, không chép sang kết quả (WHS-08 phần bộ đọc)', () => {
+  it('DAD-02 (F2) `ghiChuKham` là đối tượng đúng năm khoá ⇒ đọc đúng; vẫn đúng mười hai khoá cấp một; khoá THỪA trong đối tượng bị bỏ, không chép sang kết quả (WHS-08 phần bộ đọc)', () => {
     const detail = parseDoctorAppointmentDetail({
       ...makeDoctorDetail(),
       ghiChuKham: {
@@ -275,7 +281,7 @@ describe('booking F11 — bộ đọc chi tiết của Bác sĩ', () => {
     });
     expect(detail.ghiChuKham).toEqual(RECORD);
     expect(Object.keys(detail.ghiChuKham ?? {}).sort()).toEqual(RECORD_KEYS);
-    expect(Object.keys(detail).sort()).toEqual(ELEVEN_KEYS);
+    expect(Object.keys(detail).sort()).toEqual(TWELVE_KEYS);
     const text = JSON.stringify(detail);
     for (const leaked of ['0977777777', 'KHÔNG ĐƯỢC LỌT', 'thua']) {
       expect(text).not.toContain(leaked);
@@ -364,7 +370,7 @@ describe('booking F11 — bộ đọc chi tiết của Bác sĩ', () => {
     });
   });
 
-  it.each(['chiNhanh', 'ngayDat', 'maLichHen', 'nguoiKham'])(
+  it.each(['chiNhanh', 'ngayDat', 'moc', 'maLichHen', 'nguoiKham'])(
     'DAD-02 thiếu khoá %s ⇒ phản hồi không dùng được',
     (key) => {
       const detail: Record<string, unknown> = { ...makeDoctorDetail() };
@@ -374,6 +380,42 @@ describe('booking F11 — bộ đọc chi tiết của Bác sĩ', () => {
       );
     },
   );
+
+  it('MOW-03 moc: đúng ba khoá, mỗi khoá ISO hoặc null; thiếu khoá con, sai dạng ngày, sai kiểu hay không phải đối tượng ⇒ không dùng được; khoá thừa không lọt ra', () => {
+    const ALL = {
+      xacNhan: '2026-10-16T03:00:00.000Z',
+      tiepDon: '2026-10-18T01:20:00.000Z',
+      hoanThanh: '2026-10-18T02:00:00.000Z',
+    };
+    const NONE = { xacNhan: null, tiepDon: null, hoanThanh: null };
+    expect(
+      parseDoctorAppointmentDetail({ ...makeDoctorDetail(), moc: ALL }).moc,
+    ).toEqual(ALL);
+    expect(
+      parseDoctorAppointmentDetail({ ...makeDoctorDetail(), moc: NONE }).moc,
+    ).toEqual(NONE);
+    expect(
+      JSON.stringify(
+        parseDoctorAppointmentDetail({
+          ...makeDoctorDetail(),
+          moc: { ...ALL, mocKhac: 'LO_RA' },
+        }),
+      ),
+    ).not.toContain('LO_RA');
+    for (const moc of [
+      null,
+      [],
+      'moc',
+      { xacNhan: ALL.xacNhan, tiepDon: null },
+      { ...ALL, tiepDon: 'hôm qua' },
+      { ...ALL, hoanThanh: '' },
+      { ...ALL, xacNhan: 5 },
+      { ...ALL, tiepDon: undefined },
+    ])
+      expect(() =>
+        parseDoctorAppointmentDetail({ ...makeDoctorDetail(), moc }),
+      ).toThrow(UnexpectedResponseError);
+  });
 
   it('DAD-02 ngayDat sai dạng, chiNhanh sai kiểu, thân không phải đối tượng ⇒ không dùng được', () => {
     expect(() =>
@@ -553,25 +595,25 @@ describe('doctor-exam F4 — bộ đọc dòng danh sách có `coHoSoKham`', () 
     expect(Object.keys(withoutFlag).sort()).toEqual(EIGHT_KEYS);
   });
 
-  it('WHS-18 chi tiết KHÔNG có `coHoSoKham` (B3: cờ chỉ của danh sách): vẫn ĐÚNG mười một khoá và không đòi cờ; nếu máy chủ lỡ gửi thì bị bỏ', () => {
+  it('WHS-18 chi tiết KHÔNG có `coHoSoKham` (B3: cờ chỉ của danh sách): vẫn ĐÚNG mười hai khoá và không đòi cờ; nếu máy chủ lỡ gửi thì bị bỏ', () => {
     const plain = parseDoctorAppointmentDetail(makeDoctorDetail());
-    expect(Object.keys(plain).sort()).toEqual(ELEVEN_KEYS);
+    expect(Object.keys(plain).sort()).toEqual(TWELVE_KEYS);
     const stray = parseDoctorAppointmentDetail({
       ...makeDoctorDetail(),
       coHoSoKham: true,
     });
-    expect(Object.keys(stray).sort()).toEqual(ELEVEN_KEYS);
+    expect(Object.keys(stray).sort()).toEqual(TWELVE_KEYS);
     expect(stray).not.toHaveProperty('coHoSoKham');
   });
 
-  it('WHS-18 bộ dựng giả đúng hợp đồng B3: dòng giả chín khoá (cờ mặc định `false`), chi tiết giả mười một khoá và BỎ cờ kể cả khi dựng từ một dòng danh sách', () => {
+  it('WHS-18 bộ dựng giả đúng hợp đồng B3: dòng giả chín khoá (cờ mặc định `false`), chi tiết giả mười hai khoá và BỎ cờ kể cả khi dựng từ một dòng danh sách', () => {
     expect(Object.keys(makeDoctorAppointment()).sort()).toEqual(NINE_KEYS);
     expect(makeDoctorAppointment().coHoSoKham).toBe(false);
     expect(makeDoctorAppointment({ coHoSoKham: true }).coHoSoKham).toBe(true);
-    expect(Object.keys(makeDoctorDetail()).sort()).toEqual(ELEVEN_KEYS);
+    expect(Object.keys(makeDoctorDetail()).sort()).toEqual(TWELVE_KEYS);
     const fromRow = makeDoctorDetail(
       makeDoctorAppointment({ coHoSoKham: true }),
     );
-    expect(Object.keys(fromRow).sort()).toEqual(ELEVEN_KEYS);
+    expect(Object.keys(fromRow).sort()).toEqual(TWELVE_KEYS);
   });
 });

@@ -11,6 +11,9 @@ import { DepositPaymentController } from './deposit/deposit-payment.controller.j
 import { CashPaymentController } from './cash/cash-payment.controller.js';
 import { PatientWalletController } from '../wallet/balance/patient-wallet.controller.js';
 import { PaymentPolicyController } from './policy/payment-policy.controller.js';
+import { PatientTopupController } from './topup/patient-topup.controller.js';
+import { VnpayIpnController } from './gateway/ipn/vnpay-ipn.controller.js';
+import { PatientWithdrawalController } from '../wallet/withdrawal/patient-withdrawal.controller.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import {
   findForbiddenSql,
@@ -229,6 +232,16 @@ describe('QTT-01 mọi route có @Roles hợp lệ; @Public chỉ ở route IPN 
 
   it('controller THẬT của cấu hình chính sách cọc (B10, CSD-14): mọi route có @Roles hợp lệ, không @Public', () => {
     expect(findPaymentRouteViolations([PaymentPolicyController])).toEqual([]);
+  });
+
+  it('controller THẬT của nạp ví (B4) và rút tiền (B11, RTV-07): mọi route có @Roles hợp lệ; @Public CHỈ ở IPN của VNPAY (trong danh sách cho phép)', () => {
+    expect(
+      findPaymentRouteViolations([
+        PatientTopupController,
+        VnpayIpnController,
+        PatientWithdrawalController,
+      ]),
+    ).toEqual([]);
   });
 
   it('danh sách @Public cho phép không vượt trần hai route IPN', () => {

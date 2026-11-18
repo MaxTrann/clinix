@@ -54,11 +54,12 @@ export const DOCTOR_EXAMINEE_KEYS = [
   'quanHe',
   'soDienThoai',
 ];
-// Chi tiết = tám khoá lõi cộng `chiNhanh`, `ghiChuKham`, `ngayDat`; KHÔNG `coHoSoKham` (cờ chỉ của danh sách), KHÔNG `lyDoHuy`
+// Chi tiết = tám khoá lõi cộng `chiNhanh`, `ghiChuKham`, `moc` (booking B19), `ngayDat`; KHÔNG `coHoSoKham` (cờ chỉ của danh sách), KHÔNG `lyDoHuy`
 export const DOCTOR_DETAIL_KEYS = [
   ...DOCTOR_CORE_KEYS,
   'chiNhanh',
   'ghiChuKham',
+  'moc',
   'ngayDat',
 ].sort();
 /** Năm khoá của đối tượng `ghiChuKham` (doctor-exam B3, Q24) */

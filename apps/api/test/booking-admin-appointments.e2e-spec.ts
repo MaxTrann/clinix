@@ -270,7 +270,7 @@ describe('GET /admin/appointments — kiểm query (ADL-05, QB-03)', () => {
 });
 
 describe('GET /admin/appointments/:maLichHen — chi tiết', () => {
-  it('ADL-02, ADL-03, ADL-04 đúng 17 khoá; lịch DaXacNhan: chuyenDuoc theo ma trận Q24, `conPhaiThu` bằng giá (bản Noop); không `thanhToan`, `lichHenId`, email, SĐT bác sĩ', async () => {
+  it('ADL-02, ADL-03, ADL-04 đúng 18 khoá (booking B19: thêm `moc`); lịch DaXacNhan: chuyenDuoc theo ma trận Q24, `conPhaiThu` bằng giá (bản Noop); không `thanhToan`, `lichHenId`, email, SĐT bác sĩ', async () => {
     const w = await world();
     const res = await get(`/${CODES.a1}`, w.a);
     expect(res.status).toBe(200);

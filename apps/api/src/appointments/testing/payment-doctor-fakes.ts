@@ -1,4 +1,5 @@
 import type { DataSource, EntityManager } from 'typeorm';
+import { nowVN, toSecond } from '../../common/time/time.js';
 import { HoldExpiryJob } from '../expiry/hold-expiry.job.js';
 import { withBookingTransaction } from '../locking/booking-transaction.js';
 import type {
@@ -66,6 +67,8 @@ export interface FakePaymentInput {
   afterFirstWrite?: () => Promise<void>;
   /** Ném sau khi đã ghi hết (CG-02: "lỗi sau đó" ⇒ hoàn tác cả hai) */
   failAfter?: Error;
+  /** Mốc của lượt (`thoi_diem_xac_nhan`, booking B19); mặc định `toSecond(nowVN())` như `payment` thật */
+  now?: Date;
 }
 
 export function insertFakePaymentRow(
@@ -102,6 +105,7 @@ export function fakePayment(
       const outcome = await service.confirmPaid(em, {
         lichHenId: input.lichHenId,
         soTienDaThu: input.soTienDaThu ?? '150000.00',
+        now: input.now ?? toSecond(nowVN()),
       });
       if (!writeFirst && outcome.kind === 'Confirmed')
         await insertFakePaymentRow(em, input);
@@ -116,7 +120,13 @@ export function fakePayment(
 export function fakeDoctorExam(
   db: DataSource,
   service: AppointmentTransitionService,
-  input: { lichHenId: string; bacSiId: string; failAfter?: Error },
+  input: {
+    lichHenId: string;
+    bacSiId: string;
+    failAfter?: Error;
+    /** Mốc của lượt (`thoi_diem_hoan_thanh`, booking B19); mặc định `toSecond(nowVN())` như `doctor` thật */
+    now?: Date;
+  },
 ): Promise<CompleteOutcome> {
   return withBookingTransaction(
     db,
@@ -124,6 +134,7 @@ export function fakeDoctorExam(
       const outcome = await service.complete(em, {
         lichHenId: input.lichHenId,
         bacSiId: input.bacSiId,
+        now: input.now ?? toSecond(nowVN()),
       });
       if (input.failAfter !== undefined) throw input.failAfter;
       return outcome;
@@ -149,11 +160,12 @@ export function createTransitionStack(db: DataSource, patientId: string) {
     job: new HoldExpiryJob(db, service),
     pay: (lichHenId: string, extra: Partial<FakePaymentInput> = {}) =>
       fakePayment(db, service, { lichHenId, taiKhoanId: patientId, ...extra }),
-    exam: (lichHenId: string, bacSiId: string, failAfter?: Error) =>
+    exam: (lichHenId: string, bacSiId: string, failAfter?: Error, now?: Date) =>
       fakeDoctorExam(db, service, {
         lichHenId,
         bacSiId,
         ...(failAfter === undefined ? {} : { failAfter }),
+        ...(now === undefined ? {} : { now }),
       }),
   };
 }
