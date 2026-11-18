@@ -1,6 +1,7 @@
 import type { DataSource } from 'typeorm';
 import { vi } from 'vitest';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
+import { nowVN, toSecond } from '../../common/time/time.js';
 import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
 import { BookingFixtures } from '../testing/booking-fixtures.js';
 import { FLOW_NOW } from '../testing/booking-flow.js';
@@ -200,7 +201,11 @@ describe('CG-02 payment giả gọi confirmPaid trong giao dịch của nó rồ
 function confirmRecorded(lichHenId: string, patientId: string) {
   const { service } = createTransitionStack(db, patientId);
   return recordTransaction(db, 'confirm-recorded', (em) =>
-    service.confirmPaid(em, { lichHenId, soTienDaThu: '150000.00' }),
+    service.confirmPaid(em, {
+      lichHenId,
+      soTienDaThu: '150000.00',
+      now: toSecond(nowVN()),
+    }),
   );
 }
 

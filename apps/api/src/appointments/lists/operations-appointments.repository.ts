@@ -1,4 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import {
+  MILESTONE_COLUMNS,
+  type MilestoneColumns,
+} from './status-milestones.mapper.js';
 import type { EntityManager } from 'typeorm';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import {
@@ -42,7 +46,8 @@ export interface OperationsAppointmentRow extends ListItemRow {
 /**
  * Hàng thô của câu chi tiết: thêm `lichHenId` (BIGINT ra chuỗi nhờ cấu hình driver) CHỈ để service gọi cổng thanh toán, nó không bao giờ ra JSON (mapper ánh xạ từng khoá), `lyDoKham` và `lyDoHuy`.
  */
-export interface OperationsAppointmentDetailRow extends OperationsAppointmentRow {
+export interface OperationsAppointmentDetailRow
+  extends OperationsAppointmentRow, MilestoneColumns {
   lichHenId: string;
   lyDoKham: string | null;
   lyDoHuy: string | null;
@@ -59,7 +64,7 @@ const PAGE_COLUMNS = `${ITEM_COLUMNS},
 
 // Chi tiết: `lich_hen_id` chỉ để gọi cổng; `ly_do_kham` là chữ tự do của Bệnh nhân (Q9), `ly_do_huy` của Lễ tân hay Quản trị viên (Q27)
 const DETAIL_COLUMNS = `${PAGE_COLUMNS},
-  lh.lich_hen_id AS lichHenId, lh.ly_do_kham AS lyDoKham, lh.ly_do_huy AS lyDoHuy`;
+  lh.lich_hen_id AS lichHenId, lh.ly_do_kham AS lyDoKham, lh.ly_do_huy AS lyDoHuy, ${MILESTONE_COLUMNS}`;
 
 /** Điều kiện dùng CHUNG cho cả hai câu (đếm và trang): dựng một lần nên `total` luôn đúng tập mà trang cắt ra. Điều kiện chi nhánh đứng đầu, rồi trạng thái (luôn có) nên `WHERE` không bao giờ rỗng. */
 function filterOf(filter: OperationsAppointmentFilter) {

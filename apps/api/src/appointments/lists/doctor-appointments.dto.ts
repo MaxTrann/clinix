@@ -1,4 +1,5 @@
 import { IsIn, IsOptional } from 'class-validator';
+import type { StatusMilestones } from './status-milestones.mapper.js';
 import {
   CA_LAM_VIEC,
   type CaLamViec,
@@ -140,13 +141,15 @@ export interface DoctorExamRecord {
 }
 
 /**
- * Chi tiết MỘT lịch: ĐÚNG mười một khoá = tám khoá lõi cộng `ghiChuKham` (`null` khi chưa có hồ sơ hoặc lịch ngoài `DaTiepDon`/`HoanThanh`; đối tượng năm khoá khi có), `chiNhanh` (chuỗi) và `ngayDat`
+ * Chi tiết MỘT lịch: ĐÚNG mười hai khoá = tám khoá lõi cộng `moc` (booking B19) và `ghiChuKham` (`null` khi chưa có hồ sơ hoặc lịch ngoài `DaTiepDon`/`HoanThanh`; đối tượng năm khoá khi có), `chiNhanh` (chuỗi) và `ngayDat`
  * (ISO 8601 UTC, từ `thoi_diem_tao`). KHÔNG `coHoSoKham` (cờ chỉ của danh sách), KHÔNG `lyDoHuy` (Figma `692:2` không hiện lý do huỷ; Q27).
  */
 export interface DoctorAppointmentDetail extends DoctorAppointmentCore {
   ghiChuKham: DoctorExamRecord | null;
   chiNhanh: string;
   ngayDat: string;
+  /** Mốc từng bước (booking B19): ISO 8601 UTC hoặc `null` từng bước; lịch cũ ba `null` */
+  moc: StatusMilestones;
 }
 
 /** Số lịch theo từng trạng thái hiển thị: đủ sáu khoá, trạng thái không có dòng nào là `0`. */

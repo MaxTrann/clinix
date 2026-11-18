@@ -27,6 +27,7 @@ import {
 import { AFTER_ALL_WINDOWS } from './../src/appointments/testing/status-world.js';
 import { recordStatements } from './../src/appointments/testing/statement-recorder.js';
 import { T0 } from './../src/auth/testing/otp-int-helpers.js';
+import { nowVN, toSecond } from './../src/common/time/time.js';
 import {
   openRefreshHarness,
   type RefreshHarness,
@@ -582,7 +583,11 @@ describe('KTH-04 (NT-11) hồ sơ chỉ còn lịch đã kết thúc, lịch đ�
       (em) =>
         h.app
           .get(AppointmentTransitionService, { strict: false })
-          .complete(em, { lichHenId: doneRow!.id, bacSiId: w.doctorId }),
+          .complete(em, {
+            lichHenId: doneRow!.id,
+            bacSiId: w.doctorId,
+            now: toSecond(nowVN()),
+          }),
       { label: 'kth-04-complete' },
     );
     expect(outcome).toStrictEqual({ kind: 'Completed' });

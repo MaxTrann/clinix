@@ -12,6 +12,7 @@ import {
   lockedRows,
   newTransition,
   statesExcept,
+  THOI_GIAN,
   touchesTable,
 } from './status-unit-helpers.js';
 
@@ -86,7 +87,12 @@ export function describeOverrideCoreContract(subject: CoreSubject): void {
         const s = scriptedCore(from);
         expect(await run(s)).toEqual({ kind: success });
         expect(s.em.labels).toEqual(['lock lich_hen', 'write lich_hen']);
-        expect(s.em.queries[1]?.params).toEqual([to, LICH_HEN_ID, from]);
+        // Đích DaTiepDon ghi thêm mốc thoi_diem_tiep_don = now (MOC-08; `now` của người gọi là THOI_GIAN); đích DaXacNhan xoá mốc trong câu SQL, không thêm tham số (MOC-11)
+        expect(s.em.queries[1]?.params).toEqual(
+          to === 'DaTiepDon'
+            ? [to, THOI_GIAN, LICH_HEN_ID, from]
+            : [to, LICH_HEN_ID, from],
+        );
         for (const table of ['khung_gio', 'benh_nhan', 'thong_bao'])
           expect(
             s.em.queries.some(({ sql }) => touchesTable(sql, table)),

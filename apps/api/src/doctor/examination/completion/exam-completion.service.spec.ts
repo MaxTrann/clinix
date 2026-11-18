@@ -84,7 +84,7 @@ afterEach(() => {
 });
 
 describe('HTK-01 luồng thành công', () => {
-  it('Completed ⇒ `{ maLichHen, trangThai: HoanThanh }` (mã lấy từ DB); `complete` nhận đúng { lichHenId, bacSiId } từ token; MỘT thông báo cho TÀI KHOẢN ĐẶT bằng ĐÚNG `em` của giao dịch', async () => {
+  it('Completed ⇒ `{ maLichHen, trangThai: HoanThanh }` (mã lấy từ DB); `complete` nhận đúng { lichHenId, bacSiId } từ token kèm mốc `now` (booking B19); MỘT thông báo cho TÀI KHOẢN ĐẶT bằng ĐÚNG `em` của giao dịch', async () => {
     const t = setup();
     await expect(t.service.complete(DOCTOR, CODE)).resolves.toEqual({
       maLichHen: CODE,
@@ -93,7 +93,7 @@ describe('HTK-01 luồng thành công', () => {
     expect(t.complete).toHaveBeenCalledTimes(1);
     expect(t.complete.mock.calls[0]).toEqual([
       t.em.em,
-      { lichHenId: '900', bacSiId: DOCTOR },
+      { lichHenId: '900', bacSiId: DOCTOR, now: expect.any(Date) },
     ]);
     expect(t.notifyCompleted).toHaveBeenCalledTimes(1);
     const [em, input] = t.notifyCompleted.mock.calls[0] as [
@@ -133,6 +133,10 @@ describe('HTK-01 luồng thành công', () => {
     expect(input.now.getTime()).toBe(
       new Date('2026-11-10T09:00:59.000+07:00').getTime(),
     );
+    // MOC-09: MỘT mốc cho cả `thoi_diem_hoan_thanh` (qua `complete`) và thông báo: cùng giây tròn
+    const completeInput = t.complete.mock.calls[0]?.[1] as { now: Date };
+    expect(completeInput.now.getMilliseconds()).toBe(0);
+    expect(completeInput.now.getTime()).toBe(input.now.getTime());
   });
 });
 

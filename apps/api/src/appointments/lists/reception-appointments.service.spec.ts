@@ -63,6 +63,9 @@ function detailRow(
     lichHenId: '4242',
     lyDoKham: null,
     lyDoHuy: null,
+    thoiDiemXacNhan: null,
+    thoiDiemTiepDon: null,
+    thoiDiemHoanThanh: null,
     ...overrides,
   };
 }
@@ -180,9 +183,9 @@ describe('chi tiết: 404 và phạm vi (DSV-09, QB-04)', () => {
 });
 
 describe('chi tiết: hình dạng và conPhaiThu (DSV-10, DSV-13)', () => {
-  it('DSV-13 đúng 16 khoá; `lichHenId` (dùng gọi cổng) không lọt ra JSON', async () => {
+  it('DSV-13 đúng 17 khoá (có `moc`); `lichHenId` (dùng gọi cổng) không lọt ra JSON', async () => {
     const detail = await service.detail('77', CODE);
-    expect(Object.keys(detail)).toHaveLength(16);
+    expect(Object.keys(detail)).toHaveLength(17);
     expect(Object.keys(detail).slice(-2)).toStrictEqual([
       'chuyenDuoc',
       'conPhaiThu',

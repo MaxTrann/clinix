@@ -176,6 +176,53 @@ describe('doctor-exam B10 — seed exam-demo (MySQL thật)', () => {
     await expect(assertBookingInvariants(db)).resolves.toBeUndefined();
   });
 
+  it('EDS-17 (MOC-24) mốc từng bước của lịch mẫu (booking B19, dữ liệu giả): HoanThanh đủ ba mốc, DaTiepDon có xác nhận và tiếp đón và KHÔNG có hoàn thành; thứ tự tạo ≤ xác nhận ≤ tiếp đón ≤ hoàn thành; không mốc nào vượt giờ chạy seed; chạy lại không đổi mốc', async () => {
+    await prerequisites();
+    await seed();
+    const read = () =>
+      db.query<
+        {
+          trangThai: string;
+          tao: string;
+          xn: string | null;
+          td: string | null;
+          ht: string | null;
+          conTuongLai: string;
+        }[]
+      >(
+        `SELECT trang_thai AS trangThai, DATE_FORMAT(thoi_diem_tao, '%Y-%m-%d %H:%i:%s') AS tao,
+                DATE_FORMAT(thoi_diem_xac_nhan, '%Y-%m-%d %H:%i:%s') AS xn, DATE_FORMAT(thoi_diem_tiep_don, '%Y-%m-%d %H:%i:%s') AS td,
+                DATE_FORMAT(thoi_diem_hoan_thanh, '%Y-%m-%d %H:%i:%s') AS ht,
+                (thoi_diem_xac_nhan > ? OR thoi_diem_tiep_don > ? OR thoi_diem_hoan_thanh > ?) AS conTuongLai
+           FROM lich_hen ORDER BY lich_hen_id`,
+        [NOW_TEXT, NOW_TEXT, NOW_TEXT],
+      );
+    const rows = await read();
+    expect(rows).toHaveLength(34);
+    for (const row of rows) {
+      expect(row.xn, 'xác nhận').toBe(row.tao);
+      expect(row.td, 'tiếp đón').not.toBeNull();
+      expect(row.tao <= (row.xn ?? ''), 'tạo ≤ xác nhận').toBe(true);
+      expect((row.xn ?? '') <= (row.td ?? ''), 'xác nhận ≤ tiếp đón').toBe(
+        true,
+      );
+      expect(Number(row.conTuongLai), 'không vượt giờ chạy seed').toBe(0);
+      if (row.trangThai === 'HoanThanh') {
+        expect(row.ht, 'hoàn thành').not.toBeNull();
+        expect((row.td ?? '') <= (row.ht ?? ''), 'tiếp đón ≤ hoàn thành').toBe(
+          true,
+        );
+      } else {
+        expect(row.trangThai).toBe('DaTiepDon');
+        expect(row.ht, 'DaTiepDon chưa có mốc hoàn thành').toBeNull();
+      }
+    }
+    expect(rows.filter((row) => row.trangThai === 'DaTiepDon')).toHaveLength(3);
+    // Chạy lại: không đổi mốc nào (khoá là mã lịch)
+    await seed();
+    expect(await read()).toEqual(rows);
+  });
+
   it('EDS-05 hình dạng lịch: mã đúng mẫu, ô DaDat khớp lịch, giờ và chi nhánh và dịch vụ khớp bác sĩ, ca đúng ngày chi nhánh mở và đủ số ô', async () => {
     await prerequisites();
     await seed();

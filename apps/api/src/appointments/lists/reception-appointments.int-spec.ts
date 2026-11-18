@@ -103,6 +103,7 @@ const DETAIL_KEYS = [
   'lyDoHuy',
   'lyDoKham',
   'maLichHen',
+  'moc',
   'nguoiDat',
   'nguoiKham',
   'thoiGian',

@@ -28,6 +28,9 @@ function row(
     hanThanhToan: null,
     lichHenId: '9001',
     lyDoKham: 'Đau đầu ba ngày',
+    thoiDiemXacNhan: null,
+    thoiDiemTiepDon: null,
+    thoiDiemHoanThanh: null,
     ...overrides,
   };
 }
@@ -51,9 +54,41 @@ const DETAIL_KEYS = [
   ...ITEM_KEYS,
   'hoanTien',
   'lyDoKham',
+  'moc',
   'thanhToan',
   'thoiGianMayChu',
 ].sort();
+
+describe('MOC-19 toDetail: khoá `moc` (booking B19)', () => {
+  it('ba mốc ISO 8601 UTC theo mã bước (xacNhan, tiepDon, hoanThanh); cột NULL ⇒ null', () => {
+    const detail = toDetail(
+      row({
+        thoiDiemXacNhan: new Date('2026-11-10T01:00:00.000Z'),
+        thoiDiemTiepDon: new Date('2026-11-12T01:20:30.000Z'),
+      }),
+      NO_EXTRAS,
+    );
+    expect(detail.moc).toStrictEqual({
+      xacNhan: '2026-11-10T01:00:00.000Z',
+      tiepDon: '2026-11-12T01:20:30.000Z',
+      hoanThanh: null,
+    });
+  });
+
+  it('lịch cũ (cả ba cột NULL) ⇒ ba null, vẫn là một đối tượng ba khoá (không null cả đối tượng)', () => {
+    const { moc } = toDetail(row(), NO_EXTRAS);
+    expect(moc).toStrictEqual({
+      xacNhan: null,
+      tiepDon: null,
+      hoanThanh: null,
+    });
+    expect(Object.keys(moc).sort()).toStrictEqual([
+      'hoanThanh',
+      'tiepDon',
+      'xacNhan',
+    ]);
+  });
+});
 
 describe('LSH-13 choPhepHuy từ ma trận P1', () => {
   it.each([
@@ -77,11 +112,11 @@ describe('LSH-13 choPhepHuy từ ma trận P1', () => {
   });
 });
 
-describe('LSH-10 toDetail: đúng mười sáu khoá', () => {
-  it('mười hai khoá đầu GIỐNG HỆT toItem (cùng hàm ánh xạ), cộng bốn khoá của chi tiết', () => {
+describe('LSH-10 toDetail: đúng mười bảy khoá', () => {
+  it('mười hai khoá đầu GIỐNG HỆT toItem (cùng hàm ánh xạ), cộng năm khoá của chi tiết (booking B19: thêm `moc`)', () => {
     const detail = toDetail(row(), NO_EXTRAS);
     expect(Object.keys(detail).sort()).toStrictEqual(DETAIL_KEYS);
-    expect(DETAIL_KEYS).toHaveLength(16);
+    expect(DETAIL_KEYS).toHaveLength(17);
     const item = toItem(row());
     expect(Object.keys(item).sort()).toStrictEqual(ITEM_KEYS);
     for (const key of ITEM_KEYS)

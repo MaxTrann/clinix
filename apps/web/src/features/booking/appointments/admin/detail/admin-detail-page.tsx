@@ -9,6 +9,7 @@ import { DetailFailure } from '../../common/detail-failure';
 import { readListSearch } from '../../common/list-search';
 import { refundResultLine } from '../../common/refund-text';
 import { StatusTimeline } from '../../common/status-timeline';
+import { buildStepNotes } from '../../common/status-notes';
 import { DETAIL_TEXT, doneLabel } from './detail-messages';
 import {
   AdminAppointmentCard,
@@ -104,6 +105,7 @@ export function AdminDetailPage({ maLichHen }: { maLichHen: string }) {
                   trangThai={ready.data.trangThai}
                   title={DETAIL_TEXT.sections.timeline}
                   unknown="upcoming"
+                  notes={buildStepNotes(ready.data.moc)}
                 />
                 <HistoryPanel entries={ready.data.lichSuTrangThai} />
                 <OverrideActions

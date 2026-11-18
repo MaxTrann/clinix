@@ -178,10 +178,13 @@ export class DepositPaymentService {
       return await withBookingTransaction<PayOutcome>(
         this.db,
         async (em) => {
+          // Mốc của lượt, tính LẠI mỗi lần thử (thân chạy lại khi 1213, 1205): vừa là `thoi_diem_xac_nhan` của lịch (booking B19) vừa là mốc của giao dịch tiền và dòng sổ ví bên dưới
+          const now = toSecond(nowVN());
           // (1) `confirmPaid` TRƯỚC mọi ghi bảng con và trước khoá ví: nó khoá khung giờ rồi `lich_hen` (tầng 5, 6)
           const confirm = await this.transitions.confirmPaid(em, {
             lichHenId: row.lichHenId,
             soTienDaThu: need,
+            now,
           });
           if (confirm.kind === 'AlreadyConfirmed')
             return { kind: 'AlreadyPaid' };
@@ -202,7 +205,6 @@ export class DepositPaymentService {
               kind: 'InsufficientBalance',
               soDuKhaDung: available,
             });
-          const now = toSecond(nowVN());
           const paymentId = await this.repository.insertWalletPayment(em, {
             viNoiBoId: wallet.viNoiBoId,
             rootLichHenId: rootId,

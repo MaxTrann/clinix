@@ -9,6 +9,8 @@
 // 10/11/2026 (module booking, task P7): thong_bao thêm lich_hen_id (ref: >? lich_hen, nullable) và index unique (lich_hen_id, tai_khoan_id, loai_su_kien); không thêm bảng, enum hay CHECK.
 // 16/11/2026 (module payment và wallet, task P1): lich_su_hoan_tien thêm cột loai (loai_hoan_tien_enum: TuDong | DacBiet; Q23); bảng mới lan_doi_soat_nap_vi (ket_qua_doi_soat_enum; Q9); enum nhật ký thêm DuyetRutTien, TuChoiRutTien, yeu_cau_rut_tien (Q17) => 46 bảng, 32 khối Enum.
 // 17/11/2026 (module doctor-exam, task D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa Note nào của Table: Note của ho_so_kham và danh_gia_bac_si giữ khớp COMMENT trong clinix_mysql.sql (được schema-parity so với migration). Thêm mục "doctor-exam D1" (hồ sơ khám và đánh giá bác sĩ) vào cuối clinix_quy_tac_nghiep_vu.md và bốn khối TRUY VẤN MẪU vào cuối clinix_mysql.sql.
+// 18/11/2026 (module booking, task B19): lich_hen thêm ba cột mốc thời gian từng bước thoi_diem_xac_nhan, thoi_diem_tiep_don, thoi_diem_hoan_thanh (datetime, nullable, đặt sau thoi_diem_tao);
+// không thêm bảng, enum hay CHECK nên các số bảng, enum, CHECK ở các dòng trên không đổi. Chuyển đổi từ DB cũ: mục "booking B19" ở cuối clinix_quy_tac_nghiep_vu.md.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17
@@ -626,6 +628,9 @@ Table lich_hen {
   ly_do_huy varchar(255) [note: 'Chữ theo lý do huỷ (booking B10, Q27): Bệnh nhân = Bệnh nhân hủy lịch hẹn (hoặc lý do tuỳ chọn tối đa 255 ký tự do họ nhập); Lễ tân và Quản trị viên override = lý do nhập, bắt buộc; hệ thống huỷ vì bác sĩ nghỉ phép = Bác sĩ nghỉ phép (lý do nghỉ của bác sĩ là dữ liệu riêng tư, không đi vào cột này); hết hạn giữ chỗ = Hết thời gian giữ chỗ. Chữ tự do, KHÔNG có mã lý do (TECH_DEBT dòng 106)']
   ly_do_kham text
   thoi_diem_tao datetime [not null, default: `now()`, note: 'Thời điểm đặt lịch']
+  thoi_diem_xac_nhan datetime [note: 'Lúc lịch thành DaXacNhan lần đầu (booking B19): lịch cọc 0đ bằng thoi_diem_tao, lịch có cọc là lúc xác nhận thanh toán. NULL khi chưa xác nhận hoặc lịch tạo trước B19 (không điền giả). Giữ nguyên khi lịch lùi trạng thái hoặc bị hủy']
+  thoi_diem_tiep_don datetime [note: 'Lúc lịch thành DaTiepDon (Lễ tân tiếp đón, thu tiền mặt tại quầy hoặc Quản trị viên chuyển trạng thái, booking B19). Bị xóa (NULL) khi lịch về DaXacNhan hoặc sang VangMat, giữ nguyên khi hủy. NULL ở lịch tạo trước B19']
+  thoi_diem_hoan_thanh datetime [note: 'Lúc Bác sĩ hoàn thành ca khám, lịch thành HoanThanh (booking B19). HoanThanh là trạng thái cuối nên mốc này không bị xóa. NULL khi chưa hoàn thành hoặc lịch tạo trước B19']
   cap_nhat_lan_cuoi datetime [not null, default: `now()`, note: 'Tự cập nhật mỗi khi dòng thay đổi (ON UPDATE trong SQL)']
 
   indexes {

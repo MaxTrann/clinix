@@ -8,6 +8,7 @@ import { MIGRATIONS } from './migrations/index.js';
 import { TaoBangDanhMuc1793024340000 } from './migrations/1793024340000-tao-bang-danh-muc.js';
 import { TaoBangHoSoKham1793620800000 } from './migrations/1793620800000-tao-bang-ho-so-kham.js';
 import { TaoBangThanhToanVi1793707200000 } from './migrations/1793707200000-tao-bang-thanh-toan-vi.js';
+import { MocThoiGianLichHen1793793600000 } from './migrations/1793793600000-moc-thoi-gian-lich-hen.js';
 import { TaoBangMocHoanTien1793534400000 } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -108,6 +109,7 @@ const BOOKING_P7_NAME = ThongBaoLichHen1793448000000.name;
 const BOOKING_P6_NAME = TaoBangMocHoanTien1793534400000.name;
 const EXAM_NAME = TaoBangHoSoKham1793620800000.name;
 const PAYMENT_NAME = TaoBangThanhToanVi1793707200000.name;
+const MOC_NAME = MocThoiGianLichHen1793793600000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -611,8 +613,8 @@ describe('vòng đời migration', () => {
     };
 
     it('MGT-14: down khi ĐÃ có dòng nhật ký dùng giá trị mới thì dừng với thông báo rõ TRƯỚC mọi câu DDL; DB nguyên vẹn (cả hai loại giá trị mới, ca biên một giá trị)', async () => {
+      // Booking B19 (MOC-04) đứng SAU payment P1: hoàn tác nó trước để payment P1 thành migration cuối đã áp dụng, up lại ở cuối ca
       const later = await revertAfter(PAYMENT_NAME);
-      expect(later).toEqual([]);
       await expectFullyInstalled();
       const before = {
         hanhDong: await readEnum('hanh_dong'),
@@ -642,9 +644,11 @@ describe('vòng đời migration', () => {
         ).toBe(true);
         await dataSource.query('DELETE FROM nhat_ky_hanh_dong');
       }
+      expect(await runPendingMigrations(dataSource)).toEqual(later);
     });
 
     it('MGT-01, MGT-15: down khi KHÔNG có dòng nào dùng giá trị mới khôi phục ENUM cũ và xoá cả năm bảng; up lại chạy được', async () => {
+      const later = await revertAfter(PAYMENT_NAME);
       await insertAudit('XuLyNapViChuaCong', 'giao_dich_thanh_toan'); // giá trị CŨ không chặn down
       await expectFullyInstalled();
       expect(await revertLastMigration(dataSource)).toBe(PAYMENT_NAME);
@@ -663,11 +667,99 @@ describe('vòng đời migration', () => {
           ?.executed,
       ).toBe(false);
 
-      expect(await runPendingMigrations(dataSource)).toEqual([PAYMENT_NAME]);
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        PAYMENT_NAME,
+        ...later,
+      ]);
       await expectFullyInstalled();
       expect(await countAudit()).toBe(1);
       await dataSource.query('DELETE FROM nhat_ky_hanh_dong');
     });
+  });
+
+  it('MOC-04: down của booking B19 gỡ ba cột mốc của lich_hen và bị CHẶN khi còn lịch có mốc (DB nguyên vẹn); up lại thêm đúng ba cột NULL được, liền nhau sau thoi_diem_tao', async () => {
+    const later = await revertAfter(MOC_NAME);
+    expect(later).toEqual([]);
+    const MOC_COLUMNS = [
+      'thoi_diem_xac_nhan',
+      'thoi_diem_tiep_don',
+      'thoi_diem_hoan_thanh',
+    ];
+    const readColumns = async () =>
+      (await dataSource.query(
+        `SELECT COLUMN_NAME AS name, DATA_TYPE AS type, IS_NULLABLE AS nullable, COLUMN_DEFAULT AS def, ORDINAL_POSITION AS position
+           FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lich_hen'
+            AND COLUMN_NAME IN ('thoi_diem_tao', 'thoi_diem_xac_nhan', 'thoi_diem_tiep_don', 'thoi_diem_hoan_thanh', 'cap_nhat_lan_cuoi')
+          ORDER BY ORDINAL_POSITION`,
+      )) as {
+        name: string;
+        type: string;
+        nullable: string;
+        def: string | null;
+        position: number;
+      }[];
+    const installed = await readColumns();
+    // Thứ tự: thoi_diem_tao, ba cột mốc liền nhau, cap_nhat_lan_cuoi; ba cột mới là datetime, NULL được, không DEFAULT
+    expect(installed.map((column) => column.name)).toEqual([
+      'thoi_diem_tao',
+      ...MOC_COLUMNS,
+      'cap_nhat_lan_cuoi',
+    ]);
+    for (const column of installed.filter((item) =>
+      MOC_COLUMNS.includes(item.name),
+    )) {
+      expect(column.type, column.name).toBe('datetime');
+      expect(column.nullable, column.name).toBe('YES');
+      expect(column.def, column.name).toBeNull();
+    }
+    const positions = installed.map((column) => Number(column.position));
+    expect(positions).toEqual(
+      positions.map((_, index) => (positions[0] ?? 0) + index),
+    );
+
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      // Các khoá ngoại của lich_hen để trống: tắt kiểm khóa ngoại trên MỘT kết nối để dựng một dòng có mốc (như TBLH-09)
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+      await queryRunner.query(
+        `INSERT INTO lich_hen (ma_lich_hen, khung_gio_id, benh_nhan_id, bac_si_id, chi_nhanh_id, dich_vu_kham_id, thoi_gian, gia_snapshot, trang_thai, thoi_diem_tao, thoi_diem_xac_nhan)
+         VALUES ('CLX-20261118-MOC04', 900001, 900001, 900001, 900001, 900001, '2026-11-20 08:00:00', 100000, 'DaXacNhan', NOW(), NOW())`,
+      );
+      // Còn lịch có mốc: down bị chặn TRƯỚC mọi câu DDL, ba cột còn nguyên, migration vẫn ở trạng thái đã áp dụng
+      await expect(revertLastMigration(dataSource)).rejects.toThrow(
+        /Không hoàn tác được MocThoiGianLichHen1793793600000[\s\S]*còn 1 lịch hẹn/,
+      );
+      expect(await readColumns()).toEqual(installed);
+      expect(
+        (await listMigrations(dataSource)).find(
+          (item) => item.name === MOC_NAME,
+        )?.executed,
+      ).toBe(true);
+
+      // Hết lịch có mốc: down gỡ đúng ba cột, không đụng cột khác
+      await queryRunner.query(
+        "DELETE FROM lich_hen WHERE ma_lich_hen = 'CLX-20261118-MOC04'",
+      );
+      expect(await revertLastMigration(dataSource)).toBe(MOC_NAME);
+      expect((await readColumns()).map((column) => column.name)).toEqual([
+        'thoi_diem_tao',
+        'cap_nhat_lan_cuoi',
+      ]);
+      expect(
+        (await listMigrations(dataSource)).find(
+          (item) => item.name === MOC_NAME,
+        )?.executed,
+      ).toBe(false);
+
+      // Up lại: đúng ba cột như trước (cùng thứ tự, kiểu, NULL)
+      expect(await runPendingMigrations(dataSource)).toEqual([MOC_NAME]);
+      expect(await readColumns()).toEqual(installed);
+    } finally {
+      await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+      await queryRunner.release();
+    }
   });
 
   it('hoàn tác hết rồi hoàn tác tiếp: trả về null, không lỗi', async () => {
