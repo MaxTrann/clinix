@@ -142,6 +142,22 @@ Sau khi nhập đúng mã OTP quên mật khẩu, API cấp một `resetToken` (
 - Giá trị khoá không bao giờ được ghi vào log: tên biến khớp quy tắc che log của P5 (`SECRET`). Đừng dán khoá vào chat, issue, PR hay repo.
 - `.env` cũ của bạn **không cần sửa** nếu bạn chạy ở development. Staging/production phải thêm biến này vào `.env` trên server (`docs/TECH_DEBT.md` dòng 19).
 
+### 4.5 Liên kết kích hoạt nhân sự (từ task B14 của module `admin`)
+
+Khi Quản trị viên tạo tài khoản nhân sự (hoặc bấm "Gửi lại"), API gửi một email chứa liên kết `WEB_ORIGIN/kich-hoat#id=…&token=…`. Token là 32 byte ngẫu nhiên, DB chỉ lưu bản băm SHA-256. Ba biến sau điều khiển liên kết; API **từ chối khởi động** nếu giá trị không phải số nguyên, ngoài miền, hoặc để trống (thông báo lỗi chỉ nêu tên biến, không in giá trị):
+
+| Biến | Mặc định | Miền hợp lệ | Ý nghĩa |
+|---|---|---|---|
+| `STAFF_ACTIVATION_TTL_HOURS` | 24 | 1 đến 168 | Hạn của liên kết, tính bằng **giờ** từ lúc tạo (Q22) |
+| `STAFF_ACTIVATION_RESEND_MIN_SECONDS` | 60 | 1 đến 3600 | Liên kết mới phải cách liên kết mới nhất ít nhất chừng này **giây** (Q23) |
+| `STAFF_ACTIVATION_RESEND_MAX_PER_HOUR` | 5 | 1 đến 60 | Tối đa chừng này liên kết trong **1 giờ**, tính cả lần gửi đầu và lần gửi lỗi (Q23) |
+
+- Đổi `STAFF_ACTIVATION_TTL_HOURS` chỉ ảnh hưởng liên kết tạo **sau đó**; liên kết đã tạo giữ hạn cũ (hạn nằm ở cột `ma_xac_thuc.het_han_luc`). Đổi giá trị cần khởi động lại API.
+- Muốn kiểm tay "gửi lại" mà không phải chờ 60 giây (ví dụ khi chạy X1 với Gmail thật), đặt tạm `STAFF_ACTIVATION_RESEND_MIN_SECONDS=1`; nhớ trả về 60 trước khi demo.
+- Liên kết gửi bằng cùng cấu hình Gmail ở mục 4.2. Test tự động **không bao giờ gửi thật** (dùng `MailService` giả), và không đọc ba biến này từ `.env` của bạn.
+- Liên kết (kể cả token và băm) không bao giờ được ghi vào log. Đừng dán liên kết kích hoạt thật vào chat, issue, PR hay prompt AI.
+- `.env` cũ của bạn **không cần sửa**: thiếu ba biến thì dùng mặc định ở bảng trên.
+
 ## 5. Chạy thử môi trường
 
 ```powershell
