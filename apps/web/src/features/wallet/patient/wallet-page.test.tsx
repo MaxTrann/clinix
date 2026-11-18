@@ -369,6 +369,48 @@ describe('trang Ví của tôi (payment F1)', () => {
     );
   });
 
+  it('payment F2 WNT-01 tab Nạp tiền dùng hạn mức và cổng của CÙNG lần tải số dư; tab Rút vẫn "đang phát triển"', async () => {
+    const api = installFakeWalletApi();
+    api.handlers.overview = () => ({
+      body: {
+        ...OVERVIEW,
+        hanMucNap: { toiThieu: '100000.00', toiDa: '500000.00' },
+        congThanhToan: ['MoMo', 'CongLa'],
+      },
+    });
+    renderPage();
+    const panel = screen.getByRole('tabpanel', { name: 'Nạp tiền' });
+    expect(
+      within(panel).getByText('Đang tải thông tin nạp tiền...'),
+    ).toBeVisible();
+    expect(
+      await within(panel).findByText('100.000đ – 500.000đ / lần nạp'),
+    ).toBeVisible();
+    expect(within(panel).queryByRole('button', { name: '50.000đ' })).toBeNull();
+    expect(
+      within(panel)
+        .getAllByRole('radio')
+        .map((r) => r.textContent),
+    ).toEqual(['MoMoThanh toán qua ví MoMo']);
+    fireEvent.click(screen.getByRole('tab', { name: 'Rút tiền' }));
+    expect(
+      screen.getByRole('tabpanel', { name: 'Rút tiền' }),
+    ).toHaveTextContent('Chức năng đang được phát triển.');
+  });
+
+  it('payment F2 tải số dư lỗi ⇒ tab Nạp tiền báo chưa tải được (không treo "đang tải")', async () => {
+    const api = installFakeWalletApi();
+    api.handlers.overview = () => serverError();
+    renderPage();
+    const panel = screen.getByRole('tabpanel', { name: 'Nạp tiền' });
+    expect(
+      await within(panel).findByText(/Chưa tải được thông tin nạp tiền/),
+    ).toBeVisible();
+    expect(
+      within(panel).queryByText('Đang tải thông tin nạp tiền...'),
+    ).toBeNull();
+  });
+
   it('ba mục "Hỗ trợ & hướng dẫn" hiện đúng Figma nhưng vô hiệu (chưa có trang đích)', async () => {
     installFakeWalletApi();
     renderPage();

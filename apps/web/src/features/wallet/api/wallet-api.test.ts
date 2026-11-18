@@ -25,7 +25,7 @@ const unusablePage = (raw: unknown) =>
   );
 
 describe('wallet-api (payment F1)', () => {
-  it('WVI-01 đọc đúng ba con số và yêu cầu rút gần nhất, giữ NGUYÊN chuỗi của máy chủ', () => {
+  it('WVI-01 đọc đúng ba con số và yêu cầu rút gần nhất, giữ NGUYÊN chuỗi của máy chủ; F2: chuyển tiếp hạn mức nạp và cổng', () => {
     expect(
       parseWalletOverview({
         ...OVERVIEW,
@@ -47,6 +47,8 @@ describe('wallet-api (payment F1)', () => {
         trangThai: 'ChoDuyet',
         thoiDiemYeuCau: '2026-10-18T00:10:00.000Z',
       },
+      hanMucNap: { toiThieu: '50000.00', toiDa: '2000000.00' },
+      congThanhToan: ['VNPay'],
     });
   });
 
@@ -78,6 +80,16 @@ describe('wallet-api (payment F1)', () => {
     unusablePage({ items: 'x', total: 0, trang: 1, kichThuoc: 20 });
     unusablePage(page([], { trang: 0 }));
     unusablePage(page([], { total: -1 }));
+  });
+
+  it('payment F2 ca âm: hạn mức nạp thiếu, tiền dạng số; danh sách cổng không phải mảng chuỗi ⇒ phản hồi hỏng', () => {
+    unusableOverview({ ...OVERVIEW, hanMucNap: undefined });
+    unusableOverview({
+      ...OVERVIEW,
+      hanMucNap: { toiThieu: 50000, toiDa: '2000000.00' },
+    });
+    unusableOverview({ ...OVERVIEW, congThanhToan: 'VNPay' });
+    unusableOverview({ ...OVERVIEW, congThanhToan: ['VNPay', 1] });
   });
 
   it('gọi đúng đường dẫn, gắn access token, chỉ gửi `trang` và `loai` (không lọc thì KHÔNG gửi `loai`, không bao giờ gửi `benhNhanId`)', async () => {

@@ -6,6 +6,7 @@ import {
   WALLET_TRANSACTION_TYPES,
   WITHDRAWAL_STATUSES,
   type LatestWithdrawal,
+  type TopupLimits,
   type WalletOverview,
   type WalletTransaction,
   type WalletTransactionPage,
@@ -73,7 +74,23 @@ export function parseWalletOverview(raw: unknown): WalletOverview {
     soTienDangGiu: readAmount(body.soTienDangGiu),
     napChoXacNhan: readAmount(body.napChoXacNhan),
     yeuCauRutGanNhat: parseWithdrawal(body.yeuCauRutGanNhat),
+    hanMucNap: parseLimits(body.hanMucNap),
+    congThanhToan: parseGateways(body.congThanhToan),
   };
+}
+
+function parseLimits(raw: unknown): TopupLimits {
+  const limits = readRecord(raw);
+  return {
+    toiThieu: readAmount(limits.toiThieu),
+    toiDa: readAmount(limits.toiDa),
+  };
+}
+
+// Chỉ kiểm là mảng chuỗi; tên cổng lạ do tab Nạp tiền (payment) tự bỏ qua
+function parseGateways(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return invalid();
+  return raw.map(readString);
 }
 
 function parseTransaction(raw: unknown): WalletTransaction {
