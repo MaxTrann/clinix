@@ -83,6 +83,7 @@ export function makeDoctorDetail(
     ghiChuKham: null,
     chiNhanh: 'CLINIX Chi nhánh Quận 3',
     ngayDat: '2026-10-16T03:00:00.000Z',
+    moc: { xacNhan: null, tiepDon: null, hoanThanh: null },
     ...overrides,
   };
   delete detail.coHoSoKham;

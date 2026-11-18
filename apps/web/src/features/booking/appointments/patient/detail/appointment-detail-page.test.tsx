@@ -135,8 +135,9 @@ describe('trang chi tiết theo trạng thái', () => {
           '[data-testid="timeline-reserved-line"]',
         );
         const hasUpcoming = within(step).queryByText('Chưa đến') !== null;
-        // Đúng MỘT trong hai: chỗ chừa trống hoặc chữ "Chưa đến"
-        expect(reserved.length + (hasUpcoming ? 1 : 0)).toBe(1);
+        // Đúng MỘT trong ba: chỗ chừa trống, dòng giờ của bước (booking B19: lịch cũ hiện "—") hoặc chữ "Chưa đến"
+        const notes = step.querySelectorAll('[data-testid="timeline-note"]');
+        expect(reserved.length + notes.length + (hasUpcoming ? 1 : 0)).toBe(1);
       }
       expect(
         within(timeline()).getAllByTestId('timeline-connector'),
@@ -481,4 +482,69 @@ describe('chỉ đọc, bộ nhớ, đổi mã', () => {
     expect(cancelButton()).toBeInTheDocument();
     expect(api.writes()).toEqual([]);
   });
+});
+
+describe('MOW-05 booking B19 — Bệnh nhân: giờ THẬT dưới từng bước của thanh "Trạng thái lịch hẹn"', () => {
+  const MOC = {
+    xacNhan: '2026-10-16T03:00:00.000Z',
+    tiepDon: '2026-10-19T07:20:00.000Z',
+    hoanThanh: '2026-10-19T08:05:00.000Z',
+  };
+  const open = async (over: Parameters<typeof makeDetail>[0]) => {
+    renderDetailPage({
+      before: (api) => {
+        api.detail = makeDetail({ choPhepHuy: false, ...over });
+      },
+    });
+    await detailLoaded();
+  };
+  const steps = () =>
+    within(timeline())
+      .getAllByRole('listitem')
+      .map((step) => step.textContent);
+
+  it('HoanThanh: ba giờ HH:mm dd/MM theo giờ Việt Nam dưới đúng ba bước', async () => {
+    await open({ trangThai: 'HoanThanh', moc: MOC });
+    expect(steps()).toEqual([
+      'Đã xác nhận10:00 16/10Đã qua',
+      'Đã tiếp đón14:20 19/10Đã qua',
+      'Hoàn thành15:05 19/10Hiện tại',
+    ]);
+  });
+
+  it('DaTiepDon: giờ ở bước đã qua và hiện tại, "Chưa đến" ở bước Hoàn thành', async () => {
+    await open({ trangThai: 'DaTiepDon', moc: MOC });
+    expect(steps()).toEqual([
+      'Đã xác nhận10:00 16/10Đã qua',
+      'Đã tiếp đón14:20 19/10Hiện tại',
+      'Hoàn thànhChưa đến',
+    ]);
+  });
+
+  it('lịch cũ (ba mốc null) ⇒ "—" ở bước đã qua và hiện tại; chỉ bước có mốc mới có giờ', async () => {
+    await open({
+      trangThai: 'HoanThanh',
+      moc: {
+        xacNhan: null,
+        tiepDon: '2026-10-19T07:20:00.000Z',
+        hoanThanh: null,
+      },
+    });
+    expect(steps()).toEqual([
+      'Đã xác nhận—Đã qua',
+      'Đã tiếp đón14:20 19/10Đã qua',
+      'Hoàn thành—Hiện tại',
+    ]);
+  });
+
+  it.each(['ChoThanhToan', 'DaHuy', 'VangMat'] as const)(
+    'MOW-08 trạng thái %s: KHÔNG hiện giờ nào dù API có mốc',
+    async (trangThai) => {
+      await open({ trangThai, moc: MOC });
+      expect(screen.queryAllByTestId('timeline-note')).toHaveLength(0);
+      expect(document.body.textContent).not.toMatch(
+        /10:00 16\/10|14:20 19\/10|15:05 19\/10/,
+      );
+    },
+  );
 });

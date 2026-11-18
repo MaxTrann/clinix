@@ -12,6 +12,7 @@ import { LIST_TEXT } from '../list-messages';
 import { CancelSection } from './cancel-section';
 import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
 import { StatusTimeline } from '../../common/status-timeline';
+import { buildStepNotes } from '../../common/status-notes';
 import { DetailCostCard } from './detail-cost';
 import { DetailInfoCard, RecordCard } from './detail-info';
 import { DETAIL_TEXT } from './detail-messages';
@@ -108,6 +109,7 @@ function AppointmentDetail({ maLichHen }: { maLichHen: string }) {
                       trangThai={view.detail.trangThai}
                       title={DETAIL_TEXT.timelineTitle}
                       unknown="upcoming"
+                      notes={buildStepNotes(view.detail.moc)}
                     />
                     {rating}
                     <CancelSection

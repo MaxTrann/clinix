@@ -98,6 +98,13 @@ export function formatVietnamTime(iso: string): string {
   return `${hour}:${minute}`;
 }
 
+// ISO UTC ⇒ "08:15 18/11" theo giờ Việt Nam: giờ rồi ngày/tháng, không năm (dòng phụ của bước ở thanh trạng thái, booking B19). Cùng cách lấy ngày giờ như các hàm trên: KHÔNG cắt chuỗi, KHÔNG theo múi giờ máy
+// (17:30Z đã là 00:30 ngày hôm sau ở Việt Nam); nửa đêm là 00:xx nhờ `hourCycle: 'h23'`.
+export function formatVietnamTimeDayMonth(iso: string): string {
+  const { hour, minute, day, month } = vietnamParts(iso);
+  return `${hour}:${minute} ${day}/${month}`;
+}
+
 // Tiền là chuỗi decimal của API (`"300000.00"`, DECIMAL của MySQL): không dấu, không số mũ, phần thập phân tuỳ chọn
 const DECIMAL_AMOUNT = /^(\d+)(?:\.\d+)?$/;
 

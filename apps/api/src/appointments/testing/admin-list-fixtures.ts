@@ -29,7 +29,7 @@ export const ADMIN_ITEM_KEYS = [
   'tienCoc',
   'trangThai',
 ];
-/** Mười sáu khoá của chi tiết Lễ tân cộng `lichSuTrangThai`. */
+/** Mười bảy khoá của chi tiết Lễ tân (có `moc`, booking B19) cộng `lichSuTrangThai`. */
 export const ADMIN_DETAIL_KEYS = [
   ...ADMIN_ITEM_KEYS,
   'chuyenDuoc',
@@ -38,6 +38,7 @@ export const ADMIN_DETAIL_KEYS = [
   'lichSuTrangThai',
   'lyDoHuy',
   'lyDoKham',
+  'moc',
 ].sort();
 
 /** Một dòng `nhat_ky_hanh_dong` THÔ: mọi cột khai tường minh để ca âm dựng được dòng sai (hành động khác, đối tượng khác, thất bại, `changes` hỏng). */

@@ -48,6 +48,9 @@ function row(
     hanThanhToan: null,
     lichHenId: '9001',
     lyDoKham: null,
+    thoiDiemXacNhan: null,
+    thoiDiemTiepDon: null,
+    thoiDiemHoanThanh: null,
     ...overrides,
   };
 }
@@ -101,11 +104,16 @@ describe('LSH-10 chi tiết: một lần runReadOnly, hàng và hai cổng chung
     ]);
   });
 
-  it('LSH-10 cổng mặc định (như Noop) trả null ⇒ thanhToan và hoanTien là null; đủ mười sáu khoá; không lichHenId', async () => {
+  it('LSH-10 cổng mặc định (như Noop) trả null ⇒ thanhToan và hoanTien là null; đủ mười bảy khoá (có `moc`); không lichHenId', async () => {
     const detail = await service.detail(PATIENT, CODE);
     expect(detail.thanhToan).toBeNull();
     expect(detail.hoanTien).toBeNull();
-    expect(Object.keys(detail)).toHaveLength(16);
+    expect(Object.keys(detail)).toHaveLength(17);
+    expect(detail.moc).toStrictEqual({
+      xacNhan: null,
+      tiepDon: null,
+      hoanThanh: null,
+    });
     expect(detail).not.toHaveProperty('lichHenId');
     expect(detail.maLichHen).toBe(CODE);
     expect(detail.choPhepHuy).toBe(true);

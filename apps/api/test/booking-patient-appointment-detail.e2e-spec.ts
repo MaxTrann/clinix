@@ -85,6 +85,7 @@ const DETAIL_KEYS = [
   'hoanTien',
   'lyDoKham',
   'maLichHen',
+  'moc',
   'nguoiKham',
   'thanhToan',
   'thoiGian',
@@ -150,7 +151,7 @@ async function world() {
 }
 
 describe('GET /patient/appointments/:maLichHen', () => {
-  it('LSH-10, LSH-14 chi tiết: đúng mười sáu khoá; thanhToan, hoanTien là null (chưa có module); lyDoKham và thoiGianMayChu đúng; không khoá nào lộ id, không lyDoHuy, không email, SĐT, băm', async () => {
+  it('LSH-10, LSH-14 chi tiết: đúng mười bảy khoá (booking B19: thêm `moc`); thanhToan, hoanTien là null (chưa có module); lyDoKham và thoiGianMayChu đúng; không khoá nào lộ id, không lyDoHuy, không email, SĐT, băm', async () => {
     const w = await world();
     const res = await get(MINE, w.token);
     expect(res.status).toBe(200);
@@ -166,6 +167,8 @@ describe('GET /patient/appointments/:maLichHen', () => {
       hoanTien: null,
       hanThanhToan: null,
       thoiGianMayChu: T0.toISOString(),
+      // Lịch dựng bằng fixture không có mốc: ba mốc null (lịch cũ, B19)
+      moc: { xacNhan: null, tiepDon: null, hoanThanh: null },
     });
 
     const keys: string[] = [];

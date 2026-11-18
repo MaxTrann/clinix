@@ -38,6 +38,9 @@ function detailRow(
     lichHenId: '4242',
     lyDoKham: 'Đau đầu',
     lyDoHuy: null,
+    thoiDiemXacNhan: null,
+    thoiDiemTiepDon: null,
+    thoiDiemHoanThanh: null,
     ...overrides,
   };
 }
@@ -80,10 +83,33 @@ describe('toOperationsItem', () => {
   });
 });
 
+describe('MOC-21 toOperationsDetail: khoá `moc` (booking B19; Lễ tân và Quản trị viên dùng chung)', () => {
+  it('ba mốc ISO 8601 UTC theo mã bước; cột NULL ⇒ null', () => {
+    expect(
+      toOperationsDetail(
+        detailRow({
+          thoiDiemXacNhan: new Date('2026-11-09T09:30:00.000Z'),
+          thoiDiemTiepDon: null,
+          thoiDiemHoanThanh: new Date('2026-11-10T03:00:01.000Z'),
+        }),
+      ).moc,
+    ).toStrictEqual({
+      xacNhan: '2026-11-09T09:30:00.000Z',
+      tiepDon: null,
+      hoanThanh: '2026-11-10T03:00:01.000Z',
+    });
+  });
+});
+
 describe('toOperationsDetail', () => {
-  it('DSV-13 đúng MƯỜI BỐN khoá (dùng chung): mười một khoá của dòng cộng `lyDoKham`, `lyDoHuy`, `hanThanhToan`; chưa có `chuyenDuoc`, `conPhaiThu` (của Lễ tân)', () => {
+  it('DSV-13 đúng MƯỜI LĂM khoá (dùng chung): mười một khoá của dòng cộng `lyDoKham`, `lyDoHuy`, `hanThanhToan`, `moc` (booking B19); chưa có `chuyenDuoc`, `conPhaiThu` (của Lễ tân)', () => {
     const detail = toOperationsDetail(detailRow());
-    expect(Object.keys(detail)).toHaveLength(14);
+    expect(Object.keys(detail)).toHaveLength(15);
+    expect(detail.moc).toStrictEqual({
+      xacNhan: null,
+      tiepDon: null,
+      hoanThanh: null,
+    });
     expect(detail).toMatchObject({
       lyDoKham: 'Đau đầu',
       lyDoHuy: null,

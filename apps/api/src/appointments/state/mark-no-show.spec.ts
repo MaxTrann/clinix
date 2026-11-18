@@ -352,7 +352,7 @@ describe('NSH-03 chuỗi khoá: benh_nhan (tầng 2) TRƯỚC lich_hen (tầng 6
     const s = setup();
     await s.run(s.leTan());
     expect(s.em.queries[3]?.sql).toMatch(
-      /^UPDATE lich_hen SET trang_thai = \?\s+WHERE lich_hen_id = \? AND trang_thai = \?/,
+      /^UPDATE lich_hen SET trang_thai = \?, thoi_diem_tiep_don = NULL\s+WHERE lich_hen_id = \? AND trang_thai = \?/,
     );
     expect(s.em.queries[4]?.sql).toMatch(
       /^UPDATE benh_nhan SET so_lan_no_show = so_lan_no_show \+ 1\s+WHERE tai_khoan_id = \?/,

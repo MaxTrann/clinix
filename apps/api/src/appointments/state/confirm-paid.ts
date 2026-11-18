@@ -1,5 +1,6 @@
 import type { EntityManager } from 'typeorm';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
+import { toSecond } from '../../common/time/time.js';
 import { addMoney } from '../../pricing/money.js';
 import {
   BOOKING_NOTIFICATION_EVENTS,
@@ -24,12 +25,15 @@ import { readLichHenKeys } from './lich-hen-keys.query.js';
 //  5. Xử lý tiền theo kết quả: `HetHanGiuCho` ⇒ hoàn TOÀN BỘ vào ví (Q4); các `InvalidState` do `payment` quyết.
 // Lỗi 1213 và 1205 (từ bất kỳ câu nào, kể cả `notify`) nổi nguyên ra giao dịch của người gọi để vỏ của họ thử lại cả giao dịch; chỉ dữ liệu lệch mới ném `Error` thường (hoàn tác trọn).
 //
-// Q4: KHÔNG tự kiểm đồng hồ và không nhận `now`: lịch còn `ChoThanhToan` (job chưa quét, khung giờ chưa ai giữ lại) thì VẪN xác nhận, kể cả quá `han_thanh_toan` và cả khi giờ hẹn đã qua nếu còn trong hạn giữ chỗ.
+// Q4: KHÔNG tự kiểm đồng hồ: lịch còn `ChoThanhToan` (job chưa quét, khung giờ chưa ai giữ lại) thì VẪN xác nhận, kể cả quá `han_thanh_toan` và cả khi giờ hẹn đã qua nếu còn trong hạn giữ chỗ. `now` do người gọi truyền (booking B19)
+// CHỈ để ghi `thoi_diem_xac_nhan` cùng câu `UPDATE` với trạng thái; nó không bao giờ được so với `han_thanh_toan` hay giờ hẹn.
 
 export interface ConfirmPaidInput {
   lichHenId: string;
   /** Tổng tiền `payment` đã thu thật cho lịch, chuỗi decimal không âm (H11, ví dụ "150000.00"); sai định dạng ⇒ `RangeError` trước mọi câu SQL */
   soTienDaThu: string;
+  /** Mốc của lượt thanh toán (người gọi đã `toSecond(nowVN())`): `thoi_diem_xac_nhan`. Tính LẠI trong thân giao dịch của người gọi khi thử lại (1213, 1205); hàm KHÔNG tự đọc đồng hồ (H8) */
+  now: Date;
 }
 
 export type ConfirmPaidOutcome =
@@ -69,7 +73,7 @@ FROM lich_hen WHERE lich_hen_id = ?
 FOR UPDATE`;
 
 // Điều kiện `trang_thai = 'ChoThanhToan'` lặp lại trong `UPDATE`: lưới an toàn thứ hai (đúng 1 hàng). `han_thanh_toan` về NULL (PLAN 5.2: lịch đã xác nhận không còn hạn).
-const CONFIRM_SQL = `UPDATE lich_hen SET trang_thai = 'DaXacNhan', han_thanh_toan = NULL
+const CONFIRM_SQL = `UPDATE lich_hen SET trang_thai = 'DaXacNhan', han_thanh_toan = NULL, thoi_diem_xac_nhan = ?
 WHERE lich_hen_id = ? AND trang_thai = 'ChoThanhToan'`;
 
 /** Số tiền đã thu ra dạng chuẩn hai chữ số thập phân ("150000.5" thành "150000.50"); không phải số tiền không âm thì `RangeError` (lỗi lập trình của người gọi, chưa chạm DB). */
@@ -123,6 +127,7 @@ export async function confirmPaidWithin(
 
   // Bước 5: ghi lịch rồi khung giờ rồi thông báo, cùng giao dịch của người gọi. Lỗi nào sau lần ghi đầu cũng là `Error` thường: hoàn tác CẢ ba (và phần của `payment`), không commit nửa chừng.
   const confirmed: { affectedRows?: number } = await em.query(CONFIRM_SQL, [
+    toSecond(input.now),
     input.lichHenId,
   ]);
   if (confirmed.affectedRows !== 1)
