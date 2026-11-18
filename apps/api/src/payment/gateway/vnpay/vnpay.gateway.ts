@@ -65,6 +65,10 @@ export class VnpayGateway implements PaymentGatewayPort {
   /** `config = null` ⇒ cổng chưa cấu hình (thiếu biến môi trường). */
   constructor(private readonly config: VnpayConfig | null) {}
 
+  get configured(): boolean {
+    return this.config !== null;
+  }
+
   // `async` dù không chờ gì (VNPAY dựng URL tại chỗ): mọi lỗi thành Promise bị từ chối, cùng một kiểu với MoMo (gọi mạng) cho nơi gọi.
   async createPayment(
     input: CreatePaymentInput,
@@ -84,7 +88,7 @@ export class VnpayGateway implements PaymentGatewayPort {
       vnp_TmnCode: config.tmnCode,
       vnp_Amount: amount,
       vnp_CurrCode: 'VND',
-      vnp_IpAddr: input.clientIp,
+      vnp_IpAddr: plainIp(input.clientIp),
       vnp_Locale: 'vn',
       vnp_OrderInfo: VNPAY_ORDER_INFO,
       vnp_OrderType: 'other',
@@ -161,6 +165,15 @@ function vnpParamsAsStrings(
  * `vnp_TransactionNo` ⇒ mã giao dịch phía cổng. Số đo M12: giao dịch bị huỷ có `vnp_TransactionNo = "0"`. Lưu "0" vào cột UNIQUE
  * `ma_giao_dich_cong` thì lần huỷ thứ hai sẽ trùng khoá (1062), nên "0", rỗng hay không phải số ⇒ `null`.
  */
+/** Express trả IPv4 dạng IPv6 ánh xạ ("::ffff:203.0.113.7") khi máy chủ nghe cả IPv6: bỏ tiền tố để VNPAY nhận địa chỉ IPv4 thường. Rỗng ⇒ "127.0.0.1". */
+export function plainIp(ip: string): string {
+  const trimmed = ip.trim();
+  if (trimmed === '') return '127.0.0.1';
+  return trimmed.startsWith('::ffff:')
+    ? trimmed.slice('::ffff:'.length)
+    : trimmed;
+}
+
 function gatewayCodeOf(transactionNo: string | undefined): string | null {
   if (transactionNo === undefined || !/^\d+$/.test(transactionNo)) return null;
   return /^0+$/.test(transactionNo) ? null : transactionNo;
