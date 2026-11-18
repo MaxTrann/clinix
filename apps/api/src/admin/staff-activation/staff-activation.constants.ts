@@ -26,4 +26,6 @@ export const STAFF_ACTIVATION_ERROR_CODES = {
   MAIL_FAILED: 'GUI_MAIL_LOI',
   // 409
   NOT_PENDING_STAFF: 'TAI_KHOAN_KHONG_CHO_KICH_HOAT',
+  // 400; task B16 (kích hoạt công khai): CÙNG một mã cho MỌI lý do liên kết không dùng được, để không lộ liên kết nào tồn tại (H6, NS-35)
+  LINK_INVALID: 'LIEN_KET_KHONG_HOP_LE',
 } as const;
