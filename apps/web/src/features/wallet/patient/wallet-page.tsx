@@ -1,6 +1,7 @@
 import { useRemote } from '../../../shared/hooks/use-remote';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
+import { TopupPanel } from '../../payment';
 import { getWalletOverview } from '../api/wallet-api';
 import { BalanceCards } from './balance-cards';
 import { TransactionHistory } from './transaction-history';
@@ -38,7 +39,23 @@ export function WalletPage() {
       </div>
 
       <div className="grid items-start gap-[18px] pt-[20px] lg:grid-cols-[minmax(0,1fr)_320px]">
-        <WalletActions />
+        <WalletActions
+          topup={
+            // Tab nạp cần hạn mức và cổng của CÙNG lần tải số dư (payment F2); lỗi thì nút "Thử lại" nằm ở phần số dư phía trên
+            overview.status === 'ready' ? (
+              <TopupPanel
+                limits={overview.data.hanMucNap}
+                gateways={overview.data.congThanhToan}
+              />
+            ) : overview.status === 'loading' ? (
+              <LoadingState message={WALLET_TEXT.topupLoading} />
+            ) : (
+              <p className="rounded-[8px] border border-dashed border-gray-200 bg-gray-50 px-[12px] py-[40px] text-center text-[13px] text-gray-500">
+                {WALLET_TEXT.topupUnavailable}
+              </p>
+            )
+          }
+        />
         <div className="flex flex-col gap-[14px]">
           {/* Khối rút gần nhất cùng nguồn với thẻ số dư: khi đang tải hay lỗi thì thông báo đã hiện ở trên, ở đây không lặp lại */}
           {overview.status === 'ready' && (

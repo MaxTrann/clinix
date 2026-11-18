@@ -25,7 +25,7 @@ export const OVERVIEW = {
   napChoXacNhan: '0.00',
   yeuCauRutGanNhat: null,
   hanMucNap: { toiThieu: '50000.00', toiDa: '2000000.00' },
-  congThanhToan: ['VNPAY'],
+  congThanhToan: ['VNPay'],
 };
 
 export const tx = (patch: Record<string, unknown> = {}) => ({
