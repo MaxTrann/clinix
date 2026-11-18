@@ -137,7 +137,13 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { label: 'Nhật ký hành động', icon: 'audit' },
       { label: 'Phụ phí bác sĩ', icon: 'surcharge', systemOnly: true },
-      { label: 'Cài đặt hệ thống', icon: 'settings', systemOnly: true },
+      {
+        label: 'Cài đặt hệ thống',
+        icon: 'settings',
+        systemOnly: true,
+        // admin F5
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/cai-dat-he-thong`,
+      },
     ],
   },
   {
