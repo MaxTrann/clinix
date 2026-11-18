@@ -13,7 +13,9 @@ import {
   stripComments,
   walkModuleTree,
 } from '../doctor/testing/architecture-scan.js';
+import { PaymentPortsModule } from '../payment/ports/payment-ports.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
+import { WalletModule } from '../wallet/wallet.module.js';
 import { AppointmentsModule } from './appointments.module.js';
 import { PatientCancelController } from './cancel/patient-cancel.controller.js';
 import { AdminAppointmentsController } from './lists/admin-appointments.controller.js';
@@ -788,6 +790,30 @@ describe('AR-03 hướng phụ thuộc module (doctor H20), không cần AppModu
         f.path,
       ).toEqual([]);
     }
+  });
+
+  it('B7 (HDT-11, M16): cây của AppointmentsModule có PaymentPortsModule và WalletModule, KHÔNG có PaymentModule, và vẫn không chu trình', async () => {
+    const tree = await walkModuleTree(AppointmentsModule);
+    expect(tree.cycle).toBeNull();
+    expect(tree.references.has(PaymentPortsModule)).toBe(true);
+    expect(tree.references.has(WalletModule)).toBe(true);
+    expect(
+      [...tree.references.keys()].map((module) => module.name),
+    ).not.toContain('PaymentModule');
+  });
+
+  it('B7 (HDT-11): mã appointments/ không dùng forwardRef (vòng nhập với payment, wallet phải tháo bằng module lá, không bằng forwardRef)', () => {
+    const own = files.filter((f) => f.path.startsWith('appointments/'));
+    expect(own.length).toBeGreaterThan(3);
+    for (const f of own)
+      expect(stripComments(f.source), f.path).not.toMatch(/\bforwardRef\b/);
+    // đột biến dữ liệu tổng hợp: mẫu bắt được lời gọi thật và bỏ qua chú thích
+    expect(stripComments('imports: [forwardRef(() => PaymentModule)]')).toMatch(
+      /\bforwardRef\b/,
+    );
+    expect(stripComments('// không dùng forwardRef ở đây')).not.toMatch(
+      /\bforwardRef\b/,
+    );
   });
 
   it('bộ quét thật sự bắt được lỗi (đột biến): ScheduleModule.forRoot( trong mã appointments/ bị phát hiện bằng chính mẫu trên', () => {
