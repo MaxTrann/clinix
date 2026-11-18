@@ -1165,6 +1165,235 @@ Tổng thời gian chạy lệnh khoảng 1,5 phút. **Phân loại ca đỏ: kh
 
 **10.11 Quyết định của Đại và trạng thái cuối (18/11/2026).** Đại trả lời bằng hộp câu hỏi: (1) **GHI hàng AI log 154** như nháp (đã ghi vào `AI_USAGE_LOG.md`, đúng MỘT hàng sau hàng 151; ô "Phần tự sửa/viết", CI và PR để `[cần điền]`); (2) **M25: giữ nhánh "kiểm có liên kết mới hơn đã gửi", chỉ sửa chú thích** (đã sửa chú thích ở `activation-link.service.ts` cho đúng: đây là phòng thủ chồng tầng; mục 1.7 và 2.4 ở trên mô tả nó như thể là lý do duy nhất, mục 10.10 ghi đè). **Kiểm lại sau lần sửa mã cuối (chỉ đổi chú thích):** oxlint `--type-aware` 0 lỗi; `tsc --noEmit` chỉ còn lỗi cũ của `payment/architecture.spec.ts`; vitest cả thư mục 7 file **164/164**; int **18/18** và đua **4/4**; `nest build` exit 0; RAM thấp nhất 5,95 GB. **Dấu chân tài liệu của PR:** `.env.example` (+9), `apps/api/src/config/env.validation.ts` (+20), `docs/DEV_SETUP.md` (+16), `docs/features/admin/PLAN.md` (đổi ĐÚNG một dòng: tick B14), `docs/features/admin/TRACKING.md` (mục 9A.2), `AI_USAGE_LOG.md` (+1 hàng), cộng mã mới ở `apps/api/src/admin/staff-activation/` và `apps/api/src/config/env.validation.staff-activation.spec.ts`. **KHÔNG ghi:** `docs/TECH_DEBT.md` (đã duyệt: không thêm dòng; cửa sổ sự cố pha 2 đã có tiền lệ TECH_DEBT 21, 25 và giao dịch thô là 30), `docs/database/*` (D6 gom ở PR cuối cụm, báo Trung trước), 2.4, Figma. **Còn `[cần điền]`:** số PR và squash (cũng ô "Commit/PR" của hàng 154), kết quả CI, Trung approve, ô "Phần tự sửa/viết" của hàng 154, tên mục "Quản lý tài khoản người dùng" trong 2.4. **Số `test:int` và `test:e2e` đầy đủ: lấy từ CI của PR.** DB tạm `clinix_admin_b14_test` còn trên MySQL dùng chung (xoá CHỈ khi Đại cho phép). Bộ chạy đột biến và `logs-b14/` nằm ngoài repo (scratchpad của phiên); sao lưu mã nguồn của bộ chạy KHÔNG còn khớp sau khi sửa chú thích nên một lần chạy lại phải xoá thư mục sao lưu của nó trước.
 
+#### 9A.3 B17 · Danh sách + chi tiết tài khoản (backend), issue #508 (18/11/2026): mã, test (đơn vị, int, e2e), build và đột biến ĐÃ XONG (kế hoạch đã duyệt: kỹ thuật phiên kiểm, sản phẩm Đại, 18/11/2026); đo EXPLAIN ĐÃ XONG, chờ PR và CI, kết quả ở mục 10
+
+Model: Claude Sonnet 5.5 (lập kế hoạch, viết mã, chạy kiểm). Bước 0 đã chạy: cây sạch, `HEAD...origin/main` = 0 0 (`04913c7`), node 22.23.4, `package.json` không đổi so với nền. **Số mục là `9A.3`**: đề bài nói #559 và #560 còn mở, nhưng cả hai ĐÃ merge (`9A.1` và `9A.2` đã nằm trên `origin/main`); PR mở chỉ còn #558 (booking B19, nháp, không đụng `admin/accounts/`) và #378 (dependabot). Chèn ngay trước dòng đánh dấu hết phần của Đại; chưa có file mã nào bị sửa.
+
+**1. Đối chiếu PLAN và đề bài với mã thật (chỗ lệch hoặc chưa đủ).**
+
+1. **B17 ghi "SOẠN TRƯỚC" nhưng mọi phụ thuộc đã có trên `main`:** P2 (entity `bac_si`, `le_tan`, `quan_tri_vien`, `lich_hen`), C1 (`BranchAccessPolicy`, `@RequireAdminScope`), P6 (`PageQueryDto`, `Paged<T>`, `escapeLikePattern`). Không còn phần nào "chờ ghép".
+2. **PLAN tự mâu thuẫn ở Q26:** bảng đề xuất (mục 4.2) ghi TÁM trường gồm `dia_chi`, `thoi_diem_tao`; dòng "quyết định cuối" (4.2a), dòng B17 và TK-04 ghi SÁU trường (bỏ hai trường đó). **Dùng bản quyết định cuối (sáu trường).**
+3. **PLAN 5.3** ghi `GET /admin/accounts?loai=nhan-su|benh-nhan` ("tên chưa chốt"), còn dòng B17 ghi "lọc vai trò" ⇒ cần chốt tên tham số (câu hỏi a).
+4. **Không cần UNION bốn loại.** `tai_khoan.loai_tai_khoan` có sẵn "để không cần JOIN 4 bảng con" (comment schema), và bốn bảng con có khoá chính trùng `tai_khoan_id` (1–1) ⇒ MỘT truy vấn trên `tai_khoan` + `LEFT JOIN` theo khoá chính; phân trang và `COUNT` đúng tự nhiên.
+5. **"Bệnh nhân thuộc chi nhánh" đã được viết sẵn ở C1:** `BranchAccessPolicy.patientVisibilityFilter(scope, alias)` = `EXISTS (lich_hen.benh_nhan_id = alias.tai_khoan_id AND lich_hen.chi_nhanh_id = :rbacBranchId)`. `lich_hen.chi_nhanh_id` là **snapshot lúc đặt** (không đổi theo bác sĩ chuyển chi nhánh); `benh_nhan_id` là **người đặt** (bệnh nhân chỉ đặt cho người thân vẫn được tính); không lọc trạng thái nên "mọi trạng thái" đúng (kể cả `DaHuy`, `DaDoiLich`). **Chỉ mục `lich_hen_index_chi_nhanh_benh_nhan (chi_nhanh_id, benh_nhan_id)` ĐÃ có** (migration `1793080000000`) ⇒ không cần chỉ mục mới, **không migration, không đổi `docs/database/*`**.
+6. **Dòng `benh_nhan` chỉ có SAU khi xác minh OTP** (comment entity và quy tắc 7). Tài khoản Bệnh nhân chưa xác minh (xoá sau 24 giờ, Q32) có `tai_khoan` mà KHÔNG có `benh_nhan`: Chi nhánh không bao giờ thấy (không có lịch), Toàn hệ thống thấy với `khoaDatLichDoNoShow`/`soLanNoShow` = `null` ⇒ câu hỏi (b).
+7. **Bộ lọc `khoaNoShow` là kênh lộ dữ liệu:** Q26 cấm Chi nhánh xem no-show; nếu Chi nhánh được gửi `khoaNoShow=true` thì suy ra được ai bị khoá. Cùng lý do với việc ẩn trường ⇒ câu hỏi (d).
+8. **Hành vi đã có của C1 giữ nguyên:** với Chi nhánh, `branchFilter(scope, requested)` luôn trả chi nhánh của mình và BỎ QUA giá trị client gửi (PQ-07). Tôi dùng đúng hàm đó, không viết lại quy tắc.
+9. **Bộ quét controller (`auditAdminControllers`) lấy controller từ module graph, không có danh sách thủ công** ⇒ controller mới tự bị quét; `admin-scope.e2e-spec.ts` không phải sửa, chỉ phải chạy lọc ở máy.
+10. **Kiểu dữ liệu:** `ngaySinh` qua `DATE_FORMAT(…,'%Y-%m-%d')` (tiền lệ `doctor-appointments.repository.ts`, tránh lệch ngày theo TZ); `thoiDiemTao` là `Date` ⇒ JSON ISO UTC như các API admin khác; `gioiTinh` là `varchar(10)` tự do (schema không có enum) ⇒ trả nguyên giá trị lưu.
+11. **Một truy vấn cho chi tiết** (có điều kiện phạm vi ngay trong `WHERE`) ⇒ "id không tồn tại" và "ngoài phạm vi" đi CÙNG một đường mã, cùng 404, không có nhánh "tồn tại trước, phạm vi sau" để làm lệch (khác với B18, nơi thứ tự kiểm 4a/4b là bắt buộc).
+
+**2. Thiết kế.**
+
+**2.1 Thư mục** `apps/api/src/admin/accounts/` (mới; test ở `test/` như các module admin khác): `account.controller.ts` (2 route GET, chỉ nhận và trả), `account.dto.ts` (DTO lọc kế thừa `PageQueryDto`, DTO id), `account-visibility.ts` (đoạn `FROM` + hàm dựng điều kiện phạm vi; **dùng chung cho B18, B19, B20**), `account-view.ts` (kiểu phản hồi + hàm đổi hàng DB thành phản hồi theo vai người xem), `account.repository.ts` (SQL), `account.service.ts`, `account.module.ts` (import `RbacModule`). `app.module.ts`: thêm đúng MỘT dòng `import` và MỘT dòng trong `imports`.
+
+**2.2 API (đề xuất tên).** `GET /admin/accounts` và `GET /admin/accounts/:id`; `@Roles('QuanTriVien')` + `@RequireAdminScope('Any')`; Bệnh nhân/Bác sĩ/Lễ tân ⇒ 403, khách ⇒ 401 (guard có sẵn). **`:id` = `tai_khoan_id` (chuỗi số nguyên, cùng dạng `^[1-9]\d{0,18}$` ≤ 2^63−1 như `BranchIdDto`):** B18, B19, B20 gọi `POST /admin/accounts/:id/lock…` (PLAN 5.3) nên cần đúng khoá này; email không dùng làm id (PII trong URL và log, có thể đổi). Truy vấn lọc (mọi tham số tuỳ chọn, trường lạ ⇒ 400 `TRUONG_KHONG_DUOC_PHEP`):
+
+| Tham số | Kiểu | Ghi chú |
+|---|---|---|
+| `page`, `pageSize` | như `PageQueryDto` | 1 trở lên, mặc định 20, tối đa 100; `page` làm `offset` vượt số nguyên an toàn ⇒ 400 `TRANG_KHONG_HOP_LE` (như `BranchService.list`) |
+| `vaiTro` | một hay nhiều giá trị (lặp tham số) của `BenhNhan`, `BacSi`, `LeTan`, `QuanTriVien`; không trùng | tab Nhân sự của F8 gửi ba giá trị, F9 gửi `BenhNhan`; Chi nhánh gửi `QuanTriVien` ⇒ 200 danh sách rỗng (Q27) |
+| `trangThai` | `ChoKichHoat`, `DangHoatDong`, `NgungHoatDong` | |
+| `khoaNoShow` | chuỗi `true` hoặc `false` | chỉ Bệnh nhân có cờ này (nhân sự và Bệnh nhân chưa có `benh_nhan` không khớp cả hai giá trị); **Chi nhánh dùng ⇒ 403 `KHONG_DU_QUYEN`** (câu hỏi d) |
+| `chiNhanhId` | id bigint | Toàn hệ thống: "thuộc chi nhánh X" = đúng tập mà Admin Chi nhánh X thấy, cộng các Quản trị viên của X; Chi nhánh: bị bỏ qua (C1) |
+| `q` | chuỗi, trim, 1 đến 200 ký tự (rỗng sau trim = bỏ) | `LIKE '%…%' ESCAPE '!'` trên `ho_ten`, `email`, `so_dien_thoai` (escape `%`, `_`, `!`), luôn tham số hoá |
+
+Sắp xếp CỐ ĐỊNH `ho_ten ASC, tai_khoan_id ASC` (khoá phụ cho phân trang ổn định); `{ items, total, page, pageSize }`; `items` và `total` cùng một điều kiện, cùng giao dịch `REPEATABLE READ` (như `BranchRepository.list`); không khoá hàng (chỉ đọc).
+
+**2.3 Hình dạng phản hồi (khoá chặt; danh sách và chi tiết CÙNG hình dạng, chi tiết chỉ thêm `lienKetKichHoat` nếu câu hỏi h được duyệt).** Cách viết là **danh sách cho phép** theo (vai người xem, loại tài khoản), không phải xoá khoá cấm khỏi một hàng đầy đủ; SQL chỉ `SELECT` các cột có tên, không `SELECT *`, không đụng `mat_khau_bam`, `ma_xac_thuc.ma_bam`, `phien_dang_nhap`, `vi_noi_bo`, `ho_so_kham`.
+
+| Người xem × loại | Số khoá | Khoá |
+|---|---|---|
+| Toàn hệ thống × Bệnh nhân | 13 | `taiKhoanId`, `loaiTaiKhoan`, `hoTen`, `email`, `soDienThoai`, `ngaySinh`, `gioiTinh`, `diaChi`, `trangThai`, `daXacMinhEmail`, `thoiDiemTao`, `khoaDatLichDoNoShow`, `soLanNoShow` |
+| Toàn hệ thống hoặc Chi nhánh × Bác sĩ, Lễ tân | 11 | `taiKhoanId`, `loaiTaiKhoan`, `hoTen`, `email`, `soDienThoai`, `ngaySinh`, `gioiTinh`, `diaChi`, `trangThai`, `thoiDiemTao`, `chiNhanh` (`{ chiNhanhId, ten }` hoặc `null` nếu hồ sơ con thiếu) |
+| Toàn hệ thống × Quản trị viên | 12 | như nhân sự + `phamViQuanTri` (`ToanHeThong` hoặc `ChiNhanh`; `chiNhanh` = `null` khi Toàn hệ thống) |
+| **Chi nhánh × Bệnh nhân (Q26)** | **8** | `taiKhoanId`, `loaiTaiKhoan`, `hoTen`, `email`, `soDienThoai`, `ngaySinh`, `gioiTinh`, `trangThai` (**sáu trường của Q26 cộng hai khoá kỹ thuật `taiKhoanId`, `loaiTaiKhoan`** để chi tiết và B18/B20 tham chiếu được: câu hỏi d) |
+| Chi nhánh × Quản trị viên | không bao giờ | không có trong danh sách, chi tiết ⇒ 404 (Q27, Q40); mapper **ném lỗi** nếu lỡ nhận hàng Quản trị viên của người xem Chi nhánh (đóng mặc định) |
+
+Id bigint là chuỗi (`CAST … AS CHAR`); Toàn hệ thống không thấy: ví, hồ sơ khám, ảnh đại diện, mọi băm, mã, phiên (chưa ai cần; thêm khoá sau là thay đổi cộng thêm, không vỡ hợp đồng).
+
+**2.4 Phạm vi và truy vấn.** `FROM tai_khoan t LEFT JOIN benh_nhan bn / bac_si bs / le_tan lt / quan_tri_vien qv ON <khoá chính> LEFT JOIN chi_nhanh cn ON cn.chi_nhanh_id = CASE t.loai_tai_khoan …`. Điều kiện phạm vi (hàm thuần `accountVisibility(scope, requestedBranchId)` trong `account-visibility.ts`): `b = policy.branchFilter(scope, requested)`; `b` rỗng (chỉ Toàn hệ thống không lọc) ⇒ `1 = 1`; ngược lại `(loai = 'BacSi' AND bs.chi_nhanh_id = :b) OR (loai = 'LeTan' AND lt.chi_nhanh_id = :b) OR (loai = 'BenhNhan' AND <patientVisibilityFilter(Chi nhánh b, 't')>)` và **chỉ khi người gọi là Toàn hệ thống** thêm `OR (loai = 'QuanTriVien' AND qv.chi_nhanh_id = :b)`. Dùng `EXISTS` (đã ở C1) nên một Bệnh nhân có nhiều lịch vẫn ra MỘT dòng, không `DISTINCT`, `total` không phình. Điều kiện này AND với các bộ lọc, và nhóm `q` nằm trong ngoặc. Dùng QueryBuilder của TypeORM vì `patientVisibilityFilter` trả tham số có tên (`:rbacBranchId`). Hồ sơ con thiếu (dữ liệu hỏng): Chi nhánh không thấy, Toàn hệ thống thấy với `chiNhanh = null`.
+
+**2.5 Mã lỗi.** **Đã có trong mã (dùng lại, không thêm):** `CHUA_DANG_NHAP` (401), `KHONG_DU_QUYEN` (403), `KHONG_TIM_THAY` (404, thông báo mặc định "Không tìm thấy dữ liệu." trùng PLAN 5.9; **không** dùng `NGOAI_PHAM_VI`), `DU_LIEU_KHONG_HOP_LE` (400 kèm `loi[{truong, ma}]`), và các `ma` mức trường `TRUONG_KHONG_DUOC_PHEP`, `TU_KHOA_KHONG_HOP_LE`, `TU_KHOA_QUA_DAI`, `MA_CHI_NHANH_KHONG_HOP_LE`, `TRANG_KHONG_HOP_LE` cùng các `IS_INT`, `MIN`, `MAX` tự sinh của `class-validator`. **Mới, chỉ là `ma` mức trường, KHÔNG có mã HTTP mới `[đề xuất]`:** `MA_TAI_KHOAN_KHONG_HOP_LE` ("Mã tài khoản không hợp lệ."), `VAI_TRO_KHONG_HOP_LE` ("Vai trò không hợp lệ."), `TRANG_THAI_KHONG_HOP_LE` ("Trạng thái không hợp lệ."), `KHOA_NO_SHOW_KHONG_HOP_LE` ("Bộ lọc khoá no-show không hợp lệ."); giao diện chọn câu theo `ma`.
+
+**2.6 Hợp đồng dùng lại cho B18, B19, B20, F8, F9.** (1) `account-visibility.ts` xuất đoạn `FROM` và `accountVisibility()` để B18 đến B20 dùng trong truy vấn `SELECT … FOR UPDATE` của chính họ (phạm vi tính MỘT nơi; B18 phải kiểm "tồn tại và trong tầm nhìn ⇒ 404" bằng đúng hàm này rồi mới kiểm quyền hành động ⇒ 403). (2) Mỗi dòng đủ `taiKhoanId`, `loaiTaiKhoan`, `trangThai`, `chiNhanh`, `phamViQuanTri` để F8, F9 bật tắt nút; server vẫn kiểm lại. (3) F9: `khoaDatLichDoNoShow` chỉ có ở Toàn hệ thống (nút mở khoá no-show chỉ hiện khi `true`, Q31). (4) `lienKetKichHoat` (nếu được duyệt) phục vụ F8 "hạn" và B20. **Không** có danh sách lịch hẹn/ca của Bác sĩ (B18, Q28).
+
+**3. Bảng test.** Mã **`TKB17-nn` `[đề xuất]`** (đã `Grep` `TKB`: chưa dùng ở `apps/`, `docs/`; **không** dùng `TK-nn` vì `TK-05`, `TK-06` đã được P6 ghi và `TK-40…48` do B14 ghi; cùng cách `NSB14-nn`). Mỗi tên test ghi mã PLAN nó phủ (ví dụ `TKB17-12 (TK-03)`). Loại: U = đơn vị (không DB, lane nhẹ, vitest từng file), I = tích hợp MySQL thật (DB `clinix_admin_b17_test`, lane nặng), E = HTTP qua `AppModule` + MySQL thật (lane nặng; PLAN gọi chung là I). Không làm: TK-10…49 (B18, B19, B20), NS-xx (B15), TK-26, TK-34 (F8, F9).
+
+| Mã | Nội dung | Phủ | Loại |
+|---|---|---|---|
+| TKB17-01 | DTO lọc: mặc định; `vaiTro` một giá trị, lặp, trùng, ngoài enum, từng giá trị của enum được nhận; `trangThai`; `khoaNoShow` chỉ `true` hoặc `false` (`1`, `yes`, hoa ⇒ 400); `chiNhanhId` đúng dạng bigint; `q` trim, rỗng bỏ, 200 được, 201 ⇒ 400; trường lạ (`sort`, `matKhauBam`…) ⇒ 400; `ma` ổn định | TK-05, SE-A2, SE-A10 | U |
+| TKB17-02 | DTO id: `1`, bigint lớn nhất đúng; `0`, `-1`, `abc`, `1e3`, `01`, bigint lớn nhất cộng 1, khoảng trắng ⇒ 400 `MA_TAI_KHOAN_KHONG_HOP_LE` | TK-05 | U |
+| TKB17-03 | Phân trang biên qua DTO của B17 và service: `page` 0, âm, thập phân, chữ; `pageSize` 0, 1, 100, 101, âm, chữ; `page` cực lớn ⇒ 400 `TRANG_KHONG_HOP_LE` | TK-05 | U |
+| TKB17-04 | `accountVisibility`: Toàn hệ thống không lọc ⇒ `1 = 1` (không có `quan_tri_vien`); Toàn hệ thống có `chiNhanhId` ⇒ có nhánh Quản trị viên; **Chi nhánh ⇒ ba nhánh, KHÔNG có `quan_tri_vien`, tham số luôn là chi nhánh của scope dù `requested` khác**; giá trị không nối vào chuỗi SQL; chuỗi `ORDER BY` có `t.tai_khoan_id` | Q27, PQ-07, PQ-08 | U |
+| TKB17-05 | Mapper: đúng tập khoá và số khoá cho mọi ô bảng 2.3 (so BẰNG tập, không chỉ "chứa"); Chi nhánh × Bệnh nhân đúng 8 khoá; hàng Quản trị viên của người xem Chi nhánh ⇒ ném lỗi; hồ sơ con thiếu ⇒ `chiNhanh` `null`, không ném; `ngaySinh` giữ chuỗi `YYYY-MM-DD` | TK-04, SE-A12 | U |
+| TKB17-06 | Service (repository giả): chuyển đúng phạm vi và bộ lọc; **Chi nhánh có `khoaNoShow` ⇒ 403 và KHÔNG gọi repository**; `get` không thấy ⇒ 404 `KHONG_TIM_THAY`; Chi nhánh có `chiNhanhId` khác ⇒ repository nhận chi nhánh của scope | TK-03, PQ-07 | U |
+| TKB17-07 | Bộ quét `assertNoSecretLeak(value)` của test (khoá chứa `mat_khau`, `matKhau`, `ma_bam`, `maBam`, `bam`, `token`, `otp`, `hash`; giá trị chứa các chuỗi mồi, `$argon2`, 64 hex, 43 ký tự base64url) tự chứng minh bắt được khoá và giá trị giả | SE-A12 | U |
+| TKB17-10 | Toàn hệ thống: bốn loại, mọi chi nhánh; lọc từng `vaiTro` (một và hai giá trị), từng `trangThai`, `khoaNoShow` đúng và sai (nhân sự KHÔNG khớp cả hai), `chiNhanhId` (Bác sĩ, Lễ tân, Quản trị viên của X, Bệnh nhân có lịch ở X), `q` theo tên, email, SĐT (không phân biệt hoa thường); phối hợp ba bộ lọc; `total` đúng; trang 2; trang vượt ⇒ rỗng và `total` giữ nguyên | TK-01 | I |
+| TKB17-11 | Chi nhánh: chỉ Bác sĩ, Lễ tân chi nhánh mình + Bệnh nhân có ≥ 1 lịch ở chi nhánh mình **ở từng một trong 7 trạng thái lịch**; KHÔNG Quản trị viên nào (Toàn hệ thống, của chi nhánh mình, của chi nhánh khác, chính người gọi); `vaiTro=QuanTriVien` ⇒ rỗng, `total` 0; `total` khớp | TK-02, Q27 | I |
+| TKB17-12 | Bệnh nhân chỉ có lịch ở chi nhánh khác, hoặc chưa từng đặt lịch: không có trong danh sách Chi nhánh, `get` ⇒ không thấy; Bệnh nhân có ba lịch ở chi nhánh mình ⇒ MỘT dòng và `total` đúng; có lịch ở cả hai chi nhánh ⇒ thấy ở cả hai; chỉ đặt cho người thân (`ho_so_nguoi_than_id` có) vẫn thấy | TK-03 | I |
+| TKB17-13 | Chi tiết Bệnh nhân: Chi nhánh đúng 8 khoá, không `diaChi`, `thoiDiemTao`, `khoaDatLichDoNoShow`, `soLanNoShow`; Toàn hệ thống đúng 13 khoá; giá trị `ngaySinh` `YYYY-MM-DD`, `gioiTinh` nguyên; **DB không bị đổi** (so ảnh chụp bảng trước và sau) | TK-04 | I |
+| TKB17-14 | `q` độc hại: `%`, `_`, `!`, `\`, `'`, `--`, `"; DROP TABLE tai_khoan; --`, `' OR '1'='1`: không lỗi; `%` KHÔNG khớp mọi hàng, `_` chỉ khớp ký tự `_` thật; bảng còn nguyên số dòng; kết quả chỉ chứa hàng khớp chữ | TK-06, SE-A8 | I |
+| TKB17-15 | `q` AND phạm vi: Chi nhánh tìm đúng email, tên, SĐT của Bệnh nhân ngoài phạm vi ⇒ rỗng (bắt lỗi ngoặc `OR`) | PQ-08 | I |
+| TKB17-16 | Sắp xếp cố định: nhiều tài khoản TRÙNG họ tên; duyệt hết các trang `pageSize` 2: mỗi id đúng một lần, không sót, thứ tự khớp một trang lớn | TK-05, Q42 | I |
+| TKB17-17 | Ma trận (2 phạm vi × tổ hợp bộ lọc): `total` = số `items` khi gom mọi trang; `total` KHÔNG đổi khi đổi `page`; lọc `chiNhanhId` của chi nhánh khác khi người gọi là Chi nhánh ⇒ kết quả ĐÚNG bằng danh sách không lọc | PQ-07, PQ-08 | I |
+| TKB17-18 | Dữ liệu biên: `loai = BacSi` thiếu `bac_si`: Toàn hệ thống thấy với `chiNhanh` `null`, Chi nhánh không thấy; Bệnh nhân chưa xác minh (không `benh_nhan`): Toàn hệ thống thấy với hai khoá no-show `null` và `daXacMinhEmail` `false`, Chi nhánh không thấy | 5.2 (đóng mặc định) | I |
+| TKB17-19 | Phạm vi theo thời gian thực: Bệnh nhân tạo lịch mới ở chi nhánh X ⇒ Admin X thấy ngay (không bộ nhớ đệm); `UPDATE bac_si.chi_nhanh_id` ⇒ chuyển phạm vi ngay lần gọi sau | PQ-09 | I |
+| TKB17-20 | Chống lộ: fixture đặt chuỗi mồi vào `mat_khau_bam`, `ma_xac_thuc.ma_bam`, băm của `phien_dang_nhap`, `vi_noi_bo`; mọi kết quả `list` và `get` của MỌI ô (2 phạm vi × 4 loại) qua `assertNoSecretLeak`; **hàng thô của repository có đúng tập khoá cố định** (không thêm cột nào) | SE-A12, TK-04 | I |
+| TKB17-21 | (chỉ nếu duyệt câu h) `lienKetKichHoat`: nhân sự `ChoKichHoat` có liên kết còn hạn ⇒ `HOP_LE` + `hetHanLuc`; hết hạn ⇒ `HET_HAN` (đồng hồ giả, đúng biên); chỉ có liên kết bị thu hồi hoặc chưa gửi ⇒ `null`; tài khoản không `ChoKichHoat` ⇒ `null`; nhiều hàng cũ + một hàng đang hiệu lực ⇒ đúng hàng đó; không bao giờ có băm | NS/TK A2, B14 | I |
+| TKB17-30 | Khách, token hỏng, token hết hạn ⇒ 401; Bệnh nhân, Bác sĩ, Lễ tân ⇒ 403 cho CẢ danh sách và chi tiết; thân 403 không chứa dữ liệu | TK-23, PQ-01, PQ-02 | E |
+| TKB17-31 | Toàn hệ thống: 200, hình dạng khoá chặt từng loại (số khoá và tên khoá) cho danh sách và chi tiết; chi tiết bằng đúng dòng của danh sách | TK-01, PQ-04 | E |
+| TKB17-32 | Chi nhánh: chỉ trong phạm vi, `total` khớp; `chiNhanhId` của chi nhánh khác bị bỏ qua (kết quả = danh sách của chính mình); `khoaNoShow=true` và `=false` ⇒ 403 `KHONG_DU_QUYEN` | TK-02, PQ-05, PQ-07, PQ-08 | E |
+| TKB17-33 | **404 đồng nhất:** chi tiết nhân sự chi nhánh khác, Bệnh nhân chỉ có lịch ở chi nhánh khác, Bệnh nhân chưa có lịch, Quản trị viên khác, Quản trị viên **chính người gọi**, id không tồn tại (kể cả `9223372036854775807`) ⇒ cùng status, cùng `maLoi`, `toEqual` cùng thân, cùng `content-type` | TK-03, PQ-06, PQ-13 | E |
+| TKB17-34 | Chi tiết Bệnh nhân: Chi nhánh 8 khoá, Toàn hệ thống 13 khoá; thân phản hồi không chứa `diaChi` của Chi nhánh | TK-04 | E |
+| TKB17-35 | Phân trang và đầu vào qua HTTP: `page` 0, -1, 1.5, `abc`; `pageSize` 0, 101, -1, `abc` ⇒ 400 `DU_LIEU_KHONG_HOP_LE`; `pageSize` 1 và 100 ⇒ 200; trang vượt ⇒ 200 rỗng; `vaiTro=Admin`, `trangThai=x`, `khoaNoShow=1`, `chiNhanhId=abc`, `q` 201 ký tự, tham số lạ ⇒ 400 kèm `loi[]` đúng `ma`; id sai dạng ⇒ 400 `MA_TAI_KHOAN_KHONG_HOP_LE` | TK-05, SE-A2, SE-A10 | E |
+| TKB17-36 | `q` độc hại qua HTTP: 200, không 500, không lộ hàng ngoài phạm vi | TK-06, SE-A8 | E |
+| TKB17-37 | Quét mọi phản hồi (mọi vai, mọi loại, danh sách và chi tiết) bằng `assertNoSecretLeak`; không có `set-cookie` | SE-A12, SE-A13 | E |
+| TKB17-38 | Controller chỉ có đúng 2 route, cả hai GET; mỗi route có `@Roles('QuanTriVien')` và `@RequireAdminScope('Any')`; chạy kèm lọc e2e `admin-scope` (bộ quét) | PQ-11 | E |
+| TKB17-39 | Hai Admin Chi nhánh của hai chi nhánh gọi song song (`Promise.all`, nhiều vòng): mỗi người chỉ thấy phạm vi mình, `total` không lẫn | PQ-14 | E |
+
+Ghi thêm, **không phải ca đạt/trượt:** đo thời gian 404 "ngoài phạm vi" so với "không tồn tại" (hai nhóm 200 lần, so trung vị và p95, ghi số vào mục 10); nếu không đo được ổn định thì ghi rõ giới hạn.
+
+**4. Đột biến (dự đoán ghi TRƯỚC, không sửa sau khi chạy).** Chỉ mutate file của B17 (`admin/accounts/`); KHÔNG mutate `rbac/` hay `common/paging/` (ngoài phạm vi; cận 100 của `pageSize` nằm ở `PageQueryDto` do P6 làm và đã có test riêng, nên ca "đổi 100 thành 101" **không áp dụng**, thay bằng M10). Mỗi ca chạy MỘT vitest MỘT file (U nếu ca bắt được ở U, để giữ lane nhẹ); sao lưu NGOÀI repo, so SHA-256 và khôi phục sau từng ca; mỗi chuỗi cũ xuất hiện ĐÚNG MỘT lần (kiểm KHÔ bằng Python trước); đối chứng đầu và cuối; 0 file `*.mut`.
+
+| Ca | File, thay đổi | Dự đoán | Bắt bởi |
+|---|---|---|---|
+| M1 | `account-visibility.ts`: nhánh Bác sĩ `bs.chi_nhanh_id = :b` ⇒ `1 = 1` | BẮT | TKB17-11, 04 |
+| M2 | như M1 cho nhánh Lễ tân | BẮT | TKB17-11, 04 |
+| M3 | nhánh Bệnh nhân bỏ `patientVisibilityFilter` (⇒ `1 = 1`): Chi nhánh thấy mọi Bệnh nhân | BẮT | TKB17-12, 11 |
+| M4 | thay `EXISTS` bằng `JOIN lich_hen` (một Bệnh nhân nhiều lịch ra nhiều dòng) | BẮT | TKB17-12 (ba lịch ⇒ một dòng), 17 |
+| M5 | thêm nhánh Quản trị viên cho CẢ phạm vi Chi nhánh | BẮT | TKB17-11, 04, 33 |
+| M6 | `requested ?? scope` (client chọn chi nhánh, IDOR) thay vì `policy.branchFilter` | BẮT | TKB17-17, 32, 06 |
+| M7 | `COUNT` bỏ điều kiện phạm vi (`total` lộ số lượng ngoài phạm vi) | BẮT | TKB17-11, 17, 32 |
+| M8 | bỏ khoá phụ `, t.tai_khoan_id` khỏi `ORDER BY` | **int có thể SỐNG SÓT** (MySQL thường trả hàng hoà theo thứ tự đọc nên giới hạn của phép đo, không phải lỗ hổng); chuỗi SQL ở U vẫn BẮT | TKB17-04 (U), 16 (không chắc) |
+| M9 | `q` bỏ `escapeLikePattern` | BẮT | TKB17-14, 36 |
+| M10 | service bỏ kiểm `Number.isSafeInteger(offset)` | BẮT | TKB17-03, 35 |
+| M11 | DTO `q` bỏ `MaxLength(200)` | BẮT | TKB17-01, 35 |
+| M12 | DTO enum `vaiTro` bỏ giá trị `LeTan` | BẮT | TKB17-01, 10 |
+| M13 | repository bỏ điều kiện `trangThai` | BẮT | TKB17-10 |
+| M14 | `khoaNoShow=false` viết `<> 1` thay `= 0` (nhân sự có `NULL` lọt vào) | BẮT | TKB17-10 |
+| M15 | bỏ ngoặc quanh nhóm `OR` của `q` (đứng trước/sau AND phạm vi) | BẮT | TKB17-15 |
+| M16 | mapper Chi nhánh × Bệnh nhân trả cả `diaChi` | BẮT | TKB17-05, 13, 34 |
+| M17 | repository thêm `t.mat_khau_bam AS matKhauBam` vào `SELECT` (mapper allowlist vẫn chặn) | BẮT ở hàng thô của repository; **service-level sẽ sống sót vì mapper chặn** (phòng thủ hai lớp, ghi như vậy) | TKB17-20 (hàng thô) |
+| M18 | `get` (service) bỏ phạm vi: truyền Toàn hệ thống cho mọi người | BẮT | TKB17-12, 33, 06 |
+| M19 | service bỏ chặn `khoaNoShow` cho Chi nhánh | BẮT | TKB17-06, 32 |
+| M20 | repository `get` bỏ điều kiện `t.tai_khoan_id = ?` (trả hàng đầu tiên trong phạm vi) | BẮT | TKB17-10, 13, 33 |
+| M21 | bỏ `DATE_FORMAT` của `ngaySinh` (trả `Date` thô) | BẮT | TKB17-13, 31 |
+| M22 | controller bỏ `@RequireAdminScope('Any')` | BẮT | TKB17-38 và `admin-scope` e2e (bộ quét) |
+| M23 | (nếu duyệt câu h) `lienKetKichHoat` lấy hàng cũ thay vì hàng đang hiệu lực | BẮT | TKB17-21 |
+
+Dự kiến 22 hoặc 23 ca; M8 và M17 là hai ca có dự đoán "có thể sống sót"; nếu đọc lại thấy ca nào không bắt được thì THÊM test trước khi chạy. Biến test không đặt tên `secret`, `token`, `password` gán chuỗi dài (gitleaks).
+
+**5. Đo hiệu năng (tiêu chí đặt TRƯỚC, không đổi sau khi thấy số).** Truy vấn gộp có `OR` giữa các bảng nên không dùng được một chỉ mục cho `tai_khoan`; với dữ liệu đồ án (≤ vài nghìn tài khoản) không đáng kể. Nếu phiên kiểm cấp lượt: nạp tạm 20.000 `tai_khoan` + 100.000 `lich_hen` (spec tạm, xoá sau), `EXPLAIN ANALYZE` ba truy vấn (Toàn hệ thống không lọc; Chi nhánh; Chi nhánh + `q`). **Đạt nếu** mỗi truy vấn danh sách ≤ 300 ms và `EXISTS` lịch hẹn dùng `lich_hen_index_chi_nhanh_benh_nhan`; quá ngưỡng ⇒ báo, KHÔNG tự đổi thiết kế (phương án dự phòng: `UNION ALL` ba truy vấn theo chỉ mục); lối tắt thật mới đề xuất ghi `docs/TECH_DEBT.md` (hỏi trước).
+
+**6. Tài liệu, file bị đụng, việc KHÔNG làm.**
+
+- **Sửa:** `docs/features/admin/PLAN.md` (KHÔNG sửa trong PR này: tick `☐` thành `☑` dòng B17 làm ở PR tài liệu sau khi PR B16 merge, vì hai dòng B16 và B17 liền nhau nên hai PR cùng tick sẽ xung đột), `docs/features/admin/TRACKING.md` (mục này và kết quả ở mục 10; **không sửa phần của Trung**). Không thêm khối "Contract B17" vào PLAN 5.3 (lời dặn chỉ tick dòng); hợp đồng nằm ở 2.2 đến 2.6 của mục này. Nếu muốn theo tiền lệ B1, B2, B4, B7 (có khối "Contract") thì nói.
+- **`[ĐỤNG app]` `apps/api/src/app.module.ts`:** thêm một dòng `import` và một dòng trong `imports`, không sắp xếp lại; `git fetch` ngay trước khi sửa.
+- **`docs/database/*`: KHÔNG sửa.** D6 không có phần nào thuộc B17 (không cột, không chỉ mục, không enum mới). D4 (2.4 TK) đi cùng B17 đến B19: danh sách Chi nhánh không có Quản trị viên (Q27), trường hành chính Bệnh nhân (Q26), ngoài tầm nhìn ⇒ không tìm thấy (Q40, D10).
+- **2.4 (repo `TLCN_CLINIX`, không sửa được từ đây), use case "Quản lý tài khoản người dùng" (TK), `[cần điền: số mục 2.4 thật]`:** (i) bước xem danh sách (TK b2): Admin Chi nhánh thấy Bác sĩ, Lễ tân chi nhánh mình và Bệnh nhân có ít nhất một lịch hẹn (mọi trạng thái) tại chi nhánh mình, KHÔNG thấy Quản trị viên nào kể cả chính mình; (ii) bước xem chi tiết Bệnh nhân của Admin Chi nhánh: đúng sáu trường (họ tên, email, SĐT, ngày sinh, giới tính, trạng thái), không địa chỉ, ngày tạo, ví, no-show, hồ sơ khám; (iii) luồng thay thế A1 "không đủ quyền": tách "ngoài tầm nhìn ⇒ không tìm thấy" và "thấy được nhưng không có quyền ⇒ không đủ quyền" (Q40, D10); (iv) nếu câu d được duyệt: Admin Chi nhánh không có bộ lọc theo cờ khoá no-show.
+- **`AI_USAGE_LOG.md` hàng `[đề xuất]` 156** (`origin/main` hiện có đến 154; 152 và 155 do booking giữ; kiểm lại lúc ghi) và **`docs/TECH_DEBT.md` số `[đề xuất]` 193**: CHỈ sau khi hỏi Đại kèm bản nháp; hiện chưa thấy lối tắt thật nào cần ghi.
+- **KHÔNG làm:** khoá và mở khoá (B18), mở khoá no-show (B19), gửi lại liên kết (B20), tạo nhân sự (B15), danh sách lịch hẹn/ca của Bác sĩ (B18), giao diện (F8, F9), audit (B17 chỉ đọc, không ghi nhật ký), migration, sửa `rbac`, `auth`, `common/paging`, `staff-activation`.
+
+**7. Rủi ro.** (1) **Lộ dữ liệu ngoài phạm vi:** một nơi tính phạm vi, một nơi (mapper) quyết định khoá, bốn lớp test (U, I, E, đột biến M1 đến M7, M16, M18 đến M20). (2) **`total` lệch:** `items` và `total` dựng từ CÙNG một hàm điều kiện, cùng giao dịch. (3) **Hiệu năng truy vấn gộp:** mục 5, đo trước, không tự đổi. (4) **Hợp đồng cho B18, B19, B20, F8, F9:** hai khoá kỹ thuật và quy ước 404 là phần khó đổi về sau, nên xin duyệt ở câu hỏi (a), (d). (5) **Kênh lộ no-show qua bộ lọc:** câu (d). (6) **Truy vấn có `OR` bọc `EXISTS` và QueryBuilder:** cú pháp TypeORM với tham số có tên là chỗ dễ hỏng âm thầm (thiếu ngoặc, tham số trùng tên); có TKB17-04, 15 và M15 chặn.
+
+**8. Câu hỏi và đề xuất (mỗi câu kèm mặc định; không trả lời = dùng mặc định).** **Đã trả lời 18/11/2026:** Đại đồng ý CẢ BỐN đề xuất sản phẩm: (d1) Chi nhánh gửi `khoaNoShow` ⇒ 403 `KHONG_DU_QUYEN`; (d2) Chi nhánh × Bệnh nhân đúng 8 khoá; (b) Toàn hệ thống THẤY Bệnh nhân chưa xác minh (hai khoá no-show `null`); (h) làm `lienKetKichHoat` trong B17. Phiên kiểm duyệt phần kỹ thuật: giờ ước 16 giờ; `lienKetKichHoat` CHỈ lộ `{ trangThai, hetHanLuc }` dẫn xuất (KHÔNG `ma_xac_thuc_id`, `ma_bam`, token) và ca quét khoá cấm phải bao phủ khoá này; `vaiTro` lặp được (câu a giữ mặc định, không dùng `loai` của PLAN 5.3); đo EXPLAIN khi được cấp lượt nặng, dữ liệu sinh tạm trong DB tạm và xoá sau, không đưa vào repo.
+
+- **(a) Đường dẫn, `:id`, tham số lọc, hình dạng phản hồi.** Mặc định: `GET /admin/accounts`, `GET /admin/accounts/:id` với `:id` = `tai_khoan_id`; vai trò lọc bằng `vaiTro` lặp được (thay `loai=nhan-su|benh-nhan` ở PLAN 5.3: một tham số cho cả hai tab F8, F9 mà không cần luật chồng chéo); hình dạng theo bảng 2.3. Phương án khác: giữ `loai` đúng PLAN 5.3 + `vaiTro` đơn.
+- **(b) Bệnh nhân thuộc chi nhánh và chỉ mục:** theo `lich_hen.chi_nhanh_id` (snapshot) qua `patientVisibilityFilter`; **không cần chỉ mục hay migration** (không phải DỪNG-hỏi-schema). Câu phụ: Toàn hệ thống có thấy Bệnh nhân **chưa xác minh** (không có `benh_nhan`)? Mặc định: CÓ (hai khoá no-show `null`, `daXacMinhEmail` `false`), vì "Toàn hệ thống xem tất cả" và `total` phải đếm đủ.
+- **(c) Mã lỗi mới:** không có mã HTTP mới; chỉ bốn `ma` mức trường ở mục 2.5 với chữ `[đề xuất]`; mọi mã còn lại đã có trong mã (liệt kê ở 2.5). Xin xác nhận bốn tên và bốn câu chữ.
+- **(d) Trường Toàn hệ thống thấy mà Chi nhánh không:** `diaChi`, `thoiDiemTao`, `daXacMinhEmail`, `khoaDatLichDoNoShow`, `soLanNoShow` của Bệnh nhân; xác nhận Toàn hệ thống xem đủ hồ sơ hành chính (không ví, hồ sơ khám, ảnh). **Hai chỗ cần xác nhận riêng:** (1) Chi nhánh × Bệnh nhân có **tám khoá** (sáu của Q26 + `taiKhoanId`, `loaiTaiKhoan`): TK-04 viết "chỉ 6 trường", hai khoá kỹ thuật không phải dữ liệu cá nhân nhưng không có chúng thì không gọi được chi tiết; (2) **quyết định mới:** Chi nhánh gửi `khoaNoShow` ⇒ **403 `KHONG_DU_QUYEN`** (thay vì bỏ qua âm thầm hay 400), vì nếu không thì lọc `khoaNoShow=true` lộ ai bị khoá no-show, trái Q26.
+- **(e) Mã test `TKB17-nn`** (bảng mục 3) thay vì `TK-nn`.
+- **(f) Tiêu đề PR gợi ý** (≤ 100 ký tự): `feat(admin): danh sách và chi tiết tài khoản theo phạm vi chi nhánh (admin B17)`. Thân PR: `Closes #508`, `Refs #498`; thẻ `[ĐỤNG app]` cho `app.module.ts`, `[ĐỒNG BỘ TL]` D4 (2.4, làm ở repo `TLCN_CLINIX`).
+- **(g) Giờ ước và chia lượt máy:** mục 9.
+- **(h) Phạm vi `lienKetKichHoat`:** F8 cần "hạn" liên kết ở chi tiết nhân sự `ChoKichHoat` (Figma 527:2) và B14 đã ghi "B17 hiển thị hạn", nhưng dòng PLAN của B17 không nêu. Mặc định đề xuất **CÓ, ở chi tiết nhân sự** (`{ trangThai: HOP_LE hoặc HET_HAN, hetHanLuc }` của hàng đang hiệu lực, hoặc `null`), dùng lại `deriveActivationLinkState` của B14, không bao giờ có băm; không có thì B20 hoặc F8 phải sửa backend. Trả lời KHÔNG ⇒ bỏ TKB17-21, M23 và giảm khoảng 1,5 giờ.
+
+**9. Giờ ước thật và lượt máy.** Sau khi đọc mã: **khoảng 16 giờ làm việc (≈ 2 ngày; 14,5 giờ nếu bỏ câu h)**, cao hơn `[đề xuất]` 1 đến 1,5 ngày của đề bài vì khoá chặt bốn loại × hai vai, ma trận phạm vi và 22 ca đột biến. Phân bổ: mã 4 giờ, test U 3, test I 3,5, test E 2, đột biến 2,5, tài liệu và báo cáo 1. **Lane nhẹ (không cần hỏi):** đọc, viết mã, `tsc --noEmit`, ESLint, oxlint, Prettier, vitest từng file U (đo RAM trước từng lệnh). **Lượt nặng sẽ xin theo thứ tự (mỗi lượt một lệnh "XIN LƯỢT"):** (1) `test:int` lọc `admin/accounts` (DB `clinix_admin_b17_test`); (2) `test:e2e` lọc `admin-accounts` và `admin-scope`; (3) `build`; (4) đo `EXPLAIN` (tuỳ chọn, mục 5); (5) đột biến chia 3 pha dưới 10 phút. Số `test:int` và `test:e2e` đầy đủ lấy từ CI của PR. `[cần điền]` duy nhất: số mục 2.4 thật (không có file Word ở đây).
+
+**10. Kết quả (số thật, 18/11/2026; mã, test, đột biến và đo EXPLAIN đã xong, chờ PR và CI).**
+
+**10.1 Đã làm so với kế hoạch (mục 2 và 3), chỗ làm khác.**
+
+1. **Không dùng QueryBuilder của TypeORM** (mục 2.4 ghi QueryBuilder): truy vấn là chuỗi SQL thường; tham số có tên (`:tên`, `:...tên` cho mảng) do chính `driver.escapeQueryWithParameters` của TypeORM đổi thành `?` trong repository. Lý do: chuỗi `ACCOUNT_FROM_SQL` và `accountVisibility()` phải dùng lại được trong câu `SELECT … FOR UPDATE` của B18 đến B20, và đọc được nguyên văn khi `EXPLAIN`. `patientVisibilityFilter` của C1 vẫn dùng đúng (tham số `:rbacBranchId`).
+2. Alias bảng `le_tan` là `le` (kế hoạch ghi `lt`); `ACCOUNT_COLUMNS`, `buildWhere`, `NamedParameters` được xuất để test đơn vị kiểm chuỗi SQL không cần DB.
+3. `lienKetKichHoat` đọc qua cột sinh `kich_hoat_dang_hieu_luc = tai_khoan_id` (UNIQUE, tối đa MỘT hàng đã gửi, chưa thu hồi, chưa dùng), chỉ chọn BỐN cột thời điểm (`het_han_luc`, `da_gui_luc`, `thu_hoi_luc`, `da_dung_luc`), rồi `deriveActivationLinkState` của B14 (`HOP_LE` hoặc `HET_HAN`, ngoài ra `null`). Không có `ma_xac_thuc_id`, `ma_bam`, token trong mã lẫn phản hồi.
+4. Số ca nhiều hơn bảng 3: TKB17-21 có cả ở mức đơn vị (mapper và service) lẫn int; thêm `TKB17-40 (PQ-12)` ở e2e (tài khoản bị ngưng thì token cũ ⇒ 401 ngay, việc của guard auth); `TKB17-38` tách hai ca (hai route GET có bảo vệ; `AccountController` có trong sổ tuyến module graph và `auditAdminControllers(tất cả) = []`).
+5. Thêm hai file hỗ trợ test trong `testing/` (không tính coverage): `account-world.ts` (dựng hai chi nhánh, đủ bốn loại tài khoản, Bệnh nhân đủ kiểu lịch hẹn, chuỗi mồi đặt vào `mat_khau_bam`, `ma_xac_thuc.ma_bam`, `phien_dang_nhap`; dùng chung cho int và e2e) và `secret-leak.ts` (bộ quét khoá và giá trị cấm, có spec tự chứng minh).
+
+**10.2 Kiểm tra (số thật).**
+
+| Nhóm | Phạm vi | Kết quả |
+|---|---|---|
+| Đơn vị (từng file) | `account.dto.spec.ts` 89, `account-visibility.spec.ts` 8, `account.repository.spec.ts` 16, `account-view.spec.ts` 23, `secret-leak.spec.ts` 15, `account.service.spec.ts` 19 | **170/170 xanh**; phủ TKB17-01…07 và phần đơn vị của TKB17-21 |
+| Tích hợp MySQL thật | `src/admin/accounts/test/account.int-spec.ts`, DB tạm `clinix_admin_b17_test` | **33/33 xanh** ngay lần đầu (28,8 giây); TKB17-10 (8 ca), 11 (4), 12 (3), 13 (3), 14, 15, 16, 17 (2), 18, 19 (2), 20 (2), 21 (5) |
+| e2e lọc | `test/admin-accounts.e2e-spec.ts` 15 ca (TKB17-30…40) và `test/admin-scope.e2e-spec.ts` 11 ca (bộ quét PQ-11, không sửa) | **15/15 và 11/11 xanh** (lần đầu 11/15 vì bốn giả định sai của test, xem 10.5) |
+| Build | `npm run build` (nest build) ở `apps/api` | exit 0, không file lạ |
+| Tĩnh | Prettier, oxlint type-aware (`src/admin/accounts`, `test/admin-accounts.e2e-spec.ts`, `app.module.ts`) | sạch, 0 lỗi |
+| `tsc --noEmit` | toàn `apps/api` | 1 lỗi SẴN CÓ `src/payment/architecture.spec.ts(258,8) TS2555` (file không thuộc B17, giống hệt `origin/main`; `nest build` không lỗi vì loại file spec); phần B17 không lỗi |
+| Đối chứng đầu và cuối | cả ba lane, trước và sau đột biến | xanh y hệt (170/170, 33/33, 15/15 và 11/11) |
+
+RAM trống đo trước mỗi lệnh nặng: thấp nhất 3,80 GB (ngưỡng 2,4 GB); hai mẫu giữa lúc chạy e2e 4,44 và 4,33 GB.
+
+**10.3 Đột biến: 23 ca, 23 BỊ BẮT** (dự đoán ghi ở mục 4, KHÔNG sửa sau; bộ chạy ngoài repo, sao lưu và so SHA-256 từng ca, khôi phục sau từng ca; SHA sáu file khớp baseline sau cả đợt, 0 file `*.mut`; `mut_results.json` giữ đầu ra nguyên văn).
+
+| Ca | Dự đoán | Thực tế | Lớp bắt (số ca đỏ) |
+|---|---|---|---|
+| M1 nhánh Bác sĩ thành `1 = 1` | BẮT | BẮT | int (7) |
+| M2 nhánh Lễ tân thành `1 = 1` | BẮT | BẮT | int (6) |
+| M3 nhánh Bệnh nhân bỏ `patientVisibilityFilter` | BẮT | BẮT | int (9) |
+| M4 `EXISTS` thành `JOIN lich_hen` (nhân dòng) | BẮT | BẮT | int (11) |
+| M5 thêm nhánh Quản trị viên cho Chi nhánh | BẮT | BẮT | int (13) |
+| M6 client chọn chi nhánh (IDOR) | BẮT | BẮT | int (1: TKB17-17 PQ-07; mỏng nhưng đủ) |
+| M7 `COUNT` bỏ phạm vi | BẮT | BẮT | int (11) |
+| **M8 bỏ khoá phụ `ORDER BY`** | "int có thể SỐNG SÓT, chuỗi SQL ở U BẮT" | **int SỐNG SÓT, U BẮT** (đúng dự đoán) | int: nguyên văn `Test Files  1 passed (1)` / `Tests  33 passed (33)`, exit 0; U `account.repository.spec.ts` đỏ (1: `sắp xếp CỐ ĐỊNH theo họ tên, rồi khoá phụ tai_khoan_id…`). Phân loại: **giới hạn của phép đo** (MySQL trả hàng hoà theo thứ tự đọc ổn định trên dữ liệu nhỏ, không phải hợp đồng của DB), KHÔNG phải lỗ hổng vì lớp kiểm chuỗi SQL chặn |
+| M9 `q` bỏ escape | BẮT | BẮT | int (1: TKB17-14) |
+| M10 bỏ kiểm `offset` an toàn | BẮT | BẮT | U (1) |
+| M11 `q` bỏ cận 200 | BẮT | BẮT | U (1) |
+| M12 enum `vaiTro` bỏ `LeTan` | BẮT | BẮT | U (3) |
+| M13 bỏ lọc `trangThai` | BẮT | BẮT | int (2) |
+| M14 cờ no-show dùng `COALESCE` | BẮT | BẮT | int (1) |
+| M15 bỏ ngoặc quanh nhóm `OR` của `q` | BẮT | BẮT | int (2: TKB17-15, 17) |
+| M16 mapper Chi nhánh × Bệnh nhân thêm `diaChi` | BẮT | BẮT | U (2) |
+| **M17 `SELECT` thêm `t.mat_khau_bam`** | "BẮT ở hàng thô; service-level sống sót" | **đúng**: int chỉ MỘT ca đỏ (`TKB17-20 … hàng THÔ của repository có đúng tập khoá cố định`), ca quét `findSecretLeaks` trên phản hồi list/get của mọi vai và loại VẪN XANH vì mapper là danh sách cho phép (phòng thủ hai lớp) | int (1) và U `account.repository.spec.ts` (2: `SELECT chỉ có đúng các cột…`, `SELECT không đụng bất kỳ cột bí mật…`) |
+| M18 `get` bỏ phạm vi | BẮT | BẮT | int (4) |
+| M19 bỏ chặn `khoaNoShow` | BẮT | BẮT | U (2) |
+| M20 `get` bỏ điều kiện `t.tai_khoan_id = :id` | BẮT | BẮT | int (12) |
+| M21 `ngaySinh` bỏ `DATE_FORMAT` | BẮT | BẮT | int (1) |
+| M22 controller bỏ `@RequireAdminScope('Any')` | BẮT | BẮT | e2e B17 (14 trong 15) VÀ `admin-scope` PQ-11 (1 trong 11) |
+| M23 `lienKetKichHoat` lấy hàng cũ nhất | BẮT | BẮT | int (1) |
+
+**Lệch về CÁCH làm (không về kết quả):** M14 ở mục 4 ghi "`<> 1` thay `= 0`", nhưng `NULL <> 1` không bao giờ đúng nên nhân sự không thể lọt; thực hiện bằng `COALESCE(bn.khoa_dat_lich_do_no_show, 0) = :khoaNoShow` (nhân sự và Bệnh nhân chưa xác minh lọt vào khi lọc `false`); dự đoán BẮT vẫn đúng. Ca đột biến không chạy ở U cho các ca đã bắt ở int (mỗi ca MỘT vitest MỘT file): coverage đa lớp của các ca đó chưa đo.
+
+**10.4 Hợp đồng đã chốt cho B18, B19, B20, F8, F9 (đúng như mục 2.2 đến 2.6; Đại duyệt 18/11/2026).** Xuất từ `admin/accounts/`: `ACCOUNT_FROM_SQL` (alias `t`, `bn`, `bs`, `le`, `qv`, `cn`), `accountVisibility(policy, scope, requestedBranchId?)` trả `{ sql, parameters }` (B18 đến B20 dùng trong truy vấn `SELECT … FOR UPDATE` của họ; `[đề xuất, chưa thử]` khoá chỉ `t` bằng `FOR UPDATE OF t` để không khoá bảng con), kiểu `AccountRow`, `ACCOUNT_ROW_KEYS`, `toAccountView`, `toAccountDetail`. Phản hồi: Chi nhánh × Bệnh nhân 8 khoá; Toàn hệ thống × Bệnh nhân 13; Bác sĩ, Lễ tân 11 (chi tiết 12); Quản trị viên (chỉ Toàn hệ thống) 12 (chi tiết 13). `khoaNoShow` của Chi nhánh ⇒ 403 `KHONG_DU_QUYEN`; ngoài tầm nhìn và không tồn tại ⇒ cùng 404 `KHONG_TIM_THAY` (MỘT truy vấn, một đường mã). Tham số `vaiTro` lặp được (không dùng `loai` của PLAN 5.3).
+
+**10.5 Lỗi của chính tôi trong PR này (không gán mã `AI-BUG`, theo tiền lệ B14: đều bị test của chính tôi bắt TRƯỚC khi có commit).**
+
+1. `@ArrayUnique(undefined, { message })`: `class-validator` nhận tuỳ chọn ở đối số ĐẦU khi không có hàm định danh, nên câu `message` bị bỏ và mã lỗi ra `ARRAY_UNIQUE`. Bắt bởi `account.dto.spec.ts`; sửa thành `@ArrayUnique({ message })`.
+2. Test kiểm danh sách cột `SELECT` dùng regex bắt cả ` AS CHAR)` của `CAST`; sửa regex chỉ lấy alias cuối dòng.
+3. Bốn giả định SAI trong `admin-accounts.e2e-spec.ts` (mã không sai): token hỏng trả `TOKEN_KHONG_HOP_LE` chứ không phải `CHUA_DANG_NHAP`; bộ phân tích query KHÔNG lồng nên `vaiTro[a]=b` là một tên tham số lạ (`TRUONG_KHONG_DUOC_PHEP`), không phải `VAI_TRO_KHONG_HOP_LE`; tôi tính nhầm số tài khoản (cộng thêm 6); tài khoản ngừng hoạt động trả `PHIEN_HET_HIEU_LUC`. Đã sửa kỳ vọng theo hợp đồng thật của auth.
+4. Test DTO ban đầu cho rằng `pageSize=1e2` bị từ chối; thực tế `PageQueryDto` (P6, dùng chung, không đụng) coi `Number('1e2') = 100` là hợp lệ. Vô hại, ghi để biết.
+5. Chi tiết quy trình: một lệnh shell dùng heredoc Python lúc đọc DDL (mở nhầm REPL, không ghi file nào, trái lời dặn "không heredoc python"); một câu gõ nhầm tên cột (`no_se`) trong tin nhắn cho phiên kiểm.
+
+**10.6 Đo EXPLAIN và hiệu năng (ĐÃ ĐO 18/11/2026 ở lượt máy do phiên kiểm cấp; spec nạp TẠM `zz-explain-b17.int-spec.ts` đã xoá, không vào repo).** Tiêu chí đặt trước ở mục 5: mỗi truy vấn danh sách và `COUNT` ≤ 300 ms trên 20.000 tài khoản + 100.000 lịch hẹn, và `EXISTS` lịch hẹn dùng `lich_hen_index_chi_nhanh_benh_nhan`; quá ngưỡng ⇒ ghi nguyên văn và báo trước khi sửa. **Cách đo (ghi TRƯỚC khi đo, không đổi sau khi thấy số):** spec nạp TẠM `zz-explain-b17.int-spec.ts` (xoá sau đo), DB tạm `clinix_admin_b17_test`, nạp bằng `INSERT … SELECT` theo lô: 3 chi nhánh, 60 Bác sĩ, 30 Lễ tân, 20.000 Bệnh nhân, 100.000 lịch hẹn (mỗi Bệnh nhân chỉ đặt ở chi nhánh "nhà" của mình nên Chi nhánh A thấy khoảng một phần ba Bệnh nhân); `ANALYZE TABLE` sau khi nạp; câu SQL BẮT TỪ CHÍNH repository (không chép tay); mỗi câu 2 lần khởi động rồi 10 lần đo, **đạt nếu TRUNG VỊ ≤ 300 ms**, báo thêm p95 và lớn nhất; kịch bản Toàn hệ thống (không lọc; vai Bệnh nhân + cờ no-show + tên; tìm email; lọc chi nhánh) và Chi nhánh A (không lọc; vai Bệnh nhân + tên; email; vai Bác sĩ và Lễ tân), mỗi kịch bản trang 1 và trang cuối, cả câu danh sách lẫn `COUNT`, thêm câu chi tiết theo id; `EXPLAIN ANALYZE` lưu nguyên văn, đọc số dòng quét theo bảng và chỉ mục dùng. Vượt ngưỡng ⇒ ghi nguyên văn, KHÔNG sửa mã khi chưa báo phiên kiểm. **Kết quả (số thật).** Chạy cỡ nhỏ trước (2.000 Bệnh nhân, 10.000 lịch hẹn) để bắt lỗi SQL: không lỗi, nhưng hai kịch bản tìm kiếm chọn tên và email không có dòng khớp trong phạm vi, nên TÔI SỬA DỮ LIỆU KỊCH BẢN (tên `Bệnh nhân 0001` thay `0100`; email Bệnh nhân thứ 1501 cho Chi nhánh A, thêm kịch bản email ngoài phạm vi) rồi chạy lại cỡ nhỏ và chạy cỡ đầy đủ; tiêu chí KHÔNG đổi. Cỡ đầy đủ: nạp 54,8 giây (`tai_khoan` 20.093, `benh_nhan` 20.000, `bac_si` 61, `le_tan` 30, `quan_tri_vien` 2, `lich_hen` 100.000, `khung_gio` 120.000), cả spec 78 giây, RAM trống 4,7 đến 4,8 GB trong lúc nạp. **32 câu, CẢ 32 ĐẠT tiêu chí (trung vị ≤ 300 ms); trung vị lớn nhất 74,5 ms (Toàn hệ thống không lọc, trang cuối, câu danh sách), p95 lớn nhất 79,7 ms.** Ba số mỗi ô là trung vị / p95 / lớn nhất (ms) của 10 lần đo sau 2 lần khởi động:
+
+| Kịch bản | Số dòng khớp | Danh sách trang 1 | Danh sách trang cuối | `COUNT` trang 1 và cuối (trung vị) | Kế hoạch |
+|---|---|---|---|---|---|
+| TH không lọc | 20.093 | 52,4 / 58,5 / 58,5 | 74,5 / 79,7 / 79,7 | 34,2 và 34,2 | quét toàn bảng `tai_khoan` |
+| TH vai Bệnh nhân + cờ no-show false + tên | 100 | 12,6 / 13,1 / 13,1 | 13,5 / 14,4 / 14,4 | 11 và 11,5 | quét toàn bảng `tai_khoan` |
+| TH tìm email | 1 | 11,5 / 12 / 12 | (một trang) | 10,2 và 10,2 | quét toàn bảng `tai_khoan` |
+| TH lọc chi nhánh A | 6.576 | 64 / 65,7 / 65,7 | 72,7 / 74,5 / 74,5 | 56,4 và 56,5 | quét toàn bảng `tai_khoan`; `EXISTS` dùng `lich_hen_index_chi_nhanh_benh_nhan` (39.632 lượt tra) |
+| Chi nhánh A không lọc | 6.575 | 55,6 / 59,8 / 59,8 | 64,4 / 66,3 / 66,3 | 48,1 và 48,5 | quét toàn bảng `tai_khoan`; `EXISTS` dùng `lich_hen_index_chi_nhanh_benh_nhan` (33.088 lượt tra) |
+| Chi nhánh A vai Bệnh nhân + tên | 32 | 23,6 / 24 / 24 | 23,9 / 25,7 / 25,7 | 23 và 22,5 | quét toàn bảng `tai_khoan`; `EXISTS` dùng `lich_hen_index_chi_nhanh_benh_nhan` (20.093 lượt tra) |
+| Chi nhánh A tìm email trong phạm vi | 1 | 27,6 / 29,5 / 29,5 | (một trang) | 25,9 và 25,9 | quét toàn bảng `tai_khoan`; `EXISTS` dùng `lich_hen_index_chi_nhanh_benh_nhan` (20.002 lượt tra) |
+| Chi nhánh A tìm email ngoài phạm vi | 0 | 28 / 29,8 / 29,8 | (một trang) | 25,9 và 25,9 | quét toàn bảng `tai_khoan`; `EXISTS` dùng `lich_hen_index_chi_nhanh_benh_nhan` (20.000 lượt tra) |
+| Chi nhánh A vai Bác sĩ và Lễ tân | 31 | 26,1 / 26,8 / 26,8 | 25,5 / 26,2 / 26,2 | 23,6 và 23,2 | quét toàn bảng `tai_khoan`; `EXISTS` dùng `lich_hen_index_chi_nhanh_benh_nhan` (20.000 lượt tra) |
+| chi tiết TH | 1 dòng | 1,2 / 1,7 / 1,7 | (không có) | (không có) | tra khoá chính `tai_khoan` |
+| chi tiết Chi nhánh A | 1 dòng | 1,2 / 1,4 / 1,4 | (không có) | (không có) | tra khoá chính `tai_khoan` |
+
+**Đọc kế hoạch** (cây `EXPLAIN ANALYZE` nguyên văn lưu ở scratchpad `explain_full.json`): mọi câu danh sách và `COUNT` đều `Table scan on t` (quét toàn bảng `tai_khoan`, 20.093 dòng) rồi lọc; `bn`, `bs`, `le` tra khoá chính; `qv` và `cn` (2 và 3 dòng) nối bằng hash join; sắp xếp là `Sort: t.ho_ten, t.tai_khoan_id, limit input to 20 row(s) per chunk`. Phạm vi Chi nhánh dùng `Covering index lookup on rbac_lh using lich_hen_index_chi_nhanh_benh_nhan (chi_nhanh_id=…, benh_nhan_id=t.tai_khoan_id)` (truy vấn con phụ thuộc, `Limit: 1 row`; số lượt tra lớn hơn số Bệnh nhân vì điều kiện được tính lại ở vài tầng join) ⇒ **chỉ mục có sẵn ĐƯỢC DÙNG, đạt tiêu chí thứ hai**. Chi nhánh với phạm vi lọc KHÔNG chậm hơn Toàn hệ thống (câu chậm nhất của Chi nhánh: 64,4 ms, trang cuối không lọc). **Giới hạn đã biết:** thời gian tăng TUYẾN TÍNH theo số tài khoản vì không chỉ mục nào dùng được cho `OR` giữa các bảng con và `LIKE '%…%'`; ngoại suy tuyến tính (KHÔNG đo) từ 74,5 ms ở 20.093 tài khoản cho trung vị 300 ms ở khoảng 80.000 tài khoản. Số đo là số "nóng" (dữ liệu nằm trong buffer pool), một máy, CPU rảnh. **Dọn dẹp:** spec tạm đã xoá, `git status` không còn `zz-*`; spec tự `DROP` bốn bảng `zz_*` và `resetTables` trong `finally` (spec pass nghĩa là lệnh dọn không lỗi); DB tạm `clinix_admin_b17_test` vẫn còn, chờ phép xoá của Đại.
+
+**10.7 Ngoài phạm vi, cần biết.** (a) `origin/main` đã tiến thêm 2 commit (#558 booking B19, #561 payment) từ lúc tạo nhánh: chạm `AI_USAGE_LOG.md`, `docs/TECH_DEBT.md`, `lich-hen.entity.ts` (thêm ba cột nullable + migration `1793793600000`); không đụng mã B17 nhưng nhánh cần `git merge origin/main` trước PR và tôi chưa chạy lại int và e2e sau khi gộp. (b) `docs/database/*`: KHÔNG sửa; D6 không có phần nào thuộc B17. D4 và D10 (2.4, `[cần điền: số mục 2.4 thật]`) như mục 6. (c) `AI_USAGE_LOG.md` hàng 156 ĐÃ ghi ngày 18/11/2026 sau khi Đại đồng ý bằng hộp câu hỏi (còn `[cần điền]`: người sửa tay, CI, PR; kết quả EXPLAIN đã điền cùng ngày sau khi Đại đồng ý). `docs/TECH_DEBT.md` mục 193 `[đề xuất]` ĐÃ ghi cùng ngày sau khi Đại đồng ý: danh sách tài khoản quét toàn bảng `tai_khoan` (đạt tiêu chí ở 20.093 tài khoản nhưng tăng tuyến tính); nếu trùng số khi gộp `main` thì đánh lại số theo PHAN_CONG_CHUNG mục 5.
+
 #### 9A.4 B6 · Lịch sử thay đổi cấu hình hệ thống (backend), issue #503 (18/11/2026): mã, test (đơn vị, int, e2e), build và đột biến (15/17 bị bắt, 2 tương đương) ĐÃ XONG; chờ Đại duyệt báo cáo cuối, PR và CI (mục 10)
 
 Người làm: Đại (`MaxTrann`). Model: Claude Sonnet 5.5 (lập kế hoạch, viết mã, chạy kiểm). Nhánh `feat/admin-b6-lich-su-cau-hinh`. **Bước 0 đã chạy (18/11/2026):** cây sạch, `HEAD...origin/main` = 0 0, `origin/main` = `04913c7` (có B5 `e3ede17` và B14), Node 22.23.4, PR mở: #558 (booking B19, nháp), #561 (payment), #378 (Dependabot); chưa chạy lệnh docker, test hay build nào. Phụ thuộc B5 (#502), C2 (#94), P6 (#50) đã merge; không migration. Mức kiểm ĐẦY ĐỦ (task nhỏ, chỉ đọc). Phiên kiểm độc lập (`Repo, Docker CI/CD…`) được Đại ủy quyền duyệt kế hoạch kỹ thuật và cấp lượt máy; ngoại lệ chỉ Đại quyết đúng như prompt (git, `AI_USAGE_LOG.md`, `docs/TECH_DEBT.md`, file ngoài phạm vi, quyết định sản phẩm và schema, xoá DB). Số mục: đã kiểm đuôi phần của Đại trên `origin/main` (lớn nhất `9A.2`), rồi đổi sang `9A.4` theo phiên kiểm (mục 9: B17 giữ `9A.3`, B16 sẽ lấy `9A.5`).
