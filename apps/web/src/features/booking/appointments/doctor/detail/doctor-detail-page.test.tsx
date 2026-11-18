@@ -24,7 +24,7 @@ import { DETAIL_TEXT } from './detail-messages';
 import '../../../../doctor';
 
 // booking F11: trang chi tiết "Chi tiết ca khám" của Bác sĩ với API giả. Mã DAD là [đề xuất] (PLAN booking mục 7.44); BSI-01 (chi tiết) = DAD-01, DAD-03, DAD-06; BSI-02 (không giá, cọc, email) = DAD-05. Bộ đọc
-// ở `api/doctor-appointments-api.test.ts` (DAD-02), các bước timeline ở `timeline-steps.test.ts` (DAD-09 mức hàm).
+// ở `api/doctor-appointments-api.test.ts` (DAD-02), các bước timeline ở `common/status-steps.test.ts` (STL-01 đến STL-06, hàm dùng chung từ booking F13; trước F13: `timeline-steps.test.ts`, DAD-09 mức hàm).
 afterEach(cleanUpDoctorAppointments);
 
 const card = (title: string) =>
@@ -265,13 +265,19 @@ describe('booking F11 — chi tiết của Bác sĩ: hồ sơ khám và trạng 
     },
   );
 
-  it('DAD-09 timeline theo trạng thái thật: Đã tiếp đón ⇒ bước 1 xong, bước 2 đang ở; "Chưa đến" cho bước chưa tới, "Chưa ghi nhận" cho bước còn lại', async () => {
+  // booking F13 (issue #550): thanh trạng thái dùng chung `common/status-timeline.tsx`; bước đã qua và đang ở bỏ chữ "Chưa ghi nhận", nhường chỗ cho chữ ẩn "Đã qua", "Hiện tại" của trình đọc màn hình (nằm trong `textContent`)
+  it('DAD-09 timeline theo trạng thái thật: Đã tiếp đón ⇒ bước 1 đã qua ("Đã qua"), bước 2 đang ở ("Hiện tại"), bước chưa tới "Chưa đến"; KHÔNG còn "Chưa ghi nhận"', async () => {
     await openDoctorDetail({ trangThai: 'DaTiepDon' });
     const steps = within(card('Trạng thái ca khám')).getAllByRole('listitem');
     expect(steps.map((step) => step.textContent)).toEqual([
-      'Đã xác nhậnChưa ghi nhận',
-      'Đã tiếp đónChưa ghi nhận',
+      'Đã xác nhậnĐã qua',
+      'Đã tiếp đónHiện tại',
       'Hoàn thànhChưa đến',
+    ]);
+    expect(steps.map((step) => step.getAttribute('aria-current'))).toEqual([
+      null,
+      'step',
+      null,
     ]);
   });
 
@@ -300,7 +306,7 @@ describe('booking F11 — chi tiết của Bác sĩ: hồ sơ khám và trạng 
       'Đã xác nhậnChưa đến',
       'Đã tiếp đónChưa đến',
       'Hoàn thànhChưa đến',
-      'Đã hủyChưa ghi nhận',
+      'Đã hủy',
     ]);
   });
 
@@ -310,11 +316,7 @@ describe('booking F11 — chi tiết của Bác sĩ: hồ sơ khám và trạng 
     expect(timeline.queryByRole('status')).toBeNull();
     expect(
       timeline.getAllByRole('listitem').map((step) => step.textContent),
-    ).toEqual([
-      'Đã xác nhậnChưa ghi nhận',
-      'Đã tiếp đónChưa ghi nhận',
-      'Hoàn thànhChưa ghi nhận',
-    ]);
+    ).toEqual(['Đã xác nhậnĐã qua', 'Đã tiếp đónĐã qua', 'Hoàn thànhHiện tại']);
   });
 
   it('DAD-09 mã trạng thái lạ (kể cả DaDoiLich): chip "Chưa xác định", KHÔNG vẽ bước nào, không lộ mã thô; hàng "Ngày đặt lịch" vẫn có', async () => {

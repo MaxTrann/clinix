@@ -8,6 +8,7 @@ import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
 import { DetailFailure } from '../../common/detail-failure';
 import { readListSearch } from '../../common/list-search';
 import { refundResultLine } from '../../common/refund-text';
+import { StatusTimeline } from '../../common/status-timeline';
 import { DETAIL_TEXT, doneLabel } from './detail-messages';
 import {
   AdminAppointmentCard,
@@ -23,7 +24,7 @@ import { useOverride } from './use-override';
 
 // Trang chi tiết một lịch hẹn của Quản trị viên (booking F10; Figma `512:2`; F12 dựng lại theo KHUNG CHUNG của Bệnh nhân, UI-11, UI-12, Đại 14/11/2026: Figma `512:2` chỉ rộng 840 px và lệch trái nên trang chưa
 // đủ cả trang): `Quay lại danh sách`, h1 `Chi tiết lịch hẹn`, thẻ đầu (mã, chip, chuyên khoa, bốn ô), rồi lưới hai cột: bên trái `Thông tin lịch hẹn` và `Thông tin bệnh nhân`; bên phải `Chi phí & Thanh toán`,
-// panel `Lịch sử trạng thái` và thẻ `Thao tác` (nhóm nút override theo `chuyenDuoc[]`, chỗ Figma dành cho thẻ `Thanh toán` đang ẩn: [đề xuất]). Nội dung từ MỘT nguồn là chi tiết. Hộp override là modal
+// thanh `Trạng thái lịch hẹn` (`StatusTimeline` DÙNG CHUNG với Bác sĩ và Bệnh nhân, booking F13, Đại duyệt 18/11/2026: ngoài Figma `512:2`, PLAN L41), panel `Lịch sử trạng thái` và thẻ `Thao tác` (nhóm nút override theo `chuyenDuoc[]`, chỗ Figma dành cho thẻ `Thanh toán` đang ẩn: [đề xuất]). Nội dung từ MỘT nguồn là chi tiết. Hộp override là modal
 // duy nhất của trang. Mã lịch hiện ngay (dưới h1) khi chi tiết chưa về; khi đã về, mã nằm ở thẻ đầu.
 export function AdminDetailPage({ maLichHen }: { maLichHen: string }) {
   const location = useLocation();
@@ -99,6 +100,11 @@ export function AdminDetailPage({ maLichHen }: { maLichHen: string }) {
             side={
               <>
                 <AdminCostCard detail={ready.data} />
+                <StatusTimeline
+                  trangThai={ready.data.trangThai}
+                  title={DETAIL_TEXT.sections.timeline}
+                  unknown="upcoming"
+                />
                 <HistoryPanel entries={ready.data.lichSuTrangThai} />
                 <OverrideActions
                   detail={ready.data}
