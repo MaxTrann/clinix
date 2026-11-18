@@ -34,4 +34,20 @@ export const ADMIN_ROUTES: RouteObject[] = [
       },
     ],
   },
+  // admin F5: Cài đặt hệ thống, chỉ Toàn hệ thống (Admin Chi nhánh mở thẳng đường dẫn thì thấy trang "không đủ quyền")
+  {
+    element: <AdminScopeGuard policy="ToanHeThong" />,
+    children: [
+      {
+        path: 'cai-dat-he-thong',
+        hydrateFallbackElement: (
+          <LoadingState message="Đang tải cấu hình hệ thống…" />
+        ),
+        lazy: () =>
+          import('./system-config/system-config-page').then((module) => ({
+            Component: module.SystemConfigPage,
+          })),
+      },
+    ],
+  },
 ];
