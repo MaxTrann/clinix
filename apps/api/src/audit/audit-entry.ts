@@ -21,6 +21,12 @@ type LeaveRequestFacts = {
   ca: ShiftName | null;
 };
 // Bốn trường hồ sơ khám được phép nằm trong nhật ký sửa hồ sơ (doctor-exam P2; PLAN doctor-exam 5.12). Chỉ trường CÓ ĐỔI mới được ghi (Q15).
+type WithdrawalDecision<After extends 'DaDuyet' | 'TuChoi'> = {
+  truoc: { trang_thai: 'ChoDuyet' };
+  sau: { trang_thai: After };
+  so_tien: string;
+  ly_do?: string;
+};
 type ExamRecordFacts = Partial<
   Record<
     'trieu_chung' | 'chan_doan_so_bo' | 'huong_xu_ly' | 'ngay_tai_kham_du_kien',
@@ -110,6 +116,18 @@ interface ChangeMap {
     ly_do: string;
     bac_si_id: string;
   };
+  // ----- payment P5 (PLAN payment 5.6, 5.8; Q17, L5): danh sách trắng chỉ số tiền, lý do, trạng thái; KHÔNG tên, SĐT, email, số tài khoản ngân hàng.
+  // Tiền là chuỗi decimal hai chữ số (`'150000.00'`), > 0, vừa `decimal(12,2)`; giới hạn lý do ở `AUDIT_PAYMENT_LIMITS` (`[đề xuất]`, Trung chốt 18/11/2026).
+  // Hoàn tiền đặc biệt (B13): `targetId` là khoản thanh toán được hoàn, `branchId` là chi nhánh của LỊCH GỐC (luôn có).
+  HoanTienDacBiet: { so_tien: string; ly_do: string };
+  // Quản trị viên xử lý nạp ví chưa cộng (B15): `targetId` là giao dịch nạp, `branchId` null (ví không thuộc chi nhánh). `ket_qua` dùng lại ENUM `ket_qua_doi_soat`;
+  // `ly_do` BẮT BUỘC khi `KhongTheXuLy` và KHÔNG có khi `ThanhCong` (union dưới đây buộc điều đó ngay khi viết mã).
+  XuLyNapViChuaCong:
+    | { ket_qua: 'ThanhCong'; so_tien: string }
+    | { ket_qua: 'KhongTheXuLy'; so_tien: string; ly_do: string };
+  // Quản trị viên duyệt hoặc từ chối yêu cầu rút tiền (B12): `targetId` là `yeu_cau_rut_tien_id`, `branchId` null. `ly_do` là `ghiChu` tuỳ chọn của Quản trị viên (L11).
+  DuyetRutTien: WithdrawalDecision<'DaDuyet'>;
+  TuChoiRutTien: WithdrawalDecision<'TuChoi'>;
 }
 
 export type AuditAction = keyof ChangeMap;
@@ -136,6 +154,10 @@ interface TargetMap {
   OverrideLichHen: 'lich_hen';
   SuaGhiChuKham: 'ho_so_kham';
   AnDanhGia: 'danh_gia_bac_si';
+  HoanTienDacBiet: 'giao_dich_thanh_toan';
+  XuLyNapViChuaCong: 'giao_dich_thanh_toan';
+  DuyetRutTien: 'yeu_cau_rut_tien';
+  TuChoiRutTien: 'yeu_cau_rut_tien';
 }
 type TargetFor<A extends AuditAction> = TargetMap[A];
 

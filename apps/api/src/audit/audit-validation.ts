@@ -27,6 +27,14 @@ export const AUDIT_EXAM_LIMITS = {
   hideReasonMin: 10,
   hideReasonMax: 255,
 } as const;
+// Giới hạn của bốn hành động payment P5, đơn vị UTF-16 (`String.length`) `[đề xuất]` (Trung chốt 18/11/2026): lý do bắt buộc của hoàn đặc biệt và "không thể xử lý" 10–255
+// (PLAN 5.6.2, 5.6 #6; cận dưới tính sau trim); ghi chú tuỳ chọn của duyệt hay từ chối rút tiền 1–255. Xuất ra để DTO của B12, B13, B15 viết ca "trần của DTO ≤ trần của audit".
+export const AUDIT_PAYMENT_LIMITS = {
+  requiredReasonMin: 10,
+  reasonMax: 255,
+} as const;
+// `decimal(12,2)` dương: 1 đến 10 chữ số phần nguyên (không số 0 đứng đầu) và ĐÚNG hai chữ số lẻ (dạng mà `pricing/money.ts` trả ra).
+const MONEY_PATTERN = /^(0|[1-9]\d{0,9})\.\d{2}$/;
 // Bốn trường hồ sơ khám được ghi vào SuaGhiChuKham; khoá khác (kể cả tên, SĐT, email) bị từ chối.
 const EXAM_RECORD_KEYS = [
   'trieu_chung',
@@ -190,6 +198,43 @@ function examRecordChanges(changes: unknown): void {
     examRecordValue(key, before);
     examRecordValue(key, after);
     requireValid(before !== after);
+  }
+}
+
+// Số tiền > 0 (một khoản 0đ không bao giờ được hoàn, nạp hay rút).
+function positiveMoney(value: unknown): void {
+  requireValid(
+    typeof value === 'string' &&
+      MONEY_PATTERN.test(value) &&
+      /[1-9]/.test(value),
+  );
+}
+// Lý do bắt buộc của Quản trị viên: 10–255 ký tự (cận dưới sau trim, cận trên nguyên chuỗi, như AnDanhGia).
+function requiredReason(value: unknown): void {
+  reason(value);
+  requireValid(
+    String(value).trim().length >= AUDIT_PAYMENT_LIMITS.requiredReasonMin &&
+      String(value).length <= AUDIT_PAYMENT_LIMITS.reasonMax,
+  );
+}
+function withdrawalDecision(
+  entry: Record<string, unknown>,
+  after: 'DaDuyet' | 'TuChoi',
+): void {
+  requireValid(
+    entry.targetType === 'yeu_cau_rut_tien' && entry.branchId === null,
+  );
+  const changes = entry.changes;
+  fields(changes, ['truoc', 'sau', 'so_tien'], ['ly_do']);
+  const snapshot = snapshots(changes, 'trang_thai');
+  requireValid(snapshot.before === 'ChoDuyet' && snapshot.after === after);
+  positiveMoney(changes.so_tien);
+  // Ghi chú tuỳ chọn: có thì 1–255 ký tự, không nhận chuỗi rỗng hay toàn khoảng trắng (không có thì bỏ hẳn khoá)
+  if (Object.hasOwn(changes, 'ly_do')) {
+    reason(changes.ly_do);
+    requireValid(
+      String(changes.ly_do).length <= AUDIT_PAYMENT_LIMITS.reasonMax,
+    );
   }
 }
 
@@ -391,6 +436,35 @@ function validateChanges(entry: Record<string, unknown>): void {
       id(changes.bac_si_id);
       break;
     }
+    case 'HoanTienDacBiet':
+      requireValid(entry.targetType === 'giao_dich_thanh_toan');
+      // Chi nhánh của LỊCH GỐC của khoản thanh toán: luôn có, để Quản trị viên chi nhánh lọc nhật ký.
+      id(branch);
+      fields(changes, ['so_tien', 'ly_do']);
+      positiveMoney(changes.so_tien);
+      requiredReason(changes.ly_do);
+      break;
+    case 'XuLyNapViChuaCong':
+      requireValid(
+        entry.targetType === 'giao_dich_thanh_toan' && branch === null,
+      );
+      object(changes);
+      if (changes.ket_qua === 'KhongTheXuLy') {
+        fields(changes, ['ket_qua', 'so_tien', 'ly_do']);
+        requiredReason(changes.ly_do);
+      } else {
+        // Chỉ 'ThanhCong' hoặc 'KhongTheXuLy': 'ThatBai' là kết quả của job, không phải của Quản trị viên
+        fields(changes, ['ket_qua', 'so_tien']);
+        requireValid(changes.ket_qua === 'ThanhCong');
+      }
+      positiveMoney(changes.so_tien);
+      break;
+    case 'DuyetRutTien':
+      withdrawalDecision(entry, 'DaDuyet');
+      break;
+    case 'TuChoiRutTien':
+      withdrawalDecision(entry, 'TuChoi');
+      break;
     default:
       throw new AuditError('AUDIT_ACTION_UNSUPPORTED');
   }
