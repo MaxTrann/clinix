@@ -44,7 +44,7 @@ import {
 
 // doctor-exam B8 — RatingHideService THẬT trên MySQL 8.4 THẬT (PLAN 5.3, 5.8, 5.12, 5.15; 7.5 KDD-04…KDD-10, KDD-14, KDD-15; 7.6 DTB-03; 7.11 TDK-05; HDK-05, HDK-09; `[đề xuất]` KDD-23, KDD-25): CHECK `chk_danh_gia_an`, khoá hàng,
 // `AuditService` THẬT trong cùng giao dịch, hoàn tác, thử lại. Phần ĐƠN VỊ (không DB): rating-hide.*.spec.ts. Phần HTTP: test/doctor-exam-admin-hide-rating.e2e-spec.ts. Ca ĐỒNG THỜI: rating-hide.concurrency.int-spec.ts.
-// Điểm trung bình đọc bằng bản CHÉP câu của PLAN 5.9 (`readAverage`): B9 thay bằng `DoctorRatingReader` thật và chạy lại KDD-15, DTB-03. Dữ liệu giả; ba chi nhánh, mỗi chi nhánh một bác sĩ, ba người đặt tên khác nhau. Mọi giá trị mong đợi viết tay.
+// Điểm trung bình đọc bằng `DoctorRatingReader` THẬT của `search` (`readAverage`; B9 thay bản CHÉP câu PLAN 5.9 của B8 và chạy lại KDD-15, DTB-03). Dữ liệu giả; ba chi nhánh, mỗi chi nhánh một bác sĩ, ba người đặt tên khác nhau. Mọi giá trị mong đợi viết tay.
 useStatusWorldHooks();
 
 const NOT_FOUND_BODY = {
@@ -515,7 +515,7 @@ describe('KDD-14 ẩn không đổi so_sao, nhan_xet, thoi_diem_tao, lich_hen_id
   });
 });
 
-describe('KDD-15, DTB-03 điểm trung bình loại đánh giá đã ẩn (bên đọc = bản chép câu PLAN 5.9; B9 chạy lại bằng reader thật)', () => {
+describe('KDD-15, DTB-03 điểm trung bình loại đánh giá đã ẩn (bên đọc = DoctorRatingReader THẬT, B9)', () => {
   it('KDD-15 bác sĩ có 5, 4, 1: ẩn 1 sao ⇒ soDanhGia 3 ⇒ 2, điểm "3.3" ⇒ "4.5"; đánh giá ĐÃ ẩn từ trước không tính; bác sĩ khác không đổi', async () => {
     const t = await setup();
     const doctorA = t.m.doctors.a.account.taiKhoanId;
@@ -539,11 +539,11 @@ describe('KDD-15, DTB-03 điểm trung bình loại đánh giá đã ẩn (bên 
       at: '2026-11-06 08:00:00',
     });
     expect(await readAverage(db, doctorA)).toEqual({
-      diem: '3.3',
+      diemTrungBinh: '3.3',
       soDanhGia: 3,
     });
     expect(await readAverage(db, doctorB)).toEqual({
-      diem: '2.5',
+      diemTrungBinh: '2.5',
       soDanhGia: 2,
     });
     await t.service.hide(
@@ -553,22 +553,22 @@ describe('KDD-15, DTB-03 điểm trung bình loại đánh giá đã ẩn (bên 
       hideBody(),
     );
     expect(await readAverage(db, doctorA)).toEqual({
-      diem: '4.5',
+      diemTrungBinh: '4.5',
       soDanhGia: 2,
     });
     expect(await readAverage(db, doctorB)).toEqual({
-      diem: '2.5',
+      diemTrungBinh: '2.5',
       soDanhGia: 2,
     });
   });
 
-  it('DTB-03 ẩn hết đánh giá của một bác sĩ ⇒ không còn dòng điểm (B9 đổi thành null và 0); ẩn từng cái giảm dần số lượt', async () => {
+  it('DTB-03 ẩn hết đánh giá của một bác sĩ ⇒ { diemTrungBinh: null, soDanhGia: 0 }; ẩn từng cái giảm dần số lượt', async () => {
     const t = await setup();
     const doctorA = t.m.doctors.a.account.taiKhoanId;
     const x = await t.m.seed({ soSao: 5, at: '2026-11-01 08:00:00' });
     const y = await t.m.seed({ soSao: 4, at: '2026-11-02 08:00:00' });
     expect(await readAverage(db, doctorA)).toEqual({
-      diem: '4.5',
+      diemTrungBinh: '4.5',
       soDanhGia: 2,
     });
     await t.service.hide(
@@ -578,7 +578,7 @@ describe('KDD-15, DTB-03 điểm trung bình loại đánh giá đã ẩn (bên 
       hideBody(),
     );
     expect(await readAverage(db, doctorA)).toEqual({
-      diem: '4.0',
+      diemTrungBinh: '4.0',
       soDanhGia: 1,
     });
     await t.service.hide(
@@ -587,7 +587,10 @@ describe('KDD-15, DTB-03 điểm trung bình loại đánh giá đã ẩn (bên 
       y.danhGiaId,
       hideBody(),
     );
-    expect(await readAverage(db, doctorA)).toBeNull();
+    expect(await readAverage(db, doctorA)).toEqual({
+      diemTrungBinh: null,
+      soDanhGia: 0,
+    });
   });
 });
 

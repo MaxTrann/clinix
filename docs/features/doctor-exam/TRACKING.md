@@ -4855,3 +4855,230 @@ Script: `C:\Users\Maxtrann\AppData\Local\Temp\claude\f8b286b1041c88c1\0c467449-9
 **File đã sửa (đều CRLF, đã đọc nhị phân; `git diff --numstat` so với `HEAD`):** `docs/features/booking/PLAN.md` +16 −14 (c1 đến c14); `docs/features/booking/TRACKING.md` +2 −2 (c16, c17); `docs/features/doctor/PLAN.md` +3 −3 (d1 đến d3); `docs/features/doctor/TRACKING.md` +1 −0 (d4); `docs/features/admin/PLAN.md` +3 −2 (f1, f2); `docs/PLAN.md` +1 −0 (g1); `docs/TECH_DEBT.md` +3 −0 (182 đến 184); `AI_USAGE_LOG.md` +1 −0 (hàng 149); `docs/features/doctor-exam/PLAN.md` +3 −3 (dòng 5, 4.6, 6.5 D2 và chữ (g)); `docs/features/doctor-exam/TRACKING.md` +121 −5 (mục 1, 4, 5, 31). **Không sửa:** `search/*` (chờ B9), `docs/database/*`, `docs/TRACKING.md`, `apps/**`, `.github/workflows/*`.
 **Kiểm tĩnh (script Python ghi ra tệp ở thư mục tạm, không đưa vào repo).** Chín nhóm: (1) số dòng thêm/xoá từng file bằng kỳ vọng ở 31.5; (2) mọi dòng xoá chứa một đoạn neo chủ ý (lượt B: 29 dòng xoá); (3) mọi file đổi nhất quán CRLF, LF lẻ = 0; (4) không dấu xung đột; (5) mục trích dẫn (`5.3`, `5.8`, `5.9`, `5.10`, `5.12`, `5.13`, `6.3`, `6.4`, `7.8`, `7.27`, `7.44` của booking; `5.10`, `7.6` của doctor; `5.8`, `5.13`, `6.5`, `6.7` của doctor-exam) có tiêu đề thật; (6) số PR trích dẫn mới (30 số) đều có trong `git log origin/main` hoặc là issue đã biết; (7) 26 đường dẫn file mã trích dẫn mới đều có trên cây; (8) chỉ đúng các file kỳ vọng bị đổi, không file chưa theo dõi; (9) `git diff --check` thoát 0. Kèm kiểm số cột của 13 hàng bảng mới chèn so với hàng kề. **Lượt A** (sau khi áp các sửa chính): lần đầu báo hai lỗi GIẢ ở (6) và (7) vì script xét cả phần không đổi của dòng bị sửa (`#238` và hai đường dẫn đã có sẵn trong dòng); đã sửa script (chỉ xét số PR và đường dẫn KHÔNG có trong dòng bị xoá) rồi chạy lại: **0 lỗi**. **Lượt B** (sau khi sửa PLAN và TRACKING của scope này và ghi AI log): **0 lỗi**. **Lượt C** chạy lại SAU khi tick D2 ở 6.5: kết quả ở báo cáo cuối của phiên.
 **Việc còn lại và điều cần báo:** (1) **(e) `search`** (K5, hàng "Module đánh giá", tab "Đánh giá" `[SAU]`, E10 che tên): chờ B9 (#405) vào `main`, rồi đọc lại các dòng đó và chỉ bổ sung phần còn thiếu; (2) **(a) 2.4 và (b) Figma:** Đại và nhóm làm theo 31.3 (14 mục) và 31.4 (7 mục); (3) `docs/TRACKING.md` một dòng do X3; (4) hai ý (3) và (4) của hàng B5 ở TRACKING booking mục 5 chờ Trung xem (không đánh "đã làm"); (5) lệch ngoài danh sách D2, KHÔNG sửa: `docs/features/doctor/TRACKING.md` mục 7 còn hàng "Trang 'Lịch hẹn' của Bác sĩ (F10)" chờ booking F11 (F11 đã vào `main` 14/11/2026; chưa kiểm mã chỗ nút) ⇒ báo Trung; `TECH_DEBT` 140 (KTH-04 chưa đổi sang route thật dù route có từ B1); (6) **mô tả PR:** `Refs #390` và `Refs #416` (không `Closes`), `[ĐỤNG booking]`, `[ĐỤNG doctor]`, `[ĐỤNG admin]`, tiêu đề gợi ý `docs(repo): đồng bộ kế hoạch khám bệnh với booking, doctor, admin (doctor-exam D2)` (82 ký tự), Đại báo Trung trước khi mở PR; (7) **khi gộp `main`:** xem Bước 0 (D1 #544 cùng đụng `AI_USAGE_LOG.md`, PLAN và TRACKING doctor-exam; hàng 147 và 148, dòng 179 đến 181 do cửa sổ khác giữ); không tự đổi số mục; (8) `[cần điền]`: PR, CI (7 check bắt buộc), Trung approve, squash, giờ làm thật, phần Đại tự sửa của hàng 149.
+
+## 29. Kế hoạch task B9 (17/11/2026; **ĐÃ DUYỆT (phiên kiểm độc lập, ủy quyền của Đại, 17/11/2026; (a) đến (i) đều theo đề xuất)**; P0 xong (29.3); mọi dự đoán đột biến ở 29.4 ghi TRƯỚC khi có mã và KHÔNG sửa sau khi thấy kết quả)
+
+**Task B9 (#405, Epic #390)** · nhánh `feat/doctor-exam-b9` (worktree `clinix-app-de-p3`) · nền `origin/main` lúc soạn = `73baafb`, **đã tiến thêm một commit `f1fd5d6` (F8 #543: chỉ `apps/web`, `AI_USAGE_LOG.md` và docs doctor-exam, KHÔNG chạm `apps/api`; đã đối chiếu bằng `git diff HEAD origin/main --name-only`)**; nhánh đang sau 1 commit, không chạy lệnh git ghi, docs gộp theo `main` khi gần mở PR · mức **ĐẦY ĐỦ** (PLAN 6.3; không có ca đồng thời mới, chỉ chạy lại DHK-08) · ước `[đề xuất]` **4 giờ** (issue ghi 4; không tính chờ lượt máy) · Claude Sonnet 5.5 (lập kế hoạch, viết mã, chạy kiểm). **Chỉ backend (`apps/api`) và tài liệu:** KHÔNG làm web, hộp ẩn (F8, đã merge), seed (B10), đồng bộ tài liệu (D1, D2), đổi schema, cache.
+**Bước 0 đã kiểm (17/11/2026):** `git status` sạch; `HEAD...origin/main` = `0 0` lúc đầu, `0 1` sau khi F8 merge; Node `v22.23.4`; PR đang mở: #539 (B10, nháp) và #378 (dependabot); Docker `clinix-app-db-1` healthy; RAM trống 2.305 MB lúc soạn (dưới ngưỡng 2,4 GB nên CHƯA chạy vitest nào); `AI_USAGE_LOG.md` trên `origin/main` lớn nhất **146** (F8; prompt ghi 145; hàng 144 vắng: B10 giữ) ⇒ số `[đề xuất]` của B9 **147**, AI-BUG `[đề xuất]` **062**; `docs/TECH_DEBT.md` lớn nhất **177** (hàng 175 xuất hiện hai lần, đã biết) ⇒ số `[đề xuất]` **180** (178 B10, 179 Trung); kiểm lại ngay trước khi ghi.
+**Quyết định đã nhận:** Q9 (Đại, 15/11/2026, "chốt cả 7 theo đề xuất"): tính khi đọc bằng một câu `GROUP BY` loại `bi_an = 1`, không cache, không đổi schema nếu đo đạt; X1 đã đo M5 và M6 (TRACKING mục 6).
+
+### 29.1 Điều đọc từ mã thật (đối chiếu từng chỗ, không tin lời prompt)
+1. **`DoctorRatingReader` hiện không có phụ thuộc.** Tiền lệ tiêm DB trong `search/` là `@Inject(DataSource) private readonly db: DataSource` (mọi repository của `search/`, và `ExamPriceReader` ở `pricing/` mà `PublicDoctorRepository` dùng chung). `search.module.ts` đã liệt kê `DoctorRatingReader` ở `providers` và `DataSource` có sẵn toàn cục từ `DatabaseModule` ⇒ **`search.module.ts` KHÔNG phải sửa**.
+2. **Chỗ dựng bằng tay `new DoctorRatingReader()` (cần sửa khi hàm dựng nhận `db`): đúng ba file test**, không có mã chạy thật: `search/doctors/public-doctor.int-spec.ts:26`, `search/doctors/public-doctor-detail.int-spec.ts:25` (mỗi file một dòng) và `search/ratings/doctor-rating.reader.spec.ts` (hai ca TBS-14). `PublicDoctorService` chỉ được dựng bằng tay ở hai int-spec đó; e2e đi qua `AppModule` (DI tự cấp `DataSource`).
+3. **Chữ ký giữ nguyên:** `readMany(doctorIds: readonly string[]): Promise<Map<string, DoctorRating>>`; `public-doctor.service.ts` (`toItem` đọc `ratings.get(c.bacSiId)` rồi `rating?.diemTrungBinh ?? null`) và `doctor-list.rules.ts` KHÔNG đổi. **Hệ quả cho test:** service có "lưới an toàn" (`?? null`, `?? 0`) nên một reader quên điền `NO_RATING` cho id vắng KHÔNG làm đỏ test của service; chỉ test của chính reader bắt được (đột biến M6).
+4. **Cỡ đầu vào của chỗ gọi (khác prompt "50 bác sĩ mỗi trang"):** `PublicDoctorRepository.findCandidates` trả MỌI bác sĩ công khai khớp bộ lọc SQL (không theo trang), `filterSortPage` lọc điểm, sắp và cắt trang TRONG BỘ NHỚ ⇒ `readMany` nhận số id bằng số bác sĩ công khai khớp bộ lọc, không bị `pageSize` chặn. M6 đo 50 bác sĩ (bộ nạp có 60) ⇒ trong vùng đã đo. **Chưa đo, ghi nhận:** nếu số bác sĩ công khai vượt 200 thì danh sách `IN` vượt `eq_range_index_dive_limit` (mặc định 200) và optimizer có thể đổi cách ước lượng; kế hoạch mặc định quét `danh_gia_bac_si` nên thời gian bị chặn bởi cỡ bảng đánh giá, không bởi số id. Không chia mảnh ở B9 (câu một lần, 1.000 id vẫn là một gói nhỏ); không phải lối tắt của B9 (là thiết kế B5 đã chốt) nên đề xuất KHÔNG ghi `TECH_DEBT`.
+5. **Hợp đồng `diemTu` đọc ĐIỂM ĐÃ LÀM TRÒN:** `ratingTenths` = `Math.round(Number("4.3") * 10)`. Một bác sĩ có trung bình thật 4,25 hiển thị `"4.3"` và LỌT `diemTu=4.3`. Đây là hợp đồng cũ của `doctor-list.rules.ts` (PLAN 5.9: không đổi); B9 ghi thành ca DTB-07 (b) để ai đổi cách làm tròn thấy ngay.
+6. **Bên đọc của B8 là bản chép:** `testing/hide-rating-stack.ts` (`PLAN_5_9_AVERAGE_SQL`, `readAverage` trả `{ diem, soDanhGia } | null`); dùng ở `rating-hide.int-spec.ts` (KDD-15, DTB-03) và `rating-hide.concurrency.int-spec.ts` (DHK-08 (a), (b); hằng `BEFORE`, `AFTER`).
+7. **Cách mysql2 nhận `IN (?)` (chưa đo, SẼ đo trước khi viết mã, 29.3 bước P0):** TypeORM gọi `connection.query(sql, params)` của mysql2 (thoát giá trị ở phía máy khách, không phải câu lệnh chuẩn bị ở máy chủ, đúng nếp mọi repository của repo); mảng lồng `[ids]` ⇒ `IN ('1','22')` (từng giá trị được thoát). Câu của X1 M6 ghi `IN (…)` mà **không ghi cách buộc** (spec đo đã xoá) ⇒ chưa biết chuỗi số (`'5'`) và số (`5`) có cho cùng kế hoạch và cùng độ chính xác hay không (id > 2^53 so sánh như số thực có thể trộn hai bác sĩ).
+8. **`resetTables` dùng `TRUNCATE` (đặt lại `AUTO_INCREMENT`)** nên ca id lớn (`ALTER TABLE tai_khoan AUTO_INCREMENT = 9007199254740993` ngay trong ca) không để lại dấu cho test khác.
+9. **Mức cô lập:** một câu `SELECT` ở chế độ tự cam kết có ảnh chụp riêng (mặc định máy chủ `REPEATABLE READ`, TRACKING mục 6) ⇒ mỗi lần đọc thấy mọi thứ đã commit trước khi câu bắt đầu; không cần `runReadOnly` (sẽ thêm `SET TRANSACTION READ ONLY`, `START TRANSACTION`, `COMMIT`: +3 vòng gọi cho điểm vào công khai nóng nhất, không lợi gì cho MỘT câu). Reader không cùng ảnh chụp với `findCandidates` (hai lời gọi riêng, như hiện nay ở service: đã chấp nhận).
+
+### 29.2 Thiết kế
+**Câu SQL cuối: GIỐNG TỪNG CHỮ câu PLAN 5.9 và câu đã đo ở X1 (M5 (b), M6)** ⇒ theo prompt không bắt buộc đo lại M6; chỗ chưa chắc duy nhất là cách buộc `IN` (29.1 điều 7), xử lý ở bước P0:
+```
+SELECT CAST(lh.bac_si_id AS CHAR) AS bacSiId, ROUND(AVG(dg.so_sao), 1) AS diem, COUNT(*) AS soDanhGia
+FROM danh_gia_bac_si dg JOIN lich_hen lh ON lh.lich_hen_id = dg.lich_hen_id
+WHERE dg.bi_an = 0 AND lh.bac_si_id IN (?) GROUP BY lh.bac_si_id
+```
+**`doctor-rating.reader.ts` (sửa; khoảng 50 dòng):** hằng `AVERAGE_RATING_SQL` xuất ra (để test quét văn bản); `@Inject(DataSource) private readonly db: DataSource`; `readMany`: (1) `result = new Map(doctorIds.map((id) => [id, NO_RATING]))` (id trùng thành MỘT khoá, giữ thứ tự đầu vào, id vắng đã là `NO_RATING` dùng chung); (2) `ids` = khoá của `result` khớp `/^(0|[1-9]\d*)$/` (id không phải số KHÔNG vào SQL, vẫn nhận `NO_RATING`); (3) `ids` rỗng ⇒ trả `result`, KHÔNG chạy SQL; (4) `rows = await this.db.query(AVERAGE_RATING_SQL, [ids])`; (5) mỗi hàng `result.set(row.bacSiId, { diemTrungBinh: String(row.diem), soDanhGia: Number(row.soDanhGia) })` (`bacSiId` giữ CHUỖI, không qua `Number`; `diem` là chuỗi một chữ số thập phân từ MySQL, M5). Lỗi DB lan ra như mọi reader (không nuốt thành "không có đánh giá": nuốt sẽ giấu sự cố). Không cache, không `runReadOnly`.
+**Sửa test của B8:** `hide-rating-stack.ts`: bỏ `PLAN_5_9_AVERAGE_SQL` và bản chép; `readAverage(db, bacSiId)` giữ tên, đổi thân thành `new DoctorRatingReader(db).readMany([bacSiId])` và trả `DoctorRating` (ném lỗi nếu Map thiếu khoá, để M6 cũng làm đỏ B8); `rating-hide.int-spec.ts` và `rating-hide.concurrency.int-spec.ts` đổi dạng giá trị mong đợi từ `{ diem, soDanhGia }` sang `{ diemTrungBinh, soDanhGia }` và `toBeNull()` sang `{ null, 0 }`; mọi chỗ khác của hai file giữ nguyên.
+
+### 29.3 Chạy máy và thứ tự lượt (mỗi lệnh MỘT tiến trình; đo RAM bằng lệnh riêng trước từng lệnh; DB riêng `TEST_DB_NAME=clinix_exam_b9_test`; không `SET GLOBAL`; không chạm DB khác)
+- **Nhẹ (không DB, không cần xin):** viết mã, `tsc`, `oxlint`, `prettier`, vitest TỪNG FILE đơn vị (`doctor-rating.reader.spec.ts`); đột biến mức đơn vị chạy trên đúng file này (mỗi ca một tiến trình).
+- **P0 (xin phiên kiểm một lần, rất nhẹ, TRƯỚC khi viết mã):** trên DB `clinix_exam_b9_test` (bảng rỗng, vài chục dòng): (i) `EXPLAIN` rồi `SHOW WARNINGS` cho câu trên với `IN ('1','2')` và `IN (1,2)`: MySQL có viết lại hằng chuỗi thành số không, `possible_keys` có `lich_hen_index_10` không; (ii) kiểm id lớn nhất qua ca I5 (hai bác sĩ có id 2^53+1 và 2^53+3 phải ra hai kết quả khác nhau). **Nếu (i) cho thấy hằng chuỗi KHÔNG được chuyển thành số, hoặc (ii) trộn hai bác sĩ:** đổi cách buộc (mỗi dấu `?` bọc `CAST(? AS SIGNED)` hoặc truyền số khi an toàn) và KHI ĐÓ mới xin lane nặng đo lại M6 (DTB-09, DB riêng `clinix_exam_b9_explain_test`, bộ nạp ~100.000 lịch); nếu cả hai đạt thì trích X1 M6 và ghi rõ giới hạn "cách buộc `IN` đã kiểm ở P0".
+- **KẾT QUẢ P0 (17/11/2026; lượt do phiên kiểm cấp; RAM trống 3.627 MB ngay trước lệnh; MỘT tiến trình `node`; DB `clinix_exam_b9_test`; script đặt NGOÀI repo và đã xoá):** MySQL 8.4.11, `sql_mode` có `ONLY_FULL_GROUP_BY` (nên đột biến M5 ném lỗi), `REPEATABLE-READ`, `eq_range_index_dive_limit` 200. Hai bảng `lich_hen` và `danh_gia_bac_si` dựng bằng ĐÚNG DDL của `docs/database/clinix_mysql.sql` (không khoá ngoại; 5 chỉ mục), nạp 30.006 lịch và 20.006 đánh giá rồi `ANALYZE TABLE`. Mọi lời gọi đi qua ĐÚNG đường của reader: `DataSource.query(sql, [ids])` của TypeORM với mysql2 (khai triển của mysql2: `IN ('1', '22', '333')`). **(i) Hằng chuỗi và hằng số cho CÙNG kế hoạch và cùng kết quả:** K = 50 và K = 250 id: `danh_gia_bac_si` `ALL` 19.209 hàng rồi `lich_hen` `eq_ref` `PRIMARY` ở cả hai cách buộc (đúng kế hoạch X1 M6); K = 1: `lich_hen` `ref` `lich_hen_index_10` rồi `danh_gia_bac_si` `eq_ref`. `SHOW WARNINGS` của câu buộc bằng chuỗi (K = 50, 250) cho thấy MySQL đã viết lại thành `bac_si_id in (1,2,3,…)`, tức hằng chuỗi đổi thành số (ở K = 1 câu thành phép `=` nên ghi chú không có chữ `in`, không đọc được chỗ này). Thời gian trung vị qua `DataSource.query` (30 lần sau 1 lần làm nóng), chuỗi so với số: K = 1: 1,39 và 1,34 ms; K = 50: 20,54 và 21,02 ms (X1 M6: 20,8 ms); K = 250: 21,68 và 21,16 ms. **(ii) Id lớn qua `DataSource.query`:** `[2^53+1, 2^53+3]` ra đúng hai bác sĩ `9007199254740993` (`2.0`) và `9007199254740995` (`4.0`); từng id một (`2^53`, `2^53+1`, `2^53+2`, `max-1`, `max`) ra đúng MỘT hàng, KHÔNG trộn hàng lân cận; `bacSiId` và `soDanhGia` về CHUỖI, `diem` về chuỗi (`"2.0"`; xác nhận M5). **KẾT LUẬN: giữ nguyên câu SQL và cách buộc `[ids]`; KHÔNG đo lại M6 (trích X1).** **Giới hạn của P0 (ghi thật):** bảng thăm dò không có khoá ngoại, cỡ 30.006 lịch (không phải 100.000); lỗi của bộ nạp: không có đánh giá ẩn (`MOD(lich_hen_id, 33) = 0` bị loại bởi `MOD(khung_gio_id, 3) <> 0`) và bác sĩ id 1 và 7 không có đánh giá nào (dòng K = 1 và ca kiểu trả về của bác sĩ 7 đều ra 0 hàng), nên P0 KHÔNG đo thời gian "một bác sĩ có đánh giá" (số ở X1 M6 vẫn là số đó). Câu hỏi của P0 là cách buộc `IN`, không phải cỡ, nên các điều này không đổi kết luận. Hai bảng đã xoá khỏi DB (`global-setup` của int-spec đằng nào cũng dựng lại DB).
+- **Lane nặng A (xin "RẢNH"):** int-spec của `doctor-rating.reader.int-spec.ts`; ca `public-doctor.int-spec`, `public-doctor-detail.int-spec` và cả thư mục `src/search/`; `rating-hide.int-spec` và `rating-hide.concurrency.int-spec` (KDD-15, DTB-03, DHK-08); **mỗi file int ít nhất một lần với `$env:TZ='UTC'`** (đặt lại sau; không sửa `ci.yml`).
+- **Lane nặng B:** e2e `doctor-exam-public-rating` (mới), `search-doctors`, `doctor-exam-admin-hide-rating`, `doctor-exam-rating`.
+- **Lane nặng C:** đột biến cần DB (29.4). **Lane nặng D (cuối):** `npm test` cả `apps/api`, `lint`, `build`.
+
+### 29.4 Bảng test dự kiến (U = đơn vị không DB với `DataSource.query` giả; I = MySQL thật với reader THẬT; E = e2e qua `AppModule`; mỗi `it` ghi mã ở tên; `[đề xuất]` là mã mới)
+| Mã | Ca | Kỳ vọng | Loại · file |
+|---|---|---|---|
+| TBS-14, DTB-04 (b) | `[]` | Map rỗng và `query` không được gọi lần nào (ĐỔI nội dung TBS-14: "chưa có đánh giá" ⇒ I) | U · `doctor-rating.reader.spec.ts` |
+| DTB-04 (a), (c) | `['3','1','2']`, chỉ id `'1'` có hàng; `['5','5','7','5']` | khoá đúng thứ tự đầu vào, id vắng `toBe(NO_RATING)`, trùng MỘT khoá, MỘT lần `query`, tham số `[['5','7']]` | U |
+| DTB-14 `[đề xuất]` | hàng `{ bacSiId: '7', diem: '4.0', soDanhGia: '3' }` (chuỗi như driver, M5) | `{ diemTrungBinh: '4.0', soDanhGia: 3 }` với `typeof soDanhGia` là `number`; `NO_RATING` không đổi sau mọi lời gọi | U |
+| DTB-12 `[đề xuất]` (a), (b) | id `'9007199254740993'`, `'9223372036854775807'`; id không phải số (`''`, `'abc'`, `'01'`, `'-1'`, `'1.5'`, `' 1'`, `"1 OR 1=1"`, `"1'; DROP TABLE x;--"`) | khoá giữ nguyên chuỗi; id không phải số không vào tham số và nhận `NO_RATING`; chỉ toàn id không phải số ⇒ không SQL | U |
+| DTB-11 `[đề xuất]` | quét VĂN BẢN `AVERAGE_RATING_SQL` và độ ổn định theo số id | đúng MỘT `SELECT`; có `dg.bi_an = 0`, `ROUND(AVG(dg.so_sao), 1)`, `COUNT(*)`, `GROUP BY lh.bac_si_id`, nối `lh.lich_hen_id = dg.lich_hen_id`, đúng một `IN (?)`; không `*`, `FOR UPDATE`, `FOR SHARE`, `INSERT`, `UPDATE`, `DELETE`, `NOW(`; văn bản KHÔNG đổi giữa 1 và 1.000 id; tham số là MỘT phần tử (mảng id) | U |
+| DTB-13 `[đề xuất]` (U) | hai lần gọi liên tiếp với dữ liệu giả đổi giữa hai lần | hai lần `query`; kết quả lần hai thấy dữ liệu mới | U |
+| DTB-15 `[đề xuất]` | `query` ném lỗi | `readMany` từ chối (không thành `NO_RATING`) | U |
+| HDK-08 | chữ ký | `readMany.length` là 1; `tsc` biên dịch hai int-spec của `search/` và `public-doctor.service.ts` không đổi (`git diff` rỗng ở file đó) | U + biên dịch |
+| DTB-01 | bác sĩ không có đánh giá; có lịch nhưng chưa đánh giá | `{ null, 0 }` | I · `doctor-rating.reader.int-spec.ts` |
+| DTB-02 | (5,4); (5,5,4); (4,4,4,5)=4,25; 20 đánh giá tổng 67 = 3,35; (4,4,4); (1); (5) | `"4.5"`, `"4.7"`, `"4.3"`, `"3.4"`, `"4.0"`, `"1.0"`, `"5.0"` (half-up đã đo ở M5) | I |
+| DTB-03 | 5, 4, 1 và một đánh giá đã ẩn; sau đó ẩn 1 sao; ẩn hết | điểm và `soDanhGia` không tính ẩn: `"3.3"`/3 ⇒ `"4.5"`/2; ẩn hết ⇒ `{ null, 0 }` | I; và B8 (KDD-15, DTB-03) chạy bằng reader THẬT |
+| DTB-04, DTB-05 | một lời gọi cho A (5,4), B (2,3), C (không có) và id không tồn tại; cùng một bệnh nhân đánh giá hai bác sĩ | đủ khoá; nhóm đúng theo `lich_hen.bac_si_id`, không lẫn | I |
+| DTB-12 `[đề xuất]` (c), (d) | `[]`; 1.000 id (1 thật, 999 không có); hai bác sĩ id 2^53+1 và 2^53+3; id `'abc'` trong danh sách | Map rỗng không lỗi; Map 1.000 khoá, đúng một kết quả; hai bác sĩ KHÁC nhau và đúng; id lạ không làm lỗi DB | I |
+| DTB-13 `[đề xuất]` (I) | MỘT thể hiện reader: đọc, chèn đánh giá, đọc, ẩn bằng `UPDATE`, đọc | mỗi lần đọc thấy bản mới ngay | I |
+| DHK-08 | ẩn ‖ đọc điểm: (a) đóng băng người ghi, (b) 40 vòng | như B8 (đọc không bị chặn, `data_locks` chỉ `danh_gia_bac_si`, mọi lần đọc ∈ {cũ, mới}) nhưng bằng reader THẬT | I (concurrency, MỘT MÌNH) |
+| TBS-09, TBS-14 (cũ) | `public-doctor.int-spec`, `public-doctor-detail.int-spec` | còn đúng `{ null, 0 }` khi không có đánh giá; chỉ sửa hàm dựng | I |
+| DTB-06 | bệnh nhân gửi đánh giá bằng HTTP rồi `GET /public/doctors` và `/public/doctors/:id` | `{ null, 0 }` ⇒ `{ "4.0", 1 }` ⇒ `{ "4.5", 2 }` ngay, không cache | E · `test/doctor-exam-public-rating.e2e-spec.ts` (mới) |
+| DTB-03 (E) `[đề xuất]` | Quản trị viên ẩn bằng HTTP (route B8) rồi đọc công khai | điểm và số lượt đổi ngay; ẩn hết ⇒ `{ null, 0 }` | E |
+| DTB-08 | danh sách và chi tiết của mọi bác sĩ trong thế giới thử | cùng `danhGia` | E |
+| DTB-07 (a), (b) | `diemTu` 4, 4,3, 4,4, 5; `sapXep=danhGiaCao` kèm `pageSize=2`; bác sĩ 4,25 | `diemTu=4,3` GIỮ bác sĩ `"4.3"` (điểm đã làm tròn), `4,4` loại; chưa có đánh giá bị loại khi có `diemTu`; sắp: điểm giảm, rồi số lượt giảm, chưa có đánh giá cuối; `total` đúng | E (`search-doctors.e2e` cũ chạy lại cho TBS-07 miền 400) |
+| DTB-10 | thế giới có đánh giá ẩn, nhận xét riêng, lý do ẩn riêng, tên và email người đánh giá | tập khoá của mục danh sách và `danhGia` (đúng hai khoá) khớp danh sách trắng; văn bản phản hồi KHÔNG chứa `biAn`, `bi_an`, `lyDoAn`, `ly_do_an`, `nhanXet`, các chuỗi riêng | E |
+| DTB-09 | EXPLAIN ở ~100.000 lịch | **chỉ khi P0 báo cần** (29.3); mặc định "trích X1 M6" | I (lane riêng) |
+
+### 29.5 Đột biến có kiểm soát (**20 ca**; DỰ ĐOÁN GHI TRƯỚC KHI CÓ MÃ, không sửa sau khi thấy kết quả; chỉ trên `doctor-rating.reader.ts`; mỗi ca MỘT vitest MỘT file; sao lưu NGOÀI repo kèm SHA-256, khôi phục và kiểm SHA từng ca, 0 file `*.mut`; chuỗi cũ phải xuất hiện ĐÚNG MỘT lần (kiểm KHÔ bằng Python trước); đối chứng không đột biến ở đầu và cuối; ca lệch ghi nguyên văn cả hai phía; ca sống sót phân loại "giới hạn" hay "lỗ hổng")
+Lớp: **U** = `reader.spec`; **I** = `reader.int-spec`; **B8** = `rating-hide.int-spec` (KDD-15, DTB-03); **E** = e2e mới; **S** = `public-doctor.int-spec` và `public-doctor-detail.int-spec`.
+| # | Đột biến | Dự đoán: bị bắt bởi | Dự đoán: SỐNG SÓT ở (và vì sao) |
+|---|---|---|---|
+| M1 | bỏ `dg.bi_an = 0` | U (DTB-11), I (DTB-03), B8, E | S (thế giới không có đánh giá) |
+| M2 | `ROUND(AVG(..), 1)` thành `TRUNCATE(AVG(..), 1)` | U (DTB-11), I (DTB-02: 4,25 ra `"4.2"`, (5,5,4) ra `"4.6"`), E (bác sĩ 4,25) | B8 (3,33 và 4,5 trùng nhau), E ca 4,5 |
+| M3 | thành `FLOOR(AVG(..))` | U, I, B8 (`"3"` thay `"3.3"`), E | S |
+| M4a | `lh.bac_si_id` thành `lh.benh_nhan_id` (SELECT, WHERE và GROUP BY) | U (DTB-11), I (nhóm sai ⇒ mọi bác sĩ `NO_RATING`), B8, E | S |
+| M4b | điều kiện nối thành `ON 1 = 1` | U (DTB-11), I (đếm nhân lên) | E nếu chỉ có 1 đánh giá mỗi bác sĩ (giới hạn của dữ liệu); sẽ ghi |
+| M5 | bỏ `GROUP BY` | U (DTB-11), I, E, S (MySQL 8 `ONLY_FULL_GROUP_BY` ném lỗi; ghi `@@sql_mode`) | không (mọi lớp đỏ) |
+| M6 | không điền `NO_RATING` cho id vắng | U (DTB-04), I (DTB-01), B8 (`readAverage` ném khi thiếu khoá) | S và E (lưới `?? null`, `?? 0` của service che; **giới hạn có chủ đích**) |
+| M7 | bỏ nhánh danh sách rỗng (vẫn chạy SQL) | U (không được gọi), I (`IN ()` lỗi cú pháp ở ca `[]`) | S, E |
+| M8 | bỏ `Number(...)` của `soDanhGia` | U (DTB-14), I (`toEqual` số), E | S, B8 nếu so bằng `toMatchObject` (sẽ ghi) |
+| M9 | `diemTrungBinh: Number(row.diem)` (số thay chuỗi) | U, I (`"4.0"` thành `4`), E | S (không có đánh giá), B8 (xem hình dạng so sánh) |
+| M10 | nối chuỗi id vào `IN (...)`, bỏ tham số | U (DTB-11: văn bản đổi theo số id, tham số không còn mảng) | I, E, S (hành vi y hệt; **giới hạn: chỉ quét văn bản bắt được**) |
+| M11 | cache kết quả theo thể hiện giữa hai lần gọi | U (DTB-13), I (DTB-13), E (DTB-06) | S |
+| M12 | sắp khoá của Map theo chữ | U (thứ tự đầu vào) | I, E, S (không phụ thuộc thứ tự; **giới hạn**) |
+| M13 | bỏ `bi_an = 0` khỏi `WHERE`, chỉ giữ trong `AVG(CASE WHEN ...)` (đếm cả ẩn ở `soDanhGia`) | U (DTB-11), I (DTB-03: đếm 4 thay 3), B8 (KDD-15), E | S |
+| M14 | bỏ lọc id không phải số | U (DTB-12 (b): tham số lạ) | I, E (MySQL chỉ cảnh báo; **giới hạn: không đổi hành vi quan sát được**) |
+| M15 | nuốt lỗi DB thành Map `NO_RATING` | U (DTB-15) | I, E, S (DB khoẻ; **giới hạn**) |
+| M16 | `NO_RATING.diemTrungBinh` thành `'0.0'` | U, I, S (TBS-09/14 `{ null, 0 }`), E | không |
+| M17 | khoá Map là số (`Number(row.bacSiId)`) | U (DTB-12), I (mọi hàng ra `NO_RATING`; id lớn), E | S |
+| M18 | `ROUND(AVG(..), 2)` | U (DTB-11), I (`"4.50"`), E | S |
+| M19 | bỏ khử trùng trước SQL (lấy từ `doctorIds` thay `result.keys()`) | U (DTB-04 (c): tham số có id lặp) | I, E, S (Map vẫn một khoá; **giới hạn**) |
+Thứ tự chạy: (1) cả 20 ca với file U (nhẹ); (2) các ca còn lại cần DB với file I (một lượt lane C); (3) M1, M6, M13 với `rating-hide.int-spec`; (4) M1, M8, M9, M11 với e2e mới. Bất cứ ca nào đọc lại thấy chưa lớp nào bắt được thì THÊM ca test TRƯỚC khi chạy.
+
+### 29.6 File dự kiến đổi (mới = M, sửa = S) và `[ĐỤNG search]`
+- **`[ĐỤNG search]` (module của Trung; Đại báo Trung trước khi mở PR), 4 file sửa và 1 file mới:** S `search/ratings/doctor-rating.reader.ts`; S `search/ratings/doctor-rating.reader.spec.ts` (TBS-14 đổi); S `search/doctors/public-doctor.int-spec.ts` (một dòng: `new DoctorRatingReader(db)`); S `search/doctors/public-doctor-detail.int-spec.ts` (một dòng); M `search/ratings/doctor-rating.reader.int-spec.ts`. **KHÔNG đổi:** `search.module.ts`, `public-doctor.service.ts`, `doctor-list.rules.ts`, `public-doctor.repository.ts`.
+- Ngoài `search/` (của Đại): M `apps/api/test/doctor-exam-public-rating.e2e-spec.ts`; S `doctor/examination/testing/hide-rating-stack.ts`; S `doctor/examination/moderation/rating-hide.int-spec.ts`; S `doctor/examination/moderation/rating-hide.concurrency.int-spec.ts`.
+- Tài liệu `[ĐỒNG BỘ TL]`: S `docs/features/doctor-exam/PLAN.md` (tick B9 ở 6.3 và DTB-01…10, HDK-08 ở 7.x chỉ SAU lần chạy lại cuối; sửa câu "bên đọc là bản chép" ở KDD-15 và DHK-08; thêm DTB-11…15 `[đề xuất]`); S `docs/features/doctor-exam/TRACKING.md` (mục này); S `docs/features/search/PLAN.md` (K5 ☑, TBS-14 đổi loại và nội dung). `AI_USAGE_LOG.md` và `docs/TECH_DEBT.md`: KHÔNG sửa khi chưa được phép (nháp ở báo cáo cuối).
+- **KHÔNG:** `docs/database/*`, migration, entity, `apps/web`, `admin/**`, `appointments/**`, `audit/**`, `.github/workflows/*`.
+
+### 29.7 KHÔNG làm; rủi ro
+- **KHÔNG làm:** web, hộp ẩn (F8, đã merge), seed (B10), D1, D2, đổi schema hay chỉ mục, cache, đổi cách làm tròn, chia mảnh `IN`, đổi `public-doctor.service.ts` hay `doctor-list.rules.ts`.
+- **Rủi ro:** (1) đổi hàm dựng làm vỡ int-spec của `search/`: đã đếm đúng hai file, mỗi file một dòng, chạy cả thư mục `search/` để chắc; (2) số id vào `readMany` bằng số bác sĩ công khai, không bằng `pageSize` (29.1 điều 4): trong vùng đã đo tới 50 (bộ nạp 60), chưa đo trên 200; (3) cách buộc `IN` chuỗi chưa kiểm ở X1: bước P0; (4) `tsc --noEmit` còn lỗi sẵn có `payment/architecture.spec.ts(233,8)` không thuộc B9; (5) jscpd: bộ dựng của int-spec và e2e mới tái dùng `moderationWorld`, `statusWorld`, `ratingBody`; CI đo, không chạy tay (quy ước mức "Gọn" chỉ áp cho jscpd và gitleaks).
+
+### 29.8 Câu hỏi và đề xuất (người trả lời: phiên kiểm theo ủy quyền; mục ngoại lệ của Đại sẽ hỏi trực tiếp)
+(a) **Tiêm DB:** `@Inject(DataSource) private readonly db: DataSource` như `ExamPriceReader` và mọi repository của `search/`; file `search/` phải sửa: bốn file sửa và một file mới ở 29.6, **không** `search.module.ts`. Đề xuất: theo đó.
+(b) **M6:** trích X1 (câu SQL giống từng chữ), kèm bước P0 nhẹ kiểm cách buộc `IN`; đo lại ~100.000 lịch CHỈ khi P0 báo khác. Đề xuất: theo đó (không xin lane nặng cho EXPLAIN trước khi biết P0).
+(c) **TBS-14:** giữ hai ca đơn vị không DB (danh sách rỗng, quy tắc id) ở `doctor-rating.reader.spec.ts` và chuyển phần "điểm thật" sang int-spec; đề xuất giữ vì phần quy tắc id và "không SQL khi rỗng" là logic thuần.
+(d) **Mã test mới `[đề xuất]`:** DTB-11 (quét văn bản SQL), DTB-12 (id biên: lớn, không phải số, 1.000, rỗng), DTB-13 (không cache), DTB-14 (kiểu trả về), DTB-15 (lỗi DB lan ra); thêm DTB-03 (E) cho đường ẩn bằng HTTP.
+(e) **Tiêu đề PR** (71 ký tự ≤ 100): `feat(search): điểm đánh giá bác sĩ đọc từ dữ liệu thật (doctor-exam B9)`; thân PR có `Closes #405`, `Refs #390`, `[ĐỤNG search]` kèm danh sách file, và câu "không đổi schema, không đổi public-doctor.service".
+(f) **Lọc id không phải số trước SQL:** đề xuất CÓ (ngoài việc tham số hoá của driver, id lạ không đến câu SQL; ghi ở M14 là "giới hạn" vì hành vi không đổi).
+(g) **Không dùng `runReadOnly`:** một câu một ảnh chụp, tiết kiệm ba vòng gọi: đề xuất theo đó.
+(h) **`readAverage` của B8:** giữ tên, đổi thân sang reader thật và ném khi thiếu khoá (thay vì xoá hàm): ít sửa nhất cho hai file của B8.
+(i) **Cỡ đầu vào không bị `pageSize` chặn (29.1 điều 4):** đề xuất ghi ở TRACKING, KHÔNG ghi `TECH_DEBT` và KHÔNG chia mảnh ở B9 (nếu Đại muốn một dòng nợ thì hỏi trực tiếp).
+
+### 29.9 Kết quả chặng 1 (17/11/2026; mã và test đơn vị, chỉ lane nhẹ; **CHƯA chạy int-spec, e2e, đột biến, `npm test` cả bộ, `build`**: chờ lượt A đến D của phiên kiểm; 29.1 đến 29.8 giữ nguyên bản đã duyệt)
+**Mã viết xong:** `search/ratings/doctor-rating.reader.ts` (viết lại: `AVERAGE_RATING_SQL` xuất ra, `@Inject(DataSource)`, `readMany` đúng 29.2; 58 dòng); `search/ratings/doctor-rating.reader.spec.ts` (viết lại: 12 ca đơn vị với `DataSource.query` giả); sửa MỘT dòng `new DoctorRatingReader(db)` ở `search/doctors/public-doctor.int-spec.ts` và `public-doctor-detail.int-spec.ts`; `doctor/examination/testing/hide-rating-stack.ts` (bỏ `PLAN_5_9_AVERAGE_SQL` và `Average`, `readAverage` gọi reader THẬT và ném khi Map thiếu khoá); `moderation/rating-hide.int-spec.ts` và `rating-hide.concurrency.int-spec.ts` (đổi dạng giá trị mong đợi sang `{ diemTrungBinh, soDanhGia }`; `toBeNull()` thành `{ null, 0 }`; kiểu `Average` thành `DoctorRating`). **Viết nhưng CHƯA chạy (cần lượt A và B):** `search/ratings/doctor-rating.reader.int-spec.ts` (mới, 9 ca: DTB-01, DTB-02, DTB-03 (hai ca), DTB-04/05 (hai ca), DTB-12 (c), (d), DTB-13) và `test/doctor-exam-public-rating.e2e-spec.ts` (mới, 6 ca: DTB-06, DTB-03 (E), DTB-08, DTB-07 (a), (b), DTB-10). Không đổi `search.module.ts`, `public-doctor.service.ts`, `doctor-list.rules.ts`.
+**Test đơn vị (`doctor-rating.reader.spec.ts`, 12/12 xanh, hai lần: lần đầu trước khi sửa cảnh báo lint, lần cuối trên mã cuối):** TBS-14 và DTB-04 (b) (rỗng, không SQL), DTB-04 (a) (đủ khoá, thứ tự, `toBe(NO_RATING)`, một câu), DTB-04 (c) (trùng), DTB-14 (kiểu số và chuỗi, M5), DTB-12 (a) (id lớn giữ chuỗi), DTB-12 (b) (hai ca: id lạ không vào tham số; toàn id lạ không SQL), DTB-11 (hai ca: văn bản SQL; không nối chuỗi, tham số là một mảng), DTB-13 (không cache), DTB-15 (lỗi DB lan ra), HDK-08 (chữ ký).
+**Kiểm tĩnh trên mã cuối:** `prettier --check` sạch; `oxlint --type-aware` exit 0 (lần đầu MỘT cảnh báo `unbound-method` ở ca HDK-08, đã sửa bằng cách đo độ dài của hàm đã `bind`); **`tsc --noEmit` còn MỘT lỗi sẵn có trên `main`, không phải của B9: `src/payment/architecture.spec.ts(249,8) TS2555`** (B8 ghi dòng 233; file đã đổi trên `main`); mọi file B9 biên dịch (kể cả hai file chưa chạy). Bộ quét không DB vẫn xanh: `examination.architecture.spec` 21 ca, `doctor/architecture.spec` 12 ca (PD-19, HD-08), `search/testing/public-route-audit.spec` 7 ca.
+**RAM trống đo bằng lệnh riêng trước từng lệnh (MB):** 3.627 (P0, `node`); 2.883 (vitest đơn vị lần đầu); 3.261 (prettier); 3.165 và 4.050 (oxlint hai lần); 3.981 (tsc); 4.056 (prettier --check); 3.937 (vitest đơn vị cuối); 3.265, 3.788, 3.822 (ba file kiến trúc, mỗi file một tiến trình, kiểm ngay trong lệnh).
+**Chỗ chưa chắc của hai file chưa chạy (sẽ biết ở lượt A và B):** (1) ca DTB-12 (d) chèn lịch và đánh giá bằng SQL thô với `FOREIGN_KEY_CHECKS = 0` ở MỘT kết nối (không có tài khoản bác sĩ id lớn): nếu migration thật có CHECK hay ràng buộc ngoài dự kiến thì sửa ở test; (2) e2e dựng thêm bác sĩ công khai bằng `SearchFixtures.publicDoctor` rồi `seed` đánh giá qua `moderationWorld`: nếu một bác sĩ thiếu điều kiện công khai thì `total` lệch và sửa ở test; (3) DTB-07 (a) khẳng định hợp đồng "so với điểm đã làm tròn" (bác sĩ Q hiển thị `"4.3"`, trung bình thật 4,25).
+
+### 29.10 Kết quả lượt A, B, C (17/11/2026; lượt do phiên kiểm cấp theo ủy quyền của Đại; mỗi lệnh MỘT tiến trình; DB `clinix_exam_b9_test`; RAM đo bằng lệnh riêng ngay trước mỗi lệnh; 29.1 đến 29.9 giữ nguyên, kể cả dự đoán đột biến 29.5: hash mục 29.5 đo lúc bắt đầu và lúc kết thúc lượt C GIỐNG HỆT)
+**Lượt A (int-spec, MySQL thật; tất cả XANH).** RAM trống trước lệnh (MB) ghi trong ngoặc.
+- `doctor-rating.reader.int-spec.ts`: **9/9** ở TZ mặc định, 24 giây (4.113); **9/9 ở `TZ=UTC`** (vitest in `Start at 14:58`), 24 giây (3.521); `TZ` đã đặt lại.
+- `public-doctor.int-spec.ts` và `public-doctor-detail.int-spec.ts` (đã sửa MỘT dòng hàm dựng): **13/13**, 21 giây (3.910). **Cả thư mục `src/search/` (chỉ int-spec): 12 file, 93/93**, 135 giây (3.953).
+- `rating-hide.int-spec.ts` (KDD-15, DTB-03 bằng `DoctorRatingReader` THẬT): **34/34**, 59 giây (2.676).
+- `rating-hide.concurrency.int-spec.ts`, MỘT MÌNH: lần đầu RAM 2.374 MB (dưới 2,4 GB: chưa chạy), đo lại 2.408 MB rồi chạy: **5/5**, 26 giây; chạy lại với `--reporter=verbose` để lấy số đo (2.495): **5/5**, 24 giây. **DHK-08 với reader thật: (a)** đóng băng người ghi: đọc lúc đóng băng **1 ms**, thấy BẢN CŨ `{"3.3", 3}`, bảng bị khoá chỉ có `danh_gia_bac_si`; sau commit thấy BẢN MỚI `{"4.5", 2}`; **(b)** 40 vòng, ba vòng đọc liên tục: **3.973 lần đọc** (1.747 bắt đầu trước commit, 2.226 sau commit; 1.627 thấy bản cũ, 2.346 thấy bản mới), **không lần đọc nào ngoài {bản cũ, bản mới}**, mọi lần đọc bắt đầu sau commit thấy bản mới, **0 lần thử lại, 0 × 503**. DHK-07 (a), (b), (c) cùng lần chạy: 40, 40, 20 vòng, 0 lần thử lại, 0 × 503 (như B8). Dự đoán 29.5/29.3 ("đọc không bị chặn, chỉ khoá `danh_gia_bac_si`"): đúng.
+
+**Lượt B (e2e qua `AppModule`).**
+- `doctor-exam-public-rating.e2e-spec.ts` (mới), **lần 1: 3 ĐỎ, 3 xanh** (45 giây; 2.532). **Ba ca đỏ là giả định SAI của test (không phải mã sản phẩm):** `moderationWorld` tạo thêm bác sĩ B và C, ĐỀU công khai, nên danh sách có nhiều bác sĩ hơn tôi tính. Thông báo thật: `expected [ { bacSiId: '1', …(8) }, …(4) ] to have a length of 3 but got 5` (DTB-08), `expected 8 to be 6` (DTB-07 (a)), `expected Set{ '1', '8', '9', '16' } to deeply equal Set{ '16', '1' }` (DTB-07 (b)). **Sửa tối thiểu, nguyên văn TRƯỚC → SAU (chỉ ở file test):** `expect(body.items).toHaveLength(3);` → `// bác sĩ A, B, C của thế giới (B và C chưa có đánh giá) cộng hai bác sĩ thêm` rồi `expect(body.items).toHaveLength(5);`; `expect(all.total).toBe(6);` cùng `expect(idsOf(all)).toContain(x.none);` và `expect(idsOf(all)).toContain(x.a);` → `expect(all.total).toBe(8);` và `for (const id of x.unrated) expect(idsOf(all)).toContain(id);`; `expect(new Set(idsOf(all).slice(4))).toEqual(new Set([x.none, x.a]));` → `expect(new Set(idsOf(all).slice(4))).toEqual(new Set(x.unrated));`; `return { p, q, r, s, none, a: t.w.doctor.account.taiKhoanId };` → `unrated` = `[none, A, B, C]` và `return { p, q, r, s, unrated };`. **Lần 2: 6/6**, 24 giây (RAM 1.950 ⇒ dưới 2,0 GB nên dừng; đo lại 2.030, rồi chờ 2.120, 2.286, 2.383, 2.391, 2.388 và chạy ở 2.456).
+- `search-doctors.e2e-spec.ts` (TBS-07 miền 400 chạy lại, không đổi): **9/9**, 25 giây (2.377, 2.326, 2.479). `doctor-exam-admin-hide-rating.e2e-spec.ts`: **33/33**, 69 giây (2.608). `doctor-exam-rating.e2e-spec.ts`: lần đầu RAM 1.959 (dừng); lần sau (lượt B4 do phiên kiểm cấp lại, 3.178): **17/17**, 36 giây.
+
+**Lượt C (đột biến, 20 ca, chỉ trên `doctor-rating.reader.ts`).** Bộ chạy `mutate_b9.py` (ngoài repo): dry-check 20 ca, MỖI chuỗi cũ xuất hiện đúng MỘT lần; sao lưu ngoài repo, SHA-256 gốc `8ef7549f33f85ba5` khôi phục và so sau TỪNG ca (không lần nào lệch); mỗi ca MỘT vitest MỘT file, tuần tự; RAM đo trước mỗi ca (cột cuối mỗi bảng). **Sự cố:** lượt chạy nền đầu bị HỆ THỐNG dừng lúc 22:17 (sau M9/U) vì thiếu RAM (hook lint của cửa sổ khác); file đích đã về đúng bản gốc (SHA khớp, không tiến trình sót); chạy lại bằng từng pha FOREGROUND, bộ chạy bỏ qua cặp đã có nên kết quả M1 đến M9 lớp U giữ từ lần đầu. Không ca nào "Test timed out".
+**Tóm tắt:** lớp U **20/20 bắt**; lớp I **16 bắt, 4 sống sót** (M10, M14, M15, M19, đúng dự đoán: "giới hạn"); `rating-hide.int-spec` **3/3 bắt**; e2e mới **4 bắt (M1, M8, M9, M11), 1 sống sót (M6, đúng dự đoán)**; `public-doctor.int-spec` **2 bắt (M5, M16), 1 sống sót (M6, đúng dự đoán)**. **0 ca không lớp nào bắt được.** Đối chứng đầu và cuối XANH ở cả 5 file (U 12/12, I 9/9, B8 34/34, E 6/6, S 8/8). Dọn: `final-check` file đích == bản gốc; 0 file `*.mut`, `zz-`, sao lưu trong repo.
+**MỘT chỗ LỆCH dự đoán, ghi nguyên văn cả hai phía.** *Dự đoán (29.5, M12):* "sắp khoá của Map theo chữ | U (thứ tự đầu vào) | I, E, S (không phụ thuộc thứ tự; **giới hạn**)". *Thực tế:* lớp I BẮT M12 (2 ca đỏ: ca DTB-04/05 nhiều bác sĩ và ca DTB-12 (c) 1.000 id) vì cả hai khẳng định `expect([...result.keys()]).toEqual(ids)` đúng thứ tự đầu vào; tôi viết test mạnh hơn điều đã dự đoán. Phần "sống sót ở E, S" của M12 KHÔNG được đo (không nằm trong các cặp lớp đã chạy).
+**Phân loại ca sống sót (lớp I, đều chỉ bị lớp U bắt):** M10 (nối chuỗi vào `IN`), M14 (bỏ lọc id không phải số), M19 (bỏ khử trùng trước SQL): hành vi quan sát được ở MySQL thật KHÔNG đổi (id toàn chữ số, MySQL chỉ cảnh báo khi gặp chữ, `Map` đã khử trùng) nên chỉ quét văn bản và kiểm tham số bắt được: **giới hạn** (lớp phòng thủ, không phải lỗ hổng). M15 (nuốt lỗi DB): DB khoẻ ở int-spec; U bắt: **giới hạn**. M6 ở e2e và `public-doctor.int-spec`: `PublicDoctorService` có lưới an toàn `?? null`, `?? 0` nên một reader quên điền `NO_RATING` không làm đỏ test của service; U, I và B8 (`readAverage` ném khi Map thiếu khoá) bắt: **giới hạn có chủ đích**. **Chưa đo (ghi thật):** các dự đoán "sống sót" của 29.5 ở những cặp lớp KHÔNG chạy (ví dụ M2, M3 và M4a ở B8; M5, M7, M10, M12 đến M19 ở e2e và `public-doctor.int-spec`): chỉ chạy tập con của 29.5 (3) và (4).
+
+**Lớp U: `doctor-rating.reader.spec.ts` (đơn vị, 12 ca).**
+
+| Ca | Kết quả | Dự đoán 29.5 | Khớp | Giây | RAM trống trước ca (MB) |
+|---|---|---|---|---|---|
+| đối chứng ĐẦU (không đột biến) | xanh 12/12 | xanh | khớp | 2 | 3280 |
+| M1 | BẮT (1 đỏ/12) | bắt | khớp | 1 | 2818 |
+| M2 | BẮT (1 đỏ/12) | bắt | khớp | 1 | 2827 |
+| M3 | BẮT (1 đỏ/12) | bắt | khớp | 1 | 2840 |
+| M4a | BẮT (1 đỏ/12) | bắt | khớp | 1 | 2871 |
+| M4b | BẮT (1 đỏ/12) | bắt | khớp | 1 | 2936 |
+| M5 | BẮT (1 đỏ/12) | bắt | khớp | 1 | 2919 |
+| M6 | BẮT (7 đỏ/12) | bắt | khớp | 2 | 2717 |
+| M7 | BẮT (2 đỏ/12) | bắt | khớp | 1 | 2408 |
+| M8 | BẮT (6 đỏ/12) | bắt | khớp | 1 | 2539 |
+| M9 | BẮT (6 đỏ/12) | bắt | khớp | 2 | 2542 |
+| M10 | BẮT (4 đỏ/12) | bắt | khớp | 36 | 5933 |
+| M11 | BẮT (1 đỏ/12) | bắt | khớp | 1 | 5447 |
+| M12 | BẮT (3 đỏ/12) | bắt | khớp | 1 | 5415 |
+| M13 | BẮT (1 đỏ/12) | bắt | khớp | 1 | 5419 |
+| M14 | BẮT (2 đỏ/12) | bắt | khớp | 1 | 6059 |
+| M15 | BẮT (1 đỏ/12) | bắt | khớp | 1 | 5122 |
+| M16 | BẮT (2 đỏ/12) | bắt | khớp | 1 | 5800 |
+| M17 | BẮT (6 đỏ/12) | bắt | khớp | 2 | 5617 |
+| M18 | BẮT (1 đỏ/12) | bắt | khớp | 1 | 5471 |
+| M19 | BẮT (1 đỏ/12) | bắt | khớp | 1 | 5434 |
+| đối chứng CUỐI (không đột biến) | xanh 12/12 | xanh | khớp | 1 | 3969 |
+
+**Lớp I: `doctor-rating.reader.int-spec.ts` (MySQL thật, 9 ca).**
+
+| Ca | Kết quả | Dự đoán 29.5 | Khớp | Giây | RAM trống trước ca (MB) |
+|---|---|---|---|---|---|
+| đối chứng ĐẦU (không đột biến) | xanh 9/9 | xanh | khớp | 21 | 2909 |
+| M1 | BẮT (4 đỏ/9) | bắt | khớp | 42 | 5990 |
+| M2 | BẮT (1 đỏ/9) | bắt | khớp | 22 | 5862 |
+| M3 | BẮT (7 đỏ/9) | bắt | khớp | 22 | 6071 |
+| M4a | BẮT (7 đỏ/9) | bắt | khớp | 33 | 6021 |
+| M4b | BẮT (7 đỏ/9) | bắt | khớp | 42 | 5986 |
+| M5 | BẮT (5 đỏ/9) | bắt | khớp | 54 | 5969 |
+| M6 | BẮT (5 đỏ/9) | bắt | khớp | 51 | 4422 |
+| M7 | BẮT (1 đỏ/9) | bắt | khớp | 51 | 4172 |
+| M8 | BẮT (7 đỏ/9) | bắt | khớp | 46 | 4368 |
+| M9 | BẮT (7 đỏ/9) | bắt | khớp | 45 | 4446 |
+| M10 | SỐNG SÓT (9/9 xanh) | SỐNG SÓT | khớp | 53 | 4154 |
+| M11 | BẮT (3 đỏ/9) | bắt | khớp | 47 | 3152 |
+| M12 | BẮT (2 đỏ/9) | SỐNG SÓT | **LỆCH** | 46 | 3215 |
+| M13 | BẮT (4 đỏ/9) | bắt | khớp | 48 | 3479 |
+| M14 | SỐNG SÓT (9/9 xanh) | SỐNG SÓT | khớp | 46 | 3303 |
+| M15 | SỐNG SÓT (9/9 xanh) | SỐNG SÓT | khớp | 49 | 3466 |
+| M16 | BẮT (3 đỏ/9) | bắt | khớp | 47 | 3748 |
+| M17 | BẮT (7 đỏ/9) | bắt | khớp | 47 | 3497 |
+| M18 | BẮT (7 đỏ/9) | bắt | khớp | 50 | 3687 |
+| M19 | SỐNG SÓT (9/9 xanh) | SỐNG SÓT | khớp | 45 | 4076 |
+| đối chứng CUỐI (không đột biến) | xanh 9/9 | xanh | khớp | 20 | 4102 |
+
+**Lớp B8: `rating-hide.int-spec.ts` (34 ca; KDD-15, DTB-03 bằng reader thật).**
+
+| Ca | Kết quả | Dự đoán 29.5 | Khớp | Giây | RAM trống trước ca (MB) |
+|---|---|---|---|---|---|
+| đối chứng ĐẦU (không đột biến) | xanh 34/34 | xanh | khớp | 54 | 3093 |
+| M1 | BẮT (2 đỏ/34) | bắt | khớp | 122 | 4022 |
+| M6 | BẮT (1 đỏ/34) | bắt | khớp | 127 | 4082 |
+| M13 | BẮT (2 đỏ/34) | bắt | khớp | 127 | 3297 |
+| đối chứng CUỐI (không đột biến) | xanh 34/34 | xanh | khớp | 60 | 4224 |
+
+**Lớp E: `doctor-exam-public-rating.e2e-spec.ts` (6 ca).**
+
+| Ca | Kết quả | Dự đoán 29.5 | Khớp | Giây | RAM trống trước ca (MB) |
+|---|---|---|---|---|---|
+| đối chứng ĐẦU (không đột biến) | xanh 6/6 | xanh | khớp | 25 | 2876 |
+| M1 | BẮT (2 đỏ/6) | bắt | khớp | 67 | 3789 |
+| M6 | SỐNG SÓT (6/6 xanh) | SỐNG SÓT | khớp | 23 | 3033 |
+| M8 | BẮT (3 đỏ/6) | bắt | khớp | 24 | 3653 |
+| M9 | BẮT (3 đỏ/6) | bắt | khớp | 26 | 3640 |
+| M11 | BẮT (4 đỏ/6) | bắt | khớp | 23 | 3323 |
+| đối chứng CUỐI (không đột biến) | xanh 6/6 | xanh | khớp | 26 | 4050 |
+
+**Lớp S: `public-doctor.int-spec.ts` (8 ca).**
+
+| Ca | Kết quả | Dự đoán 29.5 | Khớp | Giây | RAM trống trước ca (MB) |
+|---|---|---|---|---|---|
+| đối chứng ĐẦU (không đột biến) | xanh 8/8 | xanh | khớp | 17 | 2879 |
+| M5 | BẮT (3 đỏ/8) | bắt | khớp | 30 | 3576 |
+| M6 | SỐNG SÓT (8/8 xanh) | SỐNG SÓT | khớp | 15 | 3661 |
+| M16 | BẮT (1 đỏ/8) | bắt | khớp | 27 | 3649 |
+| đối chứng CUỐI (không đột biến) | xanh 8/8 | xanh | khớp | 19 | 3939 |
+
+### 29.11 Kết quả lượt D, tài liệu và việc còn lại (17/11/2026; lượt D do phiên kiểm cấp; mỗi lệnh MỘT tiến trình, ở foreground, RAM đo ngay trước)
+**Lượt D (trên mã CUỐI):** `npm test` cả `apps/api` (không đặt `TEST_DB_NAME`: bộ đơn vị không cần DB): **313 file, 5.811 ca xanh**, 21 giây (RAM trống 3.683 MB). `npm run lint`: **thoát 0**, 4 giây (3.950). `npm run build`: **thoát 0**, 21 giây (4.089); thư mục `dist` có sẵn từ trước nên giữ (git bỏ qua). `tsc --noEmit` lần cuối (4.059): đúng MỘT lỗi **sẵn có trên `main`, KHÔNG phải của B9**: `src/payment/architecture.spec.ts(249,8) TS2555` (`@Roles()` không đối số; báo Trung). Không chạy `test:int` hay `test:e2e` cả bộ (CI chạy; các file liên quan đã chạy ở lượt A và B).
+**Tài liệu sửa cùng PR (`[ĐỒNG BỘ TL]`):** `docs/features/doctor-exam/PLAN.md`: B9 ở 6.3 thành ☑ kèm kết quả (và bỏ thẻ `[CHỜ Q9, Trung]` vì Q9 đã trả lời); câu "đã làm ở B9" ở cuối 5.9; KDD-15 (7.5), DTB-01…DTB-10 (7.6, mỗi ca ghi Pass ở B9, riêng DTB-09 ghi "trích X1 M6, không đo lại"), thêm DTB-11…DTB-15 `[đề xuất]`, DHK-08 (7.8: sửa câu "bên đọc là bản chép", ghi số đo reader thật), HDK-08 (7.10). `docs/features/search/PLAN.md`: K5 (☑ phần đọc điểm; tab "Đánh giá" danh sách nhận xét vẫn `[SAU]`) và TBS-14 (đổi loại thành U, I và đổi nội dung). **Không sửa** các chỗ cũ của PLAN search nói "chưa có migration/entity" hay "hiện trả `{ null, 0 }`" (dòng 91, 137, 324, 373): thuộc đồng bộ tài liệu D2 đã có ở `main`, không phải việc của B9.
+**Quyết định của Đại (hộp câu hỏi 17/11/2026, trả lời TRỰC TIẾP):** (1) `AI_USAGE_LOG.md`: GHI hàng **147** như nháp (đã ghi sau hàng 145; ô "phần Đại tự sửa" và ô PR, squash, CI, Trung approve để `[cần điền]`); (2) AI-BUG-062 cho ba ca e2e đỏ lần 1 (giả định sai của test): KHÔNG ghi; (3) `docs/TECH_DEBT.md` dòng 180: KHÔNG ghi (không có lối tắt mới; cỡ đầu vào không bị `pageSize` chặn chỉ ghi ở 29.1 điều 4); (4) DB `clinix_exam_b9_test`: CHƯA xoá (chờ Đại bảo).
+**Việc còn lại và điều cần báo:**
+- **`[ĐỤNG search]`, Đại báo Trung TRƯỚC khi mở PR:** bốn file sửa và một file mới ở `search/` (`ratings/doctor-rating.reader.ts`, `ratings/doctor-rating.reader.spec.ts`, `doctors/public-doctor.int-spec.ts` một dòng, `doctors/public-doctor-detail.int-spec.ts` một dòng; mới `ratings/doctor-rating.reader.int-spec.ts`) và `docs/features/search/PLAN.md` (K5, TBS-14); KHÔNG đổi `search.module.ts`, `public-doctor.service.ts`, `doctor-list.rules.ts`, schema. Ngoài `search/`: `doctor/examination/testing/hide-rating-stack.ts`, `moderation/rating-hide.int-spec.ts`, `moderation/rating-hide.concurrency.int-spec.ts`, `apps/api/test/doctor-exam-public-rating.e2e-spec.ts` (mới).
+- **Nhánh đang sau `origin/main` 4 commit** (F8 #543, B10 #539, D1 #544, D2 #545; không commit nào chạm `apps/api` của B9): docs (TRACKING mục 27, 28, 30, PLAN doctor-exam, AI log 146, 148, 149, TECH_DEBT 178) gộp bằng script của phiên kiểm; KHÔNG tự đổi số mục.
+- **Chờ:** số PR, CI, Trung approve, squash (`[cần điền]`); xoá DB `clinix_exam_b9_test` (chờ phép của Đại).
+**Gợi ý commit và PR (không chạy git):** tiêu đề (71 ký tự): `feat(search): điểm đánh giá bác sĩ đọc từ dữ liệu thật (doctor-exam B9)`. Thân commit (mỗi dòng ≤ 81 ký tự): `readMany đọc danh_gia_bac_si bằng một câu GROUP BY, loại đánh giá ẩn (bi_an = 0).` / `Giữ chữ ký readMany; public-doctor.service và doctor-list.rules không đổi.` / `Id không phải số không vào SQL, không cache, không đổi schema.` / `B8 chạy lại KDD-15, DTB-03, DHK-08 bằng reader thật; thêm e2e điểm công khai.` / `[ĐỤNG search]: reader, reader.spec, hai int-spec của search/doctors (một dòng).` / `Closes #405` / `Refs #390`. Thân PR: `Closes #405`, `Refs #390`, `[ĐỤNG search]` kèm danh sách file trên, câu "không đổi schema, không đổi public-doctor.service".

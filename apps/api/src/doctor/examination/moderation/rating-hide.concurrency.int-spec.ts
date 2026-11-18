@@ -27,8 +27,8 @@ import {
   hideBody,
   ratingHideService,
   readAverage,
-  type Average,
 } from '../testing/hide-rating-stack.js';
+import type { DoctorRating } from '../../../search/ratings/doctor-rating.reader.js';
 import { branchScope, SYSTEM_SCOPE } from '../testing/moderation-stack.js';
 import {
   ratingBody,
@@ -51,8 +51,8 @@ const NOW = new Date('2026-11-10T09:00:00+07:00');
 const ALREADY_HIDDEN = 'DANH_GIA_DA_AN';
 const REASON_A = 'Lý do của Quản trị viên thứ nhất';
 const REASON_B = 'Lý do của Quản trị viên thứ hai';
-const BEFORE: Average = { diem: '3.3', soDanhGia: 3 };
-const AFTER: Average = { diem: '4.5', soDanhGia: 2 };
+const BEFORE: DoctorRating = { diemTrungBinh: '3.3', soDanhGia: 3 };
+const AFTER: DoctorRating = { diemTrungBinh: '4.5', soDanhGia: 2 };
 
 async function raceWorld() {
   vi.setSystemTime(NOW);
@@ -237,7 +237,7 @@ describe('DHK-07 (KDD-09) hai Quản trị viên ẩn cùng một đánh giá: m
             biAn: 0,
           });
           expect(await readAverage(db, t.doctorId)).toEqual({
-            diem: '5.0',
+            diemTrungBinh: '5.0',
             soDanhGia: 1,
           });
           expect(await hideAuditRows(db)).toHaveLength(1);
@@ -253,7 +253,7 @@ describe('DHK-07 (KDD-09) hai Quản trị viên ẩn cùng một đánh giá: m
 /** Một lần đọc của DHK-08 (b): ghi lại việc nó BẮT ĐẦU trước hay sau khi `hide` đã trả. */
 interface ReadLog {
   afterCommit: boolean;
-  average: Average | null;
+  average: DoctorRating;
 }
 
 /** Kết quả của một bên trong vòng DHK-08 (b): bên ghi có `writerOk`, bên đọc có `reads`. */
@@ -262,7 +262,7 @@ interface Part {
   reads: ReadLog[];
 }
 
-describe('DHK-08 ẩn ‖ đọc điểm trung bình (bản chép câu PLAN 5.9): mỗi lần đọc thấy trước hoặc sau; sau commit mọi lần đọc thấy sau', () => {
+describe('DHK-08 ẩn ‖ đọc điểm trung bình (DoctorRatingReader THẬT, B9): mỗi lần đọc thấy trước hoặc sau; sau commit mọi lần đọc thấy sau', () => {
   /** Bác sĩ có ba đánh giá 5, 4, 1 (điểm "3.3", 3 lượt); trả id đánh giá 1 sao (sẽ ẩn). */
   async function threeRatings(t: RaceWorld) {
     await rated(t, 0, 5);
@@ -367,7 +367,7 @@ describe('DHK-08 ẩn ‖ đọc điểm trung bình (bản chép câu PLAN 5.9)
             );
             if (read.afterCommit) expect(read.average).toEqual(AFTER);
             seenTotal[read.afterCommit ? 'sauCommit' : 'truocCommit'] += 1;
-            seenTotal[read.average?.soDanhGia === 3 ? 'banCu' : 'banMoi'] += 1;
+            seenTotal[read.average.soDanhGia === 3 ? 'banCu' : 'banMoi'] += 1;
           }
         },
       });

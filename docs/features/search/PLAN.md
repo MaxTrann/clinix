@@ -516,7 +516,7 @@ Cột trạng thái: ☐ = chưa làm, ☑ = đã merge. Rà lại 03/11/2026: *
 | K2 | **☑ phần web đã làm ở Search UI PR-C2 (17/11/2026, TRACKING mục 10); thẻ Bước 3 chỉ có lưới, KHÔNG có thanh "Đã chọn … Tiếp tục" của Figma `447:2`, `448:2` (T5).** FE: dải 7 ngày (mặc định "ngày gần nhất" — Q18), khung giờ theo buổi, 4 trạng thái (rõ/mờ/không bấm được), "Bác sĩ không có lịch làm việc ngày này" (nguyên văn Figma) / "Chi nhánh nghỉ vào Thứ …" + gợi ý đổi ngày | K1 | TCBS b4–b5 (ngày), b8 (khung giờ), A3/7b |
 | K3 | Bấm khung Còn trống ⇒ "Đặt lịch khám" điền sẵn (b10); Khách vãng lai: giữ tạm lựa chọn, chuyển Đăng nhập/Đăng ký, khôi phục sau khi xong (A4) — **cùng cơ chế** với "Trò chuyện với Trợ lý AI" A6 | K2; `booking` có trang đặt lịch; cơ chế lưu tạm lựa chọn đã chốt (dùng chung với Trợ lý AI); auth hỗ trợ quay lại trang sau đăng nhập | TCBS b10, A4 |
 | K4 | Bấm khung Đã đặt/Đang giữ chỗ ⇒ popup xác nhận đăng ký chờ cho ca chứa khung đó ⇒ "Đăng ký chờ và phản hồi lời mời" điền sẵn; huỷ ⇒ đóng popup | K2; module `waitlist` | TCBS A2/8a–8c |
-| K5 | Đổi `DoctorRatingReader` sang bảng thật (chỉ `bi_an = false`); tab "Đánh giá" danh sách nhận xét (trường do module đánh giá quyết) | Migration `danh_gia_bac_si` (chủ theo Q16) | TCBS b8, b9 (điểm đánh giá) |
+| K5 | **☑ phần đọc điểm đã làm ở doctor-exam B9 (17/11/2026; `[ĐỒNG BỘ TL]`, TRACKING doctor-exam mục 29); tab "Đánh giá" danh sách nhận xét VẪN `[SAU]`.** Đổi `DoctorRatingReader` sang bảng thật (chỉ `bi_an = false`); tab "Đánh giá" danh sách nhận xét (trường do module đánh giá quyết) | Migration `danh_gia_bac_si` (chủ theo Q16) | TCBS b8, b9 (điểm đánh giá) |
 
 ### 6.7 Nhóm X — Hoàn tất
 
@@ -611,7 +611,7 @@ Loại: **U** = unit, **I** = tích hợp MySQL thật (`*.int-spec.ts`), **E** 
 | TBS-11 | Phân trang sau lọc trong bộ nhớ: 25 bác sĩ khớp, trang 2 cỡ 20 | 5 phần tử, `total` 25; thứ tự ổn định khi trùng kinh nghiệm và tên | 5.4 | I |
 | TBS-12 | `doctor-list.rules`: lọc giá/điểm, các kiểu sắp, cắt trang, so tiền bằng số nguyên đồng | Đúng `[Q12]` | 5.4; H4 | U |
 | TBS-13 | Chi tiết: mô tả chuyên môn (NULL ⇒ `null`), giờ nhận khám chi nhánh, dịch vụ, giá, đánh giá; bác sĩ không công khai / không có / sai dạng ⇒ 404 cùng thân | Đúng | TCBS b9 | E |
-| TBS-14 | Đánh giá khi chưa có bảng | Mọi bác sĩ `{diemTrungBinh: null, soDanhGia: 0}` `[Q16]` | TCBS b8 (điểm) | I |
+| TBS-14 | Đánh giá khi chưa có đánh giá nào; quy tắc danh sách rỗng và id | Bác sĩ chưa có đánh giá `{diemTrungBinh: null, soDanhGia: 0}` `[Q16]`; sau doctor-exam B9 reader đọc bảng `danh_gia_bac_si` THẬT (điểm thật: DTB-01…DTB-15 ở doctor-exam PLAN 7.6; **đổi loại ở B9 17/11/2026**: đơn vị `doctor-rating.reader.spec.ts` cho danh sách rỗng và id, int-spec cho dữ liệu thật) | TCBS b8 (điểm) | U, I |
 | TBS-15 | `dichVuKhamId` không tồn tại ⇒ 200 rỗng; `sapXep` ngoài danh sách ⇒ 400 | Đúng | Biên | E |
 | TBS-16 | FE luồng: chọn nhóm (`444:2`) ⇒ dịch vụ (`445:2`) ⇒ danh sách bác sĩ; nhóm "Sắp triển khai" không bấm được; "Chọn lại dịch vụ" quay về b3 | Đúng `[Q10]` | TCBS b1–b3, A1/6c | C |
 | TBS-17 | FE bộ lọc: chi nhánh điền sẵn chi nhánh đang chọn; nhập tên/giá/đánh giá ⇒ gọi lại API, huỷ yêu cầu cũ (kết quả cũ về sau không đè); lỗi ô giá | Đúng | TCBS b4–b6 | C |
