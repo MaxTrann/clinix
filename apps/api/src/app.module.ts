@@ -14,6 +14,7 @@ import { ServiceGroupModule } from './admin/service-groups/service-group.module.
 import { ServiceModule } from './admin/services/service.module.js';
 import { ClinicInfoModule } from './admin/clinic-info/clinic-info.module.js';
 import { BranchModule } from './admin/branches/branch.module.js';
+import { AccountModule } from './admin/accounts/account.module.js';
 import { validateEnv } from './config/env.validation.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health/health.controller.js';
@@ -35,6 +36,7 @@ import { WalletModule } from './wallet/wallet.module.js';
     ServiceModule,
     ClinicInfoModule,
     BranchModule,
+    AccountModule,
     SearchModule,
     PatientModule,
     DoctorModule,
