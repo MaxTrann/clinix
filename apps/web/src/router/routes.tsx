@@ -14,6 +14,7 @@ import {
   SpecialtyDetailPage,
   SpecialtyListPage,
 } from '../features/search';
+import { STAFF_ACTIVATION_ROUTES } from '../features/staff-activation';
 import { NotFoundPage } from '../pages/not-found-page';
 import { RouteErrorPage } from '../pages/route-error-page';
 import { LoadingState } from '../shared/ui/loading-state';
@@ -61,6 +62,7 @@ export function createAppRoutes(
           ],
         },
         ...AUTH_PAGE_ROUTES,
+        ...STAFF_ACTIVATION_ROUTES,
         { element: <RequireAuth />, children: protectedChildren },
         ...createRoleRoutes(),
       ],

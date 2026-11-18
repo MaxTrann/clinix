@@ -34,3 +34,14 @@ export {
   homePathFor,
 } from './roles';
 export type { VaiTro } from './roles';
+// admin F10: trang kích hoạt nhân sự (công khai) đặt mật khẩu bằng đúng validator, câu chữ, ô nhập và khung thành công của
+// màn Quên mật khẩu, thay vì chép lại (TRACKING admin 9A.7, Đại chọn re-export ở đây)
+export { validateNewPassword } from './validation/new-password';
+export {
+  FIELD_MESSAGES,
+  INVALID_DATA_MESSAGE,
+  PASSWORD_RULE_MESSAGE,
+  SYSTEM_MESSAGE,
+} from './register/register-errors';
+export { RegisterFieldInput } from './register/register-field';
+export { FormAlert, PRIMARY_LINK, SuccessPanel } from './auth-form-parts';
