@@ -7,7 +7,12 @@ describe('SDV-04 readConfiguredGateways', () => {
   });
 
   it('đủ biến của VNPay ⇒ chỉ VNPay; đủ cả hai ⇒ theo thứ tự VNPay, MoMo', () => {
-    const vnpay = { VNPAY_TMN_CODE: 'a', VNPAY_HASH_SECRET: 'b' };
+    const vnpay = {
+      VNPAY_TMN_CODE: 'a',
+      VNPAY_HASH_SECRET: 'b',
+      VNPAY_PAY_URL: 'https://example.invalid/pay',
+      VNPAY_RETURN_URL: 'http://localhost/ket-qua',
+    };
     const momo = { MOMO_PARTNER_CODE: 'c', MOMO_SECRET_KEY: 'd' };
     expect(readConfiguredGateways(vnpay)).toEqual(['VNPay']);
     expect(readConfiguredGateways({ ...momo, ...vnpay })).toEqual([
