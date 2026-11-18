@@ -192,6 +192,26 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   CLOUDINARY_UPLOAD_PREFIX?: string;
+
+  // --- Liên kết kích hoạt nhân sự (task B14 của module admin; PLAN admin 5.1; quyết định Q22, Q23). Giá trị sai (không phải số nguyên,
+  // ngoài miền, hay để trống) thì API KHÔNG khởi động; thông báo chỉ nêu tên biến. Miền [đề xuất].
+  // Hạn của liên kết (giờ) tính từ lúc tạo; liên kết đã tạo giữ hạn cũ khi đổi giá trị (hạn nằm ở ma_xac_thuc.het_han_luc).
+  @IsInt()
+  @Min(1)
+  @Max(168)
+  STAFF_ACTIVATION_TTL_HOURS: number = 24;
+
+  // Gửi lại: hàng mới phải cách hàng mới nhất ít nhất chừng này giây (đúng bằng thì được).
+  @IsInt()
+  @Min(1)
+  @Max(3600)
+  STAFF_ACTIVATION_RESEND_MIN_SECONDS: number = 60;
+
+  // Gửi lại: tối đa chừng này liên kết trong 1 giờ, tính cả lần gửi đầu và lần gửi lỗi.
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  STAFF_ACTIVATION_RESEND_MAX_PER_HOUR: number = 5;
 }
 
 // Biến môi trường để trống (SMTP_HOST=) là "không đặt", không phải chuỗi rỗng
