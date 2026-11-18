@@ -88,7 +88,7 @@ const CODE_EXCEPTIONS: CodeException[] = [
       'Tiêu đề h1 nhận tiêu điểm bằng mã (tabIndex -1) ở trạng thái thông báo; không phải điều khiển nên không cần vòng',
   },
   {
-    file: 'features/booking/appointments/patient/detail/detail-timeline.tsx',
+    file: 'features/booking/appointments/common/status-timeline.tsx',
     tokens: ['ring-4', 'ring-cyan-100'],
     reason:
       'Vành trang trí quanh chấm mốc thời gian (không tương tác), không phải viền focus',

@@ -19,6 +19,8 @@ export const DETAIL_TEXT = {
     // F12: tiền đi cùng nhau trong một thẻ như trang Bệnh nhân (chỗ của thẻ `Thanh toán` ở Figma `512:2`)
     cost: 'Chi phí & Thanh toán',
     patient: 'Thông tin bệnh nhân',
+    // Thanh ba bước dùng chung với Bệnh nhân (booking F13); chữ cùng trang Bệnh nhân [đề xuất]
+    timeline: 'Trạng thái lịch hẹn',
     history: 'Lịch sử trạng thái',
     actions: 'Thao tác',
   },

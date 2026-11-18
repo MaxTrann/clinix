@@ -15,6 +15,7 @@ import {
   makeHistoryEntry,
 } from '../../../testing/fake-admin-api';
 import { apiErrorResponse } from '../../../testing/fake-appointment-list-api';
+import { APPOINTMENT_STATES } from '../../common/appointment-status';
 
 // booking F10: trang chi tiết lịch hẹn của Quản trị viên (Figma `512:2`) và panel "Lịch sử trạng thái" với API giả và router thật. Mã AQD và AQH là [đề xuất] (PLAN booking mục 7.41). QT-02 = AQD-02,
 // AQD-03, AQD-04 và AQH-01…AQH-04. Mức W: trang với API giả; jsdom không đo bố cục và tương phản thật nên phần đó là kiểm tay `M`.
@@ -249,7 +250,7 @@ describe('lỗi tải chi tiết, quay lại, dữ liệu cá nhân', () => {
   });
 
   // booking F12 (UI-11, UI-12; Đại 14/11/2026). Mã UIF là [đề xuất] (PLAN booking mục 7.48). jsdom không đo bố cục: đây là bằng chứng CẤU TRÚC; bề rộng thật đo bằng trình duyệt ở TRACKING 3.42.
-  it('UIF-11 khung chung như trang Bệnh nhân: căn giữa `max-w-[64rem]` (không còn 52,5rem lệch trái), thẻ đầu (mã MỘT lần, chip, chuyên khoa, bốn ô), lưới hai cột: Thông tin lịch hẹn và Thông tin bệnh nhân bên trái; Chi phí, Lịch sử, Thao tác bên phải', async () => {
+  it('UIF-11 khung chung như trang Bệnh nhân: căn giữa `max-w-[64rem]` (không còn 52,5rem lệch trái), thẻ đầu (mã MỘT lần, chip, chuyên khoa, bốn ô), lưới hai cột: Thông tin lịch hẹn và Thông tin bệnh nhân bên trái; Chi phí, Trạng thái (F13), Lịch sử, Thao tác bên phải', async () => {
     await openAdminDetail();
     const page = screen
       .getByRole('heading', { level: 1, name: 'Chi tiết lịch hẹn' })
@@ -280,6 +281,7 @@ describe('lỗi tải chi tiết, quay lại, dữ liệu cá nhân', () => {
     expect(left).not.toBe(right);
     expect(left.parentElement).toBe(right.parentElement);
     expect(left).toContainElement(card('Thông tin bệnh nhân'));
+    expect(right).toContainElement(card('Trạng thái lịch hẹn'));
     expect(right).toContainElement(card('Lịch sử trạng thái'));
     expect(right).toContainElement(card('Thao tác'));
   });
@@ -296,11 +298,87 @@ describe('lỗi tải chi tiết, quay lại, dữ liệu cá nhân', () => {
         'Lịch sử trạng thái',
       ]),
     );
-    expect(screen.getByText('Đã xác nhận')).toBeVisible();
+    // F13: nhãn "Đã xác nhận" còn xuất hiện ở thanh trạng thái nên chỉ tìm trong thẻ đầu (trước F13: `screen.getByText('Đã xác nhận')`)
+    const hero = screen.getByRole('region', { name: 'Tóm tắt lịch hẹn' });
+    expect(within(hero).getByText('Đã xác nhận')).toBeVisible();
     const page = screen
       .getByRole('heading', { level: 1, name: 'Chi tiết lịch hẹn' })
       .closest('section') as HTMLElement;
     expect(page).toHaveAttribute('aria-busy', 'false');
+  });
+});
+
+// booking F13 (issue #550; Đại duyệt thêm thanh ba bước vào trang Quản trị viên 18/11/2026, PLAN L41). Mã STL là [đề xuất] (PLAN booking mục 7.49). Hành vi của component dùng chung ở `common/status-timeline.test.tsx`;
+// ở đây chỉ phần của TRANG Quản trị viên: có thanh, đúng chỗ, đủ sáu trạng thái, không thêm vùng `status`, không đổi panel lịch sử.
+describe('thanh trạng thái của trang Quản trị viên (STL-16)', () => {
+  const TIMELINE = 'Trạng thái lịch hẹn';
+  const card = (name: string) =>
+    screen
+      .getByRole('heading', { level: 2, name })
+      .closest('section') as HTMLElement;
+  // `a` đứng trước `b` trong cây DOM
+  const isBefore = (a: HTMLElement, b: HTMLElement) =>
+    (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+
+  it.each(APPOINTMENT_STATES)(
+    'STL-16 trạng thái %s ⇒ có thanh "Trạng thái lịch hẹn" đúng số bước, đúng một bước hiện tại với ba trạng thái trong luồng',
+    async (status) => {
+      await openAdminDetail({ trangThai: status, chuyenDuoc: [] });
+      const steps = within(
+        screen.getByRole('list', { name: TIMELINE }),
+      ).getAllByRole('listitem');
+      expect(steps).toHaveLength(
+        status === 'DaHuy' || status === 'VangMat' ? 4 : 3,
+      );
+      const current = steps.filter(
+        (step) => step.getAttribute('aria-current') === 'step',
+      );
+      expect(current).toHaveLength(
+        ['DaXacNhan', 'DaTiepDon', 'HoanThanh'].includes(status) ? 1 : 0,
+      );
+    },
+  );
+
+  it('STL-16 đứng ở cột phải, giữa "Chi phí & Thanh toán" và "Lịch sử trạng thái" (panel lịch sử và hộp thao tác vẫn còn, không đổi)', async () => {
+    await openAdminDetail();
+    const cost = card('Chi phí & Thanh toán');
+    const timeline = card(TIMELINE);
+    const history = card('Lịch sử trạng thái');
+    const actions = card('Thao tác');
+    expect(timeline.parentElement).toBe(cost.parentElement);
+    expect(isBefore(cost, timeline)).toBe(true);
+    expect(isBefore(timeline, history)).toBe(true);
+    expect(isBefore(history, actions)).toBe(true);
+    // Panel lịch sử vẫn là danh sách riêng của các mục nhật ký (không lẫn với các bước)
+    expect(within(history).getAllByRole('listitem').length).toBeGreaterThan(0);
+    expect(within(history).queryByText('Chưa đến')).toBeNull();
+    expect(within(timeline).queryByText(/Tạo lịch hẹn/)).toBeNull();
+  });
+
+  it('STL-16 Chờ thanh toán: dải "Chờ xác nhận thanh toán cọc" KHÔNG có `role` (trang đã có `ActionNotice` `role="status"` cho override: không thêm vùng `status` thứ hai)', async () => {
+    await openAdminDetail({
+      trangThai: 'ChoThanhToan',
+      hanThanhToan: '2026-10-18T07:15:00.000Z',
+      conPhaiThu: null,
+      chuyenDuoc: [],
+    });
+    const timeline = within(card(TIMELINE));
+    const banner = timeline.getByText('Chờ xác nhận thanh toán cọc');
+    expect(banner).not.toHaveAttribute('role');
+    expect(timeline.queryByRole('status')).toBeNull();
+  });
+
+  it('STL-16 mã trạng thái lạ (kể cả DaDoiLich) ⇒ ba bước "Chưa đến" (thẻ không rỗng), không lộ mã thô', async () => {
+    await openAdminDetail({ trangThai: 'DaDoiLich', chuyenDuoc: [] });
+    const steps = within(
+      screen.getByRole('list', { name: TIMELINE }),
+    ).getAllByRole('listitem');
+    expect(steps.map((step) => step.textContent)).toEqual([
+      'Đã xác nhậnChưa đến',
+      'Đã tiếp đónChưa đến',
+      'Hoàn thànhChưa đến',
+    ]);
+    expect(screen.queryByText('DaDoiLich')).toBeNull();
   });
 });
 

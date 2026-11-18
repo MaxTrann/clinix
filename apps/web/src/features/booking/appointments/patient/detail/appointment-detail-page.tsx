@@ -11,11 +11,11 @@ import {
 import { LIST_TEXT } from '../list-messages';
 import { CancelSection } from './cancel-section';
 import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
+import { StatusTimeline } from '../../common/status-timeline';
 import { DetailCostCard } from './detail-cost';
 import { DetailInfoCard, RecordCard } from './detail-info';
 import { DETAIL_TEXT } from './detail-messages';
 import { DetailSummary } from './detail-summary';
-import { DetailTimeline } from './detail-timeline';
 import { useAppointmentDetail } from './use-appointment-detail';
 import { useCancelBox } from './use-cancel-box';
 
@@ -104,7 +104,11 @@ function AppointmentDetail({ maLichHen }: { maLichHen: string }) {
                 side={
                   <>
                     <DetailCostCard detail={view.detail} />
-                    <DetailTimeline status={view.detail.trangThai} />
+                    <StatusTimeline
+                      trangThai={view.detail.trangThai}
+                      title={DETAIL_TEXT.timelineTitle}
+                      unknown="upcoming"
+                    />
                     {rating}
                     <CancelSection
                       detail={view.detail}
@@ -123,7 +127,7 @@ function AppointmentDetail({ maLichHen }: { maLichHen: string }) {
   );
 }
 
-// Trang chi tiết một lịch hẹn của Bệnh nhân (booking F2; Figma `420:2`, `426:2`, `691:2`). `key={maLichHen}`: đổi mã trên URL (cùng component) thì reset MỌI state, kể
+// Trang chi tiết một lịch hẹn của Bệnh nhân (booking F2; Figma `420:2`, `426:2`, `691:2`). Khối `Trạng thái lịch hẹn` là `StatusTimeline` DÙNG CHUNG với Bác sĩ và Quản trị viên (booking F13): mã trạng thái lạ thì ba bước "chưa đến" (`unknown="upcoming"`). `key={maLichHen}`: đổi mã trên URL (cùng component) thì reset MỌI state, kể
 // cả hộp huỷ và kết quả huỷ của lịch trước (LCT-10). Dữ liệu chỉ ở state của trang: không kho trình duyệt, tải lại là GET lại. Chỉ GET khi xem; POST chỉ khi
 // bấm `Xác nhận hủy`.
 export function AppointmentDetailPage() {
