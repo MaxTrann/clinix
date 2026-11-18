@@ -9,6 +9,7 @@ import {
 } from '../../database/testing/test-database.js';
 import { officialStatementsFor } from '../../database/testing/official-schema.js';
 import { auditEntries } from '../testing/audit-fixtures.js';
+import { paymentAuditEntries } from '../testing/payment-audit-entries.js';
 
 // MG-08 (Q34, L14): ba nguồn phải khớp nhau theo TẬP HỢP giá trị (không so số lượng, để PR của
 // module khác thêm giá trị vào cuối enum không gây xung đột số đếm):
@@ -84,5 +85,27 @@ describe('MG-08 — đối chiếu ENUM nhật ký giữa DB, schema chính th�
     expect(await dbEnum('loai_doi_tuong')).toEqual(
       expect.arrayContaining(['lich_lam_viec', 'yeu_cau_nghi_phep']),
     );
+  });
+
+  // payment P5 (Q17): ENUM có từ migration P1; ca này nối thêm vế "AuditEntry có dùng", để bốn hành động không chỉ nằm trong ENUM mà không ai ghi được
+  it('MGT-10 4 hành động của payment P5 và hai loại đối tượng có mặt đủ trong ba nguồn và trong AuditEntry', async () => {
+    const dbActions = await dbEnum('hanh_dong');
+    const dbTargets = await dbEnum('loai_doi_tuong');
+    const entries = paymentAuditEntries();
+    for (const action of [
+      'HoanTienDacBiet',
+      'XuLyNapViChuaCong',
+      'DuyetRutTien',
+      'TuChoiRutTien',
+    ]) {
+      expect(dbActions).toContain(action);
+      expect(officialEnum('hanh_dong')).toContain(action);
+      expect(HANH_DONG_NHAY_CAM).toContain(action);
+      expect(entries.some((entry) => entry.action === action)).toBe(true);
+    }
+    for (const entry of entries) {
+      expect(dbTargets).toContain(entry.targetType);
+      expect(LOAI_DOI_TUONG_NHAT_KY).toContain(entry.targetType);
+    }
   });
 });
