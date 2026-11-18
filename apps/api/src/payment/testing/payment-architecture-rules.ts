@@ -165,8 +165,10 @@ export function findRequestIdentityViolations(
 // Đọc metadata CÙNG cách `RolesGuard` (method thay thế class), như `auditPatientControllers` của patient; khác ở chỗ cho phép MỘT danh sách `@Public` có tên.
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-/** Tên `Controller.method` của các route được phép `@Public`. Hiện rỗng: hai route IPN chưa tồn tại; B-task thêm đúng hai dòng khi làm (kèm chữ ký ở `@Public`). */
-export const PUBLIC_ROUTE_ALLOWLIST: readonly string[] = [];
+/** Tên `Controller.method` của các route được phép `@Public`: IPN của VNPAY (B4); B16 thêm IPN của MoMo. Hai route này xác thực bằng CHỮ KÝ của cổng thay cho phiên đăng nhập. */
+export const PUBLIC_ROUTE_ALLOWLIST: readonly string[] = [
+  'VnpayIpnController.receive',
+];
 
 /** Số route `@Public` tối đa của cả scope (PLAN 5.6: chỉ IPN của hai cổng). */
 export const MAX_PUBLIC_ROUTES = 2;

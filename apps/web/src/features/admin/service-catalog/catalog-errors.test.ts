@@ -26,7 +26,7 @@ describe('feedbackFor: lỗi gắn ô thì không có banner (AF3-10)', () => {
       'thoiLuong',
       'Không thể đổi thời lượng vì dịch vụ đang được lịch hẹn hoặc khung giờ sử dụng.',
     ],
-    // payment F5 (TECH_DEBT 175 (b)): 409 của B10 khi hạ giá dưới mức cọc, trước đây rơi vào câu chung "Không lưu được dữ liệu"
+    // payment F5 (TECH_DEBT 179 (b)): 409 của B10 khi hạ giá dưới mức cọc, trước đây rơi vào câu chung "Không lưu được dữ liệu"
     [
       'GIA_DUOI_MUC_COC',
       'giaMacDinh',
