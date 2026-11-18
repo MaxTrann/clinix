@@ -13,6 +13,7 @@ import {
   type TopupRow,
 } from '../../topup/topup.repository.js';
 import { GatewayRegistry } from '../gateway-registry.js';
+import { logErrorCode } from '../../log-error-code.js';
 import type {
   GatewayAck,
   IpnOutcome,
@@ -110,7 +111,9 @@ export class IpnService {
       );
     } catch (error) {
       // Chỉ tên lớp và mã lỗi của driver: thông điệp lỗi SQL có thể mang giá trị (mã cổng trong "Duplicate entry"; BDT-01)
-      this.logger.warn(`IPN ${gateway}: ghi kết quả lỗi (${errorCode(error)})`);
+      this.logger.warn(
+        `IPN ${gateway}: ghi kết quả lỗi (${logErrorCode(error)})`,
+      );
       if (signal.result !== 'ThanhCong') return 'Error';
       return this.recordPendingReconcile(gateway, giaoDichId, signal);
     }
@@ -174,19 +177,9 @@ export class IpnService {
       );
     } catch (error) {
       this.logger.error(
-        `IPN ${gateway}: không ghi được kết quả, chờ cổng gửi lại (${errorCode(error)})`,
+        `IPN ${gateway}: không ghi được kết quả, chờ cổng gửi lại (${logErrorCode(error)})`,
       );
       return 'Error';
     }
   }
-}
-
-/** Mã lỗi ngắn để log: `code` của driver MySQL (ví dụ `ER_DUP_ENTRY`) hay tên lớp lỗi. Không bao giờ trả thông điệp lỗi. */
-function errorCode(error: unknown): string {
-  if (typeof error === 'object' && error !== null) {
-    const code = (error as { code?: unknown }).code;
-    if (typeof code === 'string' && /^[A-Z0-9_]{1,64}$/.test(code)) return code;
-    if (error instanceof Error) return error.name;
-  }
-  return 'unknown';
 }
