@@ -1,4 +1,5 @@
 import type { AppointmentCore } from '../../common/appointment-core';
+import type { StatusMilestones } from '../../common/status-notes';
 import type { AppointmentState } from '../../common/appointment-status';
 import type { RefundAmount } from '../../common/refund-types';
 import type { StatusCounts } from '../../common/status-counts';
@@ -64,7 +65,7 @@ export interface RefundSummary {
   trangThai: RefundStatus;
 }
 
-// Chi tiết = mười hai khoá của dòng danh sách + `lyDoKham`, `thanhToan`, `hoanTien` (`null` tới khi `payment`, `wallet` có), `thoiGianMayChu`.
+// Chi tiết = mười hai khoá của dòng danh sách + `lyDoKham`, `thanhToan`, `hoanTien` (`null` tới khi `payment`, `wallet` có), `thoiGianMayChu`, `moc` (đủ mười bảy khoá).
 // `choPhepHuy` là kết quả của CHÍNH ma trận trạng thái của backend: nút huỷ theo nó, web không có ma trận thứ hai.
 export interface PatientAppointmentDetail extends PatientAppointment {
   lyDoKham: string | null;
@@ -72,6 +73,8 @@ export interface PatientAppointmentDetail extends PatientAppointment {
   hoanTien: RefundSummary | null;
   // ISO 8601 UTC; F2 chưa dùng (không đếm ngược), F6 dùng để bù lệch đồng hồ
   thoiGianMayChu: string;
+  // Mốc từng bước (booking B19): giờ dưới từng bước của thanh trạng thái; lịch cũ ba `null`
+  moc: StatusMilestones;
 }
 
 // Số hoàn: kiểu chuyển lên `common/refund-types.ts` ở F9 (hộp huỷ của Lễ tân dùng chung); xuất lại ở đây để các import cũ vẫn chạy

@@ -89,6 +89,9 @@ function detailRow(
     huongXuLy: null,
     ngayTaiKhamDuKien: null,
     capNhatLanCuoi: null,
+    thoiDiemXacNhan: null,
+    thoiDiemTiepDon: null,
+    thoiDiemHoanThanh: null,
     ...overrides,
   };
 }
@@ -295,14 +298,14 @@ describe('chi tiết: 404 cùng một chỗ (DSB-07)', () => {
     });
   });
 
-  it('DSB-06, DSB-08 có hàng, chưa có hồ sơ ⇒ chi tiết mười một khoá, `ghiChuKham` là `null`', async () => {
+  it('DSB-06, DSB-08 có hàng, chưa có hồ sơ ⇒ chi tiết mười hai khoá (có `moc`), `ghiChuKham` là `null`', async () => {
     repo.findDetail.mockResolvedValue(detailRow());
     const detail = await service.detail(DOCTOR, 'CLX-20261110-ABCDE');
-    expect(Object.keys(detail)).toHaveLength(11);
+    expect(Object.keys(detail)).toHaveLength(12);
     expect(detail.ghiChuKham).toBeNull();
   });
 
-  it('DSB-06, DSB-08, HDK-01 có hàng và có hồ sơ ⇒ vẫn mười một khoá, `ghiChuKham` là đối tượng năm khoá (nguyên văn) qua mapper', async () => {
+  it('DSB-06, DSB-08, HDK-01 có hàng và có hồ sơ ⇒ vẫn mười hai khoá, `ghiChuKham` là đối tượng năm khoá (nguyên văn) qua mapper', async () => {
     repo.findDetail.mockResolvedValue(
       detailRow({
         trangThai: 'HoanThanh',
@@ -315,7 +318,7 @@ describe('chi tiết: 404 cùng một chỗ (DSB-07)', () => {
       }),
     );
     const detail = await service.detail(DOCTOR, 'CLX-20261110-ABCDE');
-    expect(Object.keys(detail)).toHaveLength(11);
+    expect(Object.keys(detail)).toHaveLength(12);
     expect(detail.ghiChuKham).toStrictEqual({
       trieuChung: 'Ho',
       chanDoanSoBo: 'Viêm họng',

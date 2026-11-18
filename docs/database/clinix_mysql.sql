@@ -53,6 +53,9 @@
 -- 17/11/2026 (module doctor-exam, task D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE hay ALTER TABLE nào: COMMENT của ho_so_kham và
 -- danh_gia_bac_si đứng trong phần được schema-parity so với migration nên giữ nguyên. Thêm mục "doctor-exam D1" (hồ sơ khám và đánh giá bác sĩ) ở cuối clinix_quy_tac_nghiep_vu.md, ba dòng
 -- quy tắc service ở khối bên dưới và bốn khối TRUY VẤN MẪU ở cuối file; các số bảng, enum, CHECK ở các dòng trên không đổi.
+-- 18/11/2026 (module booking, task B19): lich_hen thêm ba cột mốc thời gian từng bước thoi_diem_xac_nhan, thoi_diem_tiep_don, thoi_diem_hoan_thanh (datetime NULL,
+-- không DEFAULT, không CHECK, đặt sau thoi_diem_tao) ghi cùng câu với trang_thai để chi tiết lịch hẹn hiện giờ thật của từng bước (TECH_DEBT dòng 111); không thêm bảng, enum hay
+-- CHECK nên các số bảng, enum, CHECK ở các dòng trên không đổi. Chuyển đổi từ DB cũ: mục "booking B19" ở cuối clinix_quy_tac_nghiep_vu.md.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -387,6 +390,9 @@ CREATE TABLE `lich_hen` (
   `ly_do_huy` varchar(255),
   `ly_do_kham` text,
   `thoi_diem_tao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Thời điểm đặt lịch',
+  `thoi_diem_xac_nhan` datetime COMMENT 'Lúc lịch thành DaXacNhan lần đầu (booking B19): lịch cọc 0đ bằng thoi_diem_tao, lịch có cọc là lúc xác nhận thanh toán. NULL khi chưa xác nhận hoặc lịch tạo trước B19 (không điền giả). Giữ nguyên khi lịch lùi trạng thái hoặc bị hủy',
+  `thoi_diem_tiep_don` datetime COMMENT 'Lúc lịch thành DaTiepDon (Lễ tân tiếp đón, thu tiền mặt tại quầy hoặc Quản trị viên chuyển trạng thái, booking B19). Bị xóa (NULL) khi lịch về DaXacNhan hoặc sang VangMat, giữ nguyên khi hủy. NULL ở lịch tạo trước B19',
+  `thoi_diem_hoan_thanh` datetime COMMENT 'Lúc Bác sĩ hoàn thành ca khám, lịch thành HoanThanh (booking B19). HoanThanh là trạng thái cuối nên mốc này không bị xóa. NULL khi chưa hoàn thành hoặc lịch tạo trước B19',
   `cap_nhat_lan_cuoi` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Tự cập nhật mỗi khi dòng thay đổi (ON UPDATE trong SQL)'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

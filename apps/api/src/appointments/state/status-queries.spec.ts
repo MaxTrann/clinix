@@ -40,7 +40,7 @@ describe('NSH-02 windowOf: ngữ cảnh cửa sổ tiếp đón cho ma trận (Q
   });
 });
 
-describe('NSH-03 setStatus: một UPDATE có điều kiện trạng thái nguồn', () => {
+describe('NSH-03 setStatus: một UPDATE có điều kiện trạng thái nguồn, kèm mốc theo đích (MOC-08, MOC-10, MOC-11)', () => {
   const run = (answer: unknown) => {
     const em = new ScriptedEntityManager(() => answer);
     return {
@@ -50,13 +50,56 @@ describe('NSH-03 setStatus: một UPDATE có điều kiện trạng thái nguồ
     };
   };
 
-  it('tham số theo đúng thứ tự (đích, lịch, nguồn); đúng 1 hàng ⇒ true', async () => {
+  it('tham số theo đúng thứ tự (đích, lịch, nguồn); đúng 1 hàng ⇒ true; đích VangMat XOÁ thoi_diem_tiep_don trong CÙNG câu (MOC-10)', async () => {
     const { em, set } = run({ affectedRows: 1 });
     expect(await set()).toBe(true);
     expect(em.queries[0]?.sql).toMatch(
-      /^UPDATE lich_hen SET trang_thai = \?\s+WHERE lich_hen_id = \? AND trang_thai = \?/,
+      /^UPDATE lich_hen SET trang_thai = \?, thoi_diem_tiep_don = NULL\s+WHERE lich_hen_id = \? AND trang_thai = \?/,
     );
     expect(em.queries[0]?.params).toEqual(['VangMat', '41', 'DaXacNhan']);
+  });
+
+  it('MOC-11: đích DaXacNhan (khôi phục) cũng XOÁ thoi_diem_tiep_don, giữ thoi_diem_xac_nhan (không có trong câu); tham số (đích, lịch, nguồn)', async () => {
+    const em = new ScriptedEntityManager(() => ({ affectedRows: 1 }));
+    expect(
+      await setStatus(em.em, {
+        lichHenId: '41',
+        from: 'DaTiepDon',
+        to: 'DaXacNhan',
+      }),
+    ).toBe(true);
+    expect(em.queries[0]?.sql).toMatch(
+      /^UPDATE lich_hen SET trang_thai = \?, thoi_diem_tiep_don = NULL\s+WHERE lich_hen_id = \? AND trang_thai = \?/,
+    );
+    expect(em.queries[0]?.sql).not.toContain('thoi_diem_xac_nhan');
+    expect(em.queries[0]?.params).toEqual(['DaXacNhan', '41', 'DaTiepDon']);
+  });
+
+  it('MOC-08: đích DaTiepDon GHI thoi_diem_tiep_don = now (cắt xuống giây, không sửa Date của người gọi) cùng câu; tham số (đích, mốc, lịch, nguồn); không đụng mốc khác', async () => {
+    const em = new ScriptedEntityManager(() => ({ affectedRows: 1 }));
+    const now = new Date('2026-11-10T08:00:00.789+07:00');
+    expect(
+      await setStatus(em.em, {
+        lichHenId: '41',
+        from: 'VangMat',
+        to: 'DaTiepDon',
+        now,
+      }),
+    ).toBe(true);
+    expect(em.queries[0]?.sql).toMatch(
+      /^UPDATE lich_hen SET trang_thai = \?, thoi_diem_tiep_don = \?\s+WHERE lich_hen_id = \? AND trang_thai = \?/,
+    );
+    expect(em.queries[0]?.sql).not.toContain('thoi_diem_xac_nhan');
+    expect(em.queries[0]?.sql).not.toContain('thoi_diem_hoan_thanh');
+    expect(em.queries[0]?.params).toEqual([
+      'DaTiepDon',
+      new Date('2026-11-10T08:00:00+07:00'),
+      '41',
+      'VangMat',
+    ]);
+    expect(now.getTime()).toBe(
+      new Date('2026-11-10T08:00:00.789+07:00').getTime(),
+    );
   });
 
   it.each([{ affectedRows: 0 }, { affectedRows: 2 }, {}])(

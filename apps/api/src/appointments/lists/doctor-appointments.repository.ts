@@ -1,4 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import {
+  MILESTONE_COLUMNS,
+  type MilestoneColumns,
+} from './status-milestones.mapper.js';
 import type { EntityManager } from 'typeorm';
 import type {
   CaLamViec,
@@ -69,7 +73,8 @@ export interface DoctorAppointmentPageRow extends DoctorAppointmentRow {
  * lịch ngoài `DaTiepDon`/`HoanThanh` (điều kiện trong `ON`) thì cờ là 0 và mọi cột hồ sơ là NULL. `ngayTaiKhamDuKien` đã `DATE_FORMAT` (chuỗi `YYYY-MM-DD`); `capNhatLanCuoi` (DATETIME) ra `Date`. Không `lich_hen_id`,
  * không `ly_do_huy`.
  */
-export interface DoctorAppointmentDetailRow extends DoctorAppointmentRow {
+export interface DoctorAppointmentDetailRow
+  extends DoctorAppointmentRow, MilestoneColumns {
   chiNhanh: string;
   ngayDat: Date;
   coHoSo: number | string | boolean;
@@ -125,7 +130,8 @@ const PAGE_COLUMNS = `${CORE_COLUMNS},
 const DETAIL_COLUMNS = `${CORE_COLUMNS},
   cn.ten AS chiNhanh, lh.thoi_diem_tao AS ngayDat,
   (hk.ho_so_kham_id IS NOT NULL) AS coHoSo, hk.trieu_chung AS trieuChung, hk.chan_doan_so_bo AS chanDoanSoBo, hk.huong_xu_ly AS huongXuLy,
-  DATE_FORMAT(hk.ngay_tai_kham_du_kien, '%Y-%m-%d') AS ngayTaiKhamDuKien, hk.cap_nhat_lan_cuoi AS capNhatLanCuoi`;
+  DATE_FORMAT(hk.ngay_tai_kham_du_kien, '%Y-%m-%d') AS ngayTaiKhamDuKien, hk.cap_nhat_lan_cuoi AS capNhatLanCuoi,
+  ${MILESTONE_COLUMNS}`;
 
 /**
  * Điều kiện dùng CHUNG cho các câu của danh sách (đếm, theo trạng thái, trang): dựng một lần nên số đếm luôn đúng tập mà trang cắt ra. `joins` là các JOIN giữa FROM và WHERE: câu đếm và câu nhóm dùng mặc định

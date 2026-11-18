@@ -115,6 +115,7 @@ const DETAIL_KEYS = [
   'lyDoHuy',
   'lyDoKham',
   'maLichHen',
+  'moc',
   'nguoiDat',
   'nguoiKham',
   'thoiGian',
@@ -309,7 +310,7 @@ describe('GET /reception/appointments — kiểm query (DSV-14)', () => {
 });
 
 describe('GET /reception/appointments/:maLichHen', () => {
-  it('DSV-13, DSV-08 chi tiết: đúng mười sáu khoá; lịch bản thân có lyDoKham; không khoá lộ id, email, băm; không SĐT bác sĩ', async () => {
+  it('DSV-13, DSV-08 chi tiết: đúng mười bảy khoá (booking B19: thêm `moc`); lịch bản thân có lyDoKham; không khoá lộ id, email, băm; không SĐT bác sĩ', async () => {
     const w = await world();
     const res = await get(`/${CODES.a1}`, w.tokenA);
     expect(res.status).toBe(200);
@@ -325,6 +326,8 @@ describe('GET /reception/appointments/:maLichHen', () => {
       nguoiKham: { hoTen: PATIENT_ONE.hoTen, laBanThan: true },
       lyDoKham: 'Đau đầu ba ngày',
       lyDoHuy: null,
+      // Lịch dựng bằng fixture không có mốc: ba mốc null (lịch cũ, B19)
+      moc: { xacNhan: null, tiepDon: null, hoanThanh: null },
     });
     expect(
       collectKeys(res.body).filter((key) => FORBIDDEN_KEY.test(key)),

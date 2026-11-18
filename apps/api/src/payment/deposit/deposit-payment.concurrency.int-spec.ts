@@ -1,5 +1,4 @@
 import type { DataSource } from 'typeorm';
-import { withBookingTransaction } from '../../appointments/locking/booking-transaction.js';
 import { BookingFixtures } from '../../appointments/testing/booking-fixtures.js';
 import { createAppointmentWorld } from '../../appointments/testing/create-appointment-world.js';
 import {
@@ -16,6 +15,8 @@ import { assertBookingInvariants } from '../../appointments/testing/invariants.j
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
 import { WalletFixtures } from '../../wallet/testing/wallet-fixtures.js';
 import { assertWalletInvariants } from '../../wallet/testing/wallet-invariants.js';
+import { AppException } from '../../common/errors/app.exception.js';
+import { withdrawalStack } from '../../wallet/testing/withdrawal-stack.js';
 import { PaymentRecorder } from '../ports/payment-recorder.js';
 import { depositStack } from '../testing/deposit-stack.js';
 import { paymentWorld } from '../testing/payment-world.js';
@@ -23,7 +24,7 @@ import { paymentWorld } from '../testing/payment-world.js';
 // payment B5 — thanh toán cọc bằng ví ĐỒNG THỜI trên MySQL 8.4 THẬT (PLAN payment 5.3, 5.15; DTT-01…DTT-06; M1, M2, M4, M7). Mỗi vòng dựng dữ liệu MỚI, các bên cùng xuất phát qua `createGate`,
 // rồi kiểm KẾT QUẢ và bất biến của booking (INV) lẫn của ví (IVT). Mọi yêu cầu qua `withBookingTransaction` thật (READ COMMITTED, thử lại ≤ 2, chờ khoá ≤ 3 giây): "0 deadlock" nghĩa là KHÔNG 1213 hay 1205 nào
 // còn sót, không lỗi lạ (sẽ thành 500 ở HTTP). CHẠY MỘT MÌNH (nhạy với tải máy). Số vòng ở `ROUNDS` ít hơn 300 của PLAN ở DTT-04 và DTT-06 (ghi ở TRACKING); `[đề xuất]` tăng lên khi chạy trên máy rảnh.
-// DTT-04: B11 (rút tiền thật) chưa có, nên bên rút là giao dịch GIẢ đi đúng chuỗi của B11 (khoá ví 7b, giữ tiền, ghi yêu cầu `ChoDuyet`); khi B11 có mã thật, chạy lại với hàm của nó.
+// DTT-04: bên rút là `WithdrawalService` THẬT của B11 (trước B11 là giao dịch giả đi đúng chuỗi đó; chạy lại ở B11, 18/11/2026).
 const ROUNDS = 30;
 /**
  * Bên "nhanh" (expire, cancel, rút) trễ thêm `(vòng − 1) × STAGGER_MS` sau cổng xuất phát: thanh toán có vài câu đọc trước khi vào giao dịch nên nếu hai bên xuất phát cùng lúc thì bên nhanh LUÔN thắng
@@ -241,6 +242,7 @@ describe('DTT-04 ★ thanh toán cọc đua rút tiền cùng số dư', () => {
       },
       race: ({ w, lich, stack }, round) => {
         const gate = createGate(2);
+        const withdrawals = withdrawalStack(db);
         return [
           async (): Promise<Raced> => {
             await gate.arrive();
@@ -252,26 +254,18 @@ describe('DTT-04 ★ thanh toán cọc đua rút tiền cùng số dư', () => {
           async (): Promise<Raced> => {
             await gate.arrive();
             await lag(round);
-            // Giao dịch GIẢ của B11: khoá ví (7b), kiểm và giữ đúng số, rồi ghi yêu cầu `ChoDuyet`
-            const held = await withBookingTransaction(
-              db,
-              async (em) => {
-                const wallet = await stack.ledger.lockWallet(em, w.patientId);
-                if (wallet === null) throw new Error('không có ví');
-                const outcome = await stack.ledger.hold(em, wallet, COC);
-                if (outcome.kind !== 'Ok') return false;
-                await em.query(
-                  `INSERT INTO yeu_cau_rut_tien (vi_noi_bo_id, so_tien, trang_thai, thoi_diem_yeu_cau) VALUES (?, ?, 'ChoDuyet', ?)`,
-                  [
-                    wallet.viNoiBoId,
-                    COC,
-                    new Date('2026-11-02T08:00:00+07:00'),
-                  ],
-                );
-                return true;
-              },
-              { label: 'fake-withdraw' },
-            );
+            // B11 THẬT (thay giao dịch giả của B5): `WithdrawalService.request` khoá ví (7b), kiểm và giữ đúng số dưới khoá, ghi yêu cầu `ChoDuyet`; thiếu tiền ⇒ 409 SO_DU_KHONG_DU
+            const held = await withdrawals
+              .request(w.patientId, '100000')
+              .then(() => true)
+              .catch((error: unknown) => {
+                if (
+                  error instanceof AppException &&
+                  error.maLoi === 'SO_DU_KHONG_DU'
+                )
+                  return false;
+                throw error;
+              });
             return { who: 'withdraw', value: held };
           },
         ];

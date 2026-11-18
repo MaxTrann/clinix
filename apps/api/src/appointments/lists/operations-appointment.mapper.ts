@@ -1,4 +1,5 @@
 import { toItemCore } from './list-item.mapper.js';
+import { toMilestones } from './status-milestones.mapper.js';
 import type {
   OperationsAppointmentDetail,
   OperationsAppointmentItem,
@@ -23,7 +24,7 @@ export function toOperationsItem(
   };
 }
 
-/** Chi tiết dùng chung = dòng cộng `lyDoKham`, `lyDoHuy`, `hanThanhToan`. Mapper của Lễ tân thêm `chuyenDuoc`, `conPhaiThu` bên ngoài; Quản trị viên (B4) thêm phần của mình. */
+/** Chi tiết dùng chung = dòng cộng `lyDoKham`, `lyDoHuy`, `hanThanhToan`, `moc`. Mapper của Lễ tân thêm `chuyenDuoc`, `conPhaiThu` bên ngoài; Quản trị viên (B4) thêm phần của mình. */
 export function toOperationsDetail(
   row: OperationsAppointmentDetailRow,
 ): OperationsAppointmentDetail {
@@ -32,5 +33,6 @@ export function toOperationsDetail(
     lyDoKham: row.lyDoKham,
     lyDoHuy: row.lyDoHuy,
     hanThanhToan: row.hanThanhToan?.toISOString() ?? null,
+    moc: toMilestones(row),
   };
 }

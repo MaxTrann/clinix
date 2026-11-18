@@ -35,6 +35,7 @@ export function makeDetail(
     thanhToan: null,
     hoanTien: null,
     thoiGianMayChu: '2026-10-18T02:00:00.000Z',
+    moc: { xacNhan: null, tiepDon: null, hoanThanh: null },
     ...overrides,
   };
 }

@@ -18,10 +18,26 @@ export const PAYMENT_ERROR_CODES = {
 export const TOPUP_NOTIFICATION_EVENTS = {
   SUCCEEDED: 'NapViThanhCong',
   FAILED: 'NapViThatBai',
+  // B14: job cộng lại thành công (2.4 NTV b17) / hết lượt thử tự động (b18, gửi Quản trị viên `ToanHeThong`)
+  RECONCILED: 'NapViDaDoiSoat',
+  NEEDS_ATTENTION: 'NapViCanXuLy',
 } as const;
 
 /** Mã lý do ghi ở `lan_doi_soat_nap_vi.ly_do` khi lần cộng đầu (lúc xác minh IPN) lỗi: dạng MÃ, không văn bản lỗi gốc (PLAN 5.4 Q9). */
 export const TOPUP_FIRST_CREDIT_FAILED = 'CONG_VI_LOI_KHI_XAC_MINH';
+/** B14: mã lý do của một lần job đối soát cộng ví lỗi (dạng MÃ, không văn bản lỗi gốc). */
+export const TOPUP_RETRY_CREDIT_FAILED = 'CONG_VI_LOI_KHI_DOI_SOAT';
+
+/**
+ * Job đối soát nạp ví (payment B14; PLAN 5.4 bước 5; số lần thử `TOPUP_RECONCILE_MAX_RETRIES` ở `wallet.constants.ts`). Chạy MỖI PHÚT, giây 50 (booking giây 20, hoàn cọc giây 40: ba job
+ * không dồn một lúc). Một giao dịch chỉ được thử lại khi lần ghi gần nhất (lần 0 lúc xác minh, hay lần job trước) đã cách ÍT NHẤT `TOPUP_RECONCILE_GAP_MINUTES` (đúng mốc thì được thử).
+ * Lô và số lô theo nếp `REFUND_RETRY_*`.
+ */
+export const TOPUP_RECONCILE_CRON = '50 * * * * *';
+export const TOPUP_RECONCILE_JOB_NAME = 'payment-topup-reconcile';
+export const TOPUP_RECONCILE_GAP_MINUTES = 5;
+export const TOPUP_RECONCILE_BATCH_SIZE = 100;
+export const TOPUP_RECONCILE_MAX_BATCHES = 10;
 
 /** Câu chữ của các mã B6 và B4 (PLAN 5.14; `[đề xuất]`). `SO_TIEN_NGOAI_HAN_MUC` là mã của ví (`wallet.constants.ts`) nhưng nạp ví ném ở `payment/`. */
 export const PAYMENT_ERROR_MESSAGES = {

@@ -3,6 +3,10 @@ import type { EntityManager } from 'typeorm';
 import type { PatientVisibleState } from './patient-appointments.dto.js';
 import { VISIT_PROFILE_SELF } from './list-query.rules.js';
 import {
+  MILESTONE_COLUMNS,
+  type MilestoneColumns,
+} from './status-milestones.mapper.js';
+import {
   addCommonFilters,
   addKeywordFilter,
   addStateFilter,
@@ -43,14 +47,15 @@ export type PatientAppointmentRow = ListItemRow<PatientVisibleState>;
  * ra JSON (`toDetail` ánh xạ từng khoá; LSH-14), và `lyDoKham`. Không đọc `ly_do_huy`: lý do Lễ tân, Quản trị viên nhập là chữ tự do dùng để truy vết nội bộ
  * (Q27), chưa trả cho Bệnh nhân (TRACKING 3.15, câu (h)).
  */
-export interface PatientAppointmentDetailRow extends PatientAppointmentRow {
+export interface PatientAppointmentDetailRow
+  extends PatientAppointmentRow, MilestoneColumns {
   lichHenId: string;
   lyDoKham: string | null;
 }
 
 // Chi tiết: `lich_hen_id` chỉ để gọi cổng; `ly_do_kham` là văn bản tự do của chính Bệnh nhân (Q9)
 const DETAIL_COLUMNS = `${ITEM_COLUMNS},
-  lh.lich_hen_id AS lichHenId, lh.ly_do_kham AS lyDoKham`;
+  lh.lich_hen_id AS lichHenId, lh.ly_do_kham AS lyDoKham, ${MILESTONE_COLUMNS}`;
 
 // Người khám của lịch người thân chỉ khớp tên NGƯỜI THÂN (`COALESCE`): cột tên của ô tìm, ngoài tên bác sĩ và mã lịch luôn có (không khớp SĐT: Bệnh nhân chỉ tìm lịch của mình)
 const KEYWORD_TARGETS = { nameColumns: ['COALESCE(hs.ho_ten, tbn.ho_ten)'] };

@@ -49,14 +49,14 @@ const dupError = (message: string) =>
   } as never);
 
 describe('insertLichHen: tham số của câu INSERT (DL-21, DL-25)', () => {
-  it('đúng 15 cột và 15 dấu hỏi, chỉ INSERT một bảng lich_hen', async () => {
+  it('đúng 16 cột và 16 dấu hỏi (MOC-18: thêm thoi_diem_xac_nhan, booking B19), chỉ INSERT một bảng lich_hen', async () => {
     const { query, em } = build({ insertId: 1 });
 
     await insertLichHen(em, ROW);
 
     const sql = query.mock.calls[0]?.[0] ?? '';
     expect(sql).toMatch(/^INSERT INTO lich_hen\b/);
-    expect(sql.match(/\?/g)).toHaveLength(15);
+    expect(sql.match(/\?/g)).toHaveLength(16);
     const columns = /\(([^)]*)\)\s*VALUES/s.exec(sql)?.[1] ?? '';
     expect(columns.split(',').map((c) => c.trim())).toStrictEqual([
       'ma_lich_hen',
@@ -74,6 +74,7 @@ describe('insertLichHen: tham số của câu INSERT (DL-21, DL-25)', () => {
       'han_thanh_toan',
       'ly_do_kham',
       'thoi_diem_tao',
+      'thoi_diem_xac_nhan',
     ]);
   });
 
@@ -99,7 +100,38 @@ describe('insertLichHen: tham số của câu INSERT (DL-21, DL-25)', () => {
       HAN,
       'Đau đầu',
       TAO,
+      // Lịch ChoThanhToan chưa được xác nhận: thoi_diem_xac_nhan NULL (MOC-06)
+      null,
     ]);
+  });
+
+  it('MOC-06: lịch có cọc (ChoThanhToan) ghi thoi_diem_xac_nhan NULL, kể cả khi truyền hạn thanh toán', async () => {
+    const { query, em } = build({ insertId: 1 });
+
+    await insertLichHen(em, { ...ROW, trangThai: 'ChoThanhToan' });
+
+    const params = query.mock.calls[0]?.[1] ?? [];
+    expect(params).toHaveLength(16);
+    expect(params[15]).toBeNull();
+    expect(params[14]).toBe(TAO);
+  });
+
+  it('MOC-05: lịch cọc 0đ (INSERT thẳng DaXacNhan) ghi thoi_diem_xac_nhan = CHÍNH mốc thoi_diem_tao (cùng đối tượng Date, một mốc now của lượt)', async () => {
+    const { query, em } = build({ insertId: 1 });
+
+    await insertLichHen(em, {
+      ...ROW,
+      trangThai: 'DaXacNhan',
+      hanThanhToan: null,
+      tienCocSnapshot: '0.00',
+      chinhSachHoanSnapshot: null,
+    });
+
+    const params = query.mock.calls[0]?.[1] ?? [];
+    expect(params).toHaveLength(16);
+    expect(params[11]).toBe('DaXacNhan');
+    expect(params[14]).toBe(TAO);
+    expect(params[15]).toBe(TAO);
   });
 
   it('DL-21 snapshot là CHUỖI JSON (mảng truyền thẳng bị MySQL từ chối 1136, X1 M7), giữ thứ tự giảm dần', async () => {

@@ -19,6 +19,9 @@ import { AppointmentTransitionService } from './appointment-transition.service.j
 const LICH_HEN_ID = '41';
 const BAC_SI_ID = '9';
 const BAC_SI_KHAC_ID = '10';
+// Mốc của lượt có mili giây: `thoi_diem_hoan_thanh` phải nhận mốc đã cắt xuống giây (DATETIME chỉ có độ chính xác giây)
+const NOW = new Date('2026-11-18T10:15:30.789+07:00');
+const NOW_SECOND = new Date('2026-11-18T10:15:30+07:00');
 
 interface Script {
   appointment: { bacSiId: string; trangThai: TrangThaiLichHen }[];
@@ -50,7 +53,7 @@ function setup(
     notifier,
   );
   const complete = (bacSiId: string = BAC_SI_ID) =>
-    service.complete(em.em, { lichHenId: LICH_HEN_ID, bacSiId });
+    service.complete(em.em, { lichHenId: LICH_HEN_ID, bacSiId, now: NOW });
   return { em, waitlist, notifier, service, complete };
 }
 
@@ -99,7 +102,11 @@ describe('CMP-01 complete: kết quả có kiểu, kiểm sở hữu TRƯỚC tr
     const { em, service } = setup();
     for (const bacSiId of [9, '', undefined, null] as unknown as string[]) {
       expect(
-        await service.complete(em.em, { lichHenId: LICH_HEN_ID, bacSiId }),
+        await service.complete(em.em, {
+          lichHenId: LICH_HEN_ID,
+          bacSiId,
+          now: NOW,
+        }),
       ).toEqual({ kind: 'NotAssigned' });
     }
     expect(em.labels.every((label) => label === 'lock lich_hen')).toBe(true);
@@ -135,14 +142,29 @@ describe('CMP-02 không bắt lỗi DB, UPDATE có điều kiện, ô ma trận'
     ).toBe(false);
   });
 
-  it('UPDATE ghi đúng HoanThanh, có điều kiện bác sĩ và trạng thái nguồn DaTiepDon, tham số là lịch và bác sĩ', async () => {
+  it('UPDATE ghi đúng HoanThanh, có điều kiện bác sĩ và trạng thái nguồn DaTiepDon, tham số là mốc, lịch và bác sĩ (MOC-09: mốc nằm CÙNG câu với trạng thái)', async () => {
     const { em, complete } = setup();
     await complete();
     const update = em.queries[1];
     expect(update?.sql).toContain("trang_thai = 'HoanThanh'");
+    expect(update?.sql).toContain('thoi_diem_hoan_thanh = ?');
     expect(update?.sql).toContain('bac_si_id = ?');
     expect(update?.sql).toContain("trang_thai = 'DaTiepDon'");
-    expect(update?.params).toEqual([LICH_HEN_ID, BAC_SI_ID]);
+    expect(update?.params).toEqual([NOW_SECOND, LICH_HEN_ID, BAC_SI_ID]);
+  });
+
+  it('MOC-09: mốc chỉ ghi vào thoi_diem_hoan_thanh (không đụng hai mốc trước), cắt mili giây, không sửa Date của người gọi; còn đúng MỘT câu ghi', async () => {
+    const { em, complete } = setup();
+    const before = NOW.getTime();
+    await complete();
+    const writes = em.queries.filter(({ sql }) => sql.startsWith('UPDATE'));
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.sql).not.toContain('thoi_diem_xac_nhan');
+    expect(writes[0]?.sql).not.toContain('thoi_diem_tiep_don');
+    expect(NOW.getTime()).toBe(before);
+    const stamp = writes[0]?.params[0];
+    expect(stamp).toBeInstanceOf(Date);
+    expect((stamp as Date).getMilliseconds()).toBe(0);
   });
 
   it.each([1213, 1205] as const)(

@@ -3,6 +3,7 @@ import { expect } from 'vitest';
 import { SystemConfigRepository } from '../../admin/system-config/system-config.repository.js';
 import { SystemConfigService } from '../../admin/system-config/system-config.service.js';
 import { AppException } from '../../common/errors/app.exception.js';
+import { nowVN, toSecond } from '../../common/time/time.js';
 import { ExamPriceReader } from '../../pricing/exam-price.reader.js';
 import { BranchHoursReader } from '../../scheduling/branch-hours/branch-hours.reader.js';
 import {
@@ -240,6 +241,7 @@ export function simulateConfirmPaid(
       const outcome = await service.confirmPaid(em, {
         lichHenId: ids.lichHenId,
         soTienDaThu: '50000.00',
+        now: toSecond(nowVN()),
       });
       if (outcome.kind !== 'Confirmed')
         throw new Error(`confirmPaid không trả Confirmed: ${outcome.kind}`);

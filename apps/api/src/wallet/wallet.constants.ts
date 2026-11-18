@@ -49,6 +49,18 @@ export const WALLET_ERROR_CODES = {
 export type WalletErrorCode =
   (typeof WALLET_ERROR_CODES)[keyof typeof WALLET_ERROR_CODES];
 
+/** Câu chữ của các mã rút tiền (payment B11; PLAN 5.14; `[đề xuất]`). Web chọn câu theo `maLoi`, không theo chữ này. */
+export const WALLET_ERROR_MESSAGES = {
+  SO_DU_KHONG_DU: 'Số dư ví không đủ. Hãy nạp thêm tiền.',
+  SO_TIEN_NGOAI_HAN_MUC: 'Số tiền nằm ngoài hạn mức cho phép.',
+  DA_CO_YEU_CAU_CHO_DUYET: 'Bạn đang có một yêu cầu rút tiền chờ duyệt.',
+} as const;
+
+/** `loai_su_kien` của thông báo rút tiền (PLAN 5.12; chữ `[đề xuất]`). B12 thêm `RutTienDuocDuyet`, `RutTienBiTuChoi`. */
+export const WITHDRAWAL_NOTIFICATION_EVENTS = {
+  SUBMITTED: 'RutTienDaGui',
+} as const;
+
 /**
  * Hoàn cọc tự động (payment B8; PLAN 5.6.1). `RefundRetryJob` chạy MỖI PHÚT (cùng nhịp `HOLD_EXPIRY_CRON` của booking, lệch giây để hai job không dồn một lúc); mỗi lượt quét theo lô để một lượt không chiếm
  * kết nối quá lâu. Số lô tối đa và cỡ lô theo nếp `BOOKING_JOB_*` của booking.

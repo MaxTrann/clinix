@@ -1,6 +1,7 @@
 import type { DataSource } from 'typeorm';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
+import { nowVN, toSecond } from '../../common/time/time.js';
 import { BookingFixtures } from '../testing/booking-fixtures.js';
 import { expiryWorld } from '../testing/expiry-fixtures.js';
 import { assertBookingInvariants } from '../testing/invariants.js';
@@ -124,7 +125,11 @@ describe('CMP-03 chuỗi khoá thật của complete và hoàn tác trọn', () 
   it('chỉ lich_hen FOR UPDATE theo lich_hen_id rồi UPDATE lich_hen; KHÔNG câu nào đụng khung_gio hay bac_si; khung giờ vẫn DaDat', async () => {
     const { w, target, ownerId, service } = await given('DaTiepDon');
     const recorded = recordTransaction(db, 'complete-recorded', (em) =>
-      service.complete(em, { lichHenId: target.lichHenId, bacSiId: ownerId }),
+      service.complete(em, {
+        lichHenId: target.lichHenId,
+        bacSiId: ownerId,
+        now: toSecond(nowVN()),
+      }),
     );
 
     await expect(recorded.run()).resolves.toEqual({ kind: 'Completed' });
