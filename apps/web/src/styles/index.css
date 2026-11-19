@@ -169,3 +169,28 @@
     var(--color-brand) max(78%, 1120px),
     var(--color-teal-500) 100%);
 }
+
+/* Mũi tên ô chọn (doctor UX1, G8): bỏ mũi tên gốc của trình duyệt (dính sát mép phải, khác nhau theo trình duyệt), chừa chỗ bên phải và vẽ mũi tên
+   bằng ảnh nền cách mép phải 0,75 rem, cùng khoảng cách với icon lịch của ô ngày. Test `select-arrow.test.ts` khoá hợp đồng này.
+   Vì sao NGOÀI `@layer`: mọi ô chọn đều có `px-*` ở lớp `utilities`, mà `utilities` thắng `base` bất kể độ đặc hiệu, nên `padding-right` đặt ở lớp
+   base bị `px-3` ghi đè (mũi tên đè chữ); CSS ngoài lớp thắng mọi lớp. Chỉ có thuộc tính của mũi tên: KHÔNG `:focus`, `outline`, `border`,
+   `background-color` (vòng focus do lớp base lo, FG-01 đến FG-06; nền `bg-white` của nơi gọi giữ nguyên).
+   Loại `.appearance-none`: bảy ô (SelectBox của booking, hồ sơ bệnh nhân, bộ lọc bác sĩ của search, lịch sử giao dịch ví) đã tự vẽ mũi tên bằng
+   `ChevronDown`; áp khối này thêm vào sẽ ra hai mũi tên (test `select-arrow` UX1-60 buộc ô `appearance-none` phải có `ChevronDown`).
+   Màu mũi tên `#4a5565` = `--color-text-secondary` (ảnh nhúng không dùng được biến CSS; test khoá hai giá trị bằng nhau). */
+select:not(.appearance-none) {
+  appearance: none;
+  padding-right: 2.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234a5565' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+}
+
+/* Chế độ tương phản cao của Windows xoá ảnh nền: không có dòng này thì ô chọn mất hẳn mũi tên */
+@media (forced-colors: active) {
+  select:not(.appearance-none) {
+    appearance: auto;
+    background-image: none;
+  }
+}

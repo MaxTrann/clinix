@@ -5,6 +5,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import { fillDate } from '../../../test/fill-date';
 import { DoctorSchedulePage } from '../schedule/doctor-schedule-page';
 import type { LeaveRequest } from '../api/leave-api';
 import { jsonResponse } from '../testing/fetch-routing';
@@ -213,7 +214,7 @@ describe('gửi yêu cầu nghỉ (F4)', () => {
     submit(dialog);
     expect(within(dialog).getAllByText('Vui lòng chọn ngày.')).toHaveLength(2);
     expect(
-      within(dialog).getByText('Vui lòng nhập lý do (2–500 ký tự).'),
+      within(dialog).getByText('Vui lòng nhập lý do (từ 2 đến 500 ký tự).'),
     ).toBeVisible();
 
     fireEvent.change(within(dialog).getByLabelText(/Từ ngày/), {
@@ -243,6 +244,46 @@ describe('gửi yêu cầu nghỉ (F4)', () => {
     expect(calls('POST', '/doctor/leave-requests')).toHaveLength(0);
   });
 
+  it('WN-01 UX1-77 gõ ngày bằng bàn phím dd/mm/yyyy ("24112026" ra "24/11/2026"): thân gửi lên vẫn là ISO `YYYY-MM-DD`', async () => {
+    const dialog = await openDialog();
+    fillDate(within(dialog).getByLabelText(/Từ ngày/), '24112026');
+    fillDate(within(dialog).getByLabelText(/Đến ngày/), '25112026');
+    fillReason(dialog);
+
+    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('24/11/2026');
+    expect(within(dialog).getByLabelText(/Đến ngày/)).toHaveValue('25/11/2026');
+    submit(dialog);
+
+    await waitFor(() =>
+      expect(calls('POST', '/doctor/leave-requests')).toHaveLength(1),
+    );
+    const body = JSON.parse(
+      String(calls('POST', '/doctor/leave-requests')[0][1]?.body),
+    );
+    expect(body).toMatchObject({
+      hinhThuc: 'CaNgay',
+      tuNgay: '2026-11-24',
+      denNgay: '2026-11-25',
+    });
+  });
+
+  it('WN-03 UX1-78 ngày không tồn tại (31/02/2026): ô báo "Ngày không tồn tại." và form báo "Vui lòng chọn ngày.", KHÔNG gọi API', async () => {
+    const dialog = await openDialog();
+    fillDate(within(dialog).getByLabelText(/Từ ngày/), '31022026');
+    fillDate(within(dialog).getByLabelText(/Đến ngày/), '25112026');
+    fillReason(dialog);
+
+    expect(within(dialog).getByText('Ngày không tồn tại.')).toBeVisible();
+    submit(dialog);
+
+    expect(within(dialog).getByText('Vui lòng chọn ngày.')).toBeVisible();
+    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(calls('POST', '/doctor/leave-requests')).toHaveLength(0);
+  });
+
   it('WN-03 lỗi 400 `loi[]` của server: hiện dưới đúng ô, giữ dữ liệu, hộp vẫn mở', async () => {
     createHandler = () =>
       apiError(400, 'DU_LIEU_KHONG_HOP_LE', {
@@ -256,13 +297,15 @@ describe('gửi yêu cầu nghỉ (F4)', () => {
     submit(dialog);
 
     expect(
-      await within(dialog).findByText('Vui lòng nhập lý do (2–500 ký tự).'),
+      await within(dialog).findByText(
+        'Vui lòng nhập lý do (từ 2 đến 500 ký tự).',
+      ),
     ).toBeVisible();
     expect(
       within(dialog).getByText('Nghỉ theo ca chỉ chọn một ngày.'),
     ).toBeVisible();
     expect(within(dialog).getByLabelText(/Lý do/)).toHaveValue('Việc gia đình');
-    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('2026-10-26');
+    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('26/10/2026');
   });
 
   it('WN-04 thành công: dòng lịch sử "26/10 Theo ca · Ca sáng", lý do và chip "Chờ duyệt"', async () => {
@@ -372,8 +415,8 @@ describe('gửi yêu cầu nghỉ (F4)', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
       SEND_UNCERTAIN_MESSAGE,
     );
-    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('2026-10-26');
-    expect(within(dialog).getByLabelText(/Đến ngày/)).toHaveValue('2026-10-28');
+    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('26/10/2026');
+    expect(within(dialog).getByLabelText(/Đến ngày/)).toHaveValue('28/10/2026');
     expect(within(dialog).getByLabelText(/Lý do/)).toHaveValue('Việc gia đình');
 
     submit(dialog);

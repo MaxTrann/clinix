@@ -83,8 +83,8 @@ describe('booking F11 — chip ngày của Bác sĩ theo giờ Việt Nam', () =
         denNgay: '2026-10-18',
       }),
     );
-    expect(dateInput('Từ ngày').value).toBe('2026-10-18');
-    expect(dateInput('Đến ngày').value).toBe('2026-10-18');
+    expect(dateInput('Từ ngày').value).toBe('18/10/2026');
+    expect(dateInput('Đến ngày').value).toBe('18/10/2026');
     expect(chip('Hôm nay')).toHaveAttribute('aria-pressed', 'true');
     expect(currentUrl()).toBe(`${DOCTOR_APPOINTMENTS_PATH}?khoang=hom-nay`);
     first.unmount();
@@ -180,7 +180,7 @@ describe('booking F11 — chip ngày của Bác sĩ theo giờ Việt Nam', () =
     });
     expect(await screen.findByText(LIST_TEXT.dateOrder)).toBeInTheDocument();
     expect(requested(api)).toBe(before);
-    expect(dateInput('Đến ngày').value).toBe('2026-10-01');
+    expect(dateInput('Đến ngày').value).toBe('01/10/2026');
   });
 
   it('DAF-05 chỉ nhập `Từ ngày` (mặc định, hai ô trống): gửi MỘT đầu', async () => {
@@ -410,8 +410,8 @@ describe('booking F11 — bộ lọc của Bác sĩ trên URL và kho trình duy
       },
     ]);
     expect(chip('Tùy chọn')).toHaveAttribute('aria-pressed', 'true');
-    expect(dateInput('Từ ngày').value).toBe('2026-10-01');
-    expect(dateInput('Đến ngày').value).toBe('2026-10-31');
+    expect(dateInput('Từ ngày').value).toBe('01/10/2026');
+    expect(dateInput('Đến ngày').value).toBe('31/10/2026');
     expect(select('Ca khám').value).toBe('CaToi');
     expect(select('Sắp xếp').value).toBe('CuNhat');
     expect(screen.getByRole('button', { name: /^Đã hủy/ })).toHaveAttribute(

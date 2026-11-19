@@ -1,3 +1,4 @@
+import { formatRange } from '../../../shared/format/range';
 import styles from './admin-components.module.css';
 
 interface AdminPaginationProps {
@@ -27,7 +28,7 @@ export function AdminPagination({
       <p aria-live="polite">
         {safeTotal === 0
           ? 'Hiển thị 0 trên 0'
-          : `Hiển thị ${firstItem}–${lastItem} trên ${safeTotal}`}
+          : `Hiển thị ${formatRange(firstItem, lastItem)} trên ${safeTotal}`}
       </p>
       <div className={styles.paginationButtons}>
         <button

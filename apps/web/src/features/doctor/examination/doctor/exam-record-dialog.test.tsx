@@ -97,6 +97,9 @@ const diagnosis = () => box(/^Chẩn đoán sơ bộ/);
 const advice = () => box(/^Hướng xử lý/);
 const dateBox = () =>
   within(dialog()).getByLabelText(/^Ngày tái khám dự kiến/) as HTMLInputElement;
+// Ô ngày gốc ẩn của `DateField` (`{id}-picker`): mang `type="date"`, `min`, `max` cho bộ chọn của trình duyệt (doctor UX1, G5)
+const datePicker = () =>
+  document.getElementById(`${dateBox().id}-picker`) as HTMLInputElement;
 const saveButton = () =>
   within(dialog()).getByRole('button', {
     name: /^(Lưu ghi chú|Đang lưu\.\.\.)$/,
@@ -159,7 +162,10 @@ describe('doctor-exam F3 — hộp Ghi chú khám (Figma 460:2)', () => {
       expect(element).toHaveValue('');
       expect(element).toBeRequired();
     }
-    expect(dateBox()).toHaveAttribute('type', 'date');
+    // doctor UX1 (G5): ô chữ dd/mm/yyyy (không còn `type="date"`; ô gốc ẩn `type="date"` chỉ để mở bộ chọn)
+    expect(dateBox()).toHaveAttribute('type', 'text');
+    expect(dateBox()).toHaveAttribute('placeholder', 'dd/mm/yyyy');
+    expect(datePicker()).toHaveAttribute('type', 'date');
     expect(dateBox()).toHaveValue('');
     expect(dateBox()).not.toBeRequired();
     expect(within(dialog()).getByText('(tùy chọn)')).toBeInTheDocument();
@@ -183,7 +189,7 @@ describe('doctor-exam F3 — hộp Ghi chú khám (Figma 460:2)', () => {
     expect(symptoms()).toHaveValue(NOTE.trieuChung);
     expect(diagnosis()).toHaveValue(NOTE.chanDoanSoBo);
     expect(advice()).toHaveValue(NOTE.huongXuLy);
-    expect(dateBox()).toHaveValue('2026-07-10');
+    expect(dateBox()).toHaveValue('10/07/2026');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -289,7 +295,7 @@ describe('doctor-exam F3 — ba trường bắt buộc, lỗi theo ô, giữ n�
     expect(symptoms()).toHaveValue('Ho khan, sốt nhẹ');
     expect(diagnosis()).toHaveValue('Viêm họng cấp');
     expect(advice()).toHaveValue('Uống đủ nước');
-    expect(dateBox()).toHaveValue('2026-12-01');
+    expect(dateBox()).toHaveValue('01/12/2026');
     expect(saveButton()).toBeEnabled();
     expect(onSaved).not.toHaveBeenCalled();
     expect(onChanged).not.toHaveBeenCalled();
@@ -358,8 +364,8 @@ describe('doctor-exam F3 — bộ đếm và khoảng ngày (WHS-07)', () => {
 
   it('WHS-07 ô ngày có `min` là ngày khám THEO GIỜ VIỆT NAM (không phải ngày UTC) và `max` là +365 ngày', () => {
     renderDialog();
-    expect(dateBox()).toHaveAttribute('min', '2026-06-10');
-    expect(dateBox()).toHaveAttribute('max', '2027-06-10');
+    expect(datePicker()).toHaveAttribute('min', '2026-06-10');
+    expect(datePicker()).toHaveAttribute('max', '2027-06-10');
   });
 
   it('WHS-07 ngày trước ngày khám hoặc +366 ngày ⇒ "Ngày tái khám phải từ ngày khám đến 365 ngày sau.", 0 PUT; hai biên được gửi', async () => {
@@ -384,11 +390,13 @@ describe('doctor-exam F3 — bộ đếm và khoảng ngày (WHS-07)', () => {
     expect(putBody().ngayTaiKhamDuKien).toBe('2027-06-10');
   });
 
-  // Ngày không có thật (30/02) và sai dạng KHÔNG thể có trong `input type="date"` (trình duyệt đổi thành chuỗi rỗng): hai ca đó khoá ở hàm thuần (`exam-record-form.test.ts`, WHS-07) và ở lỗi 400 của máy chủ (WHS-02).
-  it('WHS-07 ngày không có thật bị trình duyệt đổi thành rỗng ⇒ không gửi ngày rác: thân PUT mang `null`', async () => {
+  // Ngày không có thật (30/02) và sai dạng KHÔNG thể ra khỏi `DateField` (ô chỉ phát `YYYY-MM-DD` có thật hoặc rỗng, doctor UX1): hai ca đó khoá ở hàm thuần (`exam-record-form.test.ts`, WHS-07) và ở lỗi 400 của máy chủ (WHS-02).
+  it('WHS-07 UX1-79 ngày không có thật (30/02) ⇒ ô giữ chữ và báo, giá trị rỗng ⇒ không gửi ngày rác: thân PUT mang `null`', async () => {
     renderDialog();
     fillValid();
     type(dateBox(), '2026-02-30');
+    expect(dateBox()).toHaveValue('30/02/2026');
+    expect(within(dialog()).getByText('Ngày không tồn tại.')).toBeVisible();
     fetchMock.mockResolvedValue(saved());
     fireEvent.click(saveButton());
     await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());

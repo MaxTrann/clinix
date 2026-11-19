@@ -160,7 +160,7 @@ describe('trang Kiểm duyệt đánh giá — chip, lọc, tìm, trang (WKD-03)
     await renderPage();
     await table();
     expect(chips()).toEqual(['20 hiển thị', '5 đã ẩn']);
-    expect(screen.getByText('Hiển thị 1–20 trên 25')).toBeVisible();
+    expect(screen.getByText('Hiển thị 1 – 20 trên 25')).toBeVisible();
 
     pick('Trạng thái', 'DaAn');
     await waitFor(() =>
@@ -398,7 +398,7 @@ describe('trang Kiểm duyệt đánh giá — trạng thái (WKD-09)', () => {
       );
     await renderPage();
     const grid = await table();
-    expect(screen.getByText('Hiển thị 1–20 trên 25')).toBeVisible();
+    expect(screen.getByText('Hiển thị 1 – 20 trên 25')).toBeVisible();
     // Chỉ còn câu rỗng NẰM TRONG bảng (ô `emptyMessage`), không có khối "rỗng" thay cho bảng
     expect(within(grid).getByText('Chưa có đánh giá nào.')).toBeVisible();
     expect(screen.queryByRole('status')).toBeNull();

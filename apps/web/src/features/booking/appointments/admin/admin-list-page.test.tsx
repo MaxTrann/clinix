@@ -297,7 +297,7 @@ describe('ô tìm và hai ô ngày', () => {
     expect(
       await screen.findByText('Đến ngày phải sau hoặc bằng Từ ngày.'),
     ).toBeInTheDocument();
-    expect(field('Đến ngày')).toHaveValue('2026-10-10');
+    expect(field('Đến ngày')).toHaveValue('10/10/2026');
     expect(adminListQueries(api)).toHaveLength(calls);
 
     fireEvent.change(field('Đến ngày'), { target: { value: '2026-10-25' } });
@@ -661,7 +661,7 @@ describe('nguồn ô chọn, kho trình duyệt, URL', () => {
       denNgay: '2026-10-31',
     });
     expect(field('Trạng thái lịch')).toHaveValue('DaHuy');
-    expect(field('Từ ngày')).toHaveValue('2026-10-01');
+    expect(field('Từ ngày')).toHaveValue('01/10/2026');
   });
 
   it('AQL-17 giá trị sai hay lạ trên URL (trạng thái, id, ngày, trang, `pageSize`, `thanhToan`) bị bỏ như không có', async () => {

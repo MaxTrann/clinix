@@ -1,3 +1,4 @@
+import { formatRange } from '../../../shared/format/range';
 import type { BranchPeriod, BranchSchedule } from './branch-types';
 
 const DAY_LABELS: Record<number, string> = {
@@ -17,7 +18,7 @@ export function dayLabel(day: number): string {
 }
 
 function formatPeriod(period: BranchPeriod): string {
-  return `${period.batDau.slice(0, 5)}–${period.ketThuc.slice(0, 5)}`;
+  return formatRange(period.batDau.slice(0, 5), period.ketThuc.slice(0, 5));
 }
 
 // Nội dung giờ của MỘT ngày; null là chưa biết (`hoatDong` null) nên bỏ qua, không tạo dòng

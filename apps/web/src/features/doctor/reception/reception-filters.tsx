@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { sortByLabel } from '../../../shared/format/sort-options';
 import {
   SHIFT_LABELS,
   SHIFT_ORDER,
@@ -52,17 +53,24 @@ export function ReceptionToolbar({
   onNextWeek,
   onToday,
 }: ReceptionToolbarProps) {
-  const specialties = [
-    ...new Map(
-      doctors.map((d) => [d.chuyenKhoa.chuyenKhoaId, d.chuyenKhoa.ten]),
+  // Chi nhánh, chuyên khoa, bác sĩ sắp theo bảng chữ cái tiếng Việt (doctor UX1, G12); ca và trạng thái là hằng có thứ tự nghiệp vụ nên KHÔNG sắp
+  const specialties = sortByLabel(
+    [
+      ...new Map(
+        doctors.map((d) => [d.chuyenKhoa.chuyenKhoaId, d.chuyenKhoa.ten]),
+      ),
+    ],
+    ([, name]) => name,
+  );
+  const visibleDoctors = sortByLabel(
+    doctors.filter(
+      (d) =>
+        (filters.chuyenKhoaId === ALL ||
+          d.chuyenKhoa.chuyenKhoaId === filters.chuyenKhoaId) &&
+        (filters.chiNhanhId === ALL ||
+          d.chiNhanh.chiNhanhId === filters.chiNhanhId),
     ),
-  ];
-  const visibleDoctors = doctors.filter(
-    (d) =>
-      (filters.chuyenKhoaId === ALL ||
-        d.chuyenKhoa.chuyenKhoaId === filters.chuyenKhoaId) &&
-      (filters.chiNhanhId === ALL ||
-        d.chiNhanh.chiNhanhId === filters.chiNhanhId),
+    (d) => d.hoTen,
   );
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3">
@@ -81,7 +89,7 @@ export function ReceptionToolbar({
           }
         >
           <option value={ALL}>Tất cả chi nhánh</option>
-          {branches.map((branch) => (
+          {sortByLabel(branches, (branch) => branch.ten).map((branch) => (
             <option key={branch.chiNhanhId} value={branch.chiNhanhId}>
               {branch.ten}
             </option>

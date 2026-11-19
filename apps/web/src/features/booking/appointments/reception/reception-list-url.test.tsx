@@ -264,12 +264,12 @@ describe('bấm lại chip đang chọn', () => {
     await loaded();
     const range = `${LIST}?khoang=khoang-ngay&tuNgay=2026-10-01&denNgay=2026-10-31`;
     expect(currentUrl()).toBe(range);
-    expect(screen.getByLabelText('Từ ngày')).toHaveValue('2026-10-01');
+    expect(screen.getByLabelText('Từ ngày')).toHaveValue('01/10/2026');
 
     const calls = listQueries(api).length;
     fireEvent.click(chip('Khoảng ngày'));
     expect(currentUrl()).toBe(range);
-    expect(screen.getByLabelText('Từ ngày')).toHaveValue('2026-10-01');
+    expect(screen.getByLabelText('Từ ngày')).toHaveValue('01/10/2026');
     expect(listQueries(api)).toHaveLength(calls);
 
     // Sang chip khác rồi quay lại: khoảng cũ không được giữ (URL chỉ lưu ngày của chip `Khoảng ngày` đang chọn, như Bác sĩ F11)

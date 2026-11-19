@@ -105,10 +105,10 @@ describe('DoctorSchedulePage (F2)', () => {
 
     // Giờ của hàng lấy từ dữ liệu; ô còn lại là "Không có ca"; cột hôm nay có nhãn "Hôm nay"
     expect(
-      screen.getByRole('rowheader', { name: /Sáng\s*08:30–11:30/ }),
+      screen.getByRole('rowheader', { name: /Sáng\s*08:30 – 11:30/ }),
     ).toBeVisible();
     expect(
-      screen.getByRole('rowheader', { name: /Chiều\s*13:30–17:00/ }),
+      screen.getByRole('rowheader', { name: /Chiều\s*13:30 – 17:00/ }),
     ).toBeVisible();
     expect(screen.getAllByText('Không có ca')).toHaveLength(11);
     expect(screen.getByText('Hôm nay', { selector: 'span' })).toBeVisible();

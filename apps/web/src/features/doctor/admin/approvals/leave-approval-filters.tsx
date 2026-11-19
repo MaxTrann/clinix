@@ -1,4 +1,6 @@
 import { AdminSearchInput } from '../../../admin';
+import { sortByLabel } from '../../../../shared/format/sort-options';
+import { DateField } from '../../../../shared/masked-input/date-field';
 import {
   ALL,
   DATE_ORDER_MESSAGE,
@@ -62,30 +64,27 @@ export function LeaveApprovalFilters({
             ))}
           </select>
         </label>
-        <label className={LABEL}>
-          Từ ngày gửi
-          <input
-            type="date"
+        {/* Nhãn `htmlFor` (không bọc ô): nhãn bọc sẽ ghép cả nút lịch và ô gốc ẩn của `DateField` */}
+        <div className={LABEL}>
+          <label htmlFor="approval-from">Từ ngày gửi</label>
+          <DateField
+            id="approval-from"
             className={FIELD}
             value={filters.tuNgayGui}
-            onChange={(event) =>
-              onChange({ ...filters, tuNgayGui: event.target.value })
-            }
+            onChange={(iso) => onChange({ ...filters, tuNgayGui: iso })}
           />
-        </label>
-        <label className={LABEL}>
-          Đến ngày gửi
-          <input
-            type="date"
+        </div>
+        <div className={LABEL}>
+          <label htmlFor="approval-to">Đến ngày gửi</label>
+          <DateField
+            id="approval-to"
             className={FIELD}
             value={filters.denNgayGui}
             aria-invalid={dateOrderInvalid ? true : undefined}
             aria-describedby={dateOrderInvalid ? 'date-order-error' : undefined}
-            onChange={(event) =>
-              onChange({ ...filters, denNgayGui: event.target.value })
-            }
+            onChange={(iso) => onChange({ ...filters, denNgayGui: iso })}
           />
-        </label>
+        </div>
         {branches !== undefined && (
           <label className={LABEL}>
             Chi nhánh
@@ -97,7 +96,7 @@ export function LeaveApprovalFilters({
               }
             >
               <option value={ALL}>Tất cả chi nhánh</option>
-              {branches.map((branch) => (
+              {sortByLabel(branches, (branch) => branch.ten).map((branch) => (
                 <option key={branch.chiNhanhId} value={branch.chiNhanhId}>
                   {branch.ten}
                 </option>
