@@ -11,6 +11,7 @@ import { SystemConfigModule } from './admin/system-config/system-config.module.j
 import { SystemConfigAdminModule } from './admin/system-config/system-config-admin.module.js';
 import { SpecialtyModule } from './admin/specialties/specialty.module.js';
 import { ServiceGroupModule } from './admin/service-groups/service-group.module.js';
+import { StaffAccountModule } from './admin/staff-accounts/staff-account.module.js';
 import { ServiceModule } from './admin/services/service.module.js';
 import { AccountModule } from './admin/accounts/account.module.js';
 import { ClinicInfoModule } from './admin/clinic-info/clinic-info.module.js';
@@ -34,6 +35,7 @@ import { WalletModule } from './wallet/wallet.module.js';
     SystemConfigAdminModule,
     SpecialtyModule,
     ServiceGroupModule,
+    StaffAccountModule,
     ServiceModule,
     AccountModule,
     ClinicInfoModule,
