@@ -50,4 +50,20 @@ export const ADMIN_ROUTES: RouteObject[] = [
       },
     ],
   },
+  // admin F9: Tài khoản bệnh nhân, cả hai phạm vi (Admin Chi nhánh chỉ xem: không bộ lọc no-show, không nút hành động; API vẫn kiểm lại)
+  {
+    element: <AdminScopeGuard policy="Any" />,
+    children: [
+      {
+        path: 'tai-khoan-benh-nhan',
+        hydrateFallbackElement: (
+          <LoadingState message="Đang tải danh sách bệnh nhân…" />
+        ),
+        lazy: () =>
+          import('./patient-accounts/patient-accounts-page').then((module) => ({
+            Component: module.PatientAccountsPage,
+          })),
+      },
+    ],
+  },
 ];

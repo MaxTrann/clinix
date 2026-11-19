@@ -77,7 +77,7 @@ describe('mục menu và đường dẫn của Quản trị viên (KG-04, KG-06)
     ).toHaveAttribute('href', '/admin/thong-tin-phong-kham');
   });
 
-  it('AQ-03 KG-04 chỉ mục này đổi từ nút vô hiệu thành liên kết: mười hai liên kết, mọi nút còn lại vô hiệu, "Thông báo" ngay trên vẫn vô hiệu; nhãn và thứ tự nhóm "Tài khoản" không đổi', async () => {
+  it('AQ-03 KG-04 chỉ mục này đổi từ nút vô hiệu thành liên kết: mười ba liên kết, mọi nút còn lại vô hiệu, "Thông báo" ngay trên vẫn vô hiệu; nhãn và thứ tự nhóm "Tài khoản" không đổi', async () => {
     await renderAdminProfilePage();
     const menu = menuOf(await adminSidebar());
 
@@ -88,6 +88,7 @@ describe('mục menu và đường dẫn của Quản trị viên (KG-04, KG-06)
     // Đổi có duyệt ở booking F10 (Đại duyệt 13/11/2026): "Lịch hẹn" (nhóm Vận hành, đầu nhóm) có trang nên là liên kết
     // Đổi có duyệt ở doctor-exam F7 (Đại duyệt 17/11/2026): "Kiểm duyệt đánh giá" (nhóm Nội dung) có trang nên là liên kết, đứng sau "Loại dịch vụ khám" và trước "Thông tin cá nhân"
     // Đổi ở payment F5 (18/11/2026, chờ Đại duyệt ở PR): "Đặt cọc & Hoàn tiền" (nhóm Nội dung, chỉ Toàn hệ thống) có trang nên là liên kết, đứng ngay sau "Kiểm duyệt đánh giá"
+    // Đổi ở admin F9 (19/11/2026, Đại đã duyệt): "Nhân sự & Tài khoản" (nhóm Quản lý, đầu nhóm) có trang nên là liên kết, đứng sau "Duyệt yêu cầu" và trước "Chuyên khoa"; F8 sẽ đổi đích của liên kết này, nhãn và vị trí giữ nguyên
     // Đổi ở admin F5 (19/11/2026, Đại đã duyệt kế hoạch): "Cài đặt hệ thống" (nhóm Hệ thống, chỉ Toàn hệ thống) có trang nên là liên kết, đứng sau "Đặt cọc & Hoàn tiền" và trước "Thông tin cá nhân"
     // Đổi ở payment F7 (19/11/2026, chờ Đại duyệt ở PR): "Yêu cầu rút tiền" (nhóm Tài chính, chỉ Toàn hệ thống) có trang nên là liên kết, đứng sau "Loại dịch vụ khám" và trước "Kiểm duyệt đánh giá"
     expect(links).toEqual([
@@ -95,6 +96,7 @@ describe('mục menu và đường dẫn của Quản trị viên (KG-04, KG-06)
       'Lịch hẹn',
       'Lịch làm việc bác sĩ',
       'Duyệt yêu cầu',
+      'Nhân sự & Tài khoản',
       'Chuyên khoa',
       'Thông tin phòng khám',
       'Loại dịch vụ khám',
