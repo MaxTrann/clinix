@@ -85,6 +85,8 @@ describe('Admin F1 shell', () => {
 
   it('AF1-02 menu ẩn mục chỉ dành cho Toàn hệ thống với Admin Chi nhánh (Figma 628:2)', async () => {
     const systemOnlyItems = [
+      // payment F7 (Q10): Admin chi nhánh không thấy màn tài chính ví
+      'Yêu cầu rút tiền',
       'Đặt cọc & Hoàn tiền',
       'Email Preview',
       'Phụ phí bác sĩ',

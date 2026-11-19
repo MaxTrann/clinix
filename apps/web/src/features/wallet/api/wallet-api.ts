@@ -1,6 +1,13 @@
 import { request } from '../../../shared/api/client';
-import { UnexpectedResponseError } from '../../../shared/api/errors';
-import { isDecimalAmount } from '../../../shared/money/format-vnd';
+import {
+  invalid,
+  readAmount,
+  readCount,
+  readIso,
+  readOneOf,
+  readRecord,
+  readString,
+} from './read-json';
 import {
   WALLET_TRANSACTION_STATUSES,
   WALLET_TRANSACTION_TYPES,
@@ -21,42 +28,6 @@ import {
 export const WALLET_OVERVIEW_PATH = '/patient/wallet';
 export const WALLET_TRANSACTIONS_PATH = '/patient/wallet/transactions';
 export const WALLET_WITHDRAWALS_PATH = '/patient/wallet/withdrawals';
-
-const invalid = (): never => {
-  throw new UnexpectedResponseError(200);
-};
-
-function readRecord(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    return invalid();
-  return value as Record<string, unknown>;
-}
-
-function readString(value: unknown): string {
-  return typeof value === 'string' ? value : invalid();
-}
-
-// Tiền: chuỗi decimal (có thể âm). KHÔNG nhận `number` dù máy chủ có lỡ trả: số đã qua JSON có thể đã mất chính xác (WVI-04).
-function readAmount(value: unknown): string {
-  return typeof value === 'string' && isDecimalAmount(value)
-    ? value
-    : invalid();
-}
-
-function readIso(value: unknown): string {
-  const text = readString(value);
-  return Number.isNaN(Date.parse(text)) ? invalid() : text;
-}
-
-function readCount(value: unknown, min = 0): number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= min
-    ? value
-    : invalid();
-}
-
-function readOneOf<T extends string>(value: unknown, allowed: readonly T[]): T {
-  return allowed.find((item) => item === value) ?? invalid();
-}
 
 function parseWithdrawal(raw: unknown): LatestWithdrawal | null {
   if (raw === null) return null;

@@ -4,6 +4,8 @@ import { PATIENT_APPOINTMENTS_PATH } from './booking-paths';
 import {
   ADMIN_DEPOSIT_POLICY_PATH,
   ADMIN_DEPOSIT_POLICY_SEGMENT,
+  ADMIN_WITHDRAWALS_PATH,
+  ADMIN_WITHDRAWALS_SEGMENT,
   PATIENT_WALLET_PATH,
   PATIENT_WALLET_SEGMENT,
 } from './wallet-paths';
@@ -30,6 +32,19 @@ describe('payment F5 — đường dẫn "Đặt cọc & Hoàn tiền" của Qu�
     );
     for (const home of Object.values(ROLE_HOME_PATHS)) {
       expect(ADMIN_DEPOSIT_POLICY_PATH).not.toBe(home);
+    }
+  });
+});
+
+describe('payment F7 — đường dẫn "Yêu cầu rút tiền" của Quản trị viên', () => {
+  it('WQL-10 WP-03 nằm dưới gốc khu Quản trị viên, đoạn đường là nhãn menu không dấu, khác trang Đặt cọc và mọi gốc khu', () => {
+    expect(ADMIN_WITHDRAWALS_SEGMENT).toBe('yeu-cau-rut-tien');
+    expect(ADMIN_WITHDRAWALS_PATH).toBe(
+      `${ROLE_HOME_PATHS.QuanTriVien}/${ADMIN_WITHDRAWALS_SEGMENT}`,
+    );
+    expect(ADMIN_WITHDRAWALS_PATH).not.toBe(ADMIN_DEPOSIT_POLICY_PATH);
+    for (const home of Object.values(ROLE_HOME_PATHS)) {
+      expect(ADMIN_WITHDRAWALS_PATH).not.toBe(home);
     }
   });
 });
