@@ -90,6 +90,7 @@ export class RefundRepository {
   /**
    * `INSERT lich_su_hoan_tien` tự động (hàng MỚI của chính giao dịch: hạng 7c). `ThanhCong` gọi SAU khi đã khoá ví (INSERT xin khoá chia sẻ trên hàng ví qua khoá ngoại: nếu rồi mới khoá X ví thì nâng khoá chéo nhau ⇒
    * 1213, H1). `ThatBai` mang `so_tien` và `ly_do` để lần thử sau KHÔNG phải tính lại (đóng một nửa lỗ hổng TECH_DEBT 106).
+   * `loai` mặc định `TuDong`; payment B13 truyền `DacBiet` (hoàn tiền đặc biệt, chỉ ghi dòng `ThanhCong`).
    */
   async insertAttempt(
     em: EntityManager,
@@ -101,14 +102,16 @@ export class RefundRepository {
       trangThai: 'ThanhCong' | 'ThatBai';
       soLanThu: number;
       now: Date;
+      loai?: 'TuDong' | 'DacBiet';
     },
   ): Promise<string> {
     const result = await em.query<{ insertId: string | number }>(
       `INSERT INTO lich_su_hoan_tien (giao_dich_thanh_toan_id, vi_noi_bo_id, loai, so_tien, ly_do, trang_thai, so_lan_thu, thoi_diem)
-       VALUES (?, ?, 'TuDong', ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.giaoDichThanhToanId,
         input.viNoiBoId,
+        input.loai ?? 'TuDong',
         input.soTien,
         input.lyDo,
         input.trangThai,
