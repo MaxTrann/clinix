@@ -46,6 +46,14 @@ export interface WalletOverview {
   congThanhToan: string[];
 }
 
+/** Kết quả 201 của `POST /patient/wallet/withdrawals` (payment B11; PLAN 5.11 #9): số do MÁY CHỦ tính dưới khoá ví. */
+export interface CreatedWithdrawal {
+  maYeuCau: string;
+  soTien: string;
+  soDuKhaDung: string;
+  soTienDangGiu: string;
+}
+
 export interface WalletTransaction {
   id: string;
   thoiDiem: string;

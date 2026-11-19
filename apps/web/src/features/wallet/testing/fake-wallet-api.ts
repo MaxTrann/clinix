@@ -13,10 +13,21 @@ export type FakeReply =
   | { hold: Promise<{ body: unknown; status?: number }> };
 
 export interface FakeRequest {
+  method: string;
   path: string;
   query: Record<string, string>;
+  /** Thân JSON đã gửi (payment F6), `undefined` nếu không có thân. */
+  body: unknown;
   authorization: string | null;
 }
+
+/** Phản hồi 201 mẫu của rút tiền (payment F6): ví 350.000, rút 100.000. */
+export const CREATED_WITHDRAWAL = {
+  maYeuCau: '17',
+  soTien: '100000.00',
+  soDuKhaDung: '250000.00',
+  soTienDangGiu: '100000.00',
+};
 
 export const OVERVIEW = {
   soDuKhaDung: '350000.00',
@@ -44,6 +55,30 @@ export const page = (
   patch: Record<string, unknown> = {},
 ) => ({ items, total: items.length, trang: 1, kichThuoc: 20, ...patch });
 
+/** Chờ `work`, nhưng ném `AbortError` ngay khi `signal` bị huỷ. */
+function abortable<T>(
+  work: Promise<T>,
+  signal: AbortSignal | null | undefined,
+): Promise<T> {
+  if (!signal) return work;
+  return new Promise<T>((resolve, reject) => {
+    const stop = () => reject(new DOMException('Aborted', 'AbortError'));
+    if (signal.aborted) stop();
+    signal.addEventListener('abort', stop, { once: true });
+    work.then(resolve, reject);
+  });
+}
+
+/** Lỗi chuẩn của API với mã nghiệp vụ (payment F6). */
+export const apiError = (
+  status: number,
+  maLoi: string,
+  chiTiet?: unknown,
+): FakeReply => ({
+  status,
+  body: { maLoi, thongBao: 'câu của máy chủ', chiTiet },
+});
+
 export function installFakeWalletApi() {
   const requests: FakeRequest[] = [];
   const handlers = {
@@ -52,6 +87,10 @@ export function installFakeWalletApi() {
       void query;
       return { body: page([tx()]) };
     },
+    withdraw: (body: unknown): FakeReply => {
+      void body;
+      return { body: CREATED_WITHDRAWAL, status: 201 };
+    },
   };
 
   const fetchMock = vi.fn(
@@ -59,13 +98,20 @@ export function installFakeWalletApi() {
       const url = new URL(String(input), 'http://web.invalid');
       const query = Object.fromEntries(url.searchParams);
       const path = url.pathname.replace(/^\/api/, '');
+      const method = init?.method ?? 'GET';
+      const body: unknown =
+        typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
       requests.push({
+        method,
         path,
         query,
+        body,
         authorization: new Headers(init?.headers).get('Authorization'),
       });
       let reply: FakeReply;
-      if (path === '/patient/wallet') reply = handlers.overview();
+      if (method === 'POST' && path === '/patient/wallet/withdrawals')
+        reply = handlers.withdraw(body);
+      else if (path === '/patient/wallet') reply = handlers.overview();
       else if (path === '/patient/wallet/transactions')
         reply = handlers.transactions(query);
       else
@@ -75,7 +121,9 @@ export function installFakeWalletApi() {
         };
 
       if ('network' in reply) throw new TypeError('Failed to fetch');
-      const settled = 'hold' in reply ? await reply.hold : reply;
+      // Treo mà client huỷ (hết giờ 15 giây) thì `fetch` phải ném như trình duyệt thật (payment F6, WRT-03)
+      const settled =
+        'hold' in reply ? await abortable(reply.hold, init?.signal) : reply;
       return new Response(JSON.stringify(settled.body), {
         status: settled.status ?? 200,
         headers: { 'Content-Type': 'application/json' },

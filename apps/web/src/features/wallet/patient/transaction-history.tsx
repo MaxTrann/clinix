@@ -42,12 +42,17 @@ const HEADER_CELL =
   'border-b border-[#f0f0f0] px-[14px] py-[9px] text-[10px] leading-[15px] font-bold tracking-[0.7px] text-gray-500 uppercase';
 const BODY_CELL = 'h-[60px] px-[14px] py-[11px]';
 
-export function TransactionHistory() {
+export function TransactionHistory({
+  refreshKey = 0,
+}: {
+  /** Trang tăng số này để tải lại (payment F6: sau khi gửi yêu cầu rút). Giữ trang và bộ lọc đang chọn. */
+  refreshKey?: number;
+} = {}) {
   const [page, setPage] = useState(1);
   const [type, setType] = useState<WalletTransactionType | null>(null);
   const { state, retry } = useRemote(
     (signal) => getWalletTransactions({ trang: page, loai: type }, signal),
-    [page, type],
+    [page, type, refreshKey],
   );
 
   const changeType = (value: string) => {
