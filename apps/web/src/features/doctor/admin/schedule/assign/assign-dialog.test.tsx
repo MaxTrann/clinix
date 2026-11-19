@@ -210,6 +210,29 @@ const waitForPreview = () =>
   );
 
 describe('hộp Phân công (F7)', () => {
+  it('WA-02 UX1-71 ô Chi nhánh và Chuyên khoa sắp theo bảng chữ cái dù API trả thứ tự khác (Quận 7 trước Quận 3, Tim mạch trước Nhi khoa); "Tất cả" ở đầu', async () => {
+    doctorList = [
+      doctor('21', 'BS. Hoàng Văn Ổn', TIM, Q7),
+      doctor('22', 'BS. Đinh Thị Lan', NHI, Q3),
+    ];
+    const dialog = await openDialog();
+    const optionsOf = (label: string) =>
+      within(within(dialog).getByLabelText(label))
+        .getAllByRole('option')
+        .map((option) => option.textContent);
+
+    expect(optionsOf('Chi nhánh')).toEqual([
+      'Tất cả chi nhánh',
+      'CLINIX Chi nhánh Quận 3',
+      'CLINIX Chi nhánh Quận 7',
+    ]);
+    expect(optionsOf('Chuyên khoa')).toEqual([
+      'Tất cả chuyên khoa',
+      'Nhi khoa',
+      'Tim mạch',
+    ]);
+  });
+
   it('WA-02 hộp mở trống: đủ trường theo Figma 516:2, "Sáng" mặc định, không có Ghi chú, "Xem trước" nhắc điền, nút Phân công vô hiệu', async () => {
     const dialog = await openDialog();
     expect(
@@ -529,12 +552,12 @@ describe('hộp Phân công (F7)', () => {
       .getAllByRole('listitem')
       .map((li) => li.textContent);
     expect(items[0]).toBe(
-      'ThS.BS. Nguyễn Minh Anh · Thứ 7, 24/10/2026 · Ca sáng: Chi nhánh không nhận khám ca này vào Thứ 7 (giờ nhận khám: sáng 08:00–12:00).',
+      'ThS.BS. Nguyễn Minh Anh · Thứ 7, 24/10/2026 · Ca sáng: Chi nhánh không nhận khám ca này vào Thứ 7 (giờ nhận khám: sáng 08:00 – 12:00).',
     );
     expect(items[1]).toContain('Không thể phân công vào ngày đã qua.');
     expect(alert).toHaveTextContent('… và 50 ca khác.');
     expect(alert.textContent).not.toContain('thân thô');
-    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('2026-10-20');
+    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('20/10/2026');
     expect(
       within(dialog).getByRole('checkbox', { name: 'ThS.BS. Nguyễn Minh Anh' }),
     ).toBeChecked();
@@ -579,7 +602,7 @@ describe('hộp Phân công (F7)', () => {
     expect(
       await within(dialog).findByRole('alert', {}, { timeout: 3000 }),
     ).toHaveTextContent('Chưa rõ việc phân công đã được ghi chưa');
-    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('2026-10-20');
+    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('20/10/2026');
   });
 
   it('WA-04 bấm Phân công đúp: chỉ MỘT yêu cầu; đang gửi thì Esc không đóng hộp', async () => {
@@ -615,8 +638,8 @@ describe('hộp Phân công (F7)', () => {
     const dialog = await screen.findByRole('dialog', {
       name: 'Phân công ca làm việc',
     });
-    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('2026-10-13');
-    expect(within(dialog).getByLabelText(/Đến ngày/)).toHaveValue('2026-10-13');
+    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('13/10/2026');
+    expect(within(dialog).getByLabelText(/Đến ngày/)).toHaveValue('13/10/2026');
     expect(within(dialog).getByRole('button', { name: 'T3' })).toHaveAttribute(
       'aria-pressed',
       'true',

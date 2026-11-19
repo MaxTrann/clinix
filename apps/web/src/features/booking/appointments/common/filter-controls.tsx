@@ -1,6 +1,7 @@
 import { ChevronDown, Search } from 'lucide-react';
 import { useId } from 'react';
 import type { ComponentProps, KeyboardEvent, ReactNode } from 'react';
+import { DateField } from '../../../../shared/masked-input/date-field';
 import { FIELD_HEIGHT, fieldControl } from './field-style';
 import {
   COMMON_LIST_TEXT,
@@ -214,12 +215,11 @@ export function DateRangeFields(props: {
   return (
     <>
       <Field label={COMMON_LIST_TEXT.fromLabel} htmlFor={fromId}>
-        <input
+        <DateField
           id={fromId}
-          type="date"
           value={props.from}
           max={props.to || undefined}
-          onChange={(event) => props.onFromChange(event.target.value)}
+          onChange={props.onFromChange}
           className={control}
         />
       </Field>
@@ -239,14 +239,13 @@ export function DateRangeFields(props: {
           ) : null
         }
       >
-        <input
+        <DateField
           id={toId}
-          type="date"
           value={props.to}
           min={props.from || undefined}
           aria-invalid={props.orderInvalid}
           aria-describedby={props.orderInvalid ? noteId : undefined}
-          onChange={(event) => props.onToChange(event.target.value)}
+          onChange={props.onToChange}
           className={control}
         />
       </Field>

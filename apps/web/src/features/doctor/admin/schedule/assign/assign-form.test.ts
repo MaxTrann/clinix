@@ -159,7 +159,7 @@ describe('describeViolationCode / describeViolation (WA-03)', () => {
         khoang: { sang: { tu: '08:00', den: '12:00' }, chieu: null },
       }),
     ).toBe(
-      'Chi nhánh không nhận khám ca này vào Thứ 7 (giờ nhận khám: sáng 08:00–12:00).',
+      'Chi nhánh không nhận khám ca này vào Thứ 7 (giờ nhận khám: sáng 08:00 – 12:00).',
     );
     expect(describeViolationCode('CA_KHONG_DU_MOT_KHUNG_GIO')).toBe(
       'Ca này ngắn hơn một lượt khám nên không tạo được khung giờ.',

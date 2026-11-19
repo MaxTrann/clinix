@@ -380,7 +380,7 @@ describe('ngăn kéo (F5)', () => {
     });
     expect(within(drawer).getByText('Tim mạch')).toBeVisible();
     expect(within(drawer).getByText('14/10/2026')).toBeVisible();
-    expect(within(drawer).getByText(/Ca chiều · 13:30–17:00/)).toBeVisible();
+    expect(within(drawer).getByText(/Ca chiều · 13:30 – 17:00/)).toBeVisible();
     expect(within(drawer).getByText('Chờ duyệt')).toBeVisible();
     const action = within(drawer).getByRole('button', {
       name: /Quản lý lịch hẹn/,

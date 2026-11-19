@@ -1,12 +1,6 @@
-import styles from './components/admin-components.module.css';
+import { ForbiddenCard } from '../../shared/ui/error-page-card';
 
+// Giữ tên và đường dẫn: `admin-layout.tsx` và `admin-scope-guard.tsx` import từ đây. Giao diện nằm ở thẻ dùng chung (doctor UX1, G4).
 export function AdminForbiddenPage() {
-  return (
-    <main className={styles.forbiddenPage}>
-      <section role="alert" className={styles.forbiddenCard}>
-        <h1>Không đủ quyền truy cập</h1>
-        <p>Bạn không có quyền truy cập trang này.</p>
-      </section>
-    </main>
-  );
+  return <ForbiddenCard />;
 }

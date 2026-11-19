@@ -5,6 +5,7 @@ import {
   type FormEvent,
   type RefObject,
 } from 'react';
+import { DateField } from '../../../../shared/masked-input/date-field';
 import { ModalFrame } from '../../components/modal-frame';
 import { fieldMessage, formatCount, SAVE_TEXT } from '../exam-messages';
 import {
@@ -261,19 +262,17 @@ export function ExamRecordDialog({
                 {SAVE_TEXT.optional}
               </span>
             </label>
-            <input
+            <DateField
               id={dateId}
-              type="date"
               min={range?.min}
               max={range?.max}
               aria-invalid={dateError ? true : undefined}
               aria-describedby={dateError ? `${dateId}-error` : undefined}
               value={values.ngayTaiKhamDuKien}
               readOnly={saving}
-              onChange={(event) =>
-                change('ngayTaiKhamDuKien', event.target.value)
-              }
-              className={`${CONTROL} h-[35.35px] w-[142px] self-start py-0 ${dateError ? '' : NORMAL_BORDER}`}
+              onChange={(iso) => change('ngayTaiKhamDuKien', iso)}
+              wrapperClassName="w-[142px] self-start"
+              className={`${CONTROL} h-[35.35px] py-0 ${dateError ? '' : NORMAL_BORDER}`}
             />
             {dateError ? (
               <div className="mt-1">

@@ -1,3 +1,5 @@
+import { formatRange } from '../format/range';
+
 // Nhãn ca và trạng thái hiển thị của lịch làm việc (doctor F2; WL-02). Giá trị khớp API `GET /doctor/schedule`.
 export type ShiftCode = 'CaSang' | 'CaChieu';
 export type LeaveStateCode = 'DaDuyet' | 'ChoDuyet' | 'TuChoi';
@@ -36,10 +38,10 @@ export function shiftStatusOf(nghiPhep: LeaveStateCode | null): ShiftStatus {
   return nghiPhep ?? 'LamViec';
 }
 
-/** "08:30–11:30"; `null` khi giờ ca không còn xác định (ca "mồ côi", XL-15). */
+/** "08:30 – 11:30"; `null` khi giờ ca không còn xác định (ca "mồ côi", XL-15). */
 export function formatShiftHours(
   batDau: string | null,
   ketThuc: string | null,
 ): string | null {
-  return batDau !== null && ketThuc !== null ? `${batDau}–${ketThuc}` : null;
+  return formatRange(batDau, ketThuc);
 }

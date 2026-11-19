@@ -71,8 +71,8 @@ describe('BranchPage (F6a)', () => {
         .getAllByRole('listitem')
         .map((item) => item.textContent),
     ).toEqual([
-      'Thứ 2–Thứ 6: Sáng 08:00–11:30 · Chiều 13:30–17:00',
-      'Thứ 7: Sáng 08:00–11:30',
+      'Thứ 2–Thứ 6: Sáng 08:00 – 11:30 · Chiều 13:30 – 17:00',
+      'Thứ 7: Sáng 08:00 – 11:30',
       'CN: Nghỉ',
     ]);
     expect(screen.queryByText('10.7769, 106.6920')).toBeNull();
@@ -296,9 +296,9 @@ describe('BranchCard thẻ chi nhánh (CN b1, PR1 mục 8)', () => {
 
     const items = within(card).getAllByRole('listitem');
     expect(items.map((item) => item.textContent)).toEqual([
-      'Thứ 2–Thứ 3: Sáng 08:00–11:30',
+      'Thứ 2–Thứ 3: Sáng 08:00 – 11:30',
       'Thứ 4: Nghỉ',
-      'Thứ 5–Thứ 6: Sáng 08:00–11:30',
+      'Thứ 5–Thứ 6: Sáng 08:00 – 11:30',
     ]);
   });
 });
