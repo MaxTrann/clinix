@@ -43,7 +43,7 @@ let scopes: ReceptionScopeService;
 let configs: SystemConfigService;
 let service: ReceptionAppointmentsService;
 
-// Cổng THẬT của module (bản Noop), tắt cảnh báo để không tràn ra màn hình
+// Bản `Noop` dựng tay (từ payment B7 module dùng lớp thật: ca với lớp thật là PWR-03), tắt cảnh báo để không tràn ra màn hình
 function silentNoopPayments(): NoopPaymentSummaryPort {
   const payments = new NoopPaymentSummaryPort();
   payments.logger = { warn: vi.fn() };
@@ -230,7 +230,7 @@ describe('DSV-13 hình dạng chi tiết', () => {
 });
 
 describe('DSV-10 conPhaiThu qua cổng thanh toán', () => {
-  it('DSV-10 bản `Noop` THẬT (chưa thu đồng nào): `DaXacNhan` có `conPhaiThu` = giá; giá 0 ⇒ "0.00"; mọi trạng thái khác ⇒ null', async () => {
+  it('DSV-10 bản `Noop` dựng tay (chưa thu đồng nào): `DaXacNhan` có `conPhaiThu` = giá; giá 0 ⇒ "0.00"; mọi trạng thái khác ⇒ null', async () => {
     const w = await ofx.world();
     const receptionId = idOf(w.receptionA);
     expect((await service.detail(receptionId, CODES.a1)).conPhaiThu).toBe(
@@ -323,7 +323,7 @@ const CONFIRMED_NO_CONFIG: Record<Clock, TrangThaiLichHen[]> = {
 };
 
 describe('CT-11 chuyenDuoc[] khớp ma trận theo trạng thái × thời điểm × còn phải thu × cấu hình', () => {
-  // Bảy lịch, mỗi trạng thái một lịch lúc 09:00 ngày 10/11 (giá 0: đã thu đủ với bản Noop), thêm một lịch DaXacNhan CÓ giá (còn phải thu)
+  // Bảy lịch, mỗi trạng thái một lịch lúc 09:00 ngày 10/11 (giá 0: đã thu đủ vì chưa phải thu đồng nào), thêm một lịch DaXacNhan CÓ giá (còn phải thu)
   async function sevenAt9() {
     const w = await ofx.world();
     const at9 = { patientId: w.twoId, ngay: '2026-11-10', gio: '09:00:00' };

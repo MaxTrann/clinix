@@ -337,7 +337,7 @@ describe('GET /reception/appointments/:maLichHen', () => {
     expect(detailOf(cancelled).lyDoHuy).toBe('Fixture huỷ lịch');
   });
 
-  it('CT-11, DSV-10 chi tiết qua HTTP: lịch đã thu đủ (giá 0) trong cửa sổ có DaTiepDon và DaHuy; lịch còn phải thu chỉ DaHuy và `conPhaiThu` bằng giá (bản Noop); lịch ChoThanhToan: conPhaiThu null', async () => {
+  it('CT-11, DSV-10 chi tiết qua HTTP: lịch đã thu đủ (giá 0) trong cửa sổ có DaTiepDon và DaHuy; lịch còn phải thu chỉ DaHuy và `conPhaiThu` bằng giá (chưa thu đồng nào, cổng thanh toán thật); lịch ChoThanhToan: conPhaiThu null', async () => {
     const w = await world();
     await fx.systemConfig();
     const paid = await ofx.book(w.doctorA1.profile, 'DaXacNhan', {

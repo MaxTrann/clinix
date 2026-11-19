@@ -43,7 +43,7 @@ import { resetTables } from './../src/database/testing/test-database.js';
 
 // Task B14 — POST /admin/appointments/:maLichHen/override-status qua HTTP THẬT: AppModule + MySQL thật + configureApp như main.ts (PLAN booking 5.7, 5.9, 7.3 HL-15, 7.5 CT-14…CT-22, MT-03; 7.9 QB-02, QB-03, QB-05, QB-08, QB-09, QB-10;
 // 7.37 OVR-05, OVR-06, OVR-08, OVR-09; TRACKING 3.31 B14-C, B14-H). Phần dịch vụ và SQL (từng cặp Q24, 39 ô từ chối, hoàn tác thật, đồng thời): src/appointments/status/admin-override.int-spec.ts và
-// admin-override.concurrency.int-spec.ts. Hai cổng `payment` và `wallet` là bản `Noop` của app thật; ca cần cọc đã thu dùng `vi.spyOn` trên CHÍNH thể hiện của app (như HBN-04, RTS-xx). Thông báo là `Noop` (B15 chưa có) nên ca này không kiểm
+// admin-override.concurrency.int-spec.ts. Hai cổng `payment` và `wallet` (số đã thu, số dư) là bản THẬT của app (payment B7); ca cần cọc đã thu dùng `vi.spyOn` trên CHÍNH thể hiện của app (như HBN-04, RTS-xx). Thông báo là `Noop` (B15 chưa có) nên ca này không kiểm
 // `thong_bao`. QB-nn chỉ phần route override (chưa tính Pass: còn route của B4).
 // CA CT-22 (nửa Quản trị viên) và QB-02 khẳng định ĐÚNG 403 KHONG_DU_QUYEN ở trạng thái mà dịch vụ sẽ trả mã KHÁC nếu thiếu guard (lịch DaHuy ⇒ 409, mã không tồn tại ⇒ 404, thân sai ⇒ 400), kể cả mã sai dạng (bài học ĐA-9b). LƯU Ý:
 // `@RequireAdminScope('Any')` đứng cạnh `@Roles('QuanTriVien')` và cũng trả 403 cho vai trò khác, nên bỏ riêng `@Roles` KHÔNG làm ca này đỏ; AR-02 (`architecture.spec.ts`) mới là lớp bắt đột biến đó.
@@ -192,7 +192,7 @@ describe('POST …/override-status — thành công và hình dạng kết quả
     });
   });
 
-  it('OVR-09 CT-21 override DaTiepDon ngoài cửa sổ và còn phải thu (cổng Noop trả gia_snapshot) vẫn 200; nhật ký chỉ ba khoá trong changes, không tên, SĐT hay email bệnh nhân', async () => {
+  it('OVR-09 CT-21 override DaTiepDon ngoài cửa sổ và còn phải thu (chưa thu đồng nào ⇒ còn phải thu = gia_snapshot) vẫn 200; nhật ký chỉ ba khoá trong changes, không tên, SĐT hay email bệnh nhân', async () => {
     const w = await world();
     const lich = await book(w, 'DaXacNhan');
     await h.db.query(

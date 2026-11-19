@@ -1,5 +1,12 @@
+import type { Provider } from '@nestjs/common';
+import { MODULE_METADATA } from '@nestjs/common/constants.js';
 import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
+import { PaymentPortsModule } from '../../payment/ports/payment-ports.module.js';
+import { PaymentRecorder } from '../../payment/ports/payment-recorder.js';
+import { PaymentSummaryReader } from '../../payment/ports/payment-summary.reader.js';
+import { WalletBalanceReader } from '../../wallet/balance/wallet-balance.reader.js';
+import { WalletModule } from '../../wallet/wallet.module.js';
 import { AppointmentsModule } from '../appointments.module.js';
 import {
   APPOINTMENT_NOTIFIER,
@@ -42,11 +49,15 @@ const EXPECTED = [
   [APPOINTMENT_NOTIFIER, NoopAppointmentNotifier],
 ] as const;
 
-// B15 (TRACKING 3.37 B15-J): trong `AppointmentsModule` cổng thông báo là BẢN THẬT (`BookingNotifier`). B16a (TRACKING 3.39 B16a-C): cổng nghỉ phép cũng là BẢN THẬT (`LeaveReader` của `SchedulingModule`, `useExisting`), sáu cổng
-// còn lại vẫn là `Noop`. Mảng `BOOKING_PORT_PROVIDERS` và lớp `Noop` giữ nguyên (test dựng riêng dùng chúng).
+// B15 (TRACKING 3.37 B15-J): trong `AppointmentsModule` cổng thông báo là BẢN THẬT (`BookingNotifier`). B16a (TRACKING 3.39 B16a-C): cổng nghỉ phép cũng là BẢN THẬT (`LeaveReader` của `SchedulingModule`, `useExisting`).
+// B7 (TRACKING 3.47; payment B7 = B17a lần 1, HDT-06): ba cổng thanh toán và ví cũng là BẢN THẬT, `useExisting` lớp của hai module lá (`PaymentRecorder`, `PaymentSummaryReader` của `PaymentPortsModule`;
+// `WalletBalanceReader` của `WalletModule`). Chỉ còn ba bản `Noop`: `REFUND_PORT` (chờ B9), `WAITLIST_PORT`, `PENDING_BRANCH_CHANGES_PORT`. Mảng `BOOKING_PORT_PROVIDERS` và lớp `Noop` giữ nguyên (test dựng riêng dùng chúng).
 const REAL_IN_MODULE = new Map<symbol, new (...args: never[]) => unknown>([
   [APPOINTMENT_NOTIFIER, BookingNotifier],
   [DOCTOR_LEAVE_PORT, LeaveReader],
+  [PAYMENT_PORT, PaymentRecorder],
+  [PAYMENT_SUMMARY_PORT, PaymentSummaryReader],
+  [WALLET_BALANCE_PORT, WalletBalanceReader],
 ]);
 const EXPECTED_IN_MODULE = EXPECTED.map(([token, noop]) => {
   const real = REAL_IN_MODULE.get(token);
@@ -55,10 +66,40 @@ const EXPECTED_IN_MODULE = EXPECTED.map(([token, noop]) => {
     : ([token, real] as const);
 });
 
+// Ba cổng của B7: token, lớp thật của module lá mà `useExisting` trỏ tới, và bản `Noop` KHÔNG được còn cấp.
+const B7_PORTS = [
+  ['PAYMENT_PORT', PAYMENT_PORT, PaymentRecorder, NoopPaymentPort],
+  [
+    'PAYMENT_SUMMARY_PORT',
+    PAYMENT_SUMMARY_PORT,
+    PaymentSummaryReader,
+    NoopPaymentSummaryPort,
+  ],
+  [
+    'WALLET_BALANCE_PORT',
+    WALLET_BALANCE_PORT,
+    WalletBalanceReader,
+    NoopWalletBalancePort,
+  ],
+] as const;
+
+// Cổng nào của module cũng thay được bằng `overrideProvider(token).useValue(fake)` (test dựng riêng): năm cổng thật ở trên.
+const OVERRIDABLE = [
+  ['APPOINTMENT_NOTIFIER', APPOINTMENT_NOTIFIER],
+  ['DOCTOR_LEAVE_PORT', DOCTOR_LEAVE_PORT],
+  ['PAYMENT_PORT', PAYMENT_PORT],
+  ['PAYMENT_SUMMARY_PORT', PAYMENT_SUMMARY_PORT],
+  ['WALLET_BALANCE_PORT', WALLET_BALANCE_PORT],
+] as const;
+
 // AppointmentsModule có service đọc DB (task B1) nên đòi `DataSource`; app thật có sẵn toàn cục từ DatabaseModule, còn test dựng riêng module cấp một DataSource GIẢ
 // (không DB, không ai gọi tới nó trong các ca này) bằng `useMocker`, như `doctor-leave.port.int-spec.ts`. Token nào khác vẫn thiếu thì Nest báo lỗi như cũ.
+// Từ B7 module này nhập thêm `WalletModule` và `PaymentPortsModule`: mọi provider của chúng chỉ đòi `DataSource` hoặc provider cùng module nên mocker này vẫn đủ.
 const noDatabase = (token: unknown) =>
   token === DataSource ? ({} as DataSource) : undefined;
+
+const metadataOf = (key: string, module: object): unknown[] =>
+  (Reflect.getMetadata(key, module) as unknown[] | undefined) ?? [];
 
 describe('BPO-01 token DI và AppointmentsModule', () => {
   it('có đúng tám token, đều là Symbol và khác nhau', () => {
@@ -68,7 +109,7 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
     expect([...BOOKING_PORT_TOKENS]).toEqual(EXPECTED.map(([token]) => token));
   });
 
-  it('mảng BOOKING_PORT_PROVIDERS vẫn gắn Noop cho đủ tám token (test dựng riêng dùng nó), kể cả AppointmentNotifier', () => {
+  it('mảng BOOKING_PORT_PROVIDERS vẫn gắn Noop cho đủ tám token (test dựng riêng dùng nó), kể cả ba cổng đã thật trong module', () => {
     expect(
       BOOKING_PORT_PROVIDERS.map((provider) =>
         'provide' in provider && 'useClass' in provider
@@ -78,7 +119,7 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
     ).toEqual(EXPECTED.map(([token, noop]) => [token, noop]));
   });
 
-  it('AppointmentsModule cấp đủ tám token: sáu bản Noop, BookingNotifier THẬT cho AppointmentNotifier và LeaveReader THẬT (đúng thể hiện của SchedulingModule) cho DoctorLeavePort (không cần DB)', async () => {
+  it('AppointmentsModule cấp đủ tám token: ba bản Noop (hoàn tiền, danh sách chờ, đổi chi nhánh) và năm bản THẬT (BookingNotifier, LeaveReader, PaymentRecorder, PaymentSummaryReader, WalletBalanceReader), không cần DB', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppointmentsModule],
     })
@@ -96,22 +137,41 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
     await moduleRef.close();
   });
 
-  it('overrideProvider(token).useValue(fake) thay đúng MỘT cổng; bảy cổng còn lại giữ bản của module', async () => {
-    const fake = { findBlockingLeave: () => Promise.resolve(null) };
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppointmentsModule],
-    })
-      .overrideProvider(DOCTOR_LEAVE_PORT)
-      .useValue(fake)
-      .useMocker(noDatabase)
-      .compile();
-    for (const [token, expected] of EXPECTED_IN_MODULE) {
-      const resolved = moduleRef.get(token, { strict: false });
-      if (token === DOCTOR_LEAVE_PORT) expect(resolved).toBe(fake);
-      else expect(resolved).toBeInstanceOf(expected);
-    }
-    await moduleRef.close();
-  });
+  it.each(B7_PORTS)(
+    'HDT-06 %s là BẢN THẬT của module lá (toBe đúng thể hiện của lớp, useExisting), không còn Noop; hai cổng khác không bị kéo theo',
+    async (_name, token, real, noop) => {
+      const moduleRef = await Test.createTestingModule({
+        imports: [AppointmentsModule],
+      })
+        .useMocker(noDatabase)
+        .compile();
+      const port = moduleRef.get(token, { strict: false });
+      expect(port).toBeInstanceOf(real);
+      expect(port).not.toBeInstanceOf(noop);
+      expect(port).toBe(moduleRef.get(real, { strict: false }));
+      await moduleRef.close();
+    },
+  );
+
+  it.each(OVERRIDABLE)(
+    'overrideProvider(%s).useValue(fake) thay đúng MỘT cổng; bảy cổng còn lại giữ bản của module',
+    async (_name, overridden) => {
+      const fake = { fake: true };
+      const moduleRef = await Test.createTestingModule({
+        imports: [AppointmentsModule],
+      })
+        .overrideProvider(overridden)
+        .useValue(fake)
+        .useMocker(noDatabase)
+        .compile();
+      for (const [token, expected] of EXPECTED_IN_MODULE) {
+        const resolved = moduleRef.get(token, { strict: false });
+        if (token === overridden) expect(resolved).toBe(fake);
+        else expect(resolved).toBeInstanceOf(expected);
+      }
+      await moduleRef.close();
+    },
+  );
 
   it('mỗi token được cấp một thể hiện riêng (cờ cảnh báo một lần không dùng chung giữa các cổng)', async () => {
     const moduleRef = await Test.createTestingModule({
@@ -124,5 +184,38 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
     );
     expect(new Set(instances).size).toBe(8);
     await moduleRef.close();
+  });
+});
+
+describe('BPO-06 mỗi cổng có ĐÚNG MỘT provider trong module (không dựa thứ tự "provider sau thắng")', () => {
+  it('mỗi token trong tám token xuất hiện đúng một lần trong providers của AppointmentsModule: bỏ một token khỏi REAL_PORT_TOKENS làm ca này đỏ', () => {
+    const providers = metadataOf(
+      MODULE_METADATA.PROVIDERS,
+      AppointmentsModule,
+    ) as Provider[];
+    for (const token of BOOKING_PORT_TOKENS) {
+      const declared = providers.filter(
+        (provider) =>
+          typeof provider === 'object' &&
+          'provide' in provider &&
+          provider.provide === token,
+      );
+      expect(declared, String(token)).toHaveLength(1);
+    }
+  });
+});
+
+describe('BPO-07 cạnh AppointmentsModule → PaymentPortsModule, WalletModule (HDT-11, M16)', () => {
+  it('imports gồm hai module lá và không gồm PaymentModule; hai module lá không nhập ngược AppointmentsModule', () => {
+    const own = metadataOf(MODULE_METADATA.IMPORTS, AppointmentsModule);
+    expect(own).toContain(PaymentPortsModule);
+    expect(own).toContain(WalletModule);
+    expect(
+      own.map((module) => (module as { name?: string }).name),
+    ).not.toContain('PaymentModule');
+    for (const leaf of [PaymentPortsModule, WalletModule])
+      expect(metadataOf(MODULE_METADATA.IMPORTS, leaf)).not.toContain(
+        AppointmentsModule,
+      );
   });
 });

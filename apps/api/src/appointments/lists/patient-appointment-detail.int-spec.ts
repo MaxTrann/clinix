@@ -35,7 +35,7 @@ let repo: PatientAppointmentsRepository;
 let service: PatientAppointmentDetailService;
 let listService: PatientAppointmentsService;
 
-// Hai cổng THẬT của module (bản Noop), tắt cảnh báo để không tràn ra màn hình
+// Hai cổng bản `Noop` dựng tay (từ payment B7 cổng thanh toán của module là lớp thật: PWR-01 và e2e LSH-10), tắt cảnh báo để không tràn ra màn hình
 function silentNoopPorts() {
   const payments = new NoopPaymentSummaryPort();
   const refunds = new NoopRefundPort();
@@ -111,7 +111,7 @@ async function rejection(promise: Promise<unknown>): Promise<AppException> {
 const bodyOf = (error: AppException) =>
   JSON.stringify(toErrorResponse(error).body);
 
-describe('LSH-10 chi tiết: đủ mười bảy khoá, hai cổng THẬT (Noop) cho null', () => {
+describe('LSH-10 chi tiết: đủ mười bảy khoá, hai cổng Noop dựng tay cho null', () => {
   it('LSH-10 lịch bản thân DaXacNhan: đúng mười bảy khoá (booking B19: thêm `moc`); thanhToan, hoanTien là null; lyDoKham, thoiGianMayChu đúng; cùng mười hai khoá với dòng danh sách', async () => {
     const s = await lf.scene({
       doctorName: 'Bác Sĩ Chi Tiết',

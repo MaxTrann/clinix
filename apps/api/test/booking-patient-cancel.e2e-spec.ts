@@ -31,7 +31,7 @@ import { resetTables } from './../src/database/testing/test-database.js';
 
 // Task B10 — POST /patient/appointments/:maLichHen/cancel và GET …/cancel-preview qua HTTP THẬT: AppModule + MySQL thật + configureApp như main.ts (PLAN booking 5.6, 5.9, 7.3, 7.9, 7.29; TRACKING 3.23 B10-G, B10-I).
 // Phần dịch vụ và SQL: src/appointments/cancel/appointment-cancellation.service.int-spec.ts. Mã HL-nn, QB-nn là PLAN 7.3, 7.9; HBN-04 là mã MỚI `[đề xuất]` (7.29). QB-01, QB-02, QB-03, QB-08, QB-09, QB-10 chỉ phần
-// HAI ROUTE HUỶ của B10 (một phần: còn B8, B12, B14). Hai cổng `payment` và `wallet` là bản `Noop` của app thật; ca cần tiền đã thu dùng `vi.spyOn` trên CHÍNH thể hiện đó (phục hồi ở afterEach).
+// HAI ROUTE HUỶ của B10 (một phần: còn B8, B12, B14). Cổng `payment` (số đã thu) là bản THẬT của app (payment B7), cổng hoàn tiền của `wallet` còn `Noop` (chờ B9); ca cần tiền đã thu dùng `vi.spyOn` trên CHÍNH thể hiện đó (phục hồi ở afterEach).
 // CA QB-02 khẳng định ĐÚNG 403 KHONG_DU_QUYEN ở trạng thái mà dịch vụ sẽ trả mã KHÁC nếu thiếu `@Roles` (lịch của người khác ⇒ 404, lịch DaTiepDon ⇒ 409), kể cả khi gửi mã sai dạng: chỉ e2e phân biệt được `RolesGuard`
 // với lỗi của dịch vụ (bài học ĐA-9b của B7).
 // ĐỒNG HỒ: `vi.setSystemTime` đổi giờ của CẢ token truy cập, nên ca đổi giờ tạo token SAU khi đặt giờ (và đi tiếp chỉ vài phút, trong hạn 15 phút của token); `afterEach` trả đồng hồ thật.
