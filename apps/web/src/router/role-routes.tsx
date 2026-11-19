@@ -29,7 +29,10 @@ import {
   RECEPTION_APPOINTMENT_ROUTES,
 } from '../features/booking';
 import { ADMIN_DEPOSIT_POLICY_ROUTES } from '../features/payment';
-import { PATIENT_WALLET_ROUTES } from '../features/wallet';
+import {
+  ADMIN_FINANCE_ROUTES,
+  PATIENT_WALLET_ROUTES,
+} from '../features/wallet';
 import { ShellContentError } from '../shared/ui/shell-content-error';
 import { DOCTOR_NAV, PATIENT_NAV, RECEPTION_NAV } from './role-nav';
 
@@ -118,6 +121,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
       ...ADMIN_APPOINTMENT_ROUTES,
       // payment F5: Đặt cọc & Hoàn tiền (đã bọc AdminScopeGuard ToanHeThong)
       ...ADMIN_DEPOSIT_POLICY_ROUTES,
+      // payment F7: Quản lý tài chính ví, tab Yêu cầu rút tiền (đã bọc AdminScopeGuard ToanHeThong)
+      ...ADMIN_FINANCE_ROUTES,
     ],
     errorElement: <AdminErrorBoundary />,
   },

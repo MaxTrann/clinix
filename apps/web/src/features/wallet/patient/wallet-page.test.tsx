@@ -369,7 +369,7 @@ describe('trang Ví của tôi (payment F1)', () => {
     );
   });
 
-  it('payment F2 WNT-01 tab Nạp tiền dùng hạn mức và cổng của CÙNG lần tải số dư; tab Rút vẫn "đang phát triển"', async () => {
+  it('payment F2 WNT-01 tab Nạp tiền dùng hạn mức và cổng của CÙNG lần tải số dư; tab Rút (payment F6) dùng số khả dụng của cùng lần tải', async () => {
     const api = installFakeWalletApi();
     api.handlers.overview = () => ({
       body: {
@@ -393,9 +393,100 @@ describe('trang Ví của tôi (payment F1)', () => {
         .map((r) => r.textContent),
     ).toEqual(['MoMoThanh toán qua ví MoMo']);
     fireEvent.click(screen.getByRole('tab', { name: 'Rút tiền' }));
+    const withdraw = screen.getByRole('tabpanel', { name: 'Rút tiền' });
+    expect(withdraw).not.toHaveTextContent('Chức năng đang được phát triển.');
     expect(
-      screen.getByRole('tabpanel', { name: 'Rút tiền' }),
-    ).toHaveTextContent('Chức năng đang được phát triển.');
+      within(withdraw).getByText('Tối đa 350.000đ (số dư khả dụng hiện tại)'),
+    ).toBeVisible();
+  });
+
+  it('payment F6 WRT-01 ★ gửi rút ⇒ màn "Yêu cầu đã được ghi nhận!" theo 201; số dư, khối "Yêu cầu rút gần nhất" và lịch sử TẢI LẠI từ API; vẫn ở tab Rút', async () => {
+    const api = installFakeWalletApi();
+    renderPage();
+    await balances();
+    await historyTable();
+    // Sau khi gửi, máy chủ trả số mới (yêu cầu ChoDuyet, đang giữ 100.000)
+    api.handlers.overview = () => ({
+      body: {
+        ...OVERVIEW,
+        soDuKhaDung: '250000.00',
+        soTienDangGiu: '100000.00',
+        yeuCauRutGanNhat: {
+          maYeuCau: '17',
+          soTien: '100000.00',
+          trangThai: 'ChoDuyet',
+          thoiDiemYeuCau: '2026-10-18T00:10:00.000Z',
+        },
+      },
+    });
+    const calls = (path: string) =>
+      api.requests.filter((r) => r.method === 'GET' && r.path === path).length;
+    const overviewBefore = calls('/patient/wallet');
+    const historyBefore = calls('/patient/wallet/transactions');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Rút tiền' }));
+    const panel = screen.getByRole('tabpanel', { name: 'Rút tiền' });
+    fireEvent.change(within(panel).getByLabelText('Số tiền muốn rút'), {
+      target: { value: '100000' },
+    });
+    fireEvent.click(
+      within(panel).getByRole('button', { name: 'Gửi yêu cầu rút tiền' }),
+    );
+
+    expect(
+      await within(panel).findByText('Yêu cầu đã được ghi nhận!'),
+    ).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Rút tiền' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const side = screen
+      .getByRole('heading', { name: 'Yêu cầu rút gần nhất' })
+      .closest('section') as HTMLElement;
+    expect(await within(side).findByText('Chờ duyệt')).toBeVisible();
+    const cards = await balances();
+    expect(within(cards).getByText('250.000')).toBeVisible();
+    expect(calls('/patient/wallet')).toBe(overviewBefore + 1);
+    expect(calls('/patient/wallet/transactions')).toBe(historyBefore + 1);
+    // Màn thành công vẫn còn sau khi số dư tải lại xong
+    expect(within(panel).getByText('Yêu cầu đã được ghi nhận!')).toBeVisible();
+  });
+
+  it('payment F6 WRT-04 mở trang khi đã có yêu cầu ChoDuyet ⇒ tab Rút không có ô nhập', async () => {
+    const api = installFakeWalletApi();
+    api.handlers.overview = () => ({
+      body: {
+        ...OVERVIEW,
+        soDuKhaDung: '250000.00',
+        soTienDangGiu: '100000.00',
+        yeuCauRutGanNhat: {
+          maYeuCau: '17',
+          soTien: '100000.00',
+          trangThai: 'ChoDuyet',
+          thoiDiemYeuCau: '2026-10-18T00:10:00.000Z',
+        },
+      },
+    });
+    renderPage();
+    await balances();
+    fireEvent.click(screen.getByRole('tab', { name: 'Rút tiền' }));
+    const panel = screen.getByRole('tabpanel', { name: 'Rút tiền' });
+    expect(within(panel).queryByLabelText('Số tiền muốn rút')).toBeNull();
+    expect(within(panel).getByRole('status')).toHaveTextContent(
+      'Bạn đang có một yêu cầu rút tiền chờ duyệt.',
+    );
+  });
+
+  it('payment F6 tải số dư lỗi ⇒ tab Rút báo chưa tải được, không có ô nhập', async () => {
+    const api = installFakeWalletApi();
+    api.handlers.overview = () => serverError();
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: 'Rút tiền' }));
+    const panel = screen.getByRole('tabpanel', { name: 'Rút tiền' });
+    expect(
+      await within(panel).findByText(/Chưa tải được số dư ví/),
+    ).toBeVisible();
+    expect(within(panel).queryByLabelText('Số tiền muốn rút')).toBeNull();
   });
 
   it('payment F2 tải số dư lỗi ⇒ tab Nạp tiền báo chưa tải được (không treo "đang tải")', async () => {

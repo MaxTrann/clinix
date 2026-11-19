@@ -13,3 +13,8 @@ export const PATIENT_TOPUP_RESULT_PATH = `/benh-nhan/${PATIENT_TOPUP_RESULT_SEGM
 // ở `features/admin/components/admin-sidebar.tsx`. Đoạn đường là nhãn menu không dấu. Ca WP-02 khoá nó nằm dưới `ROLE_HOME_PATHS.QuanTriVien`.
 export const ADMIN_DEPOSIT_POLICY_SEGMENT = 'dat-coc-hoan-tien';
 export const ADMIN_DEPOSIT_POLICY_PATH = `/admin/${ADMIN_DEPOSIT_POLICY_SEGMENT}`;
+
+// Màn "Quản lý tài chính ví" của Quản trị viên, mở ở tab "Yêu cầu rút tiền" (payment F7; Figma `549:2`; tên đường dẫn là [đề xuất]). Đoạn đường là nhãn menu "Yêu cầu rút tiền" không dấu
+// (nếp trên). Ca WP-03 khoá nó nằm dưới `ROLE_HOME_PATHS.QuanTriVien`.
+export const ADMIN_WITHDRAWALS_SEGMENT = 'yeu-cau-rut-tien';
+export const ADMIN_WITHDRAWALS_PATH = `/admin/${ADMIN_WITHDRAWALS_SEGMENT}`;
