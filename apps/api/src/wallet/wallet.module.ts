@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module.js';
 import { PaymentPortsModule } from '../payment/ports/payment-ports.module.js';
+import { RbacModule } from '../rbac/rbac.module.js';
 import {
   CONFIGURED_TOPUP_GATEWAYS,
   readConfiguredGateways,
@@ -13,6 +15,9 @@ import { RefundNotifier } from './refund/refund-notifier.js';
 import { RefundRepository } from './refund/refund.queries.js';
 import { RefundRetryJob } from './refund/refund-retry.job.js';
 import { RefundService } from './refund/refund.service.js';
+import { AdminWithdrawalController } from './withdrawal/admin-withdrawal.controller.js';
+import { AdminWithdrawalRepository } from './withdrawal/admin-withdrawal.repository.js';
+import { AdminWithdrawalService } from './withdrawal/admin-withdrawal.service.js';
 import { PatientWithdrawalController } from './withdrawal/patient-withdrawal.controller.js';
 import { WithdrawalNotifier } from './withdrawal/withdrawal-notifier.js';
 import { WithdrawalRepository } from './withdrawal/withdrawal.repository.js';
@@ -22,8 +27,12 @@ import { WithdrawalService } from './withdrawal/withdrawal.service.js';
 // nhập `AppointmentsModule` hay `PaymentModule` (QTT-08, QTT-11; không `forwardRef`, HDT-11). `AppointmentsModule` sẽ nhập module này ở task B17a; `PaymentModule` nhập ở task cần ví.
 // Task nào thêm gì: P3 `WalletLedger`; B1 `balance/` (`WalletBalanceReader`, hai route đọc ví); B8, B9 `RefundService`; B11 trở đi rút tiền và hoàn đặc biệt. `DataSource` có sẵn toàn cục từ `DatabaseModule` nên chưa cần `imports` khác.
 @Module({
-  imports: [PaymentPortsModule],
-  controllers: [PatientWalletController, PatientWithdrawalController],
+  imports: [PaymentPortsModule, RbacModule, AuditModule],
+  controllers: [
+    PatientWalletController,
+    PatientWithdrawalController,
+    AdminWithdrawalController,
+  ],
   providers: [
     WalletLedger,
     WalletBalanceRepository,
@@ -38,6 +47,9 @@ import { WithdrawalService } from './withdrawal/withdrawal.service.js';
     WithdrawalRepository,
     WithdrawalNotifier,
     WithdrawalService,
+    // B12: Quản trị viên (ToanHeThong) xem, duyệt, từ chối yêu cầu rút; nhập `RbacModule` (guard phạm vi) và `AuditModule` (nhật ký DuyetRutTien, TuChoiRutTien)
+    AdminWithdrawalRepository,
+    AdminWithdrawalService,
     // Cổng nạp đã cấu hình theo môi trường (B3, B16 chốt tên biến thật)
     {
       provide: CONFIGURED_TOPUP_GATEWAYS,
