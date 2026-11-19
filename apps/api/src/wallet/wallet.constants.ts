@@ -55,6 +55,9 @@ export const WALLET_ERROR_MESSAGES = {
   SO_TIEN_NGOAI_HAN_MUC: 'Số tiền nằm ngoài hạn mức cho phép.',
   DA_CO_YEU_CAU_CHO_DUYET: 'Bạn đang có một yêu cầu rút tiền chờ duyệt.',
   YEU_CAU_DA_XU_LY: 'Yêu cầu rút tiền này đã được xử lý.',
+  // payment B13 (PLAN 5.14)
+  DA_HOAN_DAC_BIET: 'Giao dịch này đã được hoàn đặc biệt.',
+  SO_TIEN_HOAN_VUOT_QUA_DA_THANH_TOAN: 'Số tiền hoàn vượt quá số có thể hoàn.',
 } as const;
 
 /** `loai_su_kien` của thông báo rút tiền (PLAN 5.12; chữ `[đề xuất]`). */
@@ -85,6 +88,8 @@ export const REFUND_RETRY_MAX_BATCHES = 10;
 export const REFUND_NOTIFICATION_EVENTS = {
   REFUNDED: 'HoanCocThanhCong',
   NEEDS_ATTENTION: 'HoanCocCanXuLy',
+  // payment B13: hoàn tiền đặc biệt, gắn lịch cuối của chuỗi (Trung chốt 19/11/2026)
+  SPECIAL_REFUND: 'HoanTienDacBiet',
 } as const;
 
 /** `thong_bao.noi_dung` tối đa 500 ký tự (cột `varchar(500)`). */
