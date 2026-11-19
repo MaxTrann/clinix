@@ -2,8 +2,9 @@ import { Banknote, CreditCard, type LucideIcon } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { WALLET_TEXT } from './wallet-text';
 
-// Thẻ "Thao tác ví" với hai tab Nạp tiền, Rút tiền (payment F1; Figma `417:222`). Nội dung tab do trang truyền vào: F2 (`TopupPanel` của payment) cho tab nạp;
-// tab rút chờ F6 (cần B11), chưa có thì hiện câu "đang phát triển" (Trung chọn 17/11/2026). Tab đang chọn là trạng thái RIÊNG của thẻ này: lỗi tải số dư hay lịch sử không gỡ thẻ nên không làm mất tab (WVI-07).
+// Thẻ "Thao tác ví" với hai tab Nạp tiền, Rút tiền (payment F1; Figma `417:222`). Nội dung tab do trang truyền vào: F2 (`TopupPanel` của payment) cho tab nạp,
+// F6 (`WithdrawPanel`) cho tab rút; tab không được truyền thì hiện câu "đang phát triển" (Trung chọn 17/11/2026). Tab đang chọn là trạng thái RIÊNG của thẻ này: lỗi tải số dư hay
+// lịch sử, hay lần tải lại sau khi gửi rút, không gỡ thẻ nên không làm mất tab (WVI-07).
 type TabKey = 'topup' | 'withdraw';
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
@@ -13,11 +14,14 @@ const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
 
 export function WalletActions({
   topup,
+  withdraw,
 }: {
   /** Nội dung tab Nạp tiền; `undefined` ⇒ câu "đang phát triển". */
   topup?: ReactNode;
+  /** Nội dung tab Rút tiền; `undefined` ⇒ câu "đang phát triển". */
+  withdraw?: ReactNode;
 }) {
-  const content: Record<TabKey, ReactNode> = { topup, withdraw: undefined };
+  const content: Record<TabKey, ReactNode> = { topup, withdraw };
   const [active, setActive] = useState<TabKey>('topup');
   const baseId = useId();
   const tabId = (key: TabKey) => `${baseId}-tab-${key}`;

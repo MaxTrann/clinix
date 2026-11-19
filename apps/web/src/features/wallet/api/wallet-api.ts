@@ -5,6 +5,7 @@ import {
   WALLET_TRANSACTION_STATUSES,
   WALLET_TRANSACTION_TYPES,
   WITHDRAWAL_STATUSES,
+  type CreatedWithdrawal,
   type LatestWithdrawal,
   type TopupLimits,
   type WalletOverview,
@@ -13,12 +14,13 @@ import {
   type WalletTransactionType,
 } from './wallet-types';
 
-// Gọi và kiểm hình dạng hai API đọc ví của Bệnh nhân (payment F1). Route của Bệnh nhân nên GẮN access token (mặc định của `request()`);
+// Gọi và kiểm hình dạng API ví của Bệnh nhân: hai API đọc (payment F1) và gửi yêu cầu rút (payment F6). Route của Bệnh nhân nên GẮN access token (mặc định của `request()`);
 // chủ ví do backend lấy từ token, web KHÔNG gửi `benhNhanId` (gửi lên là 400 `TRUONG_KHONG_DUOC_PHEP`).
 // Phản hồi sai hình dạng ⇒ `UnexpectedResponseError` (giao diện hiện câu lỗi chung), không để chuỗi lạ hay `undefined` lọt ra màn hình.
 
 export const WALLET_OVERVIEW_PATH = '/patient/wallet';
 export const WALLET_TRANSACTIONS_PATH = '/patient/wallet/transactions';
+export const WALLET_WITHDRAWALS_PATH = '/patient/wallet/withdrawals';
 
 const invalid = (): never => {
   throw new UnexpectedResponseError(200);
@@ -143,5 +145,28 @@ export async function getWalletTransactions(
   if (query.loai !== null) params.loai = query.loai;
   return parseWalletTransactionPage(
     await request<unknown>(WALLET_TRANSACTIONS_PATH, { query: params, signal }),
+  );
+}
+
+/** Hình dạng 201 của rút tiền: bốn khoá, tiền là chuỗi decimal (payment F6). */
+export function parseCreatedWithdrawal(raw: unknown): CreatedWithdrawal {
+  const body = readRecord(raw);
+  return {
+    maYeuCau: readString(body.maYeuCau),
+    soTien: readAmount(body.soTien),
+    soDuKhaDung: readAmount(body.soDuKhaDung),
+    soTienDangGiu: readAmount(body.soTienDangGiu),
+  };
+}
+
+/** Gửi yêu cầu rút (payment F6). `soTien` là chuỗi chữ số đồng ("100000") như DTO của B11; thân KHÔNG có ví hay chủ ví (máy chủ lấy từ token). */
+export async function createWithdrawal(input: {
+  soTien: string;
+}): Promise<CreatedWithdrawal> {
+  return parseCreatedWithdrawal(
+    await request<unknown>(WALLET_WITHDRAWALS_PATH, {
+      method: 'POST',
+      json: { soTien: input.soTien },
+    }),
   );
 }

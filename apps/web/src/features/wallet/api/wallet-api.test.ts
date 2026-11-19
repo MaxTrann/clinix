@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { UnexpectedResponseError } from '../../../shared/api/errors';
 import {
+  CREATED_WITHDRAWAL,
   OVERVIEW,
   cleanUpFakeWalletApi,
   installFakeWalletApi,
@@ -8,7 +9,9 @@ import {
   tx,
 } from '../testing/fake-wallet-api';
 import {
+  createWithdrawal,
   getWalletOverview,
+  parseCreatedWithdrawal,
   getWalletTransactions,
   parseWalletOverview,
   parseWalletTransactionPage,
@@ -106,5 +109,38 @@ describe('wallet-api (payment F1)', () => {
     for (const request of api.requests) {
       expect(request.authorization).toBe('Bearer token-gia');
     }
+  });
+});
+
+describe('wallet-api: gửi yêu cầu rút (payment F6)', () => {
+  it('WRT-01 POST đúng đường dẫn, thân CHỈ có soTien, gắn token; đọc đúng bốn khoá của 201', async () => {
+    const api = installFakeWalletApi();
+    expect(await createWithdrawal({ soTien: '100000' })).toEqual(
+      CREATED_WITHDRAWAL,
+    );
+    expect(api.requests).toEqual([
+      {
+        method: 'POST',
+        path: '/patient/wallet/withdrawals',
+        query: {},
+        body: { soTien: '100000' },
+        authorization: 'Bearer token-gia',
+      },
+    ]);
+  });
+
+  it('WRT-01 ca âm: thiếu khoá, tiền là `number` hay sai dạng, thân không phải đối tượng ⇒ phản hồi hỏng', () => {
+    const unusable = (raw: unknown) =>
+      expect(() => parseCreatedWithdrawal(raw)).toThrow(
+        UnexpectedResponseError,
+      );
+    unusable(null);
+    unusable([]);
+    const { soTienDangGiu, ...missing } = CREATED_WITHDRAWAL;
+    void soTienDangGiu;
+    unusable(missing);
+    unusable({ ...CREATED_WITHDRAWAL, soDuKhaDung: 250000 });
+    unusable({ ...CREATED_WITHDRAWAL, soTien: '1e5' });
+    unusable({ ...CREATED_WITHDRAWAL, maYeuCau: 17 });
   });
 });
