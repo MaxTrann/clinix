@@ -24,6 +24,7 @@ import { HealthController } from './health/health.controller.js';
 import { MailModule } from './mail/mail.module.js';
 import { SearchModule } from './search/search.module.js';
 import { PatientModule } from './patient/patient.module.js';
+import { AccountNoShowModule } from './admin/account-no-show/account-no-show.module.js';
 import { PaymentModule } from './payment/payment.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 
@@ -45,6 +46,7 @@ import { WalletModule } from './wallet/wallet.module.js';
     StaffActivationPublicModule,
     SearchModule,
     PatientModule,
+    AccountNoShowModule,
     DoctorModule,
     AppointmentsModule,
     PaymentModule,
