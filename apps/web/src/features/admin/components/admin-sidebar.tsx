@@ -1,5 +1,8 @@
 import { NavLink } from 'react-router';
-import { ADMIN_DEPOSIT_POLICY_PATH } from '../../../shared/routes/wallet-paths';
+import {
+  ADMIN_DEPOSIT_POLICY_PATH,
+  ADMIN_WITHDRAWALS_PATH,
+} from '../../../shared/routes/wallet-paths';
 import { ROLE_HOME_PATHS, useAuth } from '../../auth';
 import type { AdminMe } from '../admin-me';
 import styles from './admin-layout.module.css';
@@ -111,7 +114,15 @@ const MENU_GROUPS: MenuGroup[] = [
   },
   {
     label: 'Tài chính',
-    items: [{ label: 'Yêu cầu rút tiền', icon: 'wallet' }],
+    items: [
+      // payment F7: màn Quản lý tài chính ví (chỉ Toàn hệ thống theo Q10: `systemOnly`, route cũng bọc AdminScopeGuard ToanHeThong)
+      {
+        label: 'Yêu cầu rút tiền',
+        icon: 'wallet',
+        systemOnly: true,
+        to: ADMIN_WITHDRAWALS_PATH,
+      },
+    ],
   },
   {
     label: 'Nội dung',
