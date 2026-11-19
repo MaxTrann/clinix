@@ -1,10 +1,18 @@
 import { request } from '../../../shared/api/client';
-import { UnexpectedResponseError } from '../../../shared/api/errors';
-import { isDecimalAmount } from '../../../shared/money/format-vnd';
+import {
+  invalid,
+  readAmount,
+  readCount,
+  readIso,
+  readOneOf,
+  readRecord,
+  readString,
+} from './read-json';
 import {
   WALLET_TRANSACTION_STATUSES,
   WALLET_TRANSACTION_TYPES,
   WITHDRAWAL_STATUSES,
+  type CreatedWithdrawal,
   type LatestWithdrawal,
   type TopupLimits,
   type WalletOverview,
@@ -13,48 +21,13 @@ import {
   type WalletTransactionType,
 } from './wallet-types';
 
-// Gọi và kiểm hình dạng hai API đọc ví của Bệnh nhân (payment F1). Route của Bệnh nhân nên GẮN access token (mặc định của `request()`);
+// Gọi và kiểm hình dạng API ví của Bệnh nhân: hai API đọc (payment F1) và gửi yêu cầu rút (payment F6). Route của Bệnh nhân nên GẮN access token (mặc định của `request()`);
 // chủ ví do backend lấy từ token, web KHÔNG gửi `benhNhanId` (gửi lên là 400 `TRUONG_KHONG_DUOC_PHEP`).
 // Phản hồi sai hình dạng ⇒ `UnexpectedResponseError` (giao diện hiện câu lỗi chung), không để chuỗi lạ hay `undefined` lọt ra màn hình.
 
 export const WALLET_OVERVIEW_PATH = '/patient/wallet';
 export const WALLET_TRANSACTIONS_PATH = '/patient/wallet/transactions';
-
-const invalid = (): never => {
-  throw new UnexpectedResponseError(200);
-};
-
-function readRecord(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    return invalid();
-  return value as Record<string, unknown>;
-}
-
-function readString(value: unknown): string {
-  return typeof value === 'string' ? value : invalid();
-}
-
-// Tiền: chuỗi decimal (có thể âm). KHÔNG nhận `number` dù máy chủ có lỡ trả: số đã qua JSON có thể đã mất chính xác (WVI-04).
-function readAmount(value: unknown): string {
-  return typeof value === 'string' && isDecimalAmount(value)
-    ? value
-    : invalid();
-}
-
-function readIso(value: unknown): string {
-  const text = readString(value);
-  return Number.isNaN(Date.parse(text)) ? invalid() : text;
-}
-
-function readCount(value: unknown, min = 0): number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= min
-    ? value
-    : invalid();
-}
-
-function readOneOf<T extends string>(value: unknown, allowed: readonly T[]): T {
-  return allowed.find((item) => item === value) ?? invalid();
-}
+export const WALLET_WITHDRAWALS_PATH = '/patient/wallet/withdrawals';
 
 function parseWithdrawal(raw: unknown): LatestWithdrawal | null {
   if (raw === null) return null;
@@ -143,5 +116,28 @@ export async function getWalletTransactions(
   if (query.loai !== null) params.loai = query.loai;
   return parseWalletTransactionPage(
     await request<unknown>(WALLET_TRANSACTIONS_PATH, { query: params, signal }),
+  );
+}
+
+/** Hình dạng 201 của rút tiền: bốn khoá, tiền là chuỗi decimal (payment F6). */
+export function parseCreatedWithdrawal(raw: unknown): CreatedWithdrawal {
+  const body = readRecord(raw);
+  return {
+    maYeuCau: readString(body.maYeuCau),
+    soTien: readAmount(body.soTien),
+    soDuKhaDung: readAmount(body.soDuKhaDung),
+    soTienDangGiu: readAmount(body.soTienDangGiu),
+  };
+}
+
+/** Gửi yêu cầu rút (payment F6). `soTien` là chuỗi chữ số đồng ("100000") như DTO của B11; thân KHÔNG có ví hay chủ ví (máy chủ lấy từ token). */
+export async function createWithdrawal(input: {
+  soTien: string;
+}): Promise<CreatedWithdrawal> {
+  return parseCreatedWithdrawal(
+    await request<unknown>(WALLET_WITHDRAWALS_PATH, {
+      method: 'POST',
+      json: { soTien: input.soTien },
+    }),
   );
 }

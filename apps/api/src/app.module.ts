@@ -15,8 +15,10 @@ import { StaffAccountModule } from './admin/staff-accounts/staff-account.module.
 import { ServiceModule } from './admin/services/service.module.js';
 import { AccountModule } from './admin/accounts/account.module.js';
 import { ClinicInfoModule } from './admin/clinic-info/clinic-info.module.js';
+import { AccountLockModule } from './admin/account-lock/account-lock.module.js';
 import { BranchModule } from './admin/branches/branch.module.js';
 import { StaffActivationPublicModule } from './admin/staff-activation/staff-activation-public.module.js';
+import { AccountResendModule } from './admin/account-resend/account-resend.module.js';
 import { validateEnv } from './config/env.validation.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthController } from './health/health.controller.js';
@@ -40,8 +42,10 @@ import { WalletModule } from './wallet/wallet.module.js';
     ServiceModule,
     AccountModule,
     ClinicInfoModule,
+    AccountLockModule,
     BranchModule,
     StaffActivationPublicModule,
+    AccountResendModule,
     SearchModule,
     PatientModule,
     AccountNoShowModule,
