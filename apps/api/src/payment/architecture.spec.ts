@@ -13,6 +13,7 @@ import { PatientWalletController } from '../wallet/balance/patient-wallet.contro
 import { PaymentPolicyController } from './policy/payment-policy.controller.js';
 import { PatientTopupController } from './topup/patient-topup.controller.js';
 import { VnpayIpnController } from './gateway/ipn/vnpay-ipn.controller.js';
+import { AdminWithdrawalController } from '../wallet/withdrawal/admin-withdrawal.controller.js';
 import { PatientWithdrawalController } from '../wallet/withdrawal/patient-withdrawal.controller.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import {
@@ -242,6 +243,10 @@ describe('QTT-01 mọi route có @Roles hợp lệ; @Public chỉ ở route IPN 
         PatientWithdrawalController,
       ]),
     ).toEqual([]);
+  });
+
+  it('controller THẬT của Quản trị viên duyệt rút tiền (B12, QTT-06): mọi route có @Roles hợp lệ, không @Public', () => {
+    expect(findPaymentRouteViolations([AdminWithdrawalController])).toEqual([]);
   });
 
   it('danh sách @Public cho phép không vượt trần hai route IPN', () => {

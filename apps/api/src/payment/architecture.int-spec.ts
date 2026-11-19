@@ -14,6 +14,8 @@ import { WalletBalanceReader } from '../wallet/balance/wallet-balance.reader.js'
 import { RefundService } from '../wallet/refund/refund.service.js';
 import { WalletLedger } from '../wallet/ledger/wallet-ledger.js';
 import { WalletModule } from '../wallet/wallet.module.js';
+import { AuditModule } from '../audit/audit.module.js';
+import { RbacModule } from '../rbac/rbac.module.js';
 
 // payment P4 — QTT-11 (cây import của AppModule) và HDT-11 (AppointmentsModule dựng được cùng hai module lá, không forwardRef; M16). Phần quét mã nguồn của QTT-11: architecture.spec.ts.
 // Nằm ở *.int-spec.ts vì import AppModule cần biến môi trường test (như AR-03 của booking); không dùng DB (DataSource giả ở HDT-11).
@@ -56,7 +58,14 @@ describe('QTT-11 cây import của AppModule có payment', () => {
   });
 
   it('WalletModule nhập PaymentPortsModule MỘT chiều (Q22): PaymentPortsModule không nhập lại WalletModule; WalletModule chỉ xuất WalletLedger, WalletBalanceReader (B1) và RefundService (B8)', () => {
-    expect(importsOf(WalletModule)).toEqual([PaymentPortsModule]);
+    // B12: thêm hai module LÁ cho route Quản trị viên (RbacModule: guard phạm vi; AuditModule: nhật ký duyệt rút); cả hai không nhập ngược WalletModule
+    expect(importsOf(WalletModule)).toEqual([
+      PaymentPortsModule,
+      RbacModule,
+      AuditModule,
+    ]);
+    expect(importsOf(RbacModule)).not.toContain(WalletModule);
+    expect(importsOf(AuditModule)).not.toContain(WalletModule);
     expect(importsOf(PaymentPortsModule)).not.toContain(WalletModule);
     expect(Reflect.getMetadata('exports', WalletModule) as unknown[]).toEqual([
       WalletLedger,

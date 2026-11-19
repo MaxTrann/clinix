@@ -54,12 +54,23 @@ export const WALLET_ERROR_MESSAGES = {
   SO_DU_KHONG_DU: 'Số dư ví không đủ. Hãy nạp thêm tiền.',
   SO_TIEN_NGOAI_HAN_MUC: 'Số tiền nằm ngoài hạn mức cho phép.',
   DA_CO_YEU_CAU_CHO_DUYET: 'Bạn đang có một yêu cầu rút tiền chờ duyệt.',
+  YEU_CAU_DA_XU_LY: 'Yêu cầu rút tiền này đã được xử lý.',
 } as const;
 
-/** `loai_su_kien` của thông báo rút tiền (PLAN 5.12; chữ `[đề xuất]`). B12 thêm `RutTienDuocDuyet`, `RutTienBiTuChoi`. */
+/** `loai_su_kien` của thông báo rút tiền (PLAN 5.12; chữ `[đề xuất]`). */
 export const WITHDRAWAL_NOTIFICATION_EVENTS = {
   SUBMITTED: 'RutTienDaGui',
+  APPROVED: 'RutTienDuocDuyet',
+  REJECTED: 'RutTienBiTuChoi',
 } as const;
+
+/** Ghi chú của Quản trị viên khi duyệt hoặc từ chối: tối đa 200 ký tự (Trung chốt 19/11/2026; nằm dưới giới hạn 255 của nhật ký). */
+export const WITHDRAWAL_NOTE_MAX = 200;
+/** Phân trang danh sách yêu cầu rút của Quản trị viên (như lịch sử ví): mặc định 20, tối đa 50. */
+export const WITHDRAWAL_ADMIN_DEFAULT_PAGE_SIZE = 20;
+export const WITHDRAWAL_ADMIN_MAX_PAGE_SIZE = 50;
+/** Số giao dịch ví gần đây hiện ở chi tiết yêu cầu (2.4 XRT b2). */
+export const WITHDRAWAL_RECENT_LEDGER_ROWS = 10;
 
 /**
  * Hoàn cọc tự động (payment B8; PLAN 5.6.1). `RefundRetryJob` chạy MỖI PHÚT (cùng nhịp `HOLD_EXPIRY_CRON` của booking, lệch giây để hai job không dồn một lúc); mỗi lượt quét theo lô để một lượt không chiếm
