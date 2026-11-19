@@ -24,7 +24,7 @@ import { expectErrorResponse } from './../src/common/testing/error-assertions.js
 import { resetTables } from './../src/database/testing/test-database.js';
 
 // Task B8 — POST /booking/appointments qua HTTP THẬT: AppModule + MySQL thật + configureApp như main.ts (PLAN booking 5.9, 7.1, 7.9; TRACKING booking 3.21 B8-G, B8-H). Tầng dịch vụ và SQL:
-// src/appointments/create/create-appointment.service.int-spec.ts. Mã DL-nn, QB-nn là PLAN 7.1, 7.9; TAO-nn là [đề xuất]. Các cổng (thanh toán, thông báo) là bản Noop của module, được
+// src/appointments/create/create-appointment.service.int-spec.ts. Mã DL-nn, QB-nn là PLAN 7.1, 7.9; TAO-nn là [đề xuất]. Các cổng (thanh toán, thông báo) là bản THẬT của module (payment B7, B15), được
 // theo dõi bằng `vi.spyOn` từng ca. Ô i của thế giới bắt đầu 08:00 + 30 phút × i giờ Việt Nam ngày 10/11/2026; đồng hồ giả là 08:00 ngày 02/11/2026. Dữ liệu giả.
 const PATH = '/booking/appointments';
 const NOT_LOGGED_IN = 'CHUA_DANG_NHAP';
@@ -152,6 +152,13 @@ describe('POST /booking/appointments: 201 (DL-01, DL-02, TAO-08)', () => {
       lichHenId: row!.id,
       benhNhanId: w.patientId,
     });
+    // payment B7: `PaymentRecorder` THẬT (spy chỉ đếm, vẫn chạy thật) ghi đúng MỘT dòng 0đ cùng giao dịch tạo lịch (trước B7, bản Noop không ghi gì)
+    expect(
+      await h.db.query(
+        'SELECT loai, phuong_thuc AS phuongThuc, CAST(so_tien AS CHAR) AS soTien FROM giao_dich_thanh_toan WHERE lich_hen_id = ?',
+        [row!.id],
+      ),
+    ).toEqual([{ loai: 'ThanhToanLichHen', phuongThuc: 'Vi', soTien: '0.00' }]);
     expect(notifier).toHaveBeenCalledTimes(1);
     expect(notifier.mock.calls[0]?.[1]).toEqual({
       loaiSuKien: 'LichHenDaXacNhan',

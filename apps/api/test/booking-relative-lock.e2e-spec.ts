@@ -44,7 +44,7 @@ import {
 // TRACKING booking 3.41). Mọi lịch hẹn do `POST /booking/appointments` TẠO; hồ sơ do `POST /patient/relatives/:id/deactivate` NGỪNG; huỷ, tiếp đón, vắng mặt bằng route thật của `patient` và Lễ tân.
 // Mã KTH-nn là [đề xuất]. Phần mức dịch vụ đã có từ B8 (`create-appointment.concurrency.int-spec.ts`, `create-appointment.service.int-spec.ts`) và B5 (`relatives.service.deactivate.*`).
 // Ô i của thế giới bắt đầu 08:00 + 30 phút × i giờ Việt Nam ngày 10/11/2026; đồng hồ giả (chỉ `Date`) là T0 = 08:00 ngày 02/11/2026; `vi.setSystemTime` đổi giờ của CẢ token truy cập nên ca nào đổi giờ phải
-// tạo token SAU khi đặt giờ. Cổng thanh toán, thông báo là bản `Noop` của app; cổng nghỉ phép là cổng của module (spy lấy từ AppModule, nên đúng cả khi B16a thay `Noop` bằng `LeaveReader`). Dữ liệu giả.
+// tạo token SAU khi đặt giờ. Cổng thanh toán (payment B7), thông báo (B15) và nghỉ phép (B16a) là bản THẬT của app (spy lấy từ AppModule, nên đúng với bản nào module cấp). Dữ liệu giả.
 const CONFLICT_ACTIVE = 'HO_SO_NGUOI_THAN_DANG_CO_LICH_HEN';
 const CONFLICT_STOPPED = 'HO_SO_NGUOI_THAN_DA_NGUNG';
 const NOT_FOUND = 'KHONG_TIM_THAY';
@@ -150,7 +150,7 @@ const setDeposit = (w: World, tienCoc: string) =>
     [24, 100],
   ]);
 
-/** Cọc 0đ ⇒ Lễ tân chuyển `DaTiepDon` bằng route thật khi đồng hồ ở đúng giờ hẹn của ô `index` (trong cửa sổ tiếp đón); cổng thanh toán là `Noop` nên "còn phải thu" được ép về 0. */
+/** Cọc 0đ ⇒ Lễ tân chuyển `DaTiepDon` bằng route thật khi đồng hồ ở đúng giờ hẹn của ô `index` (trong cửa sổ tiếp đón); "còn phải thu" được ép về 0 bằng `vi.spyOn` trên cổng thanh toán thật của app. */
 async function checkIn(w: World, code: string, index: number) {
   vi.setSystemTime(slotTime(index));
   const payments = h.app.get<PaymentSummaryPort>(PAYMENT_SUMMARY_PORT, {

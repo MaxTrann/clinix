@@ -52,7 +52,7 @@ let afx: AdminListFixtures;
 let operations: OperationsAppointmentsService;
 let service: AdminAppointmentsService;
 
-// Cổng THẬT của module (bản Noop), tắt cảnh báo để không tràn ra màn hình
+// Bản `Noop` dựng tay (từ payment B7 module dùng lớp thật: ca với lớp thật ở ports/payment-wallet.real-ports.int-spec.ts), tắt cảnh báo để không tràn ra màn hình
 function silentNoopPayments(): NoopPaymentSummaryPort {
   const payments = new NoopPaymentSummaryPort();
   payments.logger = { warn: vi.fn() };
@@ -338,7 +338,7 @@ describe('ADL-02, ADL-03, ADL-04 chi tiết', () => {
       expect(await targets(code), code).toStrictEqual([]);
   });
 
-  it('ADL-04 bản `Noop` THẬT (chưa thu đồng nào): `DaXacNhan` có `conPhaiThu` = giá, giá 0 ⇒ "0.00"; mọi trạng thái khác null', async () => {
+  it('ADL-04 bản `Noop` dựng tay (chưa thu đồng nào): `DaXacNhan` có `conPhaiThu` = giá, giá 0 ⇒ "0.00"; mọi trạng thái khác null', async () => {
     const w = await afx.world();
     expect((await service.detail(ALL, CODES.a1)).conPhaiThu).toBe('100000.00');
     const free = await ofx.book(w.doctorA1.profile, 'DaXacNhan', {
