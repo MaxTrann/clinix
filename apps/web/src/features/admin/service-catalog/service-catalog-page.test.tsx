@@ -189,13 +189,15 @@ describe('ServiceCatalogPage (F3)', () => {
       .mockResolvedValue(response(page(groups)));
     renderPage();
 
-    expect(await screen.findByText('Hiển thị 1–2 trên 2')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Hiển thị 1 – 2 trên 2'),
+    ).toBeInTheDocument();
     expect(screen.queryByText('1–2 / 2')).toBeNull();
 
     fireEvent.click(screen.getByRole('tab', { name: /Dịch vụ khám/ }));
 
     expect(
-      await screen.findByText('Hiển thị 1–20 trên 21'),
+      await screen.findByText('Hiển thị 1 – 20 trên 21'),
     ).toBeInTheDocument();
     expect(screen.getByText('Trang 1 / 2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trang sau' })).toBeEnabled();

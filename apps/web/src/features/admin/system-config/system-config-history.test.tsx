@@ -116,7 +116,7 @@ describe('CHF5-40 tải trang 1, mới nhất trước, giờ Việt Nam (CH-19)
     expect(second[3]).toHaveTextContent(
       '3 tham số: Ngưỡng no-show khoá đặt lịch, Trọng số đánh giá bác sĩ (w1), +1',
     );
-    expect(screen.getByText('Hiển thị 1–2 trên 2')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 1 – 2 trên 2')).toBeInTheDocument();
     // Tab Lịch sử đang mở: biểu mẫu tham số (và nút lưu) bị ẩn
     expect(screen.queryByRole('button', { name: /^Lưu thay đổi/ })).toBeNull();
   });
@@ -184,19 +184,19 @@ describe('CHF5-42 nhiều trang', () => {
       },
     );
 
-  it('CHF5-42 "Hiển thị 1–20 trên 45", Trang 1 / 3; Sau và Trước gọi đúng `page`, luôn `pageSize=20`', async () => {
+  it('CHF5-42 "Hiển thị 1 – 20 trên 45", Trang 1 / 3; Sau và Trước gọi đúng `page`, luôn `pageSize=20`', async () => {
     const api = setup((request) => json(pageOf(Number(request.query.page))));
     renderConfigPage();
     await openHistory();
     await historyTable();
-    expect(screen.getByText('Hiển thị 1–20 trên 45')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 1 – 20 trên 45')).toBeInTheDocument();
     expect(screen.getByText('Trang 1 / 3')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trang trước' })).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     await screen.findByText('Mục của trang 2');
     expect(screen.getByText('Trang 2 / 3')).toBeInTheDocument();
-    expect(screen.getByText('Hiển thị 21–40 trên 45')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 21 – 40 trên 45')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     await screen.findByText('Mục của trang 3');

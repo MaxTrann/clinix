@@ -4,6 +4,7 @@ import {
   TimeoutError,
 } from '../../../../../shared/api/errors';
 import { errorMessageFor } from '../../../../../shared/api/error-message';
+import { formatRange } from '../../../../../shared/format/range';
 import { SHIFT_LABELS } from '../../../../../shared/schedule/shift-labels';
 import { formatDate } from '../../../../../shared/schedule/week';
 import type {
@@ -17,7 +18,7 @@ const weekdayName = (value?: number) =>
   value === 7 ? 'Chủ nhật' : value ? `Thứ ${value + 1}` : '';
 
 const hoursText = (range: { tu: string; den: string } | null) =>
-  range ? `${range.tu}–${range.den}` : null;
+  range ? formatRange(range.tu, range.den) : null;
 
 // Câu của MỘT vi phạm (A1–A4 và trùng ca). `chiTiet` có thể thiếu: câu vẫn đọc được.
 export function describeViolationCode(

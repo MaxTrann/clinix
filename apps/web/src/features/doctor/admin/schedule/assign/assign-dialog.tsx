@@ -5,6 +5,8 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
+import { sortByLabel } from '../../../../../shared/format/sort-options';
+import { DateField } from '../../../../../shared/masked-input/date-field';
 import { todayVn } from '../../../../../shared/schedule/week';
 import {
   assignShiftRule,
@@ -83,11 +85,16 @@ export function AssignDialog({
   const selected = values.bacSiIds
     .map((id) => doctorsById.get(id))
     .filter((d): d is ReceptionDoctor => d !== undefined);
-  const specialties = [
-    ...new Map(
-      doctors.map((d) => [d.chuyenKhoa.chuyenKhoaId, d.chuyenKhoa.ten]),
-    ),
-  ];
+  // Chi nhánh và chuyên khoa sắp theo bảng chữ cái tiếng Việt (doctor UX1, G12)
+  const sortedBranches = sortByLabel(branches ?? [], (branch) => branch.ten);
+  const specialties = sortByLabel(
+    [
+      ...new Map(
+        doctors.map((d) => [d.chuyenKhoa.chuyenKhoaId, d.chuyenKhoa.ten]),
+      ),
+    ],
+    ([, name]) => name,
+  );
   const listed = doctors.filter(
     (d) =>
       (branchId === 'all' || d.chiNhanh.chiNhanhId === branchId) &&
@@ -169,7 +176,7 @@ export function AssignDialog({
                 onChange={(event) => setBranchId(event.target.value)}
               >
                 <option value="all">Tất cả chi nhánh</option>
-                {branches?.map((branch) => (
+                {sortedBranches.map((branch) => (
                   <option key={branch.chiNhanhId} value={branch.chiNhanhId}>
                     {branch.ten}
                   </option>
@@ -199,17 +206,16 @@ export function AssignDialog({
             error={errors.tuNgay}
             id="assign-from"
           >
-            <input
+            <DateField
               id="assign-from"
-              ref={firstFieldRef}
-              type="date"
+              inputRef={firstFieldRef}
               min={today}
               value={values.tuNgay}
               disabled={pending}
               aria-invalid={errors.tuNgay ? true : undefined}
               aria-describedby={errors.tuNgay ? 'assign-from-error' : undefined}
               className={`${FIELD} ${errors.tuNgay ? 'border-danger' : NORMAL_BORDER}`}
-              onChange={(event) => update({ tuNgay: event.target.value })}
+              onChange={(iso) => update({ tuNgay: iso })}
             />
           </Field>
           <Field
@@ -218,16 +224,15 @@ export function AssignDialog({
             error={errors.denNgay}
             id="assign-to"
           >
-            <input
+            <DateField
               id="assign-to"
-              type="date"
               min={values.tuNgay || today}
               value={values.denNgay}
               disabled={pending}
               aria-invalid={errors.denNgay ? true : undefined}
               aria-describedby={errors.denNgay ? 'assign-to-error' : undefined}
               className={`${FIELD} ${errors.denNgay ? 'border-danger' : NORMAL_BORDER}`}
-              onChange={(event) => update({ denNgay: event.target.value })}
+              onChange={(iso) => update({ denNgay: iso })}
             />
           </Field>
 

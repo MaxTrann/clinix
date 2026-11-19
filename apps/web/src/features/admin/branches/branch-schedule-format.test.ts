@@ -6,7 +6,7 @@ import type { BranchPeriod, BranchSchedule } from './branch-types';
 
 const MORNING: BranchPeriod = { batDau: '08:00:00', ketThuc: '11:30:00' };
 const AFTERNOON: BranchPeriod = { batDau: '13:30:00', ketThuc: '17:00:00' };
-const BOTH = 'Sáng 08:00–11:30 · Chiều 13:30–17:00';
+const BOTH = 'Sáng 08:00 – 11:30 · Chiều 13:30 – 17:00';
 
 function day(
   thu: number,
@@ -35,7 +35,7 @@ describe('scheduleLines (CN b1, PR1 mục 8)', () => {
 
     expect(scheduleLines(week)).toEqual([
       `Thứ 2–Thứ 6: ${BOTH}`,
-      'Thứ 7: Sáng 08:00–11:30',
+      'Thứ 7: Sáng 08:00 – 11:30',
       'CN: Nghỉ',
     ]);
   });
@@ -70,7 +70,7 @@ describe('scheduleLines (CN b1, PR1 mục 8)', () => {
 
   it('chỉ có buổi chiều thì không in chữ Sáng', () => {
     expect(scheduleLines([day(1, true, null, AFTERNOON)])).toEqual([
-      'Thứ 2: Chiều 13:30–17:00',
+      'Thứ 2: Chiều 13:30 – 17:00',
     ]);
   });
 
@@ -79,7 +79,7 @@ describe('scheduleLines (CN b1, PR1 mục 8)', () => {
       scheduleLines([
         day(1, true, { batDau: '07:05:59', ketThuc: '11:59:00' }),
       ]),
-    ).toEqual(['Thứ 2: Sáng 07:05–11:59']);
+    ).toEqual(['Thứ 2: Sáng 07:05 – 11:59']);
   });
 
   it('không có lịch nào: một dòng "Chưa khai báo giờ nhận khám"', () => {

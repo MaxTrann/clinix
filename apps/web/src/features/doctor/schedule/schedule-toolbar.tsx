@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { sortByLabel } from '../../../shared/format/sort-options';
 import {
   SHIFT_LABELS,
   SHIFT_ORDER,
@@ -150,7 +151,7 @@ export function ScheduleToolbar({
             }
           >
             <option value={ALL}>Tất cả chi nhánh</option>
-            {branches.map((branch) => (
+            {sortByLabel(branches, (branch) => branch.ten).map((branch) => (
               <option key={branch.chiNhanhId} value={branch.chiNhanhId}>
                 {branch.ten}
               </option>

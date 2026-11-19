@@ -10,6 +10,7 @@ import {
   SHIFT_LABELS,
   SHIFT_ORDER,
 } from '../../../shared/schedule/shift-labels';
+import { DateField } from '../../../shared/masked-input/date-field';
 import { todayVn } from '../../../shared/schedule/week';
 import { ModalFrame } from '../components/modal-frame';
 import { describeLeaveSubmitError } from './leave-errors';
@@ -141,15 +142,14 @@ export function LeaveRequestDialog({
           {single ? (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Ngày" error={fieldErrors.tuNgay} id="leave-from">
-                <input
+                <DateField
                   id="leave-from"
-                  type="date"
                   min={today}
                   {...invalid('tuNgay', 'leave-from')}
                   className={`${INPUT} ${border('tuNgay')}`}
                   value={values.tuNgay}
                   disabled={pending}
-                  onChange={(event) => change('tuNgay', event.target.value)}
+                  onChange={(iso) => change('tuNgay', iso)}
                 />
               </Field>
               <Field label="Ca" error={fieldErrors.ca} id="leave-shift">
@@ -175,27 +175,25 @@ export function LeaveRequestDialog({
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Từ ngày" error={fieldErrors.tuNgay} id="leave-from">
-                <input
+                <DateField
                   id="leave-from"
-                  type="date"
                   min={today}
                   {...invalid('tuNgay', 'leave-from')}
                   className={`${INPUT} ${border('tuNgay')}`}
                   value={values.tuNgay}
                   disabled={pending}
-                  onChange={(event) => change('tuNgay', event.target.value)}
+                  onChange={(iso) => change('tuNgay', iso)}
                 />
               </Field>
               <Field label="Đến ngày" error={fieldErrors.denNgay} id="leave-to">
-                <input
+                <DateField
                   id="leave-to"
-                  type="date"
                   min={values.tuNgay || today}
                   {...invalid('denNgay', 'leave-to')}
                   className={`${INPUT} ${border('denNgay')}`}
                   value={values.denNgay}
                   disabled={pending}
-                  onChange={(event) => change('denNgay', event.target.value)}
+                  onChange={(iso) => change('denNgay', iso)}
                 />
               </Field>
             </div>

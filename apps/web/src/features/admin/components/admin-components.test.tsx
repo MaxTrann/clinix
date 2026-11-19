@@ -33,7 +33,7 @@ describe('Admin controls', () => {
 
     expect(screen.getByRole('table', { name: 'Nhân sự' })).toBeInTheDocument();
     expect(screen.getByText('Nguyễn An')).toBeInTheDocument();
-    expect(screen.getByText('Hiển thị 1–10 trên 11')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 1 – 10 trên 11')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trang trước' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     expect(onPageChange).toHaveBeenCalledWith(2);
@@ -55,7 +55,7 @@ describe('Admin controls', () => {
     );
 
     expect(screen.getByText('Chưa có nhân sự.')).toBeInTheDocument();
-    expect(screen.getByText('Hiển thị 11–11 trên 11')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 11 – 11 trên 11')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trang sau' })).toBeDisabled();
   });
 

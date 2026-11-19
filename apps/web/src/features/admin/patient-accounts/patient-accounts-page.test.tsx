@@ -50,7 +50,7 @@ describe('TKF9-20 tải thành công', () => {
       'Thao tác',
     ]);
     expect(bodyRows(grid)).toHaveLength(20);
-    expect(screen.getByText('Hiển thị 1–20 trên 45')).toBeInTheDocument();
+    expect(screen.getByText('Hiển thị 1 – 20 trên 45')).toBeInTheDocument();
     expect(screen.getByText('Trang 1 / 3')).toBeInTheDocument();
 
     const first = api.lists()[0];
@@ -208,7 +208,7 @@ describe('TKF9-24 phân trang (TK-05 phía giao diện)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     expect(
-      await screen.findByText('Hiển thị 21–40 trên 45'),
+      await screen.findByText('Hiển thị 21 – 40 trên 45'),
     ).toBeInTheDocument();
     expect(api.lists().at(-1)?.search.get('page')).toBe('2');
     expect(screen.getByText('Bệnh nhân 21')).toBeInTheDocument();
@@ -216,7 +216,7 @@ describe('TKF9-24 phân trang (TK-05 phía giao diện)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     expect(
-      await screen.findByText('Hiển thị 41–45 trên 45'),
+      await screen.findByText('Hiển thị 41 – 45 trên 45'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Trang sau' })).toBeDisabled();
   });
@@ -226,10 +226,10 @@ describe('TKF9-24 phân trang (TK-05 phía giao diện)', () => {
     renderPatientPage();
     await table();
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
-    await screen.findByText('Hiển thị 21–40 trên 45');
+    await screen.findByText('Hiển thị 21 – 40 trên 45');
 
     choose('Lọc trạng thái', 'DangHoatDong');
-    await screen.findByText('Hiển thị 1–20 trên 45');
+    await screen.findByText('Hiển thị 1 – 20 trên 45');
     const last = api.lists().at(-1);
     expect(last?.search.get('page')).toBe('1');
     expect(last?.search.get('trangThai')).toBe('DangHoatDong');
@@ -253,7 +253,7 @@ describe('TKF9-25 trang lệch được tự sửa', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
 
     expect(
-      await screen.findByText('Hiển thị 1–15 trên 15'),
+      await screen.findByText('Hiển thị 1 – 15 trên 15'),
     ).toBeInTheDocument();
     expect(screen.queryByText('Không tìm thấy bệnh nhân phù hợp.')).toBeNull();
     expect(screen.queryByText('Chưa có bệnh nhân nào.')).toBeNull();
@@ -278,7 +278,7 @@ describe('TKF9-25 trang lệch được tự sửa', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
 
     expect(
-      await screen.findByText('Hiển thị 1–20 trên 35'),
+      await screen.findByText('Hiển thị 1 – 20 trên 35'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(api.lists().map((r) => r.search.get('page'))).toEqual([

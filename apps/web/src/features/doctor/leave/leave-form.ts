@@ -31,7 +31,7 @@ export const FIELD_MESSAGES = {
   datePast: 'Không thể xin nghỉ cho ngày đã qua.',
   dateOrder: 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.',
   shiftRequired: 'Vui lòng chọn ca.',
-  reason: `Vui lòng nhập lý do (${REASON_MIN}–${REASON_MAX} ký tự).`,
+  reason: `Vui lòng nhập lý do (từ ${REASON_MIN} đến ${REASON_MAX} ký tự).`,
 } as const;
 
 export function reasonLength(value: string): number {
