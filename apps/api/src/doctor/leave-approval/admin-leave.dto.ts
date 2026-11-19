@@ -103,8 +103,8 @@ export interface LeaveStats {
 }
 
 /**
- * Một dòng danh sách. Danh sách trắng: tên bác sĩ, chuyên khoa, chi nhánh HIỆN TẠI của bác sĩ (Q28); KHÔNG có `lyDo` (thuộc chi tiết),
- * `nguoi_xu_ly_id`, email hay SĐT.
+ * Một dòng danh sách. Danh sách trắng: tên bác sĩ, chuyên khoa, chi nhánh HIỆN TẠI của bác sĩ (Q28), và `lyDo` (lý do của Bác sĩ, tối đa 500 điểm mã theo Q25, trả ĐỦ: web tự cắt khi hiển thị;
+ * cùng phạm vi chi nhánh với chi tiết, phản hồi `no-store`; doctor UX2, G15); KHÔNG có `nguoi_xu_ly_id`, email hay SĐT.
  * `soLichHenBiAnhHuong` (D13, B17): số lịch `ChoThanhToan`/`DaXacNhan` có `thoi_gian > now` trong khoảng nghỉ (cùng định nghĩa với bước huỷ của Duyệt); `null` với yêu cầu `TuChoi` (không ảnh hưởng ai).
  * `thoiDiemTao`, `thoiDiemXuLy`: ISO 8601 UTC.
  */
@@ -115,6 +115,7 @@ export interface AdminLeaveItem {
   tuNgay: string;
   denNgay: string;
   ca: CaLamViec | null;
+  lyDo: string;
   thoiDiemTao: string;
   thoiDiemXuLy: string | null;
   bacSi: { bacSiId: string; hoTen: string };
@@ -136,9 +137,8 @@ export interface AffectedAppointmentsView {
   items: AffectedLeaveItem[];
 }
 
-/** Chi tiết = dòng danh sách + lý do của Bác sĩ (Admin cần để quyết định) + lịch hẹn bị ảnh hưởng (`null` với yêu cầu `TuChoi`). */
+/** Chi tiết = dòng danh sách (đã có `lyDo`, Admin cần để quyết định) + lịch hẹn bị ảnh hưởng (`null` với yêu cầu `TuChoi`). */
 export interface AdminLeaveDetail extends AdminLeaveItem {
-  lyDo: string;
   lichHenBiAnhHuong: AffectedAppointmentsView | null;
 }
 

@@ -11,6 +11,7 @@ import {
   parseCalendarDate,
 } from '../../scheduling/calendar-date.js';
 import { AFFECTED_PREVIEW_LIMIT } from './admin-leave.constants.js';
+import { toItem } from './admin-leave.mapper.js';
 import {
   AdminLeaveRepository,
   type AdminLeaveFilter,
@@ -98,7 +99,6 @@ export class AdminLeaveService {
     return {
       ...toItem(row),
       soLichHenBiAnhHuong: summary?.tong ?? null,
-      lyDo: row.lyDo,
       lichHenBiAnhHuong,
     };
   }
@@ -148,22 +148,4 @@ function toStats(counts: Partial<Record<string, number>>): LeaveStats {
   const daDuyet = counts.DaDuyet ?? 0;
   const tuChoi = counts.TuChoi ?? 0;
   return { choDuyet, daDuyet, tuChoi, tong: choDuyet + daDuyet + tuChoi };
-}
-
-function toItem(
-  row: AdminLeaveRow,
-): Omit<AdminLeaveItem, 'soLichHenBiAnhHuong'> {
-  return {
-    yeuCauNghiPhepId: row.yeuCauNghiPhepId,
-    trangThai: row.trangThai,
-    hinhThuc: row.hinhThuc,
-    tuNgay: row.tuNgay,
-    denNgay: row.denNgay,
-    ca: row.ca,
-    thoiDiemTao: row.thoiDiemTao.toISOString(),
-    thoiDiemXuLy: row.thoiDiemXuLy?.toISOString() ?? null,
-    bacSi: { bacSiId: row.bacSiId, hoTen: row.bacSiHoTen },
-    chuyenKhoa: { ten: row.chuyenKhoaTen },
-    chiNhanh: { chiNhanhId: row.chiNhanhId, ten: row.chiNhanhTen },
-  };
 }

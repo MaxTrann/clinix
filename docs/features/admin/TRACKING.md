@@ -3340,6 +3340,245 @@ Panel và hộp xác nhận ở 375 px (đo lại): panel 360 px (đủ chiều 
 
 **Trạng thái lúc lập kế hoạch (đã nói rõ, giữ làm lịch sử):** chưa có file mã nào bị sửa; chưa chạy `tsc`, ESLint, vitest, build, Playwright. Kết quả, số liệu và báo cáo cuối sẽ ghi ở mục 10 sau khi được duyệt và chạy xong; số PR, kết quả CI, người duyệt: `[cần điền]`.
 
+#### 9A.14 UX2 · Trang Duyệt yêu cầu: badge chuyên khoa cạnh tên và cột "Lý do nghỉ" (backend nhỏ + frontend, doctor G14 và G15), issue #577 (19/11/2026): kế hoạch ĐÃ DUYỆT (phiên kiểm theo ủy quyền của Đại; bố cục: Đại chọn A); mã, test (đơn vị, tích hợp, e2e lọc, thành phần), WEB-FULL (350 file, 6112 ca), build và đột biến (32/35 bị bắt, 1 tương đương, 2 giới hạn của phép đo) ĐÃ XONG; trình duyệt ĐÃ ĐO (điều kiện cứng đạt; hồi quy ở cửa sổ khoảng 1046 đến 1253 px và hai tiêu chí chưa đạt, báo ở 8.4); chờ Đại duyệt báo cáo cuối, PR và CI (hàng AI log 167 và dòng TECH_DEBT 209, 210: Đại duyệt, ĐÃ GHI)
+
+Người làm: Đại (`MaxTrann`). Model: Claude Sonnet 5.5 (lập kế hoạch, viết mã, chạy kiểm). Nhánh `feat/doctor-ux2-duyet-yeu-cau-ly-do` (worktree `clinix-app-de-p2`). Nguồn: `Tom_Tat_Gop_Y_Doctor_Gui_Trung_2026-11-19_v3.docx` (G14, G15, T5; Trung đã đồng ý) và `KE_HOACH_CAI_TIEN_DOCTOR_2026-11-19.md` (PR-E). **Bước 0 (19/11/2026):** cây sạch; `HEAD...origin/main` = 0 0 (`990b039`); Node v22.23.4; PR mở: chỉ #378 (Dependabot, `apps/api`). `origin/main` chưa có `9A.13` và chưa có PR của UX1 (UX1 giữ số `9A.13`), nên số của UX2 là `9A.14`; chèn ngay trước dòng đánh dấu hết phần của Đại, không sửa phần của Trung. Lý do ghi ở TRACKING admin: cơ chế gộp của gói git đã kiểm cho mục `9A.n`; PR tài liệu sau sẽ thêm dòng tham chiếu vào `docs/features/doctor/TRACKING.md`. Mức kiểm ĐẦY ĐỦ. Lúc lập kế hoạch chỉ đọc mã, `git fetch`, `gh`; **chưa chạy** `tsc`, vitest, int, e2e, build, trình duyệt.
+
+**1. Đối chiếu mã thật (chỗ khớp, chỗ lệch với lời giao việc).**
+
+1. **Backend đã đủ dữ liệu, không đổi truy vấn.** `admin-leave.repository.ts` `COLUMNS` đã `SELECT y.ly_do AS lyDo` và `AdminLeaveRow.lyDo` có sẵn; danh sách và chi tiết dùng chung. `toItem(row)` (hàm riêng, không export, trong `admin-leave.service.ts`) ánh xạ **danh sách trắng 12 khoá** (13 khi `list` thêm `soLichHenBiAnhHuong`), không có `lyDo`; `get` thêm `lyDo: row.lyDo`. `admin-leave.dto.ts`: kiểu `AdminLeaveItem` có chú thích "KHÔNG có `lyDo` (thuộc chi tiết)"; `AdminLeaveDetail extends AdminLeaveItem` khai thêm `lyDo: string`. Không migration, không đổi `docs/database/*`.
+2. **Phạm vi không mở rộng.** `list`: `toFilter` ép `BranchAccessPolicy.branchFilter` (Admin Chi nhánh bị ép chi nhánh mình, `chiNhanhId` gửi lên bị bỏ qua) rồi SQL `b.chi_nhanh_id = ?` theo chi nhánh HIỆN TẠI của bác sĩ (Q28); `get`: `assertCanSee(scope, row.chiNhanhId)` trên cùng cột. Cùng cổng `@Roles('QuanTriVien')` và `@RequireAdminScope('Any')`. Thêm `lyDo` vào danh sách chỉ làm lý do của MỌI hàng trong trang hiện ra cùng lúc, không mở thêm cho vai trò hay chi nhánh nào (sẽ chứng minh bằng test).
+3. **`Cache-Control: no-store` ĐÃ có ở danh sách** (`admin-leave.controller.ts`, hàm `list`, kèm chú thích "có lý do nghỉ của bác sĩ") và PD-01 đã khẳng định header: không phải làm, không có điều cần hỏi thêm.
+4. **Log:** trong `leave-approval/` chỉ có hai nơi log (`leave-cancellation.runner.ts` `warn`, `leave-cancellation.sweeper.job.ts` `log/warn/error`), nội dung chỉ là số đếm và tên lớp lỗi; `list` và `get` không log gì. Không có chỗ nào ghi `lyDo`; vẫn có test quét `stdout` và `stderr` (DUX2-16).
+5. **Lý do (Q25):** 2–500 điểm mã, NFC, cắt khoảng trắng ASCII hai đầu, **không ký tự điều khiển** (`\p{Cc}` gồm cả xuống dòng) ⇒ API không sinh lý do có xuống dòng. Nhưng cột `ly_do` là `text NOT NULL` không có CHECK độ dài, nên dữ liệu ghi thẳng vào DB (seed, nhập tay) có thể dài hơn 500 hay có xuống dòng: web phải chịu được cả hai (ghi lại như một giới hạn đã biết, không sửa DB).
+6. **Web hiện tại:** bảng 7 cột, MỌI cột truyền `width` (26, 12, 24, 14, 10, 12, 12 là 110%) nên `AdminTable` đặt `table-layout: fixed` (TECH_DEBT 202: cột bị ép theo phần trăm, nội dung tràn ô ở màn hẹp). Ô Bác sĩ có ba dòng (tên, badge, chi nhánh). Ngăn kéo chi tiết đã hiện lý do từ `GET /:id` (`break-words whitespace-pre-line`). `AdminLeaveDetail extends AdminLeaveItem` và khai `lyDo` trùng.
+7. **Hợp đồng bị đổi, đã `Grep` ở CẢ `apps/api/src/` LẪN `apps/api/test/`** (`admin/leave-requests`, `AdminLeaveItem`, `AdminLeavePage`, `soLichHenBiAnhHuong`, `toItem`, `lyDo`): chỉ **MỘT** test khẳng định khoá cứng của dòng danh sách là `apps/api/test/doctor-admin-leave-list.e2e-spec.ts` (PD-01: `Object.keys(item).sort()` và `expect(item).not.toHaveProperty('lyDo')`). Các e2e còn lại chỉ đọc `soLichHenBiAnhHuong` (`doctor-leave-impact` dòng 176 đến 266), `lichHenBiAnhHuong` (không có ở danh sách), gọi đường dẫn hay chi tiết (`doctor-read-port` dòng 161, `doctor-admin-leave-approve`, `-reject`, `-retry`, `doctor-stress`): không đổi, sẽ chạy lọc để chứng minh. Không spec hay int-spec nào trong `leave-approval/` dựng `AdminLeaveItem` (chúng dùng `AdminLeaveRow`). `apps/api/src/appointments/testing/leave-race-world.ts` và `doctor/testing/leave-approval-world.ts` chỉ chèn hàng yêu cầu nghỉ: không đổi. Ở web chỉ `approvals.test.tsx` dựng `AdminLeaveItem` (hàm `leave()`), cộng ba hộp (`approve-dialog`, `reject-dialog`, `leave-detail-drawer`) nhận `AdminLeaveItem` làm prop (chỉ đổi kiểu, không đổi mã).
+
+**2. Thiết kế.**
+
+**2.1 Backend** `[ĐỤNG doctor]` (không đổi truy vấn, khoá, giao dịch, thứ tự):
+- `admin-leave.dto.ts`: thêm `lyDo: string` vào `AdminLeaveItem` (đặt sau `ca`, cùng thứ tự với `AdminLeaveRow`); viết lại chú thích "KHÔNG có `lyDo`" thành "`lyDo`: lý do của Bác sĩ, tối đa 500 điểm mã, trả ĐỦ (web cắt khi hiển thị), cùng phạm vi chi nhánh với chi tiết, phản hồi `no-store`; KHÔNG có `nguoi_xu_ly_id`, email hay SĐT"; `AdminLeaveDetail` bỏ khai báo `lyDo` trùng (còn `lichHenBiAnhHuong`).
+- `admin-leave.service.ts`: `toItem` thêm `lyDo: row.lyDo`; `get` bỏ dòng `lyDo: row.lyDo` thừa. Để test đơn vị được, **chuyển `toItem` sang file mới `admin-leave.mapper.ts`** (xuất `toItem`, service import) cùng `admin-leave.mapper.spec.ts`: nếp `*.mapper.ts` có sẵn ở `doctor/examination/moderation/`; không đổi hành vi nào ngoài `lyDo` (câu hỏi (d)).
+- `doctor/testing/doctor-fixtures.ts`: `leaveRequest` nhận thêm `lyDo?: string` (mặc định vẫn "Việc gia đình") để int và e2e có lý do khác nhau, dài, đặc biệt.
+
+**2.2 Web** `[ĐỤNG doctor]`:
+- `api/admin-leave-api.ts`: `AdminLeaveItem` thêm `lyDo: string` (chú thích "có `lyDo` đầy đủ, tối đa 500 điểm mã; cắt khi hiển thị"); `AdminLeaveDetail` bỏ `lyDo` trùng.
+- **File MỚI** `admin/approvals/leave-reason.ts`: `LEAVE_REASON_PREVIEW_MAX = 80` và hàm thuần `previewLeaveReason(reason): { text, truncated }`: đếm bằng `Array.from` (điểm mã, như cách server đếm Q25 và hộp Từ chối); ≤ 80 giữ nguyên; > 80 lấy 80 điểm mã đầu, `trimEnd()` rồi nối "…" (U+2026). Hàm và ô nằm file MỚI (không thêm vào `approvals-format.ts`) để khỏi xung đột với UX1 nếu UX1 sửa `formatLeaveTime`.
+- **File MỚI** `admin/approvals/leave-reason-cell.tsx` (`LeaveReasonCell`): không cắt ⇒ `<span class="wrap-anywhere">` chữ thường; có cắt ⇒ `<span aria-hidden="true" title={đủ} class="wrap-anywhere">{bản cắt}</span>` cộng `<span class="sr-only">{đủ}</span>` (trình đọc màn hình đọc ĐỦ MỘT lần, người thấy chữ được tooltip khi rê chuột). Chữ người dùng in như chữ thường: không `dangerouslySetInnerHTML`; ký tự `<`, `&`, dấu nháy, xuống dòng không sinh phần tử.
+- `leave-approval-page.tsx`: cột MỚI `{ id: 'lyDo', header: 'Lý do nghỉ', cell }` giữa `thoiGian` và `ngayGui`; **ô Bác sĩ (G14):** hàng một `flex flex-wrap items-center gap-x-2 gap-y-1` chứa nút tên và badge chuyên khoa (badge bên phải tên, tự xuống dòng khi hẹp), hàng hai là chi nhánh; màu badge giữ nguyên; `aria-label` "Duyệt/Từ chối yêu cầu của {họ tên}" giữ nguyên.
+- Test: **giữ `approvals.test.tsx` gần như nguyên** (chỉ thêm `lyDo` vào `leave()` và thêm "Lý do nghỉ" vào danh sách tiêu đề cột của WA-07, hai chỗ nhỏ) và đặt ca mới ở file MỚI `approvals-reason-column.test.tsx` để giảm xung đột với UX1.
+
+**2.3 Bố cục bảng tám cột (câu (c); KHÔNG sửa `AdminTable`, KHÔNG thêm `*.module.css`, FG-06).** `AdminTable` chỉ cho truyền `id`, `header`, `width`, `cell` (không gắn lớp vào `th`/`td` theo cột), nên không thể "ẩn cột ở màn hẹp". Đề xuất: **bỏ `width` của TẤT CẢ cột** (để `table-layout: auto`, cùng cách F9 đã dùng, TECH_DEBT 202) và đặt `min-w` ngay trong nội dung ô (ví dụ Bác sĩ `min-w-44`, Lý do `min-w-48 max-w-[20rem]`, Thời gian `min-w-32`, Thao tác tối thiểu cho hai nút; **con số chốt theo ĐO**); dưới ngưỡng, bảng cuộn ngang TRONG khung có sẵn (`tableScroll`) và trang không cuộn ngang. Hệ quả cần nói rõ: ở màn hẹp cột Thao tác nằm ngoài vùng nhìn tới khi cuộn (như F9 D5); Duyệt và Từ chối vẫn làm được từ ngăn kéo chi tiết (bấm tên bác sĩ). **Đo baseline** bảng 7 cột hiện tại ở 375, 640, 1046, 1280 px (API giả) TRƯỚC khi sửa web, để so sánh.
+
+**Tiêu chí đạt, ĐẶT TRƯỚC khi đo (không đổi sau khi thấy số), ở 375, 640, 1046 và 1280 px, API giả, dữ liệu giả:** (1) trang không cuộn ngang (`document.documentElement.scrollWidth <= innerWidth`); (2) không ô nào có nội dung tràn ra khỏi ô (`td.scrollWidth <= td.clientWidth + 1`, trừ chính vùng cuộn của bảng); (3) hình chữ nhật của nút tên, badge, chi nhánh, lý do, nút thao tác trong cùng hàng không chồng nhau (giao bằng 0); (4) ở 1280 px cột Thao tác nằm TRONG vùng nhìn (không cần cuộn ngang trong khung); không đạt thì DỪNG, báo số và hỏi, không tự nới; (5) chữ lý do chiếm tối đa 3 dòng ở mọi cỡ; (6) lý do 500 ký tự `z` liền không làm bảng rộng hơn lúc dữ liệu thường (không từ nào đẩy cột); (7) badge cùng hàng với tên ở 1280 và 1046 (đỉnh bằng nhau, badge ở bên phải nút tên), xuống dòng không đè ở 375.
+
+**2.4 Trợ năng và an toàn.** Lý do là chữ tự do của bác sĩ (có thể riêng tư): không log, không đưa vào ảnh chụp hay file; test và đo dùng dữ liệu giả. Nội dung bị cắt vẫn đọc ĐỦ cho trình đọc màn hình (chữ ẩn thị giác); người dùng bàn phím mở ngăn kéo bằng nút tên (đã có) để đọc đủ. Cột lý do không phải nút (không thêm điểm dừng Tab, không đổi hành vi bấm hàng).
+
+**3. Bảng test** (mã `[đề xuất]` `DUX2-nn`; đã `Grep` `docs/` và `apps/`: chưa dùng, còn `TKF9-`, `TKB20-` đã có chủ; viết test TRƯỚC, phải ĐỎ đúng lý do rồi mới sửa mã; mỗi tên test ghi mã PLAN nó phủ). U = đơn vị, I = tích hợp MySQL thật, E = e2e (HTTP + MySQL thật), C = thành phần, T = trình duyệt. Mã trong `doctor_testcase.xlsx` nhóm LEAVEAPR: `[cần điền]` (không có file trong repo này; Đại hoặc Trung cho mã nếu cần dẫn).
+
+| Mã | File | Loại | Phủ |
+|---|---|---|---|
+| DUX2-01 đến 04 | `admin-leave.mapper.spec.ts` (mới) | U | `toItem` có `lyDo` đúng giá trị cho từng trạng thái (ChoDuyet, DaDuyet, TuChoi); tập khoá ĐÚNG 12 (không `nguoiXuLyId`, không email, không khoá lạ); lý do 500 điểm mã giữ nguyên (server không cắt); không sửa chữ (NFC, khoảng trắng hai đầu, nhiều dấu cách, `<b>`, `&`, dấu nháy, xuống dòng, emoji) và không đổi `row` đầu vào |
+| DUX2-05 đến 11 | `admin-leave.list.int-spec.ts` (mới, qua `AdminLeaveService` thật) | I | PD-01, PD-02, PD-15, PD-16, QH-02: (05) từng hàng ≥ 3 yêu cầu khác lý do và khác trạng thái trả đúng `lyDo`, khớp `get` của chính hàng đó (hàng và lý do không bị lệch); (06) Toàn hệ thống thấy lý do mọi chi nhánh; Admin Chi nhánh chỉ lý do bác sĩ chi nhánh mình, và chuỗi đánh dấu lý do của chi nhánh khác KHÔNG xuất hiện ở bất cứ đâu trong phản hồi (kể cả khi gửi `chiNhanhId` hay `bacSiId` của chi nhánh kia); (07) bác sĩ đổi chi nhánh: lý do đi theo chi nhánh HIỆN TẠI; (08) lý do 500 điểm mã, `<b>`, `&`, dấu nháy kép và đơn, `%`, `_`, `\`, emoji 4 byte, tiếng Việt, xuống dòng (chèn thẳng DB) về NGUYÊN VẸN; (09) **không thêm khoá:** mọi câu SQL của `list` là đọc thường, không câu nào bị `isLockingStatement` bắt (`recordStatements`); (10) phân trang trang 2 và sắp "mới nhất trước": `lyDo` đi cùng đúng hàng; (11) yêu cầu `TuChoi` vẫn trả lý do của Bác sĩ (khác lý do từ chối), `soLichHenBiAnhHuong` vẫn `null` |
+| DUX2-12 đến 16 | `apps/api/test/doctor-admin-leave-list.e2e-spec.ts` (sửa PD-01, thêm ca) | E | (12) tập khoá MỚI = 13 và `lyDo` đúng (sửa PD-01: bỏ `not.toHaveProperty('lyDo')`, thêm `'lyDo'` vào danh sách khoá); (13) `Cache-Control: no-store` và 401 và 403 cho Bác sĩ, Lễ tân, Bệnh nhân (PD-14, giữ), thân lỗi không chứa lý do; (14) danh sách và chi tiết cùng `lyDo` cho cùng id (PD-02); (15) Admin Chi nhánh B không thấy lý do chi nhánh A trong BẤT KỲ chỗ nào của thân (QH-02); (16) log: chặn `process.stdout.write` và `process.stderr.write`, gọi danh sách, chi tiết, 404, 400 và 403 với lý do giả có chuỗi đánh dấu, khẳng định không dòng nào chứa chuỗi đó |
+| DUX2-20 đến 29 | `leave-reason.test.ts` (mới) | U | `previewLeaveReason`: 79 và đúng 80 giữ nguyên (không "…"); 81 thành 80 điểm mã cộng "…"; 500 ký tự; emoji ở biên 80 (không còn nửa cặp thay thế, đếm theo điểm mã); biên rơi vào dấu cách (không ra "x …"); tiếng Việt có dấu; MỘT từ dài không dấu cách; `\n`, `<b>`, `&` giữ nguyên trong `text`; không đổi đầu vào và gọi hai lần cùng kết quả |
+| DUX2-30 đến 39 | `approvals.test.tsx` (2 chỗ nhỏ), `approvals-reason-column.test.tsx` (mới) | C | WA-07, WA-08: (30) tám tiêu đề đúng thứ tự, "Lý do nghỉ" giữa "Thời gian" và "Ngày gửi"; (31) lý do ≤ 80 hiện nguyên văn, KHÔNG `title`; (32) lý do > 80: hiện 80 điểm mã cộng "…" và `title` = ĐỦ; (33) chữ ẩn thị giác chứa ĐỦ, bản cắt `aria-hidden`; (34) `<b>x</b> & "` hiện như chữ thường, không sinh phần tử `b`; (35) badge và nút tên CÙNG cha, chi nhánh KHÔNG ở cha đó; (36) nhãn truy cập Duyệt và Từ chối vẫn có họ tên; (37) ngăn kéo vẫn hiện lý do ĐỦ từ `GET /:id` (mock chi tiết khác danh sách để chứng minh nguồn); (38) đủ ba trạng thái đều có lý do; (39) rỗng, lỗi tải, phân trang, lọc (WA-07 cũ) vẫn xanh |
+| DUX2-50 đến 56 | trình duyệt (Playwright MCP, API giả, `127.0.0.1`) | T | SỐ ĐO theo bảy tiêu chí mục 2.3 ở 375, 640, 1046, 1280 px; lý do 80+ ký tự, `<b>`, `&`, xuống dòng hiện chữ thường; chuỗi 500 `z` liền; `title` có đủ và ngăn kéo hiện đủ; tên truy cập của nút Duyệt và Từ chối; không lỗi console (đợi yên trước khi đọc) |
+
+Chạy lọc bắt buộc: `test:int` file `admin-leave.list.int-spec.ts`; `test:e2e` các file `doctor-admin-leave-list`, `doctor-leave-impact`, `doctor-read-port` (có đọc danh sách) và, để chứng minh không vỡ, `doctor-admin-leave-approve`, `-reject`, `-retry`; vitest từng file đơn vị và thành phần của `approvals/`; `tsc` và ESLint web, `tsc` và oxlint api, `prettier --check` (KHÔNG `--write` trên file CRLF có sẵn; `--write` chỉ cho file MỚI). Số `test:int` và `test:e2e` đầy đủ lấy từ CI.
+
+**4. Đột biến dự đoán (ghi TRƯỚC khi chạy; mỗi ca MỘT vitest MỘT file; sao lưu NGOÀI repo kèm SHA-256 và khôi phục sau từng ca; 0 file `*.mut`; kiểm khô và đối chứng đầu và cuối; chạy trên MÃ CUỐI với `--testTimeout=30000`; ca lỗi nạp, hết giờ, `TypeError` của manager giả, lỗi bộ chạy KHÔNG tính).**
+
+Backend (17 ca; "bắt" = dự đoán có ít nhất một ca test đỏ vì đúng khẳng định đó):
+
+| Ca | Đột biến | Dự đoán, bắt bởi |
+|---|---|---|
+| BM1 | bỏ `lyDo` khỏi `toItem` | bắt: DUX2-01, 05, 12 |
+| BM2 | `lyDo: row.bacSiHoTen` | bắt: DUX2-01 |
+| BM3 | `list` gán `lyDo` của hàng đầu trang cho mọi dòng | SỐNG ở lane đơn vị (không có spec dịch vụ), bắt ở I và E: DUX2-05, 14 |
+| BM4 | cắt `lyDo` ở server (`slice(0, 80)`) | bắt: DUX2-03, 08 |
+| BM5 | `toFilter` bỏ ép chi nhánh (dùng `query.chiNhanhId` thẳng) | bắt: DUX2-06, 15 và QH-02 cũ |
+| BM6 | bỏ điều kiện `b.chi_nhanh_id = ?` trong `filterConditions` | bắt: DUX2-06, 07 |
+| BM7 | `y.ly_do AS lyDo` thành `y.trang_thai AS lyDo` | bắt: DUX2-05, 14 |
+| BM8 | thêm khoá `nguoiXuLyId` vào `toItem` | bắt: DUX2-02, 12 |
+| BM9 | thêm khoá `bacSiHoTen` phẳng vào `toItem` | bắt: DUX2-02, 12 |
+| BM10 | bỏ `Cache-Control: no-store` ở `list` | chỉ bắt ở E: DUX2-13 |
+| BM11 | `lyDo: ''` khi `TuChoi` | bắt: DUX2-01, 11 |
+| BM12 | `lyDo: row.lyDo.normalize('NFD')` | bắt: DUX2-01, 08 |
+| BM13 | `lyDo: row.lyDo.trim()` | bắt: DUX2-04 (ca khoảng trắng hai đầu) |
+| BM14 | thêm `FOR SHARE` vào câu `findPage` | bắt: DUX2-09 (lane I) |
+| BM15 | thêm `console.log(row.lyDo)` vào `toItem` | bắt: DUX2-16 (lane E) |
+| BM16 | `get` trả `lyDo: ''` | bắt: DUX2-14 và PD-02 cũ |
+| BM17 | `lyDo: row.lyDo ?? ''` | SỐNG, **tương đương** (cột `NOT NULL`, kiểu `string`) |
+
+Web (18 ca):
+
+| Ca | Đột biến | Dự đoán, bắt bởi |
+|---|---|---|
+| WM1 | bỏ cắt chữ (trả nguyên) | bắt: DUX2-21, 32 |
+| WM2 | ngưỡng 79 | bắt: DUX2-20 (đúng 80 giữ nguyên) |
+| WM3 | so sánh `>=` (cắt cả khi đúng 80) | bắt: DUX2-20 |
+| WM4 | cắt bằng `slice(0, 80)` thay `Array.from` | bắt: DUX2-24 (emoji ở biên) |
+| WM5 | đếm bằng `length` nhưng cắt bằng `Array.from` | bắt: DUX2-24 |
+| WM6 | bỏ `trimEnd()` | bắt: DUX2-25 |
+| WM7 | bỏ "…" | bắt: DUX2-21, 32 |
+| WM8 | bỏ `title` | bắt: DUX2-32 |
+| WM9 | `title` là bản cắt | bắt: DUX2-32 |
+| WM10 | bỏ chữ ẩn thị giác đủ | bắt: DUX2-33 |
+| WM11 | bỏ `aria-hidden` của bản cắt | bắt: DUX2-33 |
+| WM12 | cột "Lý do nghỉ" sau "Ngày gửi" | bắt: DUX2-30 |
+| WM13 | đổi tên tiêu đề cột | bắt: DUX2-30 |
+| WM14 | badge thành anh em của khối tên (cấu trúc cũ) | bắt: DUX2-35 |
+| WM15 | chi nhánh vào cùng hàng với tên và badge | bắt: DUX2-35 |
+| WM16 | `dangerouslySetInnerHTML` cho lý do | bắt: DUX2-34 |
+| WM17 | bỏ `flex-wrap` | SỐNG ở lane đơn vị (happy-dom không có bố cục): **giới hạn của phép đo**, bù bằng DUX2-51 ở 375 px |
+| WM18 | bỏ `wrap-anywhere` | SỐNG ở lane đơn vị (cùng giới hạn), bù bằng DUX2-54 (chuỗi 500 `z`) |
+
+Ca sống sót ngoài dự đoán: phân loại giới hạn hay lỗ hổng; lỗ hổng thì đề xuất ca test (báo trước khi thêm); ghi NGUYÊN VĂN ca lệch dự đoán.
+
+**5. Tài liệu cùng PR và sau PR.** (a) Mục này (kế hoạch, kết quả). (b) `docs/features/doctor/PLAN.md`: KHÔNG tick; **dòng cần cập nhật ở PR tài liệu sau `[ĐỒNG BỘ TL]`**: bảng API và mục 5.8 (`GET /admin/leave-requests`: dòng danh sách có `lyDo`, trả đủ, `no-store`), `WA-07` (bảng web có cột "Lý do nghỉ" cắt khoảng 80 điểm mã, đủ khi rê chuột; ô Bác sĩ tên và badge cùng hàng), `PD-01` (tập khoá 13) `[cần điền: số dòng chính xác, tra khi viết báo cáo cuối]`; `docs/features/doctor/TRACKING.md` thêm dòng tham chiếu mục `9A.14`. (c) `docs/database/*`: không đổi (không đổi schema). (d) Use case 2.4 (repo `TLCN_CLINIX`, KHÔNG sửa được từ đây): danh sách dòng cần sửa là danh sách duyệt nghỉ thêm cột "Lý do nghỉ" và vị trí badge chuyên khoa `[cần điền: số mục chính xác của 2.4]`. (e) `AI_USAGE_LOG.md`: hàng `[đề xuất]`; số lớn nhất hiện là 165, UX1 dự kiến 166 nên UX2 dự kiến **167**, kiểm lại trên `origin/main` và PR mở lúc viết; **chỉ ghi sau khi Đại đồng ý, kèm bản nháp**. (f) `docs/TECH_DEBT.md`: chưa có lối tắt chắc chắn; ứng viên duy nhất: nếu đo cho thấy cột Thao tác ở ngoài vùng nhìn ở màn hẹp thì thuộc cùng họ dòng 202; hỏi Đại kèm nháp TRƯỚC khi ghi.
+
+**6. Câu hỏi và đề xuất (mỗi câu kèm đề xuất; mặc định theo đề xuất nếu được duyệt cả bộ).**
+
+(a) **Hình dạng `lyDo` ở danh sách:** chuỗi ĐỦ (không cắt ở server), khoá `lyDo` đặt sau `ca`; `AdminLeaveDetail` bỏ khai báo trùng. Đề xuất: đúng như vậy (T5 đã chốt cắt ở web).
+(b) **Cách cắt:** 80 điểm mã (`Array.from`), `trimEnd()`, "…" (U+2026); `title` chứa đủ; chữ ẩn thị giác chứa đủ kèm `aria-hidden` cho bản cắt; xuống dòng không xử lý riêng (chữ thường, HTML gộp khoảng trắng; `title` và ngăn kéo giữ nguyên). Giới hạn đã biết: chuỗi ghép (emoji nối bằng ZWJ) có thể bị cắt giữa cụm; không dùng `Intl.Segmenter` vì server và hộp Từ chối đều đếm theo điểm mã. Đề xuất: như vậy.
+(c) **Bố trí cột thứ tám:** bỏ `width`, `min-w` trong ô, cuộn ngang TRONG khung dưới ngưỡng (không sửa `AdminTable`, không bớt cột vì không có cách), chốt số theo đo bảy tiêu chí (mục 2.3), đo cả baseline. Đề xuất: như vậy; nếu tiêu chí (4) không đạt ở 1280 px thì DỪNG và hỏi.
+(d) **Test cũ cần đổi:** `apps/api/test/doctor-admin-leave-list.e2e-spec.ts` (PD-01, hai chỗ) và `apps/web/.../approvals.test.tsx` (hàm `leave()` và danh sách tiêu đề của WA-07); không còn nơi nào (mục 1.7). Cần Đại xác nhận **tách `toItem` thành `admin-leave.mapper.ts`** (để có test đơn vị trực tiếp; nếu không thì chỉ test qua int và e2e). Đề xuất: tách.
+(e) **`Cache-Control: no-store` cho danh sách:** đã có, PD-01 đã khẳng định; không đổi.
+(f) **Mã test:** `DUX2-nn` theo bảng mục 3; mã LEAVEAPR của Excel `[cần điền]`.
+(g) **Tiêu đề PR (92 ký tự, đã đếm bằng Python):** `feat(doctor): trang Duyệt yêu cầu hiện lý do nghỉ và badge chuyên khoa cạnh tên (doctor UX2)`; thẻ `[ĐỤNG doctor]` (`apps/api/src/doctor/leave-approval/*`, `doctor/testing/doctor-fixtures.ts`, `apps/web/src/features/doctor/*`), `[ĐỒNG BỘ TL]` (PLAN doctor, TRACKING doctor, use case 2.4: làm ở PR tài liệu sau); không `[ĐỤNG]` ngoài doctor; `Closes #577`.
+(h) **Giờ ước THẬT sau khi đọc mã: khoảng 8 giờ (7 đến 10)** `[đề xuất]`, cao hơn ước 5 đến 7 giờ của issue vì mức kiểm ĐẦY ĐỦ (int, e2e, trình duyệt 4 cỡ có baseline, 35 ca đột biến): đọc và kế hoạch 1,5 (đã xong), backend mã và test 1,5, web mã và test 2,5, trình duyệt 1,5 (gồm baseline), đột biến 1,5, tài liệu và báo cáo 1. **Chia lượt máy:** L1 nhẹ tự làm (viết mã, `tsc`, ESLint, oxlint, Prettier `--check`, vitest TỪNG file đơn vị, đo RAM trước từng lệnh, từ 2,4 GB chạy, dưới 2,0 GB dừng); sau đó xin lần lượt "XIN LƯỢT": (L2) `test:int` một file; (L3) `test:e2e` lọc các file mục 3; (L4) trình duyệt baseline (TRƯỚC khi sửa web); (L5) trình duyệt sau khi sửa; (L6) đột biến backend (đơn vị, rồi int và e2e cho BM3, 5, 6, 7, 10, 14, 15, 16); (L7) đột biến web; (L8) vitest cả `apps/web` và `build` api và web trên mã cuối, một lần.
+
+**7. Rủi ro và việc KHÔNG làm.** *Rủi ro:* (1) test cũ liệt kê khoá cứng: chỉ một file e2e, đã tìm, sẽ chạy lọc cả sáu file e2e chạm danh sách; (2) lộ `lyDo` qua log: không có log trên đường đọc, vẫn có DUX2-16 và đột biến BM15; (3) bảng tám cột ở màn hẹp: có tiêu chí và đo; hệ quả cột Thao tác ngoài vùng nhìn có thể phải ghi TECH_DEBT (hỏi Đại); (4) cắt giữa chuỗi ghép (giới hạn đã nêu); (5) xung đột với UX1: tôi KHÔNG sửa `leave-approval-filters.tsx`, `approval-filters.ts`, `approvals-format.ts`, `shared/*`; chỉ sửa `leave-approval-page.tsx` (vùng `columns`) và `admin-leave-api.ts`; `git fetch` ngay trước khi sửa file nóng; (6) dữ liệu ghi thẳng DB có `ly_do` rất dài (cột `text`, không CHECK): web cắt nên không vỡ bố cục, nhưng phản hồi API có thể nặng hơn (tối đa 100 hàng mỗi trang); không xử lý ở task này. *KHÔNG làm:* sửa `AdminTable` hay thành phần `shared/*`; màu chip, ô ngày, khoảng số, thông báo giờ ca và khoảng ngày dùng dấu gạch (UX1, UX3); thêm cột khác; lọc hay sắp theo lý do; đổi phân trang; đổi nguồn lý do của ngăn kéo (vẫn `GET /:id`); migration, `docs/database/*`; thư viện mới; Figma.
+
+**8. Kết quả (19/11/2026): mã, test, đột biến và trình duyệt ĐÃ XONG; chờ Đại duyệt báo cáo cuối, PR và CI (hàng AI log 167 và hai dòng TECH_DEBT 209, 210 Đại đã duyệt và ĐÃ GHI, mục 11).**
+
+**8.1 Quyết định đã duyệt.** Phiên kiểm (theo ủy quyền của Đại, 19/11/2026) duyệt kế hoạch kỹ thuật: (d) tách `toItem` thành `admin-leave.mapper.ts` (refactor thuần, có test đơn vị trực tiếp); (b) CHẤP NHẬN giới hạn chuỗi ghép (emoji nối ZWJ, ký tự ghép) có thể bị cắt giữa cụm (ghi ở `leave-reason.ts`, ở đây và ở PR); (c) bố cục: bỏ `width` của cột, `min-w` trong ô, cuộn ngang trong khung, không sửa `AdminTable`, đo baseline 7 cột BẰNG MỘT lượt trình duyệt TRƯỚC khi sửa web, với điều kiện cứng chặt hơn: nút Duyệt và Từ chối nằm trọn vùng nhìn ở khung bảng 1046 px (viewport 1332), 1366 và 1280, không đạt thì dừng và hỏi Đại A, B, C; giờ ước 8 giờ (7 đến 10); mã LEAVEAPR và số dòng PLAN là `[cần điền]`. **Đại (hộp câu hỏi, 19/11/2026) CHỌN A: giữ bố cục như hiện tại**, kèm TECH_DEBT nháp (mục 11).
+
+**8.2 File đã đổi** (`git status`, 10 file sửa gồm TRACKING, `AI_USAGE_LOG.md`, `docs/TECH_DEBT.md` và 7 file mới, KHÔNG sửa `AdminTable`, `shared/*`, `leave-approval-filters.tsx`, `approval-filters.ts`, `approvals-format.ts`, `docs/database/*`, migration, `package.json`):
+- Backend `[ĐỤNG doctor]`: `apps/api/src/doctor/leave-approval/admin-leave.dto.ts` (thêm `lyDo` vào `AdminLeaveItem`, bỏ khai báo trùng ở `AdminLeaveDetail`, viết lại chú thích), `admin-leave.service.ts` (`toItem` chuyển đi; `get` bỏ dòng `lyDo` thừa), `admin-leave.mapper.ts` (MỚI), `apps/api/src/doctor/testing/doctor-fixtures.ts` (`lyDo?` tuỳ chọn, mặc định "Việc gia đình"). Test: `admin-leave.mapper.spec.ts` (MỚI), `admin-leave.list.int-spec.ts` (MỚI), `apps/api/test/doctor-admin-leave-list.e2e-spec.ts` (sửa PD-01, thêm DUX2-13 đến 16).
+- Web `[ĐỤNG doctor]`: `apps/web/src/features/doctor/api/admin-leave-api.ts` (`lyDo` vào `AdminLeaveItem`, bỏ trùng ở `AdminLeaveDetail`), `admin/approvals/leave-approval-page.tsx` (cột "Lý do nghỉ" giữa "Thời gian" và "Ngày gửi", ô Bác sĩ tên và badge cùng hàng, bỏ `width`, `min-w` trong ô: Bác sĩ `min-w-36`, Thời gian `min-w-20`, Lý do `min-w-40 max-w-80`), `leave-reason.ts` và `leave-reason-cell.tsx` (MỚI). Test: `leave-reason.test.ts` (MỚI), `approvals-reason-column.test.tsx` (MỚI), `approvals.test.tsx` (hai chỗ nhỏ: fixture `lyDo` và tiêu đề cột của WA-07).
+- Tài liệu: mục này, `AI_USAGE_LOG.md` (hàng 167), `docs/TECH_DEBT.md` (dòng 209, 210). `.playwright-mcp/` (12 tệp snapshot và log) do Playwright MCP tạo, KHÔNG bị gitignore; **lúc kiểm cuối (sau WEB-FULL và build) thư mục đã không còn** (không do lệnh nào của tôi xoá: Claude Code chặn tôi xoá thư mục này); nếu Playwright MCP tạo lại thì Đại xoá tay trước khi commit.
+
+**8.3 Kết quả test (số thật; U = đơn vị, I = tích hợp MySQL thật, E = e2e, C = thành phần; DB tạm `clinix_doctor_ux2_test`, không đụng `clinix` hay `clinix_test`).**
+
+| Nhóm | Mã | Kết quả |
+|---|---|---|
+| U backend `admin-leave.mapper.spec.ts` | DUX2-01 đến 04 | 4/4. Viết TRƯỚC, đỏ 4/4 đúng lý do (`lyDo` là `undefined`), xanh sau khi thêm `lyDo` |
+| `doctor/architecture.spec.ts` | HD-01 và các luật doctor | 12/12 |
+| I `admin-leave.list.int-spec.ts` (qua `AdminLeaveService` thật) | DUX2-05 đến 11 | 7/7, 17 giây (gồm ca "không thêm khoá": mọi câu SQL của `list` là đọc thường) |
+| E lọc (nối tiếp từng file) | PD-01, PD-02, PD-14, PD-15, PD-16, QH-02, DUX2-12 đến 16 | `doctor-admin-leave-list` 14/14, `doctor-leave-impact` 7/7, `doctor-read-port` 8/8, `doctor-admin-leave-approve` 6/6, `-reject` 12/12, `-retry` 4/4 = 51/51 (DUX2-16 chạy lại 14/14 sau khi bổ sung chặn `console.*`) |
+| U web `leave-reason.test.ts` | DUX2-20 đến 29 | 10/10 (viết trước, đỏ vì chưa có module) |
+| C web `approvals-reason-column.test.tsx` | DUX2-30 đến 38 (DUX2-39 không dùng) | 9/9 (viết trước, ở mã cũ đỏ 7 và xanh 2: DUX2-36, DUX2-37 là hành vi có sẵn, ca không-hồi-quy) |
+| C web `approvals.test.tsx` có sẵn | WA-07, WA-08, WA-09 đến WA-16 | 34/34 |
+| Kiểm tĩnh | | `tsc` api: 1 lỗi CÓ SẴN ở `src/payment/architecture.spec.ts(283,8)` (`@Roles()` không đối số, không phải file của task, chưa đụng); oxlint 0; `prettier --check` sạch (file CRLF có sẵn đạt với `--end-of-line crlf`); `tsc -p tsconfig.app.json` web 0; ESLint web 0 |
+| WEB-FULL (vitest cả `apps/web`, `--maxWorkers=6`, `--testTimeout=30000`) | | **350/350 file, 6112/6112 ca đạt**, exit 0, 94 giây (RAM trước lệnh 3,4 GB) |
+| Build | | `nest build` (`apps/api`) exit 0, 19,5 giây; `tsc -b && vite build` (`apps/web`) exit 0, 28,7 giây. Chunk chính 437,01 kB (mục 9A.12 ghi 436,67 kB; hiệu +0,34 kB gồm cả thay đổi của các PR khác, không quy hết cho UX2), chunk `leave-approval-page` 23,68 kB (so với 23,15 kB: +0,53 kB). Cảnh báo `INEFFECTIVE_DYNAMIC_IMPORT` của payment và wallet có sẵn. Đã xoá `apps/api/dist` và `apps/web/dist` (đều gitignore) |
+| `test:int` và `test:e2e` đầy đủ | | lấy từ CI `[cần điền: kết quả CI]` |
+
+Mã test dùng `DUX2-nn` (chưa ai dùng); mã LEAVEAPR của `doctor_testcase.xlsx` `[cần điền]`. Test DUX2-50 đến 56 là phép đo ở trình duyệt (mục 8.4), không phải tệp test.
+
+**8.4 Trình duyệt (Playwright MCP, API giả `mock-ux2-api.mjs` mức hợp đồng B13, dữ liệu giả, `127.0.0.1`, KHÔNG chụp ảnh vì công cụ chỉ cho ghi ảnh trong thư mục repo).** Phép đo bằng script đọc DOM (bảy tiêu chí của mục 2.3, đặt trước); sửa MỘT lần công cụ đo, không đổi tiêu chí: chữ ẩn `sr-only` làm hộp chữ dài 3584 px nên ẩn nó khỏi phép đo. Mốc "nội dung 1046 px" của phiên kiểm ứng với viewport 1332 (khung bảng 1045 px); ở viewport 1366 khung 1080 px. Trang KHÔNG cuộn ngang ở mọi cỡ, cả trước và sau.
+
+Baseline (bảng 7 cột, mã chưa đổi):
+
+| viewport | khung | nút trọn vùng nhìn | chữ tràn ô | chồng nhau | cao hàng |
+|---|---|---|---|---|---|
+| 1366 | 1080 | 14/14 | 0 | 0 | 84-104 |
+| 1332 | 1045 | 14/14 | 0 | 0 | 84-119 |
+| 1280 | 993 | 14/14 | 0 | 0 | 84-119 |
+| 1046 | 760 | 14/14 | 0 | 0 | 84-119 |
+| 640 | 523, cuộn 13 px | 0/14 | 27 | 6 | 119-188 |
+| 375 | 258, cuộn 54 px, cột 23-61 px | 0/14 | 66 | 43 | 218-308 |
+
+Sau sửa (mã cuối, tám cột, `table-layout: auto`):
+
+| viewport | khung | cuộn trong khung | nút trọn vùng nhìn | chữ tràn ô | chồng nhau | cao hàng | badge cùng hàng tên | lý do tối đa (dòng) |
+|---|---|---|---|---|---|---|---|---|
+| 1366 | 1080 | không | 14/14 | 0 | 0 | 84-122 | 4/10 | 5 |
+| 1332 | 1045 | không | 14/14 | 0 | 0 | 84-122 | 4/10 | 5 |
+| 1280 | 993 | không | 14/14 | 0 | 0 | 98-122 | 0/10 | 5 |
+| 1046 | 760 | CUỘN (bảng 967) | 0/14 | 0 | 0 | 98-134 | 0/10 | 5 |
+| 640 | 523 | CUỘN (967) | 0/14 | 0 | 0 | 98-134 | 0/10 | 5 |
+| 375 | 258 | CUỘN (967) | 0/14 | 0 | 0 | 98-134 | 0/10 | 5 |
+
+**Kết luận đo, nói đúng mức:** (1) điều kiện cứng ĐẠT: nút Duyệt và Từ chối 14/14 trọn vùng nhìn ở 1332, 1366, 1280, không cuộn trong khung; (2) ở 640 và 375 KHÔNG tệ hơn baseline mà tốt hơn (chữ tràn 27 và 66 thành 0, chồng nhau 6 và 43 thành 0, cao hàng 119-188 và 218-308 thành 98-134); (3) **KHÔNG ĐẠT, báo thẳng:** (a) khi khung bảng dưới khoảng 968 px (cửa sổ dưới khoảng 1253 px, ví dụ 1046 px) bảng cuộn ngang trong khung và nút bị đẩy ra ngoài tầm nhìn (baseline ở 1046 là 14/14 thấy): **hồi quy trong dải khoảng 1046 đến 1253 px**, vẫn bấm được từ ngăn kéo chi tiết; (b) hai tiêu chí tôi đặt trước: chữ lý do tối đa 3 dòng (đo 5) và badge cùng hàng với tên (4/10 ở 1332 và 1366, 0/10 ở 1280). Mọi hàng "xuống dòng" đều do tên + badge dài hơn chỗ chứa (phép kiểm "vừa mà vẫn xuống" = 0 lỗi), tức flex-wrap chạy đúng nhưng cột Bác sĩ bị sàn ép ở 165 đến 220 px: **mục tiêu G14 (badge bên phải tên) chỉ thành công khi cột Bác sĩ đủ chỗ**, không phải mọi hàng. Nguyên nhân: năm cột còn lại chiếm cố định khoảng 521 px (tiêu đề nowrap "Lịch hẹn bị ảnh hưởng" 149 px) và ba cột co giãn đều ở sàn. Đã thử hai bộ sàn `min-w`: V1 (Bác sĩ 40, Thời gian 28, Lý do 40): cột 197, 140, 187 ở 1332; V3 (36, 20, 40, MÃ CUỐI): 203, 120, 196; cùng số dòng lý do (3,4,4,5,1,4,2,1,1,1), cùng badge 4/10: hạ sàn gần như không đổi gì. Dữ liệu giả có cả tên rất dài ("PGS.TS.BS. Nguyễn Thị Phương Thảo Nhi" kèm chuyên khoa dài) nên là trường hợp xấu. **Đại chọn A** (giữ; TECH_DEBT dòng 209). Hai phương án chưa chọn: B (gộp "Ngày gửi" vào ô "Thời gian": bảng hẹp thêm khoảng 99 px, nút thấy từ cửa sổ khoảng 1155 px, KHÔNG giải quyết 1046 px) và C (rút lý do còn khoảng 40 ký tự: không giảm bề rộng tối thiểu, trái T5).
+
+Nội dung (DUX2-53 đến 56) ở 1332 px: lý do HTML, `&`, dấu nháy hiện như chữ thường, 0 phần tử `b`, `i`, `script`, `img`; chuỗi 500 chữ `z` liền: hiện 80 chữ `z` cộng "…", `title` 500, chữ ẩn 500, không tràn ô; emoji ở biên 80: 79 chữ cộng "🩺" cộng "…" = 81 điểm mã, không nửa cặp thay thế; lý do có xuống dòng (ghi thẳng DB): `white-space: normal`, `title` giữ đủ; ngăn kéo chi tiết hiện đủ 500 chữ `z` từ `GET /:id`; 14 nút Duyệt và Từ chối có tên truy cập kèm họ tên; console 0 lỗi, 0 cảnh báo (lần tải đầu chỉ có `favicon.ico` 404). **Phát hiện ngoài phạm vi (đã có từ trước, không sửa):** ở ngăn kéo chi tiết, MỘT chuỗi 500 chữ không dấu cách tạo span rộng 3623 px (`break-words` không giảm min-content, cùng họ TECH_DEBT 156); cột Lý do nghỉ của bảng không bị vì dùng `wrap-anywhere` (TECH_DEBT dòng 210).
+
+**8.5 Đột biến (dự đoán ghi TRƯỚC ở mục 4; mỗi ca MỘT vitest MỘT file; sao lưu ngoài repo kèm SHA-256 và khôi phục sau từng ca, 35/35 khớp; 0 file `*.mut`; `--testTimeout=30000`; kiểm khô trước; đối chứng đầu và cuối xanh cả hai lần cho cả ba file backend và ba file web; chạy trên mã cuối).**
+
+Backend, 17 ca, **BẮT 16, SỐNG 1 (tương đương)**:
+
+| Ca | Kết quả | Lane và ca test đỏ đầu tiên |
+|---|---|---|
+| BM1 bỏ `lyDo` khỏi `toItem` | BẮT | đơn vị, DUX2-01 |
+| BM2 `lyDo` lấy `bacSiHoTen` | BẮT | đơn vị, DUX2-01 |
+| BM3 lệch hàng ở `list` | BẮT | int, DUX2-05 (sống ở đơn vị, đúng dự đoán) |
+| BM4 cắt 80 ở server | BẮT | đơn vị, DUX2-03 |
+| BM5 bỏ ép chi nhánh | BẮT | int, DUX2-06 (sống ở đơn vị, đúng dự đoán) |
+| BM6 bỏ `b.chi_nhanh_id = ?` | BẮT | int, DUX2-06 |
+| BM7 sai cột (`trang_thai AS lyDo`) | BẮT | int, DUX2-05 |
+| BM8 thêm khoá `nguoiXuLyId` | BẮT | đơn vị, DUX2-02 |
+| BM9 thêm khoá `bacSiHoTen` | BẮT | đơn vị, DUX2-02 |
+| BM10 bỏ `no-store` | BẮT | e2e, PD-01 và DUX2-13 (sống ở đơn vị và int, đúng dự đoán) |
+| BM11 che lý do khi `TuChoi` | BẮT | đơn vị, DUX2-01 |
+| BM12 `normalize('NFD')` | BẮT | đơn vị, DUX2-01 |
+| BM13 `trim()` | BẮT | đơn vị, DUX2-04 |
+| BM14 thêm `FOR SHARE` | BẮT | int, DUX2-09 (khẳng định thật "expected [Array(1)] to deeply equal []"; MySQL KHÔNG từ chối khoá đọc trong giao dịch READ ONLY) |
+| **BM15** `console.log(row.lyDo)` | **BẮT sau khi vá; LÚC ĐẦU SỐNG, LỆCH DỰ ĐOÁN** | e2e, DUX2-16 |
+| BM16 `get` trả `lyDo: ''` | BẮT | int, DUX2-05 |
+| BM17 `lyDo: row.lyDo ?? ''` | SỐNG, TƯƠNG ĐƯƠNG | cột `NOT NULL`, kiểu `string` (đúng dự đoán) |
+
+**Dự đoán lệch (nguyên văn): BM15.** Dự đoán: "SỐNG ở đơn vị và int; BẮT chỉ ở e2e: DUX2-16 (quét stdout)". Thực tế: e2e 14/14 vẫn xanh khi bật BM15. Nguyên nhân: DUX2-16 quét `process.stdout.write` và `process.stderr.write` như các PR trước, nhưng trong vitest `console.log` đi qua bộ chặn console riêng của vitest, không qua hai hàm đó. **Phân loại: LỖ HỔNG của ca test (không phải giới hạn).** Cách vá (phiên kiểm duyệt trước khi thêm): trong DUX2-16 chặn thêm `console.log`, `info`, `warn`, `error`, `debug` bằng `vi.spyOn(console, …)` ghi mọi đối số (dạng chữ, `inspect` cho đối tượng) vào cùng mảng `output`; không đổi mã sản phẩm. Sau vá: e2e mã nguyên bản 14/14 xanh; bật BM15 thì đỏ đúng DUX2-16 ("expected 'BI_MAT_TRONG_LOG_3W6 chi nhánh khác…' not to contain 'BI_MAT_TRONG_LOG_3W6'"). Kết quả cũ (sống sót) giữ ở tệp tạm `results-api.before-bm15-rerun.json`. Lưu ý: cách quét chỉ `process.stdout.write` ở các PR trước (admin B18 và các PR khác) có cùng điểm mù với `console.*`; chưa kiểm các PR đó.
+
+Web, 18 ca, **BẮT 16, SỐNG 2 (giới hạn của phép đo, đúng dự đoán)**:
+
+| Ca | Kết quả | Ca test đỏ đầu tiên |
+|---|---|---|
+| WM1 bỏ cắt | BẮT | DUX2-21 (cũng 22, 23) |
+| WM2 ngưỡng 79 | BẮT | DUX2-20 ("expected 79 to be 80"), DUX2-22 |
+| WM3 `<` thay `<=` | BẮT | DUX2-22 |
+| WM4 cắt bằng `slice` (UTF-16) | BẮT | DUX2-24 |
+| WM5 đếm bằng `length` | BẮT | DUX2-24 (80 điểm mã có emoji là 81 đơn vị UTF-16) |
+| WM6 bỏ `trimEnd()` | BẮT | DUX2-25 |
+| WM7 bỏ "…" | BẮT | DUX2-21 |
+| WM8 bỏ `title` | BẮT | DUX2-32 |
+| WM9 `title` là bản cắt | BẮT | DUX2-32 |
+| WM10 bỏ chữ ẩn thị giác | BẮT | DUX2-33 |
+| WM11 bỏ `aria-hidden` | BẮT | DUX2-33 |
+| WM12 đổi thứ tự cột | BẮT | DUX2-30 |
+| WM13 đổi tên cột | BẮT | DUX2-30 |
+| WM14 cấu trúc cũ (ba dòng) | BẮT | DUX2-35 |
+| WM15 chi nhánh cùng hàng | BẮT | DUX2-35 |
+| WM16 `dangerouslySetInnerHTML` | BẮT | DUX2-34 |
+| WM17 bỏ `flex-wrap` | SỐNG, giới hạn | happy-dom không có bố cục |
+| WM18 bỏ `wrap-anywhere` | SỐNG, giới hạn | happy-dom không có bố cục |
+
+WM17 và WM18 được bù bằng số đo trình duyệt (mục 8.4), nói đúng mức: **chứng cứ GIÁN TIẾP về mã cuối** (ở 1332 có 6/10 hàng tên và badge xuống dòng mà chữ tràn ô là 0; chuỗi 500 chữ `z` liền không tràn ô), KHÔNG phải lần chạy đột biến trong trình duyệt. Tổng UX2: 32 bắt, 1 tương đương, 2 giới hạn, 0 lỗ hổng còn lại.
+
+**8.6 Điều chỉnh so với kế hoạch (để người đọc đối chiếu).** (a) Mã test web thành phần dùng DUX2-30 đến 38 (không có 39); (b) sàn `min-w` chốt theo đo là 36, 20 và 40 (kế hoạch ghi ví dụ 44, 28 và 48); (c) hai tiêu chí tôi đặt trước (lý do ≤ 3 dòng, badge cùng hàng) KHÔNG đạt như nêu ở 8.4, Đại chọn A; (d) hàm cắt chữ nằm ở `leave-reason.ts` (file mới), không ở `approvals-format.ts`, để tránh xung đột với UX1; (e) `tsc` api có một lỗi có sẵn không liên quan; (f) tôi dùng heredoc Python hai lần trái lời dặn (một lần sửa tệp bộ chạy đột biến ở thư mục tạm, một lần heredoc rỗng thừa), không đụng file repo.
+
+**9. Tài liệu cần sửa ở PR tài liệu sau `[ĐỒNG BỘ TL]` (không tick PLAN trong PR này).** `docs/features/doctor/PLAN.md`: dòng 424 (mục 5.8: mô tả danh sách và chi tiết yêu cầu: dòng danh sách có thêm `lyDo`, trả đủ, `no-store`) `[cần điền: xác nhận câu chữ hiện tại của dòng 424, vì dòng quá dài khi tra]`; dòng 501 (bảng API: `GET /admin/leave-requests?…` ghi dòng danh sách có `lyDo`); dòng 823 (PD-01: tập khoá 13, có `lyDo`); dòng 965 (WA-07: bảng có cột "Lý do nghỉ" giữa "Thời gian" và "Ngày gửi", cắt khoảng 80 điểm mã, đủ khi rê chuột; ô Bác sĩ tên và badge cùng hàng, xuống dòng khi hẹp; dưới khoảng 1253 px bảng cuộn ngang trong khung); dòng 966 (WA-08: không đổi). `docs/features/doctor/TRACKING.md`: thêm một dòng tham chiếu mục `9A.14`. `docs/database/*`: không đổi. **Use case 2.4 (repo `TLCN_CLINIX`, KHÔNG sửa được từ đây):** danh sách duyệt nghỉ thêm cột "Lý do nghỉ" (cắt khoảng 80 ký tự, đủ khi rê chuột hay trong chi tiết) và vị trí badge chuyên khoa cạnh tên bác sĩ; số mục chính xác của 2.4 `[cần điền]`.
+
+**10. Hướng dẫn chạy tay cho Đại.**
+
+*Cách A, nhẹ (API giả cộng `npm run dev`, không DB, không email, không mật khẩu thật; ước RAM 0,5 đến 1 GB):*
+1. Cửa sổ PowerShell 1: `node "C:\Users\Maxtrann\AppData\Local\Temp\claude\b39f433f103df751\69cb8239-5d6b-4a24-a454-900cfae3398e\scratchpad\mock-ux2-api.mjs"` (cổng 3977, đổi bằng `$env:MOCK_PORT`). File nằm ở thư mục tạm của phiên làm việc, có thể bị dọn sau khi khởi động lại máy: sao chép ra chỗ khác nếu muốn giữ (KHÔNG đưa vào repo). Máy chủ giả có 24 yêu cầu giả (lý do ngắn, đúng 80 ký tự, 81 ký tự trở lên, 500 chữ `z` liền, HTML, xuống dòng, emoji ở biên 80; ba bác sĩ trong đó một người tên rất dài), nhận mọi thông tin đăng nhập.
+2. Cửa sổ PowerShell 2: `cd D:\du_lieu\clinix-app-de-p2\apps\web`, rồi `$env:API_PROXY_TARGET='http://127.0.0.1:3977'; node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5377 --strictPort`. Dùng `127.0.0.1`, KHÔNG dùng `localhost` (máy chủ giả chỉ nghe IPv4). Nếu cổng bận, đổi số cổng ở cả hai lệnh.
+3. Mở `http://127.0.0.1:5377/admin/duyet-yeu-cau/nghi-phep`; nếu bị đưa tới trang đăng nhập, nhập email và mật khẩu bất kỳ.
+4. Các bước bấm: (a) bảng có TÁM cột, "Lý do nghỉ" giữa "Thời gian" và "Ngày gửi"; (b) lý do dài hơn 80 ký tự kết thúc bằng "…", rê chuột lên đó hiện đủ (hàng có 500 chữ `z`: hiện 80 chữ `z` rồi "…", tooltip 500 chữ); (c) lý do có `<b>`, `&`, dấu nháy hiện như chữ thường; (d) bấm tên bác sĩ mở ngăn kéo: lý do hiện đủ (hàng 500 chữ `z` sẽ làm ngăn kéo rộng ra: đó là phát hiện TECH_DEBT dòng 210); (e) badge chuyên khoa nằm bên phải tên khi cột đủ chỗ (bác sĩ "BS. Lê Thảo Vy"), xuống dòng khi tên dài; (f) trang 2 và 3 có hàng lý do xuống dòng và hàng emoji ở biên 80; (g) kéo hẹp cửa sổ xuống dưới khoảng 1250 px: bảng cuộn ngang trong khung, nút Duyệt và Từ chối nằm ngoài tầm nhìn tới khi cuộn (đúng như đã báo); ở 640 và 375 px không còn chữ tràn hay chồng nhau.
+5. Điều khiển khi chạy (PowerShell): đổi người xem `Invoke-RestMethod -Method Post -Uri http://127.0.0.1:3977/__mock/scope -ContentType 'application/json' -Body '{"phamVi":"ChiNhanh"}'` rồi tải lại trang (Admin Chi nhánh chỉ thấy yêu cầu của chi nhánh Quận 3); trả lại bằng `'{"phamVi":"ToanHeThong"}'`. Mô phỏng API cũ không có `lyDo`: `-Uri http://127.0.0.1:3977/__mock/no-lydo -Body '{"on":true}'` (cột để trống; chỉ để thử, mã không bảo vệ trường hợp thiếu `lyDo`).
+6. Dọn: Ctrl+C ở hai cửa sổ; **xoá tay thư mục `D:\du_lieu\clinix-app-de-p2\.playwright-mcp` nếu còn** (không bị gitignore); biến `API_PROXY_TARGET` chỉ sống trong cửa sổ PowerShell đó.
+
+*Cách B, API thật trên DB tạm (nặng, ước thêm 1,5 đến 2 GB; chỉ khi Đại muốn):* ràng buộc cứng: DB tạm (ví dụ `clinix_doctor_ux2_manual`), KHÔNG dùng `clinix` hay `clinix_test`, không đụng `clinix-app-db-1` ngoài việc tạo DB tạm, SMTP để trống, KHÔNG `seed:*` hay `docker compose down -v` lên DB `clinix`; `[cần điền: lệnh dựng cụ thể (compose riêng đặt tên dự án khác, tệp ghi đè cổng đặt NGOÀI repo) kiểm lại với docker-compose.yml và docs/DEV_SETUP.md lúc làm]`. Tài khoản thử và yêu cầu nghỉ mẫu phải tạo trên DB tạm (`npm run seed:dev-accounts` chỉ trên DB tạm; yêu cầu nghỉ chèn bằng SQL vào `yeu_cau_nghi_phep` với `ly_do` giả) `[cần điền: cách chèn cụ thể]`; mật khẩu do chính Đại đặt qua `SEED_DEV_PASSWORD` trong cửa sổ PowerShell, không ghi ra chat hay file. Dọn: dừng dự án compose riêng; xoá DB tạm CHỈ khi Đại cho phép.
+
+**11. Hàng AI log và dòng TECH_DEBT (Đại duyệt bản nháp bằng hộp câu hỏi, 19/11/2026; ĐÃ GHI).** Số kế tiếp được kiểm lại ngay trước khi ghi: lúc đó `origin/main` đã có AI log tới 166 và TECH_DEBT tới 208 (PR #585, doctor UX1, vừa vào `main`; nhánh này chưa gộp), nên AI log là **167** (như đề xuất) và TECH_DEBT là **209 và 210** (không phải 203 và 204 như nháp). 209: trang Duyệt yêu cầu, khung bảng dưới khoảng 968 px thì nút Duyệt và Từ chối ra ngoài tầm nhìn (hệ quả của phương án A, cùng họ dòng 202; sửa gốc là cột Thao tác dính phải ở `AdminTable`). 210: ngăn kéo chi tiết tràn ngang với lý do là một chuỗi rất dài không dấu cách (đổi `break-words` thành `wrap-anywhere`). Hàng AI log ghi ở cuối bảng 1 (sau hàng 165 của bản làm việc này); hai dòng TECH_DEBT ghi sau dòng 202. **Khi gộp với `main`:** hàng AI log, hai dòng TECH_DEBT và mục `9A.14` của TRACKING đều được thêm vào đúng chỗ mà #585 cũng thêm, nên sẽ xung đột cùng chỗ: người gộp giữ CẢ HAI và kiểm lại số (hàng 166 của AI log và dòng 203 đến 208 của TECH_DEBT thuộc UX1, phải đứng trước hàng 167 và dòng 209, 210).
+
+**12. Gợi ý commit và PR (không chạy git; mọi lệnh git ghi do Đại làm tay).** Tiêu đề (92 ký tự, đã đếm bằng Python): `feat(doctor): trang Duyệt yêu cầu hiện lý do nghỉ và badge chuyên khoa cạnh tên (doctor UX2)`. Thân PR: mô tả ngắn (API danh sách thêm `lyDo` đủ, web thêm cột và cắt chữ, ô Bác sĩ badge cạnh tên); **nói đúng giới hạn**: G14 chỉ thành công khi cột Bác sĩ đủ chỗ, dưới khoảng 1253 px bảng cuộn ngang trong khung, chữ lý do tối đa 5 dòng; `Closes #577`; thẻ `[ĐỤNG doctor]`, `[ĐỒNG BỘ TL]` (PLAN doctor, TRACKING doctor, use case 2.4, làm ở PR tài liệu sau); nêu rõ KHÔNG đổi `AdminTable`, `shared/*`, `docs/database/*`, migration, `package.json`, KHÔNG tick PLAN; số PR, kết quả CI, người duyệt: `[cần điền]` (chỉ điền khi Đại báo).
+
+**13. Trạng thái cuối bước (3).** Mọi file mã đã ở mã cuối; sau lần sửa cuối đã chạy lại tsc, ESLint, prettier và vitest từng file web, e2e lọc backend (sau vá DUX2-16), đột biến hai phía trên mã cuối; số PR, kết quả CI, người duyệt: `[cần điền]`.
+
 <!-- HẾT PHẦN CỦA ĐẠI -->
 
 ### 9B. Phần của Trung (cụm 8 Hồ sơ bác sĩ, cụm 9 Yêu cầu thay đổi chi nhánh)

@@ -24,6 +24,8 @@ export interface LeaveRequestInput {
   trangThai?: 'ChoDuyet' | 'DaDuyet' | 'TuChoi';
   nguoiXuLyId?: string | null;
   thoiDiemXuLy?: string | null;
+  /** Lý do của Bác sĩ; mặc định "Việc gia đình" (doctor UX2 cần lý do khác nhau, dài, có ký tự đặc biệt) */
+  lyDo?: string;
 }
 
 export class DoctorFixtures {
@@ -74,13 +76,14 @@ export class DoctorFixtures {
     const result: { insertId: string } = await this.db.query(
       `INSERT INTO yeu_cau_nghi_phep
          (bac_si_id, hinh_thuc_nghi, ngay_bat_dau, ngay_ket_thuc, ca, ly_do, trang_thai, nguoi_xu_ly_id, thoi_diem_xu_ly, thoi_diem_tao)
-       VALUES (?, ?, ?, ?, ?, 'Việc gia đình', ?, ?, ?, NOW())`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         input.bacSiId,
         input.hinhThuc ?? 'CaNgay',
         batDau,
         input.ketThuc ?? batDau,
         input.ca ?? null,
+        input.lyDo ?? 'Việc gia đình',
         input.trangThai ?? 'ChoDuyet',
         input.nguoiXuLyId ?? null,
         input.thoiDiemXuLy ?? null,
