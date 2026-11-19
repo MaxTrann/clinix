@@ -39,8 +39,8 @@ import { expectErrorResponse } from './../src/common/testing/error-assertions.js
 import { resetTables } from './../src/database/testing/test-database.js';
 
 // Task B12 — POST /reception/appointments/:maLichHen/status qua HTTP THẬT: AppModule + MySQL thật + configureApp như main.ts (PLAN booking 5.7, 5.9, 7.5 CT-01…CT-10, CT-22, MT-03; 7.3 HL-15; 7.9 QB-02, QB-03, QB-08, QB-09, QB-10; 7.32 RTS-07…RTS-12;
-// TRACKING 3.26 B12-E, B12-H). Phần dịch vụ và SQL: src/appointments/status/reception-status.int-spec.ts; phần đồng thời: src/appointments/state/status.concurrency.int-spec.ts. Hai cổng `payment` và `wallet` là bản `Noop` của app thật: với `Noop`
-// số còn phải thu = `gia_snapshot` nên ca cần "đủ tiền" đặt `gia_snapshot` = 0.00 bằng SQL, ca cần cọc đã thu dùng `vi.spyOn` trên CHÍNH thể hiện của app (như HBN-04). Mã RTS-nn là `[đề xuất]` (7.32). QB-nn chỉ phần route của B12 (chưa tính Pass).
+// TRACKING 3.26 B12-E, B12-H). Phần dịch vụ và SQL: src/appointments/status/reception-status.int-spec.ts; phần đồng thời: src/appointments/state/status.concurrency.int-spec.ts. Hai cổng `payment` và `wallet` là bản THẬT của app (payment B7): chưa có giao dịch nào
+// nên số còn phải thu = `gia_snapshot`, vì vậy ca cần "đủ tiền" đặt `gia_snapshot` = 0.00 bằng SQL, ca cần cọc đã thu dùng `vi.spyOn` trên CHÍNH thể hiện của app (như HBN-04). Mã RTS-nn là `[đề xuất]` (7.32). QB-nn chỉ phần route của B12 (chưa tính Pass).
 // CA QB-02 và CT-22 (nửa Lễ tân) khẳng định ĐÚNG 403 KHONG_DU_QUYEN ở trạng thái mà dịch vụ sẽ trả mã KHÁC nếu thiếu `@Roles` (lịch ngoài chi nhánh ⇒ 404, lịch DaTiepDon ⇒ 409, thân sai ⇒ 400), kể cả mã sai dạng (bài học ĐA-9b).
 // ĐỒNG HỒ: `vi.setSystemTime` đổi giờ của CẢ token truy cập, nên ca đổi giờ tạo token SAU khi đặt giờ (và đi tiếp chỉ vài phút, trong hạn 15 phút của token).
 const BASE = '/reception/appointments';
@@ -119,7 +119,7 @@ async function world() {
   };
 }
 
-/** Lịch mã `CODE` ở khung giờ số `slot`; `price` đặt `gia_snapshot` (với cổng `Noop` số còn phải thu = giá này: 0.00 là "đã thu đủ"). */
+/** Lịch mã `CODE` ở khung giờ số `slot`; `price` đặt `gia_snapshot` (chưa có giao dịch nào nên số còn phải thu = giá này: 0.00 là "đã thu đủ"). */
 async function book(
   w: StatusWorld,
   trangThai: TrangThaiLichHen,
@@ -210,7 +210,7 @@ describe('POST …/status — thành công và hình dạng kết quả', () => 
     await assertBookingInvariants(h.db);
   });
 
-  it('CT-05, RTS-04 tiếp đón trong cửa sổ khi đã thu đủ (gia_snapshot 0.00 với cổng Noop): 200 đúng HAI khoá { maLichHen, trangThai: DaTiepDon }; khung giờ giữ DaDat', async () => {
+  it('CT-05, RTS-04 tiếp đón trong cửa sổ khi đã thu đủ (gia_snapshot 0.00, chưa thu đồng nào): 200 đúng HAI khoá { maLichHen, trangThai: DaTiepDon }; khung giờ giữ DaDat', async () => {
     const w = await world();
     const lich = await book(w, 'DaXacNhan', { price: '0.00' });
     vi.setSystemTime(IN_WINDOW);
@@ -227,7 +227,7 @@ describe('POST …/status — thành công và hình dạng kết quả', () => 
 });
 
 describe('POST …/status — lỗi nghiệp vụ và mã lỗi', () => {
-  it('CT-06 còn phải thu (cổng Noop trả gia_snapshot): 409 CON_PHAN_CHUA_THANH_TOAN kèm chiTiet.conPhaiThu; không đổi gì', async () => {
+  it('CT-06 còn phải thu (chưa thu đồng nào ⇒ còn phải thu = gia_snapshot): 409 CON_PHAN_CHUA_THANH_TOAN kèm chiTiet.conPhaiThu; không đổi gì', async () => {
     const w = await world();
     const lich = await book(w, 'DaXacNhan', { price: '150000.00' });
     vi.setSystemTime(IN_WINDOW);

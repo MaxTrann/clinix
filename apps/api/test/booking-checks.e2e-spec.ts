@@ -23,7 +23,7 @@ import { expectErrorResponse } from './../src/common/testing/error-assertions.js
 import { resetTables } from './../src/database/testing/test-database.js';
 
 // Task B7 — POST /booking/checks qua HTTP THẬT: AppModule + MySQL thật + configureApp như main.ts (PLAN booking 5.9, 7.1, 7.9; TRACKING booking 3.18.3). Tầng dịch vụ và SQL: src/appointments/create/
-// booking-checks.service.int-spec.ts. Mã DL-nn, QB-nn là PLAN 7.1, 7.9; BCK-nn là [đề xuất]. Ba cổng (nghỉ phép, đổi chi nhánh, ví) là bản Noop của module, được thay bằng `vi.spyOn` từng ca. Dữ liệu giả.
+// booking-checks.service.int-spec.ts. Mã DL-nn, QB-nn là PLAN 7.1, 7.9; BCK-nn là [đề xuất]. Cổng nghỉ phép (B16a) và cổng ví (payment B7) là bản THẬT của module, cổng đổi chi nhánh còn là bản Noop; ca nào cần kết quả định trước thay bằng `vi.spyOn` từng ca. Dữ liệu giả.
 const PATH = '/booking/checks';
 const NOT_LOGGED_IN = 'CHUA_DANG_NHAP';
 const INVALID_TOKEN = 'TOKEN_KHONG_HOP_LE';
@@ -216,18 +216,31 @@ describe('POST /booking/checks: đường thành công (DL-24, BCK-11)', () => {
     ]);
   });
 
-  it('BCK-06 bản Noop của cổng ví (chưa có ví thật) ⇒ soDuVi null dù cọc > 0; khoá vẫn có mặt', async () => {
+  it('BCK-06, HDT-10 cổng ví THẬT (payment B7): Bệnh nhân có hàng ví ⇒ soDuVi là chuỗi "0.00" dù cọc > 0 (ví rỗng); không có hàng ví ⇒ null; khoá vẫn có mặt', async () => {
     const w = await world();
     await h.db.query(
       'UPDATE dich_vu_kham SET muc_dat_coc = ? WHERE dich_vu_kham_id = ?',
       ['50000.00', w.dichVuKhamId],
     );
 
+    // TRƯỚC (cổng Noop): null. SAU (WalletBalanceReader, `so_du` mặc định 0 của hàng ví fixture): chuỗi "0.00"
     const res = await w.checkSlot(0, w.token);
 
     expect(res.status).toBe(200);
     expect(Object.keys(resultOf(res).tomTat).sort()).toStrictEqual(TOMTAT_KEYS);
-    expect(resultOf(res).tomTat.soDuVi).toBeNull();
+    expect(resultOf(res).tomTat.soDuVi).toBe('0.00');
+
+    // `null` CHỈ khi không có hàng ví (E5): xoá hàng ví của Bệnh nhân (chưa có bảng con nào trỏ tới nó)
+    await h.db.query('DELETE FROM vi_noi_bo WHERE benh_nhan_id = ?', [
+      w.patientId,
+    ]);
+    const noWallet = await w.checkSlot(0, w.token);
+
+    expect(noWallet.status).toBe(200);
+    expect(Object.keys(resultOf(noWallet).tomTat).sort()).toStrictEqual(
+      TOMTAT_KEYS,
+    );
+    expect(resultOf(noWallet).tomTat.soDuVi).toBeNull();
   });
 
   it('DL-24 chỉ ĐỌC: gọi nhiều lần không đổi lịch hẹn, trạng thái khung giờ hay thông báo', async () => {

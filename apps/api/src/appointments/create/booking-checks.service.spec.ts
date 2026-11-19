@@ -380,7 +380,7 @@ describe('BookingChecksService: soDuVi qua cổng ví (BCK-06)', () => {
     },
   );
 
-  it('BCK-06 bản Noop (chưa có ví thật) trả null ⇒ soDuVi null dù cọc > 0; khoá vẫn có mặt', async () => {
+  it('BCK-06 cổng ví Noop dựng tay trả null ⇒ soDuVi null dù cọc > 0; khoá vẫn có mặt', async () => {
     withDeposit('50000.00');
     wallet.availableCall.returns(null);
 
