@@ -77,7 +77,7 @@ describe('mục menu và đường dẫn của Quản trị viên (KG-04, KG-06)
     ).toHaveAttribute('href', '/admin/thong-tin-phong-kham');
   });
 
-  it('AQ-03 KG-04 chỉ mục này đổi từ nút vô hiệu thành liên kết: mười hai liên kết, mọi nút còn lại vô hiệu, "Thông báo" ngay trên vẫn vô hiệu; nhãn và thứ tự nhóm "Tài khoản" không đổi', async () => {
+  it('AQ-03 KG-04 chỉ mục này đổi từ nút vô hiệu thành liên kết: mười ba liên kết, mọi nút còn lại vô hiệu, "Thông báo" ngay trên vẫn vô hiệu; nhãn và thứ tự nhóm "Tài khoản" không đổi', async () => {
     await renderAdminProfilePage();
     const menu = menuOf(await adminSidebar());
 
