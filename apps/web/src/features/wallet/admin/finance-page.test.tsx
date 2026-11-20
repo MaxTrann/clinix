@@ -321,6 +321,40 @@ describe('màn Quản lý tài chính ví (payment F7)', () => {
     expect(api.posts()).toHaveLength(2);
   });
 
+  it('WQL-02 máy chủ từ chối lý do (ghiChu NOI_DUNG_KHONG_HOP_LE: chữ giống bí mật) ⇒ lỗi dưới ô lý do, giữ hộp và chữ đã nhập, KHÔNG tải lại', async () => {
+    const api = installFakeAdminWithdrawalApi();
+    api.handlers.reject = () => ({
+      status: 400,
+      body: {
+        maLoi: 'DU_LIEU_KHONG_HOP_LE',
+        thongBao: 'câu của máy chủ',
+        loi: [{ truong: 'ghiChu', ma: 'NOI_DUNG_KHONG_HOP_LE' }],
+      },
+    });
+    render(<FinancePage />);
+    const dialog = await openDetail();
+    const detailLoads = api.requests.filter((r) => r.method === 'GET').length;
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Từ chối' }));
+    const form = within(dialog).getByRole('form', { name: 'Xác nhận từ chối' });
+    const reason = within(form).getByLabelText(/Lý do từ chối/);
+    fireEvent.change(reason, { target: { value: 'token=abc123xyz' } });
+    fireEvent.click(
+      within(form).getByRole('button', { name: 'Xác nhận từ chối' }),
+    );
+    expect(await within(form).findByRole('alert')).toHaveTextContent(
+      'Lý do không hợp lệ. Vui lòng không ghi mật khẩu, mã OTP hay mã bí mật.',
+    );
+    expect(reason).toHaveAttribute('aria-invalid', 'true');
+    expect(reason).toHaveValue('token=abc123xyz');
+    expect(
+      within(form).getByRole('button', { name: 'Xác nhận từ chối' }),
+    ).toBeEnabled();
+    expect(api.requests.filter((r) => r.method === 'GET')).toHaveLength(
+      detailLoads,
+    );
+    expect(api.posts()).toHaveLength(1);
+  });
+
   it('WQL-07 yêu cầu Đã duyệt hay Từ chối: ngăn chi tiết KHÔNG có nút xử lý, có giờ xử lý', async () => {
     const api = installFakeAdminWithdrawalApi();
     for (const trangThai of ['DaDuyet', 'TuChoi']) {

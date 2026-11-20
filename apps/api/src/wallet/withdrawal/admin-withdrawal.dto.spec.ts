@@ -70,6 +70,32 @@ describe('XRT-06 WithdrawalDecisionDto và câu thông báo', () => {
       expect((await checkBody({ ghiChu })).errors).not.toEqual([]);
   });
 
+  it.each([
+    'token=abc123xyz',
+    'Bearer abcdefghijklmnop',
+    'password: hunter2',
+    `mã băm ${'a'.repeat(64)}`,
+    'otp=123456',
+  ])(
+    'ghiChu giống bí mật "%s" ⇒ lỗi ghiChu NOI_DUNG_KHONG_HOP_LE (cùng bộ kiểm `redactText` với nhật ký; nếu không, route ra 500)',
+    async (ghiChu) => {
+      const { errors } = await checkBody({ ghiChu: `  ${ghiChu}  ` });
+      expect(errors.map((e) => [e.property, e.constraints])).toEqual([
+        ['ghiChu', { isNotSecretLike: 'NOI_DUNG_KHONG_HOP_LE' }],
+      ]);
+    },
+  );
+
+  it.each([
+    'Đã chuyển khoản lúc 09:30 ngày 10/11/2026',
+    'Số tài khoản sai, gọi 0901234567 để xác nhận',
+    'Bệnh nhân yêu cầu huỷ, hoàn 100.000đ',
+  ])('ghiChu bình thường "%s" vẫn được nhận', async (ghiChu) => {
+    const { dto, errors } = await checkBody({ ghiChu });
+    expect(errors).toEqual([]);
+    expect(dto.ghiChu).toBe(ghiChu);
+  });
+
   it('câu thông báo: có số tiền; ghi chú nối cuối; ghi chú tối đa vẫn ≤ 500 ký tự', () => {
     expect(buildWithdrawalApprovedText('100000.00')).toContain('100.000đ');
     expect(buildWithdrawalApprovedText('100000.00', 'Đã chuyển')).toContain(

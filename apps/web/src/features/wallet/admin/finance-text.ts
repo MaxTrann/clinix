@@ -62,6 +62,9 @@ export const FINANCE_TEXT = {
   rejected: 'Đã từ chối yêu cầu rút tiền.',
   reasonRequired: 'Vui lòng nhập lý do từ chối.',
   reasonTooLong: (max: number) => `Lý do từ chối tối đa ${max} ký tự.`,
+  // [đề xuất] Máy chủ trả `ghiChu` `NOI_DUNG_KHONG_HOP_LE` (chữ giống mật khẩu hay mã bí mật)
+  reasonRejected:
+    'Lý do không hợp lệ. Vui lòng không ghi mật khẩu, mã OTP hay mã bí mật.',
   alreadyHandled:
     'Yêu cầu này đã được xử lý bởi người khác. Dữ liệu đã được tải lại.',
   notFound: 'Không tìm thấy yêu cầu rút tiền.',
