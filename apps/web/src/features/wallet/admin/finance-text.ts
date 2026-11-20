@@ -5,8 +5,6 @@ export const FINANCE_TEXT = {
   tabWithdrawals: 'Yêu cầu rút tiền',
   tabSpecialRefunds: 'Hoàn tiền đặc biệt',
   tabUnpostedTopups: 'Nạp ví chưa cộng',
-  // [đề xuất] Hai tab do F8, F9 làm
-  tabComingSoon: 'Chức năng đang được phát triển.',
 
   filterLabel: 'Lọc theo trạng thái',
   filterAll: 'Tất cả',

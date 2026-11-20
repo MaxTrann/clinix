@@ -40,7 +40,7 @@ async function openDetail(name = 'Trần Văn C') {
 }
 
 describe('màn Quản lý tài chính ví (payment F7)', () => {
-  it('WQL-01 ba tab của Figma; tab Hoàn tiền đặc biệt "đang phát triển"; tab Nạp ví chưa cộng (F9) gọi API của nó; KHÔNG gọi lại API rút tiền khi đang mở tab khác', async () => {
+  it('WQL-01 ba tab của Figma; tab Hoàn tiền đặc biệt (F8) hiện biểu mẫu và CHƯA gọi API khi chưa tra; tab Nạp ví chưa cộng (F9) gọi API của nó; KHÔNG gọi lại API rút tiền khi đang mở tab khác', async () => {
     const api = installFakeAdminWithdrawalApi();
     render(<FinancePage />);
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
@@ -51,16 +51,16 @@ describe('màn Quản lý tài chính ví (payment F7)', () => {
     await table();
     fireEvent.click(screen.getByRole('tab', { name: 'Hoàn tiền đặc biệt' }));
     expect(
-      screen.getByRole('tabpanel', { name: 'Hoàn tiền đặc biệt' }),
-    ).toHaveTextContent('Chức năng đang được phát triển.');
+      within(
+        screen.getByRole('tabpanel', { name: 'Hoàn tiền đặc biệt' }),
+      ).getByRole('heading', { name: 'Nhập thông tin hoàn tiền' }),
+    ).toBeVisible();
     fireEvent.click(screen.getByRole('tab', { name: 'Nạp ví chưa cộng' }));
-    expect(
-      screen.getByRole('tabpanel', { name: 'Nạp ví chưa cộng' }),
-    ).not.toHaveTextContent('Chức năng đang được phát triển.');
     await waitFor(() =>
       expect(api.gets('/admin/payment/unposted-topups')).toHaveLength(1),
     );
     expect(api.gets()).toHaveLength(1);
+    expect(api.gets('/admin/wallet/refundable-payments')).toHaveLength(0);
   });
 
   it('WQL-01 ★ bảng đúng cột Figma, số tiền và giờ VN; bộ lọc có số đếm của máy chủ; chọn lọc gửi `trangThai` và về trang 1', async () => {

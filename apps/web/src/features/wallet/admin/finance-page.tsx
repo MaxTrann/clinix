@@ -1,11 +1,12 @@
 import { Wallet } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { FINANCE_TEXT } from './finance-text';
+import { SpecialRefundTab } from './special-refund-tab';
 import { UnpostedTopupTab } from './unposted-topup-tab';
 import { WithdrawalTab } from './withdrawal-tab';
 
-// Màn "Quản lý tài chính ví" của Quản trị viên toàn hệ thống (payment F7; Figma `549:2`). Ba tab; F7 làm tab "Yêu cầu rút tiền", hai tab còn lại do F8 (hoàn tiền đặc biệt)
-// và F9 (nạp ví chưa cộng, đã làm) thay câu "đang phát triển". Tab đang chọn là state của trang, không vào URL. Cổng `ToanHeThong` ở route (`finance-routes.tsx`, Q10).
+// Màn "Quản lý tài chính ví" của Quản trị viên toàn hệ thống (payment F7; Figma `549:2`). Ba tab: "Yêu cầu rút tiền" (F7), "Hoàn tiền đặc biệt" (F8),
+// "Nạp ví chưa cộng" (F9). Tab đang chọn là state của trang, không vào URL. Cổng `ToanHeThong` ở route (`finance-routes.tsx`, Q10).
 type TabKey = 'withdrawals' | 'specialRefunds' | 'unpostedTopups';
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -19,7 +20,7 @@ export function FinancePage() {
   const baseId = useId();
   const content: Record<TabKey, ReactNode> = {
     withdrawals: <WithdrawalTab />,
-    specialRefunds: undefined,
+    specialRefunds: <SpecialRefundTab />,
     unpostedTopups: <UnpostedTopupTab />,
   };
 
@@ -75,12 +76,7 @@ export function FinancePage() {
             className="pt-[16px]"
           >
             {/* Chỉ dựng tab đang mở: tab rút tiền không gọi API khi đang xem tab khác */}
-            {key === active &&
-              (content[key] ?? (
-                <p className="rounded-[8px] border border-dashed border-gray-200 bg-gray-50 px-[12px] py-[40px] text-center text-[13px] text-gray-500">
-                  {FINANCE_TEXT.tabComingSoon}
-                </p>
-              ))}
+            {key === active && content[key]}
           </div>
         ))}
       </div>
