@@ -1,8 +1,10 @@
 import 'reflect-metadata';
+import { inspect } from 'node:util';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { SessionService } from '../src/auth/session/session.service.js';
@@ -12,6 +14,7 @@ import { DoctorFixtures } from '../src/doctor/testing/doctor-fixtures.js';
 
 // Doctor B13 — GET /admin/leave-requests và GET /admin/leave-requests/:id qua HTTP thật + MySQL thật:
 // PD-01, PD-02, PD-14, PD-15 (phần xem), PD-16, PD-21, QH-02 (danh sách và chi tiết). Duyệt/từ chối thuộc B14, B15.
+// Doctor UX2 (G15): dòng danh sách có thêm `lyDo` (DUX2-12 đến DUX2-16); mọi lý do trong test là chữ GIẢ.
 describe('B13 — Quản trị viên: danh sách và chi tiết yêu cầu nghỉ phép', () => {
   let app: NestExpressApplication;
   let db: DataSource;
@@ -71,7 +74,7 @@ describe('B13 — Quản trị viên: danh sách và chi tiết yêu cầu ngh�
     };
   }
 
-  it('PD-01 danh sách: có yêu cầu trong phạm vi; chưa có yêu cầu nào ⇒ 200 items rỗng và thongKe 0', async () => {
+  it('PD-01, DUX2-12 danh sách: có yêu cầu trong phạm vi và có `lyDo` (13 khoá); chưa có yêu cầu nào ⇒ 200 items rỗng và thongKe 0', async () => {
     const w = await setup();
     const empty = await get('/admin/leave-requests', w.systemToken).expect(200);
     expect(empty.body).toEqual({
@@ -103,6 +106,8 @@ describe('B13 — Quản trị viên: danh sách và chi tiết yêu cầu ngh�
         'chuyenKhoa',
         'denNgay',
         'hinhThuc',
+        // doctor UX2 (G15): lý do của Bác sĩ, trả ĐỦ ở dòng danh sách (web cắt khi hiển thị)
+        'lyDo',
         // B17 (D13): số lịch hẹn bị ảnh hưởng của yêu cầu còn hiệu lực
         'soLichHenBiAnhHuong',
         'thoiDiemTao',
@@ -119,6 +124,7 @@ describe('B13 — Quản trị viên: danh sách và chi tiết yêu cầu ngh�
       tuNgay: '2026-12-01',
       denNgay: '2026-12-02',
       ca: null,
+      lyDo: 'Việc gia đình',
       thoiDiemXuLy: null,
       bacSi: {
         bacSiId: w.doctorAId,
@@ -127,8 +133,9 @@ describe('B13 — Quản trị viên: danh sách và chi tiết yêu cầu ngh�
       chiNhanh: { chiNhanhId: w.branch.chiNhanhId },
     });
     expect(typeof item.chuyenKhoa.ten).toBe('string');
-    // Lý do thuộc chi tiết, không thuộc dòng danh sách.
-    expect(item).not.toHaveProperty('lyDo');
+    // DUX2-12: danh sách có `lyDo` nhưng vẫn không lộ người xử lý hay email (danh sách trắng)
+    expect(item).not.toHaveProperty('nguoiXuLyId');
+    expect(item).not.toHaveProperty('email');
   });
 
   it('PD-02 chi tiết: có lý do và người gửi; id không có, sai dạng, ngoài phạm vi cùng 404 cùng thân', async () => {
@@ -420,6 +427,135 @@ describe('B13 — Quản trị viên: danh sách và chi tiết yêu cầu ngh�
       truong: 'nguoiXuLyId',
       ma: 'TRUONG_KHONG_DUOC_PHEP',
     });
+  });
+
+  it('DUX2-13 PD-14 danh sách có lý do: 200 luôn `no-store`; Bác sĩ, Lễ tân, Bệnh nhân ⇒ 403 và chưa đăng nhập ⇒ 401 với thân lỗi KHÔNG chứa lý do', async () => {
+    const w = await setup();
+    const marker = 'BI_MAT_THAN_LOI_9K1';
+    await fx.leaveRequest({ bacSiId: w.doctorAId, lyDo: marker });
+    const patient = await fx.admin.patient();
+
+    for (const token of [w.systemToken, w.branchToken]) {
+      const ok = await get('/admin/leave-requests', token).expect(200);
+      expect(ok.headers['cache-control']).toBe('no-store');
+      expect(ok.body.items[0].lyDo).toBe(marker);
+    }
+    for (const accountId of [
+      w.doctorAId,
+      w.receptionist.account.taiKhoanId,
+      patient.account.taiKhoanId,
+    ]) {
+      const res = expectErrorResponse(
+        await get('/admin/leave-requests', await tokenOf(accountId)),
+        403,
+        'KHONG_DU_QUYEN',
+      );
+      expect(JSON.stringify(res)).not.toContain(marker);
+    }
+    const anonymous = await request(app.getHttpServer()).get(
+      '/admin/leave-requests',
+    );
+    expectErrorResponse(anonymous, 401, 'CHUA_DANG_NHAP');
+    expect(JSON.stringify(anonymous.body)).not.toContain(marker);
+  });
+
+  it('DUX2-14 PD-02 danh sách và chi tiết trả CÙNG một lyDo cho cùng id (Toàn hệ thống và Chi nhánh)', async () => {
+    const w = await setup();
+    const first = await fx.leaveRequest({
+      bacSiId: w.doctorAId,
+      lyDo: 'Lý do thứ nhất <b>& "nháy"</b>',
+    });
+    const second = await fx.leaveRequest({
+      bacSiId: w.doctorAId,
+      lyDo: 'Lý do thứ hai',
+    });
+
+    for (const token of [w.systemToken, w.branchToken]) {
+      const list = await get('/admin/leave-requests', token).expect(200);
+      for (const [id, lyDo] of [
+        [first, 'Lý do thứ nhất <b>& "nháy"</b>'],
+        [second, 'Lý do thứ hai'],
+      ]) {
+        const item = list.body.items.find(
+          (i: { yeuCauNghiPhepId: string }) => i.yeuCauNghiPhepId === id,
+        );
+        expect(item.lyDo).toBe(lyDo);
+        const detail = await get(`/admin/leave-requests/${id}`, token).expect(
+          200,
+        );
+        expect(detail.body.lyDo).toBe(item.lyDo);
+      }
+    }
+  });
+
+  it('DUX2-15 QH-02 PD-15 lý do của chi nhánh khác KHÔNG xuất hiện ở bất cứ đâu trong thân phản hồi của Admin Chi nhánh (kể cả khi cố lọc sang chi nhánh đó)', async () => {
+    const w = await setup();
+    const a = 'BI_MAT_CHI_NHANH_A_4Z8';
+    const b = 'BI_MAT_CHI_NHANH_B_7Q2';
+    await fx.leaveRequest({ bacSiId: w.doctorAId, lyDo: a });
+    await fx.leaveRequest({ bacSiId: w.doctorBId, lyDo: b });
+
+    const all = await get('/admin/leave-requests', w.systemToken).expect(200);
+    expect(JSON.stringify(all.body)).toContain(a);
+    expect(JSON.stringify(all.body)).toContain(b);
+
+    for (const path of [
+      '/admin/leave-requests',
+      `/admin/leave-requests?chiNhanhId=${w.branchB.chiNhanhId}`,
+      `/admin/leave-requests?bacSiId=${w.doctorBId}`,
+      `/admin/leave-requests?q=${encodeURIComponent('Trần Thị Bê')}`,
+    ]) {
+      const res = await get(path, w.branchToken).expect(200);
+      expect(JSON.stringify(res.body)).not.toContain(b);
+    }
+    const seenByB = await get('/admin/leave-requests', w.branchBToken).expect(
+      200,
+    );
+    expect(JSON.stringify(seenByB.body)).toContain(b);
+    expect(JSON.stringify(seenByB.body)).not.toContain(a);
+  });
+
+  it('DUX2-16 log: lý do của Bác sĩ không bao giờ vào stdout, stderr hay console.* (danh sách, chi tiết, 404, 400, 403)', async () => {
+    const w = await setup();
+    const marker = 'BI_MAT_TRONG_LOG_3W6';
+    const own = await fx.leaveRequest({ bacSiId: w.doctorAId, lyDo: marker });
+    const theirs = await fx.leaveRequest({
+      bacSiId: w.doctorBId,
+      lyDo: `${marker} chi nhánh khác`,
+    });
+    const doctorToken = await tokenOf(w.doctorAId);
+    const output: string[] = [];
+    const capture = (chunk: unknown): boolean => {
+      output.push(String(chunk));
+      return true;
+    };
+    vi.spyOn(process.stderr, 'write').mockImplementation(capture);
+    vi.spyOn(process.stdout, 'write').mockImplementation(capture);
+    // Trong vitest `console.*` đi qua bộ chặn console riêng, KHÔNG qua process.stdout.write: chặn riêng để một dòng `console.log(lyDo)` cũng bị bắt
+    for (const method of ['log', 'info', 'warn', 'error', 'debug'] as const)
+      vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+        output.push(
+          args.map((a) => (typeof a === 'string' ? a : inspect(a))).join(' '),
+        );
+      });
+
+    const responses = [
+      await get('/admin/leave-requests', w.systemToken), // 200
+      await get('/admin/leave-requests', w.branchToken), // 200
+      await get(`/admin/leave-requests/${own}`, w.systemToken), // 200
+      await get(`/admin/leave-requests/${theirs}`, w.branchToken), // 404 ngoài phạm vi
+      await get('/admin/leave-requests?trangThai=DaHuy', w.systemToken), // 400
+      await get('/admin/leave-requests', doctorToken), // 403
+    ];
+    vi.restoreAllMocks();
+
+    expect(responses.map((res) => res.status)).toEqual([
+      200, 200, 200, 404, 400, 403,
+    ]);
+    // Chỉ hai phản hồi 200 đầu và chi tiết mới được chứa lý do; các phản hồi lỗi thì không
+    for (const res of responses.slice(3))
+      expect(JSON.stringify(res.body)).not.toContain(marker);
+    expect(output.join('')).not.toContain(marker);
   });
 
   it('PD-14 Bác sĩ, Lễ tân, Bệnh nhân ⇒ 403; chưa đăng nhập ⇒ 401 (cả hai route)', async () => {

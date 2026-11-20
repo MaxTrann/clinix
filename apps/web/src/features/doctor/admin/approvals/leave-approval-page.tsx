@@ -32,6 +32,7 @@ import {
   formatSentDate,
 } from './approvals-format';
 import { LeaveDetailDrawer } from './leave-detail-drawer';
+import { LeaveReasonCell } from './leave-reason-cell';
 import { ALL, EMPTY_FILTERS, type ApprovalFilters } from './approval-filters';
 import { LeaveApprovalFilters } from './leave-approval-filters';
 import { LeaveStats } from './leave-stats';
@@ -160,26 +161,29 @@ export function LeaveApprovalPage() {
     }
   }
 
+  // Không truyền `width`: `AdminTable` sẽ ép `table-layout: fixed` theo phần trăm và tám cột bị bóp ở màn hẹp (TECH_DEBT 202). Bố cục tự động, `min-w` nằm trong ô;
+  // dưới ngưỡng bảng cuộn ngang trong khung có sẵn (doctor UX2, G14 và G15).
   const columns: AdminTableColumn<AdminLeaveItem>[] = [
     {
       id: 'bacSi',
       header: 'Bác sĩ',
-      width: '26%',
       cell: (item) => (
-        <div className="flex flex-col items-start gap-1">
-          <button
-            type="button"
-            onClick={(event) => {
-              opener.current = event.currentTarget;
-              setDetailItem(item);
-            }}
-            className="text-left font-semibold text-gray-900 hover:text-brand-strong hover:underline"
-          >
-            {item.bacSi.hoTen}
-          </button>
-          <span className="rounded-md bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-strong">
-            {item.chuyenKhoa.ten}
-          </span>
+        <div className="flex min-w-36 flex-col items-start gap-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <button
+              type="button"
+              onClick={(event) => {
+                opener.current = event.currentTarget;
+                setDetailItem(item);
+              }}
+              className="text-left font-semibold text-gray-900 hover:text-brand-strong hover:underline"
+            >
+              {item.bacSi.hoTen}
+            </button>
+            <span className="rounded-md bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-strong">
+              {item.chuyenKhoa.ten}
+            </span>
+          </div>
           <span className="text-xs text-gray-500">{item.chiNhanh.ten}</span>
         </div>
       ),
@@ -187,25 +191,26 @@ export function LeaveApprovalPage() {
     {
       id: 'loai',
       header: 'Loại nghỉ',
-      width: '12%',
       cell: formatLeaveKindLabel,
     },
     {
       id: 'thoiGian',
       header: 'Thời gian',
-      width: '24%',
-      cell: formatLeaveTime,
+      cell: (item) => <div className="min-w-20">{formatLeaveTime(item)}</div>,
+    },
+    {
+      id: 'lyDo',
+      header: 'Lý do nghỉ',
+      cell: (item) => <LeaveReasonCell reason={item.lyDo} />,
     },
     {
       id: 'ngayGui',
       header: 'Ngày gửi',
-      width: '14%',
       cell: (item) => formatSentDate(item.thoiDiemTao),
     },
     {
       id: 'anhHuong',
       header: 'Lịch hẹn bị ảnh hưởng',
-      width: '10%',
       cell: (item) => (
         <span className="text-gray-500">
           {formatAffectedCount(item) ?? '—'}
@@ -215,13 +220,11 @@ export function LeaveApprovalPage() {
     {
       id: 'trangThai',
       header: 'Trạng thái',
-      width: '12%',
       cell: (item) => <StatusBadge status={item.trangThai} />,
     },
     {
       id: 'thaoTac',
       header: 'Thao tác',
-      width: '12%',
       cell: (item) =>
         item.trangThai === 'ChoDuyet' ? (
           <div className="flex flex-wrap gap-2">

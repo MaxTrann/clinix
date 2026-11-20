@@ -5,7 +5,7 @@ import type { LeaveKind, LeaveStatus } from './leave-api';
 
 // Hợp đồng `GET /admin/leave-requests[/:id]`, `POST …/reject`, `POST …/approve`, `POST …/retry-cancellations` (PLAN doctor B13–B17). Chỉ Quản trị viên.
 
-/** Một dòng danh sách. Không có `lyDo` (thuộc chi tiết). `soLichHenBiAnhHuong` (B17): `null` với yêu cầu `TuChoi`. */
+/** Một dòng danh sách. Có `lyDo` ĐỦ (doctor UX2, G15). `soLichHenBiAnhHuong` (B17): `null` với yêu cầu `TuChoi`. */
 export interface AdminLeaveItem {
   yeuCauNghiPhepId: string;
   trangThai: LeaveStatus;
@@ -13,6 +13,8 @@ export interface AdminLeaveItem {
   tuNgay: string;
   denNgay: string;
   ca: ShiftCode | null;
+  // Lý do của Bác sĩ, tối đa 500 điểm mã (Q25), trả ĐỦ; bảng tự cắt khi hiển thị (admin/approvals/leave-reason.ts)
+  lyDo: string;
   // ISO 8601 UTC
   thoiDiemTao: string;
   thoiDiemXuLy: string | null;
@@ -44,7 +46,6 @@ export interface AffectedAppointments {
 }
 
 export interface AdminLeaveDetail extends AdminLeaveItem {
-  lyDo: string;
   // `null` với yêu cầu `TuChoi`
   lichHenBiAnhHuong: AffectedAppointments | null;
 }
