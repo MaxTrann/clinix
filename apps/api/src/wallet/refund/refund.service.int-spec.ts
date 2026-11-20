@@ -567,9 +567,11 @@ describe('thông báo và đọc', () => {
       'HoanTienDacBiet',
     ]);
     for (const notice of all) expect(notice.lichHenId).toBe(x.lich.lichHenId);
-    // Không email_thong_bao: worker thư của booking chỉ xử lý bốn loại của nó
-    const mail = await db.query('SELECT COUNT(*) AS n FROM email_thong_bao');
-    expect(Number(mail[0].n)).toBe(0);
+    // payment B17 (TDT-09): đúng MỘT dòng email_thong_bao ChoGui, của thông báo HoanCocThanhCong (dòng HoanTienDacBiet chèn tay ở trên không có thư)
+    const mail: { loai: string; trangThai: string }[] = await db.query(
+      `SELECT t.loai_su_kien AS loai, e.trang_thai AS trangThai FROM email_thong_bao e JOIN thong_bao t ON t.thong_bao_id = e.thong_bao_id`,
+    );
+    expect(mail).toEqual([{ loai: 'HoanCocThanhCong', trangThai: 'ChoGui' }]);
   });
 
   it('HDT-05 findRefund: dòng MỚI NHẤT (so_lan_thu lớn nhất), không lộ số lần thử hay ví; lịch chưa hoàn lần nào hay lịch không có khoản qua ví ⇒ null', async () => {

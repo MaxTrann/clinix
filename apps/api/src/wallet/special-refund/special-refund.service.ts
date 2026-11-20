@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { insertThongBao } from '../../appointments/notifications/thong-bao-insert.query.js';
+import {
+  insertEmailRow,
+  insertThongBao,
+} from '../../appointments/notifications/thong-bao-insert.query.js';
 import { withBookingTransaction } from '../../appointments/locking/booking-transaction.js';
 import { AuditService } from '../../audit/audit.service.js';
 import { AppException } from '../../common/errors/app.exception.js';
@@ -163,14 +166,18 @@ export class SpecialRefundService {
         });
         const leaf = await this.refunds.leafOf(em, payment.lichHenId);
         const notice = await this.refunds.findAppointmentNotice(em, leaf);
-        if (notice !== null)
-          await insertThongBao(em, {
+        if (notice !== null) {
+          const written = await insertThongBao(em, {
             taiKhoanId: notice.benhNhanId,
             noiDung: buildSpecialRefundText(notice.maLichHen, soTien),
             loaiSuKien: REFUND_NOTIFICATION_EVENTS.SPECIAL_REFUND,
             lichHenId: leaf,
             thoiDiemTao: now,
           });
+          // payment B17: thư `680:2` cùng giao dịch (worker của booking gửi sau commit). "Đã có" thông báo cùng lịch thì không xếp thư lần hai.
+          if (written.kind === 'Inserted')
+            await insertEmailRow(em, written.thongBaoId);
+        }
         return { kind: 'Created', result: { maGiaoDich, soTien } };
       },
       { label: 'special-refund' },

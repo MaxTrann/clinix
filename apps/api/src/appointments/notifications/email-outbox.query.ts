@@ -3,6 +3,7 @@ import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
 import {
   EMAIL_MAX_ATTEMPTS,
   EMAIL_RETRY_GAP_MINUTES,
+  PAYMENT_MAIL_EVENTS,
 } from './notifications.constants.js';
 
 // NƠI DUY NHẤT booking ĐỔI `email_thong_bao` (AR-06 `UPDATE email_thong_bao`; task B15; PLAN booking 5.12; TRACKING 3.37 B15-H). Mọi câu chạy TỰ XÁC NHẬN (autocommit, dùng `db.manager`), mỗi câu một hàng theo khoá chính: không giao dịch dài,
@@ -24,11 +25,15 @@ export interface DueEmail {
   loiCuoi: string | null;
 }
 
-const EVENTS = Object.values(BOOKING_NOTIFICATION_EVENTS);
+/** Loại có thư mà worker xử lý: bốn loại của booking (B15) và năm loại của payment, wallet (payment B17). Thứ tự cố định: booking trước. */
+export const MAIL_EVENTS: readonly string[] = [
+  ...Object.values(BOOKING_NOTIFICATION_EVENTS),
+  ...Object.values(PAYMENT_MAIL_EVENTS),
+];
 
 /**
- * Chọn lô thư đến lượt: `ChoGui` hoặc `ThatBai`, chưa hết `EMAIL_MAX_ATTEMPTS` lần, chưa thử hoặc lần thử cuối đã quá `EMAIL_RETRY_GAP_MINUTES`, và THUỘC booking (JOIN `thong_bao`, bốn `loai_su_kien`: bảng này còn chứa
- * hàng của admin, B15 không được đụng). Sắp theo khoá chính, con trỏ `afterId` để một lô không lặp lại hàng của lô trước.
+ * Chọn lô thư đến lượt: `ChoGui` hoặc `ThatBai`, chưa hết `EMAIL_MAX_ATTEMPTS` lần, chưa thử hoặc lần thử cuối đã quá `EMAIL_RETRY_GAP_MINUTES`, và THUỘC `MAIL_EVENTS` (JOIN `thong_bao`: bảng này còn chứa
+ * hàng của admin và các loại chỉ có trong ứng dụng, worker không được đụng). Sắp theo khoá chính, con trỏ `afterId` để một lô không lặp lại hàng của lô trước.
  */
 export const SELECT_DUE_EMAILS_SQL = `SELECT CAST(e.email_thong_bao_id AS CHAR) AS id, CAST(e.thong_bao_id AS CHAR) AS thongBaoId, e.trang_thai AS trangThai, e.so_lan_thu AS soLanThu,
        DATE_FORMAT(e.lan_thu_cuoi_luc, '%Y-%m-%d %H:%i:%s') AS lanThuCuoiLuc, e.loi_cuoi AS loiCuoi
@@ -37,7 +42,7 @@ export const SELECT_DUE_EMAILS_SQL = `SELECT CAST(e.email_thong_bao_id AS CHAR) 
  WHERE e.trang_thai IN ('ChoGui', 'ThatBai')
    AND e.so_lan_thu < ?
    AND (e.lan_thu_cuoi_luc IS NULL OR e.lan_thu_cuoi_luc <= ?)
-   AND t.loai_su_kien IN (${EVENTS.map(() => '?').join(', ')})
+   AND t.loai_su_kien IN (${MAIL_EVENTS.map(() => '?').join(', ')})
    AND e.email_thong_bao_id > ?
  ORDER BY e.email_thong_bao_id
  LIMIT ?`;
@@ -53,7 +58,7 @@ export async function selectDueEmails(
     await em.query(SELECT_DUE_EMAILS_SQL, [
       EMAIL_MAX_ATTEMPTS,
       retryBefore,
-      ...EVENTS,
+      ...MAIL_EVENTS,
       input.afterId,
       input.limit,
     ]);
@@ -134,10 +139,12 @@ export interface EmailPayload {
   lichHenId: string | null;
   email: string;
   hoTen: string;
+  /** Lúc ghi thông báo "dd/MM/yyyy — HH:mm" (giờ Việt Nam như đã lưu, đọc bằng `DATE_FORMAT` nên không lệch múi giờ): "thời gian" của thư payment, wallet (B17) */
+  thoiDiem: string;
 }
 
 export const READ_EMAIL_PAYLOAD_SQL = `SELECT CAST(t.tai_khoan_id AS CHAR) AS taiKhoanId, t.noi_dung AS noiDung, t.loai_su_kien AS loai, CAST(t.lich_hen_id AS CHAR) AS lichHenId,
-       tk.email AS email, tk.ho_ten AS hoTen
+       tk.email AS email, tk.ho_ten AS hoTen, DATE_FORMAT(t.thoi_diem_tao, '%d/%m/%Y — %H:%i') AS thoiDiem
   FROM thong_bao t
   JOIN tai_khoan tk ON tk.tai_khoan_id = t.tai_khoan_id
  WHERE t.thong_bao_id = ?`;

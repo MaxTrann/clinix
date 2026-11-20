@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { formatVnd } from '../../appointments/notifications/mail-format.js';
+import { insertEmailRow } from '../../appointments/notifications/thong-bao-insert.query.js';
 import { TOPUP_NOTIFICATION_EVENTS } from '../payment.constants.js';
 
-// Thông báo trong ứng dụng của nạp ví (payment B4; PLAN 5.12; TDT-01, TDT-02). Chỉ ghi `thong_bao`, KHÔNG `email_thong_bao` (worker thư của booking chỉ xử lý bốn loại của nó; mẫu thư `679:2` của
-// `NapViThatBai` chờ mở rộng worker, `[ĐỤNG booking]`, Q18).
+// Thông báo trong ứng dụng của nạp ví (payment B4; PLAN 5.12; TDT-01, TDT-02). Chỉ `NapViThatBai` có thêm thư `679:2` (payment B17: dòng `email_thong_bao` qua `insertEmailRow` của booking, worker của
+// booking gửi; Q18); các loại khác chỉ là thông báo trong ứng dụng.
 // Không gắn `lich_hen_id` (nạp ví không thuộc lịch nào) nên không dùng `insertThongBao` của booking (hàm đó bắt buộc có lịch); ghi thẳng như `doctor/notifications/leave-notifier.ts`.
 // Ghi bằng `em` của NGƯỜI GỌI: thông báo và lần đổi tiền cùng commit hay cùng rollback (TDT-01). Nội dung KHÔNG chứa mã giao dịch cổng (PLAN 5.12).
 
@@ -52,12 +53,13 @@ export class TopupNotifier {
     em: EntityManager,
     input: { benhNhanId: string; soTien: string; now: Date },
   ): Promise<void> {
-    await em.query(INSERT_SQL, [
+    const result: { insertId: number | string } = await em.query(INSERT_SQL, [
       input.benhNhanId,
       buildTopupFailedText(input.soTien),
       TOPUP_NOTIFICATION_EVENTS.FAILED,
       input.now,
     ]);
+    await insertEmailRow(em, String(result.insertId));
   }
 
   async notifyReconciled(

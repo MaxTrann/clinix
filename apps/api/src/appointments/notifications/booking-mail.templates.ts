@@ -34,7 +34,7 @@ const SUBJECTS = {
   restriction: '[CLINIX] Tài khoản bị hạn chế đặt lịch',
 } as const;
 
-type Tone = 'green' | 'red' | 'amber' | 'slate';
+export type Tone = 'green' | 'red' | 'amber' | 'slate';
 interface ToneColors {
   background: string;
   border: string;
@@ -61,27 +61,27 @@ const BANDS = {
 const NOTICE_TEXT = '#92620C';
 
 /** Một dòng của bảng: `emphasis` 'bold' đậm, 'accent' đậm và màu nhấn của bảng; `suffix` chữ phụ nhạt ngay sau giá trị ("(đặt hộ)"). */
-interface Row {
+export interface Row {
   label: string;
   value: string;
   emphasis?: 'bold' | 'accent';
   suffix?: string;
 }
-interface Table {
+export interface Table {
   tone: Tone;
   rows: readonly Row[];
 }
 /** Đoạn chữ của câu mở đầu; `bold` để in đậm một cụm (Figma `687:2`). */
-interface Segment {
+export interface Segment {
   text: string;
   bold?: boolean;
 }
-interface Notice {
+export interface Notice {
   tone: Tone;
   text: string;
 }
 
-interface MailSpec {
+export interface MailSpec {
   subject: string;
   band: string;
   title: string;
@@ -188,7 +188,8 @@ function renderNoticeHtml(notice: Notice): string {
   return `<div style="margin:0 0 14px;padding:10px 12px;background:${tone.background};border:1px solid ${tone.border};border-radius:6px;font-size:12px;line-height:1.7;color:${color}">${escapeHtml(notice.text)}</div>`;
 }
 
-function render(spec: MailSpec): RenderedMail {
+/** Dựng `text` và `html` từ MỘT `MailSpec` (dùng chung với bốn mẫu thư của payment, wallet ở `payment-mail.templates.ts`, payment B17). */
+export function renderMailSpec(spec: MailSpec): RenderedMail {
   const intro = spec.intro
     .map((s) =>
       s.bold ? `<strong>${escapeHtml(s.text)}</strong>` : escapeHtml(s.text),
@@ -265,7 +266,7 @@ function baseRows(
 export function renderBookingConfirmationMail(p: MailCommon): RenderedMail {
   const c = p.context;
   const deposit = !isZeroMoney(c.tienCocSnapshot);
-  return render({
+  return renderMailSpec({
     subject: SUBJECTS.confirmation,
     band: BANDS.confirmation,
     title: 'Lịch hẹn đã được xác nhận',
@@ -334,7 +335,7 @@ export function renderCancellationMail(
   p: MailCommon & { noiDung: string },
 ): RenderedMail {
   const hotline = p.footer?.hotline ? one(p.footer.hotline, 20) : '';
-  return render({
+  return renderMailSpec({
     subject: SUBJECTS.cancellation,
     band: BANDS.cancellation,
     title: 'Lịch hẹn đã bị hủy',
@@ -356,7 +357,7 @@ export function renderCancellationMail(
 export function renderNoShowMail(
   p: MailCommon & { soLan: number; nguong: number },
 ): RenderedMail {
-  return render({
+  return renderMailSpec({
     subject: SUBJECTS.noShow,
     band: BANDS.noShow,
     title: 'Ghi nhận vắng mặt tại lịch hẹn',
@@ -392,7 +393,7 @@ export function renderNoShowRestrictionMail(
   p: MailCommon & { soLan: number; nguong: number },
 ): RenderedMail {
   const hotline = p.footer?.hotline ? one(p.footer.hotline, 20) : '';
-  return render({
+  return renderMailSpec({
     subject: SUBJECTS.restriction,
     band: BANDS.restriction,
     title: 'Tài khoản bị hạn chế đặt lịch online',

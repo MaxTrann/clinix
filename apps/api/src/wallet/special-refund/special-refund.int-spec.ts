@@ -101,6 +101,13 @@ describe('SpecialRefundService.create (payment B13)', () => {
     ]);
     expect(sent[0]!.noiDung).toContain(t.lich.maLichHen);
     expect(sent[0]!.noiDung).not.toContain('khiếu nại');
+    // payment B17 (TDT-09): thông báo có đúng MỘT dòng thư ChoGui, cùng giao dịch
+    expect(
+      await rows<{ trangThai: string }>(
+        `SELECT e.trang_thai AS trangThai FROM email_thong_bao e JOIN thong_bao t ON t.thong_bao_id = e.thong_bao_id WHERE t.loai_su_kien = 'HoanTienDacBiet'`,
+        [],
+      ),
+    ).toEqual([{ trangThai: 'ChoGui' }]);
     await assertWalletInvariants(db);
   });
 

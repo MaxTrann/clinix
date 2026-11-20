@@ -76,12 +76,13 @@ function watchRetries() {
   return () => messages.length;
 }
 
-/** Xoá mọi dữ liệu tiền và lịch của vòng trước (theo thứ tự khoá ngoại: sổ cái → dòng hoàn → thanh toán → thông báo → lịch). */
+/** Xoá mọi dữ liệu tiền và lịch của vòng trước (theo thứ tự khoá ngoại: sổ cái → dòng hoàn → thanh toán → thư → thông báo → lịch). Từ payment B17 hoàn cọc có thêm dòng `email_thong_bao`. */
 async function resetMoneyAndAppointments() {
   for (const table of [
     'giao_dich_vi',
     'lich_su_hoan_tien',
     'giao_dich_thanh_toan',
+    'email_thong_bao',
     'thong_bao',
     'lich_hen',
   ])
