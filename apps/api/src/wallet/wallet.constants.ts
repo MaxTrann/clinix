@@ -44,6 +44,8 @@ export const WALLET_ERROR_CODES = {
   WITHDRAWAL_ALREADY_HANDLED: 'YEU_CAU_DA_XU_LY', // 409, kèm chiTiet.trangThai
   ALREADY_SPECIALLY_REFUNDED: 'DA_HOAN_DAC_BIET', // 409
   REFUND_EXCEEDS_PAID: 'SO_TIEN_HOAN_VUOT_QUA_DA_THANH_TOAN', // 409, kèm chiTiet.conCoTheHoan
+  // Mã TRƯỜNG ở `loi[].ma` của 400 `DU_LIEU_KHONG_HOP_LE`: chữ giống bí mật (cùng giá trị với `EXAM_FIELD_ERROR_CODES.CONTENT_REJECTED` của doctor-exam, cùng nghĩa) [đề xuất]
+  CONTENT_REJECTED: 'NOI_DUNG_KHONG_HOP_LE',
 } as const;
 
 export type WalletErrorCode =

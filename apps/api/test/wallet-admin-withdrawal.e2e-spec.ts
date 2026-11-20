@@ -274,6 +274,63 @@ describe('XRT-03, XRT-04, XRT-06 duyệt và từ chối qua HTTP', () => {
     expect(ok.status).toBe(200);
   });
 
+  // Trước bản sửa: DTO nhận chữ này, `AuditService` ném AUDIT_SENSITIVE_DATA, giao dịch hoàn tác và route trả 500 (TRACKING payment, B13 quyết định 6).
+  it.each([
+    ['approve', 'token=abc123xyz'],
+    ['approve', 'password: hunter2'],
+    ['reject', 'Bearer abcdefghijklmnop'],
+    ['reject', `mã băm ${'a'.repeat(64)}`],
+  ])(
+    'XRT-06 %s với ghiChu giống bí mật "%s" ⇒ 400 ghiChu NOI_DUNG_KHONG_HOP_LE (không 500); yêu cầu, ví, nhật ký, thông báo không đổi',
+    async (action, ghiChu) => {
+      const t = await world();
+      const countRows = async (table: 'thong_bao' | 'nhat_ky_hanh_dong') =>
+        (
+          await h.db.query<{ n: string }[]>(
+            `SELECT COUNT(*) AS n FROM ${table}`,
+          )
+        )[0]!.n;
+      const before = {
+        thongBao: await countRows('thong_bao'),
+        nhatKy: await countRows('nhat_ky_hanh_dong'),
+      };
+      const res = await call(
+        'post',
+        `/admin/wallet/withdrawals/${t.maYeuCau}/${action}`,
+        t.system,
+        { ghiChu },
+      );
+      const body = expectErrorResponse(res, 400, INVALID_DATA);
+      expect(body.loi).toEqual([
+        { truong: 'ghiChu', ma: 'NOI_DUNG_KHONG_HOP_LE' },
+      ]);
+      // Thân lỗi không lặp lại giá trị người dùng nhập
+      expect(JSON.stringify(body)).not.toContain(ghiChu);
+      expect(await status(t.maYeuCau)).toBe('ChoDuyet');
+      expect(await wf.readWallet(t.walletA)).toEqual({
+        soDu: '350000.00',
+        soTienDangGiu: '100000.00',
+      });
+      expect({
+        thongBao: await countRows('thong_bao'),
+        nhatKy: await countRows('nhat_ky_hanh_dong'),
+      }).toEqual(before);
+    },
+  );
+
+  it('XRT-06 ghiChu bình thường (có số tiền, SĐT, ngày) vẫn được nhận', async () => {
+    const t = await world();
+    const res = await call(
+      'post',
+      `/admin/wallet/withdrawals/${t.maYeuCau}/reject`,
+      t.system,
+      {
+        ghiChu: 'Số tài khoản sai, gọi 0901234567 ngày 10/11/2026 để xác nhận',
+      },
+    );
+    expect(res.status).toBe(200);
+  });
+
   it('XRT-09 duyệt hay từ chối id không tồn tại ⇒ 404', async () => {
     const t = await world();
     for (const action of ['approve', 'reject'])

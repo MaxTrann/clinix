@@ -16,7 +16,7 @@ import { FINANCE_TEXT, REJECT_REASON_MAX } from './finance-text';
 //  - Gửi: nút vô hiệu và khoá bằng `useRef` nên bấm đúp chỉ MỘT lời gọi (WQL-02).
 //  - Từ chối: lý do BẮT BUỘC, 1 đến 200 ký tự sau khi cắt khoảng trắng (Trung chốt 19/11/2026), gửi ở `ghiChu`. Duyệt: thân rỗng.
 //  - Kết quả báo lên ngăn chi tiết bằng `onSettled`: thành công, `YEU_CAU_DA_XU_LY` (người khác đã xử lý), hết giờ hay mất mạng ⇒ ngăn tải lại dữ liệu
-//    (KHÔNG tự gửi lại lệnh). Lỗi khác ⇒ giữ hộp và lý do đã nhập để người dùng thử lại.
+//    (KHÔNG tự gửi lại lệnh). Máy chủ từ chối `ghiChu` (chữ giống bí mật) ⇒ lỗi dưới ô lý do. Lỗi khác ⇒ giữ hộp và lý do đã nhập để người dùng thử lại.
 
 export interface DecisionNotice {
   tone: 'success' | 'warning' | 'danger';
@@ -24,6 +24,11 @@ export interface DecisionNotice {
 }
 
 type Mode = 'approve' | 'reject' | null;
+
+// 400 có lỗi ở trường `ghiChu` (máy chủ kiểm chữ giống bí mật bằng đúng bộ kiểm của nhật ký)
+const isNoteRejected = (error: unknown) =>
+  error instanceof ApiError &&
+  (error.loi ?? []).some((field) => field.truong === 'ghiChu');
 
 /** Lỗi gửi ⇒ câu báo, và có cần tải lại dữ liệu (trạng thái máy chủ có thể đã đổi) hay không. */
 function noticeFrom(error: unknown): {
@@ -90,7 +95,8 @@ export function WithdrawalDecision({
         onSettled(notice, true);
         return;
       }
-      setFailure(notice.message);
+      if (isNoteRejected(caught)) setReasonError(FINANCE_TEXT.reasonRejected);
+      else setFailure(notice.message);
     }
     inFlight.current = false;
     setSending(false);
