@@ -18,6 +18,30 @@ export const REASON_REQUIRED = 'LY_DO_BAT_BUOC';
 const AMOUNT_PATTERN = /^[1-9][0-9]{0,9}$/u;
 const ID_PATTERN = /^[1-9][0-9]{0,18}$/u;
 
+/**
+ * Lý do bắt buộc của thao tác tiền có ghi nhật ký (hoàn đặc biệt B13, nạp ví chưa cộng B15): `trim`, dài 10 đến 255 (giới hạn của nhật ký) và KHÔNG giống bí mật (cùng bộ kiểm `redactText`
+ * mà nhật ký dùng; nếu không, nhật ký ném `AUDIT_SENSITIVE_DATA` và người dùng nhận 500). Sai ⇒ `LY_DO_BAT_BUOC` ở `loi[].ma`.
+ */
+export function IsAuditedReason(): PropertyDecorator {
+  const trim = Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  );
+  const validate = ValidateBy({
+    name: 'isAuditedReason',
+    validator: {
+      validate: (value: unknown) =>
+        isValidReasonText(value, { rejectSecrets: true }) &&
+        (value as string).length >= AUDIT_PAYMENT_LIMITS.requiredReasonMin &&
+        (value as string).length <= AUDIT_PAYMENT_LIMITS.reasonMax,
+      defaultMessage: () => REASON_REQUIRED,
+    },
+  });
+  return (target, key) => {
+    trim(target, key);
+    validate(target, key);
+  };
+}
+
 /** Đúng MỘT trong hai (Trung chốt 19/11/2026); kiểm "đúng một" ở service. `maLichHen` của bất kỳ lịch nào trong chuỗi đổi lịch. */
 export class RefundablePaymentsQueryDto {
   @IsOptional()
@@ -52,19 +76,7 @@ export class CreateSpecialRefundDto {
   })
   soTien!: string;
 
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
-  @ValidateBy({
-    name: 'isSpecialRefundReason',
-    validator: {
-      validate: (value: unknown) =>
-        isValidReasonText(value, { rejectSecrets: true }) &&
-        (value as string).length >= AUDIT_PAYMENT_LIMITS.requiredReasonMin &&
-        (value as string).length <= AUDIT_PAYMENT_LIMITS.reasonMax,
-      defaultMessage: () => REASON_REQUIRED,
-    },
-  })
+  @IsAuditedReason()
   lyDo!: string;
 }
 

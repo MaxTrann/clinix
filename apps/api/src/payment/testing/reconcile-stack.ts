@@ -1,6 +1,10 @@
 import type { DataSource } from 'typeorm';
+import { AuditRepository } from '../../audit/audit.repository.js';
+import { AuditService } from '../../audit/audit.service.js';
 import { WalletLedger } from '../../wallet/ledger/wallet-ledger.js';
 import { WalletFixtures } from '../../wallet/testing/wallet-fixtures.js';
+import { AdminUnpostedTopupRepository } from '../reconcile/admin-unposted-topup.repository.js';
+import { AdminUnpostedTopupService } from '../reconcile/admin-unposted-topup.service.js';
 import { ReconcileRepository } from '../reconcile/reconcile.repository.js';
 import { ReconcileService } from '../reconcile/reconcile.service.js';
 import { TopupReconcileJob } from '../reconcile/topup-reconcile.job.js';
@@ -66,3 +70,29 @@ export async function pendingTopup(
     );
   return id;
 }
+
+/**
+ * B15: `AdminUnpostedTopupService` THẬT dựng bằng tay. `audit` truyền vào để ca "nhật ký lỗi" (NVC-08) thay bằng bản ném lỗi.
+ */
+export function unpostedStack(
+  db: DataSource,
+  audit: Pick<AuditService, 'record'> = new AuditService(new AuditRepository()),
+) {
+  return new AdminUnpostedTopupService(
+    db,
+    new AdminUnpostedTopupRepository(),
+    new TopupRepository(),
+    new ReconcileRepository(),
+    new WalletLedger(),
+    new TopupNotifier(),
+    audit as AuditService,
+  );
+}
+
+/** Lần 0 (xác minh) và ba lần job đều `ThatBai`: giao dịch đã vào hàng đợi "Nạp ví chưa cộng" (B15). */
+export const EXHAUSTED_ATTEMPTS: AttemptInput[] = [
+  { n: 0, at: '2026-11-02 08:00:00' },
+  { n: 1, at: '2026-11-02 08:05:00' },
+  { n: 2, at: '2026-11-02 08:10:00' },
+  { n: 3, at: '2026-11-02 08:15:00' },
+];

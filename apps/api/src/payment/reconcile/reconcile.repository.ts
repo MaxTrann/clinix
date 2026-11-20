@@ -49,21 +49,32 @@ export class ReconcileRepository {
       : { n: Number(row.n), thoiDiem: row.thoiDiem };
   }
 
-  /** Một lần thử của job (`nguoi_xu_ly_id` NULL). UNIQUE `(giao dịch, so_lan_thu)` là lưới thứ hai chống hai bản job ghi trùng (M14). */
+  /**
+   * Một lần thử: của job (`nguoiXuLyId` vắng ⇒ NULL) hay của Quản trị viên (B15: `ThanhCong` khi cộng ví, `KhongTheXuLy` kèm lý do). UNIQUE `(giao dịch, so_lan_thu)` là lưới thứ hai
+   * chống hai bên ghi trùng số lần (M14); người gọi lấy số kế tiếp DƯỚI khoá 7a.
+   */
   async insertAttempt(
     em: EntityManager,
     input: {
       giaoDichId: string;
       soLanThu: number;
-      ketQua: 'ThanhCong' | 'ThatBai';
+      ketQua: 'ThanhCong' | 'ThatBai' | 'KhongTheXuLy';
       lyDo: string | null;
       now: Date;
+      nguoiXuLyId?: string;
     },
   ): Promise<void> {
     await em.query(
       `INSERT INTO lan_doi_soat_nap_vi (giao_dich_thanh_toan_id, so_lan_thu, ket_qua, nguoi_xu_ly_id, ly_do, thoi_diem)
-       VALUES (?, ?, ?, NULL, ?, ?)`,
-      [input.giaoDichId, input.soLanThu, input.ketQua, input.lyDo, input.now],
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        input.giaoDichId,
+        input.soLanThu,
+        input.ketQua,
+        input.nguoiXuLyId ?? null,
+        input.lyDo,
+        input.now,
+      ],
     );
   }
 

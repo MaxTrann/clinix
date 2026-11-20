@@ -12,6 +12,8 @@ export const PAYMENT_ERROR_CODES = {
   // B4: nạp ví qua cổng (PLAN 5.4, 5.14)
   GATEWAY_NOT_CONFIGURED: 'CONG_THANH_TOAN_CHUA_CAU_HINH', // 503: thiếu biến môi trường của cổng, không tạo dòng
   GATEWAY_ERROR: 'CONG_THANH_TOAN_LOI', // 503 (PLAN ghi 502; `AppException` chỉ cho 4xx và 503): tạo yêu cầu với cổng lỗi (dòng nạp chuyển `ThatBai`)
+  // B15: Quản trị viên xử lý nạp ví chưa cộng (PLAN 5.4 bước 6, 5.14)
+  TOPUP_ALREADY_RECONCILED: 'GIAO_DICH_NAP_DA_DOI_SOAT', // 409, kèm chiTiet.trangThaiDoiSoat: tiền đã vào ví (A3)
 } as const;
 
 /** `loai_su_kien` của thông báo nạp ví (PLAN 5.12; chữ `[đề xuất]`). Cột `varchar(100)` nên không cần đổi DDL. */
@@ -21,6 +23,8 @@ export const TOPUP_NOTIFICATION_EVENTS = {
   // B14: job cộng lại thành công (2.4 NTV b17) / hết lượt thử tự động (b18, gửi Quản trị viên `ToanHeThong`)
   RECONCILED: 'NapViDaDoiSoat',
   NEEDS_ATTENTION: 'NapViCanXuLy',
+  // B15: Quản trị viên ghi nhận chưa thể xử lý (gửi Bệnh nhân). Khi Quản trị viên cộng ví thì dùng lại `RECONCILED` (cùng nghĩa: đã đối soát và cộng vào ví) `[đề xuất]`
+  UNPROCESSABLE: 'NapViChuaXuLyDuoc',
 } as const;
 
 /** Mã lý do ghi ở `lan_doi_soat_nap_vi.ly_do` khi lần cộng đầu (lúc xác minh IPN) lỗi: dạng MÃ, không văn bản lỗi gốc (PLAN 5.4 Q9). */
@@ -47,6 +51,7 @@ export const PAYMENT_ERROR_MESSAGES = {
   CONG_THANH_TOAN_CHUA_CAU_HINH: 'Cổng thanh toán hiện chưa sẵn sàng.',
   CONG_THANH_TOAN_LOI: 'Không kết nối được cổng thanh toán. Vui lòng thử lại.',
   SO_TIEN_NGOAI_HAN_MUC: 'Số tiền nằm ngoài hạn mức cho phép.',
+  GIAO_DICH_NAP_DA_DOI_SOAT: 'Giao dịch này đã được cộng vào ví.',
 } as const;
 
 export type PaymentErrorCode =
