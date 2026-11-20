@@ -9,3 +9,16 @@ export const EMAIL_OUTBOX_CRON = '5 * * * * *';
 export const EMAIL_MAX_ATTEMPTS = 3;
 /** Nhịp giữa hai lần thử của cùng một thư, tính từ `lan_thu_cuoi_luc`: cũng là thời gian chờ trước khi chọn lại thư đã nhận việc mà tiến trình chết giữa chừng. */
 export const EMAIL_RETRY_GAP_MINUTES = 5;
+
+/**
+ * Năm loại thông báo của payment và wallet CÓ thư (payment B17; PLAN payment 5.12, Q18, L13; Figma `679:2`, `680:2`, `682:2`, `683:2`). Viết bằng CHỮ ở đây để booking không import hằng của
+ * payment/wallet lúc chạy (chiều phụ thuộc giữ nguyên: payment/wallet gọi booking, không ngược lại); `payment-mail.templates.spec.ts` kiểm chữ khớp `TOPUP_NOTIFICATION_EVENTS`,
+ * `REFUND_NOTIFICATION_EVENTS`, `WITHDRAWAL_NOTIFICATION_EVENTS`. Các loại khác của payment/wallet (nạp thành công, đã gửi yêu cầu rút, "cần xử lý" của Quản trị viên…) chỉ là thông báo trong ứng dụng.
+ */
+export const PAYMENT_MAIL_EVENTS = {
+  TOPUP_FAILED: 'NapViThatBai',
+  DEPOSIT_REFUNDED: 'HoanCocThanhCong',
+  SPECIAL_REFUND: 'HoanTienDacBiet',
+  WITHDRAWAL_APPROVED: 'RutTienDuocDuyet',
+  WITHDRAWAL_REJECTED: 'RutTienBiTuChoi',
+} as const;

@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { formatVnd } from '../../appointments/notifications/mail-format.js';
+import { insertEmailRow } from '../../appointments/notifications/thong-bao-insert.query.js';
 import {
   NOTIFICATION_MAX_LENGTH,
   WITHDRAWAL_NOTIFICATION_EVENTS,
 } from '../wallet.constants.js';
 
-// Thông báo trong ứng dụng của rút tiền (payment B11, B12; PLAN 5.12; 2.4 RTV b5, XRT b7; TDT-02 vế `RutTienDaGui`, TDT-05). Chỉ ghi `thong_bao` (worker thư của booking chỉ xử lý bốn loại của nó).
+// Thông báo trong ứng dụng của rút tiền (payment B11, B12; PLAN 5.12; 2.4 RTV b5, XRT b7; TDT-02 vế `RutTienDaGui`, TDT-05). `RutTienDuocDuyet`, `RutTienBiTuChoi` có thêm thư `682:2`, `683:2`
+// (payment B17: dòng `email_thong_bao` qua `insertEmailRow` của booking, worker của booking gửi); `RutTienDaGui` chỉ là thông báo trong ứng dụng.
 // Không gắn lịch hẹn nên ghi thẳng như `TopupNotifier` của payment B4. Ghi bằng `em` của NGƯỜI GỌI: thông báo và lần đổi ví cùng commit hay cùng rollback.
 
 export function buildWithdrawalSubmittedText(soTien: string): string {
@@ -65,6 +67,7 @@ export class WithdrawalNotifier {
       input,
       buildWithdrawalApprovedText(input.soTien, input.ghiChu),
       WITHDRAWAL_NOTIFICATION_EVENTS.APPROVED,
+      true,
     );
   }
 
@@ -77,6 +80,7 @@ export class WithdrawalNotifier {
       input,
       buildWithdrawalRejectedText(input.soTien, input.ghiChu),
       WITHDRAWAL_NOTIFICATION_EVENTS.REJECTED,
+      true,
     );
   }
 
@@ -85,10 +89,13 @@ export class WithdrawalNotifier {
     input: NoticeInput,
     noiDung: string,
     loaiSuKien: string,
+    /** Xếp thêm thư (payment B17) cùng giao dịch */
+    withMail = false,
   ): Promise<void> {
-    await em.query(
+    const result: { insertId: number | string } = await em.query(
       'INSERT INTO thong_bao (tai_khoan_id, noi_dung, loai_su_kien, thoi_diem_tao) VALUES (?, ?, ?, ?)',
       [input.benhNhanId, noiDung, loaiSuKien, input.now],
     );
+    if (withMail) await insertEmailRow(em, String(result.insertId));
   }
 }

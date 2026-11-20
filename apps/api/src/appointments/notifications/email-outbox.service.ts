@@ -13,6 +13,7 @@ import {
   renderNoShowMail,
   renderNoShowRestrictionMail,
 } from './booking-mail.templates.js';
+import type { RenderedMail } from '../../mail/templates/otp-mail.js';
 import { readClinicFooter } from './clinic-footer.query.js';
 import {
   claimEmail,
@@ -22,12 +23,26 @@ import {
   releaseClaim,
   selectDueEmails,
   type DueEmail,
+  type EmailPayload,
 } from './email-outbox.query.js';
 import {
   readNoShowFacts,
   readNotificationContext,
 } from './notification-context.query.js';
-import { EMAIL_MAX_ATTEMPTS } from './notifications.constants.js';
+import {
+  EMAIL_MAX_ATTEMPTS,
+  PAYMENT_MAIL_EVENTS,
+} from './notifications.constants.js';
+import {
+  renderRefundMail,
+  renderTopupFailedMail,
+  renderWithdrawalApprovedMail,
+  renderWithdrawalRejectedMail,
+} from './payment-mail.templates.js';
+
+const PAYMENT_MAIL_LOAI: ReadonlySet<string> = new Set(
+  Object.values(PAYMENT_MAIL_EVENTS),
+);
 
 /** Tổng kết một lượt gửi (chỉ số lượng, không dữ liệu cá nhân). */
 export interface EmailOutboxSummary {
@@ -144,7 +159,10 @@ export class EmailOutboxService {
   private async buildMessage(email: DueEmail): Promise<MailMessage> {
     const em = this.db.manager;
     const payload = await readEmailPayload(em, email.thongBaoId);
-    if (payload === null || payload.lichHenId === null)
+    if (payload === null) throw new EmailOutboxDataError('THIEU_THONG_BAO');
+    const paymentMail = await this.renderPaymentMail(payload);
+    if (paymentMail !== null) return { to: payload.email, ...paymentMail };
+    if (payload.lichHenId === null)
       throw new EmailOutboxDataError('THIEU_THONG_BAO');
     const context = await readNotificationContext(em, payload.lichHenId);
     if (context === null) throw new EmailOutboxDataError('THIEU_LICH_HEN');
@@ -177,5 +195,48 @@ export class EmailOutboxService {
       }
     })();
     return { to: payload.email, ...rendered };
+  }
+
+  /**
+   * Thư của payment và wallet (payment B17): phần chi tiết là `thong_bao.noi_dung`, bảng chỉ có thời điểm ghi và trạng thái (`payment-mail.templates.ts`). Hai thư hoàn tiền cần `lich_hen_id`
+   * để in mã lịch hẹn (thiếu ⇒ `THIEU_LICH_HEN`). `null` = không phải loại của payment, wallet (nhánh booking ở trên xử lý tiếp).
+   */
+  private async renderPaymentMail(
+    payload: EmailPayload,
+  ): Promise<RenderedMail | null> {
+    if (!PAYMENT_MAIL_LOAI.has(payload.loai)) return null;
+    const em = this.db.manager;
+    const common = {
+      recipientName: payload.hoTen,
+      noiDung: payload.noiDung,
+      thoiDiem: payload.thoiDiem,
+      footer: await readClinicFooter(em),
+    };
+    const refund = async (special: boolean) => {
+      const context =
+        payload.lichHenId === null
+          ? null
+          : await readNotificationContext(em, payload.lichHenId);
+      if (context === null) throw new EmailOutboxDataError('THIEU_LICH_HEN');
+      return renderRefundMail({
+        ...common,
+        maLichHen: context.maLichHen,
+        special,
+      });
+    };
+    switch (payload.loai) {
+      case PAYMENT_MAIL_EVENTS.TOPUP_FAILED:
+        return renderTopupFailedMail(common);
+      case PAYMENT_MAIL_EVENTS.DEPOSIT_REFUNDED:
+        return refund(false);
+      case PAYMENT_MAIL_EVENTS.SPECIAL_REFUND:
+        return refund(true);
+      case PAYMENT_MAIL_EVENTS.WITHDRAWAL_APPROVED:
+        return renderWithdrawalApprovedMail(common);
+      case PAYMENT_MAIL_EVENTS.WITHDRAWAL_REJECTED:
+        return renderWithdrawalRejectedMail(common);
+      default:
+        return null;
+    }
   }
 }
