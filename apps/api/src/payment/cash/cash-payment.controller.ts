@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Header,
   HttpCode,
   Inject,
@@ -15,9 +16,13 @@ import {
 import { Roles } from '../../auth/decorators/roles.decorator.js';
 import { CashPaymentService } from './cash-payment.service.js';
 // Import GIÁ TRỊ (không `import type`) cho CollectCashDto: ValidationPipe cần metadata của lớp lúc chạy, nếu không thân không được kiểm
-import { CollectCashDto, type CollectCashResult } from './cash.dto.js';
+import {
+  CollectCashDto,
+  type CashPreview,
+  type CollectCashResult,
+} from './cash.dto.js';
 
-// `POST /reception/appointments/:maLichHen/collect-cash` (payment B6; PLAN 5.7, 5.11 #8). Controller chỉ nhận/trả; logic ở `CashPaymentService`.
+// `POST /reception/appointments/:maLichHen/collect-cash` (payment B6; PLAN 5.7, 5.11 #8) và `GET …/cash-preview` (payment F4; PLAN 5.11 #8a). Controller chỉ nhận/trả; logic ở `CashPaymentService`.
 //  - Cùng tiền tố `reception/appointments` với booking; đoạn `:maLichHen/collect-cash` không đụng route nào của booking.
 //  - `@Roles('LeTan')` GHI TRÊN route (QTT-01, TTQ-12): Bệnh nhân, Bác sĩ, Quản trị viên 403; guard chạy TRƯỚC pipe nên người sai vai trò gửi mã sai dạng vẫn nhận 403.
 //  - Người thu và chi nhánh CHỈ lấy từ access token (QTT-14); mã sai dạng ⇒ 404 cùng thân (`ParseAppointmentCodePipe`).
@@ -27,6 +32,17 @@ export class CashPaymentController {
   constructor(
     @Inject(CashPaymentService) private readonly service: CashPaymentService,
   ) {}
+
+  // Ba số của hộp "Thu tiền & tiếp đón" (payment F4): chỉ đọc; cùng vai trò, cùng 404 và `no-store` như route ghi
+  @Get(':maLichHen/cash-preview')
+  @Roles('LeTan')
+  @Header('Cache-Control', 'no-store')
+  preview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('maLichHen', ParseAppointmentCodePipe) maLichHen: string,
+  ): Promise<CashPreview> {
+    return this.service.preview(user.accountId, maLichHen);
+  }
 
   @Post(':maLichHen/collect-cash')
   @HttpCode(200)

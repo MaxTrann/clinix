@@ -33,6 +33,17 @@ export interface CashReceipt {
   nguoiThu: string;
 }
 
+/**
+ * `GET /reception/appointments/:maLichHen/cash-preview` (payment F4): ba số của hộp "Thu tiền & tiếp đón" (Figma `492:2`), do MÁY CHỦ tính để web không phải lấy giá trừ còn phải thu
+ * (WTQ-01). `thuTaiQuay` là số Lễ tân gửi lại ở `collect-cash`; số thật vẫn được tính lại dưới khoá lịch (lệch ⇒ `SO_TIEN_KHONG_KHOP`).
+ */
+export interface CashPreview {
+  maLichHen: string;
+  giaKham: string;
+  daThanhToanTruoc: string;
+  thuTaiQuay: string;
+}
+
 export interface CollectCashResult {
   maLichHen: string;
   trangThai: 'DaTiepDon';

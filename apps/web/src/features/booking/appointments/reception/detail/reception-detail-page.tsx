@@ -1,7 +1,12 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
+import { CashCollectDialog } from '../../../../payment';
 import { RECEPTION_APPOINTMENTS_PATH } from '../../../../../shared/routes/booking-paths';
 import { LoadingState } from '../../../../../shared/ui/loading-state';
+import {
+  formatVietnamShortDate,
+  formatVietnamTime,
+} from '../../common/appointment-format';
 import { DetailFailure } from '../../common/detail-failure';
 import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
 import { readListSearch } from '../../common/list-search';
@@ -37,6 +42,10 @@ export function ReceptionDetailPage({ maLichHen }: { maLichHen: string }) {
     fallbackFocusRef: headingRef,
   });
   const dialog = actions.dialog;
+  // Hộp "Thu tiền & tiếp đón" của `payment` (payment F4, Figma `492:2`): mở bằng nút trong thẻ `Thao tác`; nút đã bấm nhận lại tiêu điểm khi hộp đóng.
+  // Không chung máy trạng thái với ba thao tác của booking (hộp tự gọi API của payment); trang chỉ tải lại chi tiết khi hộp báo dữ liệu đã đổi.
+  const [collecting, setCollecting] = useState(false);
+  const collectTriggerRef = useRef<HTMLElement | null>(null);
 
   return (
     <DetailPageFrame
@@ -93,11 +102,29 @@ export function ReceptionDetailPage({ maLichHen }: { maLichHen: string }) {
                   handlers={actions.handlers}
                   busy={actions.busy}
                   sending={actions.sendingCheckIn}
+                  onCollect={(trigger) => {
+                    collectTriggerRef.current = trigger;
+                    setCollecting(true);
+                  }}
                 />
               </>
             }
           />
         </div>
+      )}
+      {collecting && ready !== null && (
+        <CashCollectDialog
+          maLichHen={maLichHen}
+          appointment={{
+            nguoiKham: ready.data.nguoiKham.hoTen,
+            // Figma `492:540`: "18/10 lúc 08:00" (giờ Việt Nam)
+            thoiGian: `${formatVietnamShortDate(ready.data.thoiGian)} lúc ${formatVietnamTime(ready.data.thoiGian)}`,
+            bacSi: ready.data.bacSi,
+          }}
+          returnFocusRef={collectTriggerRef}
+          onClose={() => setCollecting(false)}
+          onChanged={reload}
+        />
       )}
       {/* Hộp đang mở: dựng ở cấp trang, KHÔNG phụ thuộc `ready` (chi tiết có thể đang tải lại hay lỗi 404 trong lúc hộp còn hiện câu lỗi) */}
       {dialog !== null &&

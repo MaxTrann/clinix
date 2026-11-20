@@ -19,6 +19,8 @@ import {
 //   POST /reception/appointments/:ma/status  (F9) route ghi của Lễ tân: mặc định 200 `{ maLichHen, trangThai }` (`DaHuy` thêm `hoanCoc` = `api.cancelRefund`) và ĐỔI trạng thái của
 //                          lịch trong `details` và `appointments` (nên lần GET chi tiết và danh sách sau đó thấy trạng thái mới, `chuyenDuoc` rỗng); `failNext('status', …)` thay phản hồi
 //                          (lỗi `apiErrorResponse`, 502, ném lỗi mạng, hay treo bằng `holdResponse`). Mã không có ⇒ 404 `KHONG_TIM_THAY` như B12. Thân đã gửi ghi vào `requests[].body`.
+//   GET /reception/appointments/:ma/cash-preview, POST …/collect-cash  (payment F4) hai route của hộp "Thu tiền & tiếp đón": xem trước trả giá của chi tiết, `api.cashPaidBefore`
+//                          và `conPhaiThu` của chi tiết; thu mặc định 200 kèm phiếu thu và ĐỔI lịch sang `DaTiepDon` (như B6); `failNext('cash', …)` thay phản hồi của lời gọi kế tiếp.
 // Ghi MỌI lời gọi vào `requests` (kể cả đường dẫn chuyển đi), kèm query, thân (lời gọi ghi) và việc có gắn Authorization hay không.
 
 type FetchLike = (
@@ -28,11 +30,12 @@ type FetchLike = (
 type Override = (init?: RequestInit) => Response | Promise<Response>;
 
 export type ReceptionFakeRoute =
-  'list' | 'detail' | 'specialties' | 'doctors' | 'status';
+  'list' | 'detail' | 'specialties' | 'doctors' | 'status' | 'cash';
 
 const LIST_PATH = '/reception/appointments';
 const DETAIL_PREFIX = `${LIST_PATH}/`;
 const STATUS_SUFFIX = '/status';
+const CASH_SUFFIXES = ['/cash-preview', '/collect-cash'] as const;
 const PUBLIC_PATHS: Readonly<Record<string, 'specialties' | 'doctors'>> = {
   '/public/specialties': 'specialties',
   '/public/doctors': 'doctors',
@@ -123,6 +126,7 @@ export function createFakeReceptionApi(delegate: FetchLike) {
     specialties: [],
     doctors: [],
     status: [],
+    cash: [],
   };
 
   const api = {
@@ -140,6 +144,8 @@ export function createFakeReceptionApi(delegate: FetchLike) {
       tyLe: number;
       soTien: string;
     } | null,
+    // "Đã thanh toán trước" mà bản xem trước của hộp thu tiền trả (payment F4)
+    cashPaidBefore: '100000.00',
 
     // Lần gọi kế tiếp tới `route` dùng phản hồi này (lỗi `apiErrorResponse`, `Response` 502, ném lỗi mạng, hoặc treo)
     failNext(route: ReceptionFakeRoute, override: Override) {
@@ -172,6 +178,11 @@ export function createFakeReceptionApi(delegate: FetchLike) {
       api.requests.push(request);
 
       if (isStatusCall(request)) return api.serveStatus(request, init);
+      const cashSuffix = CASH_SUFFIXES.find((suffix) =>
+        request.path.endsWith(suffix),
+      );
+      if (request.path.startsWith(DETAIL_PREFIX) && cashSuffix !== undefined)
+        return api.serveCash(request, cashSuffix, init);
 
       const route: ReceptionFakeRoute | undefined =
         request.path === LIST_PATH
@@ -212,6 +223,49 @@ export function createFakeReceptionApi(delegate: FetchLike) {
       return jsonResponse(api[route]);
     },
 
+    // payment F4: hai route của hộp thu tiền. Không có lịch ⇒ 404 như B6
+    serveCash(
+      request: FakeRequest,
+      suffix: (typeof CASH_SUFFIXES)[number],
+      init?: RequestInit,
+    ) {
+      const override = overrides.cash.shift();
+      if (override) return override(init);
+      const code = decodeURIComponent(
+        request.path.slice(DETAIL_PREFIX.length, -suffix.length),
+      ).toUpperCase();
+      const row = (api.appointments as ReceptionAppointment[]).find(
+        (item) => item.maLichHen === code,
+      );
+      const current = (api.details[code] ??
+        (row && makeReceptionDetail(row))) as
+        ReceptionAppointmentDetail | undefined;
+      if (current === undefined) return apiErrorResponse(404, 'KHONG_TIM_THAY');
+      const money = {
+        giaKham: current.giaSnapshot,
+        daThanhToanTruoc: api.cashPaidBefore,
+        thuTaiQuay: current.conPhaiThu ?? '0.00',
+      };
+      if (suffix === '/cash-preview')
+        return jsonResponse({ maLichHen: code, ...money });
+      api.details[code] = {
+        ...current,
+        trangThai: 'DaTiepDon',
+        chuyenDuoc: [],
+        conPhaiThu: null,
+      };
+      if (row !== undefined) row.trangThai = 'DaTiepDon';
+      return jsonResponse({
+        maLichHen: code,
+        trangThai: 'DaTiepDon',
+        phieuThu: {
+          soPhieu: '77',
+          ...money,
+          thoiDiem: '2026-10-18T01:05:00.000Z',
+          nguoiThu: 'Lễ Tân Mẫu',
+        },
+      });
+    },
     // Route ghi: kết quả do `failNext('status', …)` nếu có, không thì thành công và ĐỔI trạng thái của lịch
     serveStatus(request: FakeRequest, init?: RequestInit) {
       const override = overrides.status.shift();

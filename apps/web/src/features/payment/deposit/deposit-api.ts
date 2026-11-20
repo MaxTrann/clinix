@@ -1,6 +1,12 @@
 import { request } from '../../../shared/api/client';
-import { UnexpectedResponseError } from '../../../shared/api/errors';
-import { isDecimalAmount } from '../../../shared/money/format-vnd';
+import {
+  invalid,
+  readAmount,
+  readBoolean,
+  readIso,
+  readRecord,
+  readText,
+} from '../api/read-json';
 
 // Hai API thanh toán cọc bằng ví của Bệnh nhân (payment F3; hợp đồng B5, PLAN 5.5, 5.11 #6, #7). Gắn access token (mặc định của `request()`); chủ lịch backend lấy từ token,
 // web KHÔNG gửi `benhNhanId`, `viNoiBoId` hay `soTien`: thân POST là `{}` (Q14, QTT-03). Phản hồi sai hình dạng ⇒ `UnexpectedResponseError`.
@@ -28,28 +34,6 @@ export interface DepositPaymentResult {
   daXuLyTruocDo: boolean;
 }
 
-const invalid = (): never => {
-  throw new UnexpectedResponseError(200);
-};
-
-function readRecord(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    return invalid();
-  return value as Record<string, unknown>;
-}
-
-// Tiền: chỉ nhận chuỗi decimal, KHÔNG nhận `number` (số qua JSON có thể đã mất chính xác)
-const readAmount = (value: unknown): string =>
-  typeof value === 'string' && isDecimalAmount(value) ? value : invalid();
-
-const readBoolean = (value: unknown): boolean =>
-  typeof value === 'boolean' ? value : invalid();
-
-const readIso = (value: unknown): string =>
-  typeof value === 'string' && !Number.isNaN(Date.parse(value))
-    ? value
-    : invalid();
-
 export function parseDepositPreview(raw: unknown): DepositPreview {
   const body = readRecord(raw);
   const duSoDu = readBoolean(body.duSoDu);
@@ -68,10 +52,8 @@ export function parseDepositPreview(raw: unknown): DepositPreview {
 export function parseDepositPaymentResult(raw: unknown): DepositPaymentResult {
   const body = readRecord(raw);
   if (body.trangThai !== 'DaXacNhan') return invalid();
-  const maLichHen = body.maLichHen;
-  if (typeof maLichHen !== 'string' || maLichHen === '') return invalid();
   return {
-    maLichHen,
+    maLichHen: readText(body.maLichHen),
     trangThai: 'DaXacNhan',
     soTien: readAmount(body.soTien),
     soDuKhaDung: readAmount(body.soDuKhaDung),

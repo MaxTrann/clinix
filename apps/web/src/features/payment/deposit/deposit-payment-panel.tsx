@@ -17,6 +17,7 @@ import {
   type DepositPreview,
 } from './deposit-api';
 import { DEPOSIT_TEXT, type DepositErrorCode } from './deposit-text';
+import { PaymentNotice, type PaymentNoticeTone } from '../ui/payment-notice';
 
 // Thành phần thanh toán cọc bằng ví (payment F3; Figma `452:2`, khối "Số tiền cần thanh toán" `452:185` và nút `452:207`). Trang Bước Thanh toán của booking F6 (Đại) gắn
 // thành phần này và tự lo đồng hồ giữ chỗ, khung tóm tắt lịch, nút "Quay lại xác nhận" (Q19). Hai thẻ "Thanh toán cọc / toàn bộ" của Figma KHÔNG làm: chỉ cọc (Q14).
@@ -63,25 +64,18 @@ function outcomeFromPayError(error: unknown): Outcome {
   return { kind: 'retry', message: DEPOSIT_TEXT.genericError, tone: 'danger' };
 }
 
+// Khoảng cách và bo góc theo frame Figma của thành phần này
 function Notice({
   tone,
   children,
 }: {
-  tone: 'danger' | 'warning' | 'success';
+  tone: PaymentNoticeTone;
   children: ReactNode;
 }) {
-  const toneClass = {
-    danger: 'border-danger-line bg-danger-soft text-danger-strong',
-    warning: 'border-warning-line bg-warning-soft text-warning',
-    success: 'border-success-line bg-success-soft text-success',
-  }[tone];
   return (
-    <div
-      role={tone === 'success' ? 'status' : 'alert'}
-      className={`mt-[18.75px] rounded-[10px] border px-[15px] py-[11.25px] text-[13px] leading-[19.5px] ${toneClass}`}
-    >
+    <PaymentNotice tone={tone} className="mt-[18.75px] rounded-[10px]">
       {children}
-    </div>
+    </PaymentNotice>
   );
 }
 
