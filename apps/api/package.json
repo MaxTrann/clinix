@@ -33,7 +33,8 @@
     "seed:config-dev": "nest build && node dist/database/seeds/seed.js config-dev",
     "seed:search-demo": "nest build && node dist/database/seeds/seed.js search-demo",
     "seed:doctor-demo": "nest build && node dist/database/seeds/seed.js doctor-demo",
-    "seed:exam-demo": "nest build && node dist/database/seeds/seed.js exam-demo"
+    "seed:exam-demo": "nest build && node dist/database/seeds/seed.js exam-demo",
+    "seed:payment-demo": "nest build && node dist/database/seeds/seed.js payment-demo"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
