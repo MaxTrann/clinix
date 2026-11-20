@@ -40,7 +40,7 @@ async function openDetail(name = 'Trần Văn C') {
 }
 
 describe('màn Quản lý tài chính ví (payment F7)', () => {
-  it('WQL-01 ba tab của Figma; hai tab sau "đang phát triển" và KHÔNG gọi API rút tiền khi đang mở', async () => {
+  it('WQL-01 ba tab của Figma; tab Hoàn tiền đặc biệt "đang phát triển"; tab Nạp ví chưa cộng (F9) gọi API của nó; KHÔNG gọi lại API rút tiền khi đang mở tab khác', async () => {
     const api = installFakeAdminWithdrawalApi();
     render(<FinancePage />);
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
@@ -56,7 +56,10 @@ describe('màn Quản lý tài chính ví (payment F7)', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Nạp ví chưa cộng' }));
     expect(
       screen.getByRole('tabpanel', { name: 'Nạp ví chưa cộng' }),
-    ).toHaveTextContent('Chức năng đang được phát triển.');
+    ).not.toHaveTextContent('Chức năng đang được phát triển.');
+    await waitFor(() =>
+      expect(api.gets('/admin/payment/unposted-topups')).toHaveLength(1),
+    );
     expect(api.gets()).toHaveLength(1);
   });
 

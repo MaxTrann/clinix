@@ -1,10 +1,11 @@
 import { Wallet } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import { FINANCE_TEXT } from './finance-text';
+import { UnpostedTopupTab } from './unposted-topup-tab';
 import { WithdrawalTab } from './withdrawal-tab';
 
 // Màn "Quản lý tài chính ví" của Quản trị viên toàn hệ thống (payment F7; Figma `549:2`). Ba tab; F7 làm tab "Yêu cầu rút tiền", hai tab còn lại do F8 (hoàn tiền đặc biệt)
-// và F9 (nạp ví chưa cộng) thay câu "đang phát triển". Tab đang chọn là state của trang, không vào URL. Cổng `ToanHeThong` ở route (`finance-routes.tsx`, Q10).
+// và F9 (nạp ví chưa cộng, đã làm) thay câu "đang phát triển". Tab đang chọn là state của trang, không vào URL. Cổng `ToanHeThong` ở route (`finance-routes.tsx`, Q10).
 type TabKey = 'withdrawals' | 'specialRefunds' | 'unpostedTopups';
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -19,7 +20,7 @@ export function FinancePage() {
   const content: Record<TabKey, ReactNode> = {
     withdrawals: <WithdrawalTab />,
     specialRefunds: undefined,
-    unpostedTopups: undefined,
+    unpostedTopups: <UnpostedTopupTab />,
   };
 
   return (

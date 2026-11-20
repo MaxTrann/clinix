@@ -62,43 +62,26 @@ export const adminError = (status: number, maLoi: string): AdminReply => ({
 
 const PREFIX = '/admin/wallet/withdrawals';
 
-export function installFakeAdminWithdrawalApi() {
+/**
+ * Cài `fetch` giả dùng chung cho API Quản trị viên của ví (F7 rút tiền, F9 nạp ví chưa cộng): ghi lại mọi lời gọi; `route` chọn câu trả lời theo phương thức, đường dẫn (đã bỏ `/api`),
+ * query và thân.
+ */
+export function installFakeAdminFetch(
+  route: (req: AdminRequest) => AdminReply,
+) {
   const requests: AdminRequest[] = [];
-  const handlers = {
-    list: (query: Record<string, string>): AdminReply => {
-      void query;
-      return { body: listPage([item()]) };
-    },
-    detail: (id: string): AdminReply => {
-      void id;
-      return { body: detail() };
-    },
-    approve: (id: string): AdminReply => ({
-      body: { maYeuCau: id, trangThai: 'DaDuyet' },
-    }),
-    reject: (id: string, body: unknown): AdminReply => {
-      void body;
-      return { body: { maYeuCau: id, trangThai: 'TuChoi' } };
-    },
-  };
-
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input), 'http://web.invalid');
-      const path = url.pathname.replace(/^\/api/, '');
-      const method = init?.method ?? 'GET';
-      const body: unknown =
-        typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
-      const query = Object.fromEntries(url.searchParams);
-      requests.push({ method, path, query, body });
-
-      const [id, action] = path.slice(PREFIX.length + 1).split('/');
-      let reply: AdminReply;
-      if (path === PREFIX) reply = handlers.list(query);
-      else if (action === 'approve') reply = handlers.approve(id ?? '');
-      else if (action === 'reject') reply = handlers.reject(id ?? '', body);
-      else reply = handlers.detail(id ?? '');
-
+      const req: AdminRequest = {
+        method: init?.method ?? 'GET',
+        path: url.pathname.replace(/^\/api/, ''),
+        query: Object.fromEntries(url.searchParams),
+        body:
+          typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+      };
+      requests.push(req);
+      const reply = route(req);
       if ('network' in reply) throw new TypeError('Failed to fetch');
       const settled =
         'hold' in reply ? await untilAborted(reply.hold, init?.signal) : reply;
@@ -116,10 +99,41 @@ export function installFakeAdminWithdrawalApi() {
   vi.stubGlobal('fetch', fetchMock);
   return {
     requests,
-    handlers,
     posts: () => requests.filter((r) => r.method === 'POST'),
-    gets: (path = PREFIX) =>
+    gets: (path: string) =>
       requests.filter((r) => r.method === 'GET' && r.path === path),
+  };
+}
+
+export function installFakeAdminWithdrawalApi() {
+  const handlers = {
+    list: (query: Record<string, string>): AdminReply => {
+      void query;
+      return { body: listPage([item()]) };
+    },
+    detail: (id: string): AdminReply => {
+      void id;
+      return { body: detail() };
+    },
+    approve: (id: string): AdminReply => ({
+      body: { maYeuCau: id, trangThai: 'DaDuyet' },
+    }),
+    reject: (id: string, body: unknown): AdminReply => {
+      void body;
+      return { body: { maYeuCau: id, trangThai: 'TuChoi' } };
+    },
+  };
+  const fake = installFakeAdminFetch(({ path, query, body }) => {
+    const [id, action] = path.slice(PREFIX.length + 1).split('/');
+    if (path === PREFIX) return handlers.list(query);
+    if (action === 'approve') return handlers.approve(id ?? '');
+    if (action === 'reject') return handlers.reject(id ?? '', body);
+    return handlers.detail(id ?? '');
+  });
+  return {
+    ...fake,
+    handlers,
+    gets: (path = PREFIX) => fake.gets(path),
   };
 }
 
