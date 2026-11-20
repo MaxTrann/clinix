@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SystemConfigModule } from '../admin/system-config/system-config.module.js';
 import { AppointmentsModule } from '../appointments/appointments.module.js';
+import { AuditModule } from '../audit/audit.module.js';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { WalletModule } from '../wallet/wallet.module.js';
 import { CashPaymentController } from './cash/cash-payment.controller.js';
@@ -17,6 +18,9 @@ import { IpnService } from './gateway/ipn/ipn.service.js';
 import { VnpayIpnController } from './gateway/ipn/vnpay-ipn.controller.js';
 import { PaymentPolicyModule } from './policy/payment-policy.module.js';
 import { PaymentPortsModule } from './ports/payment-ports.module.js';
+import { AdminUnpostedTopupController } from './reconcile/admin-unposted-topup.controller.js';
+import { AdminUnpostedTopupRepository } from './reconcile/admin-unposted-topup.repository.js';
+import { AdminUnpostedTopupService } from './reconcile/admin-unposted-topup.service.js';
 import { ReconcileRepository } from './reconcile/reconcile.repository.js';
 import { ReconcileService } from './reconcile/reconcile.service.js';
 import { TopupReconcileJob } from './reconcile/topup-reconcile.job.js';
@@ -33,6 +37,7 @@ import { TopupService } from './topup/topup.service.js';
 // cả hai là module lá, không nhập ngược `PaymentModule`.
 // B4: `topup/` (tạo nạp ví, xem trạng thái) và `gateway/ipn/` (IPN của VNPAY); `GatewayRegistry` tạo MỘT lần lúc khởi động từ biến môi trường (thiếu biến ⇒ cổng "chưa cấu hình", API vẫn chạy).
 // B14: `reconcile/` (job đối soát nạp ví `TopupReconcileJob`, chạy mỗi phút; `ScheduleModule.forRoot()` đã có ở `app.module.ts`).
+// B15: `reconcile/admin-*` (Quản trị viên xử lý nạp ví chưa cộng) nhập `AuditModule` (module lá, nhật ký `XuLyNapViChuaCong`); guard phạm vi đến từ `RbacModule` đã có.
 @Module({
   imports: [
     AppointmentsModule,
@@ -41,12 +46,14 @@ import { TopupService } from './topup/topup.service.js';
     PaymentPolicyModule,
     RbacModule,
     SystemConfigModule,
+    AuditModule,
   ],
   controllers: [
     DepositPaymentController,
     CashPaymentController,
     PatientTopupController,
     VnpayIpnController,
+    AdminUnpostedTopupController,
   ],
   providers: [
     DepositRepository,
@@ -61,6 +68,8 @@ import { TopupService } from './topup/topup.service.js';
     ReconcileRepository,
     ReconcileService,
     TopupReconcileJob,
+    AdminUnpostedTopupRepository,
+    AdminUnpostedTopupService,
   ],
 })
 export class PaymentModule {}

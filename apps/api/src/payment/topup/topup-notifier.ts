@@ -29,6 +29,11 @@ export function buildTopupNeedsAttentionText(giaoDichId: string): string {
   return `Giao dịch nạp ví #${giaoDichId} đã được cổng thanh toán xác nhận nhưng chưa cộng được vào ví sau 3 lần thử tự động. Vui lòng xử lý ở mục Nạp ví chưa cộng.`;
 }
 
+// B15 (`[đề xuất]`): câu cho Bệnh nhân khi Quản trị viên ghi nhận chưa thể xử lý. KHÔNG chép lý do nội bộ của Quản trị viên (có thể nhắc tới cổng hay đối soát nội bộ).
+export function buildTopupUnprocessableText(soTien: string): string {
+  return `Giao dịch nạp ${formatVnd(soTien)}đ vào ví đang được kiểm tra thêm và chưa thể cộng vào ví. Phòng khám sẽ liên hệ với bạn nếu cần.`;
+}
+
 @Injectable()
 export class TopupNotifier {
   async notifySucceeded(
@@ -63,6 +68,18 @@ export class TopupNotifier {
       input.benhNhanId,
       buildTopupReconciledText(input.soTien),
       TOPUP_NOTIFICATION_EVENTS.RECONCILED,
+      input.now,
+    ]);
+  }
+
+  async notifyUnprocessable(
+    em: EntityManager,
+    input: { benhNhanId: string; soTien: string; now: Date },
+  ): Promise<void> {
+    await em.query(INSERT_SQL, [
+      input.benhNhanId,
+      buildTopupUnprocessableText(input.soTien),
+      TOPUP_NOTIFICATION_EVENTS.UNPROCESSABLE,
       input.now,
     ]);
   }

@@ -130,7 +130,7 @@ describe('TopupReconcileJob (payment B14)', () => {
     await assertWalletInvariants(db);
   });
 
-  it('DST-03 ★ ba lần thất bại THẬT (số dư vượt decimal(12,2)) ⇒ dừng, giữ ChoDoiSoat, NapViCanXuLy cho MỌI Quản trị viên ToanHeThong đang hoạt động, đúng một lần', async () => {
+  it('DST-03 ★ (và TDT-03) ba lần thất bại THẬT (số dư vượt decimal(12,2)) ⇒ dừng, giữ ChoDoiSoat, NapViCanXuLy cho MỌI Quản trị viên ToanHeThong đang hoạt động (không ChiNhanh, không tài khoản bị khoá), đúng một lần', async () => {
     const system1 = await wf.admin.admin();
     const system2 = await wf.admin.admin();
     await wf.admin.admin(undefined, { trangThai: 'NgungHoatDong' });
