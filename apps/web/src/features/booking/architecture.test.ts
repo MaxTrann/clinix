@@ -28,8 +28,9 @@ function featureTarget(
 
 // Module ngoài booking được import, CHỈ qua `index.ts` của nó (dừng ở tên thư mục, không đi sâu vào file): `auth` (đăng nhập, vai trò), `admin` (booking F10: `AdminScopeGuard` bọc route và
 // `useAdminScope` cho trang Lịch hẹn của Quản trị viên; Đại duyệt 13/11/2026) và `doctor` (doctor-exam F1: `ExamHeaderActions` cắm vào `headerAside` của trang chi tiết Bác sĩ; Q20 phương án C, Đại 14/11/2026;
-// chiều ngược lại `features/doctor` KHÔNG import booking do WHT-10 khoá). Mọi module khác vẫn cấm.
-const THROUGH_INDEX_ONLY = ['auth', 'admin', 'doctor'];
+// chiều ngược lại `features/doctor` KHÔNG import booking do WHT-10 khoá), `payment` và `wallet` (payment F3, F4 và booking F6: `DepositPaymentPanel` gắn vào Bước Thanh toán, hộp Thu tiền
+// gắn vào tiếp đón; Q19 của PLAN payment, Đại duyệt khi review PR F3; chiều ngược lại `features/payment` KHÔNG import booking do `features/wallet/architecture.test.ts` khoá). Mọi module khác vẫn cấm.
+const THROUGH_INDEX_ONLY = ['auth', 'admin', 'doctor', 'payment', 'wallet'];
 
 function isAllowedImport(
   target: { feature: string; rest: string[] } | null,
@@ -41,7 +42,7 @@ function isAllowedImport(
 }
 
 describe('booking F3 — features/booking không import chéo', () => {
-  it('BWZ-08 chỉ import trong chính booking, shared/, features/auth, features/admin và features/doctor qua index.ts', () => {
+  it('BWZ-08 chỉ import trong chính booking, shared/, features/auth, features/admin, features/doctor, features/payment và features/wallet qua index.ts', () => {
     const files = Object.keys(SOURCES);
     expect(files.length).toBeGreaterThan(10);
 
@@ -75,6 +76,20 @@ describe('booking F3 — features/booking không import chéo', () => {
     expect(allowed('../../../doctor/examination')).toBe(false);
     expect(allowed('../../../doctor/components/modal-frame')).toBe(false);
     expect(allowed('../../../patient')).toBe(false);
+  });
+
+  it('WTT-06 (payment F3) luật nhận payment và wallet CHỈ qua index.ts; đi sâu vào hai module này bị cấm (đối chứng)', () => {
+    const file = './wizard/steps/x.tsx';
+    const allowed = (specifier: string) =>
+      isAllowedImport(featureTarget(file, specifier));
+    expect(allowed('../../../payment')).toBe(true);
+    expect(allowed('../../../wallet')).toBe(true);
+    expect(allowed('../../../payment/deposit/deposit-payment-panel')).toBe(
+      false,
+    );
+    expect(allowed('../../../payment/deposit/deposit-api')).toBe(false);
+    expect(allowed('../../../wallet/api/wallet-api')).toBe(false);
+    expect(allowed('../../../wallet/patient/wallet-page')).toBe(false);
   });
 
   it('BWZ-08 bộ quét có tác dụng: nhận ra import chéo và import sâu vào auth (đối chứng)', () => {

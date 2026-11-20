@@ -5,3 +5,9 @@ export { ADMIN_DEPOSIT_POLICY_ROUTES } from './policy/policy-routes';
 // "features không import chéo": `wallet` chỉ được import `payment` QUA file này (khoá bằng `features/wallet/architecture.test.ts`; Trung chọn 18/11/2026).
 export { TopupPanel, type TopupPanelProps } from './topup/topup-panel';
 export { TopupResultPage } from './topup/topup-result-page';
+// F3: thành phần thanh toán cọc bằng ví; trang Bước Thanh toán của booking F6 (Đại) gắn vào và nhận `onPaid` qua props. Booking chỉ import qua file này (BWZ-08, Q19).
+export {
+  DepositPaymentPanel,
+  type DepositPaymentPanelProps,
+} from './deposit/deposit-payment-panel';
+export type { DepositPaymentResult } from './deposit/deposit-api';

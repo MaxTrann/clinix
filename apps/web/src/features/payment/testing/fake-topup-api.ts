@@ -47,18 +47,14 @@ function withAbort<T>(
   });
 }
 
-export function installFakeTopupApi() {
+/**
+ * Cài `fetch` giả dùng chung cho API giả của payment (F2 nạp ví, F3 thanh toán cọc): ghi lại mọi lời gọi, `route` chọn câu trả lời theo phương thức và đường dẫn
+ * (đã bỏ tiền tố `/api`); trả `null` ⇒ 404 `KHONG_TIM_THAY`.
+ */
+export function installFakePaymentFetch(
+  route: (method: string, path: string) => TopupReply | null,
+) {
   const calls: TopupCall[] = [];
-  const handlers = {
-    create: (): TopupReply => ({
-      status: 201,
-      body: { maGiaoDich: '42', redirectUrl: SANDBOX_URL },
-    }),
-    status: (id: string): TopupReply => ({
-      body: statusBody({ maGiaoDich: id }),
-    }),
-  };
-
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input), 'http://web.invalid');
@@ -70,14 +66,7 @@ export function installFakeTopupApi() {
         body:
           typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
       });
-      let reply: TopupReply;
-      const match = /^\/patient\/wallet\/topups\/(.+)$/.exec(path);
-      if (method === 'POST' && path === '/patient/wallet/topups')
-        reply = handlers.create();
-      else if (method === 'GET' && match)
-        reply = handlers.status(decodeURIComponent(match[1] ?? ''));
-      else reply = apiError(404, 'KHONG_TIM_THAY');
-
+      const reply = route(method, path) ?? apiError(404, 'KHONG_TIM_THAY');
       if ('network' in reply) throw new TypeError('Failed to fetch');
       // Như `fetch` thật: bị huỷ (client hết giờ) thì từ chối ngay, kể cả khi phản hồi đang treo
       const settled =
@@ -94,7 +83,28 @@ export function installFakeTopupApi() {
     recoverFromUnauthorized: async () => false,
   });
   vi.stubGlobal('fetch', fetchMock);
-  return { calls, handlers, fetchMock };
+  return { calls, fetchMock };
+}
+
+export function installFakeTopupApi() {
+  const handlers = {
+    create: (): TopupReply => ({
+      status: 201,
+      body: { maGiaoDich: '42', redirectUrl: SANDBOX_URL },
+    }),
+    status: (id: string): TopupReply => ({
+      body: statusBody({ maGiaoDich: id }),
+    }),
+  };
+  const fake = installFakePaymentFetch((method, path) => {
+    const match = /^\/patient\/wallet\/topups\/(.+)$/.exec(path);
+    if (method === 'POST' && path === '/patient/wallet/topups')
+      return handlers.create();
+    if (method === 'GET' && match)
+      return handlers.status(decodeURIComponent(match[1] ?? ''));
+    return null;
+  });
+  return { ...fake, handlers };
 }
 
 export function cleanUpFakeTopupApi() {
