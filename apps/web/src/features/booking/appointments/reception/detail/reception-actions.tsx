@@ -76,23 +76,24 @@ function ActionButton(props: {
   );
 }
 
-// `Thu tiền & tiếp đón` (chữ Figma `488:2`) thuộc `payment`, chưa có: nút LUÔN vô hiệu kèm chữ HIỆN "Chưa được triển khai" (LTN-05). Hiện khi lịch `DaXacNhan` mà còn phải
-// thu: kiểm trên CHUỖI decimal (`isPositiveAmount`, không `Number`). Đây là điều kiện hiển thị của MỘT nút chưa có hành động, không phải ma trận chuyển trạng thái.
-function CollectButton() {
+// `Thu tiền & tiếp đón` (chữ Figma `488:2`): mở hộp của `payment` (payment F4, LTN-05 hết vô hiệu; trang truyền `onCollect`). Hiện khi lịch `DaXacNhan` mà còn phải
+// thu: kiểm trên CHUỖI decimal (`isPositiveAmount`, không `Number`). Đây là điều kiện HIỂN THỊ, không phải ma trận chuyển trạng thái: hợp lệ hay không do máy chủ quyết
+// (`collect-cash` trả lỗi theo mã). Không có `onCollect` (nơi dùng chưa gắn hộp) thì vô hiệu; `busy` vô hiệu như các nút khác.
+function CollectButton(props: {
+  onClick?: (trigger: HTMLButtonElement) => void;
+  busy: boolean;
+}) {
+  const { onClick } = props;
   return (
-    <div>
-      <button
-        type="button"
-        disabled
-        className={`${BUTTON} border border-warning-line bg-warning-soft text-warning`}
-      >
-        <UserCheck aria-hidden="true" className="size-4" />
-        Thu tiền &amp; tiếp đón
-      </button>
-      <p className="mt-1 text-center text-xs text-gray-600">
-        {DETAIL_TEXT.notImplemented}
-      </p>
-    </div>
+    <button
+      type="button"
+      disabled={onClick === undefined || props.busy}
+      onClick={onClick && ((event) => onClick(event.currentTarget))}
+      className={`${BUTTON} bg-warning text-white hover:bg-amber-800`}
+    >
+      <UserCheck aria-hidden="true" className="size-4" />
+      Thu tiền &amp; tiếp đón
+    </button>
   );
 }
 
@@ -102,6 +103,8 @@ export function ReceptionActions(props: {
   busy?: boolean;
   // Đích đang được gửi (kèm chữ đổi trên nút đó)
   sending?: { target: ReceptionTarget; label: string } | null;
+  // Mở hộp "Thu tiền & tiếp đón" của `payment` (payment F4), nhận nút đã bấm để hộp trả tiêu điểm về
+  onCollect?: (trigger: HTMLButtonElement) => void;
 }) {
   const { detail } = props;
   const headingId = useId();
@@ -134,7 +137,7 @@ export function ReceptionActions(props: {
         aria-labelledby={headingId}
         className="space-y-2 px-5 py-4"
       >
-        {showCollect && <CollectButton />}
+        {showCollect && <CollectButton onClick={props.onCollect} busy={busy} />}
         {checkIn && (
           <ActionButton
             target="DaTiepDon"

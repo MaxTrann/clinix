@@ -43,8 +43,6 @@ export const DETAIL_TEXT = {
   noReason: 'Không ghi lý do',
   // Nút chưa có hành động tới F9 (B12 chưa merge): vô hiệu kèm chữ ẩn cho trình đọc màn hình
   notImplementedHidden: '(chưa được triển khai)',
-  // `Thu tiền & tiếp đón` thuộc `payment` (LTN-05): vô hiệu kèm chữ HIỆN
-  notImplemented: 'Chưa được triển khai',
 } as const;
 
 // "Hạn thanh toán": "Thứ 3, 20/10/2026 · 08:00" (Figma ghi "18/10 · 08:00"; thêm thứ và năm vì API có đủ: [đề xuất])

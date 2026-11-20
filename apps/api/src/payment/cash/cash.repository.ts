@@ -3,10 +3,15 @@ import type { EntityManager } from 'typeorm';
 
 // SQL thô của thu tiền mặt tại quầy (payment B6; PLAN 5.7, E7). KHÔNG `UPDATE lich_hen` hay `khung_gio` (QTT-08: `checkIn` của booking là nơi duy nhất đổi trạng thái lịch). Không ghi log.
 
-/** Lịch theo mã, ĐỌC THƯỜNG (không khoá) để kiểm chi nhánh TRƯỚC `checkIn` (`chi_nhanh_id` là snapshot bất biến của lịch nên đọc một lần là đủ). */
+/**
+ * Lịch theo mã, ĐỌC THƯỜNG (không khoá) để kiểm chi nhánh TRƯỚC `checkIn` (`chi_nhanh_id` là snapshot bất biến của lịch nên đọc một lần là đủ).
+ * `giaSnapshot` và `trangThai` chỉ dùng cho bản xem trước của hộp thu tiền (payment F4); đường ghi kiểm lại trạng thái và số tiền dưới khoá.
+ */
 export interface CashAppointmentRow {
   lichHenId: string;
   chiNhanhId: string;
+  giaSnapshot: string;
+  trangThai: string;
 }
 
 @Injectable()
@@ -16,7 +21,9 @@ export class CashRepository {
     maLichHen: string,
   ): Promise<CashAppointmentRow | null> {
     const rows = await em.query<CashAppointmentRow[]>(
-      'SELECT CAST(lich_hen_id AS CHAR) AS lichHenId, CAST(chi_nhanh_id AS CHAR) AS chiNhanhId FROM lich_hen WHERE ma_lich_hen = ?',
+      `SELECT CAST(lich_hen_id AS CHAR) AS lichHenId, CAST(chi_nhanh_id AS CHAR) AS chiNhanhId,
+              CAST(gia_snapshot AS CHAR) AS giaSnapshot, trang_thai AS trangThai
+       FROM lich_hen WHERE ma_lich_hen = ?`,
       [maLichHen],
     );
     return rows[0] ?? null;

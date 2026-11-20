@@ -287,6 +287,108 @@ describe('từ chối, không ghi gì', () => {
   });
 });
 
+describe('payment F4 — bản xem trước của hộp thu tiền (GET cash-preview), chỉ đọc', () => {
+  const preview = (
+    w: CashWorld,
+    maLichHen: string,
+    accountId = w.receptionId,
+  ) => w.service.preview(accountId, maLichHen);
+
+  it('TTQ-16 ★ ba số do máy chủ tính: giá 300.000, đã cọc 100.000 qua ví ⇒ đã thanh toán trước 100.000, thu tại quầy 200.000; không ghi gì, lịch giữ DaXacNhan', async () => {
+    const w = await world();
+    const lich = await w.appointment(0, { coc: '100000.00' });
+
+    expect(await preview(w, lich.maLichHen)).toStrictEqual({
+      maLichHen: lich.maLichHen,
+      giaKham: '300000.00',
+      daThanhToanTruoc: '100000.00',
+      thuTaiQuay: '200000.00',
+    });
+    expect(await stateOf(db, lich.lichHenId)).toBe('DaXacNhan');
+    expect(await cashRows(db)).toEqual([]);
+    // Số xem trước đúng là số `collect` nhận
+    await expect(collect(w, lich.maLichHen, '200000')).resolves.toMatchObject({
+      trangThai: 'DaTiepDon',
+    });
+  });
+
+  it('TTQ-16 chưa cọc ⇒ đã thanh toán trước 0, thu tại quầy = giá; lịch trong chuỗi đổi lịch tính theo cả chuỗi (cọc ở lịch gốc)', async () => {
+    const w = await world();
+    const plain = await w.appointment(2);
+    expect(await preview(w, plain.maLichHen)).toMatchObject({
+      daThanhToanTruoc: '0.00',
+      thuTaiQuay: '300000.00',
+    });
+
+    const root = await w.appointment(1, {
+      trangThai: 'DaDoiLich',
+      coc: '100000.00',
+    });
+    const leaf = await w.appointment(0);
+    await db.query(
+      'UPDATE lich_hen SET lich_hen_truoc_id = ? WHERE lich_hen_id = ?',
+      [root.lichHenId, leaf.lichHenId],
+    );
+    expect(await preview(w, leaf.maLichHen)).toMatchObject({
+      giaKham: '300000.00',
+      daThanhToanTruoc: '100000.00',
+      thuTaiQuay: '200000.00',
+    });
+  });
+
+  it('TTQ-16 không kiểm cửa sổ tiếp đón (collect kiểm dưới khoá): ngoài khung giờ vẫn xem được', async () => {
+    const w = await world();
+    const lich = await w.appointment(0);
+    vi.setSystemTime(new Date(WINDOW_END.getTime() + 60_000));
+    await expect(preview(w, lich.maLichHen)).resolves.toMatchObject({
+      thuTaiQuay: '300000.00',
+    });
+  });
+
+  it('TTQ-17 ★ lịch ngoài chi nhánh của Lễ tân ⇒ 404 CÙNG thân với lịch không tồn tại; Lễ tân bị khoá ⇒ 403 KHONG_DU_QUYEN', async () => {
+    const w = await world();
+    const lich = await w.appointment(0);
+
+    const outside = await failureOf(
+      preview(w, lich.maLichHen, w.otherReceptionId),
+    );
+    const missing = await failureOf(preview(w, 'CLX-20261110-ZZZZZ'));
+    expect(outside).toStrictEqual(missing);
+    expect(outside.status).toBe(404);
+    expect(outside.body.maLoi).toBe('KHONG_TIM_THAY');
+
+    await db.query(
+      "UPDATE tai_khoan SET trang_thai = 'NgungHoatDong' WHERE tai_khoan_id = ?",
+      [w.receptionId],
+    );
+    const locked = await failureOf(preview(w, lich.maLichHen));
+    expect(locked.status).toBe(403);
+    expect(locked.body.maLoi).toBe('KHONG_DU_QUYEN');
+  });
+
+  it.each(['DaTiepDon', 'DaHuy', 'VangMat'] as const)(
+    'TTQ-18 lịch %s ⇒ 409 LICH_HEN_KHONG_CHO_THU_TIEN kèm trạng thái (cùng mã với collect)',
+    async (trangThai) => {
+      const w = await world();
+      const lich = await w.appointment(0, { trangThai });
+      const failure = await failureOf(preview(w, lich.maLichHen));
+      expect(failure.status).toBe(409);
+      expect(failure.body).toMatchObject({
+        maLoi: 'LICH_HEN_KHONG_CHO_THU_TIEN',
+        chiTiet: { trangThai },
+      });
+    },
+  );
+
+  it('TTQ-18 đã trả đủ bằng ví (còn phải thu 0) ⇒ 409 KHONG_CON_PHAI_THU', async () => {
+    const w = await world();
+    const lich = await w.appointment(0, { gia: '100000.00', coc: '100000.00' });
+    const failure = await failureOf(preview(w, lich.maLichHen));
+    expect(failure.status).toBe(409);
+    expect(failure.body.maLoi).toBe('KHONG_CON_PHAI_THU');
+  });
+});
+
 describe('TTQ-11 lưới thứ hai ở DB (CHECK chk_gd_tien_mat_nguoi_thu, khoá ngoại nguoi_thu_id → le_tan)', () => {
   it.each([
     ['thiếu nguoi_thu_id', { nguoiThu: null, soTien: '1000.00', cong: null }],

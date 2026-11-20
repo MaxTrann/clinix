@@ -210,3 +210,41 @@ describe('TTQ-12, QTT-04 quyền và phạm vi', () => {
     expect(await cashRows(h.db)).toEqual([]);
   });
 });
+
+describe('TTQ-19 GET cash-preview qua HTTP (payment F4)', () => {
+  const get = (code: string, accessToken?: string) => {
+    const req = request(h.app.getHttpServer()).get(
+      `/reception/appointments/${code}/cash-preview`,
+    );
+    return accessToken
+      ? req.set('Authorization', `Bearer ${accessToken}`)
+      : req;
+  };
+
+  it('200 đúng bốn khoá do máy chủ tính, no-store; không ghi gì', async () => {
+    const t = await world();
+    const res = await get(t.code, t.reception);
+    expect(res.status).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.body).toStrictEqual({
+      maLichHen: t.code,
+      giaKham: '300000.00',
+      daThanhToanTruoc: '100000.00',
+      thuTaiQuay: '200000.00',
+    });
+    expect(await cashRows(h.db)).toEqual([]);
+  });
+
+  it('Bệnh nhân, Bác sĩ, hai loại Quản trị viên ⇒ 403; không token ⇒ 401; Lễ tân chi nhánh khác và mã sai dạng ⇒ CÙNG 404; lỗi cũng no-store', async () => {
+    const t = await world();
+    for (const token of [t.patient, t.doctor, t.system, t.branch])
+      expectErrorResponse(await get(t.code, token), 403, FORBIDDEN);
+    expectErrorResponse(await get(t.code), 401, 'CHUA_DANG_NHAP');
+    const outside = await get(t.code, t.otherReception);
+    const malformed = await get('sai-dang', t.reception);
+    expectErrorResponse(outside, 404, NOT_FOUND);
+    expectErrorResponse(malformed, 404, NOT_FOUND);
+    expect(outside.body).toEqual(malformed.body);
+    expect(outside.headers['cache-control']).toBe('no-store');
+  });
+});

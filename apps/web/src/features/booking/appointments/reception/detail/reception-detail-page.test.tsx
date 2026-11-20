@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { receptionAppointmentDetailPath } from '../../../../../shared/routes/booking-paths';
 import {
@@ -457,26 +457,23 @@ describe('nút theo chuyenDuoc[] (LTN-01)', () => {
     expect(labels).toEqual(expected);
 
     // F9 đã gắn hành động cho cả ba nút theo `chuyenDuoc[]`: nút BẬT và tên truy cập chính xác là nhãn (không còn chữ ẩn "(chưa được triển khai)" của F8).
-    // `Thu tiền & tiếp đón` thuộc `payment` nên VẪN vô hiệu (LTC-03).
+    // `Thu tiền & tiếp đón` mở hộp của payment F4 nên cũng BẬT (LTC-03, LTN-05 hết vô hiệu).
     for (const label of item.labels) {
       expect(within(page).getByRole('button', { name: label })).toBeEnabled();
     }
     if (item.collect) {
       expect(
         within(page).getByRole('button', { name: /Thu tiền & tiếp đón/ }),
-      ).toBeDisabled();
+      ).toBeEnabled();
     }
   });
 
-  it('LTC-03 `Thu tiền & tiếp đón` (LTN-05): vô hiệu kèm chữ "Chưa được triển khai" HIỆN; chỉ khi Đã xác nhận còn phải thu (kiểm trên chuỗi)', async () => {
+  it('LTC-03 `Thu tiền & tiếp đón` (LTN-05, payment F4 WTQ-04): BẬT; chỉ khi Đã xác nhận còn phải thu (kiểm trên chuỗi)', async () => {
     const due = await openReceptionDetail({ conPhaiThu: '0.10' });
     const button = within(due.page).getByRole('button', {
       name: /Thu tiền & tiếp đón/,
     });
-    expect(button).toBeDisabled();
-    expect(
-      within(due.page).getByText(DETAIL_TEXT.notImplemented),
-    ).toBeVisible();
+    expect(button).toBeEnabled();
     due.unmount();
     cleanUpReceptionPage();
 
@@ -488,9 +485,6 @@ describe('nút theo chuyenDuoc[] (LTN-01)', () => {
           name: /Thu tiền & tiếp đón/,
         }),
         String(conPhaiThu),
-      ).toBeNull();
-      expect(
-        within(view.page).queryByText(DETAIL_TEXT.notImplemented),
       ).toBeNull();
       view.unmount();
       cleanUpReceptionPage();
@@ -509,7 +503,7 @@ describe('nút theo chuyenDuoc[] (LTN-01)', () => {
     ).toBeNull();
   });
 
-  it('LTC-04 xem chi tiết không gọi route ghi nào: bấm nút `Thu tiền & tiếp đón` (vô hiệu, thuộc `payment`) không phát sinh POST; chỉ có GET', async () => {
+  it('LTC-04 xem chi tiết không gọi route ghi nào: bấm `Thu tiền & tiếp đón` chỉ MỞ hộp (GET bản xem trước), không phát sinh POST', async () => {
     const { page, api } = await openReceptionDetail({
       chuyenDuoc: ['DaHuy'],
       conPhaiThu: '200000.00',
@@ -644,5 +638,105 @@ describe('dữ liệu cá nhân khi xem chi tiết', () => {
     for (const spy of consoleSpies) expect(spy).not.toHaveBeenCalled();
     expect(currentUrl()).toBe('/le-tan/quan-ly-lich-hen');
     consoleSpies.forEach((spy) => spy.mockRestore());
+  });
+});
+
+describe('payment F4 — hộp "Thu tiền & tiếp đón" gắn vào trang chi tiết', () => {
+  const COLLECT_PATH = `${DETAIL_PATH}/collect-cash`;
+  const openDue = () =>
+    openReceptionDetail({
+      chuyenDuoc: ['DaHuy'],
+      conPhaiThu: '200000.00',
+      giaSnapshot: '300000.00',
+    });
+
+  it('WTQ-04 ★ bấm `Thu tiền & tiếp đón` ⇒ mở hộp với thông tin lịch của trang và ba số của máy chủ; KHÔNG POST khi chưa xác nhận', async () => {
+    const { page, api } = await openDue();
+    fireEvent.click(
+      within(page).getByRole('button', { name: /Thu tiền & tiếp đón/ }),
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Thu tiền & tiếp đón',
+    });
+    expect(
+      await within(dialog).findByRole('button', {
+        name: 'Thu tiền & tiếp đón',
+      }),
+    ).toBeEnabled();
+    expect(within(dialog).getByText(`#${RECEPTION_CODE}`)).toBeVisible();
+    expect(within(dialog).getByText('300.000đ')).toBeVisible();
+    expect(api.callsTo(`${DETAIL_PATH}/cash-preview`)).toHaveLength(1);
+    expect(api.writes()).toEqual([]);
+  });
+
+  it('WTQ-05 ★ thu thành công ⇒ phiếu thu trong hộp, chi tiết TẢI LẠI (Đã tiếp đón, hết nút thu); đóng hộp không gọi thêm', async () => {
+    const { page, api } = await openDue();
+    fireEvent.click(
+      within(page).getByRole('button', { name: /Thu tiền & tiếp đón/ }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(
+      await within(dialog).findByRole('button', {
+        name: 'Thu tiền & tiếp đón',
+      }),
+    );
+    expect(await within(dialog).findByRole('status')).toHaveTextContent(
+      'Đã thu tiền và tiếp đón bệnh nhân.',
+    );
+    expect(api.writes().map((request) => request.path)).toEqual([COLLECT_PATH]);
+    expect(api.writes()[0]!.body).toEqual({ soTien: '200000' });
+    await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
+    await waitFor(() =>
+      expect(
+        within(page).queryByRole('button', { name: /Thu tiền & tiếp đón/ }),
+      ).toBeNull(),
+    );
+    fireEvent.click(
+      within(dialog).getAllByRole('button', { name: 'Đóng' })[1]!,
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(api.writes()).toHaveLength(1);
+  });
+
+  it('WTQ-06 `Hủy` đóng hộp, KHÔNG POST, tiêu điểm về đúng nút `Thu tiền & tiếp đón`', async () => {
+    const { page, api } = await openDue();
+    const trigger = within(page).getByRole('button', {
+      name: /Thu tiền & tiếp đón/,
+    });
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(trigger).toHaveFocus();
+    expect(api.writes()).toEqual([]);
+  });
+
+  it('WTQ-03 thu trả 409 LICH_HEN_KHONG_CHO_THU_TIEN (Lễ tân khác vừa tiếp đón) ⇒ câu theo mã trong hộp và chi tiết TẢI LẠI', async () => {
+    const { page, api } = await openDue();
+    // Lời gọi thứ nhất (xem trước) đi đường mặc định của API giả; lời gọi thứ hai (thu) bị máy chủ từ chối
+    api.failNext('cash', () =>
+      jsonResponse({
+        maLichHen: RECEPTION_CODE,
+        giaKham: '300000.00',
+        daThanhToanTruoc: '100000.00',
+        thuTaiQuay: '200000.00',
+      }),
+    );
+    api.failNext('cash', () =>
+      apiErrorResponse(409, 'LICH_HEN_KHONG_CHO_THU_TIEN'),
+    );
+    fireEvent.click(
+      within(page).getByRole('button', { name: /Thu tiền & tiếp đón/ }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(
+      await within(dialog).findByRole('button', {
+        name: 'Thu tiền & tiếp đón',
+      }),
+    );
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Lịch hẹn không còn ở trạng thái đã xác nhận.',
+    );
+    await waitFor(() => expect(api.callsTo(DETAIL_PATH)).toHaveLength(2));
   });
 });

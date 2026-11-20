@@ -21,8 +21,12 @@ import {
 } from '../payment.constants.js';
 import { PaymentChain } from '../ports/payment-chain.js';
 import { PaymentSummaryReader } from '../ports/payment-summary.reader.js';
-import type { CashReceipt, CollectCashResult } from './cash.dto.js';
-import { CashRepository } from './cash.repository.js';
+import type {
+  CashPreview,
+  CashReceipt,
+  CollectCashResult,
+} from './cash.dto.js';
+import { CashRepository, type CashAppointmentRow } from './cash.repository.js';
 
 /** Kết quả CÓ KIỂU của phần ghi. `NothingToCollect` và `AmountMismatch` chỉ đi ra bằng `PaymentAbort` vì phải hoàn tác cả `checkIn`. */
 type CollectOutcome =
@@ -66,16 +70,41 @@ export class CashPaymentService {
     @Inject(PaymentChain) private readonly chain: PaymentChain,
   ) {}
 
+  /**
+   * Ba số của hộp "Thu tiền & tiếp đón" (payment F4; Figma `492:2`; TTQ-16…TTQ-18): CHỈ ĐỌC, không khoá, không giao dịch. Cùng thứ tự kiểm phạm vi với `collect` (403 phạm vi, 404 cùng thân).
+   * Lịch không `DaXacNhan` ⇒ 409 `LICH_HEN_KHONG_CHO_THU_TIEN`; không còn phải thu ⇒ 409 `KHONG_CON_PHAI_THU` (cùng mã với `collect`). Không kiểm cửa sổ tiếp đón: `collect` kiểm dưới khoá
+   * và trả `NGOAI_KHUNG_GIO_TIEP_DON` kèm `tu`, `den`. Số đọc ở đây có thể cũ đi ngay sau đó; `collect` tính lại dưới khoá (lệch ⇒ `SO_TIEN_KHONG_KHOP`).
+   */
+  async preview(accountId: string, maLichHen: string): Promise<CashPreview> {
+    const row = await this.findInBranch(accountId, maLichHen);
+    if (row.trangThai !== 'DaXacNhan')
+      throw new AppException(409, PAYMENT_ERROR_CODES.NOT_COLLECTABLE, {
+        thongBao: PAYMENT_ERROR_MESSAGES.LICH_HEN_KHONG_CHO_THU_TIEN,
+        chiTiet: { trangThai: row.trangThai },
+      });
+    // `findPayment` tính đã thu và còn phải thu theo cả chuỗi đổi lịch (một chỗ, như `collect`); chỉ `null` khi không có lịch, đã loại ở trên
+    const payment = await this.payments.findPayment(
+      this.db.manager,
+      row.lichHenId,
+    );
+    if (payment === null || compareMoney(payment.conPhaiThu, ZERO) <= 0)
+      throw new AppException(409, PAYMENT_ERROR_CODES.NOTHING_TO_COLLECT, {
+        thongBao: PAYMENT_ERROR_MESSAGES.KHONG_CON_PHAI_THU,
+      });
+    return {
+      maLichHen,
+      giaKham: row.giaSnapshot,
+      daThanhToanTruoc: payment.daThu,
+      thuTaiQuay: payment.conPhaiThu,
+    };
+  }
+
   async collect(
     accountId: string,
     maLichHen: string,
     soTien: string,
   ): Promise<CollectCashResult> {
-    const { chiNhanhId } = await resolveReceptionBranch(this.scopes, accountId);
-    const row = await this.repository.findByCode(this.db.manager, maLichHen);
-    // Không có lịch và lịch ở chi nhánh khác: CÙNG một 404 (không lộ lịch tồn tại ở chi nhánh khác)
-    if (row === null || row.chiNhanhId !== chiNhanhId)
-      throw new AppException(404, COMMON_ERROR_CODES.NOT_FOUND);
+    const row = await this.findInBranch(accountId, maLichHen);
 
     const now = toSecond(nowVN());
     const config = await this.configs.get();
@@ -105,6 +134,18 @@ export class CashPaymentService {
           chiTiet: { conPhaiThu: outcome.conPhaiThu },
         });
     }
+  }
+
+  /** Phạm vi Lễ tân (403) rồi lịch theo mã; không có lịch và lịch ở chi nhánh khác: CÙNG một 404 (không lộ lịch tồn tại ở chi nhánh khác). */
+  private async findInBranch(
+    accountId: string,
+    maLichHen: string,
+  ): Promise<CashAppointmentRow> {
+    const { chiNhanhId } = await resolveReceptionBranch(this.scopes, accountId);
+    const row = await this.repository.findByCode(this.db.manager, maLichHen);
+    if (row === null || row.chiNhanhId !== chiNhanhId)
+      throw new AppException(404, COMMON_ERROR_CODES.NOT_FOUND);
+    return row;
   }
 
   /** Phần GHI, trong một giao dịch. Không tác dụng phụ ngoài DB (thân có thể chạy lại). */

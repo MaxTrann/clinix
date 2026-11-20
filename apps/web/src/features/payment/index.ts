@@ -11,3 +11,8 @@ export {
   type DepositPaymentPanelProps,
 } from './deposit/deposit-payment-panel';
 export type { DepositPaymentResult } from './deposit/deposit-api';
+// F4: hộp "Thu tiền & tiếp đón" của Lễ tân; trang chi tiết Lễ tân của booking mở hộp và tải lại chi tiết qua `onChanged`. Booking chỉ import qua file này (BWZ-08, Q19).
+export {
+  CashCollectDialog,
+  type CashCollectDialogProps,
+} from './cash/cash-collect-dialog';

@@ -371,10 +371,10 @@ describe('lời gọi "Tiếp đón bệnh nhân" (LTN-04)', () => {
         within(page).queryByRole('button', { name: 'Tiếp đón bệnh nhân' }),
       ).toBeNull(),
     );
-    // `Thu tiền & tiếp đón` thuộc `payment`: vẫn vô hiệu (LTN-05)
+    // Còn phải thu nên `Thu tiền & tiếp đón` (hộp của payment F4) hiện và BẬT: đây là đường để tiếp đón (LTN-05 hết vô hiệu)
     expect(
       within(page).getByRole('button', { name: /Thu tiền & tiếp đón/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
   });
 
   it('LTA-08 (LTN-04) `NGOAI_KHUNG_GIO_TIEP_DON` ⇒ hai mốc ISO UTC hiện theo GIỜ VIỆT NAM, hai biên đóng', async () => {
@@ -920,19 +920,29 @@ describe('nhóm nút `ReceptionActions`', () => {
     }
   });
 
-  it('LTA-14 `Thu tiền & tiếp đón` (LTN-05) vô hiệu dù có `handlers` và không `busy`: thuộc `payment`', () => {
-    render(
-      <ReceptionActions
-        detail={makeReceptionDetail({
-          chuyenDuoc: ['DaHuy'],
-          conPhaiThu: '200000.00',
-        })}
-        handlers={{ DaHuy: vi.fn(), VangMat: vi.fn(), DaTiepDon: vi.fn() }}
-      />,
+  it('LTA-14 (payment F4, WTQ-04) `Thu tiền & tiếp đón` BẬT khi có `onCollect` và gọi nó với chính nút đã bấm; vô hiệu khi `busy` hay khi chưa gắn `onCollect`', () => {
+    const detail = makeReceptionDetail({
+      chuyenDuoc: ['DaHuy'],
+      conPhaiThu: '200000.00',
+    });
+    const onCollect = vi.fn();
+    const view = render(
+      <ReceptionActions detail={detail} onCollect={onCollect} />,
+    );
+    const button = screen.getByRole('button', { name: /Thu tiền & tiếp đón/ });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(onCollect).toHaveBeenCalledExactlyOnceWith(button);
+
+    view.rerender(
+      <ReceptionActions detail={detail} onCollect={onCollect} busy />,
     );
     expect(
       screen.getByRole('button', { name: /Thu tiền & tiếp đón/ }),
     ).toBeDisabled();
-    expect(screen.getByText(DETAIL_TEXT.notImplemented)).toBeVisible();
+    view.rerender(<ReceptionActions detail={detail} />);
+    expect(
+      screen.getByRole('button', { name: /Thu tiền & tiếp đón/ }),
+    ).toBeDisabled();
   });
 });
