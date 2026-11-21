@@ -11,6 +11,8 @@
 // 17/11/2026 (module doctor-exam, task D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa Note nào của Table: Note của ho_so_kham và danh_gia_bac_si giữ khớp COMMENT trong clinix_mysql.sql (được schema-parity so với migration). Thêm mục "doctor-exam D1" (hồ sơ khám và đánh giá bác sĩ) vào cuối clinix_quy_tac_nghiep_vu.md và bốn khối TRUY VẤN MẪU vào cuối clinix_mysql.sql.
 // 18/11/2026 (module booking, task B19): lich_hen thêm ba cột mốc thời gian từng bước thoi_diem_xac_nhan, thoi_diem_tiep_don, thoi_diem_hoan_thanh (datetime, nullable, đặt sau thoi_diem_tao);
 // không thêm bảng, enum hay CHECK nên các số bảng, enum, CHECK ở các dòng trên không đổi. Chuyển đổi từ DB cũ: mục "booking B19" ở cuối clinix_quy_tac_nghiep_vu.md.
+// 21/11/2026 (module payment và wallet, task D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa Note nào của Table (Note của năm bảng tiền giữ nguyên):
+// thêm một dòng chú thích quy tắc service ở đầu CỤM 5; quy tắc 54 đến 62 và mục "payment D1" ở clinix_quy_tac_nghiep_vu.md, ba khối TRUY VẤN MẪU cuối clinix_mysql.sql.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17
@@ -695,6 +697,10 @@ Table muc_cho_danh_sach_cho {
 }
 
 // ===================== CỤM 5: THANH TOÁN & VÍ =====================
+
+// Quy tắc service của tiền (payment D1; quy tắc 54 đến 62 của clinix_quy_tac_nghiep_vu.md): WalletLedger là nơi DUY NHẤT đổi so_du, so_tien_dang_giu và ghi giao_dich_vi (chỉ thêm; so_du = tổng sổ cái);
+// thứ tự khoá 7a (hàng đã có của giao_dich_thanh_toan / yeu_cau_rut_tien) → 7b (vi_noi_bo) → 7c (hàng mới của lich_su_hoan_tien, giao_dich_vi, lan_doi_soat_nap_vi); IPN chống cộng trùng dưới khoá dòng nạp
+// và bằng UNIQUE (phuong_thuc, ma_giao_dich_cong); đối soát tối đa 3 lần job rồi Quản trị viên Toàn hệ thống; hoàn tiền chỉ về ví, trần chung của hoàn tự động và đặc biệt, mỗi khoản tối đa một dòng DacBiet.
 
 Table vi_noi_bo {
   vi_noi_bo_id bigint [pk, increment]
