@@ -128,3 +128,6 @@ export class CreateBranchDto {
   )
   dichVuKhamIds!: string[];
 }
+
+/** Sửa chi nhánh (admin B8): form ĐẦY ĐỦ như khi tạo (Figma 544:2); server tự so để tìm phần đổi. */
+export class UpdateBranchDto extends CreateBranchDto {}

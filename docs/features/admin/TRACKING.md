@@ -3949,3 +3949,115 @@ Lệnh đã chạy (chỉ phần bị ảnh hưởng):
 - Không chạy toàn bộ bộ tích hợp (Trung yêu cầu chỉ test phần bị ảnh hưởng).
 
 **Còn mở:** đối chiếu chữ bốn mẫu thư với Figma 689:2, 690:2 (Trung dán sau); CI sẽ chạy đủ bộ test khi mở PR.
+
+<!-- 9B.2 (B12) nằm ở PR feat/admin-b12-ho-so-bac-si; khi gộp main, xếp 9B.1, 9B.2, 9B.3 theo thứ tự số. -->
+
+#### 9B.3 B8 (#519) Chi nhánh: sửa và phát hiện ảnh hưởng: kế hoạch (21/11/2026, CHỜ DUYỆT, chưa viết mã)
+
+Nhánh `feat/admin-b8-sua-chi-nhanh`, tạo từ `origin/main` (đã có C4). Tiêu đề PR `feat(admin): sửa chi nhánh và phát hiện ảnh hưởng lịch hẹn (admin B8)`. Thẻ `[ĐỒNG BỘ TL]` D1 (2.4, ngoài repo: nhắc Trung). DB test `clinix_admin_b8_test`. Không cần migration (bảng có từ P3, kể cả cột sinh UNIQUE `dang_mo_chi_nhanh`). Không có hành động audit cho B8 (PLAN 5.10 chỉ có duyệt, từ chối, rút, hủy, dời).
+
+**Nguồn:** PLAN 5.4; Q1, Q2, Q3, Q7, Q8, Q41, Q46, Q47; quy tắc 29, 30, 43 và bốn truy vấn mẫu cuối `clinix_mysql.sql` (lịch hẹn ảnh hưởng theo thứ, ca không còn khoảng, khung giờ `ConTrong` ngoài lịch mới, lịch hẹn khi bỏ dịch vụ).
+
+**Phạm vi** (`apps/api/src/admin/branches/`, thêm `impact/` theo `PHAN_CONG_CHUNG.md` mục 3):
+
+1. `PATCH /admin/branches/:id`, `@RequireAdminScope('Any')`. Body là form đầy đủ như `CreateBranchDto` (dùng lại DTO, kiểm bằng `validateWeeklySchedule` có sẵn).
+2. `impact/branch-diff.ts` (hàm thuần): so form với dữ liệu hiện tại ⇒ phần "thông tin" đổi (tên, địa chỉ, toạ độ; so toạ độ theo giá trị số, không theo chữ), tập thứ đổi (so cả dòng 6 khóa), dịch vụ thêm và bỏ. Không đổi gì ⇒ 400 `KHONG_CO_THAY_DOI` (CN-26).
+3. `impact/branch-impact.service.ts`: chạy đúng các truy vấn mẫu cho từng thứ đổi và từng dịch vụ bỏ, với mốc `tuLuc`. Kết quả gồm:
+   - lịch hẹn `ChoThanhToan`/`DaXacNhan` ảnh hưởng: một dòng mỗi lịch, ưu tiên `NgayNghi` > `NgoaiGioHoatDong` > `BoDichVu` (CN-37);
+   - ca tương lai `CaKhongTonTai`: tính là ảnh hưởng (Q7, CN-25b);
+   - khung giờ `ConTrong` ngoài lịch mới: chỉ liệt kê, không phải ảnh hưởng (CN-25).
+   B10 và B11 sẽ gọi lại service này với mốc `hieu_luc_tu`.
+4. `branch.service.ts` `update`, một giao dịch `READ COMMITTED`, theo thứ tự:
+   1. khoá `chi_nhanh FOR UPDATE`;
+   2. kiểm phạm vi dưới khoá: Chi nhánh khác ⇒ 404 `KHONG_TIM_THAY` (Q40, CN-41);
+   3. diff;
+   4. kiểm Q8: bỏ dịch vụ mà còn bác sĩ của chi nhánh dùng làm dịch vụ khám chính ⇒ 409 `DICH_VU_CON_BAC_SI` kèm danh sách bác sĩ (CN-44);
+   5. nếu có thay đổi lịch hay dịch vụ: kiểm Q3, còn yêu cầu đang mở (`dang_mo_chi_nhanh`) ⇒ 409 `YEU_CAU_DANG_CHO` (CN-42, CN-43);
+   6. **chống chạy đua với booking**: khoá `FOR UPDATE` các `khung_gio` tương lai của chi nhánh ở những thứ hay ca bị thu hẹp, rồi mới chạy truy vấn ảnh hưởng (xem điểm khó bên dưới);
+   7. tính ảnh hưởng với `tuLuc = nowVN()`;
+   8. phân nhánh:
+      - **không có lịch hẹn và không có ca ảnh hưởng** ⇒ áp dụng ngay: thay cả dòng từng thứ đổi, thêm và bỏ dịch vụ, cập nhật thông tin; trả cảnh báo khung giờ `ConTrong` ngoài lịch mới;
+      - **có ảnh hưởng** ⇒ áp dụng ngay phần thông tin (Q2); ghi `yeu_cau_thay_doi_chi_nhanh` `ChoDuyet` với `noi_dung_truoc`/`noi_dung_sau` chỉ gồm các thứ đổi (đủ 6 khóa, `null` tường minh, quy tắc 43), thêm `dich_vu_kham_ids` nếu dịch vụ đổi; không đụng bảng lịch và dịch vụ đang áp dụng. Lỗi 1062 của `dang_mo_chi_nhanh` (hai người gửi cùng lúc) ⇒ 409 `YEU_CAU_DANG_CHO`, không 500 (CN-45).
+5. Phản hồi `[đề xuất]`: `{ chiNhanh: BranchView sau khi lưu, daLuu: ['ten' | 'diaChi' | 'toaDo' | 'lichHoatDong' | 'dichVuKham'], yeuCau: null | { yeuCauThayDoiChiNhanhId, trangThai: 'ChoDuyet', thuThayDoi, dichVuThem, dichVuBo }, anhHuong: { lichHen: [...], ca: [...] }, canhBao: { khungGioTrongNgoaiLich: [...] } }`. Danh sách cắt 50 dòng mỗi loại, kèm tổng số (như BS A2).
+6. Không làm ở B8: duyệt, từ chối, xem danh sách yêu cầu (B9, B10); job áp dụng (B11); thông báo (yêu cầu `ChoDuyet` không báo ai theo PLAN; B9 trở đi dùng `BranchChangeNotifier` của C4).
+
+**Điểm khó cần chốt:**
+
+- **Chạy đua với booking (H2).** Booking tạo lịch hẹn khoá `bac_si FOR SHARE` rồi `khung_gio FOR UPDATE`, sau đó mới đọc lịch chi nhánh (đọc thường, thấy bản đã commit mới nhất); booking không khoá `chi_nhanh`.
+  - Đề xuất: B8 khoá `khung_gio` ở vùng bị thu hẹp TRƯỚC khi đọc `lich_hen`.
+    - Nếu booking giữ khung giờ trước, B8 chờ, rồi thấy lịch hẹn mới và tạo yêu cầu.
+    - Nếu B8 giữ trước, booking chờ, rồi đọc lịch mới và từ chối đặt.
+  - B8 không xin `bac_si`, còn booking không xin `chi_nhanh`, nên không có chu trình khoá.
+  - Test đồng thời: `[đề xuất mã]` CNB-01.
+- **Chạy đua với phân công ca (doctor).** Doctor khoá `bac_si FOR UPDATE` rồi đọc lịch chi nhánh, không khoá `chi_nhanh` hay khung giờ. Một ca mới có thể lọt vào vùng vừa bị bỏ.
+  - Muốn chặn hẳn phải sửa module `doctor` (thêm `chi_nhanh FOR SHARE`), tức là chạm module người khác.
+  - Đề xuất: ghi `TECH_DEBT` và báo người phụ trách doctor; B8 không sửa `doctor/`.
+- **Form hỗn hợp khi đã có yêu cầu đang mở** (đổi tên + đổi lịch).
+  - Đề xuất: từ chối CẢ form bằng `YEU_CAU_DANG_CHO`, không lưu gì, để thao tác nguyên tử, dễ hiểu.
+  - CN-43 chỉ yêu cầu "chỉ tên hoặc địa chỉ thì được", và điều đó vẫn đúng.
+
+**Bảng test (mỗi test ghi mã):**
+
+| Mã | Nội dung | Loại |
+|---|---|---|
+| CN-20, CN-21, CN-22 | Đổi thông tin; mở rộng giờ, nghỉ → hoạt động, thêm dịch vụ; thu hẹp không lịch nào rơi vào ⇒ áp dụng ngay, không tạo yêu cầu | I |
+| CN-23, CN-24 | Lịch quá khứ hay trạng thái khác `ChoThanhToan`/`DaXacNhan` không tính; `thoi_gian` bằng mốc thì tính (`>=`) | I |
+| CN-25, CN-25b | Chỉ có `ConTrong` ngoài lịch ⇒ lưu ngay + cảnh báo, không xoá; có ca tương lai mất khoảng ⇒ tạo yêu cầu | I |
+| CN-26 | Form không đổi ⇒ `KHONG_CO_THAY_DOI` | I |
+| CN-27, CN-27b (phần B8) | Đổi tên + thu hẹp có ảnh hưởng ⇒ tên lưu ngay, lịch vào yêu cầu, phản hồi nêu rõ `daLuu` và `yeuCau` | I |
+| CN-30, CN-31 | Chuyển nghỉ thứ có lịch `ChoThanhToan`/`DaXacNhan` ⇒ yêu cầu `ChoDuyet`, bảng lịch giữ nguyên, JSON chỉ thứ đổi, đủ 6 khóa, `null` tường minh, `nguoi_de_xuat_id` đúng | I |
+| CN-32, CN-33, CN-34, CN-35 | Thu hẹp đầu/cuối ⇒ `NgoaiGioHoatDong`; nghỉ trưa mới cắt giữa lịch ⇒ ảnh hưởng; kết thúc đúng giờ đóng, bắt đầu đúng giờ mở ⇒ không; ca quyết định khoảng so sánh | I |
+| CN-36, CN-37, CN-38 | Bỏ dịch vụ có lịch ⇒ `BoDichVu`, không lịch ⇒ áp dụng ngay; nhiều lý do ⇒ một dòng theo ưu tiên; lịch chi nhánh khác không tính | I |
+| CN-39 (phần B8), CN-40 | Phản hồi liệt kê lịch hẹn, ca, khung giờ, không xoá/hủy/hoàn gì; thứ ảnh hưởng và không ảnh hưởng cùng vào một yêu cầu | I |
+| CN-41 | Chi nhánh sửa chi nhánh mình ⇒ được; chi nhánh khác ⇒ 404 | I |
+| CN-42, CN-43 | Còn yêu cầu đang mở: gửi lịch/dịch vụ ⇒ `YEU_CAU_DANG_CHO`; chỉ tên/địa chỉ ⇒ được | I |
+| CN-44 | Bỏ dịch vụ còn bác sĩ dùng làm dịch vụ chính ⇒ `DICH_VU_CON_BAC_SI` kèm danh sách, không lưu gì | I |
+| CN-45 | Hai người gửi đồng thời ⇒ một yêu cầu, một `YEU_CAU_DANG_CHO`, không 500 | I |
+| CNB-01 `[đề xuất mã]` | Đồng thời B8 thu hẹp giờ và booking đặt vào khung giờ bị bỏ: không bao giờ có lịch hẹn mới nằm ngoài lịch đã áp dụng | I |
+| CNB-02 `[đề xuất mã]` | `branch-diff` (thuần): toạ độ `10.1` và `10.1000000` là không đổi; thứ đổi so cả dòng; dịch vụ trùng id gộp | U |
+| CNB-03 `[đề xuất mã]` | e2e `PATCH`: vai trò (401, 403 cho Bệnh nhân, Bác sĩ, Lễ tân), 404 ngoài phạm vi, 400 body sai | E |
+| CN-03 đến CN-11 | Kiểm lịch và thông tin: dùng lại `validateWeeklySchedule` và DTO có sẵn; thêm 1 ca cho `PATCH` để chắc đi qua cùng hàm | U |
+
+**Câu hỏi mở (chặn viết mã):**
+
+1. Đồng ý cách chặn chạy đua với booking (khoá `khung_gio` vùng bị thu hẹp) và ghi `TECH_DEBT` cho chạy đua với phân công ca của doctor?
+2. Form hỗn hợp khi đã có yêu cầu đang mở: từ chối cả form (đề xuất), hay lưu phần thông tin rồi báo lỗi phần lịch?
+3. Hình dạng phản hồi `[đề xuất]` ở mục 5 và mã `CNB-*`.
+
+**Trả lời (21/11/2026, Trung):** đồng ý khoá `khung_gio` để chặn chạy đua với booking và ghi `TECH_DEBT` cho chạy đua với phân công ca; form hỗn hợp khi có yêu cầu đang mở thì từ chối cả form; dùng hình dạng phản hồi và mã `CNB-*` như đề xuất.
+
+**Tiến độ 21/11/2026: XONG, test xanh.**
+
+- Mới: `impact/branch-diff.ts` (hàm thuần), `impact/branch-impact.service.ts` (bốn truy vấn mẫu và `lockSlotsOfDays`, export cho B10, B11).
+- Sửa:
+  - `branch.service.ts`: `update`.
+  - `branch.repository.ts`: `lockForUpdate`, `hasOpenRequest`, `doctorsUsingServices`, `updateInfo`, `replaceScheduleRow`, `addServices`, `removeServices`, `insertChangeRequest`.
+  - `branch.controller.ts`: `PATCH /admin/branches/:id`; người đề xuất lấy từ phiên.
+  - `branch.dto.ts`: `UpdateBranchDto extends CreateBranchDto`.
+  - `branch.module.ts`: thêm `BranchImpactService`.
+- **Phát hiện khi chạy CNB-01: deadlock 1213 thật.** B8 giữ `chi_nhanh FOR UPDATE` rồi chờ `khung_gio`, còn booking giữ `khung_gio` rồi chèn `lich_hen`; khoá ngoại `lich_hen → chi_nhanh` xin khoá S trên chính hàng B8 đang giữ.
+  - Sửa: `withDeadlockRetry` làm lại cả giao dịch tối đa 3 lần, cùng cách với `staff-accounts` và `account-resend`. Lỗi nghiệp vụ không bao giờ được chạy lại.
+  - Vì sao đúng: chạy lại thì bên kia đã commit. B8 thấy lịch hẹn mới và tạo yêu cầu; hoặc booking (tự chạy lại 1213) thấy lịch mới và từ chối đặt.
+  - PLAN 5.4 chỉ ghi "khoá `chi_nhanh FOR UPDATE`", không nhắc tới deadlock này.
+- Q8 khoá `chi_nhanh_dich_vu_kham FOR UPDATE` của các dịch vụ sắp bỏ trước khi đọc `bac_si`, vì luồng tạo bác sĩ xin `FOR SHARE` đúng các hàng đó.
+- `TECH_DEBT` 213: chạy đua với phân công ca của doctor (không sửa `doctor/`).
+
+| Mã | Kết quả |
+|---|---|
+| CN-20, CN-21, CN-22, CN-23, CN-24, CN-25, CN-25b, CN-26, CN-27 | Pass |
+| CN-30, CN-31, CN-32, CN-33, CN-34, CN-35, CN-36, CN-37, CN-38, CN-40 | Pass |
+| CN-41, CN-42, CN-43, CN-44, CN-45 | Pass |
+| CNB-01 (đồng thời với booking: chạy riêng 3 lượt liên tiếp đều pass), CNB-02 (đơn vị), CNB-03 (e2e) | Pass |
+| CN-39 (phần B8) | Phản hồi có `anhHuong` và `canhBao`, không xoá/hủy gì (kiểm trong CN-25, CN-30); màn chi tiết yêu cầu thuộc B9 |
+| CN-03 đến CN-11 | Không viết lại: `update` gọi đúng `validateWeeklySchedule` và DTO của B7 (test B7 vẫn xanh); CNB-03 có ca lịch thiếu thứ ⇒ 400 |
+
+Lệnh đã chạy (chỉ phần bị ảnh hưởng, MySQL 8.4 của `docker compose`):
+- `npm run lint` 0 lỗi, 0 cảnh báo; `npm run build` xanh.
+- Đơn vị `src/admin src/rbac src/app`: 160 file, 3352 test pass.
+- Tích hợp (`TEST_DB_NAME=clinix_admin_b8_test`) `src/admin/branches`: 2 file, 24 test pass. Lần đầu CNB-01 fail vì deadlock (đã sửa như trên).
+- e2e `test/admin-branches-update.e2e-spec.ts test/admin-branches.e2e-spec.ts`: 2 file, 8 test pass.
+
+**Còn mở:**
+- `[ĐỒNG BỘ TL]` D1: sửa đặc tả 2.4 (file Word ở repo `TLCN_CLINIX`) theo Q1, Q2, Q46; Trung làm.
+- F6b đối chiếu phản hồi với Figma 544:2.
+- Danh sách cắt 50 dòng chưa có test riêng với hơn 50 lịch hẹn.
