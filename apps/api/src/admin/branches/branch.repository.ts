@@ -7,6 +7,7 @@ import type {
   BranchScheduleDto,
   CreateBranchDto,
 } from './branch.dto.js';
+import type { ScheduleRowValue } from './impact/branch-diff.js';
 
 export interface BranchPeriodView {
   batDau: string;
@@ -253,6 +254,157 @@ export class BranchRepository {
         toSqlTime(afternoon?.ketThuc),
       ],
     );
+  }
+
+  // ---------- B8: sửa chi nhánh ----------
+
+  /**
+   * Khoá hàng `chi_nhanh` (FOR UPDATE) trong phạm vi `branchId` rồi đọc lại toàn bộ dưới khoá. `null` khi không có hay ngoài phạm vi (404, Q40).
+   * Mọi lần sửa của cùng một chi nhánh vì vậy chạy nối tiếp nhau.
+   */
+  async lockForUpdate(
+    manager: EntityManager,
+    id: string,
+    branchId?: string,
+  ): Promise<BranchView | null> {
+    const scope = branchId === undefined ? '' : ' AND chi_nhanh_id = ?';
+    const locked: unknown[] = await manager.query(
+      `SELECT chi_nhanh_id FROM chi_nhanh WHERE chi_nhanh_id = ?${scope} FOR UPDATE`,
+      branchId === undefined ? [id] : [id, branchId],
+    );
+    if (locked.length === 0) return null;
+    return this.getInTransaction(manager, id);
+  }
+
+  /** Có yêu cầu chưa hoàn tất (`ChoDuyet`, hoặc `DaDuyet` chưa áp dụng) của chi nhánh: đọc cột sinh `dang_mo_chi_nhanh` (Q3, Q47). */
+  async hasOpenRequest(manager: EntityManager, id: string): Promise<boolean> {
+    const rows: unknown[] = await manager.query(
+      'SELECT 1 FROM yeu_cau_thay_doi_chi_nhanh WHERE dang_mo_chi_nhanh = ? LIMIT 1',
+      [id],
+    );
+    return rows.length > 0;
+  }
+
+  /**
+   * Bác sĩ của chi nhánh còn dùng một trong các dịch vụ sắp bỏ làm dịch vụ khám chính (Q8). Khoá TRƯỚC các hàng `chi_nhanh_dich_vu_kham` sẽ bị xoá:
+   * luồng tạo bác sĩ (`staff-accounts`) xin `FOR SHARE` đúng hàng này, nên không thể gán bác sĩ vào dịch vụ đang bị bỏ trong lúc giao dịch này chạy.
+   */
+  async doctorsUsingServices(
+    manager: EntityManager,
+    id: string,
+    serviceIds: readonly string[],
+  ): Promise<{ taiKhoanId: string; hoTen: string; dichVuKhamId: string }[]> {
+    if (serviceIds.length === 0) return [];
+    const placeholders = serviceIds.map(() => '?').join(',');
+    await manager.query(
+      `SELECT dich_vu_kham_id FROM chi_nhanh_dich_vu_kham
+        WHERE chi_nhanh_id = ? AND dich_vu_kham_id IN (${placeholders})
+        ORDER BY dich_vu_kham_id FOR UPDATE`,
+      [id, ...serviceIds],
+    );
+    return manager.query(
+      `SELECT CAST(b.tai_khoan_id AS CHAR) AS taiKhoanId, t.ho_ten AS hoTen, CAST(b.dich_vu_kham_id AS CHAR) AS dichVuKhamId
+         FROM bac_si b JOIN tai_khoan t ON t.tai_khoan_id = b.tai_khoan_id
+        WHERE b.chi_nhanh_id = ? AND b.dich_vu_kham_id IN (${placeholders})
+        ORDER BY t.ho_ten, b.tai_khoan_id`,
+      [id, ...serviceIds],
+    );
+  }
+
+  async updateInfo(
+    manager: EntityManager,
+    id: string,
+    input: {
+      ten: string;
+      diaChi: string;
+      toaDoLat?: string;
+      toaDoLng?: string;
+    },
+  ): Promise<void> {
+    await manager.query(
+      'UPDATE chi_nhanh SET ten = ?, dia_chi = ?, toa_do_lat = ?, toa_do_lng = ? WHERE chi_nhanh_id = ?',
+      [
+        input.ten,
+        input.diaChi,
+        input.toaDoLat ?? null,
+        input.toaDoLng ?? null,
+        id,
+      ],
+    );
+  }
+
+  /** Thay CẢ DÒNG của một thứ (quy tắc 43); thứ chưa có dòng (chi nhánh cũ) thì thêm mới. */
+  async replaceScheduleRow(
+    manager: EntityManager,
+    id: string,
+    row: ScheduleRowValue,
+  ): Promise<void> {
+    await manager.query(
+      `INSERT INTO chi_nhanh_lich_hoat_dong
+        (chi_nhanh_id,thu_trong_tuan,hoat_dong,gio_bat_dau_sang,gio_ket_thuc_sang,gio_bat_dau_chieu,gio_ket_thuc_chieu)
+       VALUES (?,?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE hoat_dong = VALUES(hoat_dong),
+         gio_bat_dau_sang = VALUES(gio_bat_dau_sang), gio_ket_thuc_sang = VALUES(gio_ket_thuc_sang),
+         gio_bat_dau_chieu = VALUES(gio_bat_dau_chieu), gio_ket_thuc_chieu = VALUES(gio_ket_thuc_chieu)`,
+      [
+        id,
+        row.thuTrongTuan,
+        row.hoatDong === true,
+        row.gioBatDauSang,
+        row.gioKetThucSang,
+        row.gioBatDauChieu,
+        row.gioKetThucChieu,
+      ],
+    );
+  }
+
+  async addServices(
+    manager: EntityManager,
+    id: string,
+    serviceIds: readonly string[],
+  ): Promise<void> {
+    for (const serviceId of serviceIds)
+      await manager.query(
+        'INSERT INTO chi_nhanh_dich_vu_kham (chi_nhanh_id,dich_vu_kham_id) VALUES (?,?)',
+        [id, serviceId],
+      );
+  }
+
+  async removeServices(
+    manager: EntityManager,
+    id: string,
+    serviceIds: readonly string[],
+  ): Promise<void> {
+    if (serviceIds.length === 0) return;
+    await manager.query(
+      `DELETE FROM chi_nhanh_dich_vu_kham WHERE chi_nhanh_id = ? AND dich_vu_kham_id IN (${serviceIds.map(() => '?').join(',')})`,
+      [id, ...serviceIds],
+    );
+  }
+
+  /** Ghi yêu cầu `ChoDuyet` (trạng thái mặc định của bảng). Lỗi 1062 của `dang_mo_chi_nhanh` nổi lên cho service đổi thành 409. */
+  async insertChangeRequest(
+    manager: EntityManager,
+    input: {
+      chiNhanhId: string;
+      nguoiDeXuatId: string;
+      noiDungTruoc: object;
+      noiDungSau: object;
+      thoiDiemTao: Date;
+    },
+  ): Promise<string> {
+    const result: { insertId: number | string } = await manager.query(
+      `INSERT INTO yeu_cau_thay_doi_chi_nhanh (chi_nhanh_id, nguoi_de_xuat_id, noi_dung_truoc, noi_dung_sau, thoi_diem_tao)
+       VALUES (?, ?, CAST(? AS JSON), CAST(? AS JSON), ?)`,
+      [
+        input.chiNhanhId,
+        input.nguoiDeXuatId,
+        JSON.stringify(input.noiDungTruoc),
+        JSON.stringify(input.noiDungSau),
+        input.thoiDiemTao,
+      ],
+    );
+    return String(result.insertId);
   }
 
   private async getRow(
