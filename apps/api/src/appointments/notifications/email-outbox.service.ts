@@ -30,9 +30,17 @@ import {
   readNotificationContext,
 } from './notification-context.query.js';
 import {
+  BRANCH_CHANGE_MAIL_EVENTS,
   EMAIL_MAX_ATTEMPTS,
   PAYMENT_MAIL_EVENTS,
 } from './notifications.constants.js';
+import { readBranchChangeMailContext } from './branch-change-context.query.js';
+import {
+  renderBranchChangeAffectedMail,
+  renderBranchChangeCancelledMail,
+  renderBranchChangeRescheduledMail,
+  renderBranchChangeResultMail,
+} from './branch-change-mail.templates.js';
 import {
   renderRefundMail,
   renderTopupFailedMail,
@@ -43,6 +51,14 @@ import {
 const PAYMENT_MAIL_LOAI: ReadonlySet<string> = new Set(
   Object.values(PAYMENT_MAIL_EVENTS),
 );
+const BRANCH_CHANGE_MAIL_LOAI: ReadonlySet<string> = new Set(
+  Object.values(BRANCH_CHANGE_MAIL_EVENTS),
+);
+
+/** Phần gốc của mã sự kiện: bỏ hậu tố phiên bản `:v{n}` của admin C4 (`ThayDoiChiNhanhAnhHuongLichHen:v2` ⇒ `ThayDoiChiNhanhAnhHuongLichHen`), khớp `SUBSTRING_INDEX` của câu chọn lô. */
+export function baseEventOf(loai: string): string {
+  return loai.split(':', 1)[0] ?? loai;
+}
 
 /** Tổng kết một lượt gửi (chỉ số lượng, không dữ liệu cá nhân). */
 export interface EmailOutboxSummary {
@@ -69,7 +85,11 @@ export const emptyEmailOutboxSummary = (): EmailOutboxSummary => ({
 /** Lỗi dữ liệu khi dựng thư (không có dòng thông báo hay lịch hẹn, loại sự kiện lạ): chữ `reason` cố định là thứ ghi vào `loi_cuoi`. */
 export class EmailOutboxDataError extends Error {
   constructor(
-    readonly reason: 'THIEU_THONG_BAO' | 'THIEU_LICH_HEN' | 'LOAI_SU_KIEN_LA',
+    readonly reason:
+      | 'THIEU_THONG_BAO'
+      | 'THIEU_LICH_HEN'
+      | 'THIEU_YEU_CAU'
+      | 'LOAI_SU_KIEN_LA',
   ) {
     super(reason);
     this.name = 'EmailOutboxDataError';
@@ -162,6 +182,8 @@ export class EmailOutboxService {
     if (payload === null) throw new EmailOutboxDataError('THIEU_THONG_BAO');
     const paymentMail = await this.renderPaymentMail(payload);
     if (paymentMail !== null) return { to: payload.email, ...paymentMail };
+    const branchMail = await this.renderBranchChangeMail(payload);
+    if (branchMail !== null) return { to: payload.email, ...branchMail };
     if (payload.lichHenId === null)
       throw new EmailOutboxDataError('THIEU_THONG_BAO');
     const context = await readNotificationContext(em, payload.lichHenId);
@@ -235,6 +257,42 @@ export class EmailOutboxService {
         return renderWithdrawalApprovedMail(common);
       case PAYMENT_MAIL_EVENTS.WITHDRAWAL_REJECTED:
         return renderWithdrawalRejectedMail(common);
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Thư của yêu cầu thay đổi chi nhánh (admin C4): chi tiết là `thong_bao.noi_dung`, bảng có tên, địa chỉ chi nhánh và thời điểm hiệu lực đọc tại lúc gửi (`branch-change-mail.templates.ts`).
+   * Thiếu `yeu_cau_thay_doi_chi_nhanh_id` hay yêu cầu không còn ⇒ `THIEU_YEU_CAU`. `null` = không phải loại của yêu cầu thay đổi chi nhánh.
+   */
+  private async renderBranchChangeMail(
+    payload: EmailPayload,
+  ): Promise<RenderedMail | null> {
+    const base = baseEventOf(payload.loai);
+    if (!BRANCH_CHANGE_MAIL_LOAI.has(base)) return null;
+    const em = this.db.manager;
+    const context =
+      payload.yeuCauId === null
+        ? null
+        : await readBranchChangeMailContext(em, payload.yeuCauId);
+    if (context === null) throw new EmailOutboxDataError('THIEU_YEU_CAU');
+    const common = {
+      recipientName: payload.hoTen,
+      noiDung: payload.noiDung,
+      thoiDiem: payload.thoiDiem,
+      context,
+      footer: await readClinicFooter(em),
+    };
+    switch (base) {
+      case BRANCH_CHANGE_MAIL_EVENTS.RESULT:
+        return renderBranchChangeResultMail(common);
+      case BRANCH_CHANGE_MAIL_EVENTS.AFFECTED:
+        return renderBranchChangeAffectedMail(common);
+      case BRANCH_CHANGE_MAIL_EVENTS.RESCHEDULED:
+        return renderBranchChangeRescheduledMail(common);
+      case BRANCH_CHANGE_MAIL_EVENTS.CANCELLED:
+        return renderBranchChangeCancelledMail(common);
       default:
         return null;
     }
