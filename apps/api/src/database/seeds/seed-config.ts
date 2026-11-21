@@ -19,6 +19,7 @@ export const SEED_COMMANDS = [
   'search-demo',
   'doctor-demo',
   'exam-demo',
+  'payment-demo',
 ] as const;
 export type SeedCommand = (typeof SEED_COMMANDS)[number];
 export type SeedEnv = Record<string, string | undefined>;

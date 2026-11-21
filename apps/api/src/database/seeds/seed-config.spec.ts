@@ -65,6 +65,18 @@ describe('doctor-exam B10 — cấu hình lệnh exam-demo', () => {
   });
 });
 
+describe('payment B18 — cấu hình lệnh payment-demo', () => {
+  it('MGT-13 payment-demo là lệnh hợp lệ và KHÔNG cần mật khẩu seed (không tạo tài khoản)', () => {
+    expect(SEED_COMMANDS).toContain('payment-demo');
+    const config = readSeedConfig('payment-demo', {
+      ...environment(),
+      SEED_DEV_PASSWORD: undefined,
+    });
+    expect(config.command).toBe('payment-demo');
+    expect(config.password).toBeUndefined();
+  });
+});
+
 describe('C5 SD-03/04 — validation và lỗi CLI trước khi kết nối', () => {
   it.each([
     'catalog',
@@ -73,6 +85,7 @@ describe('C5 SD-03/04 — validation và lỗi CLI trước khi kết nối', ()
     'search-demo',
     'doctor-demo',
     'exam-demo',
+    'payment-demo',
   ])(
     'SD-03 chặn production %s ngay cả khi chưa có cấu hình DB',
     async (command) => {
