@@ -20,7 +20,7 @@ const normalizeName = ({ value }: { value: unknown }): unknown =>
 const trimText = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? normalizeBranchAddress(value) : value;
 
-const isPositiveBigintId = (value: unknown): boolean =>
+export const isPositiveBigintId = (value: unknown): boolean =>
   typeof value === 'string' &&
   /^[1-9]\d{0,18}$/u.test(value) &&
   BigInt(value) <= 9223372036854775807n;

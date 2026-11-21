@@ -28,6 +28,7 @@ import { PatientModule } from './patient/patient.module.js';
 import { AccountNoShowModule } from './admin/account-no-show/account-no-show.module.js';
 import { PaymentModule } from './payment/payment.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
+import { DoctorProfileModule } from './admin/doctors/doctor-profile.module.js';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { WalletModule } from './wallet/wallet.module.js';
     ClinicInfoModule,
     AccountLockModule,
     BranchModule,
+    DoctorProfileModule,
     StaffActivationPublicModule,
     AccountResendModule,
     SearchModule,
