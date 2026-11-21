@@ -22,3 +22,16 @@ export const PAYMENT_MAIL_EVENTS = {
   WITHDRAWAL_APPROVED: 'RutTienDuocDuyet',
   WITHDRAWAL_REJECTED: 'RutTienBiTuChoi',
 } as const;
+
+/**
+ * Bốn loại thông báo CÓ thư của yêu cầu thay đổi chi nhánh (admin C4; PLAN admin Q9, 4.2a ý 5; Figma `689:2`, `690:2`). Viết bằng CHỮ ở đây để booking không import `notification/` lúc chạy
+ * (chiều phụ thuộc: `notification/` gọi booking, không ngược lại); `branch-change-mail.templates.spec.ts` kiểm chữ khớp `BRANCH_CHANGE_MAIL_TYPES` của `notification/branch-change-events.ts`.
+ * Hai loại `AFFECTED` và `RESCHEDULED` được ghi kèm hậu tố phiên bản (`…:v1`, `…:v2`): worker so PHẦN TRƯỚC dấu `:` (`SUBSTRING_INDEX`, xem `email-outbox.query.ts`).
+ * Quá hạn (`YeuCauThayDoiChiNhanhQuaHan:v{n}`) và rút (`RutThayDoiChiNhanh`) chỉ là thông báo trong ứng dụng.
+ */
+export const BRANCH_CHANGE_MAIL_EVENTS = {
+  RESULT: 'KetQuaYeuCauThayDoiChiNhanh',
+  AFFECTED: 'ThayDoiChiNhanhAnhHuongLichHen',
+  CANCELLED: 'HuyThayDoiChiNhanh',
+  RESCHEDULED: 'DoiHieuLucThayDoiChiNhanh',
+} as const;

@@ -3854,4 +3854,98 @@ WM17 và WM18 được bù bằng số đo trình duyệt (mục 8.4), nói đú
 
 Phần này nằm ở cuối file: Trung thêm mục con mới (`9B.n`) ngay sau mục con trước, không chèn vào giữa file.
 
-Chưa có mục nào.
+#### 9B.1 C4 (#518) `notification` tối thiểu: kế hoạch (21/11/2026, CHỜ DUYỆT, chưa viết mã)
+
+Nhánh `[đề xuất]` `feat/admin-c4-thong-bao`, tạo từ `origin/main` = `697bc40`. Tiêu đề PR `feat(notification): thêm thông báo và thư cho yêu cầu thay đổi chi nhánh (admin C4)`. Thẻ: `[ĐỤNG booking]`. DB test: `clinix_admin_c4_test`.
+
+**Thực tế khác PLAN.** PLAN (Q9, dòng C4) viết khi chưa có hộp thư đi, nên giao C4 tự làm `email-outbox.worker`. Nay booking B15 đã có worker chạy mỗi phút trong `appointments/notifications/`: nhận việc bằng `UPDATE` có điều kiện, thử 3 lần cách 5 phút, `ThatBai` kèm `loi_cuoi`, log không chứa dữ liệu cá nhân. Payment B17 đã mở rộng worker này cho năm loại thư của tiền. Theo `PHAN_CONG_CHUNG.md` mục 4 ("tái dùng, không viết lần hai"), C4 **không viết worker thứ hai**: chỉ thêm loại thư của yêu cầu thay đổi chi nhánh vào worker có sẵn, đúng cách payment B17 đã làm.
+
+**Phạm vi.**
+
+1. `apps/api/src/notification/` (mới, theo PLAN 5.1), một module nhỏ export `BranchChangeNotifier`:
+   - `branch-change-notifier.ts`: ghi `thong_bao` có `yeu_cau_thay_doi_chi_nhanh_id`, dùng `em` của người gọi (cùng giao dịch duyệt, từ chối, rút, hủy hay dời). Lỗi 1062 của ĐÚNG chỉ mục `thong_bao_index_yeu_cau_chi_nhanh` trả `AlreadyExists` (idempotent, cho job B11 chạy lại); mọi lỗi khác nổi lên để người gọi hoàn tác. Loại có thư thì thêm dòng `email_thong_bao` `ChoGui` qua `insertEmailRow` của booking. Nội dung ≤ 500 ký tự, cắt "và N lịch khác" (CN-52).
+   - `branch-change-events.ts`: mã sự kiện theo PLAN 4.2a ý 5. Thư cho người đề xuất: `KetQuaYeuCauThayDoiChiNhanh` (duyệt hay từ chối; 689:2). Thư cho bệnh nhân: `ThayDoiChiNhanhAnhHuongLichHen:v{n}` (690:2) và `DoiHieuLucThayDoiChiNhanh:v{n}`. Thư cho cả hai: `HuyThayDoiChiNhanh`. Chỉ trong ứng dụng: `YeuCauThayDoiChiNhanhQuaHan:v{n}` và `RutThayDoiChiNhanh` `[đề xuất]` (báo Toàn hệ thống khi người gửi rút; PLAN chưa đặt tên).
+   - `skipPendingEmails(em, yeuCauId, loai[])`: `UPDATE email_thong_bao … SET trang_thai = 'BoQua' WHERE trang_thai IN ('ChoGui','ThatBai')` cho các thông báo của yêu cầu, gọi trong giao dịch hủy hay dời (B21, B22; PLAN 4.2a ý 4). Câu nhận việc của worker chỉ nhận `ChoGui`/`ThatBai`, nên sau đó không gửi nữa.
+   - `email-status.reader.ts`: trạng thái gửi (`ChoGui`, `DaGui`, `ThatBai`, `BoQua`) của thông báo thuộc một yêu cầu, để B9 hiển thị (Q9: "ghi và hiển thị trạng thái gửi thất bại").
+2. `[ĐỤNG booking]` `appointments/notifications/`, cần Đại đồng ý (cùng cách payment B17 đã được duyệt):
+   - `notifications.constants.ts`: thêm `BRANCH_CHANGE_MAIL_EVENTS`, viết bằng chữ để booking không import admin, có spec kiểm chữ khớp.
+   - `email-outbox.query.ts`: `SELECT_DUE_EMAILS_SQL` hiện lọc `loai_su_kien IN (...)` khớp đúng chữ, mà mã có `:v{n}` thì không khớp được. Đề xuất: thêm điều kiện `OR t.loai_su_kien LIKE 'ThayDoiChiNhanhAnhHuongLichHen:v%' …` cho các mã có phiên bản. `READ_EMAIL_PAYLOAD_SQL` thêm `yeu_cau_thay_doi_chi_nhanh_id`.
+   - `branch-change-mail.templates.ts` (mới): dựng 689:2 và 690:2 trên `renderMailSpec` (vỏ chung của auth A14 và booking). Chi tiết thư lấy từ `thong_bao.noi_dung`; tên chi nhánh và `hieu_luc_tu` đọc tại lúc gửi từ `yeu_cau_thay_doi_chi_nhanh`. Mọi chữ từ DB qua `toSingleLine`.
+   - `email-outbox.service.ts`: thêm một nhánh `renderBranchChangeMail` cạnh `renderPaymentMail`.
+3. `app.module.ts`: chỉ thêm một dòng import và một phần tử mảng nếu cần (B9 trở đi import thẳng module này nên có thể không cần).
+
+**Không làm ở C4:** gọi notifier từ duyệt, từ chối, rút, hủy, dời (B9, B10, B11, B21, B22 tự gọi); màn Trung tâm thông báo (Q9); thư nạp ví thành công. Thư nạp ví thành công là task `feat(payment)` riêng làm SAU C4 (Trung chốt 21/11/2026); task đó đổi quy tắc 62 và Q18, nên cần Đại đồng ý và sửa cả ba file `docs/database/*`. Không cần migration: `thong_bao` và `email_thong_bao` (kể cả `BoQua`) đã có từ P3.
+
+**Bảng test (mỗi test ghi mã):**
+
+| Mã | Nội dung | Loại |
+|---|---|---|
+| CN-70 | `MailService` giả lỗi với một bệnh nhân: `thong_bao` giữ nguyên, `email_thong_bao` = `ThatBai` + `loi_cuoi` + `so_lan_thu ≥ 1`; bệnh nhân khác vẫn gửi được | I |
+| CN-71 | Thư lỗi được gửi lại thành `DaGui` + `da_gui_luc`; không gửi trùng khi đã `DaGui` | I |
+| CN-72 | Hai worker cùng nhận một thư của chi nhánh: chỉ một bên gọi `MailService` | I |
+| CN-73 | Sau 3 lần lỗi dừng ở `ThatBai`, worker không chọn nữa | I |
+| CN-105 (phần C4) | `skipPendingEmails`: `ChoGui`/`ThatBai` thành `BoQua`, `DaGui` không đổi, sau đó câu nhận việc ảnh hưởng 0 dòng | I |
+| CN-52 (phần C4) | Nội dung gom nhiều lịch ≤ 500 ký tự, cắt "và N lịch khác" | U |
+| NTB-01 `[đề xuất mã]` | Ghi lần hai cùng (yêu cầu, tài khoản, loại): `AlreadyExists`, không có dòng trùng; mã `:v2` tạo dòng mới | I |
+| NTB-02 `[đề xuất mã]` | 1062 của chỉ mục khác hay lỗi khoá ngoại nổi lên; giao dịch của người gọi hoàn tác cả `thong_bao` lẫn `email_thong_bao` | I |
+| NTB-03 `[đề xuất mã]` | Loại chỉ trong ứng dụng (`QuaHan:v{n}`, `RutThayDoiChiNhanh`) không có dòng `email_thong_bao`; worker không chọn | I |
+| NTB-04 `[đề xuất mã]` | Mẫu 689:2 (duyệt, từ chối), 690:2, hủy, dời: tiêu đề, `text` và `html` cùng chữ; chữ DB có thẻ HTML bị escape; không liên kết, không script | U |
+| NTB-05 `[đề xuất mã]` | `email-status.reader`: đúng trạng thái theo từng tài khoản; không lộ `loi_cuoi` thô ra ngoài | I |
+| NTB-06 `[đề xuất mã]` | Hằng `BRANCH_CHANGE_MAIL_EVENTS` của booking khớp chữ với `branch-change-events.ts` | U |
+
+Các test có sẵn của worker booking (B15) và payment (B17) phải xanh lại sau khi sửa câu `SELECT`.
+
+**Câu hỏi mở (chặn viết mã):**
+
+1. Nội dung frame Figma 689:2 "Kết quả thay đổi thông tin chi nhánh" và 690:2 "Thay đổi chi nhánh ảnh hưởng bệnh nhân": `[cần điền]`, Trung dán chữ hoặc ảnh. Thư hủy và thư dời chưa có frame: `[đề xuất]` dùng biến thể của 690:2.
+2. Đại đồng ý cho `[ĐỤNG booking]` ở bốn file trên không.
+3. Mã `RutThayDoiChiNhanh` `[đề xuất]` và các mã `NTB-*` `[đề xuất mã]`.
+
+**Trả lời (21/11/2026, Trung):** duyệt kế hoạch, làm phần `notification/` trước; phần `[ĐỤNG booking]` chờ Đại đồng ý. Dùng `RutThayDoiChiNhanh` và `NTB-*` như đề xuất. Nội dung Figma 689:2 và 690:2 Trung dán sau.
+
+**Tiến độ 21/11/2026, phần 1 (`apps/api/src/notification/`): XONG, test xanh.**
+
+- `branch-change-events.ts`: sáu mã sự kiện, `eventCodeOf` (phiên bản `:v{n}`, n nguyên ≥ 1), `hasEmail`, `CHANGE_NOTICE_TYPES` (hai loại phải dừng thư khi hủy hay dời).
+- `branch-change-text.ts`: `joinWithinLimit` gom danh sách ≤ 500 ký tự, phần thừa ghi "và N lịch khác".
+- `branch-change-notifier.ts`: `BranchChangeNotifier.notify`, ghi một thông báo cho một người nhận bằng `em` của người gọi. Chỉ 1062 của `thong_bao_index_yeu_cau_chi_nhanh` trả `AlreadyExists`. Loại có thư thì gọi `insertEmailRow` của booking.
+- `branch-change-email.query.ts`: `skipPendingChangeNotices` (`ChoGui`/`ThatBai` của thư báo thay đổi thành `BoQua`, so bằng `LIKE 'Ma:v%'`) và `readNotificationStatuses` (không trả `loi_cuoi`).
+- `notification.module.ts`: export `BranchChangeNotifier`. Chưa thêm vào `app.module.ts` vì chưa ai dùng; B9 trở đi import module này.
+- Ghi `email_thong_bao` từ ngoài `appointments/`: luật AR-06 chỉ áp cho `appointments/`, như `payment/` và `wallet/` đang làm.
+
+| Mã | Kết quả |
+|---|---|
+| NTB-01 (đơn vị + tích hợp), NTB-03 (đơn vị + tích hợp), CN-52 (phần C4, đơn vị) | Pass |
+| NTB-02 (khoá ngoại 1452 hoàn tác cả giao dịch; 1062 của chỉ mục khác không bị nuốt) | Pass |
+| CN-105 (phần C4: `BoQua`, `DaGui` giữ nguyên, thư kết quả và thư hủy không bị dừng, câu nhận việc của worker 0 dòng, chỉ đúng yêu cầu, hoàn tác được) | Pass |
+| NTB-05 | Pass |
+| CN-70 đến CN-73, NTB-04, NTB-06 | Làm ở phần 2 (dưới) |
+
+Lệnh đã chạy (máy Trung, MySQL 8.4 của `docker compose`):
+- `npm run lint` 0 lỗi; `npm run build` xanh.
+- `npx vitest run src/notification`: 2 file, 14 test pass.
+- `TEST_DB_NAME=clinix_admin_c4_test npx vitest run --config ./vitest.config.integration.ts src/notification`: 2 file, 12 test pass.
+- `npm test` toàn bộ api: 6793 pass, 1 fail ở `common/upload/test/image-processor.spec.ts` (`XU_LY_ANH_HET_THOI_GIAN`, file không liên quan C4). Chạy riêng file đó thì 17/17 pass, nên đây là lỗi hết thời gian khi máy bận chạy song song.
+- `npm run dup` ở gốc repo: chạy không lỗi, không in bảng trùng lặp.
+
+**Tiến độ 21/11/2026, phần 2 (`[ĐỤNG booking]`, Trung xác nhận Đại đã đồng ý): XONG, test xanh. Mẫu thư là chữ `[đề xuất]`, phải đối chiếu Figma 689:2, 690:2 trước khi merge.**
+
+- `notifications.constants.ts`: thêm `BRANCH_CHANGE_MAIL_EVENTS`, viết bằng chữ để booking không import `notification/` lúc chạy.
+- `email-outbox.query.ts`: `MAIL_EVENTS` thêm bốn loại (13 loại gốc). Câu chọn lô so `SUBSTRING_INDEX(t.loai_su_kien, ':', 1)` để mã `:v{n}` khớp; mã không có `:` giữ nguyên nên loại của booking và payment so như cũ. `READ_EMAIL_PAYLOAD_SQL` thêm `yeuCauId`.
+- `email-outbox.service.ts`: nhánh `renderBranchChangeMail` cạnh `renderPaymentMail`; `baseEventOf`; lỗi dữ liệu mới `THIEU_YEU_CAU`.
+- Mới: `branch-change-context.query.ts` (tên, địa chỉ chi nhánh, `hieu_luc_tu` đọc tại lúc gửi) và `branch-change-mail.templates.ts`. Bốn mẫu: kết quả (689:2), ảnh hưởng (690:2), dời và hủy (biến thể 690:2). Chi tiết thư là `thong_bao.noi_dung`; thư kết quả cố ý không đọc trạng thái hiện tại của yêu cầu (lúc gửi có thể đã bị hủy).
+- Sửa test cũ của booking: `email-outbox.query.spec.ts` (9 thành 13 loại, vị trí tham số, biểu thức `SUBSTRING_INDEX`); `email-outbox.int-spec.ts` OBX-06 đổi ví dụ "nguồn khác" từ `KetQuaYeuCauThayDoiChiNhanh` (nay có thư) sang `NghiPhepDaDuyet`.
+
+| Mã | Kết quả |
+|---|---|
+| NTB-04 (4 mẫu: tiêu đề, text và html cùng chữ, thoát HTML, không liên kết/script/ảnh, cắt 500), NTB-06 (hằng khớp, `baseEventOf`) | Pass |
+| Worker gửi đủ bốn loại (kể cả `:v2`) đúng người, đúng mẫu; quá hạn và rút không bị chọn; thiếu yêu cầu ⇒ `ThatBai` + `THIEU_YEU_CAU`, không gọi `MailService` | Pass |
+| CN-70, CN-71, CN-72, CN-73 | Pass |
+
+Lệnh đã chạy (chỉ phần bị ảnh hưởng):
+- `npm run lint` 0 lỗi; `npm run build` xanh.
+- Đơn vị `src/notification src/appointments/notifications`: 12 file, 205 test pass; thêm `src/appointments src/payment src/wallet`: 111 file, 2553 test pass.
+- Tích hợp (`clinix_admin_c4_test`) `src/notification src/appointments/notifications`: 8 file, 71 test pass (gồm `email-outbox`, `email-outbox.concurrency`, `payment-mail` của booking và payment).
+- Tích hợp `doctor/examination/notifications/exam-notifier.int-spec.ts`: 5/5 pass. Lần đầu có 2 fail vì bộ chạy toàn phần vừa dừng vẫn còn dùng cùng DB test và xoá bảng giữa chừng; chạy lại riêng thì sạch.
+- Không chạy toàn bộ bộ tích hợp (Trung yêu cầu chỉ test phần bị ảnh hưởng).
+
+**Còn mở:** đối chiếu chữ bốn mẫu thư với Figma 689:2, 690:2 (Trung dán sau); CI sẽ chạy đủ bộ test khi mở PR.

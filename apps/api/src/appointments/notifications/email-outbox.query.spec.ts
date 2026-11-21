@@ -16,15 +16,17 @@ import {
   type DueEmail,
 } from './email-outbox.query.js';
 import {
+  BRANCH_CHANGE_MAIL_EVENTS,
   EMAIL_MAX_ATTEMPTS,
   EMAIL_RETRY_GAP_MINUTES,
   PAYMENT_MAIL_EVENTS,
 } from './notifications.constants.js';
 
-// payment B17: bốn loại của booking rồi năm loại có thư của payment, wallet (thứ tự cố định)
+// payment B17: bốn loại của booking rồi năm loại có thư của payment, wallet; admin C4: thêm bốn loại của yêu cầu thay đổi chi nhánh (thứ tự cố định)
 const MAIL_LOAI = [
   ...Object.values(BOOKING_NOTIFICATION_EVENTS),
   ...Object.values(PAYMENT_MAIL_EVENTS),
+  ...Object.values(BRANCH_CHANGE_MAIL_EVENTS),
 ];
 
 // Task B15 — câu SQL của hộp thư đi (PLAN booking 5.12; TRACKING 3.37 B15-H): chỉ thư của booking, nhận việc có điều kiện, kết quả chỉ ghi khi còn đúng lần nhận việc của mình, không khoá nào giữ lâu. OBX-01 (chọn lô), OBX-06 (chỉ bốn
@@ -40,7 +42,7 @@ const DUE: DueEmail = {
 const NOW = new Date('2026-11-02T08:00:00+07:00');
 
 describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiện trạng thái, lần thử và nhịp', () => {
-  it('JOIN thong_bao và lọc đúng CHÍN loại có thư: bốn của booking, năm của payment, wallet (payment B17; hàng của admin và loại chỉ có trong ứng dụng không bị chọn)', async () => {
+  it('JOIN thong_bao và lọc đúng MƯỜI BA loại gốc có thư: bốn của booking, năm của payment, wallet (payment B17), bốn của yêu cầu thay đổi chi nhánh (admin C4); loại chỉ có trong ứng dụng không bị chọn', async () => {
     const em = new ScriptedEntityManager(() => []);
     await selectDueEmails(em.em, { now: NOW, afterId: '0', limit: 100 });
     const { sql, params } = em.queries[0]!;
@@ -48,10 +50,13 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
     expect(sql).toMatch(
       /JOIN thong_bao t ON t\.thong_bao_id = e\.thong_bao_id/,
     );
+    // admin C4: so PHẦN GỐC (bỏ hậu tố `:v{n}`)
     expect(sql).toMatch(
-      /t\.loai_su_kien IN \(\?, \?, \?, \?, \?, \?, \?, \?, \?\)/,
+      new RegExp(
+        `SUBSTRING_INDEX\\(t\\.loai_su_kien, ':', 1\\) IN \\(${Array(13).fill('\\?').join(', ')}\\)`,
+      ),
     );
-    expect(MAIL_LOAI).toHaveLength(9);
+    expect(MAIL_LOAI).toHaveLength(13);
     expect(params.filter((p) => MAIL_LOAI.includes(p as never))).toEqual(
       MAIL_LOAI,
     );
@@ -61,11 +66,13 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
       'RutTienDaGui',
       'NapViCanXuLy',
       'HoanCocCanXuLy',
+      'YeuCauThayDoiChiNhanhQuaHan',
+      'RutThayDoiChiNhanh',
     ])
       expect(params).not.toContain(inAppOnly);
   });
 
-  it('tham số: trần lần thử, mốc "đã quá nhịp" = now trừ 5 phút, chín loại, con trỏ, cỡ lô — đúng thứ tự', async () => {
+  it('tham số: trần lần thử, mốc "đã quá nhịp" = now trừ 5 phút, mười ba loại, con trỏ, cỡ lô — đúng thứ tự', async () => {
     const em = new ScriptedEntityManager(() => []);
     await selectDueEmails(em.em, { now: NOW, afterId: '41', limit: 100 });
     const params = em.queries[0]!.params;
@@ -73,8 +80,8 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
     expect((params[1] as Date).getTime()).toBe(
       NOW.getTime() - EMAIL_RETRY_GAP_MINUTES * 60_000,
     );
-    expect(params.slice(2, 11)).toEqual(MAIL_LOAI);
-    expect(params.slice(11)).toEqual(['41', 100]);
+    expect(params.slice(2, 15)).toEqual(MAIL_LOAI);
+    expect(params.slice(15)).toEqual(['41', 100]);
   });
 
   it('chỉ ChoGui và ThatBai (không DaGui, không BoQua); chưa thử hoặc đã quá nhịp; sắp theo khoá chính', () => {
