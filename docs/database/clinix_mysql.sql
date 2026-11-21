@@ -56,6 +56,9 @@
 -- 18/11/2026 (module booking, task B19): lich_hen thêm ba cột mốc thời gian từng bước thoi_diem_xac_nhan, thoi_diem_tiep_don, thoi_diem_hoan_thanh (datetime NULL,
 -- không DEFAULT, không CHECK, đặt sau thoi_diem_tao) ghi cùng câu với trang_thai để chi tiết lịch hẹn hiện giờ thật của từng bước (TECH_DEBT dòng 111); không thêm bảng, enum hay
 -- CHECK nên các số bảng, enum, CHECK ở các dòng trên không đổi. Chuyển đổi từ DB cũ: mục "booking B19" ở cuối clinix_quy_tac_nghiep_vu.md.
+-- 21/11/2026 (module payment và wallet, task D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE hay ALTER TABLE nào
+-- (COMMENT của năm bảng tiền đứng trong phần được schema-parity so với migration nên giữ nguyên). Thêm quy tắc service 54 đến 62 (ví, thanh toán, hoàn tiền) và mục
+-- "payment D1" ở clinix_quy_tac_nghiep_vu.md, chín dòng ở khối quy tắc service bên dưới và ba khối TRUY VẤN MẪU ở cuối file; các số bảng, enum, CHECK ở các dòng trên không đổi.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -133,6 +136,15 @@
 --   * Hồ sơ khám và đánh giá (doctor-exam D1): chỉ Bác sĩ phụ trách của lịch ghi và sửa hồ sơ, khi lịch DaTiepDon hoặc HoanThanh, trong MỘT giao dịch khóa lich_hen theo khóa chính rồi ho_so_kham theo lich_hen_id (tầng 6b) trước khi INSERT/UPDATE; gửi đánh giá (Bệnh nhân chủ lịch, lịch HoanThanh) không khóa tường minh, UNIQUE lich_hen_id chống đua (lỗi 1062 là DA_DANH_GIA); chỉ Bác sĩ phụ trách và Bệnh nhân chủ lịch (lịch HoanThanh) đọc nội dung hồ sơ, Lễ tân và Quản trị viên không đọc
 --   * Ẩn đánh giá (doctor-exam D1) MỘT chiều, không có đường hiện lại: Quản trị viên chỉ đặt bi_an = 1 kèm ly_do_an 10 đến 255 ký tự; chỉ khóa danh_gia_bac_si (không khóa lich_hen); ghi nhật ký AnDanhGia cùng giao dịch với chi_nhanh_id của lịch; Quản trị viên Chi nhánh chỉ ẩn đánh giá của lịch thuộc chi nhánh mình (ngoài phạm vi là 404)
 --   * Điểm trung bình của bác sĩ tính khi đọc bằng GROUP BY, chỉ lấy bi_an = 0, không lưu cột và không cache (Q9 đã chốt; triển khai ở task B9, issue #405); xem truy vấn mẫu cuối file
+--   * Ví (payment D1, quy tắc 54): WalletLedger là nơi DUY NHẤT đổi so_du, so_tien_dang_giu và ghi giao_dich_vi (chỉ thêm); so_du = tổng so_tien có dấu (IVT-01); "không đủ số dư" kiểm dưới khoá ví, không dựa vào chk_vi_so_du
+--   * Nạp ví (quy tắc 55): 50.000đ đến 2.000.000đ; IPN kiểm chữ ký, dòng NapVi đúng cổng, số tiền, rồi DƯỚI khoá dòng nạp; tín hiệu lặp không cộng lần hai; cộng lỗi ⇒ ThanhCong + ChoDoiSoat + lần đối soát 0
+--   * Đối soát (quy tắc 56, bổ sung 42): job thử lại tối đa 3 lần cách 5 phút; hết lượt thì Quản trị viên Toàn hệ thống Cộng ví đúng một lần hoặc Không thể xử lý (lý do 10 đến 255), ghi XuLyNapViChuaCong
+--   * Thanh toán cọc bằng ví (quy tắc 57): số tiền = tien_coc_snapshot; confirmPaid TRƯỚC khoá ví; thiếu số dư hoàn tác cả lần xác nhận; chống trừ hai lần theo trạng thái lịch dưới khoá
+--   * Rút tiền (quy tắc 58, chi tiết hoá 12): ≥ 10.000đ, mỗi Bệnh nhân tối đa một yêu cầu ChoDuyet; chỉ Quản trị viên Toàn hệ thống duyệt/từ chối; ghi chú ≤ 200, không giống bí mật, không có cột
+--   * Hoàn cọc tự động (quy tắc 59): chỉ về ví, chỉ khoản Vi của lịch gốc, theo chinh_sach_hoan_snapshot; tối đa 4 lần mỗi khoản (1 + 3 job cách 5 phút); 21/11/2026 booking chưa nối REFUND_PORT thật (#459)
+--   * Hoàn tiền đặc biệt (quy tắc 60): chỉ Toàn hệ thống; trần dùng chung với hoàn tự động (IVT-06); mỗi khoản tối đa một dòng DacBiet ThanhCong; lý do 10 đến 255; nhật ký HoanTienDacBiet cùng giao dịch
+--   * Thứ tự khoá tiền (quy tắc 61): 7a hàng đã có của giao_dich_thanh_toan / yeu_cau_rut_tien → 7b vi_noi_bo → 7c hàng mới của lich_su_hoan_tien, giao_dich_vi, lan_doi_soat_nap_vi
+--   * Thông báo của tiền (quy tắc 62): cùng giao dịch với luồng tiền; chỉ NapViThatBai, HoanCocThanhCong, HoanTienDacBiet, RutTienDuocDuyet, RutTienBiTuChoi có thêm email_thong_bao
 -- ============================================================================
 
 SET NAMES utf8mb4;
@@ -1409,6 +1421,44 @@ ALTER TABLE `thong_tin_phong_kham` ADD CONSTRAINT `chk_phong_kham_mot_dong` CHEC
 -- Bác sĩ không có dòng nào thì không có hàng trả về (nơi gọi đổi thành điểm null và 0 lượt); ROUND trên DECIMAL làm tròn nửa lên (đã đo ở task X1, M5).
 -- ============================================================================
 -- SELECT lh.bac_si_id, ROUND(AVG(dg.so_sao), 1) AS diem, COUNT(*) AS so_danh_gia FROM danh_gia_bac_si dg JOIN lich_hen lh ON lh.lich_hen_id = dg.lich_hen_id WHERE dg.bi_an = 0 AND lh.bac_si_id IN (:bac_si_id_1, :bac_si_id_2) GROUP BY lh.bac_si_id;
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): HÀNG ĐỢI "NẠP VÍ CHƯA CỘNG" của Quản trị viên (payment B15; quy tắc 56) — nạp ThanhCong + ChoDoiSoat đã hết lượt job (lần thử lớn nhất >= :so_luot_job, hiện 3).
+-- Chỉ ĐỌC. Xử lý một dòng thì khoá lại dòng nạp FOR UPDATE (7a), KIỂM LẠI chưa có giao_dich_vi loại Nap của giao dịch đó, rồi khoá ví (7b) mới cộng.
+-- ============================================================================
+-- SELECT g.giao_dich_thanh_toan_id, g.phuong_thuc, g.ma_giao_dich_cong, t.ho_ten, g.so_tien, g.thoi_diem_tao,
+--        SUM(a.so_lan_thu BETWEEN 1 AND :so_luot_job) AS so_lan_thu_tu_dong, MAX(a.so_lan_thu) AS lan_thu_lon_nhat
+-- FROM giao_dich_thanh_toan g
+-- JOIN vi_noi_bo v ON v.vi_noi_bo_id = g.vi_noi_bo_id
+-- JOIN tai_khoan t ON t.tai_khoan_id = v.benh_nhan_id
+-- JOIN lan_doi_soat_nap_vi a ON a.giao_dich_thanh_toan_id = g.giao_dich_thanh_toan_id
+-- WHERE g.loai = 'NapVi' AND g.trang_thai = 'ThanhCong' AND g.trang_thai_doi_soat = 'ChoDoiSoat'
+-- GROUP BY g.giao_dich_thanh_toan_id, g.phuong_thuc, g.ma_giao_dich_cong, t.ho_ten, g.so_tien, g.thoi_diem_tao
+-- HAVING MAX(a.so_lan_thu) >= :so_luot_job
+-- ORDER BY g.giao_dich_thanh_toan_id;
+-- SELECT 1 FROM giao_dich_vi WHERE giao_dich_thanh_toan_id = :giao_dich_nap AND loai = 'Nap';   -- có dòng ⇒ đã cộng, 409 GIAO_DICH_NAP_DA_DOI_SOAT
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): SỐ CÒN HOÀN ĐƯỢC của các khoản thanh toán qua ví của MỘT lịch gốc (payment B13; quy tắc 59, 60) — trần chung của hoàn tự động và hoàn đặc biệt (IVT-06).
+-- :lich_goc là lịch gốc của chuỗi đổi lịch (truy vấn mẫu đầu tiên). Hoàn đặc biệt: khoản đã có dòng DacBiet ThanhCong thì không còn chọn được. Khi GHI, khoá khoản FOR UPDATE (7a) rồi tính lại dưới khoá.
+-- ============================================================================
+-- SELECT g.giao_dich_thanh_toan_id, g.so_tien AS da_thanh_toan,
+--        COALESCE(SUM(CASE WHEN h.trang_thai = 'ThanhCong' THEN h.so_tien END), 0) AS da_hoan,
+--        GREATEST(g.so_tien - COALESCE(SUM(CASE WHEN h.trang_thai = 'ThanhCong' THEN h.so_tien END), 0), 0) AS con_co_the_hoan,
+--        MAX(h.loai = 'DacBiet' AND h.trang_thai = 'ThanhCong') AS da_hoan_dac_biet
+-- FROM giao_dich_thanh_toan g
+-- LEFT JOIN lich_su_hoan_tien h ON h.giao_dich_thanh_toan_id = g.giao_dich_thanh_toan_id
+-- WHERE g.lich_hen_id = :lich_goc AND g.loai = 'ThanhToanLichHen' AND g.phuong_thuc = 'Vi' AND g.trang_thai = 'ThanhCong' AND g.so_tien > 0
+-- GROUP BY g.giao_dich_thanh_toan_id, g.so_tien;
+
+-- ============================================================================
+-- TRUY VẤN MẪU (comment): KIỂM SỔ CÁI KHỚP SỐ DƯ (IVT-01, IVT-02; quy tắc 54) — dữ liệu đúng thì KHÔNG có dòng nào. Dùng sau sự cố hay sau khi sửa tay dữ liệu ví.
+-- ============================================================================
+-- SELECT v.vi_noi_bo_id, v.so_du, COALESCE(s.tong, 0) AS tong_so_cai, v.so_tien_dang_giu, COALESCE(r.dang_giu, 0) AS tong_rut_cho_duyet
+-- FROM vi_noi_bo v
+-- LEFT JOIN (SELECT vi_noi_bo_id, SUM(so_tien) AS tong FROM giao_dich_vi GROUP BY vi_noi_bo_id) s ON s.vi_noi_bo_id = v.vi_noi_bo_id
+-- LEFT JOIN (SELECT vi_noi_bo_id, SUM(so_tien) AS dang_giu FROM yeu_cau_rut_tien WHERE trang_thai = 'ChoDuyet' GROUP BY vi_noi_bo_id) r ON r.vi_noi_bo_id = v.vi_noi_bo_id
+-- WHERE v.so_du <> COALESCE(s.tong, 0) OR v.so_tien_dang_giu <> COALESCE(r.dang_giu, 0);
 
 
 -- P7 (28/10/2026): bổ sung quản lý ảnh Cloudinary; giữ URL chuyên khoa cũ.
