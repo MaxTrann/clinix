@@ -1,6 +1,7 @@
 import type { EntityManager } from 'typeorm';
 import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
 import {
+  BRANCH_CHANGE_MAIL_EVENTS,
   EMAIL_MAX_ATTEMPTS,
   EMAIL_RETRY_GAP_MINUTES,
   PAYMENT_MAIL_EVENTS,
@@ -25,15 +26,20 @@ export interface DueEmail {
   loiCuoi: string | null;
 }
 
-/** Loại có thư mà worker xử lý: bốn loại của booking (B15) và năm loại của payment, wallet (payment B17). Thứ tự cố định: booking trước. */
+/**
+ * Loại có thư mà worker xử lý: bốn loại của booking (B15), năm loại của payment, wallet (payment B17) và bốn loại của yêu cầu thay đổi chi nhánh (admin C4). Thứ tự cố định: booking trước.
+ * Đây là PHẦN GỐC của mã: mã có phiên bản (`ThayDoiChiNhanhAnhHuongLichHen:v2`) khớp nhờ câu chọn lô so phần trước dấu `:`.
+ */
 export const MAIL_EVENTS: readonly string[] = [
   ...Object.values(BOOKING_NOTIFICATION_EVENTS),
   ...Object.values(PAYMENT_MAIL_EVENTS),
+  ...Object.values(BRANCH_CHANGE_MAIL_EVENTS),
 ];
 
 /**
  * Chọn lô thư đến lượt: `ChoGui` hoặc `ThatBai`, chưa hết `EMAIL_MAX_ATTEMPTS` lần, chưa thử hoặc lần thử cuối đã quá `EMAIL_RETRY_GAP_MINUTES`, và THUỘC `MAIL_EVENTS` (JOIN `thong_bao`: bảng này còn chứa
- * hàng của admin và các loại chỉ có trong ứng dụng, worker không được đụng). Sắp theo khoá chính, con trỏ `afterId` để một lô không lặp lại hàng của lô trước.
+ * các loại chỉ có trong ứng dụng, worker không được đụng). Sắp theo khoá chính, con trỏ `afterId` để một lô không lặp lại hàng của lô trước.
+ * `SUBSTRING_INDEX(loai, ':', 1)` bỏ hậu tố phiên bản `:v{n}` của admin C4; mã không có dấu `:` giữ nguyên, nên các loại của booking và payment so như cũ.
  */
 export const SELECT_DUE_EMAILS_SQL = `SELECT CAST(e.email_thong_bao_id AS CHAR) AS id, CAST(e.thong_bao_id AS CHAR) AS thongBaoId, e.trang_thai AS trangThai, e.so_lan_thu AS soLanThu,
        DATE_FORMAT(e.lan_thu_cuoi_luc, '%Y-%m-%d %H:%i:%s') AS lanThuCuoiLuc, e.loi_cuoi AS loiCuoi
@@ -42,7 +48,7 @@ export const SELECT_DUE_EMAILS_SQL = `SELECT CAST(e.email_thong_bao_id AS CHAR) 
  WHERE e.trang_thai IN ('ChoGui', 'ThatBai')
    AND e.so_lan_thu < ?
    AND (e.lan_thu_cuoi_luc IS NULL OR e.lan_thu_cuoi_luc <= ?)
-   AND t.loai_su_kien IN (${MAIL_EVENTS.map(() => '?').join(', ')})
+   AND SUBSTRING_INDEX(t.loai_su_kien, ':', 1) IN (${MAIL_EVENTS.map(() => '?').join(', ')})
    AND e.email_thong_bao_id > ?
  ORDER BY e.email_thong_bao_id
  LIMIT ?`;
@@ -137,6 +143,8 @@ export interface EmailPayload {
   noiDung: string;
   loai: string;
   lichHenId: string | null;
+  /** Chỉ có với thông báo của yêu cầu thay đổi chi nhánh (admin C4) */
+  yeuCauId: string | null;
   email: string;
   hoTen: string;
   /** Lúc ghi thông báo "dd/MM/yyyy — HH:mm" (giờ Việt Nam như đã lưu, đọc bằng `DATE_FORMAT` nên không lệch múi giờ): "thời gian" của thư payment, wallet (B17) */
@@ -144,7 +152,7 @@ export interface EmailPayload {
 }
 
 export const READ_EMAIL_PAYLOAD_SQL = `SELECT CAST(t.tai_khoan_id AS CHAR) AS taiKhoanId, t.noi_dung AS noiDung, t.loai_su_kien AS loai, CAST(t.lich_hen_id AS CHAR) AS lichHenId,
-       tk.email AS email, tk.ho_ten AS hoTen, DATE_FORMAT(t.thoi_diem_tao, '%d/%m/%Y — %H:%i') AS thoiDiem
+       CAST(t.yeu_cau_thay_doi_chi_nhanh_id AS CHAR) AS yeuCauId, tk.email AS email, tk.ho_ten AS hoTen, DATE_FORMAT(t.thoi_diem_tao, '%d/%m/%Y — %H:%i') AS thoiDiem
   FROM thong_bao t
   JOIN tai_khoan tk ON tk.tai_khoan_id = t.tai_khoan_id
  WHERE t.thong_bao_id = ?`;
