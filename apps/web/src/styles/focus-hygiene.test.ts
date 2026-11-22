@@ -227,9 +227,10 @@ describe('FG-05 mã .ts/.tsx: không lớp focus, outline, ring riêng ngoài da
 describe('FG-06 CSS: `:focus*` chỉ ở `styles/index.css`; không `outline: none` trên ô chữ ngoài khung bọc', () => {
   it('FG-06 bộ quét thật sự thấy CSS: có `styles/index.css` và các CSS Module của admin', () => {
     expect(CSS_FILES).toContain(INDEX_CSS);
+    // F6b thêm `branches/change-requests/change-requests.module.css` (không có `:focus*` hay `outline: none`)
     expect(
       CSS_FILES.filter((file) => file.endsWith('.module.css')),
-    ).toHaveLength(5);
+    ).toHaveLength(6);
   });
 
   it('FG-06 không CSS Module nào có bộ chọn `:focus`, `:focus-visible`, `:focus-within` hay `outline: none` / `outline: 0` trên `input`, `textarea`, `select`, `.input` (trừ ô trong khung bọc)', () => {

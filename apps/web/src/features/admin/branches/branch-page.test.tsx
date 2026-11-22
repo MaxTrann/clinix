@@ -244,7 +244,7 @@ describe('BranchCard thẻ chi nhánh (CN b1, PR1 mục 8)', () => {
     });
   }
 
-  it('hiện địa chỉ, giờ nhận khám (không còn "S:"/"C:") và link Xem bản đồ theo tọa độ; nút Sửa lịch vẫn vô hiệu', async () => {
+  it('hiện địa chỉ, giờ nhận khám (không còn "S:"/"C:") và link Xem bản đồ theo tọa độ; nút Sửa lịch đã bật (F6b)', async () => {
     const card = await renderCard();
 
     expect(
@@ -261,7 +261,7 @@ describe('BranchCard thẻ chi nhánh (CN b1, PR1 mục 8)', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(
       within(card).getByRole('button', { name: 'Sửa lịch / dịch vụ' }),
-    ).toBeDisabled();
+    ).toBeEnabled();
   });
 
   it('chi nhánh không có tọa độ thì không có link Xem bản đồ', async () => {

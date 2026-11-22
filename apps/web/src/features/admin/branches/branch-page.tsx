@@ -1,129 +1,26 @@
-import { useRef, useState, type FormEvent } from 'react';
-import { ApiError } from '../../../shared/api/errors';
-import { errorMessageFor } from '../../../shared/api/error-message';
+import { useState } from 'react';
 import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
-import { useFocusFirstInvalid } from '../hooks/use-focus-first-invalid';
 import { useAdminScope } from '../use-admin-scope';
-import { createBranch } from './branch-service';
-import { dayLabel, scheduleLines } from './branch-schedule-format';
+import { BranchForm } from './branch-form';
+import { scheduleLines } from './branch-schedule-format';
+import type { Branch, BranchUpdateResult } from './branch-types';
 import {
-  scheduleIssuesFromApi,
-  toPeriodInput,
-  validateWeeklySchedule,
-  weeklyScheduleIssueMessage,
-  type WeeklyScheduleIssue,
-} from './branch-schedule-validation';
-import type {
-  Branch,
-  BranchScheduleInput,
-  CreateBranchInput,
-} from './branch-types';
-import {
-  useAvailableServices,
-  useBranches,
-  type AvailableServicesState,
-} from './use-branches';
-import { applyQuickSchedule, type QuickApplyInput } from './quick-apply';
-import { QuickApplyPanel } from './quick-apply-panel';
-import type { PeriodDraft, ScheduleDraft } from './schedule-draft';
-import { TimeInput24 } from './time-input-24';
+  summarizeBranchUpdate,
+  type BranchUpdateSummary,
+} from './branch-update-summary';
+import { useBranches } from './use-branches';
 import styles from './branches.module.css';
 
-const COORDINATE_PAIR_MESSAGE = 'Nhập đồng thời vĩ độ và kinh độ.';
-
-interface BranchDraft {
-  ten: string;
-  diaChi: string;
-  toaDoLat: string;
-  toaDoLng: string;
-}
-
-type BranchField = keyof BranchDraft;
-type BranchFieldErrors = Partial<Record<BranchField, string>>;
-
-const emptyPeriod = (enabled: boolean): PeriodDraft => ({
-  enabled,
-  start: '',
-  end: '',
-});
-
-function defaultSchedule(): ScheduleDraft[] {
-  return Array.from({ length: 7 }, (_, index) => {
-    const day = index + 1;
-    const open = day <= 6;
-    return {
-      day,
-      open,
-      morning: emptyPeriod(open),
-      afternoon: emptyPeriod(day <= 5),
-    };
-  });
-}
-
-function toScheduleInput(schedule: ScheduleDraft[]): BranchScheduleInput[] {
-  return schedule.map((day) => {
-    const morning = toPeriodInput(
-      day.open && day.morning.enabled,
-      day.morning.start,
-      day.morning.end,
-    );
-    const afternoon = toPeriodInput(
-      day.open && day.afternoon.enabled,
-      day.afternoon.start,
-      day.afternoon.end,
-    );
-    return {
-      thuTrongTuan: day.day,
-      hoatDong: day.open,
-      ...(morning ? { sang: morning } : {}),
-      ...(afternoon ? { chieu: afternoon } : {}),
-    };
-  });
-}
-
-function coordinateError(value: string, limit: number): string | undefined {
-  if (!/^[+-]?\d+(?:\.\d{1,7})?$/u.test(value)) return 'Tọa độ không hợp lệ.';
-  if (!Number.isFinite(Number(value)) || Math.abs(Number(value)) > limit)
-    return `Giá trị phải nằm trong khoảng ${-limit} đến ${limit}.`;
-  return undefined;
-}
-
-function validateBranchDraft(draft: BranchDraft): BranchFieldErrors {
-  const errors: BranchFieldErrors = {};
-  const name = draft.ten.trim().replace(/\s+/gu, ' ');
-  const address = draft.diaChi.trim();
-  if (name.length < 1 || name.length > 100)
-    errors.ten = 'Tên chi nhánh phải có từ 1 đến 100 ký tự.';
-  if (address.length < 1 || address.length > 255)
-    errors.diaChi = 'Địa chỉ phải có từ 1 đến 255 ký tự.';
-
-  const hasLatitude = draft.toaDoLat !== '';
-  const hasLongitude = draft.toaDoLng !== '';
-  if (hasLatitude !== hasLongitude) {
-    errors.toaDoLat = COORDINATE_PAIR_MESSAGE;
-    errors.toaDoLng = COORDINATE_PAIR_MESSAGE;
-  } else if (hasLatitude && hasLongitude) {
-    const latitudeError = coordinateError(draft.toaDoLat, 90);
-    const longitudeError = coordinateError(draft.toaDoLng, 180);
-    if (latitudeError) errors.toaDoLat = latitudeError;
-    if (longitudeError) errors.toaDoLng = longitudeError;
-  }
-  return errors;
-}
-
-function fieldErrorFromApi(field: string, code: string): string | undefined {
-  if (field === 'ten') return 'Tên chi nhánh phải có từ 1 đến 100 ký tự.';
-  if (field === 'diaChi') return 'Địa chỉ phải có từ 1 đến 255 ký tự.';
-  if (field === 'toaDoLat' || field === 'toaDoLng') {
-    return code === 'TOA_DO_PHAI_DI_THEO_CAP'
-      ? COORDINATE_PAIR_MESSAGE
-      : 'Tọa độ không hợp lệ.';
-  }
-  return undefined;
-}
-
-function BranchCard({ branch }: { branch: Branch }) {
+function BranchCard({
+  branch,
+  editing,
+  onToggleEdit,
+}: {
+  branch: Branch;
+  editing: boolean;
+  onToggleEdit: () => void;
+}) {
   return (
     <article className={styles.branchCard} aria-label={branch.ten}>
       <div className={styles.branchCardMain}>
@@ -165,525 +62,34 @@ function BranchCard({ branch }: { branch: Branch }) {
           </div>
         </div>
       </div>
-      {/* Figma có nút này; API sửa lịch/dịch vụ (F6b) chưa có nên để vô hiệu */}
+      {/* F6b: mở form sửa ngay dưới thẻ (Figma 544:2); đang mở thì nút thành "Hủy" như Figma */}
       <button
         type="button"
-        className={styles.editButton}
-        disabled
-        title="Chưa được triển khai"
+        className={editing ? styles.cancelEditLink : styles.editButton}
+        aria-expanded={editing}
+        aria-controls={
+          editing ? `branch-edit-${branch.chiNhanhId}-form` : undefined
+        }
+        onClick={onToggleEdit}
       >
-        <img src="/assets/admin/branches/edit.svg" alt="" />
-        Sửa lịch / dịch vụ
+        {!editing && <img src="/assets/admin/branches/edit.svg" alt="" />}
+        {editing ? 'Hủy' : 'Sửa lịch / dịch vụ'}
       </button>
     </article>
   );
 }
 
-function BranchCreateForm({
-  onCancel,
-  onCreated,
+/**
+ * `refreshKey`: tăng từ bên ngoài để tải lại danh sách (F6b). `onUpdated`: báo bên ngoài sau khi Sửa lịch / dịch vụ thành công,
+ * để khối yêu cầu thay đổi tải lại khi vừa có yêu cầu mới.
+ */
+export function BranchPage({
+  refreshKey = 0,
+  onUpdated,
 }: {
-  onCancel: () => void;
-  onCreated: () => void;
-}) {
-  const availableServices = useAvailableServices();
-  const services =
-    availableServices.state.status === 'success'
-      ? availableServices.state.data
-      : [];
-  const [draft, setDraft] = useState<BranchDraft>({
-    ten: '',
-    diaChi: '',
-    toaDoLat: '',
-    toaDoLng: '',
-  });
-  const [schedule, setSchedule] = useState(defaultSchedule);
-  const [selectedServices, setSelectedServices] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [submitted, setSubmitted] = useState(false);
-  const [serverFieldErrors, setServerFieldErrors] = useState<BranchFieldErrors>(
-    {},
-  );
-  const [serverScheduleIssues, setServerScheduleIssues] = useState<
-    WeeklyScheduleIssue[]
-  >([]);
-  const [formError, setFormError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
-  // Tăng khi bấm Lưu mà có ô lỗi (phía form hoặc từ máy chủ): đưa focus vào ô lỗi đầu tiên, không cướp focus lúc đang gõ (admin PR2 6.2)
-  const [focusTick, setFocusTick] = useState(0);
-  useFocusFirstInvalid(formRef, focusTick);
-
-  const fieldErrors = submitted
-    ? { ...validateBranchDraft(draft), ...serverFieldErrors }
-    : {};
-  // Lỗi "nhập đồng thời" gắn cả hai ô nhưng chỉ hiện MỘT lần (dưới vĩ độ); lỗi riêng của kinh độ hiện dưới ô kinh độ
-  const coordinatePair =
-    fieldErrors.toaDoLat === COORDINATE_PAIR_MESSAGE &&
-    fieldErrors.toaDoLng === COORDINATE_PAIR_MESSAGE;
-  const currentScheduleInput = toScheduleInput(schedule);
-  const scheduleIssues = submitted
-    ? [...validateWeeklySchedule(currentScheduleInput), ...serverScheduleIssues]
-    : [];
-
-  function changeField(field: BranchField, value: string) {
-    setDraft((current) => ({ ...current, [field]: value }));
-    setServerFieldErrors((current) => {
-      const next = { ...current };
-      delete next[field];
-      if (field === 'toaDoLat') delete next.toaDoLng;
-      if (field === 'toaDoLng') delete next.toaDoLat;
-      return next;
-    });
-    setFormError('');
-  }
-
-  function updateSchedule(
-    dayNumber: number,
-    update: (day: ScheduleDraft) => ScheduleDraft,
-  ) {
-    setSchedule((current) =>
-      current.map((day) => (day.day === dayNumber ? update(day) : day)),
-    );
-    setServerScheduleIssues([]);
-    setFormError('');
-  }
-
-  function toggleService(serviceId: string, checked: boolean) {
-    setSelectedServices((current) => {
-      const next = new Set(current);
-      if (checked) next.add(serviceId);
-      else next.delete(serviceId);
-      return next;
-    });
-  }
-
-  // Panel "Áp dụng nhanh": chỉ sửa bản nháp lịch (vẫn 7 dòng); hợp lệ từng ngày do validateWeeklySchedule kiểm lúc Lưu
-  function applyQuick(input: QuickApplyInput) {
-    setSchedule((current) => applyQuickSchedule(current, input));
-    setServerScheduleIssues([]);
-    setFormError('');
-  }
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitted(true);
-    setServerScheduleIssues([]);
-    setFormError('');
-
-    const errors = validateBranchDraft(draft);
-    const schedulePayload = toScheduleInput(schedule);
-    const scheduleErrors = validateWeeklySchedule(schedulePayload);
-    if (Object.keys(errors).length > 0 || scheduleErrors.length > 0) {
-      setFocusTick((count) => count + 1);
-      return;
-    }
-
-    const input: CreateBranchInput = {
-      ten: draft.ten.trim().replace(/\s+/gu, ' '),
-      diaChi: draft.diaChi.trim(),
-      ...(draft.toaDoLat !== '' ? { toaDoLat: draft.toaDoLat } : {}),
-      ...(draft.toaDoLng !== '' ? { toaDoLng: draft.toaDoLng } : {}),
-      lichHoatDong: schedulePayload,
-      dichVuKhamIds: services
-        .filter((service) => selectedServices.has(service.dichVuKhamId))
-        .map((service) => service.dichVuKhamId),
-    };
-
-    setSaving(true);
-    try {
-      await createBranch(input);
-      onCreated();
-    } catch (error) {
-      if (
-        error instanceof ApiError &&
-        error.maLoi === 'LICH_HOAT_DONG_KHONG_HOP_LE'
-      ) {
-        const issues = scheduleIssuesFromApi(error.chiTiet);
-        setServerScheduleIssues(issues);
-        // Máy chủ không chỉ ra ngày nào thì không có chỗ nào khác để báo: banner chung (trước đây im lặng)
-        if (issues.length === 0)
-          setFormError(
-            'Lịch hoạt động chưa hợp lệ. Vui lòng kiểm tra lại các ngày.',
-          );
-      } else if (
-        error instanceof ApiError &&
-        error.maLoi === 'DU_LIEU_KHONG_HOP_LE'
-      ) {
-        const apiErrors: BranchFieldErrors = {};
-        for (const fieldError of error.loi ?? []) {
-          const field = fieldError.truong;
-          const message = fieldErrorFromApi(field, fieldError.ma);
-          if (message && (field === 'ten' || field === 'diaChi'))
-            apiErrors[field] = message;
-          if (message && (field === 'toaDoLat' || field === 'toaDoLng')) {
-            // Lỗi "đi theo cặp" gắn cả hai ô; lỗi khác chỉ gắn đúng ô được báo (trước đây đánh dấu lây sang ô còn lại)
-            if (fieldError.ma === 'TOA_DO_PHAI_DI_THEO_CAP') {
-              apiErrors.toaDoLat = message;
-              apiErrors.toaDoLng = message;
-            } else {
-              apiErrors[field] = message;
-            }
-          }
-        }
-        setServerFieldErrors(apiErrors);
-        if (Object.keys(apiErrors).length === 0)
-          setFormError('Một số thông tin chưa hợp lệ. Vui lòng kiểm tra lại.');
-        else setFocusTick((count) => count + 1);
-      } else if (error instanceof ApiError && error.status === 403) {
-        setFormError('Bạn không có quyền thêm chi nhánh.');
-      } else if (error instanceof ApiError && error.status === 404) {
-        setFormError(
-          'Một dịch vụ đã chọn không còn khả dụng. Tải lại danh sách dịch vụ rồi thử lại.',
-        );
-      } else {
-        setFormError(errorMessageFor(error));
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function periodControl(day: ScheduleDraft, period: 'morning' | 'afternoon') {
-    const value = day[period];
-    const label = period === 'morning' ? 'Buổi sáng' : 'Buổi chiều';
-    const fieldLabel = `${dayLabel(day.day)} ${label.toLocaleLowerCase('vi')}`;
-    return (
-      <div className={styles.periodRow} key={period}>
-        <label className={styles.periodToggle}>
-          <input
-            className={styles.checkbox}
-            type="checkbox"
-            checked={value.enabled}
-            disabled={!day.open || saving}
-            onChange={(event) => {
-              const enabled = event.currentTarget.checked;
-              updateSchedule(day.day, (current) => ({
-                ...current,
-                [period]: { ...current[period], enabled },
-              }));
-            }}
-          />
-          <span>{label}</span>
-        </label>
-        {day.open && value.enabled ? (
-          <div className={styles.timeRange}>
-            <TimeInput24
-              aria-label={`${fieldLabel} bắt đầu`}
-              disabled={saving}
-              value={value.start}
-              onChange={(start) => {
-                updateSchedule(day.day, (current) => ({
-                  ...current,
-                  [period]: { ...current[period], start },
-                }));
-              }}
-            />
-            <span aria-hidden="true">–</span>
-            <TimeInput24
-              aria-label={`${fieldLabel} kết thúc`}
-              disabled={saving}
-              value={value.end}
-              onChange={(end) => {
-                updateSchedule(day.day, (current) => ({
-                  ...current,
-                  [period]: { ...current[period], end },
-                }));
-              }}
-            />
-          </div>
-        ) : (
-          <span className={styles.noReception}>
-            {day.open ? 'Không nhận khám' : 'Ngày nghỉ'}
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <form
-      ref={formRef}
-      id="branch-create-form"
-      className={styles.createForm}
-      aria-label="Thêm chi nhánh mới"
-      noValidate
-      onSubmit={(event) => void submit(event)}
-    >
-      <h2>Thêm chi nhánh mới</h2>
-
-      <div className={styles.formFields}>
-        <div className={styles.formFieldWide}>
-          <label className={styles.formLabel} htmlFor="branch-name">
-            Tên chi nhánh <span aria-hidden="true">*</span>
-          </label>
-          <input
-            id="branch-name"
-            type="text"
-            autoComplete="organization"
-            required
-            disabled={saving}
-            value={draft.ten}
-            aria-invalid={Boolean(fieldErrors.ten)}
-            aria-describedby={fieldErrors.ten ? 'branch-name-error' : undefined}
-            onChange={(event) => changeField('ten', event.currentTarget.value)}
-          />
-          {fieldErrors.ten && (
-            <p
-              id="branch-name-error"
-              className={styles.fieldError}
-              role="alert"
-            >
-              {fieldErrors.ten}
-            </p>
-          )}
-        </div>
-        <div className={styles.formFieldWide}>
-          <label className={styles.formLabel} htmlFor="branch-address">
-            Địa chỉ <span aria-hidden="true">*</span>
-          </label>
-          <input
-            id="branch-address"
-            type="text"
-            autoComplete="street-address"
-            required
-            disabled={saving}
-            value={draft.diaChi}
-            aria-invalid={Boolean(fieldErrors.diaChi)}
-            aria-describedby={
-              fieldErrors.diaChi ? 'branch-address-error' : undefined
-            }
-            onChange={(event) =>
-              changeField('diaChi', event.currentTarget.value)
-            }
-          />
-          {fieldErrors.diaChi && (
-            <p
-              id="branch-address-error"
-              className={styles.fieldError}
-              role="alert"
-            >
-              {fieldErrors.diaChi}
-            </p>
-          )}
-        </div>
-        <div className={styles.formField}>
-          <label className={styles.formLabel} htmlFor="branch-latitude">
-            Vĩ độ (lat)
-          </label>
-          <input
-            id="branch-latitude"
-            type="text"
-            inputMode="decimal"
-            placeholder="10.7769"
-            disabled={saving}
-            value={draft.toaDoLat}
-            aria-invalid={Boolean(fieldErrors.toaDoLat)}
-            aria-describedby={
-              fieldErrors.toaDoLat ? 'branch-coordinate-error' : undefined
-            }
-            onChange={(event) =>
-              changeField('toaDoLat', event.currentTarget.value)
-            }
-          />
-          {fieldErrors.toaDoLat && (
-            <p
-              id="branch-coordinate-error"
-              className={styles.fieldError}
-              role="alert"
-            >
-              {fieldErrors.toaDoLat}
-            </p>
-          )}
-        </div>
-        <div className={styles.formField}>
-          <label className={styles.formLabel} htmlFor="branch-longitude">
-            Kinh độ (lng)
-          </label>
-          <input
-            id="branch-longitude"
-            type="text"
-            inputMode="decimal"
-            placeholder="106.6920"
-            disabled={saving}
-            value={draft.toaDoLng}
-            aria-invalid={Boolean(fieldErrors.toaDoLng)}
-            aria-describedby={
-              fieldErrors.toaDoLng
-                ? coordinatePair
-                  ? 'branch-coordinate-error'
-                  : 'branch-longitude-error'
-                : undefined
-            }
-            onChange={(event) =>
-              changeField('toaDoLng', event.currentTarget.value)
-            }
-          />
-          {fieldErrors.toaDoLng && !coordinatePair && (
-            <p
-              id="branch-longitude-error"
-              className={styles.fieldError}
-              role="alert"
-            >
-              {fieldErrors.toaDoLng}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <fieldset className={styles.scheduleFieldset}>
-        <legend className={styles.sectionLabel}>
-          Lịch hoạt động theo tuần <span aria-hidden="true">*</span>
-        </legend>
-        <QuickApplyPanel disabled={saving} onApply={applyQuick} />
-        {scheduleIssues.some((issue) => issue.thu === null) && (
-          <p className={styles.fieldError} role="alert">
-            {weeklyScheduleIssueMessage(
-              scheduleIssues.find((issue) => issue.thu === null)?.maLoi ?? '',
-            )}
-          </p>
-        )}
-        <div className={styles.scheduleCard}>
-          {schedule.map((day) => {
-            const dayIssues = scheduleIssues.filter(
-              (issue) => issue.thu === day.day,
-            );
-            const messages = Array.from(
-              new Set(
-                dayIssues.map((issue) =>
-                  weeklyScheduleIssueMessage(issue.maLoi),
-                ),
-              ),
-            );
-            return (
-              <div className={styles.dayRow} key={day.day}>
-                <div className={styles.dayHeader}>
-                  <strong>{dayLabel(day.day)}</strong>
-                  <label
-                    className={
-                      day.open ? styles.openToggle : styles.closedToggle
-                    }
-                  >
-                    <input
-                      className={styles.checkbox}
-                      type="checkbox"
-                      checked={day.open}
-                      disabled={saving}
-                      onChange={(event) => {
-                        const open = event.currentTarget.checked;
-                        updateSchedule(day.day, (current) => ({
-                          ...current,
-                          open,
-                        }));
-                      }}
-                    />
-                    {day.open ? 'Hoạt động' : 'Nghỉ'}
-                  </label>
-                </div>
-                {day.open && (
-                  <div className={styles.periods}>
-                    {periodControl(day, 'morning')}
-                    {periodControl(day, 'afternoon')}
-                  </div>
-                )}
-                {messages.map((message) => (
-                  <p className={styles.fieldError} role="alert" key={message}>
-                    {dayLabel(day.day)}: {message}
-                  </p>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      <fieldset className={styles.servicesFieldset}>
-        <legend className={styles.sectionLabel}>
-          Dịch vụ khả dụng tại chi nhánh
-        </legend>
-        <ServicesSelector
-          state={availableServices.state}
-          retry={availableServices.retry}
-          selected={selectedServices}
-          saving={saving}
-          onToggle={toggleService}
-        />
-      </fieldset>
-
-      {formError && (
-        <p className={styles.formError} role="alert">
-          {formError}
-        </p>
-      )}
-      <div className={styles.formActions}>
-        <button
-          className={styles.cancelButton}
-          type="button"
-          disabled={saving}
-          onClick={onCancel}
-        >
-          Hủy
-        </button>
-        <button
-          className={styles.submitButton}
-          type="submit"
-          disabled={saving || availableServices.state.status !== 'success'}
-        >
-          <img src="/assets/admin/branches/save.svg" alt="" />
-          {saving ? 'Đang lưu…' : 'Lưu chi nhánh'}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function ServicesSelector({
-  state,
-  retry,
-  selected,
-  saving,
-  onToggle,
-}: {
-  state: AvailableServicesState;
-  retry: () => void;
-  selected: Set<string>;
-  saving: boolean;
-  onToggle: (serviceId: string, checked: boolean) => void;
-}) {
-  if (state.status === 'loading')
-    return <LoadingState message="Đang tải danh sách dịch vụ…" />;
-  if (state.status === 'error')
-    return <ErrorState error={state.error} onRetry={retry} />;
-  if (state.data.length === 0)
-    return (
-      <p className={styles.serviceEmpty}>
-        Chưa có dịch vụ trong danh mục. Có thể tạo chi nhánh mà chưa gán dịch
-        vụ.
-      </p>
-    );
-
-  return (
-    <div className={styles.servicesGrid}>
-      {state.data.map((service) => (
-        <label className={styles.serviceOption} key={service.dichVuKhamId}>
-          <input
-            className={styles.checkbox}
-            type="checkbox"
-            checked={selected.has(service.dichVuKhamId)}
-            disabled={saving}
-            onChange={(event) =>
-              onToggle(service.dichVuKhamId, event.currentTarget.checked)
-            }
-          />
-          <span>{service.ten}</span>
-        </label>
-      ))}
-    </div>
-  );
-}
-
-export function BranchPage() {
+  refreshKey?: number;
+  onUpdated?: () => void;
+} = {}) {
   const adminScope = useAdminScope();
   const canCreate = adminScope.phamVi === 'ToanHeThong';
   const [searchInput, setSearchInput] = useState('');
@@ -691,13 +97,31 @@ export function BranchPage() {
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const { state, retry } = useBranches(page, query);
+  // Chi nhánh đang mở form Sửa (chỉ một cái một lúc) và tóm tắt kết quả lần sửa gần nhất
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [updateSummary, setUpdateSummary] =
+    useState<BranchUpdateSummary | null>(null);
+  const { state, retry } = useBranches(page, query, refreshKey);
 
   function updateSearch(value: string) {
     setSearchInput(value);
     setQuery(value.trim());
     setPage(1);
     setSuccessMessage('');
+    setUpdateSummary(null);
+  }
+
+  function toggleEdit(chiNhanhId: string) {
+    setEditingId((current) => (current === chiNhanhId ? null : chiNhanhId));
+    setSuccessMessage('');
+    setUpdateSummary(null);
+  }
+
+  function handleUpdated(result: BranchUpdateResult) {
+    setEditingId(null);
+    setUpdateSummary(summarizeBranchUpdate(result));
+    retry();
+    onUpdated?.();
   }
 
   function handleCreated() {
@@ -746,10 +170,10 @@ export function BranchPage() {
       </div>
 
       {creating && canCreate && (
-        <BranchCreateForm
+        <BranchForm
           key="new-branch"
           onCancel={() => setCreating(false)}
-          onCreated={handleCreated}
+          onSaved={handleCreated}
         />
       )}
 
@@ -757,6 +181,17 @@ export function BranchPage() {
         <p className={styles.successMessage} role="status">
           {successMessage}
         </p>
+      )}
+      {updateSummary && (
+        <div className={styles.updateSummary} role="status">
+          {updateSummary.saved && <p>{updateSummary.saved}</p>}
+          {updateSummary.pending && (
+            <p className={styles.updatePending}>{updateSummary.pending}</p>
+          )}
+          {updateSummary.warning && (
+            <p className={styles.updateWarning}>{updateSummary.warning}</p>
+          )}
+        </div>
       )}
 
       <div className={styles.branchList}>
@@ -777,7 +212,22 @@ export function BranchPage() {
           <>
             <div className={styles.branchCards}>
               {state.data.items.map((branch) => (
-                <BranchCard key={branch.chiNhanhId} branch={branch} />
+                <div key={branch.chiNhanhId} className={styles.branchCardGroup}>
+                  <BranchCard
+                    branch={branch}
+                    editing={editingId === branch.chiNhanhId}
+                    onToggleEdit={() => toggleEdit(branch.chiNhanhId)}
+                  />
+                  {editingId === branch.chiNhanhId && (
+                    <BranchForm
+                      branch={branch}
+                      onCancel={() => setEditingId(null)}
+                      onSaved={(result) => {
+                        if (result) handleUpdated(result);
+                      }}
+                    />
+                  )}
+                </div>
               ))}
             </div>
             {pageCount > 1 && (

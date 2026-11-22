@@ -8,12 +8,14 @@ export type BranchListState =
   | { status: 'success'; data: PagedResult<Branch> }
   | { status: 'error'; error: unknown };
 
+/** `refreshKey` do trang bên ngoài tăng (F6b: sau khi duyệt hay từ chối yêu cầu) để tải lại mà không mất ô tìm kiếm, trang đang xem. */
 export function useBranches(
   page: number,
   query: string,
+  refreshKey = 0,
 ): { state: BranchListState; retry: () => void } {
   const [attempt, setAttempt] = useState(0);
-  const requestKey = `${page}|${query}|${attempt}`;
+  const requestKey = `${page}|${query}|${attempt}|${refreshKey}`;
   const [result, setResult] = useState<{
     key: string;
     state: BranchListState;
