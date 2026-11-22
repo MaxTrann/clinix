@@ -1,0 +1,18 @@
+# Traffic Policy của tunnel ngrok khi kiểm tay nạp ví (payment X4; service `tunnel` trong docker-compose.yml).
+# Chỉ cho IPN của VNPAY đi qua: VNPAY gọi IPN bằng GET (PLAN payment 5.4). Mọi yêu cầu khác bị chặn ngay ở ngrok, không tới API.
+# Luật chạy theo thứ tự, `deny` dừng ngay ở luật đầu khớp. Đường dẫn là của API (tunnel trỏ thẳng api:3000, không có /api).
+on_http_request:
+  - name: chi-cho-duong-ipn-vnpay
+    expressions:
+      - req.url.path != '/payment/ipn/vnpay'
+    actions:
+      - type: deny
+        config:
+          status_code: 404
+  - name: chi-cho-phuong-thuc-get
+    expressions:
+      - req.method != 'GET'
+    actions:
+      - type: deny
+        config:
+          status_code: 404

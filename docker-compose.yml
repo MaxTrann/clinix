@@ -53,5 +53,22 @@ services:
     depends_on:
       - api
 
+  # Tunnel HTTPS cho IPN của VNPAY (payment X4; PLAN payment 4.7 #3), dùng dev domain cố định của tài khoản ngrok miễn phí nên URL IPN
+  # chỉ khai trên VNPAY một lần. Có profile nên mặc định KHÔNG bật; máy nào đặt `COMPOSE_PROFILES=tunnel` ở .env cục bộ thì `docker compose up`
+  # bật kèm (PLAN payment 4.7 #3, sửa 22/11/2026: được bật cùng api VỚI ĐIỀU KIỆN luôn có policy dưới). Xem docs/DEV_SETUP.md mục 5.3.
+  # Trỏ thẳng `api:3000` (không qua Vite: Vite trả 403 với Host lạ), nên URL IPN không có tiền tố /api.
+  # Traffic Policy chỉ cho `GET /payment/ipn/vnpay` đi qua, mọi đường khác 404: không mở cả API khi throttling theo IP chưa làm.
+  # Không dùng `env_file: .env`: container này chỉ cần token và URL, không được thấy khoá VNPAY, mật khẩu DB.
+  tunnel:
+    image: ngrok/ngrok:3.39.13-alpine
+    profiles: ["tunnel"]
+    command: http api:3000 --url ${NGROK_URL:-} --traffic-policy-file /etc/ngrok/ipn-only.yml
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    volumes:
+      - ./docker/ngrok/ipn-only.yml:/etc/ngrok/ipn-only.yml:ro
+    depends_on:
+      - api
+
 volumes:
   db-data:
