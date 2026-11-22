@@ -1,6 +1,6 @@
 // Mã sự kiện (`thong_bao.loai_su_kien`) của yêu cầu thay đổi chi nhánh (admin C4; PLAN admin 4.2a ý 5, Q9).
 // UNIQUE `thong_bao_index_yeu_cau_chi_nhanh` là (yêu cầu, tài khoản, loại sự kiện): cùng một bệnh nhân có thể được báo LẠI sau mỗi lần dời hiệu lực
-// hay mỗi lần quá hạn, nên ba loại đó mang hậu tố phiên bản `:v{n}` để lần báo mới không trùng khoá với lần cũ.
+// hay mỗi lần quá hạn, nên bốn loại đó mang hậu tố phiên bản `:v{n}` để lần báo mới không trùng khoá với lần cũ.
 
 export const BRANCH_CHANGE_EVENTS = {
   /** Người đề xuất: yêu cầu được duyệt hoặc bị từ chối (Figma 689:2). Duyệt và từ chối loại trừ nhau nên dùng chung một mã. */
@@ -13,6 +13,9 @@ export const BRANCH_CHANGE_EVENTS = {
   RESCHEDULED: 'DoiHieuLucThayDoiChiNhanh',
   /** Admin Toàn hệ thống và người đề xuất: đến hạn mà còn lịch hoặc ca chưa xử lý (Q48). Có phiên bản. Chỉ trong ứng dụng. */
   OVERDUE: 'YeuCauThayDoiChiNhanhQuaHan',
+  /** [đề xuất] Người đề xuất: Admin Toàn hệ thống dời thời điểm hiệu lực (Q48; Trung chốt 22/11/2026). Có phiên bản. Chỉ trong ứng dụng:
+   * tách khỏi `RESCHEDULED` để người đề xuất không nhận thư viết cho bệnh nhân và không bị Hủy (B21) tính là "bệnh nhân đã được báo". */
+  RESCHEDULE_RESULT: 'KetQuaDoiHieuLucThayDoiChiNhanh',
   /** [đề xuất] Admin Toàn hệ thống: người gửi rút yêu cầu đang chờ duyệt (Q3). Chỉ trong ứng dụng. */
   WITHDRAWN: 'RutThayDoiChiNhanh',
 } as const;
@@ -24,11 +27,15 @@ export type BranchChangeEventType = Events[keyof Events];
 export type BranchChangeEvent =
   | { type: Events['RESULT'] | Events['CANCELLED'] | Events['WITHDRAWN'] }
   | {
-      type: Events['AFFECTED'] | Events['RESCHEDULED'] | Events['OVERDUE'];
+      type:
+        | Events['AFFECTED']
+        | Events['RESCHEDULED']
+        | Events['RESCHEDULE_RESULT']
+        | Events['OVERDUE'];
       version: number;
     };
 
-/** Các loại có thêm thư (dòng `email_thong_bao`). Hai loại còn lại chỉ là thông báo trong ứng dụng (Q9, PLAN 4.2a ý 5). */
+/** Các loại có thêm thư (dòng `email_thong_bao`). Các loại còn lại (quá hạn, rút, kết quả dời hiệu lực) chỉ là thông báo trong ứng dụng (Q9, PLAN 4.2a ý 5). */
 export const BRANCH_CHANGE_MAIL_TYPES: readonly BranchChangeEventType[] = [
   BRANCH_CHANGE_EVENTS.RESULT,
   BRANCH_CHANGE_EVENTS.AFFECTED,

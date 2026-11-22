@@ -286,4 +286,45 @@ describe('B9 yêu cầu thay đổi chi nhánh — HTTP', () => {
       });
     });
   });
+  // Admin B22 — YCB-34 [đề xuất mã]: dời hiệu lực qua HTTP
+  describe('B22 dời hiệu lực', () => {
+    it('YCB-34 chưa đăng nhập ⇒ 401; Bệnh nhân, Bác sĩ, Lễ tân, Chi nhánh ⇒ 403 (CN-103); chưa quá hạn ⇒ 409; quá hạn ⇒ 200; dữ liệu vào sai ⇒ 400', async () => {
+      const w = await world();
+      await new BookingFixtures(db).systemConfig({
+        soNgayBaoTruocDoiGioLam: 3,
+      });
+      const body = { hieuLucTu: '2099-02-01 08:00:00' };
+      const path = `/${w.mineRequest}/reschedule`;
+      await call('post', path, undefined, body).expect(401);
+      for (const token of [w.patient, w.doctor, w.receptionist, w.branchAdmin])
+        await call('post', path, token, body).expect(403);
+      await call('post', `/${w.mineRequest}/approve`, w.system, {
+        hieuLucTu: '2099-01-01 08:00:00',
+      }).expect(200);
+      const notOverdue = await call('post', path, w.system, body).expect(409);
+      expect(notOverdue.body).toMatchObject({ maLoi: 'YEU_CAU_KHONG_QUA_HAN' });
+      // Giả lập job B11 đã đánh dấu quá hạn (lùi cả lúc duyệt để CHECK hiệu lực >= duyệt + 3 ngày vẫn đúng)
+      await db.query(
+        `UPDATE yeu_cau_thay_doi_chi_nhanh
+            SET thoi_diem_duyet = '2026-01-01 08:00:00', hieu_luc_tu = '2026-01-05 08:00:00', qua_han_luc = '2026-01-05 08:00:00'
+          WHERE yeu_cau_thay_doi_chi_nhanh_id = ?`,
+        [w.mineRequest],
+      );
+      await call('post', path, w.system, {}).expect(400);
+      await call('post', path, w.system, {
+        hieuLucTu: '2099-02-01T08:00:00+07:00',
+      }).expect(400);
+      await call('post', path, w.system, {
+        ...body,
+        soLanDoiHieuLuc: 5,
+      }).expect(400);
+      const ok = await call('post', path, w.system, body).expect(200);
+      expect(ok.body).toMatchObject({
+        trangThai: 'DaDuyet',
+        hieuLucTu: '2099-02-01 08:00:00',
+        quaHanLuc: null,
+        soLanDoiHieuLuc: 1,
+      });
+    });
+  });
 });

@@ -23,6 +23,9 @@ describe('NTB-01 (phần đơn vị) mã sự kiện có phiên bản', () => {
     expect(eventCodeOf({ type: E.OVERDUE, version: 2 })).toBe(
       'YeuCauThayDoiChiNhanhQuaHan:v2',
     );
+    expect(eventCodeOf({ type: E.RESCHEDULE_RESULT, version: 1 })).toBe(
+      'KetQuaDoiHieuLucThayDoiChiNhanh:v1',
+    );
   });
 
   it.each([0, -1, 1.5, Number.NaN])(
@@ -35,7 +38,12 @@ describe('NTB-01 (phần đơn vị) mã sự kiện có phiên bản', () => {
   );
 
   it('mọi mã vừa cột varchar(100) kể cả phiên bản lớn', () => {
-    for (const type of [E.AFFECTED, E.RESCHEDULED, E.OVERDUE])
+    for (const type of [
+      E.AFFECTED,
+      E.RESCHEDULED,
+      E.RESCHEDULE_RESULT,
+      E.OVERDUE,
+    ])
       expect(
         eventCodeOf({ type, version: Number.MAX_SAFE_INTEGER }).length,
       ).toBeLessThanOrEqual(100);
@@ -43,12 +51,13 @@ describe('NTB-01 (phần đơn vị) mã sự kiện có phiên bản', () => {
 });
 
 describe('NTB-03 (phần đơn vị) loại nào có thư', () => {
-  it('bốn loại có thư; quá hạn và rút chỉ trong ứng dụng', () => {
+  it('bốn loại có thư; quá hạn, rút và kết quả dời hiệu lực chỉ trong ứng dụng', () => {
     expect([...BRANCH_CHANGE_MAIL_TYPES].sort()).toEqual(
       [E.RESULT, E.AFFECTED, E.CANCELLED, E.RESCHEDULED].sort(),
     );
     expect(hasEmail(E.OVERDUE)).toBe(false);
     expect(hasEmail(E.WITHDRAWN)).toBe(false);
+    expect(hasEmail(E.RESCHEDULE_RESULT)).toBe(false);
     expect(hasEmail(E.RESULT)).toBe(true);
   });
 

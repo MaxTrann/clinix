@@ -88,3 +88,6 @@ export class ApproveBranchChangeRequestDto {
 
 /** Thân `POST …/:id/cancel` (admin B21; Q47): cùng bộ kiểm lý do với từ chối (cột `ly_do_huy varchar(255)`, CHECK DB đòi sau trim không rỗng; CN-95). */
 export class CancelBranchChangeRequestDto extends RejectBranchChangeRequestDto {}
+
+/** Thân `POST …/:id/reschedule` (admin B22; Q48): `hieuLucTu` mới, cùng dạng và bộ kiểm với duyệt. Mốc sớm nhất (bây giờ + N ngày) kiểm ở service. */
+export class RescheduleBranchChangeRequestDto extends ApproveBranchChangeRequestDto {}

@@ -57,6 +57,8 @@ export interface LockedRequest {
   hieuLucTu: string | null;
   apDungLuc: string | null;
   quaHanLuc: string | null;
+  /** Số ngày báo trước chụp lúc duyệt (NULL khi chưa duyệt); dời hiệu lực (B22) lấy lớn hơn giữa giá trị này và cấu hình hiện hành */
+  soNgayBaoTruoc: number | null;
 }
 
 const FROM_SQL = `FROM yeu_cau_thay_doi_chi_nhanh y
@@ -184,23 +186,31 @@ export class BranchChangeRequestRepository {
     manager: EntityManager,
     id: string,
   ): Promise<LockedRequest | null> {
-    const rows: (LockedRequest & { soLanDoiHieuLuc: number | string })[] =
-      await manager.query(
-        `SELECT CAST(y.yeu_cau_thay_doi_chi_nhanh_id AS CHAR) AS yeuCauThayDoiChiNhanhId, CAST(y.chi_nhanh_id AS CHAR) AS chiNhanhId,
+    const rows: (LockedRequest & {
+      soLanDoiHieuLuc: number | string;
+      soNgayBaoTruoc: number | string | null;
+    })[] = await manager.query(
+      `SELECT CAST(y.yeu_cau_thay_doi_chi_nhanh_id AS CHAR) AS yeuCauThayDoiChiNhanhId, CAST(y.chi_nhanh_id AS CHAR) AS chiNhanhId,
               cn.ten AS tenChiNhanh, CAST(y.nguoi_de_xuat_id AS CHAR) AS nguoiDeXuatId, y.trang_thai AS trangThai,
               ${TS('y.thoi_diem_tao')} AS thoiDiemTao, y.noi_dung_truoc AS noiDungTruoc, y.noi_dung_sau AS noiDungSau,
               y.so_lan_doi_hieu_luc AS soLanDoiHieuLuc, ${TS('y.hieu_luc_tu')} AS hieuLucTu,
-              ${TS('y.ap_dung_luc')} AS apDungLuc, ${TS('y.qua_han_luc')} AS quaHanLuc
+              ${TS('y.ap_dung_luc')} AS apDungLuc, ${TS('y.qua_han_luc')} AS quaHanLuc,
+              y.so_ngay_bao_truoc AS soNgayBaoTruoc
          FROM yeu_cau_thay_doi_chi_nhanh y
          JOIN chi_nhanh cn ON cn.chi_nhanh_id = y.chi_nhanh_id
         WHERE y.yeu_cau_thay_doi_chi_nhanh_id = ?
         FOR UPDATE OF y`,
-        [id],
-      );
+      [id],
+    );
     const row = rows[0];
     return row === undefined
       ? null
-      : { ...row, soLanDoiHieuLuc: Number(row.soLanDoiHieuLuc) };
+      : {
+          ...row,
+          soLanDoiHieuLuc: Number(row.soLanDoiHieuLuc),
+          soNgayBaoTruoc:
+            row.soNgayBaoTruoc === null ? null : Number(row.soNgayBaoTruoc),
+        };
   }
 
   /** `ChoDuyet` → `DaRut`, có điều kiện trạng thái (H11). Cột sinh `dang_mo_chi_nhanh` về NULL (Q3). */
@@ -286,6 +296,37 @@ export class BranchChangeRequestRepository {
       ],
     );
     return result.affectedRows ?? 0;
+  }
+
+  /**
+   * Dời hiệu lực (B22, Q48): chỉ yêu cầu QUÁ HẠN (`DaDuyet`, chưa áp dụng, có `qua_han_luc`), có điều kiện như `markCancelled` (H11).
+   * `qua_han_luc` về NULL nên job B11 chọn lại yêu cầu ở mốc mới; `so_ngay_bao_truoc` GIỮ giá trị chụp lúc duyệt (Trung chốt 22/11/2026).
+   * CHECK `hieu_luc_tu >= thoi_diem_duyet + so_ngay_bao_truoc` vẫn đúng vì mốc mới muộn hơn bây giờ + N.
+   */
+  async markRescheduled(
+    manager: EntityManager,
+    input: { id: string; hieuLucTu: Date },
+  ): Promise<number> {
+    const result: { affectedRows?: number } = await manager.query(
+      `UPDATE yeu_cau_thay_doi_chi_nhanh
+          SET hieu_luc_tu = ?, qua_han_luc = NULL, so_lan_doi_hieu_luc = so_lan_doi_hieu_luc + 1
+        WHERE yeu_cau_thay_doi_chi_nhanh_id = ? AND trang_thai = 'DaDuyet' AND ap_dung_luc IS NULL AND qua_han_luc IS NOT NULL`,
+      [input.hieuLucTu, input.id],
+    );
+    return result.affectedRows ?? 0;
+  }
+
+  /** Thay bản chụp lịch hẹn ảnh hưởng bằng danh sách tính lại ở mốc mới (B22): xoá hết dòng cũ rồi chèn lại, trong giao dịch của người gọi. */
+  async replaceSnapshot(
+    manager: EntityManager,
+    id: string,
+    rows: readonly AffectedAppointment[],
+  ): Promise<void> {
+    await manager.query(
+      'DELETE FROM yeu_cau_thay_doi_chi_nhanh_lich_hen WHERE yeu_cau_thay_doi_chi_nhanh_id = ?',
+      [id],
+    );
+    await this.insertSnapshot(manager, id, rows);
   }
 
   /** Bản chụp lịch hẹn ảnh hưởng lúc duyệt (Q46): một dòng mỗi lịch hẹn (khoá chính (yêu cầu, lịch hẹn)), một câu INSERT. */
