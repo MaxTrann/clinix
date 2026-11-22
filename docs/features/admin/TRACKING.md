@@ -4270,3 +4270,78 @@ Lệnh đã chạy (MySQL 8.4 của `docker compose`):
 **Còn mở:**
 - `[ĐỒNG BỘ TL]` D5: sửa đặc tả 2.4 (BS: chặn đổi dịch vụ chính Q17, "ca hôm nay" Q18, học vị/kinh nghiệm Q20); Trung làm ở repo `TLCN_CLINIX`.
 - F7 hiển thị danh sách chặn theo `chiTiet {lichHen, ca}` và hai mã 409.
+
+#### 9B.7 B10 (#521) Yêu cầu thay đổi chi nhánh: duyệt (22/11/2026)
+
+Nhánh `feat/admin-b10-duyet-yeu-cau`, tạo từ `origin/main` = `7971930` (đã có C4, B8, B9; F7 #517 đang chờ CI ở nhánh riêng nên mục này đánh số 9B.7). Tiêu đề PR `feat(admin): duyệt yêu cầu thay đổi chi nhánh, chụp ảnh hưởng và báo bệnh nhân (admin B10)`. DB test `clinix_admin_b10_test`. Không có migration, không đổi schema.
+
+**Nguồn:** PLAN 5.4 (Duyệt), 5.9, 5.10; Q4, Q5, Q6, Q9, Q46, Q48; quy tắc 28, 30; CHECK `chk_yc_chi_nhanh_xu_ly`.
+
+**Trung chốt (22/11/2026), trước khi viết mã:**
+
+1. `hieuLucTu` phải **sau** thời điểm duyệt (ít nhất 1 giây), ngoài điều kiện `>= thời điểm duyệt + n ngày`. Khi `so_ngay_bao_truoc_doi_gio_lam = 0`, CHECK DB vẫn nhận `hieu_luc_tu = thoi_diem_duyet`, nhưng thông báo phải tạo TRƯỚC hiệu lực (CN-50). Bằng hoặc sớm hơn ⇒ 400 `HIEU_LUC_QUA_SOM`.
+2. Thân `POST …/:id/approve` là `{ hieuLucTu: 'YYYY-MM-DD HH:mm:ss' }` giờ Việt Nam, cùng dạng B9 trả ra; đọc bằng `parseVnDateTime` của booking (cộng `+07:00` cố định). Ngày không có thật (ví dụ 30/02) bị từ chối ở DTO.
+3. Chữ thông báo và thư là `[đề xuất]`, đối chiếu Figma 689:2 và 690:2 ở F6b/X1:
+   - bệnh nhân: "Chi nhánh {tên} thay đổi lịch hoạt động từ {HH:mm dd/MM/yyyy}. Lịch hẹn bị ảnh hưởng: {mã}, {mã} và N lịch khác." (gom bằng `joinWithinLimit`, ≤ 500 ký tự);
+   - người đề xuất: "Yêu cầu thay đổi lịch hoạt động của chi nhánh {tên} gửi lúc {…} đã được duyệt, dự kiến có hiệu lực từ {…}."
+
+**Mã** (`apps/api/src/admin/branch-change-requests/`):
+
+- `POST /admin/branch-change-requests/:id/approve` (chỉ Toàn hệ thống; Chi nhánh ⇒ 403). Một giao dịch `READ COMMITTED`:
+  1. khoá yêu cầu `FOR UPDATE OF y` (cùng hàng mà từ chối khoá, nên duyệt và từ chối phân định rõ); không có ⇒ 404; không `ChoDuyet` ⇒ 409 `YEU_CAU_KHONG_CON_CHO_DUYET`;
+  2. `SystemConfigService.getOrThrow()` ⇒ thiếu cấu hình là 409 `HE_THONG_CHUA_CAU_HINH`, không duyệt; chụp `n = so_ngay_bao_truoc_doi_gio_lam`;
+  3. chốt MỘT `thoiDiemDuyet = toSecond(nowVN())`; kiểm quyết định 1;
+  4. nội dung dạng cũ `gio_mo_cua`/`gio_dong_cua` (không tính được ảnh hưởng, B11 cũng không áp dụng được) ⇒ 409 `NOI_DUNG_YEU_CAU_KHONG_HOP_LE` `[đề xuất mã]`;
+  5. khoá khung giờ tương lai từ `hieuLucTu` (`lockSlotsOfDays` của B8) ở các thứ đổi, hoặc cả 7 thứ nếu có bỏ dịch vụ, TRƯỚC khi đọc lịch hẹn: booking khoá `khung_gio` trước khi đọc cổng chặn (Q6), nên không có lịch hẹn nào lọt giữa lúc tính và lúc commit mà không được báo;
+  6. tính ảnh hưởng tại `hieuLucTu`; còn lịch hoặc ca vẫn duyệt (Q48 = B);
+  7. `UPDATE` có điều kiện `trang_thai = 'ChoDuyet'` sang `DaDuyet` (người duyệt, thời điểm, `so_ngay_bao_truoc = n`, `hieu_luc_tu`);
+  8. ghi bản chụp `yeu_cau_thay_doi_chi_nhanh_lich_hen` (một dòng mỗi lịch hẹn, lý do ưu tiên như B8);
+  9. gom lịch hẹn theo `lich_hen.benh_nhan_id` (lịch của hồ sơ người thân về chủ tài khoản): mỗi bệnh nhân MỘT thông báo `ThayDoiChiNhanhAnhHuongLichHen:v{so_lan_doi_hieu_luc + 1}` (= `v1`) kèm thư; người đề xuất một `KetQuaYeuCauThayDoiChiNhanh` kèm thư (Q9); UNIQUE của C4 chặn báo trùng (CN-74);
+  10. audit `DuyetThayDoiChiNhanh` `{hieu_luc_tu, so_ngay_bao_truoc, nguoi_de_xuat_id, so_lich_hen_anh_huong, so_ca_anh_huong}`.
+
+  Trả chi tiết (B9) sau commit. Cho phép tự duyệt (Q4). Dữ liệu chi nhánh không đổi (B11 mới áp dụng).
+- `getPendingEffectiveChanges(em, chiNhanhId)` (Q6) ở `pending-branch-changes.reader.ts`, trong module lá `PendingBranchChangesModule` chỉ cần `DataSource` (không import `AppointmentsModule`, tránh vòng import như cảnh báo ở `appointments.module.ts`). Trả các yêu cầu `DaDuyet` có `ap_dung_luc IS NULL`, **kể cả quá hạn**, mỗi yêu cầu `{yeuCauThayDoiChiNhanhId, hieuLucTu: Date, quaHan, lichHoatDong: dòng MỚI của từng thứ đổi, dichVuBoIds}`. Nhận `em` của người gọi (lệch PLAN `getPendingEffectiveChanges(chiNhanhId)`): cổng booking chạy trong giao dịch đặt lịch, đã giữ khoá `khung_gio`. Nối adapter `PendingBranchChangesPort` là việc của booking B16b, không làm ở PR này.
+- Sửa ngoài thư mục: không. `app.module.ts` không đổi (`BranchChangeRequestModule` đã có; module lá chỉ được booking import ở B16b).
+
+| Mã | Nội dung | Loại |
+|---|---|---|
+| CN-50 | Duyệt: `DaDuyet`, `so_ngay_bao_truoc` = cấu hình lúc duyệt, `hieu_luc_tu` đúng, bản chụp ghi tại `hieu_luc_tu`, thông báo + thư `ChoGui` cho bệnh nhân, `thoi_diem_tao` < `hieu_luc_tu`; lịch chi nhánh chưa đổi | I |
+| CN-51 | Biên: đúng bằng mốc tối thiểu ⇒ nhận; sớm hơn 1 giây, ở quá khứ ⇒ `HIEU_LUC_QUA_SOM`; n = 0 và `hieuLucTu` = lúc duyệt ⇒ `HIEU_LUC_QUA_SOM` (quyết định 1) | I |
+| CN-52 | Một bệnh nhân nhiều lịch (cả lịch người thân) ⇒ một thông báo, ≤ 500 ký tự, có "và N lịch khác" khi dài | I |
+| CN-53 | Nhiều bệnh nhân ⇒ mỗi người một thông báo | I |
+| CN-54 | Lịch hẹn bị hủy giữa lúc đề xuất và lúc duyệt ⇒ không có trong bản chụp và không được báo | I |
+| CN-55 | Chưa có cấu hình ⇒ `HE_THONG_CHUA_CAU_HINH`, vẫn `ChoDuyet` | I |
+| CN-56 (phần duyệt) | Chi nhánh duyệt ⇒ 403 | I, E |
+| CN-57 | Tự duyệt yêu cầu của chính mình ⇒ được | I |
+| CN-58 (phần duyệt) | Duyệt yêu cầu đã duyệt, đã từ chối ⇒ 409; hai lần duyệt đồng thời, duyệt đồng thời với từ chối ⇒ một bên thắng, không thông báo trùng | I |
+| CN-59 | Không còn lịch hẹn ảnh hưởng tại `hieu_luc_tu` ⇒ duyệt được, chỉ người đề xuất được báo | I |
+| CN-63 | Người đề xuất bị khoá ⇒ vẫn duyệt được | I |
+| CN-64 | Còn lịch hẹn và ca bị ảnh hưởng ⇒ vẫn duyệt (Q48 = B) | I |
+| CN-65, CN-88 | `getPendingEffectiveChanges` trả `DaDuyet` chưa áp dụng (cả quá hạn); không trả `ChoDuyet`, `TuChoi`, đã áp dụng, chi nhánh khác | I |
+| CN-69 (phần duyệt) | Duyệt không đổi `lich_hen`, `khung_gio`, `lich_lam_viec`, lịch chi nhánh | I |
+| CN-74 | Gọi notifier lại cho cùng yêu cầu không tạo thông báo trùng | I |
+| CN-99 (phần duyệt) | Một dòng audit đúng `chi_tiet_thay_doi` | I |
+| YCB-10 `[đề xuất mã]` | DTO `hieuLucTu`: thiếu, sai dạng, ISO có `T`, ngày không có thật, trường lạ ⇒ 400 | U |
+| YCB-11 `[đề xuất mã]` | Ghi audit lỗi ⇒ hoàn tác quyết định, bản chụp và thông báo | I |
+| YCB-12 `[đề xuất mã]` | Chi tiết sau duyệt: `nguon: 'TinhLai'` tại `hieu_luc_tu`; `BanChup` có dữ liệu thật sau khi áp dụng (đặt `ap_dung_luc` bằng tay) | I |
+| YCB-13 `[đề xuất mã]` | Nội dung dạng cũ ⇒ 409 `NOI_DUNG_YEU_CAU_KHONG_HOP_LE` | I |
+| YCB-14 `[đề xuất mã]` | e2e: 401; Bệnh nhân, Bác sĩ, Lễ tân 403; Chi nhánh 403; Toàn hệ thống 200 rồi 409; 400 khi `hieuLucTu` sai | E |
+
+**Kết quả (22/11/2026):** mọi mã ở bảng trên **Pass**: CN-xx và YCB-11..13 bằng test tích hợp `test/branch-change-request-approve.int-spec.ts` (18 ca), YCB-10 bằng `test/branch-change-request.dto.spec.ts`, YCB-14 bằng `test/admin-branch-change-requests.e2e-spec.ts` (3 ca). Ca B9 cũ chỉ sửa constructor (thêm `SystemConfigService`), vẫn pass.
+
+Lệnh đã chạy (MySQL 8.4 của `docker compose`, `TEST_DB_NAME=clinix_admin_b10_test`):
+- `npm run lint`: 0 lỗi, 0 cảnh báo (lần đầu 1 cảnh báo `no-unsafe-optional-chaining` ở test mới, đã sửa); `npm run build` xanh; Prettier sạch trên các file đã sửa.
+- Đơn vị `src/admin src/rbac src/notification src/audit src/appointments`: 170 file, 3667 test pass.
+- Tích hợp `src/admin/branch-change-requests src/admin/branches src/notification`: 7 file, 72 test pass.
+- e2e `test/admin-branch-change-requests.e2e-spec.ts test/admin-branches-update.e2e-spec.ts`: 2 file, 9 test pass.
+- `jscpd@4 apps/api/src` (bỏ `*.spec.ts`): 1,74% (< 3%). Clone mới: phần dựng dữ liệu của hai file `*.int-spec.ts` B9/B10 và 6 dòng gọi notifier cho người đề xuất giữa `reject` và `approve`.
+- `tsc --noEmit`: 1 lỗi có sẵn ở `src/payment/architecture.spec.ts:290` (không sửa ở PR này).
+
+**Lệch so với PLAN (có chủ ý):**
+- `getPendingEffectiveChanges(em, chiNhanhId)` nhận thêm `em` của người gọi (PLAN ghi `getPendingEffectiveChanges(chiNhanhId)`), lý do ở phần Mã.
+- Mã lỗi mới `NOI_DUNG_YEU_CAU_KHONG_HOP_LE` (409) `[đề xuất]` cho yêu cầu dạng cũ; đã thêm vào PLAN 5.9. `HIEU_LUC_QUA_SOM` trả thêm `chiTiet.mocSomNhat` ('YYYY-MM-DD HH:mm:ss').
+
+**Còn mở:**
+- Booking B16b: thay `NoopPendingBranchChangesPort` bằng adapter gọi `PendingBranchChangesReader` (import `PendingBranchChangesModule`). Khi chưa nối, booking chưa chặn đặt vào vùng bị loại, nên chưa có test chạy đua duyệt với đặt lịch thật (khoá `khung_gio` ở bước 5 đã có, chưa có bên đối ứng để đo).
+- Đối chiếu chữ thông báo duyệt với Figma 689:2 và 690:2 (F6b/X1).
+- CH-17 phần còn lại (từ 9A, B5): đã chụp `so_ngay_bao_truoc` lúc duyệt (CN-50); đổi cấu hình sau khi duyệt không đụng yêu cầu vì B10 không đọc lại cấu hình.

@@ -17,13 +17,14 @@ import type { AdminScope } from '../../rbac/admin-scope.js';
 import { AdminScopeCtx } from '../../rbac/decorators/admin-scope-ctx.decorator.js';
 import { RequireAdminScope } from '../../rbac/decorators/require-admin-scope.decorator.js';
 import {
+  ApproveBranchChangeRequestDto,
   BranchChangeRequestIdDto,
   BranchChangeRequestListDto,
   RejectBranchChangeRequestDto,
 } from './branch-change-request.dto.js';
 import { BranchChangeRequestService } from './branch-change-request.service.js';
 
-// Admin B9: cả hai phạm vi được xem (lọc theo phạm vi ở service); chỉ Toàn hệ thống từ chối. Người duyệt lấy từ phiên, không từ body.
+// Admin B9, B10: cả hai phạm vi được xem (lọc theo phạm vi ở service); chỉ Toàn hệ thống từ chối và duyệt. Người duyệt lấy từ phiên, không từ body.
 @Controller('admin/branch-change-requests')
 @Roles('QuanTriVien')
 @RequireAdminScope('Any')
@@ -59,5 +60,23 @@ export class BranchChangeRequestController {
     @Body() input: RejectBranchChangeRequestDto,
   ) {
     return this.requests.reject(scope, user.accountId, params.id, input.lyDo);
+  }
+
+  // Admin B10: chỉ Toàn hệ thống duyệt; người duyệt lấy từ phiên
+  @Post(':id/approve')
+  @HttpCode(200)
+  @RequireAdminScope('ToanHeThong')
+  approve(
+    @AdminScopeCtx() scope: AdminScope,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() params: BranchChangeRequestIdDto,
+    @Body() input: ApproveBranchChangeRequestDto,
+  ) {
+    return this.requests.approve(
+      scope,
+      user.accountId,
+      params.id,
+      input.hieuLucTu,
+    );
   }
 }

@@ -4,6 +4,7 @@ import { AuditService } from '../../audit/audit.service.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { Paged } from '../../common/paging/paged.js';
 import { nowVN, toSecond } from '../../common/time/time.js';
+import { parseVnDateTime } from '../../appointments/slots/slot-lock.js';
 import {
   readNotificationStatuses,
   type BranchChangeNotificationStatus,
@@ -11,6 +12,7 @@ import {
 } from '../../notification/branch-change-email.query.js';
 import { BRANCH_CHANGE_EVENTS } from '../../notification/branch-change-events.js';
 import { BranchChangeNotifier } from '../../notification/branch-change-notifier.js';
+import { joinWithinLimit } from '../../notification/branch-change-text.js';
 import type { AdminScope } from '../../rbac/admin-scope.js';
 import { BranchAccessPolicy } from '../../rbac/branch-access.policy.js';
 import { capped, type Capped } from '../branches/branch.service.js';
@@ -21,9 +23,11 @@ import {
   type FreeSlotOutside,
 } from '../branches/impact/branch-impact.service.js';
 import type { TrangThaiYeuCauThayDoiChiNhanh } from '../entities/enums.js';
+import { SystemConfigService } from '../system-config/system-config.service.js';
 import type { BranchChangeRequestListDto } from './branch-change-request.dto.js';
 import {
   BranchChangeRequestRepository,
+  type LockedRequest,
   type RequestDetailRow,
   type RequestRow,
 } from './branch-change-request.repository.js';
@@ -34,8 +38,8 @@ import {
   type DayChangeView,
 } from './request-content.js';
 
-// Yêu cầu thay đổi chi nhánh: xem và từ chối (admin B9; PLAN admin 5.3, 5.4; Q2, Q4, Q9, Q40, Q46).
-// Phạm vi kiểm ở backend: Quản trị viên Chi nhánh chỉ thấy yêu cầu của chi nhánh mình (ngoài phạm vi ⇒ 404), chỉ Toàn hệ thống được từ chối (⇒ 403).
+// Yêu cầu thay đổi chi nhánh: xem, từ chối (admin B9) và duyệt (admin B10); PLAN admin 5.3, 5.4; Q2, Q4, Q5, Q9, Q40, Q46, Q48.
+// Phạm vi kiểm ở backend: Quản trị viên Chi nhánh chỉ thấy yêu cầu của chi nhánh mình (ngoài phạm vi ⇒ 404), chỉ Toàn hệ thống được từ chối hay duyệt (⇒ 403).
 
 export interface PersonRef {
   taiKhoanId: string;
@@ -109,6 +113,13 @@ export interface BranchChangeRequestDetail extends BranchChangeRequestListItem {
 
 /** Hai yêu cầu cùng lúc, hay yêu cầu đã được duyệt/từ chối/rút trước đó: không còn ở trạng thái chờ duyệt. */
 export const NOT_PENDING = 'YEU_CAU_KHONG_CON_CHO_DUYET';
+/** `hieuLucTu` sớm hơn mốc sớm nhất (PLAN 5.9, CN-51). `chiTiet.mocSomNhat` để giao diện ghi "phải từ {mốc} trở đi". */
+export const TOO_EARLY = 'HIEU_LUC_QUA_SOM';
+/** [đề xuất mã] Nội dung dạng cũ `gio_mo_cua`/`gio_dong_cua` (quy tắc 43): không tính được ảnh hưởng, B11 cũng không áp dụng được. */
+export const LEGACY_CONTENT = 'NOI_DUNG_YEU_CAU_KHONG_HOP_LE';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
 /** 'YYYY-MM-DD HH:mm:ss' giờ Việt Nam (cố định +07:00, không có giờ mùa hè). */
@@ -134,6 +145,7 @@ export class BranchChangeRequestService {
     @Inject(BranchChangeNotifier)
     private readonly notifier: BranchChangeNotifier,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(SystemConfigService) private readonly config: SystemConfigService,
   ) {}
 
   // `async` để lỗi kiểm trang trả qua promise bị từ chối như lỗi DB (như B12)
@@ -209,6 +221,161 @@ export class BranchChangeRequestService {
       });
     });
     return this.get(scope, id);
+  }
+
+  /**
+   * Duyệt (CN b7–b9; PLAN 5.4): MỘT giao dịch — khoá yêu cầu → phải `ChoDuyet` → chụp số ngày báo trước → kiểm `hieuLucTu` → khoá khung giờ
+   * → tính ảnh hưởng tại `hieuLucTu` → `DaDuyet` có điều kiện → bản chụp → thông báo + thư (mỗi bệnh nhân một, người đề xuất một) → audit.
+   * Còn lịch hay ca bị ảnh hưởng vẫn duyệt (Q48 = B): danh sách để báo bệnh nhân; B11 mới quyết áp dụng hay quá hạn. Dữ liệu chi nhánh KHÔNG đổi.
+   * Cho phép tự duyệt yêu cầu của chính mình (Q4). Lỗi ở bất kỳ bước nào ⇒ hoàn tác hết (kể cả thông báo); thư gửi sau, lỗi gửi không hoàn tác (A4).
+   */
+  async approve(
+    scope: AdminScope,
+    actorId: string,
+    id: string,
+    hieuLucTuText: string,
+  ): Promise<BranchChangeRequestDetail> {
+    this.policy.assertToanHeThong(scope);
+    const hieuLucTu = parseVnDateTime(hieuLucTuText);
+    await this.requests.writeTransaction(async (manager) => {
+      const request = await this.requests.lockForUpdate(manager, id);
+      if (!request) throw new AppException(404, 'KHONG_TIM_THAY');
+      if (request.trangThai !== 'ChoDuyet')
+        throw new AppException(409, NOT_PENDING);
+      // Chụp MỘT lần: cấu hình đổi sau này không làm sai yêu cầu đã duyệt (CH-17)
+      const soNgayBaoTruoc = (await this.config.getOrThrow())
+        .soNgayBaoTruocDoiGioLam;
+      const now = toSecond(nowVN());
+      this.assertEffectiveTime(now, soNgayBaoTruoc, hieuLucTu);
+
+      const content = parseRequestContent(
+        request.noiDungTruoc,
+        request.noiDungSau,
+      );
+      if (content.coDangCu) throw new AppException(409, LEGACY_CONTENT);
+      const input = impactInputOf(content);
+      // Khoá khung giờ TRƯỚC khi đọc lịch hẹn (như B8): booking khoá khung giờ rồi mới hỏi cổng chặn (Q6), nên lịch hẹn đặt chen vào hoặc
+      // phải chờ giao dịch này (rồi bị chặn), hoặc đã commit trước và có trong bản chụp. Bỏ dịch vụ thì thứ nào trong tuần cũng có thể bị ảnh hưởng.
+      const days =
+        input.removedServiceIds.length > 0
+          ? [...ALL_DAYS]
+          : input.changedDays.map((day) => day.thuTrongTuan);
+      await this.impact.lockSlotsOfDays(
+        manager,
+        request.chiNhanhId,
+        hieuLucTu,
+        days,
+      );
+      const impact = await this.impact.compute(manager, {
+        chiNhanhId: request.chiNhanhId,
+        tuLuc: hieuLucTu,
+        ...input,
+      });
+
+      const changed = await this.requests.markApproved(manager, {
+        id,
+        nguoiDuyetId: actorId,
+        now,
+        soNgayBaoTruoc,
+        hieuLucTu,
+      });
+      if (changed !== 1) throw new AppException(409, NOT_PENDING);
+      await this.requests.insertSnapshot(manager, id, impact.lichHen);
+
+      await this.notifyPatients(manager, {
+        request,
+        hieuLucTuText,
+        appointments: impact.lichHen,
+        now,
+      });
+      await this.notifier.notify(manager, {
+        yeuCauId: id,
+        taiKhoanId: request.nguoiDeXuatId,
+        event: { type: BRANCH_CHANGE_EVENTS.RESULT },
+        // [đề xuất] (Trung chốt 22/11/2026), đối chiếu Figma 689:2 ở F6b/X1
+        noiDung: `Yêu cầu thay đổi lịch hoạt động của chi nhánh ${request.tenChiNhanh} gửi lúc ${humanTime(request.thoiDiemTao)} đã được duyệt, dự kiến có hiệu lực từ ${humanTime(hieuLucTuText)}.`,
+        now,
+      });
+      await this.audit.record(manager, {
+        actorId,
+        branchId: request.chiNhanhId,
+        action: 'DuyetThayDoiChiNhanh',
+        targetType: 'yeu_cau_thay_doi_chi_nhanh',
+        targetId: id,
+        result: 'ThanhCong',
+        changes: {
+          // Audit đòi ISO có độ lệch; giờ VN cố định +07:00
+          hieu_luc_tu: `${hieuLucTuText.replace(' ', 'T')}+07:00`,
+          so_ngay_bao_truoc: soNgayBaoTruoc,
+          nguoi_de_xuat_id: request.nguoiDeXuatId,
+          so_lich_hen_anh_huong: impact.lichHen.length,
+          so_ca_anh_huong: impact.ca.length,
+        },
+      });
+    });
+    return this.get(scope, id);
+  }
+
+  /**
+   * Q5 và quyết định Trung chốt 22/11/2026: `hieuLucTu >= lúc duyệt + n ngày` (như CHECK DB) VÀ `hieuLucTu > lúc duyệt`,
+   * để thông báo luôn tạo TRƯỚC hiệu lực kể cả khi n = 0 (CN-50). Giờ VN cố định +07:00 nên n ngày = n × 24 giờ, khớp `DATE_ADD … DAY` của CHECK.
+   */
+  private assertEffectiveTime(
+    now: Date,
+    soNgayBaoTruoc: number,
+    hieuLucTu: Date,
+  ): void {
+    const earliest = new Date(
+      Math.max(now.getTime() + soNgayBaoTruoc * DAY_MS, now.getTime() + 1000),
+    );
+    if (hieuLucTu.getTime() < earliest.getTime())
+      throw new AppException(400, TOO_EARLY, {
+        thongBao: `Thời điểm có hiệu lực phải từ ${humanTime(formatVN(earliest))} trở đi.`,
+        chiTiet: { mocSomNhat: formatVN(earliest) },
+      });
+  }
+
+  /**
+   * Gom lịch hẹn ảnh hưởng theo `benh_nhan_id` (CN-52, CN-53): mỗi bệnh nhân MỘT thông báo + thư, liệt kê mã lịch hẹn theo thời gian.
+   * Phiên bản sự kiện = số lần dời hiệu lực + 1 (lúc duyệt luôn là `v1`), để B22 báo lại được mà không trùng khoá UNIQUE của C4.
+   */
+  private async notifyPatients(
+    manager: EntityManager,
+    input: {
+      request: LockedRequest;
+      hieuLucTuText: string;
+      appointments: readonly AffectedAppointment[];
+      now: Date;
+    },
+  ): Promise<void> {
+    const patientOf = await this.requests.patientsOf(
+      manager,
+      input.appointments.map((a) => a.lichHenId),
+    );
+    // `appointments` đã sắp theo thời gian (B8) nên mã lịch hẹn của mỗi người cũng theo thời gian
+    const codesByPatient = new Map<string, string[]>();
+    for (const appointment of input.appointments) {
+      const patientId = patientOf.get(appointment.lichHenId);
+      if (patientId === undefined) continue;
+      const codes = codesByPatient.get(patientId) ?? [];
+      codes.push(appointment.maLichHen);
+      codesByPatient.set(patientId, codes);
+    }
+    for (const [patientId, codes] of codesByPatient)
+      await this.notifier.notify(manager, {
+        yeuCauId: input.request.yeuCauThayDoiChiNhanhId,
+        taiKhoanId: patientId,
+        event: {
+          type: BRANCH_CHANGE_EVENTS.AFFECTED,
+          version: input.request.soLanDoiHieuLuc + 1,
+        },
+        // [đề xuất] (Trung chốt 22/11/2026), đối chiếu Figma 690:2 ở F6b/X1
+        noiDung: joinWithinLimit(
+          `Chi nhánh ${input.request.tenChiNhanh} thay đổi lịch hoạt động từ ${humanTime(input.hieuLucTuText)}. Lịch hẹn bị ảnh hưởng:`,
+          codes,
+        ),
+        now: input.now,
+      });
   }
 
   private toListItem(row: RequestRow): BranchChangeRequestListItem {

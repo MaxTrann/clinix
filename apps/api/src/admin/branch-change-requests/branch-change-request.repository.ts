@@ -41,7 +41,7 @@ export interface RequestDetailRow extends RequestRow {
   hieuLucTuDate: Date | null;
 }
 
-/** Hàng đã khoá để từ chối: chỉ những gì giao dịch cần. */
+/** Hàng đã khoá để từ chối hay duyệt: chỉ những gì giao dịch cần. */
 export interface LockedRequest {
   yeuCauThayDoiChiNhanhId: string;
   chiNhanhId: string;
@@ -49,6 +49,10 @@ export interface LockedRequest {
   nguoiDeXuatId: string;
   trangThai: TrangThaiYeuCauThayDoiChiNhanh;
   thoiDiemTao: string;
+  /** JSON (mysql2 tự đọc thành object); duyệt cần để tính ảnh hưởng */
+  noiDungTruoc: unknown;
+  noiDungSau: unknown;
+  soLanDoiHieuLuc: number;
 }
 
 const FROM_SQL = `FROM yeu_cau_thay_doi_chi_nhanh y
@@ -176,17 +180,81 @@ export class BranchChangeRequestRepository {
     manager: EntityManager,
     id: string,
   ): Promise<LockedRequest | null> {
-    const rows: LockedRequest[] = await manager.query(
-      `SELECT CAST(y.yeu_cau_thay_doi_chi_nhanh_id AS CHAR) AS yeuCauThayDoiChiNhanhId, CAST(y.chi_nhanh_id AS CHAR) AS chiNhanhId,
+    const rows: (LockedRequest & { soLanDoiHieuLuc: number | string })[] =
+      await manager.query(
+        `SELECT CAST(y.yeu_cau_thay_doi_chi_nhanh_id AS CHAR) AS yeuCauThayDoiChiNhanhId, CAST(y.chi_nhanh_id AS CHAR) AS chiNhanhId,
               cn.ten AS tenChiNhanh, CAST(y.nguoi_de_xuat_id AS CHAR) AS nguoiDeXuatId, y.trang_thai AS trangThai,
-              ${TS('y.thoi_diem_tao')} AS thoiDiemTao
+              ${TS('y.thoi_diem_tao')} AS thoiDiemTao, y.noi_dung_truoc AS noiDungTruoc, y.noi_dung_sau AS noiDungSau,
+              y.so_lan_doi_hieu_luc AS soLanDoiHieuLuc
          FROM yeu_cau_thay_doi_chi_nhanh y
          JOIN chi_nhanh cn ON cn.chi_nhanh_id = y.chi_nhanh_id
         WHERE y.yeu_cau_thay_doi_chi_nhanh_id = ?
         FOR UPDATE OF y`,
-      [id],
+        [id],
+      );
+    const row = rows[0];
+    return row === undefined
+      ? null
+      : { ...row, soLanDoiHieuLuc: Number(row.soLanDoiHieuLuc) };
+  }
+
+  /**
+   * `ChoDuyet` → `DaDuyet`, có điều kiện trạng thái (H11), như `markRejected`. CHECK `chk_yc_chi_nhanh_xu_ly` đòi
+   * `hieu_luc_tu >= thoi_diem_duyet + so_ngay_bao_truoc` ngày: service đã kiểm trước, CHECK là lớp chặn cuối.
+   * Cột sinh `dang_mo_chi_nhanh` vẫn giữ chi nhánh (DaDuyet chưa áp dụng vẫn là "yêu cầu đang mở", Q3).
+   */
+  async markApproved(
+    manager: EntityManager,
+    input: {
+      id: string;
+      nguoiDuyetId: string;
+      now: Date;
+      soNgayBaoTruoc: number;
+      hieuLucTu: Date;
+    },
+  ): Promise<number> {
+    const result: { affectedRows?: number } = await manager.query(
+      `UPDATE yeu_cau_thay_doi_chi_nhanh
+          SET trang_thai = 'DaDuyet', nguoi_duyet_id = ?, thoi_diem_duyet = ?, so_ngay_bao_truoc = ?, hieu_luc_tu = ?
+        WHERE yeu_cau_thay_doi_chi_nhanh_id = ? AND trang_thai = 'ChoDuyet'`,
+      [
+        input.nguoiDuyetId,
+        input.now,
+        input.soNgayBaoTruoc,
+        input.hieuLucTu,
+        input.id,
+      ],
     );
-    return rows[0] ?? null;
+    return result.affectedRows ?? 0;
+  }
+
+  /** Bản chụp lịch hẹn ảnh hưởng lúc duyệt (Q46): một dòng mỗi lịch hẹn (khoá chính (yêu cầu, lịch hẹn)), một câu INSERT. */
+  async insertSnapshot(
+    manager: EntityManager,
+    id: string,
+    rows: readonly AffectedAppointment[],
+  ): Promise<void> {
+    if (rows.length === 0) return;
+    await manager.query(
+      `INSERT INTO yeu_cau_thay_doi_chi_nhanh_lich_hen (yeu_cau_thay_doi_chi_nhanh_id, lich_hen_id, ly_do_anh_huong)
+       VALUES ${rows.map(() => '(?, ?, ?)').join(', ')}`,
+      rows.flatMap((row) => [id, row.lichHenId, row.lyDoAnhHuong]),
+    );
+  }
+
+  /** `lich_hen_id` ⇒ `benh_nhan_id` (người đặt; lịch của hồ sơ người thân cũng thuộc chủ tài khoản này). */
+  async patientsOf(
+    manager: EntityManager,
+    lichHenIds: readonly string[],
+  ): Promise<Map<string, string>> {
+    if (lichHenIds.length === 0) return new Map();
+    const rows: { lichHenId: string; benhNhanId: string }[] =
+      await manager.query(
+        `SELECT CAST(lich_hen_id AS CHAR) AS lichHenId, CAST(benh_nhan_id AS CHAR) AS benhNhanId
+           FROM lich_hen WHERE lich_hen_id IN (${lichHenIds.map(() => '?').join(', ')})`,
+        [...lichHenIds],
+      );
+    return new Map(rows.map((row) => [row.lichHenId, row.benhNhanId]));
   }
 
   /**
