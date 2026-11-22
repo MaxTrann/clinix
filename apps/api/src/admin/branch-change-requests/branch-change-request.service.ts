@@ -37,6 +37,7 @@ import {
   parseRequestContent,
   type DayChangeView,
 } from './request-content.js';
+import { formatVN, humanTime } from './request-time.js';
 
 // Yêu cầu thay đổi chi nhánh: xem, từ chối (admin B9) và duyệt (admin B10); PLAN admin 5.3, 5.4; Q2, Q4, Q5, Q9, Q40, Q46, Q48.
 // Phạm vi kiểm ở backend: Quản trị viên Chi nhánh chỉ thấy yêu cầu của chi nhánh mình (ngoài phạm vi ⇒ 404), chỉ Toàn hệ thống được từ chối hay duyệt (⇒ 403).
@@ -120,20 +121,6 @@ export const LEGACY_CONTENT = 'NOI_DUNG_YEU_CAU_KHONG_HOP_LE';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
-
-const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
-/** 'YYYY-MM-DD HH:mm:ss' giờ Việt Nam (cố định +07:00, không có giờ mùa hè). */
-const formatVN = (date: Date): string =>
-  new Date(date.getTime() + VN_OFFSET_MS)
-    .toISOString()
-    .slice(0, 19)
-    .replace('T', ' ');
-/** 'YYYY-MM-DD HH:mm:ss' ⇒ 'HH:mm dd/MM/yyyy' cho câu thông báo. */
-const humanTime = (value: string): string => {
-  const [date = '', time = ''] = value.split(' ');
-  const [y, m, d] = date.split('-');
-  return `${time.slice(0, 5)} ${d}/${m}/${y}`;
-};
 
 @Injectable()
 export class BranchChangeRequestService {
