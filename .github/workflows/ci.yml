@@ -106,10 +106,21 @@ jobs:
           path: apps/api/coverage
           if-no-files-found: ignore
 
+  # Integration chia nhiều shard chạy song song (vitest --shard chia theo file). Mỗi shard là một job riêng có MySQL riêng,
+  # nên bên trong vẫn chạy tuần tự như cũ mà các shard không đụng nhau. Đổi số shard thì chỉ sửa danh sách `shard`:
+  # tổng số shard lấy từ `strategy.job-total` (= số phần tử của matrix), không ghi tay ở chỗ thứ hai.
+  # Một shard đỏ thì `needs.api-int.result` = failure, nên job gom `api` vẫn đúng.
   api-int:
     needs: detect
     if: needs.detect.outputs.api == 'true'
     runs-on: ubuntu-latest
+    # Chặn test treo (khóa hàng, chạy đua) giữ runner tới mặc định 6 giờ. Trước khi chia shard cả job mất ~30 phút
+    timeout-minutes: 30
+    strategy:
+      # Không hủy các shard còn lại khi một shard lỗi: thấy hết test đỏ trong một lần chạy
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     defaults:
       run:
         working-directory: apps/api
@@ -127,7 +138,10 @@ jobs:
           TZ: Asia/Ho_Chi_Minh
         ports:
           - 3306:3306
+        # --tmpfs: dữ liệu MySQL nằm trên RAM thay vì đĩa, vì test liên tục TRUNCATE/DROP/CREATE (nặng ghi đĩa).
+        # Container bị xóa khi job xong nên mất dữ liệu cũng không sao.
         options: >-
+          --tmpfs /var/lib/mysql
           --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
           --health-interval=10s
           --health-timeout=5s
@@ -142,11 +156,12 @@ jobs:
       - run: npm ci
       # seed.int-spec.ts chạy CLI thật từ dist/ (node dist/database/seeds/seed.js) nên cần build trước
       - run: npm run build
-      - run: npm run test:int -- --coverage
+      - run: npm run test:int -- --shard=${{ matrix.shard }}/${{ strategy.job-total }} --coverage
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: api-coverage-int
+          # Tên artifact phải khác nhau giữa các shard (upload-artifact v4 trở lên không cho trùng tên trong một lần chạy)
+          name: api-coverage-int-${{ matrix.shard }}
           path: apps/api/coverage/int
           if-no-files-found: ignore
 
@@ -154,6 +169,8 @@ jobs:
     needs: detect
     if: needs.detect.outputs.api == 'true'
     runs-on: ubuntu-latest
+    # Cùng lý do với api-int: không để test treo giữ runner tới 6 giờ
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: apps/api
@@ -170,7 +187,9 @@ jobs:
           TZ: Asia/Ho_Chi_Minh
         ports:
           - 3306:3306
+        # Dữ liệu MySQL trên RAM, cùng lý do với api-int
         options: >-
+          --tmpfs /var/lib/mysql
           --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
           --health-interval=10s
           --health-timeout=5s
