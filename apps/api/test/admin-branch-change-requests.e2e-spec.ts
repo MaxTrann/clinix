@@ -6,10 +6,11 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { AdminFixtures } from '../src/admin/testing/admin-fixtures.js';
+import { BookingFixtures } from '../src/appointments/testing/booking-fixtures.js';
 import { SessionService } from '../src/auth/session/session.service.js';
 import { resetTables } from '../src/database/testing/test-database.js';
 
-// Admin B9 — YCB-09 [đề xuất mã]: yêu cầu thay đổi chi nhánh qua HTTP (AppModule, Auth, C1, MySQL thật): vai trò, phạm vi, dữ liệu vào sai.
+// Admin B9, B10 — YCB-09, YCB-14 [đề xuất mã]: yêu cầu thay đổi chi nhánh qua HTTP (AppModule, Auth, C1, MySQL thật): vai trò, phạm vi, dữ liệu vào sai.
 describe('B9 yêu cầu thay đổi chi nhánh — HTTP', () => {
   let app: NestExpressApplication;
   let db: DataSource;
@@ -130,5 +131,79 @@ describe('B9 yêu cầu thay đổi chi nhánh — HTTP', () => {
     await call('post', '/abc/reject', w.system, { lyDo: 'x' }).expect(400);
     await call('get', '/abc', w.system).expect(400);
     await call('get', '?trangThai=QuaHan', w.system).expect(400);
+  });
+
+  // Admin B10 — YCB-14 [đề xuất mã]: duyệt qua HTTP. Cấu hình báo trước 3 ngày; đồng hồ thật nên mốc dùng năm xa (không phụ thuộc ngày chạy).
+  describe('B10 duyệt', () => {
+    const FAR = '2099-01-01 08:00:00';
+    const withConfig = async () =>
+      new BookingFixtures(db).systemConfig({ soNgayBaoTruocDoiGioLam: 3 });
+
+    it('YCB-14 chưa đăng nhập ⇒ 401; Bệnh nhân, Bác sĩ, Lễ tân, Chi nhánh ⇒ 403 (CN-56)', async () => {
+      const w = await world();
+      await withConfig();
+      await call('post', `/${w.mineRequest}/approve`, undefined, {
+        hieuLucTu: FAR,
+      }).expect(401);
+      for (const token of [w.patient, w.doctor, w.receptionist])
+        await call('post', `/${w.mineRequest}/approve`, token, {
+          hieuLucTu: FAR,
+        }).expect(403);
+      const denied = await call(
+        'post',
+        `/${w.mineRequest}/approve`,
+        w.branchAdmin,
+        { hieuLucTu: FAR },
+      ).expect(403);
+      expect(denied.body).toMatchObject({ maLoi: 'KHONG_DU_QUYEN' });
+    });
+
+    it('YCB-14 Toàn hệ thống duyệt ⇒ 200 kèm chi tiết; lần hai ⇒ 409; mốc quá sớm ⇒ 400; dữ liệu vào sai ⇒ 400', async () => {
+      const w = await world();
+      await withConfig();
+      const early = await call('post', `/${w.otherRequest}/approve`, w.system, {
+        hieuLucTu: '2000-01-01 00:00:00',
+      }).expect(400);
+      expect(early.body).toMatchObject({
+        maLoi: 'HIEU_LUC_QUA_SOM',
+        chiTiet: { mocSomNhat: expect.any(String) },
+      });
+      const ok = await call('post', `/${w.mineRequest}/approve`, w.system, {
+        hieuLucTu: FAR,
+      }).expect(200);
+      expect(ok.body).toMatchObject({
+        trangThai: 'DaDuyet',
+        hieuLucTu: FAR,
+        apDungLuc: null,
+        soNgayBaoTruoc: 3,
+      });
+      const again = await call('post', `/${w.mineRequest}/approve`, w.system, {
+        hieuLucTu: FAR,
+      }).expect(409);
+      expect(again.body).toMatchObject({
+        maLoi: 'YEU_CAU_KHONG_CON_CHO_DUYET',
+      });
+      await call('post', `/${w.otherRequest}/approve`, w.system, {}).expect(
+        400,
+      );
+      await call('post', `/${w.otherRequest}/approve`, w.system, {
+        hieuLucTu: '2099-01-01T08:00:00+07:00',
+      }).expect(400);
+      await call('post', `/${w.otherRequest}/approve`, w.system, {
+        hieuLucTu: FAR,
+        nguoiDuyetId: '1',
+      }).expect(400);
+      await call('post', '/abc/approve', w.system, { hieuLucTu: FAR }).expect(
+        400,
+      );
+    });
+
+    it('YCB-14 chưa có cấu hình ⇒ 409 HE_THONG_CHUA_CAU_HINH (CN-55)', async () => {
+      const w = await world();
+      const res = await call('post', `/${w.mineRequest}/approve`, w.system, {
+        hieuLucTu: FAR,
+      }).expect(409);
+      expect(res.body).toMatchObject({ maLoi: 'HE_THONG_CHUA_CAU_HINH' });
+    });
   });
 });

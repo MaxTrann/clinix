@@ -41,3 +41,47 @@ export class RejectBranchChangeRequestDto {
   @RequiredReason({ rejectSecrets: true })
   lyDo!: string;
 }
+
+const VN_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
+
+/**
+ * 'YYYY-MM-DD HH:mm:ss' giờ Việt Nam và là thời điểm CÓ THẬT (loại 30/02, 24:00:00): tách số rồi dựng lại bằng `Date.UTC`,
+ * các phần phải giữ nguyên (Date tự "tràn" 30/02 sang 02/03 nên so lại là bắt được).
+ */
+export function isVnDateTime(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const match = VN_DATE_TIME.exec(value);
+  if (!match) return false;
+  const [y, mo, d, h, mi, s] = match.slice(1).map(Number) as [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
+  const date = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
+  return (
+    date.getUTCFullYear() === y &&
+    date.getUTCMonth() === mo - 1 &&
+    date.getUTCDate() === d &&
+    date.getUTCHours() === h &&
+    date.getUTCMinutes() === mi &&
+    date.getUTCSeconds() === s
+  );
+}
+
+/**
+ * Thân `POST …/:id/approve` (admin B10; Q5). `hieuLucTu` = thời điểm "dự kiến có hiệu lực" người duyệt chọn, dạng giờ VN
+ * 'YYYY-MM-DD HH:mm:ss' (cùng dạng B9 trả ra; Trung chốt 22/11/2026). Mốc sớm nhất kiểm ở service (cần cấu hình và giờ duyệt).
+ */
+export class ApproveBranchChangeRequestDto {
+  @ValidateBy({
+    name: 'isVnDateTime',
+    validator: {
+      validate: isVnDateTime,
+      defaultMessage: () => 'HIEU_LUC_KHONG_HOP_LE',
+    },
+  })
+  hieuLucTu!: string;
+}

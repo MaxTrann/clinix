@@ -20,6 +20,8 @@ import { BranchRepository } from '../../branches/branch.repository.js';
 import { BranchService } from '../../branches/branch.service.js';
 import { BranchImpactService } from '../../branches/impact/branch-impact.service.js';
 import type { ChiNhanh } from '../../entities/chi-nhanh.entity.js';
+import { SystemConfigRepository } from '../../system-config/system-config.repository.js';
+import { SystemConfigService } from '../../system-config/system-config.service.js';
 import { AdminFixtures } from '../../testing/admin-fixtures.js';
 import { BranchChangeRequestListDto } from '../branch-change-request.dto.js';
 import { BranchChangeRequestRepository } from '../branch-change-request.repository.js';
@@ -74,6 +76,8 @@ describe('B9 yêu cầu thay đổi chi nhánh — MySQL thật', () => {
       impact,
       new BranchChangeNotifier(),
       audit,
+      // B10 (duyệt) mới đọc cấu hình; các ca B9 ở đây không gọi tới
+      new SystemConfigService(new SystemConfigRepository(db)),
     );
     branches = new BranchService(
       new BranchRepository(db),
