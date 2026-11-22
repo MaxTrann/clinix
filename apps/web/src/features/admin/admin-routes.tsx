@@ -10,6 +10,17 @@ export const ADMIN_ROUTES: RouteObject[] = [
     children: [
       { index: true, element: <AdminOverviewPage /> },
       { path: 'chuyen-khoa', element: <SpecialtyPage /> },
+      // admin F7: Hồ sơ bác sĩ, cả hai phạm vi (Chi nhánh chỉ thấy bác sĩ chi nhánh mình, không đổi được chi nhánh)
+      {
+        path: 'bac-si',
+        hydrateFallbackElement: (
+          <LoadingState message="Đang tải danh sách bác sĩ…" />
+        ),
+        lazy: () =>
+          import('./doctor-profiles/doctor-profiles-page').then((module) => ({
+            Component: module.DoctorProfilesPage,
+          })),
+      },
       {
         path: 'dich-vu-kham',
         lazy: () =>
