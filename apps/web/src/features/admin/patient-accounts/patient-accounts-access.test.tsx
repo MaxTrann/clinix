@@ -245,13 +245,17 @@ describe('TKF9-53 lớp thứ ba: máy chủ vẫn từ chối', () => {
 });
 
 describe('TKF9-54 các mục menu khác không bị đổi', () => {
-  it('TKF9-54 mục "Bác sĩ" và "Danh sách chờ" vẫn là nút vô hiệu; "Chuyên khoa" vẫn là liên kết', async () => {
+  // admin F7 (Trung, 22/11/2026): "Bác sĩ" đã thành liên kết tới màn hồ sơ bác sĩ; phần còn lại của ca giữ nguyên
+  it('TKF9-54 mục "Danh sách chờ" vẫn là nút vô hiệu; "Chuyên khoa" và "Bác sĩ" (F7) là liên kết', async () => {
     await startAs('QuanTriVien');
     auth.failNext('/admin/me', () => json({ phamVi: 'ToanHeThong' }));
     renderApp('/admin');
 
     await screen.findByRole('link', { name: MENU_NAME });
-    expect(screen.getByRole('button', { name: 'Bác sĩ' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Bác sĩ' })).toHaveAttribute(
+      'href',
+      '/admin/bac-si',
+    );
     expect(
       screen.getByRole('button', { name: 'Danh sách chờ' }),
     ).toBeDisabled();

@@ -19,6 +19,10 @@ export interface DoctorListItem {
   taiKhoanId: string;
   hoTen: string;
   email: string;
+  /** 'YYYY-MM-DD'; `null` khi chưa nhập (cột cho phép trống). Admin F7: cột "Ngày sinh" của Figma 535:2. */
+  ngaySinh: string | null;
+  /** Đường dẫn ảnh đại diện; `null` thì giao diện hiện chữ cái đầu (F7) */
+  anhDaiDien: string | null;
   trangThaiTaiKhoan: TrangThaiTaiKhoan;
   chucDanh: ChucDanhBacSi;
   hocVi: HocViBacSi;
@@ -49,6 +53,8 @@ interface DoctorRow {
   taiKhoanId: string;
   hoTen: string;
   email: string;
+  ngaySinh: string | null;
+  anhDaiDien: string | null;
   soDienThoai: string;
   trangThaiTaiKhoan: TrangThaiTaiKhoan;
   chucDanh: ChucDanhBacSi;
@@ -72,6 +78,7 @@ const FROM_SQL = `FROM bac_si bs
   JOIN dich_vu_kham dv ON dv.dich_vu_kham_id = bs.dich_vu_kham_id`;
 
 export const DOCTOR_COLUMNS_SQL = `SELECT CAST(bs.tai_khoan_id AS CHAR) AS taiKhoanId, tk.ho_ten AS hoTen, tk.email AS email, tk.so_dien_thoai AS soDienThoai,
+       DATE_FORMAT(tk.ngay_sinh, '%Y-%m-%d') AS ngaySinh, tk.anh_dai_dien AS anhDaiDien,
        tk.trang_thai AS trangThaiTaiKhoan, bs.chuc_danh AS chucDanh, bs.hoc_vi AS hocVi, bs.so_nam_kinh_nghiem AS soNamKinhNghiem,
        bs.mo_ta_chuyen_mon AS moTaChuyenMon,
        CAST(ck.chuyen_khoa_id AS CHAR) AS chuyenKhoaId, ck.ten AS tenChuyenKhoa, ck.trang_thai_hoat_dong AS trangThaiChuyenKhoa,
@@ -107,9 +114,9 @@ export class DoctorRepository {
     if (input.q !== undefined) {
       const pattern = `%${escapeLikePattern(input.q)}%`;
       conditions.push(
-        "(tk.ho_ten LIKE ? ESCAPE '!' OR tk.email LIKE ? ESCAPE '!')",
+        "(tk.ho_ten LIKE ? ESCAPE '!' OR tk.email LIKE ? ESCAPE '!' OR tk.so_dien_thoai LIKE ? ESCAPE '!')",
       );
-      parameters.push(pattern, pattern);
+      parameters.push(pattern, pattern, pattern);
     }
     const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
 
@@ -174,6 +181,8 @@ export class DoctorRepository {
       taiKhoanId: row.taiKhoanId,
       hoTen: row.hoTen,
       email: row.email,
+      ngaySinh: row.ngaySinh,
+      anhDaiDien: row.anhDaiDien,
       trangThaiTaiKhoan: row.trangThaiTaiKhoan,
       chucDanh: row.chucDanh,
       hocVi: row.hocVi,
