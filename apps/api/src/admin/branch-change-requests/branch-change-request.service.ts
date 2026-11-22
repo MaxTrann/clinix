@@ -122,6 +122,57 @@ export const LEGACY_CONTENT = 'NOI_DUNG_YEU_CAU_KHONG_HOP_LE';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 
+/**
+ * Q5 và quyết định Trung chốt 22/11/2026: `hieuLucTu >= now + n ngày` (như CHECK DB) VÀ `hieuLucTu > now`,
+ * để thông báo luôn tạo TRƯỚC hiệu lực kể cả khi n = 0 (CN-50). Giờ VN cố định +07:00 nên n ngày = n × 24 giờ, khớp `DATE_ADD … DAY` của CHECK.
+ * Dùng chung cho duyệt (B10) và dời hiệu lực (B22).
+ */
+export function assertEffectiveTime(
+  now: Date,
+  soNgayBaoTruoc: number,
+  hieuLucTu: Date,
+): void {
+  const earliest = new Date(
+    Math.max(now.getTime() + soNgayBaoTruoc * DAY_MS, now.getTime() + 1000),
+  );
+  if (hieuLucTu.getTime() < earliest.getTime())
+    throw new AppException(400, TOO_EARLY, {
+      thongBao: `Thời điểm có hiệu lực phải từ ${humanTime(formatVN(earliest))} trở đi.`,
+      chiTiet: { mocSomNhat: formatVN(earliest) },
+    });
+}
+
+/**
+ * Các thứ cần khoá khung giờ trước khi đọc lịch hẹn (như B8): booking khoá khung giờ rồi mới hỏi cổng chặn (Q6), nên lịch hẹn đặt chen vào hoặc
+ * phải chờ giao dịch này (rồi bị chặn), hoặc đã commit trước và có trong bản chụp. Bỏ dịch vụ thì thứ nào trong tuần cũng có thể bị ảnh hưởng.
+ */
+export function daysToLock(input: ReturnType<typeof impactInputOf>): number[] {
+  return input.removedServiceIds.length > 0
+    ? [...ALL_DAYS]
+    : input.changedDays.map((day) => day.thuTrongTuan);
+}
+
+/** Gom mã lịch hẹn ảnh hưởng theo `lich_hen.benh_nhan_id` (CN-52, CN-53); `appointments` đã sắp theo thời gian (B8) nên mã của mỗi người cũng theo thời gian. */
+export async function codesByPatientOf(
+  requests: BranchChangeRequestRepository,
+  manager: EntityManager,
+  appointments: readonly AffectedAppointment[],
+): Promise<Map<string, string[]>> {
+  const patientOf = await requests.patientsOf(
+    manager,
+    appointments.map((a) => a.lichHenId),
+  );
+  const codesByPatient = new Map<string, string[]>();
+  for (const appointment of appointments) {
+    const patientId = patientOf.get(appointment.lichHenId);
+    if (patientId === undefined) continue;
+    const codes = codesByPatient.get(patientId) ?? [];
+    codes.push(appointment.maLichHen);
+    codesByPatient.set(patientId, codes);
+  }
+  return codesByPatient;
+}
+
 @Injectable()
 export class BranchChangeRequestService {
   constructor(
@@ -233,7 +284,7 @@ export class BranchChangeRequestService {
       const soNgayBaoTruoc = (await this.config.getOrThrow())
         .soNgayBaoTruocDoiGioLam;
       const now = toSecond(nowVN());
-      this.assertEffectiveTime(now, soNgayBaoTruoc, hieuLucTu);
+      assertEffectiveTime(now, soNgayBaoTruoc, hieuLucTu);
 
       const content = parseRequestContent(
         request.noiDungTruoc,
@@ -241,17 +292,12 @@ export class BranchChangeRequestService {
       );
       if (content.coDangCu) throw new AppException(409, LEGACY_CONTENT);
       const input = impactInputOf(content);
-      // Khoá khung giờ TRƯỚC khi đọc lịch hẹn (như B8): booking khoá khung giờ rồi mới hỏi cổng chặn (Q6), nên lịch hẹn đặt chen vào hoặc
-      // phải chờ giao dịch này (rồi bị chặn), hoặc đã commit trước và có trong bản chụp. Bỏ dịch vụ thì thứ nào trong tuần cũng có thể bị ảnh hưởng.
-      const days =
-        input.removedServiceIds.length > 0
-          ? [...ALL_DAYS]
-          : input.changedDays.map((day) => day.thuTrongTuan);
+      // Khoá khung giờ TRƯỚC khi đọc lịch hẹn (lý do ở `daysToLock`)
       await this.impact.lockSlotsOfDays(
         manager,
         request.chiNhanhId,
         hieuLucTu,
-        days,
+        daysToLock(input),
       );
       const impact = await this.impact.compute(manager, {
         chiNhanhId: request.chiNhanhId,
@@ -304,25 +350,6 @@ export class BranchChangeRequestService {
   }
 
   /**
-   * Q5 và quyết định Trung chốt 22/11/2026: `hieuLucTu >= lúc duyệt + n ngày` (như CHECK DB) VÀ `hieuLucTu > lúc duyệt`,
-   * để thông báo luôn tạo TRƯỚC hiệu lực kể cả khi n = 0 (CN-50). Giờ VN cố định +07:00 nên n ngày = n × 24 giờ, khớp `DATE_ADD … DAY` của CHECK.
-   */
-  private assertEffectiveTime(
-    now: Date,
-    soNgayBaoTruoc: number,
-    hieuLucTu: Date,
-  ): void {
-    const earliest = new Date(
-      Math.max(now.getTime() + soNgayBaoTruoc * DAY_MS, now.getTime() + 1000),
-    );
-    if (hieuLucTu.getTime() < earliest.getTime())
-      throw new AppException(400, TOO_EARLY, {
-        thongBao: `Thời điểm có hiệu lực phải từ ${humanTime(formatVN(earliest))} trở đi.`,
-        chiTiet: { mocSomNhat: formatVN(earliest) },
-      });
-  }
-
-  /**
    * Gom lịch hẹn ảnh hưởng theo `benh_nhan_id` (CN-52, CN-53): mỗi bệnh nhân MỘT thông báo + thư, liệt kê mã lịch hẹn theo thời gian.
    * Phiên bản sự kiện = số lần dời hiệu lực + 1 (lúc duyệt luôn là `v1`), để B22 báo lại được mà không trùng khoá UNIQUE của C4.
    */
@@ -335,19 +362,11 @@ export class BranchChangeRequestService {
       now: Date;
     },
   ): Promise<void> {
-    const patientOf = await this.requests.patientsOf(
+    const codesByPatient = await codesByPatientOf(
+      this.requests,
       manager,
-      input.appointments.map((a) => a.lichHenId),
+      input.appointments,
     );
-    // `appointments` đã sắp theo thời gian (B8) nên mã lịch hẹn của mỗi người cũng theo thời gian
-    const codesByPatient = new Map<string, string[]>();
-    for (const appointment of input.appointments) {
-      const patientId = patientOf.get(appointment.lichHenId);
-      if (patientId === undefined) continue;
-      const codes = codesByPatient.get(patientId) ?? [];
-      codes.push(appointment.maLichHen);
-      codesByPatient.set(patientId, codes);
-    }
     for (const [patientId, codes] of codesByPatient)
       await this.notifier.notify(manager, {
         yeuCauId: input.request.yeuCauThayDoiChiNhanhId,

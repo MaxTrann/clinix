@@ -10,9 +10,10 @@ import { BranchChangeApplyService } from './apply/branch-change-apply.service.js
 import { BranchChangeRequestController } from './branch-change-request.controller.js';
 import { BranchChangeRequestRepository } from './branch-change-request.repository.js';
 import { BranchChangeRequestService } from './branch-change-request.service.js';
+import { BranchChangeRescheduleService } from './branch-change-reschedule.service.js';
 import { BranchChangeStopService } from './branch-change-stop.service.js';
 
-// Yêu cầu thay đổi chi nhánh (admin B9, B10, B11, B21; B22 thêm vào đây). `BranchModule` export `BranchImpactService` để tính lại ảnh hưởng (Q46)
+// Yêu cầu thay đổi chi nhánh (admin B9, B10, B11, B21, B22). `BranchModule` export `BranchImpactService` để tính lại ảnh hưởng (Q46)
 // và `BranchRepository` để job B11 ghi lịch, dịch vụ;
 // `SystemConfigModule` cho số ngày báo trước lúc duyệt (B10). Hàm đọc cho booking (Q6) nằm ở module lá riêng `PendingBranchChangesModule`.
 @Module({
@@ -33,6 +34,8 @@ import { BranchChangeStopService } from './branch-change-stop.service.js';
     BranchChangeApplyJob,
     // B21: rút và hủy
     BranchChangeStopService,
+    // B22: dời hiệu lực yêu cầu quá hạn
+    BranchChangeRescheduleService,
   ],
 })
 export class BranchChangeRequestModule {}

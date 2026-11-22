@@ -4513,3 +4513,50 @@ Lệnh đã chạy (MySQL 8.4 của `docker compose`, `TEST_DB_NAME=clinix_admin
 - CN-96 (hủy đồng thời với job áp dụng): làm sau khi B11 merge và nhánh này gộp `main`.
 - Chữ thông báo rút, hủy `[đề xuất]`, đối chiếu Figma ở F6b/X1.
 - `[ĐỒNG BỘ TL]` D1 (đặc tả 2.4: rút, hủy, quyền): Trung sửa ở repo `TLCN_CLINIX`. D6 gom ở PR cuối cụm.
+
+#### 9B.10 B22 (#524) Yêu cầu thay đổi chi nhánh: dời hiệu lực yêu cầu quá hạn (22/11/2026)
+
+Nhánh `feat/admin-reschedule-branch-change`, tạo từ `main` = `88c916d` (đã có B10, B11, B21). Tiêu đề PR `feat(admin): dời hiệu lực yêu cầu thay đổi chi nhánh quá hạn, báo lại bệnh nhân (admin B22)`. DB test `clinix_admin_b22_test`. Không có migration, không đổi schema (`qua_han_luc`, `so_lan_doi_hieu_luc`, `BoQua` và hành động audit `DoiHieuLucThayDoiChiNhanh` đã có từ P3, C2, C4). `[ĐỒNG BỘ TL]`: D6 gom ở PR cuối cụm (như B21); D1 (đặc tả 2.4) và D7 (Figma) Trung tự sửa.
+
+**Nguồn:** PLAN 5.4 (Dời hiệu lực), 5.9 (`YEU_CAU_KHONG_QUA_HAN`), 5.10; Q5, Q47, Q48; H11, H21; CHECK `chk_yc_chi_nhanh_xu_ly`.
+
+**Trung chốt (22/11/2026), trước khi viết mã:**
+
+1. Người nhận thông báo dời: HỢP hai nhóm. PLAN 5.4 ghi "bệnh nhân trong danh sách mới", CN-106 ghi "bệnh nhân đã được báo"; làm cả hai: bệnh nhân còn bị ảnh hưởng ở mốc mới nhận câu kèm mã lịch hẹn; bệnh nhân đã được báo trước đó (`ThayDoiChiNhanhAnhHuongLichHen:v*`, `DoiHieuLucThayDoiChiNhanh:v*`) mà nay hết bị ảnh hưởng nhận câu "lịch hẹn của bạn không còn bị ảnh hưởng". Cả hai nhóm dùng `DoiHieuLucThayDoiChiNhanh:v{so_lan_doi_hieu_luc mới}` (có thư).
+2. `so_ngay_bao_truoc` GIỮ giá trị chụp lúc duyệt; N = lớn hơn giữa giá trị đó và cấu hình hiện hành chỉ dùng để kiểm mốc mới.
+3. Người đề xuất nhận sự kiện MỚI `[đề xuất]` `KetQuaDoiHieuLucThayDoiChiNhanh:v{n}`, chỉ trong ứng dụng (thêm vào `notification/branch-change-events.ts`). Lý do: dùng chung `DoiHieuLucThayDoiChiNhanh` thì người đề xuất nhận thư viết cho bệnh nhân và bị Hủy (B21) tính là "bệnh nhân đã được báo".
+
+**Mã** (`apps/api/src/admin/branch-change-requests/`):
+
+- `POST …/:id/reschedule` `{hieuLucTu}` (chỉ Toàn hệ thống; cùng dạng và bộ kiểm với duyệt) ở `branch-change-reschedule.service.ts` riêng. Một giao dịch: khoá yêu cầu `FOR UPDATE OF y`; không có ⇒ 404; không quá hạn (`DaDuyet`, `ap_dung_luc IS NULL`, `qua_han_luc IS NOT NULL`) ⇒ 409 `YEU_CAU_KHONG_QUA_HAN`; đọc cấu hình (thiếu ⇒ `HE_THONG_CHUA_CAU_HINH`); kiểm mốc mới (`HIEU_LUC_QUA_SOM` kèm `mocSomNhat`); nội dung dạng cũ ⇒ 409 `NOI_DUNG_YEU_CAU_KHONG_HOP_LE`; khoá khung giờ, tính lại ảnh hưởng tại mốc mới; đọc bệnh nhân đã được báo; `UPDATE` có điều kiện (`hieu_luc_tu` mới, `qua_han_luc = NULL`, `so_lan_doi_hieu_luc + 1`); thay bản chụp (xoá rồi chèn); dừng thư báo thay đổi còn chờ (`skipPendingChangeNotices`, TRƯỚC khi xếp thư mới); thông báo bệnh nhân, người đề xuất; audit `DoiHieuLucThayDoiChiNhanh` `{truoc:{hieu_luc_tu}, sau:{hieu_luc_tu}, so_lan_doi_hieu_luc, so_benh_nhan_thong_bao_lai}`. Trả chi tiết (B9) sau commit.
+- Sau khi dời, job B11 chọn lại yêu cầu ở mốc mới; quá hạn lần nữa thì cảnh báo mang phiên bản mới (B11 đã dùng `:v{so_lan_doi_hieu_luc + 1}`). Cảnh báo quá hạn trong ứng dụng đã làm ở B11, B22 không làm lại.
+- Tách từ service B10 thành hàm export dùng chung (không đổi hành vi): `assertEffectiveTime`, `daysToLock`, `codesByPatientOf`. Repository thêm `markRescheduled`, `replaceSnapshot`; `lockForUpdate` trả thêm `soNgayBaoTruoc`.
+
+| Mã | Nội dung | Loại |
+|---|---|---|
+| CN-100 | Dời yêu cầu quá hạn: `hieu_luc_tu` mới, `qua_han_luc` NULL, `so_lan_doi_hieu_luc` 1, `so_ngay_bao_truoc` giữ; bản chụp tính lại (chỉ còn lịch còn bị ảnh hưởng); bệnh nhân, người đề xuất được báo; audit | I |
+| CN-101 | Biên: bằng bây giờ + N ⇒ được, sớm hơn 1 giây ⇒ `HIEU_LUC_QUA_SOM`; N = lớn hơn giữa giá trị đã chụp và cấu hình (giảm cấu hình vẫn giữ 3 ngày, tăng lên 5 thì theo 5); thiếu cấu hình ⇒ `HE_THONG_CHUA_CAU_HINH` | I |
+| CN-102 | Chưa quá hạn, `ChoDuyet`, `DaRut`, `DaHuy`, đã áp dụng ⇒ 409 `YEU_CAU_KHONG_QUA_HAN`; không tồn tại ⇒ 404 | I |
+| CN-103 | Admin Chi nhánh ⇒ 403; hai Toàn hệ thống dời đồng thời ⇒ một thành công, một 409, audit và thông báo một lần | I, E |
+| CN-105 (phần dời) | Thư báo thay đổi `ChoGui` ⇒ `BoQua`; thư kết quả duyệt của người đề xuất giữ `ChoGui` | I |
+| CN-106 (phần dời) | Bệnh nhân còn bị ảnh hưởng nhận mã lịch hẹn; bệnh nhân đã được báo mà nay hết bị ảnh hưởng nhận câu "không còn bị ảnh hưởng"; người đề xuất nhận sự kiện riêng, không thư | I |
+| CN-107 (phần dời) | Sau dời: trước mốc mới ⇒ `KhongDenHan`; ở mốc mới đã sạch ⇒ áp dụng | I |
+| CN-109 (phần dời) | Dời rồi quá hạn lần nữa ⇒ cảnh báo `v2` mới cho Admin Toàn hệ thống và người đề xuất; lần dời thứ hai báo bệnh nhân bằng `v2`, thư `v1` còn chờ ⇒ `BoQua` | I |
+| YCB-33 `[đề xuất mã]` | Ghi audit lỗi ⇒ hoàn tác trọn (hiệu lực, quá hạn, bản chụp, `BoQua`, thông báo) | I |
+| YCB-34 `[đề xuất mã]` | e2e: 401; Bệnh nhân, Bác sĩ, Lễ tân, Chi nhánh 403; chưa quá hạn 409; quá hạn 200; thiếu `hieuLucTu`, sai dạng, trường lạ 400 | E |
+
+**Kết quả (22/11/2026):** mọi mã ở bảng trên **Pass**: test tích hợp `test/branch-change-reschedule.int-spec.ts` (8 ca) và e2e `test/admin-branch-change-requests.e2e-spec.ts` (thêm 1 ca). Thử đột biến: bỏ bước dừng thư (`skipPendingChangeNotices`) thì CN-100 và CN-109 đỏ (đã khôi phục).
+
+Lệnh đã chạy (MySQL 8.4 của `docker compose`, `TEST_DB_NAME=clinix_admin_b22_test`):
+- `npm run lint`: 0 lỗi, 0 cảnh báo; `npm run build` xanh; Prettier sạch trên `branch-change-requests/`, `notification/` và file e2e.
+- Đơn vị `src/admin src/rbac src/notification src/audit src/appointments`: 171 file, 3681 test pass.
+- Tích hợp `src/admin/branch-change-requests src/admin/branches src/notification`: 10 file, 104 test pass.
+- e2e `test/admin-branch-change-requests.e2e-spec.ts test/admin-branches-update.e2e-spec.ts`: 2 file, 13 test pass.
+- `jscpd@4 apps/api/src` (bỏ `*.spec.ts`): 1,92% (< 3%).
+- `tsc --noEmit`: 1 lỗi có sẵn ở `src/payment/architecture.spec.ts:290` (không sửa ở PR này).
+
+**Còn mở:**
+- Chữ thông báo dời `[đề xuất]`, đối chiếu Figma ở F6b/X1; mã sự kiện `KetQuaDoiHieuLucThayDoiChiNhanh` `[đề xuất]`, ghi vào chú thích cột `thong_bao.loai_su_kien` ở D6.
+- Lệch tài liệu: PLAN 5.4 ("danh sách mới") và CN-106 ("đã được báo"); làm theo quyết định 1, cần sửa câu ở PLAN 5.4 và đặc tả 2.4 (D1) cho khớp.
+- CN-108 (trong suốt thời gian quá hạn booking vẫn chặn) không có test mới ở PR này: `getPendingEffectiveChanges` không đổi.
+- CN-110, CN-111 (nhãn và giao diện) là việc của F6b.

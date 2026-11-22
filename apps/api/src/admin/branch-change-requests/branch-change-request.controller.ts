@@ -22,11 +22,13 @@ import {
   BranchChangeRequestListDto,
   CancelBranchChangeRequestDto,
   RejectBranchChangeRequestDto,
+  RescheduleBranchChangeRequestDto,
 } from './branch-change-request.dto.js';
 import { BranchChangeRequestService } from './branch-change-request.service.js';
+import { BranchChangeRescheduleService } from './branch-change-reschedule.service.js';
 import { BranchChangeStopService } from './branch-change-stop.service.js';
 
-// Admin B9, B10, B21: cả hai phạm vi được xem (lọc theo phạm vi ở service); chỉ Toàn hệ thống từ chối, duyệt và hủy; người gửi rút.
+// Admin B9, B10, B21, B22: cả hai phạm vi được xem (lọc theo phạm vi ở service); chỉ Toàn hệ thống từ chối, duyệt, hủy và dời hiệu lực; người gửi rút.
 // Người thực hiện lấy từ phiên, không từ body.
 @Controller('admin/branch-change-requests')
 @Roles('QuanTriVien')
@@ -37,6 +39,8 @@ export class BranchChangeRequestController {
     private readonly requests: BranchChangeRequestService,
     @Inject(BranchChangeStopService)
     private readonly stops: BranchChangeStopService,
+    @Inject(BranchChangeRescheduleService)
+    private readonly reschedules: BranchChangeRescheduleService,
   ) {}
 
   @Get()
@@ -107,5 +111,23 @@ export class BranchChangeRequestController {
     @Body() input: CancelBranchChangeRequestDto,
   ) {
     return this.stops.cancel(scope, user.accountId, params.id, input.lyDo);
+  }
+
+  // Admin B22: chỉ Toàn hệ thống dời hiệu lực yêu cầu quá hạn
+  @Post(':id/reschedule')
+  @HttpCode(200)
+  @RequireAdminScope('ToanHeThong')
+  reschedule(
+    @AdminScopeCtx() scope: AdminScope,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() params: BranchChangeRequestIdDto,
+    @Body() input: RescheduleBranchChangeRequestDto,
+  ) {
+    return this.reschedules.reschedule(
+      scope,
+      user.accountId,
+      params.id,
+      input.hieuLucTu,
+    );
   }
 }
