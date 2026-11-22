@@ -53,6 +53,10 @@ export interface LockedRequest {
   noiDungTruoc: unknown;
   noiDungSau: unknown;
   soLanDoiHieuLuc: number;
+  /** 'YYYY-MM-DD HH:mm:ss'; hủy (B21) cần để kiểm "chưa áp dụng" và ghi audit */
+  hieuLucTu: string | null;
+  apDungLuc: string | null;
+  quaHanLuc: string | null;
 }
 
 const FROM_SQL = `FROM yeu_cau_thay_doi_chi_nhanh y
@@ -185,7 +189,8 @@ export class BranchChangeRequestRepository {
         `SELECT CAST(y.yeu_cau_thay_doi_chi_nhanh_id AS CHAR) AS yeuCauThayDoiChiNhanhId, CAST(y.chi_nhanh_id AS CHAR) AS chiNhanhId,
               cn.ten AS tenChiNhanh, CAST(y.nguoi_de_xuat_id AS CHAR) AS nguoiDeXuatId, y.trang_thai AS trangThai,
               ${TS('y.thoi_diem_tao')} AS thoiDiemTao, y.noi_dung_truoc AS noiDungTruoc, y.noi_dung_sau AS noiDungSau,
-              y.so_lan_doi_hieu_luc AS soLanDoiHieuLuc
+              y.so_lan_doi_hieu_luc AS soLanDoiHieuLuc, ${TS('y.hieu_luc_tu')} AS hieuLucTu,
+              ${TS('y.ap_dung_luc')} AS apDungLuc, ${TS('y.qua_han_luc')} AS quaHanLuc
          FROM yeu_cau_thay_doi_chi_nhanh y
          JOIN chi_nhanh cn ON cn.chi_nhanh_id = y.chi_nhanh_id
         WHERE y.yeu_cau_thay_doi_chi_nhanh_id = ?
@@ -196,6 +201,61 @@ export class BranchChangeRequestRepository {
     return row === undefined
       ? null
       : { ...row, soLanDoiHieuLuc: Number(row.soLanDoiHieuLuc) };
+  }
+
+  /** `ChoDuyet` → `DaRut`, có điều kiện trạng thái (H11). Cột sinh `dang_mo_chi_nhanh` về NULL (Q3). */
+  async markWithdrawn(manager: EntityManager, id: string): Promise<number> {
+    const result: { affectedRows?: number } = await manager.query(
+      `UPDATE yeu_cau_thay_doi_chi_nhanh SET trang_thai = 'DaRut'
+        WHERE yeu_cau_thay_doi_chi_nhanh_id = ? AND trang_thai = 'ChoDuyet'`,
+      [id],
+    );
+    return result.affectedRows ?? 0;
+  }
+
+  /**
+   * `DaDuyet` chưa áp dụng → `DaHuy` (Q47), có điều kiện: điều kiện dựa vào `ap_dung_luc IS NULL`, KHÔNG vào `hieu_luc_tu`, nên hủy được cả yêu cầu đã quá hạn.
+   * Cùng điều kiện với job áp dụng (B11) dưới cùng khoá hàng: hủy và áp dụng không bao giờ cùng thắng.
+   */
+  async markCancelled(
+    manager: EntityManager,
+    input: { id: string; nguoiHuyId: string; lyDo: string; now: Date },
+  ): Promise<number> {
+    const result: { affectedRows?: number } = await manager.query(
+      `UPDATE yeu_cau_thay_doi_chi_nhanh
+          SET trang_thai = 'DaHuy', nguoi_huy_id = ?, thoi_diem_huy = ?, ly_do_huy = ?
+        WHERE yeu_cau_thay_doi_chi_nhanh_id = ? AND trang_thai = 'DaDuyet' AND ap_dung_luc IS NULL`,
+      [input.nguoiHuyId, input.now, input.lyDo, input.id],
+    );
+    return result.affectedRows ?? 0;
+  }
+
+  /** Quản trị viên Toàn hệ thống đang hoạt động, theo id (nhận thông báo khi người gửi rút yêu cầu). */
+  activeSystemAdmins(
+    manager: EntityManager,
+  ): Promise<{ taiKhoanId: string }[]> {
+    return manager.query(
+      `SELECT CAST(q.tai_khoan_id AS CHAR) AS taiKhoanId
+         FROM quan_tri_vien q JOIN tai_khoan t ON t.tai_khoan_id = q.tai_khoan_id
+        WHERE q.pham_vi_quan_tri = 'ToanHeThong' AND t.trang_thai = 'DangHoatDong'
+        ORDER BY q.tai_khoan_id`,
+    );
+  }
+
+  /** Tài khoản đã nhận thông báo thuộc các loại `types` (mọi phiên bản `:v{n}`) của yêu cầu, theo id. */
+  async notifiedAccounts(
+    manager: EntityManager,
+    id: string,
+    types: readonly string[],
+  ): Promise<string[]> {
+    if (types.length === 0) return [];
+    const rows: { taiKhoanId: string }[] = await manager.query(
+      `SELECT DISTINCT CAST(tai_khoan_id AS CHAR) AS taiKhoanId FROM thong_bao
+        WHERE yeu_cau_thay_doi_chi_nhanh_id = ? AND (${types.map(() => 'loai_su_kien LIKE ?').join(' OR ')})
+        ORDER BY taiKhoanId`,
+      [id, ...types.map((type) => `${type}:v%`)],
+    );
+    return rows.map((row) => row.taiKhoanId);
   }
 
   /**

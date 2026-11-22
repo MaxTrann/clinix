@@ -10,7 +10,7 @@ import { BookingFixtures } from '../src/appointments/testing/booking-fixtures.js
 import { SessionService } from '../src/auth/session/session.service.js';
 import { resetTables } from '../src/database/testing/test-database.js';
 
-// Admin B9, B10 — YCB-09, YCB-14 [đề xuất mã]: yêu cầu thay đổi chi nhánh qua HTTP (AppModule, Auth, C1, MySQL thật): vai trò, phạm vi, dữ liệu vào sai.
+// Admin B9, B10, B21 — YCB-09, YCB-14, YCB-32 [đề xuất mã]: yêu cầu thay đổi chi nhánh qua HTTP (AppModule, Auth, C1, MySQL thật): vai trò, phạm vi, dữ liệu vào sai.
 describe('B9 yêu cầu thay đổi chi nhánh — HTTP', () => {
   let app: NestExpressApplication;
   let db: DataSource;
@@ -204,6 +204,86 @@ describe('B9 yêu cầu thay đổi chi nhánh — HTTP', () => {
         hieuLucTu: FAR,
       }).expect(409);
       expect(res.body).toMatchObject({ maLoi: 'HE_THONG_CHUA_CAU_HINH' });
+    });
+  });
+
+  // Admin B21 — YCB-32 [đề xuất mã]: rút và hủy qua HTTP
+  describe('B21 rút và hủy', () => {
+    it('YCB-32 chưa đăng nhập ⇒ 401; Bệnh nhân, Bác sĩ, Lễ tân ⇒ 403 ở cả rút và hủy', async () => {
+      const w = await world();
+      await call('post', `/${w.mineRequest}/withdraw`).expect(401);
+      await call('post', `/${w.mineRequest}/cancel`, undefined, {
+        lyDo: 'x',
+      }).expect(401);
+      for (const token of [w.patient, w.doctor, w.receptionist]) {
+        await call('post', `/${w.mineRequest}/withdraw`, token).expect(403);
+        await call('post', `/${w.mineRequest}/cancel`, token, {
+          lyDo: 'x',
+        }).expect(403);
+      }
+    });
+
+    it('YCB-32 người gửi (Chi nhánh) rút ⇒ 200 DaRut, lần hai ⇒ 409; yêu cầu chi nhánh khác ⇒ 404; Toàn hệ thống không phải người gửi ⇒ 403', async () => {
+      const w = await world();
+      await call('post', `/${w.otherRequest}/withdraw`, w.branchAdmin).expect(
+        404,
+      );
+      const denied = await call(
+        'post',
+        `/${w.mineRequest}/withdraw`,
+        w.system,
+      ).expect(403);
+      expect(denied.body).toMatchObject({ maLoi: 'KHONG_DU_QUYEN' });
+      const ok = await call(
+        'post',
+        `/${w.mineRequest}/withdraw`,
+        w.branchAdmin,
+      ).expect(200);
+      expect(ok.body).toMatchObject({ trangThai: 'DaRut' });
+      const again = await call(
+        'post',
+        `/${w.mineRequest}/withdraw`,
+        w.branchAdmin,
+      ).expect(409);
+      expect(again.body).toMatchObject({ maLoi: 'YEU_CAU_KHONG_THE_RUT_HUY' });
+    });
+
+    it('YCB-32 hủy: Chi nhánh ⇒ 403 (CN-98); Toàn hệ thống hủy yêu cầu đã duyệt ⇒ 200 DaHuy; ChoDuyet ⇒ 409; thiếu lý do, trường lạ ⇒ 400', async () => {
+      const w = await world();
+      await new BookingFixtures(db).systemConfig({
+        soNgayBaoTruocDoiGioLam: 3,
+      });
+      await call('post', `/${w.mineRequest}/approve`, w.system, {
+        hieuLucTu: '2099-01-01 08:00:00',
+      }).expect(200);
+      const denied = await call(
+        'post',
+        `/${w.mineRequest}/cancel`,
+        w.branchAdmin,
+        { lyDo: 'x' },
+      ).expect(403);
+      expect(denied.body).toMatchObject({ maLoi: 'KHONG_DU_QUYEN' });
+      await call('post', `/${w.mineRequest}/cancel`, w.system, {}).expect(400);
+      await call('post', `/${w.mineRequest}/cancel`, w.system, {
+        lyDo: 'x',
+        nguoiHuyId: '1',
+      }).expect(400);
+      const ok = await call('post', `/${w.mineRequest}/cancel`, w.system, {
+        lyDo: '  Duyệt nhầm  ',
+      }).expect(200);
+      expect(ok.body).toMatchObject({
+        trangThai: 'DaHuy',
+        lyDoHuy: 'Duyệt nhầm',
+      });
+      const pending = await call(
+        'post',
+        `/${w.otherRequest}/cancel`,
+        w.system,
+        { lyDo: 'x' },
+      ).expect(409);
+      expect(pending.body).toMatchObject({
+        maLoi: 'YEU_CAU_KHONG_THE_RUT_HUY',
+      });
     });
   });
 });
