@@ -29,6 +29,7 @@ import { AccountNoShowModule } from './admin/account-no-show/account-no-show.mod
 import { PaymentModule } from './payment/payment.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { DoctorProfileModule } from './admin/doctors/doctor-profile.module.js';
+import { BranchChangeRequestModule } from './admin/branch-change-requests/branch-change-request.module.js';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { DoctorProfileModule } from './admin/doctors/doctor-profile.module.js';
     AccountLockModule,
     BranchModule,
     DoctorProfileModule,
+    BranchChangeRequestModule,
     StaffActivationPublicModule,
     AccountResendModule,
     SearchModule,
