@@ -6,7 +6,7 @@ import { todayVN } from '../../common/time/time.js';
 import { isDeadlockError } from '../../database/mysql-errors.js';
 import type { AdminScope } from '../../rbac/admin-scope.js';
 import { BranchAccessPolicy } from '../../rbac/branch-access.policy.js';
-import { IMPACT_LIST_LIMIT, type Capped } from '../branches/branch.service.js';
+import { capped } from '../branches/branch.service.js';
 import { isCompatibleTitleDegree } from '../staff-accounts/staff-account-rules.js';
 import {
   invalidBranch,
@@ -29,11 +29,6 @@ import {
 export const BRANCH_CHANGE_BLOCKED = 'DOI_CHI_NHANH_BI_CHAN';
 /** 409 khi chỉ đổi dịch vụ khám chính mà còn lịch hay ca như trên (Q17; Trung chốt mã riêng 22/11/2026). */
 export const SERVICE_CHANGE_BLOCKED = 'DOI_DICH_VU_CHINH_BI_CHAN';
-// Cắt 50 dòng kèm tổng, cùng giới hạn với danh sách ảnh hưởng của sửa chi nhánh (PLAN 5.7: "tối đa 50 + tổng")
-const capped = <T>(items: readonly T[]): Capped<T> => ({
-  items: items.slice(0, IMPACT_LIST_LIMIT),
-  tong: items.length,
-});
 /** Số lần chạy cả giao dịch khi MySQL báo deadlock (cùng số với sửa chi nhánh B8) */
 const MAX_ATTEMPTS = 3;
 
