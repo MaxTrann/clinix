@@ -4458,3 +4458,58 @@ Lệnh đã chạy (MySQL 8.4 của `docker compose`, `TEST_DB_NAME=clinix_admin
 - Chữ cảnh báo quá hạn `[đề xuất]`, đối chiếu Figma ở F6b/X1.
 - Banner "Quá hạn – chờ xử lý" ở danh sách là việc của F6b (API đã trả `quaHanLuc`).
 - B22 (dời hiệu lực) mới đưa yêu cầu quá hạn về được job; hiện chỉ có test giả lập dời bằng SQL (CN-109).
+
+#### 9B.9 B21 (#523) Yêu cầu thay đổi chi nhánh: rút và hủy (22/11/2026)
+
+Nhánh `feat/admin-b21-rut-huy-yeu-cau`, tạo từ `main` = `984e89f` (đã có B10; B11 #522 đang chờ CI ở nhánh riêng, mục 9B.8). Tiêu đề PR `feat(admin): rút và hủy yêu cầu thay đổi chi nhánh, dừng thư còn chờ gửi (admin B21)`. DB test `clinix_admin_b21_test`. Không có migration, không đổi schema (cột và trạng thái `DaRut`/`DaHuy` đã có từ P3). `[ĐỒNG BỘ TL]`: D6 (`docs/database/*`) gom ở PR cuối cụm (PHAN_CONG_CHUNG mục 5); D1 (đặc tả 2.4) Trung tự sửa ở repo `TLCN_CLINIX`.
+
+**Nguồn:** PLAN 5.4 (Rút / Hủy), 5.9 (`YEU_CAU_KHONG_THE_RUT_HUY`), 5.10; Q3, Q9, Q40, Q47; H21; CHECK `chk_yc_chi_nhanh_xu_ly` (nhánh `DaRut`, `DaHuy`).
+
+**Trung chốt (22/11/2026), trước khi viết mã:**
+
+1. Thông báo hủy cho bệnh nhân KHÔNG kèm lý do (lý do là ghi chú nội bộ); người đề xuất nhận câu có lý do.
+2. Chỉ người đã gửi được rút (đúng PLAN, CN-91): Admin Toàn hệ thống không phải người gửi ⇒ 403 (dùng Từ chối); Admin Chi nhánh khác người gửi cùng chi nhánh ⇒ 403, khác chi nhánh ⇒ 404.
+
+**Mã** (`apps/api/src/admin/branch-change-requests/`):
+
+- `POST …/:id/withdraw` (cả hai phạm vi). Một giao dịch: khoá yêu cầu `FOR UPDATE OF y`; không có hay ngoài phạm vi ⇒ 404 (Q40); không phải người gửi ⇒ 403 `KHONG_DU_QUYEN`; không `ChoDuyet` ⇒ 409 `YEU_CAU_KHONG_THE_RUT_HUY`; `UPDATE` có điều kiện sang `DaRut`; thông báo trong ứng dụng `RutThayDoiChiNhanh` cho mọi Admin Toàn hệ thống đang hoạt động (trừ chính người rút); audit `RutThayDoiChiNhanh` `{nguoi_de_xuat_id}`.
+- `POST …/:id/cancel` `{lyDo}` (chỉ Toàn hệ thống; lý do như từ chối: trim, 1–255, không giống bí mật). Một giao dịch: khoá yêu cầu; phải `DaDuyet` và `ap_dung_luc IS NULL` (kể cả đã quá `hieu_luc_tu`, đã quá hạn — Q47), khác ⇒ 409 `YEU_CAU_KHONG_THE_RUT_HUY`; `UPDATE` có điều kiện sang `DaHuy` (`nguoi_huy_id`, `thoi_diem_huy`, `ly_do_huy`); dừng thư báo thay đổi còn chờ gửi (`skipPendingChangeNotices` của C4, TRƯỚC khi ghi thông báo mới); thông báo + thư `HuyThayDoiChiNhanh` cho các bệnh nhân đã được báo (đã có thông báo `ThayDoiChiNhanhAnhHuongLichHen:v*` hay `DoiHieuLucThayDoiChiNhanh:v*` của yêu cầu) và cho người đề xuất; audit `HuyThayDoiChiNhanh` `{ly_do_huy, hieu_luc_tu, qua_han, so_benh_nhan_da_bao}`.
+- Cả hai: cột sinh `dang_mo_chi_nhanh` về NULL ⇒ chi nhánh gửi được yêu cầu mới (CN-97). Dữ liệu chi nhánh không đổi. Trả chi tiết (B9) sau commit.
+- Chưa làm ở PR này: CN-96 (hủy đồng thời với job áp dụng) cần mã B11; thêm sau khi B11 merge và nhánh này gộp `main`.
+
+| Mã | Nội dung | Loại |
+|---|---|---|
+| CN-90 | Người gửi rút `ChoDuyet` ⇒ `DaRut`, chi nhánh giữ nguyên, audit, Admin Toàn hệ thống được báo, hết "yêu cầu đang mở" | I |
+| CN-91 | Admin Chi nhánh cùng chi nhánh không phải người gửi ⇒ 403; khác chi nhánh ⇒ 404; Toàn hệ thống không phải người gửi ⇒ 403 | I |
+| CN-92 | Rút yêu cầu `DaDuyet`, `TuChoi`, `DaRut`, `DaHuy` ⇒ `YEU_CAU_KHONG_THE_RUT_HUY` | I |
+| CN-93 | Hủy `DaDuyet` chưa áp dụng có lý do ⇒ `DaHuy` + người, thời điểm, lý do; audit; người đề xuất và bệnh nhân đã được báo nhận thông báo + thư | I |
+| CN-94 | Hủy sau khi đã `ap_dung_luc`; hủy `ChoDuyet` ⇒ `YEU_CAU_KHONG_THE_RUT_HUY` | I |
+| CN-95 | Hủy không lý do, chỉ khoảng trắng, > 255 ⇒ 400 | U |
+| CN-97 | Sau rút, sau hủy ⇒ gửi được yêu cầu mới cho cùng chi nhánh | I |
+| CN-98 | Admin Chi nhánh gọi `cancel` ⇒ 403 | I, E |
+| CN-99 (phần rút, hủy) | Mỗi hành động một dòng audit đúng `chi_tiet_thay_doi` | I |
+| CN-104 | Hủy yêu cầu quá hạn (`hieu_luc_tu` đã qua, `qua_han_luc` có) ⇒ được, audit `qua_han: true` | I |
+| CN-105 | Thư báo thay đổi `ChoGui`/`ThatBai` ⇒ `BoQua`; `DaGui` giữ nguyên; worker không gửi nữa | I |
+| CN-106 | Bệnh nhân đã được báo nhận thông báo "hủy" (không có lý do), kể cả khi thư cũ đã `DaGui`; người đề xuất nhận câu có lý do | I |
+| YCB-30 `[đề xuất mã]` | Rút đồng thời với duyệt, hủy hai lần đồng thời ⇒ một bên thắng, không trạng thái lai, không thông báo trùng | I |
+| YCB-31 `[đề xuất mã]` | Ghi audit lỗi ⇒ hoàn tác trọn (trạng thái, `BoQua`, thông báo) | I |
+| YCB-32 `[đề xuất mã]` | e2e: 401; Bệnh nhân, Bác sĩ, Lễ tân 403; rút, hủy đúng/sai vai trò và phạm vi; 400 khi thiếu lý do, trường lạ | E |
+
+**Kết quả (22/11/2026):** mọi mã ở bảng trên **Pass**: CN-90 đến CN-94, CN-97 đến CN-99, CN-104 đến CN-106, YCB-30, YCB-31 bằng test tích hợp `test/branch-change-stop.int-spec.ts` (11 ca); CN-95 bằng `test/branch-change-request.dto.spec.ts`; YCB-32 bằng `test/admin-branch-change-requests.e2e-spec.ts` (3 ca). Thử đột biến: bỏ bước dừng thư (`skipPendingChangeNotices`) thì CN-93/CN-105 đỏ (đã khôi phục).
+
+Lệnh đã chạy (MySQL 8.4 của `docker compose`, `TEST_DB_NAME=clinix_admin_b21_test`):
+- `npm run lint`: 0 lỗi, 0 cảnh báo; `npm run build` xanh; Prettier sạch trên `branch-change-requests/` và file e2e.
+- Đơn vị `src/admin src/rbac src/notification src/audit src/appointments`: 170 file, 3671 test pass.
+- Tích hợp `src/admin/branch-change-requests src/admin/branches src/notification`: 8 file, 83 test pass.
+- e2e `test/admin-branch-change-requests.e2e-spec.ts test/admin-branches-update.e2e-spec.ts`: 2 file, 12 test pass.
+- `jscpd@4 apps/api/src` (bỏ `*.spec.ts`): 1,81% (< 3%).
+- `tsc --noEmit`: 1 lỗi có sẵn ở `src/payment/architecture.spec.ts:290` (không sửa ở PR này).
+
+**Ghi chú thiết kế:**
+- Rút và hủy nằm ở `branch-change-stop.service.ts` riêng (không sửa `branch-change-request.service.ts`) để PR này ít xung đột với B11 đang chờ merge. `request-time.ts` chép NGUYÊN byte từ nhánh B11 (cùng mã băm `0958d0b…`): hai bên thêm cùng một file giống hệt nhau nên git gộp không xung đột.
+- `activeSystemAdmins` có ở cả repository này và repository job B11 (trùng 7 dòng); gộp lại sau khi B11 merge.
+
+**Còn mở:**
+- CN-96 (hủy đồng thời với job áp dụng): làm sau khi B11 merge và nhánh này gộp `main`.
+- Chữ thông báo rút, hủy `[đề xuất]`, đối chiếu Figma ở F6b/X1.
+- `[ĐỒNG BỘ TL]` D1 (đặc tả 2.4: rút, hủy, quyền): Trung sửa ở repo `TLCN_CLINIX`. D6 gom ở PR cuối cụm.

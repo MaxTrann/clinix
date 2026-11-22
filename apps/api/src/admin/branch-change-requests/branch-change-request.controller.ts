@@ -20,11 +20,14 @@ import {
   ApproveBranchChangeRequestDto,
   BranchChangeRequestIdDto,
   BranchChangeRequestListDto,
+  CancelBranchChangeRequestDto,
   RejectBranchChangeRequestDto,
 } from './branch-change-request.dto.js';
 import { BranchChangeRequestService } from './branch-change-request.service.js';
+import { BranchChangeStopService } from './branch-change-stop.service.js';
 
-// Admin B9, B10: cả hai phạm vi được xem (lọc theo phạm vi ở service); chỉ Toàn hệ thống từ chối và duyệt. Người duyệt lấy từ phiên, không từ body.
+// Admin B9, B10, B21: cả hai phạm vi được xem (lọc theo phạm vi ở service); chỉ Toàn hệ thống từ chối, duyệt và hủy; người gửi rút.
+// Người thực hiện lấy từ phiên, không từ body.
 @Controller('admin/branch-change-requests')
 @Roles('QuanTriVien')
 @RequireAdminScope('Any')
@@ -32,6 +35,8 @@ export class BranchChangeRequestController {
   constructor(
     @Inject(BranchChangeRequestService)
     private readonly requests: BranchChangeRequestService,
+    @Inject(BranchChangeStopService)
+    private readonly stops: BranchChangeStopService,
   ) {}
 
   @Get()
@@ -78,5 +83,29 @@ export class BranchChangeRequestController {
       params.id,
       input.hieuLucTu,
     );
+  }
+
+  // Admin B21: người gửi rút (cả hai phạm vi; service kiểm đúng người gửi và phạm vi)
+  @Post(':id/withdraw')
+  @HttpCode(200)
+  withdraw(
+    @AdminScopeCtx() scope: AdminScope,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() params: BranchChangeRequestIdDto,
+  ) {
+    return this.stops.withdraw(scope, user.accountId, params.id);
+  }
+
+  // Admin B21: chỉ Toàn hệ thống hủy yêu cầu đã duyệt chưa áp dụng
+  @Post(':id/cancel')
+  @HttpCode(200)
+  @RequireAdminScope('ToanHeThong')
+  cancel(
+    @AdminScopeCtx() scope: AdminScope,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param() params: BranchChangeRequestIdDto,
+    @Body() input: CancelBranchChangeRequestDto,
+  ) {
+    return this.stops.cancel(scope, user.accountId, params.id, input.lyDo);
   }
 }

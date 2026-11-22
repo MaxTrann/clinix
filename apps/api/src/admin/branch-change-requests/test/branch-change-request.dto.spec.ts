@@ -4,6 +4,7 @@ import { validationExceptionFactory } from '../../../common/errors/validation-ex
 import {
   ApproveBranchChangeRequestDto,
   BranchChangeRequestIdDto,
+  CancelBranchChangeRequestDto,
   BranchChangeRequestListDto,
   RejectBranchChangeRequestDto,
 } from '../branch-change-request.dto.js';
@@ -148,5 +149,27 @@ describe('YCB-10 ApproveBranchChangeRequestDto', () => {
         )
       ).maLoi,
     ).toBe('DU_LIEU_KHONG_HOP_LE');
+  });
+});
+
+// Admin B21 — CN-95: lý do hủy dùng cùng bộ kiểm với lý do từ chối
+describe('CN-95 CancelBranchChangeRequestDto', () => {
+  const cancel = (body: unknown) =>
+    parse(CancelBranchChangeRequestDto, body, 'body');
+
+  it('lý do được trim; 255 ký tự qua', async () => {
+    expect((await cancel({ lyDo: '  Duyệt nhầm  ' })).lyDo).toBe('Duyệt nhầm');
+    await expect(cancel({ lyDo: 'x'.repeat(255) })).resolves.toBeDefined();
+  });
+
+  it.each([
+    ['thiếu', {}],
+    ['chỉ khoảng trắng', { lyDo: '   ' }],
+    ['256 ký tự', { lyDo: 'x'.repeat(256) }],
+  ])('%s ⇒ 400 LY_DO_BAT_BUOC', async (_label, body) => {
+    expect(await fieldCodes(cancel(body))).toEqual({
+      maLoi: 'DU_LIEU_KHONG_HOP_LE',
+      loi: [{ truong: 'lyDo', ma: 'LY_DO_BAT_BUOC' }],
+    });
   });
 });

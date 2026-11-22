@@ -85,3 +85,6 @@ export class ApproveBranchChangeRequestDto {
   })
   hieuLucTu!: string;
 }
+
+/** Thân `POST …/:id/cancel` (admin B21; Q47): cùng bộ kiểm lý do với từ chối (cột `ly_do_huy varchar(255)`, CHECK DB đòi sau trim không rỗng; CN-95). */
+export class CancelBranchChangeRequestDto extends RejectBranchChangeRequestDto {}
