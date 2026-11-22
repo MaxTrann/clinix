@@ -4398,6 +4398,67 @@ Lệnh đã chạy (MySQL 8.4 của `docker compose`, `TEST_DB_NAME=clinix_admin
 - Đối chiếu chữ thông báo duyệt với Figma 689:2 và 690:2 (F6b/X1).
 - CH-17 phần còn lại (từ 9A, B5): đã chụp `so_ngay_bao_truoc` lúc duyệt (CN-50); đổi cấu hình sau khi duyệt không đụng yêu cầu vì B10 không đọc lại cấu hình.
 
+#### 9B.8 B11 (#522) Yêu cầu thay đổi chi nhánh: áp dụng khi có hiệu lực (22/11/2026)
+
+Nhánh `feat/admin-b11-ap-dung-thay-doi`, tạo từ `origin/main` = `984e89f` (đã có B10). Tiêu đề PR `feat(admin): job áp dụng thay đổi chi nhánh khi có hiệu lực, đánh dấu quá hạn khi còn ảnh hưởng (admin B11)`. DB test `clinix_admin_b11_test`. Không có migration, không đổi schema.
+
+**Nguồn:** PLAN 5.4 (Áp dụng), 5.10 (job không ghi audit); Q7, Q8, Q46, Q48; quy tắc 29c, 43; CHECK `chk_yc_chi_nhanh_xu_ly` (`ap_dung_luc >= hieu_luc_tu`, `qua_han_luc >= hieu_luc_tu`).
+
+**Trung chốt (22/11/2026), trước khi viết mã:**
+
+1. Q8 lúc áp dụng: yêu cầu có bỏ dịch vụ mà lúc áp dụng đã có bác sĩ của chi nhánh dùng dịch vụ đó làm dịch vụ chính (DB không có khóa ngoại `fk_bac_si_chi_nhanh_dich_vu`, B8 chỉ kiểm lúc gửi) ⇒ **coi như quá hạn**, như còn lịch hoặc ca chưa xử lý.
+2. Lịch chạy là hằng số trong mã `BRANCH_CHANGE_APPLY_CRON = '30 * * * * *'` (mỗi phút), như `HOLD_EXPIRY_CRON` của booking; không thêm biến `.env`. Tắt ở `NODE_ENV=test`.
+
+**Mã** (`apps/api/src/admin/branch-change-requests/apply/`):
+
+- `apply.job.ts` (`BranchChangeApplyJob`, `@Cron`, không gọi `ScheduleModule.forRoot()` lần nữa): một mốc `now` cho cả lượt; quét ứng viên theo lô (100 dòng, tối đa 10 lô, con trỏ `(hieu_luc_tu, id)`) với điều kiện `DaDuyet AND ap_dung_luc IS NULL AND qua_han_luc IS NULL AND hieu_luc_tu <= now`; mỗi yêu cầu một giao dịch; một yêu cầu lỗi không dừng lượt; cờ `running` chống chạy chồng; log chỉ có số lượng, id và tên lớp lỗi.
+- `branch-change-apply.service.ts` `applyOne(id, now)`, một giao dịch `READ COMMITTED`:
+  1. khoá yêu cầu `FOR UPDATE OF y`, kiểm lại điều kiện ứng viên (không còn đúng ⇒ `KhongDenHan`, ví dụ bên kia đã áp dụng hay vừa hủy);
+  2. khoá `chi_nhanh` (`BranchRepository.lockForUpdate` của B8), đọc lịch đang áp dụng;
+  3. kiểm lại `noi_dung_sau`: dạng cũ, dòng thiếu khóa, hay lịch đủ 7 thứ (lịch hiện tại thay các thứ đổi) không qua `validateWeeklySchedule` ⇒ `NoiDungHong`, không ghi gì, log ERROR, lượt sau gặp lại (CN-86);
+  4. khoá khung giờ (`lockSlotsOfDays`, như B10), tính lại ảnh hưởng tại `hieu_luc_tu` (không tin bản chụp, Q46), kiểm Q8 (`doctorsUsingServices` của B8, khoá luôn các hàng dịch vụ sẽ bỏ);
+  5. còn lịch hẹn, ca, hay bác sĩ ⇒ **không áp dụng gì**, `qua_han_luc = now` (có điều kiện), cảnh báo trong ứng dụng `YeuCauThayDoiChiNhanhQuaHan:v{so_lan_doi_hieu_luc + 1}` cho mọi Admin Toàn hệ thống đang hoạt động và người đề xuất (không trùng người) ⇒ `QuaHan`;
+  6. sạch ⇒ thay cả dòng từng thứ đổi (`replaceScheduleRow`), thay danh sách dịch vụ (thêm, bỏ theo danh sách mới đầy đủ), `ap_dung_luc = now` (có điều kiện) ⇒ `DaApDung`.
+
+  Không tự hủy, đổi lịch, hoàn tiền, xoá ca hay khung giờ (Q7). Không ghi audit (5.10: job không có người thực hiện).
+- Thứ tự khoá: yêu cầu → `chi_nhanh` → `khung_gio` → `chi_nhanh_dich_vu_kham`. B8 khoá `chi_nhanh` rồi chỉ ĐỌC yêu cầu (gặp yêu cầu đang mở thì dừng), B10 khoá yêu cầu rồi `khung_gio`, nên không có chu trình chờ.
+- Sửa ngoài thư mục: `branches/branch.module.ts` export thêm `BranchRepository`; `request-time.ts` (mới) chứa `formatVN`/`humanTime` dùng chung với service B9/B10 (chuyển ra, không đổi nội dung).
+
+| Mã | Nội dung | Loại |
+|---|---|---|
+| CN-80 | Đến `hieu_luc_tu`, sạch ⇒ thay cả dòng từng thứ (không trộn giờ cũ), thay danh sách dịch vụ, `ap_dung_luc` đặt, nội dung khớp `noi_dung_sau` | I |
+| CN-81 | 1 giây trước `hieu_luc_tu` ⇒ không áp dụng | I |
+| CN-82 | Job chạy hai lần, hai lần `applyOne` đồng thời ⇒ áp dụng đúng một lần | I |
+| CN-83 | Job tắt rồi bật sau `hieu_luc_tu` ⇒ áp dụng bù, `ap_dung_luc >= hieu_luc_tu` | I |
+| CN-84 | Lỗi giữa chừng (giả lập lỗi khi ghi thứ thứ hai) ⇒ rollback, `ap_dung_luc` NULL, lượt sau áp dụng được | I |
+| CN-85 | `ChoDuyet`, `TuChoi` không bị áp dụng | I |
+| CN-86 | `noi_dung_sau` hỏng ⇒ không áp dụng, không đổi lịch đang có, không đánh dấu quá hạn | I |
+| CN-66 | Còn lịch hẹn hoặc ca tại `hieu_luc_tu` ⇒ không áp dụng gì, `qua_han_luc` đặt, vẫn `DaDuyet`, cảnh báo; không hủy, đổi, hoàn tiền | I |
+| CN-67, CN-107 (phần job) | Sau quá hạn, lịch hẹn được xử lý hết, job chạy nhiều lần ⇒ vẫn không áp dụng | I |
+| CN-68 | Lịch hẹn mới xuất hiện sau lúc duyệt ⇒ job tính lại, thấy, quá hạn | I |
+| CN-109 | Cảnh báo quá hạn: mỗi Admin Toàn hệ thống đang hoạt động một cái (Admin bị khoá, Admin Chi nhánh không), người đề xuất một cái; job chạy lại không trùng | I |
+| YCB-20 `[đề xuất mã]` | Quyết định 1: còn bác sĩ dùng dịch vụ sẽ bỏ ⇒ quá hạn | I |
+| YCB-21 `[đề xuất mã]` | Job: tóm tắt đúng số áp dụng, quá hạn, lỗi; một yêu cầu lỗi không chặn yêu cầu sau; lượt chồng bị bỏ qua | U, I |
+
+**Kết quả (22/11/2026):** mọi mã ở bảng trên **Pass**. CN-xx, YCB-20, YCB-21 bằng test tích hợp `test/branch-change-apply.int-spec.ts` (13 ca); CN-86 thêm bằng test đơn vị `test/branch-change-apply.spec.ts` (10 ca, hàm thuần `contentIssues`). Thử đột biến: tắt kiểm Q8 trong `applyOne` thì YCB-20 đỏ (đã khôi phục).
+
+Lệnh đã chạy (MySQL 8.4 của `docker compose`, `TEST_DB_NAME=clinix_admin_b11_test`):
+- `npm run lint`: 0 lỗi, 0 cảnh báo; `npm run build` xanh; Prettier sạch trên `branch-change-requests/` và `branches/branch.module.ts`.
+- Đơn vị `src/admin src/rbac src/notification src/audit src/appointments`: 171 file, 3677 test pass.
+- Tích hợp `src/admin/branch-change-requests src/admin/branches src/notification`: 8 file, 85 test pass.
+- e2e `test/admin-branch-change-requests.e2e-spec.ts test/admin-branches-update.e2e-spec.ts`: 2 file, 9 test pass (`AppModule` dựng được với job mới).
+- `jscpd@4 apps/api/src` (bỏ `*.spec.ts`): 1,74% (< 3%).
+- `tsc --noEmit`: 1 lỗi có sẵn ở `src/payment/architecture.spec.ts:290` (không sửa ở PR này).
+
+**Ghi chú thiết kế:**
+- Ảnh hưởng tính từ `hieu_luc_tu`, không từ lúc job chạy: khi job bật lại muộn (CN-83), lịch hẹn nằm giữa `hieu_luc_tu` và lúc chạy mà còn `ChoThanhToan`/`DaXacNhan` vẫn làm yêu cầu quá hạn (đúng PLAN 5.4).
+- `NoiDungHong` không đánh dấu gì nên job gặp lại mỗi lượt và log ERROR mỗi phút cho tới khi Admin hủy (B21); cố ý để người vận hành thấy.
+
+**Còn mở:**
+- Chữ cảnh báo quá hạn `[đề xuất]`, đối chiếu Figma ở F6b/X1.
+- Banner "Quá hạn – chờ xử lý" ở danh sách là việc của F6b (API đã trả `quaHanLuc`).
+- B22 (dời hiệu lực) mới đưa yêu cầu quá hạn về được job; hiện chỉ có test giả lập dời bằng SQL (CN-109).
+
 #### 9B.9 B21 (#523) Yêu cầu thay đổi chi nhánh: rút và hủy (22/11/2026)
 
 Nhánh `feat/admin-b21-rut-huy-yeu-cau`, tạo từ `main` = `984e89f` (đã có B10; B11 #522 đang chờ CI ở nhánh riêng, mục 9B.8). Tiêu đề PR `feat(admin): rút và hủy yêu cầu thay đổi chi nhánh, dừng thư còn chờ gửi (admin B21)`. DB test `clinix_admin_b21_test`. Không có migration, không đổi schema (cột và trạng thái `DaRut`/`DaHuy` đã có từ P3). `[ĐỒNG BỘ TL]`: D6 (`docs/database/*`) gom ở PR cuối cụm (PHAN_CONG_CHUNG mục 5); D1 (đặc tả 2.4) Trung tự sửa ở repo `TLCN_CLINIX`.
