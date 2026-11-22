@@ -99,7 +99,12 @@ const MENU_GROUPS: MenuGroup[] = [
         // admin F9: mở màn Tài khoản bệnh nhân; F8 (tab Nhân sự) sẽ đổi `to` và thêm thanh tab
         to: `${ROLE_HOME_PATHS.QuanTriVien}/tai-khoan-benh-nhan`,
       },
-      { label: 'Bác sĩ', icon: 'doctor' },
+      {
+        label: 'Bác sĩ',
+        icon: 'doctor',
+        // admin F7: màn Quản lý hồ sơ bác sĩ
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/bac-si`,
+      },
       {
         label: 'Chuyên khoa',
         icon: 'specialty',

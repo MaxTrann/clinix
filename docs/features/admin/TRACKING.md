@@ -4271,6 +4271,58 @@ Lệnh đã chạy (MySQL 8.4 của `docker compose`):
 - `[ĐỒNG BỘ TL]` D5: sửa đặc tả 2.4 (BS: chặn đổi dịch vụ chính Q17, "ca hôm nay" Q18, học vị/kinh nghiệm Q20); Trung làm ở repo `TLCN_CLINIX`.
 - F7 hiển thị danh sách chặn theo `chiTiet {lichHen, ca}` và hai mã 409.
 
+#### 9B.6 F7 (#517) Hồ sơ bác sĩ: giao diện (22/11/2026)
+
+Nhánh `feat/admin-f7-ho-so-bac-si`, tạo từ `origin/main` = `2171c06` khi B13 còn chờ CI; B13 (#606) merge xong thì tiến thẳng lên `7971930`, không xung đột (không file nào trùng). Tiêu đề PR `feat(admin): màn quản lý hồ sơ bác sĩ, xem và chỉnh sửa theo phạm vi (admin F7)`. DB test `clinix_admin_f7_test`. Không có migration.
+
+**Nguồn:** Figma 535:2 (danh sách, Toàn hệ thống), 627:2 (danh sách, Chi nhánh), 536:2 (panel Hồ sơ), 537:2 (panel Chỉnh sửa; node này chưa có trong repo, tìm được ngày 22/11/2026); PLAN BS b1–b5, A1–A3; hợp đồng API B12, B13.
+
+**Trung chốt (22/11/2026), trước khi viết mã:**
+
+1. Figma có cột Ngày sinh, ảnh đại diện và tìm theo SĐT mà API B12 chưa có (DB có sẵn cả ba cột): bổ sung backend nhỏ ngay trong PR này.
+2. Bị chặn đổi chi nhánh hay dịch vụ chính (409): hộp cảnh báo trong panel, ngay trên nút Lưu, liệt kê lịch hẹn và ca, cắt "… và K mục khác" khi quá 50, giữ nguyên dữ liệu đã nhập `[đề xuất]` (Figma chưa có).
+3. Nhãn `[đề xuất]`: học vị BS = Bác sĩ, ThS = Thạc sĩ, TS = Tiến sĩ, PGS = Phó giáo sư, GS = Giáo sư; trạng thái `ChoKichHoat` = "Chờ kích hoạt". Chức danh theo Figma (BS., BS.CKI, BS.CKII, ThS.BS., TS.BS., PGS.TS.BS., GS.TS.BS.).
+
+**Backend (`apps/api/src/admin/doctors/doctor.repository.ts`, phần đọc của B12):** danh sách và chi tiết trả thêm `ngaySinh` ('YYYY-MM-DD' hoặc `null`) và `anhDaiDien`; `q` tìm thêm theo `so_dien_thoai` (cùng `escapeLikePattern` + `ESCAPE '!'`). `PATCH` của B13 trả hồ sơ đọc lại qua cùng hàm nên cũng có hai trường mới.
+
+**Frontend (`apps/web/src/features/admin/doctor-profiles/`):**
+
+- Route `/admin/bac-si` (`AdminScopeGuard policy="Any"`, tải lười); mục "Bác sĩ" ở thanh bên thành liên kết.
+- Danh sách theo 535:2: ảnh (không có ảnh thì chữ cái đầu), tên kèm chức danh, số năm KN, ngày sinh, chuyên khoa, giá dịch vụ (`giaKham`), trạng thái, nút Chi tiết; ô tìm (trễ 250 ms) và lọc chuyên khoa (đang hoạt động). Đủ trạng thái tải, rỗng (hai câu khác nhau khi có và không có bộ lọc), lỗi có "Thử lại".
+- Panel Hồ sơ theo 536:2; panel Chỉnh sửa theo 537:2. Đổi chức danh thì học vị điền sẵn (Q20), vẫn sửa được; đổi chi nhánh mà dịch vụ đang chọn không có ở chi nhánh mới thì bỏ chọn, buộc chọn lại; chuyên khoa hiện tại đã ngừng vẫn hiện để giữ được (Q19); Quản trị viên Chi nhánh thấy ô chi nhánh bị khoá kèm câu giải thích (A3; API vẫn kiểm).
+- Ô chọn không cần API mới: chuyên khoa từ `GET /admin/options/specialties`, chi nhánh kèm dịch vụ từ `GET /admin/branches`, giá từ `GET /admin/services` (mỗi danh sách tối đa 100 dòng đầu).
+- Lưu: một lần gửi, không tự thử lại. Thành công thì panel về chế độ xem với bản server trả và danh sách tải lại. Lỗi theo mã (PLAN 5.9 và hai mã 409 của B13); lỗi trường gắn vào đúng ô; 404 thì đóng panel và tải lại danh sách; mất mạng hay hết hạn chờ thì báo "chưa rõ đã lưu chưa" kèm nút tải lại hồ sơ.
+- Dùng lại: `AdminTable`, `AdminDetailPanel`, `useRemote`, `formatVnd`, `AccountLoadError` và `useDebouncedValue` (F9 của Đại, chỉ import).
+
+**Sửa test của người khác (Trung đồng ý, báo Đại duyệt ở PR):**
+
+- `admin/patient-accounts/patient-accounts-access.test.tsx` TKF9-54 (F9, Đại): "Bác sĩ" từ nút vô hiệu thành liên kết `/admin/bac-si`; phần còn lại giữ nguyên.
+- `patient/pages/admin-profile-routing.test.tsx` AQ-03: thêm "Bác sĩ" vào danh sách liên kết (13 thành 14) kèm dòng chú thích, theo đúng quy ước của các màn trước.
+
+| Mã | Nội dung | Kết quả |
+|---|---|---|
+| BS-41 | Bị chặn đổi chi nhánh: hộp cảnh báo đúng câu, lịch hẹn (mã, giờ, trạng thái), "… và 50 lịch hẹn khác", ca; dữ liệu đã nhập giữ nguyên, vẫn ở chế độ sửa | Pass (C) |
+| BS-42 | Học vị điền sẵn theo đủ 7 chức danh; ô chi nhánh khoá với Chi nhánh, mở với Toàn hệ thống | Pass (U, C) |
+| BS-43 (phía giao diện) | Ô tìm gửi `q` đã trim; lọc chuyên khoa gửi `chuyenKhoaId`, về trang 1 | Pass (C) |
+| BS-43, HSB-03 (backend) | Tìm thêm theo SĐT; phản hồi có `ngaySinh`, `anhDaiDien`, đúng bộ khoá | Pass (I) |
+| BS-05, BS-06, BS-08, BS-10 (phía giao diện) | Kiểm sớm kinh nghiệm, học vị lệch, mô tả 5.000 ký tự; đổi chi nhánh bỏ chọn dịch vụ; chuyên khoa đã ngừng vẫn giữ được | Pass (U) |
+| HSF-01 `[đề xuất mã]` | Định dạng (tên kèm chức danh, ngày, giờ, chữ cái đầu, trạng thái) và đổi lỗi lưu sang chữ | Pass (U) |
+| HSF-02 `[đề xuất mã]` | Danh sách theo 535:2 | Pass (C) |
+| HSF-03 `[đề xuất mã]` | Panel Hồ sơ theo 536:2 | Pass (C) |
+| HSF-04 `[đề xuất mã]` | Lưu thành công: một `PATCH` đủ form (mô tả trắng thành `null`), về chế độ xem, danh sách tải lại | Pass (C) |
+| HSF-05 `[đề xuất mã]` | Rỗng, lỗi tải có "Thử lại", chưa chọn lại dịch vụ thì không gửi, mất mạng thì "chưa rõ" kèm nút tải lại | Pass (C) |
+
+Lệnh đã chạy:
+- Web: `npm run lint` 0 lỗi; `npm run build` xanh; `tsc` sạch; Prettier sạch cho file mới. Hai file test của người khác Prettier báo chỉ vì CRLF ở bản làm việc Windows (đổi sang LF thì sạch; Git chuẩn hoá khi commit).
+- Web: `src/features/admin` 51 file, 1023 test pass. Toàn bộ `src`: 6363/6364 pass; 1 ca đỏ đổi theo từng lần chạy, đều ở booking (XNA-01, Q27/HHL-12, LCT-09), chạy riêng đều xanh: chập chờn có sẵn khi chạy song song, không liên quan F7.
+- API sau khi gộp B13: lint, build xanh; đơn vị `src/admin/doctors` 24 pass; tích hợp (`TEST_DB_NAME=clinix_admin_f7_test`) 35 pass (lần đầu 1 đỏ do fixture cho mọi tài khoản cùng SĐT, đã đặt số riêng trong test); e2e `admin-doctors`, `admin-doctors-update` 6 pass.
+
+**Còn mở:**
+- Figma: thêm frame cho hộp danh sách chặn (409) và nhãn học vị, "Chờ kích hoạt".
+- Figma 536:2 ghi "0đ (không có quy tắc)": API không phân biệt "không có quy tắc" với "phụ phí 0đ", giao diện chỉ hiện "0đ".
+- Ô chọn lấy tối đa 100 chi nhánh, 100 dịch vụ, 100 chuyên khoa đầu; đủ cho dữ liệu mẫu. Nhiều hơn thì cần API tìm kiếm cho ô chọn.
+- Đường dẫn "Nhân sự & Tài khoản" ở tiêu đề trỏ cùng chỗ với thanh bên (màn F9); F8 sẽ đổi.
+
 #### 9B.7 B10 (#521) Yêu cầu thay đổi chi nhánh: duyệt (22/11/2026)
 
 Nhánh `feat/admin-b10-duyet-yeu-cau`, tạo từ `origin/main` = `7971930` (đã có C4, B8, B9; F7 #517 đang chờ CI ở nhánh riêng nên mục này đánh số 9B.7). Tiêu đề PR `feat(admin): duyệt yêu cầu thay đổi chi nhánh, chụp ảnh hưởng và báo bệnh nhân (admin B10)`. DB test `clinix_admin_b10_test`. Không có migration, không đổi schema.

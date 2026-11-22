@@ -56,7 +56,12 @@ describe('B12 hồ sơ bác sĩ (đọc) — MySQL thật', () => {
     const cuong = await fx.doctor(
       other,
       {},
-      { hoTen: 'Bác sĩ Cường', email: 'cuong@clinix.test' },
+      {
+        hoTen: 'Bác sĩ Cường',
+        email: 'cuong@clinix.test',
+        // Fixture mặc định cho mọi tài khoản cùng SĐT 0901234567: đặt số riêng để thử tìm theo SĐT
+        soDienThoai: '0987654321',
+      },
     );
     return { mine, other, an, binh, cuong };
   }
@@ -88,7 +93,7 @@ describe('B12 hồ sơ bác sĩ (đọc) — MySQL thật', () => {
       expect(filtered.items.map((d) => d.hoTen)).toEqual(['Bác sĩ Cường']);
     });
 
-    it('lọc chuyên khoa; tìm theo họ tên hoặc email (không phân biệt hoa thường)', async () => {
+    it('lọc chuyên khoa; tìm theo họ tên, email hoặc số điện thoại (không phân biệt hoa thường; F7 thêm SĐT theo Figma 535:2)', async () => {
       const w = await world();
       const bySpecialty = await service.list(
         system,
@@ -101,6 +106,11 @@ describe('B12 hồ sơ bác sĩ (đọc) — MySQL thật', () => {
       expect(
         (await service.list(system, query({ q: 'AN@CLINIX' }))).items,
       ).toHaveLength(1);
+      expect(
+        (await service.list(system, query({ q: '7654321' }))).items.map(
+          (d) => d.hoTen,
+        ),
+      ).toEqual(['Bác sĩ Cường']);
       expect(
         (await service.list(system, query({ q: 'không có ai' }))).total,
       ).toBe(0);
@@ -259,13 +269,19 @@ describe('B12 hồ sơ bác sĩ (đọc) — MySQL thật', () => {
 
   it('HSB-03 phản hồi đúng bộ trường đã chốt, không có mật khẩu băm hay dữ liệu thừa', async () => {
     const branch = await fx.branch();
-    const d = await fx.doctor(branch, { moTaChuyenMon: 'Giới thiệu' });
+    const d = await fx.doctor(
+      branch,
+      { moTaChuyenMon: 'Giới thiệu' },
+      { ngaySinh: '1990-11-08', anhDaiDien: 'https://anh.test/bs.png' },
+    );
     const [item] = (await service.list(system, query())).items;
     expect(Object.keys(item ?? {}).sort()).toEqual(
       [
         'taiKhoanId',
         'hoTen',
         'email',
+        'ngaySinh',
+        'anhDaiDien',
         'trangThaiTaiKhoan',
         'chucDanh',
         'hocVi',
@@ -279,6 +295,10 @@ describe('B12 hồ sơ bác sĩ (đọc) — MySQL thật', () => {
       ].sort(),
     );
     const detail = await service.get(system, d.account.taiKhoanId);
+    expect(item).toMatchObject({
+      ngaySinh: '1990-11-08',
+      anhDaiDien: 'https://anh.test/bs.png',
+    });
     expect(detail).toMatchObject({
       moTaChuyenMon: 'Giới thiệu',
       soDienThoai: expect.any(String),
