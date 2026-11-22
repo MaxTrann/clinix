@@ -206,6 +206,28 @@ npm run test:e2e                 # AppModule + MySQL thật
 - Chạy tuần tự (không song song) vì các file dùng chung một DB test. Trên CI, hai lệnh này chạy ở hai job riêng (`api-int`, `api-e2e`), mỗi job có service MySQL 8.4 riêng nên dùng chung tên DB `clinix_test` vẫn không đụng nhau. `api-int` còn chia 4 shard song song (`--shard=i/4`, mỗi shard một MySQL riêng); MySQL của `api-int` và `api-e2e` đặt dữ liệu trên tmpfs, mỗi job có `timeout-minutes: 30`. Ở máy vẫn chạy `npm run test:int` như thường, muốn thử một shard thì thêm `-- --shard=1/4`. Job `api` (check bắt buộc) chỉ gom kết quả của `api-unit`, `api-int`, `api-e2e`.
 - CI chỉ chạy phần có file thay đổi (job `detect` trong `.github/workflows/ci.yml`): PR chỉ sửa web bỏ qua các job API, PR chỉ sửa tài liệu bỏ qua cả API lẫn web, push vào `main` luôn chạy đủ. Các job bị bỏ qua hiện "skipped" và vẫn tính là đạt. Khi thêm một test đọc file của phần khác (như `docs/database/clinix_mysql.sql` hoặc `apps/api/src/auth/password/password-policy.vectors.json`), thêm đường dẫn đó vào `detect`, nếu không PR chỉ sửa file ấy sẽ qua CI mà `main` đỏ.
 
+### 5.3 Tunnel HTTPS cho IPN của VNPAY (kiểm tay nạp ví, payment X4)
+
+VNPAY báo kết quả nạp bằng IPN (GET, bắt buộc HTTPS, phải gọi được từ internet). Ví chỉ được cộng khi API nhận IPN; trang kết quả nạp không tự cộng ví. Máy dev không
+có địa chỉ công khai nên cần tunnel. Service `tunnel` trong `docker-compose.yml` dùng **ngrok** với dev domain cố định của tài khoản miễn phí, nên URL IPN chỉ khai trên VNPAY **một lần**.
+Tunnel trỏ thẳng `api:3000` (không qua Vite, vì Vite trả 403 với Host lạ) và `docker/ngrok/ipn-only.yml` (Traffic Policy) chỉ cho `GET /payment/ipn/vnpay` đi qua, mọi yêu cầu khác 404.
+
+**Cài một lần:**
+1. Đăng ký tài khoản ở ngrok.com. Dashboard → **Your Authtoken**: chép vào `.env` cục bộ, biến `NGROK_AUTHTOKEN`. Không dán token lên chat, issue hay log.
+2. Dashboard → **Domains**: chép dev domain vào `.env`, biến `NGROK_URL`, dạng `https://<tên>.ngrok-free.dev` (không có đường dẫn phía sau).
+3. Trang merchant sandbox VNPAY: URL IPN = `<NGROK_URL>/payment/ipn/vnpay` (**không** có `/api`).
+4. Muốn tunnel tự bật cùng `api`: thêm `COMPOSE_PROFILES=tunnel` vào `.env` cục bộ. Từ đó `docker compose up -d` bật cả `db`, `api`, `web`, `tunnel`; `docker compose down` tắt hết.
+   Không đặt biến này thì bật riêng: `docker compose --profile tunnel up -d tunnel`, tắt: `docker compose stop tunnel`.
+
+**Quy tắc** (PLAN payment 4.7 #3, sửa 22/11/2026, Đại đồng ý): được bật cùng `api` trên máy dev **với điều kiện luôn có** `docker/ngrok/ipn-only.yml` chỉ mở `GET /payment/ipn/vnpay`;
+chỉ dữ liệu mẫu và tài khoản sandbox. Ai sửa hay xoá policy này thì quay về quy tắc cũ: chỉ bật lúc kiểm tay, tắt ngay sau khi xong. Kiểm trạng thái: `docker compose ps tunnel` ("Up";
+ngrok chạy ngầm không in log, kiểm bằng các lệnh dưới).
+
+Kiểm nhanh: `GET <NGROK_URL>/payment/ipn/vnpay` không tham số ⇒ `{"RspCode":"97",…}` (sai chữ ký, không đổi dữ liệu); `GET <NGROK_URL>/health`, `GET <NGROK_URL>/`
+hay `POST <NGROK_URL>/payment/ipn/vnpay` ⇒ 404 (bị chặn ở ngrok, không tới API).
+Mở URL IPN bằng trình duyệt sẽ thấy trang cảnh báo của ngrok (gói miễn phí chặn truy cập kiểu trình duyệt); VNPAY gọi từ máy chủ nên không bị. Lỗi `ERR_NGROK_8012`
+nghĩa là API chưa lên (đang biên dịch): đợi `docker compose logs api` báo "Nest application successfully started" rồi thử lại.
+
 ## 6. Quy trình làm việc hằng ngày
 
 Tóm tắt — đọc đầy đủ ở [`CONTRIBUTING.md`](../CONTRIBUTING.md):
