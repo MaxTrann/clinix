@@ -39,7 +39,8 @@ export interface Capped<T> {
   items: T[];
   tong: number;
 }
-const capped = <T>(items: readonly T[]): Capped<T> => ({
+// Export để chi tiết yêu cầu thay đổi (B9) cắt danh sách ảnh hưởng theo cùng một giới hạn
+export const capped = <T>(items: readonly T[]): Capped<T> => ({
   items: items.slice(0, IMPACT_LIST_LIMIT),
   tong: items.length,
 });

@@ -3950,7 +3950,73 @@ Lệnh đã chạy (chỉ phần bị ảnh hưởng):
 
 **Còn mở:** đối chiếu chữ bốn mẫu thư với Figma 689:2, 690:2 (Trung dán sau); CI sẽ chạy đủ bộ test khi mở PR.
 
-<!-- 9B.2 (B12) nằm ở PR feat/admin-b12-ho-so-bac-si; khi gộp main, xếp 9B.1, 9B.2, 9B.3 theo thứ tự số. -->
+#### 9B.2 B12 (#515) Hồ sơ bác sĩ, đọc: kế hoạch (21/11/2026, CHỜ DUYỆT, chưa viết mã)
+
+Nhánh `feat/admin-b12-ho-so-bac-si`, tạo từ `origin/main` = `697bc40` (C4 chưa merge, B12 không phụ thuộc C4). Tiêu đề PR `feat(admin): thêm danh sách và chi tiết hồ sơ bác sĩ (admin B12)`. DB test `clinix_admin_b12_test`.
+
+**Thực tế khác PLAN.** Dòng B12 giao "`computeSurcharge` (+ test bảng)". Hàm này đã có ở `apps/api/src/pricing/surcharge.calculator.ts`, kèm test bảng BS-01 (`surcharge.calculator.spec.ts`), do search làm, và `ExamPriceReader` (`pricing/exam-price.reader.ts`) đọc bảng `phu_phi_bac_si`. Search và booking đang dùng cả hai. Theo AGENTS mục 2.5 ("tái dùng, không viết lại"), B12 **gọi** `ExamPriceReader.loadRules` và `priceFor`, không viết công thức phụ phí thứ hai.
+
+**Phạm vi** (`apps/api/src/admin/doctors/`, PLAN 5.1 và 5.3):
+
+- `doctor.controller.ts`: `GET /admin/doctors` và `GET /admin/doctors/:id`, `@Roles('QuanTriVien')`, `@RequireAdminScope('Any')`. Controller chỉ nhận và trả.
+- `doctor.service.ts`: phạm vi qua `BranchAccessPolicy.branchFilter` (Quản trị viên Chi nhánh luôn bị ép về chi nhánh mình, bỏ qua `chiNhanhId` gửi lên). Chi tiết ngoài phạm vi, id không tồn tại hay id của tài khoản không phải bác sĩ ⇒ 404 `KHONG_TIM_THAY` (Q40).
+- `doctor.repository.ts`: một giao dịch đọc `REPEATABLE READ` như `BranchRepository.list`. JOIN `bac_si`, `tai_khoan`, `chuyen_khoa`, `chi_nhanh`, `dich_vu_kham`. Lọc `chuyenKhoaId`, `chiNhanhId` (chỉ Toàn hệ thống), `q` (họ tên hoặc email, `escapeLikePattern` + `ESCAPE '!'`). Cùng điều kiện cho `SELECT` và `COUNT`. Sắp `ho_ten`, rồi `tai_khoan_id`. Phụ phí và giá: `loadRules(manager)` MỘT lần cho cả trang, rồi `priceFor(gia_mac_dinh, rules, bacSi)`.
+- `doctor.dto.ts`: `DoctorListDto extends PageQueryDto` (`q` ≤ 100 ký tự sau trim, `chuyenKhoaId`, `chiNhanhId` là id bigint dương), `DoctorIdDto`.
+- `doctor.module.ts`: import `RbacModule`, provider `ExamPriceReader` (như `appointments.module.ts` đang làm). `app.module.ts`: chỉ thêm một dòng import và một phần tử mảng.
+- Hiển thị cả bác sĩ `ChoKichHoat` và `NgungHoatDong` (BS-39: vẫn xem và sửa được hồ sơ), kèm trạng thái tài khoản.
+
+**Trường trả về `[đề xuất]`** (chưa đối chiếu Figma 535:2 danh sách, 536:2 hồ sơ, 627:2 góc nhìn chi nhánh):
+- Danh sách: `taiKhoanId`, `hoTen`, `email`, `trangThaiTaiKhoan`, `chucDanh`, `hocVi`, `soNamKinhNghiem`, `chuyenKhoa {id, ten}`, `chiNhanh {id, ten}`, `dichVuKham {id, ten}`, `giaMacDinh`, `phuPhi`, `giaKham` (Q21: "Giá dịch vụ").
+- Chi tiết: như danh sách, thêm `soDienThoai`, `moTaChuyenMon`, `chuyenKhoa.trangThai` (cho B13, Q19).
+- Không bao giờ trả `mat_khau_bam`, mã xác thực, ví, dữ liệu lịch hẹn.
+
+**Bảng test (mỗi test ghi mã):**
+
+| Mã | Nội dung | Loại |
+|---|---|---|
+| BS-01 | Đã có ở `pricing/surcharge.calculator.spec.ts`; B12 không viết lại | U (có sẵn) |
+| BS-43 | Danh sách của Chi nhánh chỉ có bác sĩ chi nhánh mình, kể cả khi gửi `chiNhanhId` khác; Toàn hệ thống thấy tất cả và lọc được theo chi nhánh; lọc chuyên khoa; tìm theo họ tên/email; `%` và `_` trong `q` là chữ thường, không phải ký tự đại diện | I |
+| BS-33 (phần đọc) | Chi nhánh xem chi tiết bác sĩ ngoài chi nhánh ⇒ 404 `KHONG_TIM_THAY` | I |
+| BS-40 (phần đọc) | Id của Lễ tân, Quản trị viên, Bệnh nhân, id không tồn tại ⇒ 404 | I |
+| BS-39 (phần đọc) | Bác sĩ `ChoKichHoat`, `NgungHoatDong` có trong danh sách và chi tiết, đúng trạng thái | I |
+| BS-45 (phần đọc) | `phuPhi` và `giaKham` theo bảng phụ phí hiện hành (mốc cao bị tắt thì rơi mốc thấp); không có quy tắc ⇒ `0.00` | I |
+| HSB-01 `[đề xuất mã]` | Phân trang: `total` đúng với bộ lọc, trang cuối, `pageSize` 100 qua, 101 bị từ chối; thứ tự ổn định khi trùng họ tên | I |
+| HSB-02 `[đề xuất mã]` | DTO: `q` rỗng sau trim coi như không lọc, quá 100 ký tự ⇒ 400; id không phải số nguyên dương ⇒ 400 | U |
+| HSB-03 `[đề xuất mã]` | Phản hồi không chứa `matKhauBam` hay trường ngoài danh sách đã chốt | I |
+| HSB-04 `[đề xuất mã]` | e2e vai trò: Bệnh nhân, Bác sĩ, Lễ tân ⇒ 403; chưa đăng nhập ⇒ 401; Toàn hệ thống và Chi nhánh ⇒ 200 | E |
+
+**Câu hỏi mở:**
+
+1. Trường hiển thị theo Figma 535:2, 536:2, 627:2: `[cần điền]`. Trung dán chữ/ảnh, hoặc đồng ý dùng bộ `[đề xuất]` ở trên rồi F7 đối chiếu.
+2. Có cần lọc theo trạng thái tài khoản không? Mặc định `[đề xuất]`: không lọc, chỉ hiển thị.
+3. Mã `HSB-*` `[đề xuất mã]`.
+
+**Trả lời (21/11/2026, Trung):** duyệt kế hoạch; dùng bộ trường `[đề xuất]` (F7 đối chiếu Figma); không lọc theo trạng thái; dùng mã `HSB-*`.
+
+**Tiến độ 21/11/2026: XONG, test xanh.**
+
+- `admin/doctors/`: `doctor.dto.ts`, `doctor.repository.ts`, `doctor.service.ts`, `doctor.controller.ts`, `doctor-profile.module.ts`. Đặt tên `DoctorProfileModule` để khỏi trùng `DoctorModule` của `doctor/`.
+- `app.module.ts`: thêm một dòng import và một phần tử mảng.
+- `admin/branches/branch.dto.ts`: chỉ thêm `export` cho `isPositiveBigintId` để DTO bác sĩ dùng lại, không đổi hành vi.
+- Phụ phí và giá khám đi qua `ExamPriceReader.loadRules` và `priceFor` của `pricing/`, đọc trong cùng giao dịch `REPEATABLE READ` với `SELECT` và `COUNT`.
+- `DoctorService.list` là `async`, để lỗi kiểm trang (OFFSET vượt số nguyên an toàn) trả qua promise bị từ chối như lỗi DB.
+
+| Mã | Kết quả |
+|---|---|
+| BS-01 | Có sẵn ở `pricing/`, không viết lại; chạy lại `src/pricing` xanh |
+| BS-43, BS-33 (đọc), BS-40 (đọc), BS-39 (đọc), BS-45 (đọc), HSB-01, HSB-03 (`doctor.int-spec.ts`) | Pass |
+| HSB-02 (`doctor.dto.spec.ts`) | Pass |
+| HSB-04 (`test/admin-doctors.e2e-spec.ts`: 401, 403 cho Bệnh nhân, Bác sĩ, Lễ tân; Chi nhánh bị 404 với bác sĩ chi nhánh khác; 400 khi id sai hay tham số lạ) | Pass |
+
+Lệnh đã chạy (chỉ phần bị ảnh hưởng, MySQL 8.4 của `docker compose`):
+- `npm run lint` 0 lỗi; `npm run build` xanh.
+- Đơn vị `src/admin src/pricing src/rbac src/app`: 161 file, 3393 test pass.
+- Tích hợp (`TEST_DB_NAME=clinix_admin_b12_test`) `src/admin/doctors src/pricing`: 2 file, 16 test pass. Lần đầu 1 fail do `list` chưa `async` (test chờ promise bị từ chối nhưng nhận lỗi ném đồng bộ), đã sửa.
+- e2e `test/admin-doctors.e2e-spec.ts test/admin-branches.e2e-spec.ts`: 2 file, 8 test pass.
+
+**Còn mở:** F7 đối chiếu trường hiển thị với Figma 535:2, 536:2, 627:2.
+
+**Gộp `main` sau khi C4 merge (21/11/2026):** xung đột chỉ ở `TRACKING.md` (9B.1 và 9B.2 chen nhau) và `TRUNG_AI_USAGE_LOG.md` (mục 125 và 126); giữ cả hai phía, xếp 9B.1 rồi 9B.2. Mã không xung đột.
 
 #### 9B.3 B8 (#519) Chi nhánh: sửa và phát hiện ảnh hưởng: kế hoạch (21/11/2026, CHỜ DUYỆT, chưa viết mã)
 
@@ -3995,25 +4061,6 @@ Nhánh `feat/admin-b8-sua-chi-nhanh`, tạo từ `origin/main` (đã có C4). Ti
 - **Form hỗn hợp khi đã có yêu cầu đang mở** (đổi tên + đổi lịch).
   - Đề xuất: từ chối CẢ form bằng `YEU_CAU_DANG_CHO`, không lưu gì, để thao tác nguyên tử, dễ hiểu.
   - CN-43 chỉ yêu cầu "chỉ tên hoặc địa chỉ thì được", và điều đó vẫn đúng.
-#### 9B.2 B12 (#515) Hồ sơ bác sĩ, đọc: kế hoạch (21/11/2026, CHỜ DUYỆT, chưa viết mã)
-
-Nhánh `feat/admin-b12-ho-so-bac-si`, tạo từ `origin/main` = `697bc40` (C4 chưa merge, B12 không phụ thuộc C4). Tiêu đề PR `feat(admin): thêm danh sách và chi tiết hồ sơ bác sĩ (admin B12)`. DB test `clinix_admin_b12_test`.
-
-**Thực tế khác PLAN.** Dòng B12 giao "`computeSurcharge` (+ test bảng)". Hàm này đã có ở `apps/api/src/pricing/surcharge.calculator.ts`, kèm test bảng BS-01 (`surcharge.calculator.spec.ts`), do search làm, và `ExamPriceReader` (`pricing/exam-price.reader.ts`) đọc bảng `phu_phi_bac_si`. Search và booking đang dùng cả hai. Theo AGENTS mục 2.5 ("tái dùng, không viết lại"), B12 **gọi** `ExamPriceReader.loadRules` và `priceFor`, không viết công thức phụ phí thứ hai.
-
-**Phạm vi** (`apps/api/src/admin/doctors/`, PLAN 5.1 và 5.3):
-
-- `doctor.controller.ts`: `GET /admin/doctors` và `GET /admin/doctors/:id`, `@Roles('QuanTriVien')`, `@RequireAdminScope('Any')`. Controller chỉ nhận và trả.
-- `doctor.service.ts`: phạm vi qua `BranchAccessPolicy.branchFilter` (Quản trị viên Chi nhánh luôn bị ép về chi nhánh mình, bỏ qua `chiNhanhId` gửi lên). Chi tiết ngoài phạm vi, id không tồn tại hay id của tài khoản không phải bác sĩ ⇒ 404 `KHONG_TIM_THAY` (Q40).
-- `doctor.repository.ts`: một giao dịch đọc `REPEATABLE READ` như `BranchRepository.list`. JOIN `bac_si`, `tai_khoan`, `chuyen_khoa`, `chi_nhanh`, `dich_vu_kham`. Lọc `chuyenKhoaId`, `chiNhanhId` (chỉ Toàn hệ thống), `q` (họ tên hoặc email, `escapeLikePattern` + `ESCAPE '!'`). Cùng điều kiện cho `SELECT` và `COUNT`. Sắp `ho_ten`, rồi `tai_khoan_id`. Phụ phí và giá: `loadRules(manager)` MỘT lần cho cả trang, rồi `priceFor(gia_mac_dinh, rules, bacSi)`.
-- `doctor.dto.ts`: `DoctorListDto extends PageQueryDto` (`q` ≤ 100 ký tự sau trim, `chuyenKhoaId`, `chiNhanhId` là id bigint dương), `DoctorIdDto`.
-- `doctor.module.ts`: import `RbacModule`, provider `ExamPriceReader` (như `appointments.module.ts` đang làm). `app.module.ts`: chỉ thêm một dòng import và một phần tử mảng.
-- Hiển thị cả bác sĩ `ChoKichHoat` và `NgungHoatDong` (BS-39: vẫn xem và sửa được hồ sơ), kèm trạng thái tài khoản.
-
-**Trường trả về `[đề xuất]`** (chưa đối chiếu Figma 535:2 danh sách, 536:2 hồ sơ, 627:2 góc nhìn chi nhánh):
-- Danh sách: `taiKhoanId`, `hoTen`, `email`, `trangThaiTaiKhoan`, `chucDanh`, `hocVi`, `soNamKinhNghiem`, `chuyenKhoa {id, ten}`, `chiNhanh {id, ten}`, `dichVuKham {id, ten}`, `giaMacDinh`, `phuPhi`, `giaKham` (Q21: "Giá dịch vụ").
-- Chi tiết: như danh sách, thêm `soDienThoai`, `moTaChuyenMon`, `chuyenKhoa.trangThai` (cho B13, Q19).
-- Không bao giờ trả `mat_khau_bam`, mã xác thực, ví, dữ liệu lịch hẹn.
 
 **Bảng test (mỗi test ghi mã):**
 
@@ -4080,46 +4127,73 @@ Lệnh đã chạy (chỉ phần bị ảnh hưởng, MySQL 8.4 của `docker co
 - `[ĐỒNG BỘ TL]` D1: sửa đặc tả 2.4 (file Word ở repo `TLCN_CLINIX`) theo Q1, Q2, Q46; Trung làm.
 - F6b đối chiếu phản hồi với Figma 544:2.
 - Danh sách cắt 50 dòng chưa có test riêng với hơn 50 lịch hẹn.
-| BS-01 | Đã có ở `pricing/surcharge.calculator.spec.ts`; B12 không viết lại | U (có sẵn) |
-| BS-43 | Danh sách của Chi nhánh chỉ có bác sĩ chi nhánh mình, kể cả khi gửi `chiNhanhId` khác; Toàn hệ thống thấy tất cả và lọc được theo chi nhánh; lọc chuyên khoa; tìm theo họ tên/email; `%` và `_` trong `q` là chữ thường, không phải ký tự đại diện | I |
-| BS-33 (phần đọc) | Chi nhánh xem chi tiết bác sĩ ngoài chi nhánh ⇒ 404 `KHONG_TIM_THAY` | I |
-| BS-40 (phần đọc) | Id của Lễ tân, Quản trị viên, Bệnh nhân, id không tồn tại ⇒ 404 | I |
-| BS-39 (phần đọc) | Bác sĩ `ChoKichHoat`, `NgungHoatDong` có trong danh sách và chi tiết, đúng trạng thái | I |
-| BS-45 (phần đọc) | `phuPhi` và `giaKham` theo bảng phụ phí hiện hành (mốc cao bị tắt thì rơi mốc thấp); không có quy tắc ⇒ `0.00` | I |
-| HSB-01 `[đề xuất mã]` | Phân trang: `total` đúng với bộ lọc, trang cuối, `pageSize` 100 qua, 101 bị từ chối; thứ tự ổn định khi trùng họ tên | I |
-| HSB-02 `[đề xuất mã]` | DTO: `q` rỗng sau trim coi như không lọc, quá 100 ký tự ⇒ 400; id không phải số nguyên dương ⇒ 400 | U |
-| HSB-03 `[đề xuất mã]` | Phản hồi không chứa `matKhauBam` hay trường ngoài danh sách đã chốt | I |
-| HSB-04 `[đề xuất mã]` | e2e vai trò: Bệnh nhân, Bác sĩ, Lễ tân ⇒ 403; chưa đăng nhập ⇒ 401; Toàn hệ thống và Chi nhánh ⇒ 200 | E |
 
-**Câu hỏi mở:**
+#### 9B.4 B9 (#520) Yêu cầu thay đổi chi nhánh: xem và từ chối (22/11/2026)
 
-1. Trường hiển thị theo Figma 535:2, 536:2, 627:2: `[cần điền]`. Trung dán chữ/ảnh, hoặc đồng ý dùng bộ `[đề xuất]` ở trên rồi F7 đối chiếu.
-2. Có cần lọc theo trạng thái tài khoản không? Mặc định `[đề xuất]`: không lọc, chỉ hiển thị.
-3. Mã `HSB-*` `[đề xuất mã]`.
+Nhánh `feat/admin-b9-yeu-cau-thay-doi`, tạo từ `origin/main` = `89d0319` (đã có B8, C4). Tiêu đề PR `feat(admin): xem và từ chối yêu cầu thay đổi chi nhánh (admin B9)`. DB test `clinix_admin_b9_test`. Không có migration, không đổi schema.
 
-**Trả lời (21/11/2026, Trung):** duyệt kế hoạch; dùng bộ trường `[đề xuất]` (F7 đối chiếu Figma); không lọc theo trạng thái; dùng mã `HSB-*`.
+**Nguồn:** PLAN 5.3, 5.4, 5.9, 5.10; Q2, Q3, Q4, Q9, Q40, Q46; quy tắc 43.
 
-**Tiến độ 21/11/2026: XONG, test xanh.**
+**Trung chốt (22/11/2026), trước khi viết mã:**
 
-- `admin/doctors/`: `doctor.dto.ts`, `doctor.repository.ts`, `doctor.service.ts`, `doctor.controller.ts`, `doctor-profile.module.ts`. Đặt tên `DoctorProfileModule` để khỏi trùng `DoctorModule` của `doctor/`.
-- `app.module.ts`: thêm một dòng import và một phần tử mảng.
-- `admin/branches/branch.dto.ts`: chỉ thêm `export` cho `isPositiveBigintId` để DTO bác sĩ dùng lại, không đổi hành vi.
-- Phụ phí và giá khám đi qua `ExamPriceReader.loadRules` và `priceFor` của `pricing/`, đọc trong cùng giao dịch `REPEATABLE READ` với `SELECT` và `COUNT`.
-- `DoctorService.list` là `async`, để lỗi kiểm trang (OFFSET vượt số nguyên an toàn) trả qua promise bị từ chối như lỗi DB.
+1. Ảnh hưởng ở màn chi tiết tính theo trạng thái: `ChoDuyet` tính lại với mốc bây giờ (Q46); `DaDuyet` chưa áp dụng (kể cả quá hạn) tính lại với mốc `hieu_luc_tu`, cùng điều kiện job B11; đã áp dụng hoặc `DaHuy` đọc bản chụp `yeu_cau_thay_doi_chi_nhanh_lich_hen` (B10 ghi); `TuChoi`, `DaRut` không có danh sách.
+2. Mã mới `YEU_CAU_KHONG_CON_CHO_DUYET` (409) khi từ chối yêu cầu không còn `ChoDuyet`; B10 dùng chung. Đã thêm vào PLAN 5.9.
+3. Trạng thái thư giữ như C4: số `ChoGui`/`DaGui`/`ThatBai`/`BoQua` và trạng thái từng thư, KHÔNG trả `loi_cuoi`. PLAN 5.4 và CN-70b nói "lỗi rút gọn": lệch, ghi ở "Còn mở".
+4. Chữ thông báo và thư từ chối là `[đề xuất]`: "Yêu cầu thay đổi lịch hoạt động của chi nhánh {tên} gửi lúc {HH:mm dd/MM/yyyy} đã bị từ chối. Lý do: {lý do}." Đối chiếu Figma 689:2 ở F6b/X1.
 
-| Mã | Kết quả |
-|---|---|
-| BS-01 | Có sẵn ở `pricing/`, không viết lại; chạy lại `src/pricing` xanh |
-| BS-43, BS-33 (đọc), BS-40 (đọc), BS-39 (đọc), BS-45 (đọc), HSB-01, HSB-03 (`doctor.int-spec.ts`) | Pass |
-| HSB-02 (`doctor.dto.spec.ts`) | Pass |
-| HSB-04 (`test/admin-doctors.e2e-spec.ts`: 401, 403 cho Bệnh nhân, Bác sĩ, Lễ tân; Chi nhánh bị 404 với bác sĩ chi nhánh khác; 400 khi id sai hay tham số lạ) | Pass |
+**Mã** (`apps/api/src/admin/branch-change-requests/`, theo `PHAN_CONG_CHUNG.md` mục 3):
 
-Lệnh đã chạy (chỉ phần bị ảnh hưởng, MySQL 8.4 của `docker compose`):
-- `npm run lint` 0 lỗi; `npm run build` xanh.
-- Đơn vị `src/admin src/pricing src/rbac src/app`: 161 file, 3393 test pass.
-- Tích hợp (`TEST_DB_NAME=clinix_admin_b12_test`) `src/admin/doctors src/pricing`: 2 file, 16 test pass. Lần đầu 1 fail do `list` chưa `async` (test chờ promise bị từ chối nhưng nhận lỗi ném đồng bộ), đã sửa.
-- e2e `test/admin-doctors.e2e-spec.ts test/admin-branches.e2e-spec.ts`: 2 file, 8 test pass.
+- `GET /admin/branch-change-requests` (cả hai phạm vi): `page`, `pageSize`, `trangThai?`, `chiNhanhId?` (Chi nhánh luôn bị ép về chi nhánh mình); sắp `thoi_diem_tao` giảm dần, rồi id; SELECT và COUNT cùng điều kiện, một giao dịch `REPEATABLE READ`.
+- `GET /admin/branch-change-requests/:id`: ngoài phạm vi hay không có ⇒ 404 (Q40). Trả người đề xuất, người duyệt, người hủy, `hieuLucTu` ("dự kiến có hiệu lực"), `apDungLuc` ("đã áp dụng lúc"), `noiDung` (từng thứ trước/sau; dịch vụ trước, sau, thêm, bỏ kèm tên), `anhHuong {nguon, moc, lichHen, ca, khungGioTrong}` cắt 50 dòng kèm tổng (dùng lại `capped` của B8), `thongBao {tongHop, items}` (dùng lại `readNotificationStatuses` của C4).
+- `POST /admin/branch-change-requests/:id/reject` `{lyDo}` (chỉ Toàn hệ thống; Chi nhánh ⇒ 403), một giao dịch `READ COMMITTED`:
+  1. khoá yêu cầu `FOR UPDATE OF y`; phải `ChoDuyet`;
+  2. `UPDATE` có điều kiện `trang_thai = 'ChoDuyet'` sang `TuChoi`;
+  3. `BranchChangeNotifier` (`KetQuaYeuCauThayDoiChiNhanh`, có thư) cho người đề xuất; bệnh nhân không nhận gì;
+  4. audit `TuChoiThayDoiChiNhanh` `{ly_do_tu_choi, nguoi_de_xuat_id}`.
 
-**Còn mở:** F7 đối chiếu trường hiển thị với Figma 535:2, 536:2, 627:2.
+  Trả chi tiết sau khi commit. Cho phép tự từ chối (Q4).
+- `request-content.ts` (hàm thuần): đọc `noi_dung_truoc`/`noi_dung_sau` dạng hiện hành và dạng cũ `gio_mo_cua`/`gio_dong_cua` (quy tắc 43, CN-87); JSON hỏng hay khóa lạ bị bỏ qua, không ném lỗi; dạng cũ ⇒ `nguon: 'KhongTinhDuoc'`.
+- `lyDo` dùng lại `RequiredReason({ rejectSecrets: true })` của booking (như wallet hoàn tiền đặc biệt): trim, 1–255 ký tự (cột `varchar(255)`), không giống bí mật (nếu không, audit ném `AUDIT_SENSITIVE_DATA` thành 500).
+- Sửa ngoài thư mục: `branches/branch.service.ts` chỉ thêm `export` cho `capped`; `app.module.ts` thêm một dòng import và một phần tử mảng; PLAN: đánh dấu B9 xong, thêm mã lỗi ở 5.9.
+- Xếp lại 9B.2 (B12) và 9B.3 (B8) ở file này: bảng test, câu hỏi và tiến độ của B8 nằm chen trong mục B12 sau lần gộp `main` của B8 (tiêu đề bảng của B12 bị mất). Chỉ xếp lại dòng, không sửa chữ (đã so: chỉ thêm tiêu đề bảng cho B8 và hai dòng trống, bỏ dòng ghi chú `<!-- 9B.2 … -->` đã hết tác dụng).
 
-**Gộp `main` sau khi C4 merge (21/11/2026):** xung đột chỉ ở `TRACKING.md` (9B.1 và 9B.2 chen nhau) và `TRUNG_AI_USAGE_LOG.md` (mục 125 và 126); giữ cả hai phía, xếp 9B.1 rồi 9B.2. Mã không xung đột.
+**Chống chạy đua:**
+- Hai lần từ chối cùng lúc: khoá hàng yêu cầu, bên sau thấy `TuChoi` ⇒ 409 (YCB-06).
+- Cột sinh UNIQUE `dang_mo_chi_nhanh` về NULL khi `TuChoi`, nên chi nhánh gửi được yêu cầu mới ngay sau commit (Q3).
+- Không khoá `chi_nhanh`: B8 kiểm "yêu cầu đang mở" dưới khoá `chi_nhanh` và đọc bản đã commit, nên không có chu trình khoá với từ chối.
+- B10 (duyệt) phải khoá cùng hàng yêu cầu để phân định rõ với từ chối.
+
+| Mã | Nội dung | Kết quả |
+|---|---|---|
+| CN-39 | Chi tiết `ChoDuyet` liệt kê lịch hẹn, ca, khung giờ trống (mốc bây giờ); số lịch hẹn, khung giờ, ca, lịch chi nhánh không đổi | Pass (I) |
+| CN-60, CN-27b | Từ chối: `TuChoi`, lý do, người duyệt, thời điểm, `dang_mo_chi_nhanh` NULL; một thông báo + thư `ChoGui` cho người gửi, bệnh nhân không có; lịch Thứ Hai giữ nguyên; tên đã lưu ngay ở B8 giữ nguyên; chi nhánh gửi được yêu cầu mới | Pass (I) |
+| CN-99 (phần từ chối) | Một dòng audit cùng giao dịch, đúng `chi_tiet_thay_doi` | Pass (I) |
+| CN-56 (phần từ chối) | Chi nhánh từ chối ⇒ 403, vẫn `ChoDuyet` | Pass (I, E) |
+| CN-58 (phần từ chối) | Từ chối lần hai, từ chối `DaDuyet` ⇒ 409 `YEU_CAU_KHONG_CON_CHO_DUYET`; không tồn tại ⇒ 404; không thông báo trùng | Pass (I) |
+| CN-61 | Lý do thiếu, rỗng, chỉ khoảng trắng, 256 ký tự, không phải chuỗi, giống bí mật ⇒ 400 `LY_DO_BAT_BUOC`; 1 và 255 ký tự qua | Pass (U) |
+| CN-62 | Thư cho người gửi lỗi ⇒ yêu cầu vẫn `TuChoi` | Pass (I) |
+| CN-70b | Chi tiết (cả Chi nhánh) hiện `ThatBai` rồi `DaGui` sau khi gửi lại; không có chữ lỗi kỹ thuật | Pass một phần: không có "lỗi rút gọn" (quyết định 3) |
+| CN-87 | Yêu cầu lịch sử dạng cũ hiển thị giờ mở/đóng cũ; `ChoDuyet` dạng cũ ⇒ `KhongTinhDuoc` | Pass (U, I) |
+| YCB-01 `[đề xuất mã]` | Danh sách: Chi nhánh chỉ thấy chi nhánh mình kể cả gửi `chiNhanhId` khác; lọc chi nhánh, trạng thái; mới nhất trước; phân trang; chi tiết ngoài phạm vi và không tồn tại cùng 404 | Pass (I) |
+| YCB-02 `[đề xuất mã]` | DTO danh sách và id: trạng thái ngoài enum, id không dương, `pageSize` 101 ⇒ 400 | Pass (U) |
+| YCB-03 `[đề xuất mã]` | `request-content`: ghép trước/sau theo thứ, dịch vụ bỏ, JSON dạng chuỗi, dữ liệu hỏng không ném lỗi | Pass (U) |
+| YCB-04 `[đề xuất mã]` | `ChoDuyet` tính lại mỗi lần xem: lịch hẹn bị hủy sau lúc đề xuất không còn trong danh sách (Q46) | Pass (I) |
+| YCB-05 `[đề xuất mã]` | `DaDuyet` chưa áp dụng tính tại `hieu_luc_tu`; đã áp dụng đọc bản chụp; `TuChoi` không có | Pass (I) |
+| YCB-06 `[đề xuất mã]` | Hai lần từ chối đồng thời ⇒ một thành công, một 409; một thông báo, một audit | Pass (I) |
+| YCB-07 `[đề xuất mã]` | Q4: Toàn hệ thống tự từ chối yêu cầu của chính mình | Pass (I) |
+| YCB-08 `[đề xuất mã]` | Ghi audit lỗi ⇒ hoàn tác cả quyết định và thông báo | Pass (I) |
+| YCB-09 `[đề xuất mã]` | e2e: 401; Bệnh nhân, Bác sĩ, Lễ tân 403; Chi nhánh xem được của mình, 404 chi nhánh khác, 403 khi từ chối; Toàn hệ thống 200 rồi 409; 400 khi thiếu lý do, trường lạ, id sai, trạng thái lạ | Pass (E) |
+
+Lệnh đã chạy (MySQL 8.4 của `docker compose`):
+- `npm run lint` 0 lỗi, 0 cảnh báo (lần đầu 1 cảnh báo `no-unsafe-optional-chaining` ở test, đã sửa); `npm run build` xanh; Prettier sạch.
+- Đơn vị `src/admin src/rbac src/notification src/audit src/app`: 169 file, 3642 test pass.
+- Tích hợp (`TEST_DB_NAME=clinix_admin_b9_test`) `src/admin/branch-change-requests src/admin/branches src/notification`: 6 file, 54 test pass.
+- e2e `test/admin-branch-change-requests.e2e-spec.ts test/admin-branches-update.e2e-spec.ts`: 2 file, 6 test pass.
+- `jscpd` (bỏ `*.spec.ts`) `apps/api/src`: 1,67%; clone mới duy nhất là khối `import` của controller.
+- `tsc --noEmit` toàn dự án báo 1 lỗi ở `src/payment/architecture.spec.ts:290` (file không sửa ở PR này); `nest build` không biên dịch file spec nên vẫn xanh.
+
+**Còn mở:**
+- CN-70b, PLAN 5.4: "lỗi rút gọn" của thư lỗi chưa hiển thị (giữ như C4). Muốn hiện thì làm task riêng: sửa reader của C4, làm sạch `loi_cuoi`.
+- Đối chiếu chữ thông báo từ chối với Figma 689:2 (F6b/X1).
+- Chi tiết không có phần "đã lưu ngay" (tên, địa chỉ, toạ độ): yêu cầu không lưu phần này (B8 trả trong phản hồi `PATCH`). F6b hiển thị theo phản hồi B8 (Q2).
+- B10 phải ghi bảng chụp lúc duyệt thì nhánh `BanChup` mới có dữ liệu thật; hiện test tự chèn bảng chụp.

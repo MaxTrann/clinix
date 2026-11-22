@@ -1,0 +1,16 @@
+import { Module } from '@nestjs/common';
+import { AuditModule } from '../../audit/audit.module.js';
+import { NotificationModule } from '../../notification/notification.module.js';
+import { RbacModule } from '../../rbac/rbac.module.js';
+import { BranchModule } from '../branches/branch.module.js';
+import { BranchChangeRequestController } from './branch-change-request.controller.js';
+import { BranchChangeRequestRepository } from './branch-change-request.repository.js';
+import { BranchChangeRequestService } from './branch-change-request.service.js';
+
+// Yêu cầu thay đổi chi nhánh (admin B9; B10, B11, B21, B22 thêm vào đây). `BranchModule` export `BranchImpactService` để tính lại ảnh hưởng (Q46).
+@Module({
+  imports: [RbacModule, BranchModule, NotificationModule, AuditModule],
+  controllers: [BranchChangeRequestController],
+  providers: [BranchChangeRequestRepository, BranchChangeRequestService],
+})
+export class BranchChangeRequestModule {}
