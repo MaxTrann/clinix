@@ -23,6 +23,7 @@ import type { ChiNhanh } from '../../entities/chi-nhanh.entity.js';
 import { SystemConfigRepository } from '../../system-config/system-config.repository.js';
 import { SystemConfigService } from '../../system-config/system-config.service.js';
 import { AdminFixtures } from '../../testing/admin-fixtures.js';
+import { BranchChangeRequestListDto } from '../branch-change-request.dto.js';
 import { BranchChangeRequestRepository } from '../branch-change-request.repository.js';
 import { BranchChangeRequestService } from '../branch-change-request.service.js';
 import { BranchChangeStopService } from '../branch-change-stop.service.js';
@@ -252,6 +253,26 @@ describe('B21 rút và hủy yêu cầu thay đổi chi nhánh — MySQL thật'
         },
       ]);
       await expect(w.propose()).resolves.toBeDefined();
+    });
+
+    it('YCB-35 [đề xuất mã] laCuaToi (F6b): người gửi xem ⇒ true ở danh sách và chi tiết; người khác hay không truyền người xem ⇒ false', async () => {
+      const w = await world();
+      const id = await w.propose();
+      const proposerId = w.proposer.account.taiKhoanId;
+      const mine = scopeOf(w.branch);
+      const listOf = (viewerId?: string) =>
+        requests
+          .list(mine, new BranchChangeRequestListDto(), viewerId)
+          .then((page) => page.items.map((item) => item.laCuaToi));
+      expect(await listOf(proposerId)).toEqual([true]);
+      expect(await listOf(w.sameBranchAdmin.account.taiKhoanId)).toEqual([
+        false,
+      ]);
+      expect(await listOf()).toEqual([false]);
+      expect((await requests.get(mine, id, proposerId)).laCuaToi).toBe(true);
+      expect((await requests.get(system, id, w.sysId)).laCuaToi).toBe(false);
+      // Thao tác trả chi tiết theo góc nhìn của chính người thao tác
+      expect((await stops.withdraw(mine, proposerId, id)).laCuaToi).toBe(true);
     });
 
     it('CN-91 không phải người gửi: Admin Chi nhánh cùng chi nhánh ⇒ 403, chi nhánh khác ⇒ 404, Toàn hệ thống ⇒ 403; vẫn ChoDuyet', async () => {

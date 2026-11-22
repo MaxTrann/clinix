@@ -66,6 +66,8 @@ export interface BranchChangeRequestListItem {
   quaHanLuc: string | null;
   thuThayDoi: number[];
   coDoiDichVu: boolean;
+  /** Người đang xem có phải người gửi không (F6b: giao diện chỉ hiện nút Rút cho người gửi; máy chủ vẫn kiểm lại khi rút) */
+  laCuaToi: boolean;
 }
 
 /**
@@ -187,9 +189,11 @@ export class BranchChangeRequestService {
   ) {}
 
   // `async` để lỗi kiểm trang trả qua promise bị từ chối như lỗi DB (như B12)
+  /** `viewerId`: tài khoản đang xem (từ phiên) để tính `laCuaToi`; không truyền ⇒ `laCuaToi = false`. */
   async list(
     scope: AdminScope,
     input: BranchChangeRequestListDto,
+    viewerId?: string,
   ): Promise<Paged<BranchChangeRequestListItem>> {
     if (!Number.isSafeInteger(input.offset) || input.offset < 0)
       throw new AppException(400, 'DU_LIEU_KHONG_HOP_LE', {
@@ -199,13 +203,20 @@ export class BranchChangeRequestService {
       input,
       this.policy.branchFilter(scope, input.chiNhanhId),
     );
-    return { ...page, items: page.items.map((row) => this.toListItem(row)) };
+    return {
+      ...page,
+      items: page.items.map((row) => this.toListItem(row, viewerId)),
+    };
   }
 
   /** Không có hay ngoài phạm vi ⇒ cùng 404 `KHONG_TIM_THAY` (Q40). */
-  async get(scope: AdminScope, id: string): Promise<BranchChangeRequestDetail> {
+  async get(
+    scope: AdminScope,
+    id: string,
+    viewerId?: string,
+  ): Promise<BranchChangeRequestDetail> {
     const detail = await this.requests.readTransaction((manager) =>
-      this.readDetail(manager, id, this.policy.branchFilter(scope)),
+      this.readDetail(manager, id, this.policy.branchFilter(scope), viewerId),
     );
     if (!detail) throw new AppException(404, 'KHONG_TIM_THAY');
     return detail;
@@ -258,7 +269,7 @@ export class BranchChangeRequestService {
         },
       });
     });
-    return this.get(scope, id);
+    return this.get(scope, id, actorId);
   }
 
   /**
@@ -346,7 +357,7 @@ export class BranchChangeRequestService {
         },
       });
     });
-    return this.get(scope, id);
+    return this.get(scope, id, actorId);
   }
 
   /**
@@ -384,7 +395,10 @@ export class BranchChangeRequestService {
       });
   }
 
-  private toListItem(row: RequestRow): BranchChangeRequestListItem {
+  private toListItem(
+    row: RequestRow,
+    viewerId?: string,
+  ): BranchChangeRequestListItem {
     const sau = parseRequestContent({}, row.noiDungSau);
     return {
       yeuCauThayDoiChiNhanhId: row.yeuCauThayDoiChiNhanhId,
@@ -398,6 +412,7 @@ export class BranchChangeRequestService {
       quaHanLuc: row.quaHanLuc,
       thuThayDoi: changedDaysOf(sau),
       coDoiDichVu: sau.dichVu !== null,
+      laCuaToi: viewerId !== undefined && row.nguoiDeXuatId === viewerId,
     };
   }
 
@@ -405,6 +420,7 @@ export class BranchChangeRequestService {
     manager: EntityManager,
     id: string,
     branchId: string | undefined,
+    viewerId?: string,
   ): Promise<BranchChangeRequestDetail | null> {
     const row = await this.requests.get(manager, id, branchId);
     if (!row) return null;
@@ -421,7 +437,7 @@ export class BranchChangeRequestService {
     const person = (taiKhoanId: string | null, hoTen: string | null) =>
       taiKhoanId === null ? null : { taiKhoanId, hoTen: hoTen ?? '' };
     return {
-      ...this.toListItem(row),
+      ...this.toListItem(row, viewerId),
       nguoiDuyet: person(row.nguoiDuyetId, row.tenNguoiDuyet),
       lyDoTuChoi: row.lyDoTuChoi,
       soNgayBaoTruoc: row.soNgayBaoTruoc,

@@ -4560,3 +4560,70 @@ Lệnh đã chạy (MySQL 8.4 của `docker compose`, `TEST_DB_NAME=clinix_admin
 - Lệch tài liệu: PLAN 5.4 ("danh sách mới") và CN-106 ("đã được báo"); làm theo quyết định 1, cần sửa câu ở PLAN 5.4 và đặc tả 2.4 (D1) cho khớp.
 - CN-108 (trong suốt thời gian quá hạn booking vẫn chặn) không có test mới ở PR này: `getPendingEffectiveChanges` không đổi.
 - CN-110, CN-111 (nhãn và giao diện) là việc của F6b.
+
+#### 9B.11 F6b (#525) Chi nhánh: sửa lịch / dịch vụ và yêu cầu thay đổi, gồm nhánh quá hạn (22/11/2026)
+
+Nhánh `feat/admin-branch-change-ui`, tạo từ `main` = `e473702` (đã có B8 đến B11, B21, B22). Tiêu đề PR `feat(admin): giao diện sửa lịch chi nhánh và xử lý yêu cầu thay đổi, gồm nhánh quá hạn (admin F6b)`. Không đổi schema; API chỉ thêm cờ `laCuaToi` (mục dưới).
+
+**Trung chốt (22/11/2026), trước khi viết mã:**
+
+1. Ban đầu chốt chia hai PR; sau khi xong phần đầu, Trung chốt lại làm tiếp trên cùng nhánh, gộp thành MỘT PR đóng #525 (tránh rebase PR chồng sau squash merge).
+2. Phần Figma chưa có frame (chi tiết yêu cầu ngoài khối "Hiện tại", trạng thái quá hạn, hộp thoại Rút, Hủy, Dời hiệu lực) ghép từ thành phần sẵn có; chữ ghi `[đề xuất]`, liệt kê ở "Còn mở" để nhóm bổ sung Figma (D7).
+3. Nút Rút chỉ cho đúng người gửi: web chưa có id tài khoản (AuthUser và `GET /admin/me` không trả id) ⇒ API B9 trả thêm cờ `laCuaToi` ở danh sách và chi tiết, tính ở máy chủ từ phiên.
+
+**Figma đã đối chiếu (22/11/2026):** 542:2 (khối yêu cầu trên danh sách chi nhánh, ba tab có số, "1 chờ", banner "Chưa cấu hình số ngày báo trước"), 544:2 (form sửa mở ngay dưới thẻ, nút thành "Hủy"), 546:2 (hộp thoại duyệt ở trạng thái chưa cấu hình; thẻ mở rộng "Hiện tại"), 547:2 (hộp thoại từ chối), 693:2 (Admin Chi nhánh: không có nút Duyệt/Từ chối, không có banner). Ba biểu tượng lấy từ Figma (542:334 đồng hồ, 542:343 bánh răng, 542:378 con mắt) vào `public/assets/admin/branches/`.
+
+**Mã** (`apps/web/src/features/admin/branches/`):
+
+- `branch-form.tsx` (mới): form của F6a tách khỏi `branch-page.tsx`, thêm chế độ Sửa (`branch` có): điền sẵn dữ liệu đang áp dụng (giờ 'HH:mm:ss' ⇒ 'HH:mm'; thứ chưa khai báo hiện là Nghỉ), id các ô theo tiền tố riêng để form Sửa và form Thêm không trùng id, gửi `PATCH /admin/branches/:id` (đủ 7 thứ, danh sách dịch vụ đầy đủ; máy chủ tự so sánh). Lỗi riêng của Sửa theo PLAN 5.9: `YEU_CAU_DANG_CHO`, `DICH_VU_CON_BAC_SI`, `KHONG_CO_THAY_DOI`, 403, 404; lỗi lịch theo thứ dùng chung bộ xử lý F6a.
+- `branch-update-summary.ts` (mới, hàm thuần): phần "Đã lưu ngay", phần "Đã gửi yêu cầu … chờ duyệt" kèm số lịch hẹn và ca bị ảnh hưởng, cảnh báo khung giờ trống ngoài lịch mới (Q2, CN-27b).
+- `branches-tab.tsx` (mới): tab Chi nhánh = khối yêu cầu + danh sách chi nhánh; hai khối làm mới lẫn nhau (`refreshKey`). `clinic-info-page.tsx` dùng `BranchesTab` thay `BranchPage`.
+- `change-requests/` (mới): `change-request-types.ts`, `change-request-service.ts` (danh sách theo trạng thái, chi tiết, duyệt, từ chối qua lớp client duy nhất), `use-change-requests.ts` (hook `useLoad` chung: bỏ kết quả cũ theo `key`, hủy khi rời màn; số đếm ba tab; số ngày báo trước chỉ đọc khi là Toàn hệ thống vì Admin Chi nhánh nhận 403), `change-request-format.ts` (nhãn trạng thái suy ra "Đã áp dụng", "Quá hạn – chờ xử lý" theo Q48; khoảng giờ bằng `formatRange` chung), `change-request-errors.ts`, `request-action-dialog.tsx` (khung hộp thoại có ô nhập, dùng lại overlay và nút của `AdminConfirmationDialog`), `request-dialogs.tsx` (Duyệt: ô `datetime-local`, gợi ý mốc sớm nhất = bây giờ + N ngày làm tròn lên phút; chưa cấu hình ⇒ khối lỗi như Figma 546:2 và tắt nút; chưa đọc được cấu hình ⇒ vẫn cho gửi, máy chủ kiểm. Từ chối: lý do trim, 1–255), `request-detail.tsx` (mốc thời gian với nhãn "Dự kiến có hiệu lực" / "Đã áp dụng lúc" theo CN-110, bảng Hiện tại / Đề xuất theo thứ, dịch vụ thêm / bỏ, lịch hẹn và ca bị ảnh hưởng cắt 50 dòng kèm "và N mục khác", trạng thái thư và cảnh báo thư gửi thất bại), `change-requests-panel.tsx`, `change-requests.module.css`.
+- Nhánh quá hạn và thao tác dừng: `request-actions.ts` (hàm thuần: nút nào hiện cho ai theo trạng thái; Rút chỉ khi `laCuaToi`, Hủy với yêu cầu đã duyệt chưa áp dụng kể cả quá hạn, Dời hiệu lực chỉ khi quá hạn), hai tab mới Đã rút, Đã hủy [đề xuất], banner quá hạn ở đầu khối (bấm mở tab Đã duyệt), thẻ quá hạn có lời giải thích riêng cho Toàn hệ thống và Chi nhánh, chi tiết có "Quá hạn lúc", "Đã dời hiệu lực N lần", người, thời điểm, lý do hủy, mục "Cần xử lý trước khi dời hiệu lực". Hộp thoại Rút (xác nhận), Hủy (lý do), Dời hiệu lực (mốc sớm nhất = bây giờ + N, N = lớn hơn giữa số ngày đã chụp lúc duyệt và cấu hình, như B22). Duyệt và Dời dùng chung `EffectiveTimeDialog`; Từ chối và Hủy dùng chung `ReasonDialog`.
+- API (`apps/api/src/admin/branch-change-requests/`): `list`/`get` của `BranchChangeRequestService` nhận thêm `viewerId` (tuỳ chọn; không truyền ⇒ `laCuaToi = false`), controller truyền `user.accountId`; duyệt, từ chối, rút, hủy, dời trả chi tiết theo góc nhìn người thao tác.
+- Sửa test có sẵn: `branch-page.test.tsx` (nút Sửa lịch nay bật), `clinic-info-page.test.tsx` (giả API theo URL vì tab Chi nhánh gọi thêm API), `styles/focus-hygiene.test.ts` (FG-06: số CSS Module 5 ⇒ 6).
+
+| Mã | Nội dung | Loại |
+|---|---|---|
+| AF6B-01 (CN-110) | Nhãn trạng thái: Đã duyệt / Đã áp dụng / Quá hạn – chờ xử lý / Chờ duyệt / Từ chối / Đã rút / Đã hủy | U |
+| AF6B-02 | Định dạng thời gian; mốc sớm nhất theo giờ VN, làm tròn lên phút, qua nửa đêm | U |
+| AF6B-03 | Một thứ của yêu cầu: nghỉ, hai khoảng, một khoảng, chưa khai báo, dạng cũ | U |
+| AF6B-04 (CN-89, CN-27b) | Tóm tắt kết quả Sửa: lưu ngay, chờ duyệt, chỉ chờ duyệt, cảnh báo khung giờ trống | U |
+| AF6B-05 (CN-89) | Form Sửa mở dưới thẻ, điền sẵn dữ liệu, nút đổi thành "Hủy" và đóng được | C |
+| AF6B-06 (CN-89) | PATCH đúng chi nhánh, đủ 7 thứ, dịch vụ đầy đủ; báo "Đã lưu ngay", đóng form | C |
+| AF6B-07 (CN-27b) | Có ảnh hưởng ⇒ báo riêng phần lưu ngay và phần chờ duyệt | C |
+| AF6B-08 (CN-89) | Lỗi `YEU_CAU_DANG_CHO`, `DICH_VU_CON_BAC_SI`, `KHONG_CO_THAY_DOI`, 403, lỗi lịch theo thứ | C |
+| AF6B-09 (CN-89) | Admin Chi nhánh mở được form Sửa, không có nút Thêm | C |
+| AF6B-10 (CN-89) | Ba tab có số, "1 chờ", thẻ có người gửi, ngày, nút Chi tiết / Duyệt / Từ chối | C |
+| AF6B-11 | Đổi tab gọi đúng trạng thái; tab rỗng | C |
+| AF6B-12 (CN-89) | Chưa cấu hình ⇒ banner; hộp thoại Duyệt báo lỗi, tắt nút | C |
+| AF6B-13 (CN-89) | Duyệt: gợi ý mốc, chưa chọn thời điểm không gọi API, POST đúng dạng, báo thành công, tải lại | C |
+| AF6B-14 | Duyệt bị máy chủ từ chối (`HIEU_LUC_QUA_SOM`, `YEU_CAU_KHONG_CON_CHO_DUYET`, `HE_THONG_CHUA_CAU_HINH`) | C |
+| AF6B-15 (CN-89) | Từ chối: lý do rỗng không gọi API, lý do được trim | C |
+| AF6B-16 | Hủy, Escape đóng hộp thoại, không gọi API | C |
+| AF6B-17 (CN-89) | Chi tiết: bảng Hiện tại / Đề xuất, dịch vụ bỏ, lịch hẹn và ca, cắt 50 dòng, ghi chú phần đã lưu ngay | C |
+| AF6B-18 (CN-110) | Nhãn "Dự kiến có hiệu lực", "Đã áp dụng lúc" (Chưa áp dụng); thư gửi thất bại | C |
+| AF6B-19 (CN-110) | Nhãn danh sách "Đã áp dụng", "Quá hạn – chờ xử lý" | C |
+| AF6B-20 | Lỗi tải danh sách ⇒ Thử lại | C |
+| AF6B-21 (CN-89) | Admin Chi nhánh chỉ xem: không có nút, không gọi API cấu hình, không có banner | C |
+| AF6B-22 (CN-111) | Bảng nút theo vai trò và trạng thái, biên đã áp dụng / Từ chối / Đã rút / Đã hủy | U |
+| AF6B-23 (CN-89) | Rút: chỉ người gửi; POST withdraw; máy chủ từ chối ⇒ khối lỗi | C |
+| AF6B-24 (CN-89) | Hủy: bắt buộc lý do, lý do trim | C |
+| AF6B-25 (CN-111) | Banner quá hạn mở tab Đã duyệt; thẻ quá hạn có nhãn, lời giải thích, nút Dời hiệu lực và Hủy | C |
+| AF6B-26 (CN-111) | Chi tiết quá hạn: "Cần xử lý trước khi dời hiệu lực", "Quá hạn lúc" | C |
+| AF6B-27 (CN-111) | Dời hiệu lực: N = lớn hơn giữa số ngày đã chụp và cấu hình; POST reschedule; `YEU_CAU_KHONG_QUA_HAN` | C |
+| AF6B-28 (CN-111) | Admin Chi nhánh thấy quá hạn: lời giải thích cho chi nhánh, không có Dời / Hủy | C |
+| AF6B-29 | Tab Đã rút, Đã hủy; chi tiết yêu cầu đã hủy (người, thời điểm, lý do) | C |
+| YCB-35 `[đề xuất mã]` | API `laCuaToi`: người gửi ⇒ true ở danh sách, chi tiết, kết quả rút; người khác hay không truyền ⇒ false | I |
+
+**Kết quả (22/11/2026):** mọi mã ở bảng trên **Pass** (46 test web mới: `change-request-format.test.ts` 6, `branch-update-summary.test.ts` 4, `branch-edit.test.tsx` 9, `request-actions.test.ts` 4, `change-requests-panel.test.tsx` 23; 1 test tích hợp API YCB-35 trong `branch-change-stop.int-spec.ts`). Thử đột biến: cho Admin Chi nhánh thấy nút Duyệt thì AF6B-21 đỏ; Dời hiệu lực chỉ dùng cấu hình (bỏ số ngày đã chụp) thì AF6B-27 đỏ (đều đã khôi phục).
+
+Lệnh đã chạy: `apps/web`: `npm run lint` 0 lỗi, 0 cảnh báo; `npm run build` xanh; `npx vitest run` 370 file, 6410 test pass. `apps/api` (MySQL 8.4, `TEST_DB_NAME=clinix_admin_f6b_test`): `npm run lint` 0 lỗi; `npm run build` xanh; đơn vị `src/admin src/rbac src/notification src/audit src/appointments` 3681 pass; tích hợp `src/admin/branch-change-requests src/admin/branches src/notification` 105 pass; e2e `admin-branch-change-requests`, `admin-branches-update` 13 pass. jscpd: API 1,92%, web 2,26% (< 3%). Prettier sạch (bỏ qua kiểu xuống dòng) trên các file đã đổi.
+
+**Còn mở:**
+- Chưa có frame Figma (D7): chi tiết yêu cầu (mốc thời gian, lịch hẹn và ca bị ảnh hưởng, trạng thái thư), khối kết quả "Đã lưu ngay / Đã gửi chờ duyệt", trạng thái thường của hộp thoại Duyệt, trạng thái "Quá hạn – chờ xử lý" (banner, thẻ, lời giải thích), hộp thoại Rút, Hủy, Dời hiệu lực, hai tab Đã rút, Đã hủy. Chữ ở các chỗ này `[đề xuất]`.
+- Banner quá hạn chỉ xét trang đầu (20 yêu cầu mới nhất) của tab Đã duyệt; API chưa có bộ lọc riêng cho yêu cầu quá hạn.
+- Biểu tượng ô tích ở tiêu đề hộp thoại Duyệt (546:2) chưa lấy được node; tạm bỏ biểu tượng.
+- Số trên tab "Chi nhánh" (Figma 542:2) chưa làm: cần đếm yêu cầu chờ duyệt trước khi mở tab.
+- Nút Duyệt dùng #008236 thay #00a63e của Figma để chữ trắng đạt tương phản 4,5:1 (ADR 0004).
+- Chưa chạy tay trên trình duyệt (X1).

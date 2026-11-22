@@ -166,6 +166,6 @@ export class BranchChangeRescheduleService {
         },
       });
     });
-    return this.details.get(scope, id);
+    return this.details.get(scope, id, actorId);
   }
 }

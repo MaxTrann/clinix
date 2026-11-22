@@ -80,7 +80,7 @@ export class BranchChangeStopService {
         changes: { nguoi_de_xuat_id: request.nguoiDeXuatId },
       });
     });
-    return this.details.get(scope, id);
+    return this.details.get(scope, id, actorId);
   }
 
   /**
@@ -151,6 +151,6 @@ export class BranchChangeStopService {
         },
       });
     });
-    return this.details.get(scope, id);
+    return this.details.get(scope, id, actorId);
   }
 }

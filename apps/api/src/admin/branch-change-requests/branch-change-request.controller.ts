@@ -46,17 +46,19 @@ export class BranchChangeRequestController {
   @Get()
   list(
     @AdminScopeCtx() scope: AdminScope,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() query: BranchChangeRequestListDto,
   ) {
-    return this.requests.list(scope, query);
+    return this.requests.list(scope, query, user.accountId);
   }
 
   @Get(':id')
   get(
     @AdminScopeCtx() scope: AdminScope,
+    @CurrentUser() user: AuthenticatedUser,
     @Param() params: BranchChangeRequestIdDto,
   ) {
-    return this.requests.get(scope, params.id);
+    return this.requests.get(scope, params.id, user.accountId);
   }
 
   @Post(':id/reject')

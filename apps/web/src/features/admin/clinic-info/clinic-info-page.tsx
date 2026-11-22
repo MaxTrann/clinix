@@ -17,7 +17,7 @@ import type {
 } from './clinic-info-types';
 import { useFocusFirstInvalid } from '../hooks/use-focus-first-invalid';
 import { useClinicInfo } from './use-clinic-info';
-import { BranchPage } from '../branches/branch-page';
+import { BranchesTab } from '../branches/branches-tab';
 import { useAdminScope } from '../use-admin-scope';
 import styles from './clinic-info.module.css';
 
@@ -457,7 +457,7 @@ export function ClinicInfoPage() {
           aria-labelledby="clinic-branches-tab"
           hidden={activeTab !== 'branches'}
         >
-          {branchesVisited && <BranchPage />}
+          {branchesVisited && <BranchesTab />}
         </div>
       </div>
     </section>

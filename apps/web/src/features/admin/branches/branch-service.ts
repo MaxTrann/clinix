@@ -5,6 +5,7 @@ import type {
   Branch,
   BranchListQuery,
   BranchServiceOption,
+  BranchUpdateResult,
   CreateBranchInput,
   PagedResult,
 } from './branch-types';
@@ -23,6 +24,18 @@ export function listBranches(
 
 export function createBranch(input: CreateBranchInput): Promise<Branch> {
   return request('/admin/branches', { method: 'POST', json: input });
+}
+
+// Admin F6b: sửa lịch / dịch vụ (B8). Gửi lại đủ form như khi thêm mới; máy chủ tự so sánh với dữ liệu đang có.
+// Một lần gửi, không tự thử lại (lệnh ghi).
+export function updateBranch(
+  chiNhanhId: string,
+  input: CreateBranchInput,
+): Promise<BranchUpdateResult> {
+  return request(`/admin/branches/${encodeURIComponent(chiNhanhId)}`, {
+    method: 'PATCH',
+    json: input,
+  });
 }
 
 export async function listAllAvailableServices(

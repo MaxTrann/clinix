@@ -1,0 +1,490 @@
+/* Khối yêu cầu thay đổi chi nhánh (admin F6b). Bố cục và màu theo Figma 542:2 (khối trên danh sách chi nhánh), 546:2 / 547:2 (hộp thoại);
+   phần chi tiết chưa có frame nên dùng cỡ chữ, viền và bo góc của thẻ chi nhánh (branches.module.css) [ĐỒNG BỘ TL D7]. */
+
+.panel {
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0 0 22.5px;
+  border: 1px solid #e5e7eb;
+  border-radius: 13.375px;
+  background: #fff;
+}
+
+.panelHeader {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 15px 18.75px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.panelHeader h2 {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7.5px;
+  margin: 0;
+  color: #0f172a;
+  font-size: 13.125px;
+  font-weight: 600;
+  line-height: 19px;
+}
+
+.panelHeader h2 img,
+.configWarning img,
+.detailLink img {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.pendingCount {
+  padding: 1.875px 5.625px;
+  border-radius: 999px;
+  background: #fe9a00;
+  color: #fff;
+  font-size: 9.375px;
+  font-weight: 600;
+  line-height: 15px;
+}
+
+.configWarning {
+  display: flex;
+  align-items: center;
+  gap: 3.75px;
+  margin: 0;
+  color: #bb4d00;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.tabs {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 0 18.75px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.tab,
+.activeTab {
+  flex: 0 0 auto;
+  padding: 8.375px 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #4a5565;
+  font: inherit;
+  font-size: 10px;
+  line-height: 15px;
+  cursor: pointer;
+}
+
+.activeTab {
+  border-bottom-color: #0092b8;
+  color: #0092b8;
+  font-weight: 500;
+}
+
+.tabCount {
+  margin-left: 4px;
+  color: #99a1af;
+}
+
+.tabPanel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 15px;
+}
+
+.empty,
+.actionMessage {
+  margin: 0;
+  font-size: 11.25px;
+  line-height: 16px;
+}
+
+.empty {
+  color: #6a7282;
+}
+
+.actionMessage {
+  color: #008236;
+}
+
+.requestCard {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid #e5e7eb;
+  border-radius: 11.25px;
+  background: #fff;
+}
+
+.requestCardPending {
+  border-color: #fee685;
+  background: #fffbeb;
+}
+
+/* Quá hạn chờ xử lý (Q48) [đề xuất], chưa có frame: viền và nền đỏ nhạt, cùng cỡ với thẻ chờ duyệt */
+.requestCardOverdue {
+  border-color: #ffc9c9;
+  background: #fff7f7;
+}
+
+.overdueNote {
+  margin: 10px 0 0;
+  color: #9f0712;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.overdueBanner {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 18.75px 0;
+  padding: 10px 12px;
+  border: 1px solid #ffc9c9;
+  border-radius: 9.375px;
+  background: #fef2f2;
+  color: #9f0712;
+  font-size: 11.25px;
+  line-height: 16px;
+}
+
+.overdueBanner button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #9f0712;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.requestRow {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.requestMain {
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.requestTitle {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7.5px;
+}
+
+.requestTitle h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 19px;
+  overflow-wrap: anywhere;
+}
+
+.badgePending,
+.badgeApproved,
+.badgeRejected,
+.badgeOverdue {
+  padding: 2.5px 8.3px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 9.375px;
+  line-height: 15px;
+  white-space: nowrap;
+}
+
+.badgePending {
+  border-color: #fee685;
+  background: #fef3c6;
+  color: #bb4d00;
+}
+
+.badgeApproved {
+  border-color: #b9f8cf;
+  background: #f0fdf4;
+  color: #008236;
+}
+
+.badgeRejected {
+  border-color: #ffc9c9;
+  background: #fef2f2;
+  color: #c10007;
+}
+
+.badgeOverdue {
+  border-color: #ffc9c9;
+  background: #fff7ed;
+  color: #ca3500;
+}
+
+.requestMeta {
+  margin: 3.75px 0 0;
+  color: #6a7282;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.requestMeta b {
+  color: #364153;
+}
+
+.requestActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7.5px;
+}
+
+.detailLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 3.75px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #6a7282;
+  font: inherit;
+  font-size: 10px;
+  line-height: 15px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.approveButton,
+.rejectButton {
+  padding: 5.625px 11.25px;
+  border: 1px solid transparent;
+  border-radius: 9.375px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Xanh lá đậm hơn #00a63e của Figma để chữ trắng đạt tương phản 4,5:1 (ADR 0004), như cách làm với nút cam */
+.approveButton {
+  background: #008236;
+  color: #fff;
+}
+
+.rejectButton {
+  border-color: #ffc9c9;
+  background: #fff;
+  color: #c10007;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 11.25px;
+}
+
+/* Chi tiết mở rộng */
+.detail {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #e5e7eb;
+  font-size: 11.25px;
+  line-height: 16px;
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.timeline div {
+  min-width: 0;
+}
+
+.timeline dt {
+  color: #6a7282;
+  font-size: 10px;
+}
+
+.timeline dd {
+  margin: 0;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.comparison {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.compareTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.compareTable caption,
+.impact h4,
+.mailStatus h4 {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 11.25px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.compareTable th,
+.compareTable td {
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+}
+
+.compareTable thead th {
+  background: #f9fafb;
+  color: #4a5565;
+  font-weight: 500;
+}
+
+.compareTable .proposed {
+  background: #ecfeff;
+  color: #005f78;
+}
+
+.serviceChanges p,
+.mailStatus p {
+  margin: 6px 0 0;
+}
+
+.note {
+  margin: 6px 0 0;
+  color: #6a7282;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.impact h5 {
+  margin: 8px 0 4px;
+  color: #364153;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.impactList {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.impactList li {
+  overflow-wrap: anywhere;
+}
+
+.mailFailed {
+  color: #c10007;
+}
+
+/* Hộp thoại (Figma 546:2, 547:2): khung, overlay, nút dùng lại admin-components.module.css */
+.actionDialog {
+  width: min(100%, 420px);
+}
+
+.dialogTitle {
+  display: flex;
+  align-items: center;
+  gap: 7.5px;
+}
+
+.dialogText {
+  margin: 11.25px 0 0;
+}
+
+.dialogField {
+  display: flex;
+  flex-direction: column;
+  gap: 5.625px;
+  margin: 15px 0 0;
+}
+
+.dialogField label {
+  color: #364153;
+  font-size: 11.25px;
+  font-weight: 500;
+}
+
+.dialogField label span {
+  color: #e7000b;
+}
+
+.dialogField input,
+.dialogField textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid #d1d5dc;
+  border-radius: 9.375px;
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.dialogField small {
+  color: #6a7282;
+  font-size: 10px;
+}
+
+.dialogError {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 15px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #ffc9c9;
+  border-radius: 9.375px;
+  background: #fef2f2;
+  color: #c10007;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.dialogError strong {
+  font-size: 11.25px;
+}
+
+.dialogButtons {
+  display: flex;
+  margin-top: 18.75px;
+}
+
+.dialogButtons .successAction {
+  border-color: #008236;
+  background: #008236;
+  color: #fff;
+}

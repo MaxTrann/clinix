@@ -89,11 +89,18 @@ describe('ClinicInfoPage (F4)', () => {
   });
 
   it('AF6a bật tab Chi nhánh và tải danh sách B7 khi được chọn', async () => {
-    fetchMock
-      .mockResolvedValueOnce(response(clinicInfo()))
-      .mockResolvedValueOnce(
-        response({ items: [], total: 0, page: 1, pageSize: 20 }),
-      );
+    // F6b: tab Chi nhánh gọi thêm khối yêu cầu thay đổi và cấu hình, nên trả theo URL thay vì theo thứ tự gọi
+    const emptyPage = { items: [], total: 0, page: 1, pageSize: 20 };
+    fetchMock.mockImplementation((input) => {
+      const url = String(input);
+      if (url.startsWith('/api/admin/clinic-info'))
+        return Promise.resolve(response(clinicInfo()));
+      if (url.startsWith('/api/admin/system-config'))
+        return Promise.resolve(
+          response({ chuaCauHinh: false, soNgayBaoTruocDoiGioLam: 3 }),
+        );
+      return Promise.resolve(response(emptyPage));
+    });
     render(
       <AdminMeProvider value={{ phamVi: 'ToanHeThong' }}>
         <ClinicInfoPage />
@@ -110,7 +117,7 @@ describe('ClinicInfoPage (F4)', () => {
       'aria-selected',
       'true',
     );
-    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+    expect(fetchMock.mock.calls.map((call) => String(call[0]))).toContain(
       '/api/admin/branches?page=1&pageSize=20',
     );
   });
