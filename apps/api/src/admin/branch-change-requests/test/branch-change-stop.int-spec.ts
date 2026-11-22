@@ -23,6 +23,8 @@ import type { ChiNhanh } from '../../entities/chi-nhanh.entity.js';
 import { SystemConfigRepository } from '../../system-config/system-config.repository.js';
 import { SystemConfigService } from '../../system-config/system-config.service.js';
 import { AdminFixtures } from '../../testing/admin-fixtures.js';
+import { BranchChangeApplyRepository } from '../apply/branch-change-apply.repository.js';
+import { BranchChangeApplyService } from '../apply/branch-change-apply.service.js';
 import { BranchChangeRequestListDto } from '../branch-change-request.dto.js';
 import { BranchChangeRequestRepository } from '../branch-change-request.repository.js';
 import { BranchChangeRequestService } from '../branch-change-request.service.js';
@@ -64,6 +66,7 @@ describe('B21 rút và hủy yêu cầu thay đổi chi nhánh — MySQL thật'
   let requests: BranchChangeRequestService;
   let stops: BranchChangeStopService;
   let branches: BranchService;
+  let applier: BranchChangeApplyService;
   let fx: AdminFixtures;
   let booking: BookingFixtures;
 
@@ -92,6 +95,12 @@ describe('B21 rút và hủy yêu cầu thay đổi chi nhánh — MySQL thật'
       new BranchRepository(db),
       new BranchAccessPolicy(),
       impact,
+    );
+    applier = new BranchChangeApplyService(
+      new BranchChangeApplyRepository(db),
+      new BranchRepository(db),
+      impact,
+      notifier,
     );
   });
   beforeEach(async () => {
@@ -490,6 +499,71 @@ describe('B21 rút và hủy yêu cầu thay đổi chi nhánh — MySQL thật'
   });
 
   describe('chạy đua (H11)', () => {
+    /** Duyệt rồi dọn hết lịch hẹn, khung giờ, ca: đến hiệu lực job sẽ ÁP DỤNG chứ không chỉ đánh dấu quá hạn. Đồng hồ chuyển tới hiệu lực. */
+    const approvedAndClean = async () => {
+      const w = await world();
+      const id = await w.approved();
+      await db.query('DELETE FROM yeu_cau_thay_doi_chi_nhanh_lich_hen');
+      await db.query('DELETE FROM lich_hen');
+      await db.query('DELETE FROM khung_gio');
+      await db.query('DELETE FROM lich_lam_viec');
+      const at = new Date(`${EFFECTIVE.replace(' ', 'T')}+07:00`);
+      vi.setSystemTime(at);
+      return { w, id, at };
+    };
+
+    it('CN-96 tuần tự, hủy trước ⇒ job sau đó KhongDenHan, lịch giữ nguyên (nhánh thứ nhất của ca chạy đua)', async () => {
+      const { w, id, at } = await approvedAndClean();
+      await stops.cancel(system, w.sysId, id, 'Hủy trước');
+      expect((await applier.applyOne(id, at)).kind).toBe('KhongDenHan');
+      expect(await mondayActive()).toBe('1');
+    });
+
+    it('CN-96 tuần tự, áp dụng trước ⇒ hủy sau đó 409, thay đổi đã áp dụng giữ nguyên (nhánh thứ hai của ca chạy đua)', async () => {
+      const { w, id, at } = await approvedAndClean();
+      expect((await applier.applyOne(id, at)).kind).toBe('DaApDung');
+      expect(
+        await codeOf(stops.cancel(system, w.sysId, id, 'Hủy sau')),
+      ).toEqual({ status: 409, maLoi: 'YEU_CAU_KHONG_THE_RUT_HUY' });
+      expect(await mondayActive()).toBe('0');
+    });
+
+    it('CN-96 hủy đồng thời với job áp dụng (đã sạch ảnh hưởng) ⇒ đúng một bên thắng: DaHuy và lịch giữ nguyên, hoặc đã áp dụng và hủy bị 409; không bao giờ DaHuy có ap_dung_luc', async () => {
+      const { w, id, at: atEffective } = await approvedAndClean();
+      const [cancel, apply] = await Promise.allSettled([
+        stops.cancel(system, w.sysId, id, 'Hủy đua'),
+        applier.applyOne(id, atEffective),
+      ]);
+      const row = (
+        (await db.query(
+          'SELECT trang_thai AS trangThai, ap_dung_luc AS apDungLuc FROM yeu_cau_thay_doi_chi_nhanh WHERE yeu_cau_thay_doi_chi_nhanh_id = ?',
+          [id],
+        )) as { trangThai: string; apDungLuc: Date | null }[]
+      )[0];
+      if (cancel.status === 'fulfilled') {
+        expect(row).toMatchObject({ trangThai: 'DaHuy', apDungLuc: null });
+        expect(apply).toMatchObject({
+          status: 'fulfilled',
+          value: { kind: 'KhongDenHan' },
+        });
+        expect(await mondayActive()).toBe('1');
+      } else {
+        expect((cancel.reason as AppException).maLoi).toBe(
+          'YEU_CAU_KHONG_THE_RUT_HUY',
+        );
+        expect(apply).toMatchObject({
+          status: 'fulfilled',
+          value: { kind: 'DaApDung' },
+        });
+        expect(row?.trangThai).toBe('DaDuyet');
+        expect(row?.apDungLuc).not.toBeNull();
+        expect(await mondayActive()).toBe('0');
+        expect(
+          (await auditRows()).filter((r) => r.action === 'HuyThayDoiChiNhanh'),
+        ).toEqual([]);
+      }
+    });
+
     it('YCB-30 rút đồng thời với duyệt ⇒ đúng một bên thắng, không trạng thái lai', async () => {
       const w = await world();
       const id = await w.propose();

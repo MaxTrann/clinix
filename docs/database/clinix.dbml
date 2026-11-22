@@ -13,6 +13,8 @@
 // không thêm bảng, enum hay CHECK nên các số bảng, enum, CHECK ở các dòng trên không đổi. Chuyển đổi từ DB cũ: mục "booking B19" ở cuối clinix_quy_tac_nghiep_vu.md.
 // 21/11/2026 (module payment và wallet, task D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa Note nào của Table (Note của năm bảng tiền giữ nguyên):
 // thêm một dòng chú thích quy tắc service ở đầu CỤM 5; quy tắc 54 đến 62 và mục "payment D1" ở clinix_quy_tac_nghiep_vu.md, ba khối TRUY VẤN MẪU cuối clinix_mysql.sql.
+// 22/11/2026 (module admin, task D6): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa Note nào của Table: Note của nguoi_duyet_id,
+// hieu_luc_tu, thong_bao.loai_su_kien đã lỗi thời và được thay bằng quy tắc 30 đến 34 cùng mục "admin D6" (bảy mã sự kiện) ở clinix_quy_tac_nghiep_vu.md.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17

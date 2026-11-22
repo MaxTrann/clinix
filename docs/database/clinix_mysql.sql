@@ -59,6 +59,9 @@
 -- 21/11/2026 (module payment và wallet, task D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE hay ALTER TABLE nào
 -- (COMMENT của năm bảng tiền đứng trong phần được schema-parity so với migration nên giữ nguyên). Thêm quy tắc service 54 đến 62 (ví, thanh toán, hoàn tiền) và mục
 -- "payment D1" ở clinix_quy_tac_nghiep_vu.md, chín dòng ở khối quy tắc service bên dưới và ba khối TRUY VẤN MẪU ở cuối file; các số bảng, enum, CHECK ở các dòng trên không đổi.
+-- 22/11/2026 (module admin, task D6): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE hay ALTER TABLE nào:
+-- dòng "Đã chốt" ở khối quy tắc service (tự duyệt, một yêu cầu mở mỗi chi nhánh, quá hạn, chặn đặt). COMMENT của nguoi_duyet_id, hieu_luc_tu, thong_bao.loai_su_kien
+-- đã lỗi thời và được thay bằng quy tắc 30 đến 34 cùng mục "admin D6" (bảy mã sự kiện) ở clinix_quy_tac_nghiep_vu.md; các số bảng, enum, CHECK ở các dòng trên không đổi.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -120,7 +123,7 @@
 --   * yeu_cau_thay_doi_chi_nhanh.noi_dung_truoc/sau: mỗi phần tử lich_hoat_dong là toàn bộ dòng của một thứ với đủ 6 khóa (khoảng không tồn tại ghi null); áp dụng tại hieu_luc_tu bằng cách thay cả dòng. Giờ mở/đóng tổng quát chỉ để hiển thị, suy ra từ các khoảng, không lưu và không chỉnh sửa riêng
 --   * Đổi lịch hoạt động hoặc dịch vụ khả dụng: phát hiện lịch hẹn ChoThanhToan/DaXacNhan bị ảnh hưởng TRƯỚC khi chấp nhận; có ảnh hưởng thì tạo yeu_cau_thay_doi_chi_nhanh (ChoDuyet), KHÔNG áp dụng dữ liệu đề xuất; chỉ Quản trị viên Toàn hệ thống duyệt; duyệt xong tạo thông báo + email cho bệnh nhân (lich_hen.benh_nhan_id) trước hieu_luc_tu; áp dụng vào bảng đang áp dụng khi đến hieu_luc_tu
 --   * Email lỗi chỉ đổi email_thong_bao sang ThatBai, không xóa thong_bao và không hoàn tác yêu cầu đã duyệt; gửi lại bằng UPDATE có điều kiện để không gửi trùng
---   * Chưa chốt (không nằm trong DB): Quản trị viên Toàn hệ thống tự duyệt đề xuất của mình, nhiều yêu cầu ChoDuyet cùng chi nhánh, cách xử lý lịch hẹn bị ảnh hưởng sau khi áp dụng, chặn đặt mới vào khung giờ sẽ bị ảnh hưởng trong thời gian chờ hiệu lực
+--   * Đã chốt 25/10/2026 (không nằm trong DB): Quản trị viên Toàn hệ thống được tự duyệt đề xuất của mình (Q4); mỗi chi nhánh một yêu cầu chưa hoàn tất (Q3, cột sinh dang_mo_chi_nhanh); còn lịch hẹn hay ca bị ảnh hưởng thì KHÔNG áp dụng mà đánh dấu quá hạn, chỉ dời hiệu lực hoặc hủy mới thoát (Q7, Q48); booking chặn đặt và đổi lịch vào vùng sẽ bị loại trong thời gian chờ (Q6). Chi tiết: quy tắc 30 đến 34 và mục "admin D6" ở clinix_quy_tac_nghiep_vu.md
 --   * Cấu hình hệ thống KHÔNG có dòng tạo sẵn; thiếu dòng id = 1 thì từ chối chức năng cần cấu hình (đặt lịch, giữ chỗ, đổi lịch, tiếp đón, nhắc lịch...), không dùng số cứng trong mã
 --   * Sửa cấu hình và ghi nhat_ky_hanh_dong (CapNhatCauHinh, có truoc/sau/ly_do) trong CÙNG 1 giao dịch; DB không tự ép mọi UPDATE cấu hình đều có nhật ký
 --   * Giới hạn số lịch hẹn đang hoạt động tính theo HỒ SƠ ĐI KHÁM (benh_nhan_id, ho_so_nguoi_than_id; NULL = bản thân, so sánh bằng <=>), không theo tài khoản; đếm và tạo lịch hẹn trong cùng giao dịch; tập trạng thái "đang hoạt động" [cần điền], xem truy vấn mẫu

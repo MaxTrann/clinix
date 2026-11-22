@@ -4627,3 +4627,30 @@ Lệnh đã chạy: `apps/web`: `npm run lint` 0 lỗi, 0 cảnh báo; `npm run 
 - Số trên tab "Chi nhánh" (Figma 542:2) chưa làm: cần đếm yêu cầu chờ duyệt trước khi mở tab.
 - Nút Duyệt dùng #008236 thay #00a63e của Figma để chữ trắng đạt tương phản 4,5:1 (ADR 0004).
 - Chưa chạy tay trên trình duyệt (X1).
+
+#### 9B.12 D6 cụm 9: đồng bộ `docs/database/*` cho yêu cầu thay đổi chi nhánh, và CN-96 (22/11/2026)
+
+Nhánh `docs/admin-d6-yeu-cau-chi-nhanh`, tạo từ `main` = `f73dff9` (đã có F6b). Tiêu đề PR `docs(db): đồng bộ quy tắc yêu cầu thay đổi chi nhánh, thêm test hủy đồng thời với job áp dụng (admin D6)`. PR cuối cụm 9 theo PHAN_CONG_CHUNG mục 5 (D6 gom một PR, chủ cụm làm, báo Đại trước). Không đổi schema, không migration.
+
+**Trung chốt (22/11/2026):** không sửa `CREATE TABLE` (PHAN_CONG_CHUNG mục 5). Ba chú thích cột đã lỗi thời (`nguoi_duyet_id`: tự duyệt `[cần điền]`; `hieu_luc_tu`: chưa ghi là thời điểm dự kiến; `thong_bao.loai_su_kien`: mới hai mã) được ghi rõ là lỗi thời và thay bằng quy tắc ở `clinix_quy_tac_nghiep_vu.md`.
+
+**Tài liệu (ba file khớp nhau):**
+- `clinix_quy_tac_nghiep_vu.md`: quy tắc 30 (bỏ `[cần điền]`: ca tương lai tính là ảnh hưởng, khung giờ trống chỉ liệt kê, booking chặn; Q6, Q7, Q48), 31 (áp dụng coi là quá hạn khi còn bác sĩ dùng dịch vụ sắp bỏ; áp dụng trọn một giao dịch; job không ghi nhật ký; dời giữ `so_ngay_bao_truoc`), 32 (bỏ `[cần điền]`: được tự duyệt, Q4; quyền rút, hủy, dời; ngoài phạm vi 404), 33 (dời báo lại cả bệnh nhân còn bị ảnh hưởng lẫn người đã được báo). Mục mới "admin D6": bảng bảy mã sự kiện `loai_su_kien` (người nhận, có thư hay không, phiên bản `:v{n}`), định nghĩa "bệnh nhân đã được báo", hai mốc thời gian, nhật ký hành động, chạy đua.
+- `clinix_mysql.sql`: dòng "Chưa chốt" ở khối quy tắc service thành "Đã chốt 25/10/2026" (Q3, Q4, Q6, Q7, Q48); một dòng lịch sử ở đầu file.
+- `clinix.dbml`: một dòng lịch sử ở đầu file.
+- Không sửa câu `CREATE TABLE`, `ALTER TABLE`, Note của Table. Test so sánh schema với migration vẫn xanh: `migration-source.spec.ts` 24, `audit-enum-parity.int-spec.ts` và `migrations.int-spec.ts` 20.
+
+**Test** (`apps/api/src/admin/branch-change-requests/test/branch-change-stop.int-spec.ts`, việc còn nợ của B21):
+
+| Mã | Nội dung | Loại |
+|---|---|---|
+| CN-96 | Hủy đồng thời với job áp dụng (đã dọn hết lịch hẹn, ca để job thật sự áp dụng; nếu còn ảnh hưởng thì job chỉ đánh dấu quá hạn và hủy vẫn hợp lệ, hai bên cùng thắng): đúng một bên thắng; không bao giờ `DaHuy` có `ap_dung_luc`; hủy thua thì không có dòng nhật ký hủy | I |
+| CN-96 (tuần tự) | Hủy trước ⇒ job `KhongDenHan`, lịch giữ nguyên; áp dụng trước ⇒ hủy 409 `YEU_CAU_KHONG_THE_RUT_HUY`, thay đổi giữ nguyên (để cả hai nhánh của ca chạy đua đều được kiểm, vì lượt chạy đua có thể luôn ra cùng một bên) | I |
+
+**Kết quả (22/11/2026):** **Pass** (ca chạy đua chạy 3 lần đều xanh). Thử đột biến: bỏ điều kiện "chưa áp dụng" ở cả service hủy lẫn câu `UPDATE` ⇒ ca "áp dụng trước" đỏ (đã khôi phục).
+
+Lệnh đã chạy (`apps/api`, MySQL 8.4, `TEST_DB_NAME=clinix_admin_d6_test`): `npm run lint` 0 lỗi; `npm run build` xanh; đơn vị `src/admin src/database` 71 file, 1098 test pass; tích hợp `src/admin/branch-change-requests src/admin/branches src/notification` cùng hai test so sánh schema: 12 file, 128 test pass.
+
+**Còn mở:**
+- Ba chú thích cột lỗi thời trong `CREATE TABLE` (nêu trên) chỉ sửa được khi nhóm đồng ý đụng `CREATE TABLE`.
+- D1 (đặc tả 2.4) và D7 (Figma) của cụm 9: Trung tự sửa ở repo `TLCN_CLINIX` và Figma (danh sách thiếu ở mục 9B.11).
