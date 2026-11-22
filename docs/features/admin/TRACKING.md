@@ -4197,3 +4197,76 @@ Lệnh đã chạy (MySQL 8.4 của `docker compose`):
 - Đối chiếu chữ thông báo từ chối với Figma 689:2 (F6b/X1).
 - Chi tiết không có phần "đã lưu ngay" (tên, địa chỉ, toạ độ): yêu cầu không lưu phần này (B8 trả trong phản hồi `PATCH`). F6b hiển thị theo phản hồi B8 (Q2).
 - B10 phải ghi bảng chụp lúc duyệt thì nhánh `BanChup` mới có dữ liệu thật; hiện test tự chèn bảng chụp.
+
+#### 9B.5 B13 (#516) Hồ sơ bác sĩ: sửa (22/11/2026)
+
+Nhánh `feat/admin-b13-sua-ho-so-bac-si`, tạo lại từ `origin/main` = `89d0319` (worktree cũ `clinix-b13` đã mất thư mục, gỡ theo yêu cầu của Trung; nhánh cũ trống, bằng `main`). Làm song song khi B9 (#520) chờ CI: mã chỉ trong `admin/doctors/`; mục này và nhật ký AI ghi SAU khi gộp `main` có B9 (#605), để không xung đột ở cuối file. Gộp `main` không có xung đột (kiểm trước bằng `git merge-tree`). Tiêu đề PR `feat(admin): sửa hồ sơ bác sĩ, chặn đổi chi nhánh và dịch vụ chính khi còn lịch (admin B13)`. DB test `clinix_admin_b13_test`. Không có migration, không đổi schema. Thẻ `[ĐỒNG BỘ TL]` D5: sửa 2.4 (file Word ở repo `TLCN_CLINIX`), Trung làm.
+
+**Nguồn:** PLAN 5.7, 5.9, 5.10; Q17, Q18, Q19, Q20, Q39, Q40; `appointments/locking/lock-order.ts` tầng 4.
+
+**Trung chốt (22/11/2026), trước khi viết mã:**
+
+1. Mã mới `DOI_DICH_VU_CHINH_BI_CHAN` (409, cùng hình dạng danh sách) khi chỉ đổi dịch vụ khám chính mà bị chặn (Q17); đổi cả chi nhánh lẫn dịch vụ thì `DOI_CHI_NHANH_BI_CHAN`. Đã thêm vào PLAN 5.9.
+2. Form không đổi gì ⇒ 400 `KHONG_CO_THAY_DOI` (như CN, CH), không ghi, không audit.
+3. Mô tả chuyên môn tối đa 5.000 ký tự sau trim `[đề xuất]`; bỏ trường = giữ nguyên, `null`/rỗng = xoá.
+
+**Mã** (`apps/api/src/admin/doctors/`):
+
+- `PATCH /admin/doctors/:id` (cả hai phạm vi). Thân là form đầy đủ: sáu trường hồ sơ bắt buộc gửi tường minh (BS-04, H8), mô tả tuỳ chọn; họ tên, email, trạng thái là trường lạ ⇒ 400. Trả hồ sơ đọc lại sau commit (giá khám theo phụ phí mới, BS-45).
+- `doctor-update.service.ts`, MỘT giao dịch `READ COMMITTED`, kiểm hết rồi mới ghi:
+  1. chức danh–học vị (hàm thuần, trước khi mở giao dịch);
+  2. khoá `bac_si FOR UPDATE`; không có hay ngoài phạm vi ⇒ 404 (Q40);
+  3. so form ⇒ 400 `KHONG_CO_THAY_DOI`;
+  4. đổi chi nhánh mà không phải Toàn hệ thống ⇒ 403 (A3; gửi đúng chi nhánh hiện tại không phải "đổi");
+  5. khoá `chi_nhanh` đích `FOR SHARE` (không có ⇒ 400 `CHI_NHANH_KHONG_HOP_LE`); chuyên khoa `FOR SHARE` chỉ khi đổi (Q19); liên kết chi nhánh–dịch vụ `FOR SHARE` khi đổi chi nhánh hay dịch vụ ⇒ `DICH_VU_KHONG_O_CHI_NHANH`;
+  6. đổi chi nhánh hay dịch vụ: lịch hẹn `ChoThanhToan`/`DaXacNhan`/`DaTiepDon` và ca `ngay >= todayVN()` ở chi nhánh HIỆN TẠI ⇒ 409 kèm `chiTiet {lichHen, ca}` cắt 50 dòng kèm tổng;
+  7. `UPDATE bac_si`; đổi chi nhánh thì audit `DoiChiNhanhBacSi` `{truoc, sau}` với `branchId` = chi nhánh mới.
+- Dùng lại của B15 (`staff-accounts/`, chỉ import, không sửa): `isCompatibleTitleDegree`, `isValidExperienceYears`, mã trường `STAFF_ACCOUNT_FIELD_CODES` và các lỗi `invalidBranch`, `invalidSpecialty`, `titleDegreeMismatch`, `serviceNotAtBranch`.
+- Tách `doctor-update.repository.ts` và `doctor-update.service.ts` khỏi phần đọc của B12 (test B12 không đổi). Danh sách chặn cắt 50 dòng bằng `capped` của B8 (B9 đã export). Lúc viết, B9 chưa merge nên tạm cắt tại chỗ bằng `IMPACT_LIST_LIMIT`; sau khi gộp `main` (có B9) đã đổi sang `capped`, bỏ đoạn trùng.
+
+**Thứ tự khoá và chạy đua:**
+
+- `bac_si FOR UPDATE` là tầng 4 của thứ tự khoá chung (`lock-order.ts` đã ghi "admin đổi chi nhánh bác sĩ xin FOR UPDATE"). Booking giữ `bac_si FOR SHARE` khi chèn lịch hẹn; phân công ca và nghỉ phép xin `FOR UPDATE`; nên lịch hay ca mới không lọt giữa lúc kiểm và lúc ghi (BS-36).
+- **Lường trước deadlock với B8:** B8 giữ `chi_nhanh FOR UPDATE` rồi khoá liên kết chi nhánh–dịch vụ. Nếu B13 khoá liên kết trước, `UPDATE bac_si` xin khoá S trên `chi_nhanh` (khoá ngoại), hai bên chờ nhau. B13 khoá `chi_nhanh` đích TRƯỚC liên kết, cùng chiều với B8. Thêm lớp an toàn: làm lại cả giao dịch tối đa 3 lần khi gặp 1213 (như B8). HSS-02 chạy song song 5 vòng: không lần nào lọt lỗi, bác sĩ luôn ở cặp chi nhánh–dịch vụ có thật.
+- Không khoá `tai_khoan`: B13 không sửa bảng này.
+
+| Mã | Nội dung | Kết quả |
+|---|---|---|
+| BS-02, BS-45 | Sửa chuyên khoa, dịch vụ, chức danh, học vị, kinh nghiệm, mô tả ⇒ lưu hết; giá khám theo phụ phí mới; `gia_snapshot` lịch đã đặt không đổi; không audit | Pass (I) |
+| BS-03 | Mô tả: bỏ trường giữ nguyên, `null`/rỗng/khoảng trắng xoá, trim; 5.000 qua, 5.001 bị từ chối | Pass (U, I) |
+| BS-04 | Thiếu hay `null` từng trường bắt buộc ⇒ 400 đúng mã trường | Pass (U, E) |
+| BS-05 | Kinh nghiệm 0 và 60 qua; âm, 1,5, chuỗi, 61 ⇒ 400 | Pass (U) |
+| BS-06 | Ma trận 35 tổ hợp: đúng 7 cặp; lệch ⇒ 400 trước khi mở giao dịch | Pass (U, E) |
+| BS-07 | Dịch vụ không có ở chi nhánh ⇒ `DICH_VU_KHONG_O_CHI_NHANH`, không lưu | Pass (I) |
+| BS-08, BS-20, BS-31 | Đổi sang chi nhánh có dịch vụ ⇒ lưu + audit đúng `truoc/sau`; ca cũ giữ chi nhánh cũ; chi nhánh không có dịch vụ ⇒ từ chối | Pass (I) |
+| BS-09 | Chuyên khoa, chi nhánh, dịch vụ không tồn tại ⇒ 400, không lưu | Pass (I) |
+| BS-10 | Đổi sang chuyên khoa ngừng ⇒ từ chối; giữ chuyên khoa đã ngừng khi sửa trường khác ⇒ được | Pass (I) |
+| BS-21, BS-22, BS-23 | Còn lịch `ChoThanhToan`/`DaXacNhan`/`DaTiepDon` ⇒ `DOI_CHI_NHANH_BI_CHAN` kèm danh sách; mô tả gửi kèm không lưu; không audit | Pass (I) |
+| BS-24, BS-28 | Chỉ còn lịch `HoanThanh`/`DaHuy`/`VangMat`/`DaDoiLich` ở ca hôm qua ⇒ không chặn | Pass (I) |
+| BS-25, BS-29 | Lịch của bác sĩ khác; lịch và ca tương lai ở chi nhánh khác ⇒ không chặn | Pass (I) |
+| BS-26, BS-27, BS-30 | Ca hôm nay (đã qua giờ), ca ngày mai ⇒ chặn; vừa lịch vừa ca ⇒ liệt kê cả hai | Pass (I) |
+| BS-32 | Chi nhánh đổi `chiNhanhId` ⇒ 403, không lưu gì | Pass (I, E) |
+| BS-33, BS-40 | Bác sĩ chi nhánh khác; id Lễ tân, Quản trị viên, Bệnh nhân, không tồn tại ⇒ 404 | Pass (I, E) |
+| BS-34, BS-35 | Chi nhánh sửa bác sĩ của mình, gửi đúng chi nhánh hiện tại ⇒ được, không audit | Pass (I, E) |
+| BS-36 | Booking giữ `bac_si FOR SHARE` và chèn lịch hẹn: B13 chờ, rồi thấy lịch mới ⇒ 409 | Pass (I) |
+| BS-37 | 23:59 ngày 01/11 ca 01/11 còn chặn; 00:01 ngày 02/11 (17:01 UTC hôm trước) thì không | Pass (I) |
+| BS-38 | Audit lỗi khi đổi chi nhánh ⇒ hoàn tác cả hồ sơ | Pass (I) |
+| BS-39 | Bác sĩ `NgungHoatDong`, `ChoKichHoat` vẫn sửa được | Pass (I) |
+| BS-44 | Đổi dịch vụ chính (cùng thời lượng) khi còn lịch/ca ⇒ `DOI_DICH_VU_CHINH_BI_CHAN`; đổi cả hai ⇒ `DOI_CHI_NHANH_BI_CHAN` | Pass (I) |
+| HSS-01 `[đề xuất mã]` | DTO: id không phải chuỗi số dương; họ tên, email, trạng thái là trường lạ ⇒ 400 | Pass (U) |
+| HSS-02 `[đề xuất mã]` | Đồng thời với B8 bỏ dịch vụ khỏi chi nhánh đích, 5 vòng: chỉ `OK|DICH_VU_CON_BAC_SI` hoặc `DICH_VU_KHONG_O_CHI_NHANH|OK`, không lọt deadlock, dữ liệu nhất quán | Pass (I) |
+| HSS-03 `[đề xuất mã]` | Form không đổi ⇒ 400 `KHONG_CO_THAY_DOI` | Pass (I, E) |
+| HSS-04 `[đề xuất mã]` | e2e: 401; Bệnh nhân, Bác sĩ (kể cả tự sửa mình), Lễ tân 403; Chi nhánh 200/404/403; dữ liệu sai 400 | Pass (E) |
+| BS-41, BS-42 | Màn hình (FE) | Thuộc F7 |
+
+Lệnh đã chạy (MySQL 8.4 của `docker compose`):
+- `npm run lint` 0 lỗi, 0 cảnh báo; `npm run build` xanh; Prettier sạch.
+- Đơn vị `src/admin src/rbac src/audit src/pricing src/app`: 168 file, 3672 test pass.
+- Tích hợp (`TEST_DB_NAME=clinix_admin_b13_test`) `src/admin/doctors src/admin/branches src/admin/staff-accounts`: 6 file, 85 test pass. Lần đầu 3 test đỏ, đều do dữ liệu test (lịch `HoanThanh` dựng ở ngày tương lai kéo theo ca chặn đúng Q18; `ChoKichHoat` phải xoá mật khẩu băm theo `chk_tai_khoan_mat_khau`; một ca cho mỗi (bác sĩ, ngày, ca)), đã sửa test, không sửa mã.
+- e2e `test/admin-doctors-update.e2e-spec.ts test/admin-doctors.e2e-spec.ts`: 2 file, 6 test pass.
+- `jscpd` (bỏ `*.spec.ts`) `apps/api/src`: 1,67%.
+- `tsc --noEmit` toàn dự án: 1 lỗi có sẵn ở `src/payment/architecture.spec.ts:290` (nhánh tạo từ `main`, không sửa file đó); `nest build` vẫn xanh.
+
+**Còn mở:**
+- `[ĐỒNG BỘ TL]` D5: sửa đặc tả 2.4 (BS: chặn đổi dịch vụ chính Q17, "ca hôm nay" Q18, học vị/kinh nghiệm Q20); Trung làm ở repo `TLCN_CLINIX`.
+- F7 hiển thị danh sách chặn theo `chiTiet {lichHen, ca}` và hai mã 409.
