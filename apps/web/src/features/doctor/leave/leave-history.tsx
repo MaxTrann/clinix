@@ -8,7 +8,7 @@ import {
   type LeaveRequest,
   type LeaveStatus,
 } from '../api/leave-api';
-import { STATUS_STYLES } from '../schedule/status-styles';
+import { StatusBadge } from '../components/status-badge';
 import { LeaveDetailDialog } from './leave-detail-dialog';
 import {
   formatLeaveDaysShort,
@@ -122,11 +122,7 @@ export function LeaveHistory({
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
-                    <span
-                      className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[request.trangThai].chip}`}
-                    >
-                      {LEAVE_STATUS_LABELS[request.trangThai]}
-                    </span>
+                    <StatusBadge status={request.trangThai} />
                     <ChevronRight
                       aria-hidden="true"
                       className="size-4 text-gray-400"

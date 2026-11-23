@@ -22,7 +22,7 @@ function Stat({
   );
 }
 
-// Khối thống kê + chú giải (Figma `466:2`). Màu số: xanh thương hiệu, đỏ, cam như Figma, bậc đậm để đủ tương phản.
+// Khối thống kê + chú giải (Figma `466:2`). Màu số: xanh thương hiệu, trung tính (slate, như ô "Nghỉ đã duyệt": doctor UX3, G16, không còn đỏ), cam; bậc đậm để đủ tương phản.
 export function ScheduleSummary({ counts }: { counts: WeekCounts }) {
   return (
     <section
@@ -38,7 +38,7 @@ export function ScheduleSummary({ counts }: { counts: WeekCounts }) {
         <Stat
           value={counts.approvedLeave}
           label="Nghỉ đã duyệt"
-          tone="text-danger-strong"
+          tone="text-slate-800"
         />
         <Stat
           value={counts.pendingLeave}
