@@ -8,8 +8,9 @@ import type { DoctorShift } from '../api/schedule-api';
 // là `null` ("mồ côi") bị bỏ qua và không làm lệch. Lệch giờ, hoặc không ca nào có giờ, thì trả `null`: nhãn chỉ ghi chữ ca và mọi ô ghi giờ riêng.
 // Giờ ca lấy từ lịch hoạt động của chi nhánh THEO THỨ nên các ngày trong một hàng có thể khác giờ; không bao giờ được ghi một giờ sai ở nhãn.
 // So sánh chuỗi ĐÃ định dạng nên so cả hai đầu của khoảng giờ.
+// Doctor UX9: lưới tuần của Lễ tân và Admin dùng chung hàm này (từng bác sĩ một); chỉ đọc `ca`, `batDau`, `ketThuc` nên kiểu tham số hẹp, nhận được cả ca kiểu Lễ tân.
 export function sharedRowHours(
-  shifts: readonly DoctorShift[],
+  shifts: readonly Pick<DoctorShift, 'ca' | 'batDau' | 'ketThuc'>[],
   ca: ShiftCode,
 ): string | null {
   let shared: string | null = null;
