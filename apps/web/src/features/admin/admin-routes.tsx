@@ -77,4 +77,20 @@ export const ADMIN_ROUTES: RouteObject[] = [
       },
     ],
   },
+  // admin F8: Nhân sự (tab của "Nhân sự & Tài khoản"), cả hai phạm vi (Admin Chi nhánh chỉ thấy Bác sĩ và Lễ tân của chi nhánh mình, không thấy Quản trị viên: Q27; API vẫn kiểm lại)
+  {
+    element: <AdminScopeGuard policy="Any" />,
+    children: [
+      {
+        path: 'nhan-su',
+        hydrateFallbackElement: (
+          <LoadingState message="Đang tải danh sách nhân sự…" />
+        ),
+        lazy: () =>
+          import('./staff-accounts/staff-accounts-page').then((module) => ({
+            Component: module.StaffAccountsPage,
+          })),
+      },
+    ],
+  },
 ];

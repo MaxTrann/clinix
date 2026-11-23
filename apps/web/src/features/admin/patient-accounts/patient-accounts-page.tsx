@@ -4,6 +4,7 @@ import { useRemote } from '../../../shared/hooks/use-remote';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { AccountLoadError } from '../account-common/account-load-error';
 import { AccountLockDialog } from '../account-common/account-lock-dialog';
+import { AccountTabs } from '../account-common/account-tabs';
 import {
   formatNoShowLock,
   formatStatus,
@@ -236,6 +237,8 @@ export function PatientAccountsPage() {
             : 'Xem tài khoản của bệnh nhân.'}
         </p>
       </header>
+
+      <AccountTabs current="patients" />
 
       {!isSystem && (
         <div
