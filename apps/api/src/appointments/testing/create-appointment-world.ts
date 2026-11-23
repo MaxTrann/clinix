@@ -16,6 +16,7 @@ import { CreateAppointmentService } from '../create/create-appointment.service.j
 import { RefundPolicyReader } from '../create/refund-policy.js';
 import { withBookingTransaction } from '../locking/booking-transaction.js';
 import type { DoctorLeavePort } from '../ports/doctor-leave.port.js';
+import type { PendingBranchChangesPort } from '../ports/pending-branch-changes.port.js';
 import type { PaymentPort } from '../ports/payment.port.js';
 import { BookabilityReader } from '../slots/bookability.reader.js';
 import { SlotHoldService } from '../slots/slot-hold.service.js';
@@ -257,6 +258,8 @@ export interface CreateWorldOptions {
   leave?: DoctorLeavePort;
   /** payment B2: cổng ghi giao dịch 0đ THẬT (`PaymentRecorder`) đưa vào `CreateAppointmentService` thay cho `w.payment`; vắng thì dùng bản `Fake` như cũ */
   payment?: PaymentPort;
+  /** B16b: cổng thay đổi chi nhánh THẬT (`PendingBranchChangesAdapter`) đưa vào `BookabilityReader` thay cho `w.pending`; vắng thì dùng bản `Fake` như cũ */
+  pending?: PendingBranchChangesPort;
 }
 
 /** Thế giới đặt được của `BookingFixtures.world()` cộng `CreateAppointmentService` thật, `BookingChecksService` thật và các cổng `Fake`. */
@@ -275,7 +278,7 @@ export async function createAppointmentWorld(
   const reader = new BookabilityReader(
     new BranchHoursReader(),
     options.leave ?? leave,
-    pending,
+    options.pending ?? pending,
   );
   const summaries = new BookingSummaryReader(
     new ExamPriceReader(db),

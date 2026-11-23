@@ -277,13 +277,14 @@ describe('BPO-04 Fake nghỉ phép và thay đổi chi nhánh', () => {
     await expect(ask({ ca: 'CaChieu' })).resolves.toBeNull();
   });
 
-  it('FakePendingBranchChangesPort: chặn có điều kiện theo chiNhanhId, dichVuKhamId, ngayGio (so theo mili giây); không chặn thì null', async () => {
+  it('FakePendingBranchChangesPort: chặn có điều kiện theo chiNhanhId, dichVuKhamId, ngayGio (so theo mili giây), ca (B16b); không chặn thì null', async () => {
     const port = new FakePendingBranchChangesPort();
     const slot = {
       chiNhanhId: '2',
       ngayGio: new Date('2026-12-01T01:00:00.000Z'),
       thoiLuongPhut: 30,
       dichVuKhamId: '8',
+      ca: 'CaSang' as const,
     };
     await expect(port.findBlocking(em(), slot)).resolves.toBeNull();
 
@@ -301,6 +302,14 @@ describe('BPO-04 Fake nghỉ phép và thay đổi chi nhánh', () => {
       }),
     ).resolves.toBeNull();
     expect(port.findBlockingCall.count).toBe(4);
+
+    // B16b: khớp theo `ca` (chỉ CaChieu bị chặn, CaSang thì không)
+    port.blocks({ ca: 'CaChieu' }, '78');
+    await expect(port.findBlocking(em(), slot)).resolves.toBeNull();
+    await expect(
+      port.findBlocking(em(), { ...slot, ca: 'CaChieu' }),
+    ).resolves.toEqual({ yeuCauThayDoiChiNhanhId: '78' });
+    expect(port.findBlockingCall.count).toBe(6);
 
     port.allows();
     await expect(port.findBlocking(em(), slot)).resolves.toBeNull();

@@ -164,6 +164,7 @@ const CASES: NoopCase[] = [
             ngayGio: new Date('2026-12-01T01:00:00.000Z'),
             thoiLuongPhut: 30,
             dichVuKhamId: tag,
+            ca: 'CaSang',
           }),
       };
     },

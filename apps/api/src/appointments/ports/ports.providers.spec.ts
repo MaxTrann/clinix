@@ -2,6 +2,7 @@ import type { Provider } from '@nestjs/common';
 import { MODULE_METADATA } from '@nestjs/common/constants.js';
 import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
+import { PendingBranchChangesModule } from '../../admin/branch-change-requests/pending-branch-changes.module.js';
 import { PaymentPortsModule } from '../../payment/ports/payment-ports.module.js';
 import { PaymentRecorder } from '../../payment/ports/payment-recorder.js';
 import { PaymentSummaryReader } from '../../payment/ports/payment-summary.reader.js';
@@ -20,6 +21,7 @@ import {
   PAYMENT_PORT,
   PAYMENT_SUMMARY_PORT,
 } from './payment.port.js';
+import { PendingBranchChangesAdapter } from './pending-branch-changes.adapter.js';
 import {
   NoopPendingBranchChangesPort,
   PENDING_BRANCH_CHANGES_PORT,
@@ -52,8 +54,8 @@ const EXPECTED = [
 
 // B15 (TRACKING 3.37 B15-J): trong `AppointmentsModule` cổng thông báo là BẢN THẬT (`BookingNotifier`). B16a (TRACKING 3.39 B16a-C): cổng nghỉ phép cũng là BẢN THẬT (`LeaveReader` của `SchedulingModule`, `useExisting`).
 // B7 (TRACKING 3.47; payment B7 = B17a lần 1, HDT-06): ba cổng thanh toán và ví cũng là BẢN THẬT, `useExisting` lớp của hai module lá (`PaymentRecorder`, `PaymentSummaryReader` của `PaymentPortsModule`;
-// `WalletBalanceReader` của `WalletModule`). B9 (TRACKING 3.48; payment B9 = B17a lần 2, HDT-08): `REFUND_PORT` cũng là BẢN THẬT, `useExisting: RefundService` của `WalletModule` (BPO-08). Chỉ còn hai bản `Noop`:
-// `WAITLIST_PORT`, `PENDING_BRANCH_CHANGES_PORT`. Mảng `BOOKING_PORT_PROVIDERS` và lớp `Noop` giữ nguyên (test dựng riêng dùng chúng).
+// `WalletBalanceReader` của `WalletModule`). B9 (TRACKING 3.48; payment B9 = B17a lần 2, HDT-08): `REFUND_PORT` cũng là BẢN THẬT, `useExisting: RefundService` của `WalletModule` (BPO-08). B16b (TRACKING 3.50):
+// `PENDING_BRANCH_CHANGES_PORT` là BẢN THẬT, `useClass: PendingBranchChangesAdapter` (adapter, không `useExisting`; BPO-08, BPO-07). Chỉ còn MỘT bản `Noop`: `WAITLIST_PORT`. Mảng `BOOKING_PORT_PROVIDERS` và lớp `Noop` giữ nguyên (test dựng riêng dùng chúng).
 const REAL_IN_MODULE = new Map<symbol, new (...args: never[]) => unknown>([
   [APPOINTMENT_NOTIFIER, BookingNotifier],
   [DOCTOR_LEAVE_PORT, LeaveReader],
@@ -61,6 +63,7 @@ const REAL_IN_MODULE = new Map<symbol, new (...args: never[]) => unknown>([
   [PAYMENT_SUMMARY_PORT, PaymentSummaryReader],
   [WALLET_BALANCE_PORT, WalletBalanceReader],
   [REFUND_PORT, RefundService],
+  [PENDING_BRANCH_CHANGES_PORT, PendingBranchChangesAdapter],
 ]);
 const EXPECTED_IN_MODULE = EXPECTED.map(([token, noop]) => {
   const real = REAL_IN_MODULE.get(token);
@@ -86,7 +89,7 @@ const B7_PORTS = [
   ],
 ] as const;
 
-// Cổng nào của module cũng thay được bằng `overrideProvider(token).useValue(fake)` (test dựng riêng): sáu cổng thật ở trên.
+// Cổng nào của module cũng thay được bằng `overrideProvider(token).useValue(fake)` (test dựng riêng): bảy cổng thật ở trên.
 const OVERRIDABLE = [
   ['APPOINTMENT_NOTIFIER', APPOINTMENT_NOTIFIER],
   ['DOCTOR_LEAVE_PORT', DOCTOR_LEAVE_PORT],
@@ -94,6 +97,7 @@ const OVERRIDABLE = [
   ['PAYMENT_SUMMARY_PORT', PAYMENT_SUMMARY_PORT],
   ['WALLET_BALANCE_PORT', WALLET_BALANCE_PORT],
   ['REFUND_PORT', REFUND_PORT],
+  ['PENDING_BRANCH_CHANGES_PORT', PENDING_BRANCH_CHANGES_PORT],
 ] as const;
 
 // AppointmentsModule có service đọc DB (task B1) nên đòi `DataSource`; app thật có sẵn toàn cục từ DatabaseModule, còn test dựng riêng module cấp một DataSource GIẢ
@@ -123,7 +127,7 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
     ).toEqual(EXPECTED.map(([token, noop]) => [token, noop]));
   });
 
-  it('AppointmentsModule cấp đủ tám token: hai bản Noop (danh sách chờ, đổi chi nhánh) và sáu bản THẬT (BookingNotifier, LeaveReader, PaymentRecorder, PaymentSummaryReader, WalletBalanceReader, RefundService), không cần DB', async () => {
+  it('AppointmentsModule cấp đủ tám token: MỘT bản Noop (danh sách chờ) và bảy bản THẬT (BookingNotifier, LeaveReader, PaymentRecorder, PaymentSummaryReader, WalletBalanceReader, RefundService, PendingBranchChangesAdapter), không cần DB', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppointmentsModule],
     })
@@ -158,7 +162,7 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
   );
 
   it.each(OVERRIDABLE)(
-    'overrideProvider(%s).useValue(fake) thay đúng MỘT cổng; bảy cổng còn lại giữ bản của module',
+    'overrideProvider(%s).useValue(fake) thay đúng MỘT cổng; sáu cổng còn lại giữ bản của module',
     async (_name, overridden) => {
       const fake = { fake: true };
       const moduleRef = await Test.createTestingModule({
@@ -192,7 +196,7 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
 });
 
 describe('BPO-08 REFUND_PORT là RefundService của WalletModule (payment B9, HDT-08, M16)', () => {
-  it('toBe đúng thể hiện RefundService (useExisting, không phải bản sao), không phải NoopRefundPort; hai cổng chưa thật (danh sách chờ, đổi chi nhánh) vẫn là Noop', async () => {
+  it('toBe đúng thể hiện RefundService (useExisting, không phải bản sao), không phải NoopRefundPort; cổng chưa thật (danh sách chờ) vẫn là Noop, cổng đổi chi nhánh là adapter THẬT (B16b)', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppointmentsModule],
     })
@@ -205,9 +209,11 @@ describe('BPO-08 REFUND_PORT là RefundService của WalletModule (payment B9, H
     expect(moduleRef.get(WAITLIST_PORT, { strict: false })).toBeInstanceOf(
       NoopWaitlistPort,
     );
-    expect(
-      moduleRef.get(PENDING_BRANCH_CHANGES_PORT, { strict: false }),
-    ).toBeInstanceOf(NoopPendingBranchChangesPort);
+    const pending = moduleRef.get(PENDING_BRANCH_CHANGES_PORT, {
+      strict: false,
+    });
+    expect(pending).toBeInstanceOf(PendingBranchChangesAdapter);
+    expect(pending).not.toBeInstanceOf(NoopPendingBranchChangesPort);
     await moduleRef.close();
   });
 });
@@ -230,7 +236,7 @@ describe('BPO-06 mỗi cổng có ĐÚNG MỘT provider trong module (không d�
   });
 });
 
-describe('BPO-07 cạnh AppointmentsModule → PaymentPortsModule, WalletModule (HDT-11, M16)', () => {
+describe('BPO-07 cạnh AppointmentsModule → PaymentPortsModule, WalletModule, PendingBranchChangesModule (HDT-11, M16)', () => {
   it('imports gồm hai module lá và không gồm PaymentModule; hai module lá không nhập ngược AppointmentsModule', () => {
     const own = metadataOf(MODULE_METADATA.IMPORTS, AppointmentsModule);
     expect(own).toContain(PaymentPortsModule);
@@ -242,5 +248,17 @@ describe('BPO-07 cạnh AppointmentsModule → PaymentPortsModule, WalletModule 
       expect(metadataOf(MODULE_METADATA.IMPORTS, leaf)).not.toContain(
         AppointmentsModule,
       );
+  });
+
+  it('B16b: imports có PendingBranchChangesModule của admin; module lá đó KHÔNG nhập gì (nên không thể nhập ngược AppointmentsModule) và xuất cả lớp reader', () => {
+    expect(metadataOf(MODULE_METADATA.IMPORTS, AppointmentsModule)).toContain(
+      PendingBranchChangesModule,
+    );
+    expect(
+      metadataOf(MODULE_METADATA.IMPORTS, PendingBranchChangesModule),
+    ).toEqual([]);
+    expect(
+      metadataOf(MODULE_METADATA.EXPORTS, PendingBranchChangesModule),
+    ).toHaveLength(1);
   });
 });

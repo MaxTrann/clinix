@@ -5,7 +5,7 @@ import { BranchHoursReader } from '../../scheduling/branch-hours/branch-hours.re
 import { AppointmentsModule } from '../appointments.module.js';
 import { BOOKING_ERROR_CODES } from '../appointments.constants.js';
 import { findLockOrderViolation } from '../locking/lock-order.js';
-import { BookingFixtures } from '../testing/booking-fixtures.js';
+import { BOOKABLE_DAY, BookingFixtures } from '../testing/booking-fixtures.js';
 import { holdRowLock } from '../testing/concurrency-harness.js';
 import {
   firstTableOf,
@@ -513,6 +513,27 @@ describe('BKR-06 cổng nghỉ phép và đổi chi nhánh (H5, H6, 5.10)', () =
       ngayGio: new Date('2026-11-10T08:30:00+07:00'),
       thoiLuongPhut: 30,
       dichVuKhamId: w.doctor.profile.dichVuKhamId,
+      // B16b (PBC-08): thêm `ca` của khung giờ (`located.ca`), cùng giá trị đã truyền cho cổng nghỉ phép
+      ca: 'CaSang',
+    });
+  });
+
+  it('PBC-08 (B16b) khung giờ ca CHIỀU: cổng đổi chi nhánh nhận `ca: CaChieu` và ngayGio đúng giờ chiều (không mượn ca sáng)', async () => {
+    const w = await world();
+    const afternoon = await fx.doctor.shiftWithSlots(w.doctor.profile, {
+      ngay: BOOKABLE_DAY,
+      ca: 'CaChieu',
+    });
+
+    await w.read('none', w.input(0, { khungGioId: afternoon.slotIds[0]! }));
+
+    const [pendingCall] = w.pending.findBlockingCall.calls;
+    expect(pendingCall?.[1]).toEqual({
+      chiNhanhId: w.doctor.profile.chiNhanhId,
+      ngayGio: new Date('2026-11-10T13:00:00+07:00'),
+      thoiLuongPhut: 30,
+      dichVuKhamId: w.doctor.profile.dichVuKhamId,
+      ca: 'CaChieu',
     });
   });
 
