@@ -29,6 +29,12 @@ export interface PaymentView {
 export interface PaymentSummaryPort {
   /** Tiền cọc đã thu `ThanhCong` của lịch gốc (chuỗi đổi lịch), chuỗi decimal. */
   amountPaid(em: EntityManager, lichHenId: string): Promise<string>;
+  /**
+   * Số còn HOÀN ĐƯỢC về ví (payment B9, Q15; TRACKING booking 3.48), chuỗi decimal ≥ 0: tổng cọc `ThanhCong` đã trả bằng VÍ của lịch gốc trừ tổng mọi lần hoàn `ThanhCong` (tự động và đặc biệt).
+   * Khác `amountPaid` ở chỗ không tính tiền mặt (tiền mặt không hoàn về ví) và trừ phần đã hoàn. `cancel` tính số hoàn trên số này, nên con số trả cho Bệnh nhân khớp với số thật sự về ví.
+   * Cùng `em` và ảnh chụp với hàng `lich_hen` như `amountPaid`; chỉ đọc, không khoá.
+   */
+  amountRefundable(em: EntityManager, lichHenId: string): Promise<string>;
   /** Số còn phải thu, chuỗi decimal ≥ 0. */
   remainingToCollect(em: EntityManager, lichHenId: string): Promise<string>;
   /** Chỉ ĐỌC, trong giao dịch của người gọi (cùng ảnh chụp với hàng `lich_hen`); `null` khi chưa có module `payment` (L17). */
@@ -57,6 +63,12 @@ export class NoopPaymentSummaryPort
     'PaymentSummaryPort đang dùng bản Noop (module payment chưa có): coi như chưa thu đồng nào.';
 
   amountPaid(): Promise<string> {
+    this.warnOnce();
+    return Promise.resolve('0.00');
+  }
+
+  /** Chưa có `payment` ⇒ chưa thu đồng nào nên không có gì để hoàn: `"0.00"`. Không đọc DB. */
+  amountRefundable(): Promise<string> {
     this.warnOnce();
     return Promise.resolve('0.00');
   }

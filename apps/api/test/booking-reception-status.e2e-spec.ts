@@ -148,7 +148,7 @@ describe('POST …/status — thành công và hình dạng kết quả', () => 
       strict: false,
     });
     const refunds = h.app.get<RefundPort>(REFUND_PORT, { strict: false });
-    vi.spyOn(payments, 'amountPaid').mockResolvedValue(DEPOSIT);
+    vi.spyOn(payments, 'amountRefundable').mockResolvedValue(DEPOSIT);
     const refund = vi
       .spyOn(refunds, 'refund')
       .mockResolvedValue({ kind: 'Refunded' });

@@ -28,10 +28,12 @@ import {
 } from './../src/auth/testing/refresh-http-helpers.js';
 import { expectErrorResponse } from './../src/common/testing/error-assertions.js';
 import { resetTables } from './../src/database/testing/test-database.js';
+import { WalletFixtures } from './../src/wallet/testing/wallet-fixtures.js';
+import { assertWalletInvariants } from './../src/wallet/testing/wallet-invariants.js';
 
 // Task B10 — POST /patient/appointments/:maLichHen/cancel và GET …/cancel-preview qua HTTP THẬT: AppModule + MySQL thật + configureApp như main.ts (PLAN booking 5.6, 5.9, 7.3, 7.9, 7.29; TRACKING 3.23 B10-G, B10-I).
 // Phần dịch vụ và SQL: src/appointments/cancel/appointment-cancellation.service.int-spec.ts. Mã HL-nn, QB-nn là PLAN 7.3, 7.9; HBN-04 là mã MỚI `[đề xuất]` (7.29). QB-01, QB-02, QB-03, QB-08, QB-09, QB-10 chỉ phần
-// HAI ROUTE HUỶ của B10 (một phần: còn B8, B12, B14). Cổng `payment` (số đã thu) là bản THẬT của app (payment B7), cổng hoàn tiền của `wallet` còn `Noop` (chờ B9); ca cần tiền đã thu dùng `vi.spyOn` trên CHÍNH thể hiện đó (phục hồi ở afterEach).
+// HAI ROUTE HUỶ của B10 (một phần: còn B8, B12, B14). Cổng `payment` (số đã thu) là bản THẬT của app (payment B7), cổng hoàn tiền của `wallet` cũng THẬT (`RefundService`, payment B9); ca cần số còn hoàn được dùng `vi.spyOn(payments, 'amountRefundable')` (cancel đọc số này, Q15) trên CHÍNH thể hiện đó (phục hồi ở afterEach); `cancel-preview` vẫn đọc `amountPaid`. HBN-05 không spy gì: khoản cọc qua ví THẬT.
 // CA QB-02 khẳng định ĐÚNG 403 KHONG_DU_QUYEN ở trạng thái mà dịch vụ sẽ trả mã KHÁC nếu thiếu `@Roles` (lịch của người khác ⇒ 404, lịch DaTiepDon ⇒ 409), kể cả khi gửi mã sai dạng: chỉ e2e phân biệt được `RolesGuard`
 // với lỗi của dịch vụ (bài học ĐA-9b của B7).
 // ĐỒNG HỒ: `vi.setSystemTime` đổi giờ của CẢ token truy cập, nên ca đổi giờ tạo token SAU khi đặt giờ (và đi tiếp chỉ vài phút, trong hạn 15 phút của token); `afterEach` trả đồng hồ thật.
@@ -249,7 +251,9 @@ describe('HBN-04 cọc đã thu > 0: số hoàn THỰC TẾ tính lại lúc xá
       strict: false,
     });
     const refunds = h.app.get<RefundPort>(REFUND_PORT, { strict: false });
+    // ca này gọi CẢ hai route: `cancel-preview` vẫn đọc `amountPaid` (payment B9, câu (b)), còn `cancel` đọc `amountRefundable` (Q15)
     vi.spyOn(payments, 'amountPaid').mockResolvedValue(DEPOSIT);
+    vi.spyOn(payments, 'amountRefundable').mockResolvedValue(DEPOSIT);
     const refund = vi
       .spyOn(refunds, 'refund')
       .mockResolvedValue({ kind: 'Refunded' });
@@ -293,7 +297,7 @@ describe('HBN-04 cọc đã thu > 0: số hoàn THỰC TẾ tính lại lúc xá
     });
     vi.spyOn(
       h.app.get<PaymentSummaryPort>(PAYMENT_SUMMARY_PORT, { strict: false }),
-      'amountPaid',
+      'amountRefundable',
     ).mockResolvedValue(DEPOSIT);
     vi.spyOn(
       h.app.get<RefundPort>(REFUND_PORT, { strict: false }),
@@ -310,6 +314,79 @@ describe('HBN-04 cọc đã thu > 0: số hoàn THỰC TẾ tính lại lúc xá
     expect((await readAppointment(h.db, lich.lichHenId)).trangThai).toBe(
       'DaHuy',
     );
+  });
+});
+
+// payment B9 (TRACKING booking 3.48): KHÔNG `vi.spyOn` gì cả. Khoản cọc 100.000 trả bằng VÍ là dòng THẬT (nhất quán với sổ cái), nên `cancel` đọc `amountRefundable` thật, gọi `RefundService` thật, và ví, `lich_su_hoan_tien`,
+// chi tiết lịch (`findRefund`) đều là dữ liệu thật qua HTTP. Phần mức dịch vụ và ca lỗi: src/appointments/cancel/appointment-cancellation.real-refund.int-spec.ts (CRF-10…CRF-18).
+describe('HBN-05 cọc trả bằng VÍ thật, không spy amountPaid hay refund: huỷ qua HTTP hoàn đúng về ví (HL-10, HDT-05, HDT-08)', () => {
+  it('xem trước 100% rồi huỷ: 200 hoanCoc đúng; ví tăng đúng số; chi tiết lịch ra hoanTien đúng ba khoá (không lộ id ví hay số lần thử); DB đúng một dòng hoàn và một dòng sổ cái', async () => {
+    const w = await world();
+    const lich = await w.booked('DaXacNhan', 0, {
+      maLichHen: CODE,
+      coc: DEPOSIT,
+      policy: REFUND_POLICY,
+    });
+    const wallets = new WalletFixtures(h.db);
+    const walletRows = (await h.db.query(
+      'SELECT CAST(vi_noi_bo_id AS CHAR) AS id FROM vi_noi_bo WHERE benh_nhan_id = ?',
+      [w.patientId],
+    )) as { id: string }[];
+    const walletId = walletRows[0]!.id;
+    await wallets.setWallet(walletId, '0.00');
+    const paymentId = await wallets.insertWalletDeposit({
+      viNoiBoId: walletId,
+      lichHenId: lich.lichHenId,
+      soTien: DEPOSIT,
+    });
+    const asPatient = (req: request.Test) =>
+      req.set('Authorization', `Bearer ${w.token}`);
+    const walletOverview = () =>
+      asPatient(request(h.app.getHttpServer()).get('/patient/wallet'));
+    expect((await walletOverview()).body).toMatchObject({ soDu: '0.00' });
+
+    const seen = await preview(CODE, w.token);
+    expect(seen.body).toStrictEqual({
+      choPhepHuy: true,
+      hoanCoc: { tyLe: 100, soTien: DEPOSIT, mocApDung: 24 },
+    });
+    const done = await cancel(CODE, w.token);
+
+    expect(done.status).toBe(200);
+    expect(done.body).toStrictEqual({
+      maLichHen: CODE,
+      trangThai: 'DaHuy',
+      hoanCoc: { tyLe: 100, soTien: DEPOSIT },
+    });
+    expect((await walletOverview()).body).toMatchObject({ soDu: DEPOSIT });
+    const detail = await asPatient(
+      request(h.app.getHttpServer()).get(`${BASE}/${CODE}`),
+    );
+    expect(detail.status).toBe(200);
+    expect(bodyOf(detail).hoanTien).toStrictEqual({
+      soTien: DEPOSIT,
+      trangThai: 'ThanhCong',
+      thoiDiem: expect.any(String),
+    });
+    const refunds = (await h.db.query(
+      'SELECT trang_thai AS trangThai, CAST(so_tien AS CHAR) AS soTien, ly_do AS lyDo FROM lich_su_hoan_tien WHERE giao_dich_thanh_toan_id = ?',
+      [paymentId],
+    )) as { trangThai: string; soTien: string; lyDo: string }[];
+    expect(refunds).toEqual([
+      {
+        trangThai: 'ThanhCong',
+        soTien: DEPOSIT,
+        lyDo: PATIENT_CANCEL_REASON,
+      },
+    ]);
+    const ledger = (await h.db.query(
+      "SELECT COUNT(*) AS n FROM giao_dich_vi WHERE vi_noi_bo_id = ? AND loai = 'HoanTien'",
+      [walletId],
+    )) as { n: string | number }[];
+    expect(Number(ledger[0]?.n)).toBe(1);
+    await w.expectSlot(0, 'ConTrong');
+    await assertBookingInvariants(h.db);
+    await assertWalletInvariants(h.db);
   });
 });
 

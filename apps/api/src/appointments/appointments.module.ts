@@ -9,6 +9,7 @@ import { RbacModule } from '../rbac/rbac.module.js';
 import { LeaveReader } from '../scheduling/leave/leave.reader.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import { WalletBalanceReader } from '../wallet/balance/wallet-balance.reader.js';
+import { RefundService } from '../wallet/refund/refund.service.js';
 import { WalletModule } from '../wallet/wallet.module.js';
 import {
   APPOINTMENT_CODE_RANDOM,
@@ -46,7 +47,7 @@ import { APPOINTMENT_NOTIFIER } from './ports/appointment-notifier.port.js';
 import { DOCTOR_LEAVE_PORT } from './ports/doctor-leave.port.js';
 import { PAYMENT_PORT, PAYMENT_SUMMARY_PORT } from './ports/payment.port.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
-import { WALLET_BALANCE_PORT } from './ports/wallet.port.js';
+import { REFUND_PORT, WALLET_BALANCE_PORT } from './ports/wallet.port.js';
 import { AppointmentQueries } from './queries/appointment-queries.js';
 import { BookabilityReader } from './slots/bookability.reader.js';
 import { SlotHoldService } from './slots/slot-hold.service.js';
@@ -119,13 +120,17 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 // payment B7 (B17a lần 1, đã làm; KHÔNG phải B7 `BookingChecksController` ở danh sách trên; TRACKING booking 3.47): ba cổng thanh toán và ví hết là `Noop` ở ĐÂY. `imports` thêm `PaymentPortsModule` và `WalletModule`, hai module LÁ của payment và wallet, không nhập `AppointmentsModule` nên KHÔNG vòng và
 // không `forwardRef` (đã đo bằng Nest thật: BPO-01, AR-03 `walkModuleTree`, `payment/architecture.int-spec.ts` HDT-11). Ba token `PAYMENT_PORT`, `PAYMENT_SUMMARY_PORT`, `WALLET_BALANCE_PORT` cũng bị LOẠI khỏi phần trải rồi khai lại bằng `useExisting` lớp thật
 // (`PaymentRecorder` và `PaymentSummaryReader` của `PaymentPortsModule`, `WalletBalanceReader` của `WalletModule`; mỗi lớp là MỘT thể hiện của module lá, hai module lá đã xuất cả lớp). Lớp thật chỉ đòi `DataSource` hoặc provider cùng module nên các spec dựng riêng module này
-// vẫn chỉ cần `useMocker` cho `DataSource`. Còn `Noop`: `REFUND_PORT` (B9, #459), `WAITLIST_PORT`, `PENDING_BRANCH_CHANGES_PORT`. BPO-06 canh mỗi token có ĐÚNG MỘT provider (bỏ token khỏi `REAL_PORT_TOKENS` không đổi hành vi nên không ca nào khác bắt được).
+// vẫn chỉ cần `useMocker` cho `DataSource`. BPO-06 canh mỗi token có ĐÚNG MỘT provider (bỏ token khỏi `REAL_PORT_TOKENS` không đổi hành vi nên không ca nào khác bắt được).
+// payment B9 (B17a lần 2, đã làm; TRACKING booking 3.48, issue #459): cổng hoàn tiền hết là `Noop` ở ĐÂY. Token `REFUND_PORT` cũng bị LOẠI khỏi phần trải rồi khai lại bằng `useExisting: RefundService` (MỘT thể hiện của `WalletModule`, đã xuất cả lớp từ B8);
+// `imports` KHÔNG đổi (`WalletModule` đã nhập từ B7) nên không thêm cạnh module nào, không vòng, không `forwardRef`. `RefundService` đã là provider của `WalletModule` nên Nest đã dựng nó mỗi lần dựng module: các spec dựng riêng vẫn chỉ cần `useMocker` cho `DataSource`.
+// `cancel` đọc `amountRefundable` của `PaymentSummaryPort` (Q15) và gọi `refund` SAU commit; `wallet` chỉ thực hiện lại số đã ghi ở `lich_su_hoan_tien`, không tự tính lại (Q16 phương án (d)). Còn `Noop`: `WAITLIST_PORT`, `PENDING_BRANCH_CHANGES_PORT`.
 const REAL_PORT_TOKENS: readonly unknown[] = [
   APPOINTMENT_NOTIFIER,
   DOCTOR_LEAVE_PORT,
   PAYMENT_PORT,
   PAYMENT_SUMMARY_PORT,
   WALLET_BALANCE_PORT,
+  REFUND_PORT,
 ];
 const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
   (provider) =>
@@ -159,6 +164,7 @@ const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
     { provide: PAYMENT_PORT, useExisting: PaymentRecorder },
     { provide: PAYMENT_SUMMARY_PORT, useExisting: PaymentSummaryReader },
     { provide: WALLET_BALANCE_PORT, useExisting: WalletBalanceReader },
+    { provide: REFUND_PORT, useExisting: RefundService },
     { provide: APPOINTMENT_CODE_RANDOM, useValue: randomCodeSuffix },
     CreateAppointmentService,
     DoctorAppointmentsService,

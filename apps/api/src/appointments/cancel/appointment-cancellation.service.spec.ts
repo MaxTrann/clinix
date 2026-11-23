@@ -289,6 +289,56 @@ describe('HL-10, CNL-07 (đơn vị) cổng gọi SAU commit, đúng một lần
   });
 });
 
+// payment B9 (TRACKING booking 3.48; PLAN payment Q15, E9): `cancel` tính hoàn trên `amountRefundable` (phần đã trả bằng ví, trừ mọi lần đã hoàn), KHÔNG trên `amountPaid` (gồm cả tiền mặt).
+// `paid()` của bản Fake đặt cả hai số nên các ca khác trong file giữ nguyên; ba ca dưới đây dùng `refundable()` để TÁCH hai số, nên `cancel` đổi sang đọc `amountPaid` là đỏ ngay.
+describe('CRF-01…CRF-03 (Q15) cancel tính hoàn trên amountRefundable, không phải amountPaid', () => {
+  it('CRF-01 hỏi amountRefundable đúng MỘT lần, đúng manager của giao dịch huỷ và đúng lichHenId của lịch; KHÔNG hỏi amountPaid', async () => {
+    await s.service.cancel(patientInput);
+    const manager = s.db.managers[0];
+    const calls = s.ports.paymentSummary.amountRefundableCall.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.[0]).toBe(manager);
+    expect(calls[0]?.[1]).toBe('9001');
+    expect(s.ports.paymentSummary.amountPaidCall.count).toBe(0);
+  });
+
+  it('CRF-02 đã thu 100.000 nhưng còn hoàn được 60.000: Bệnh nhân và Lễ tân (bậc 50%) hoàn 30.000, QTV và nghỉ phép (100%) hoàn 60.000; hoanCoc, lời gọi refund và thông báo cùng mang số tính trên 60.000', async () => {
+    const half = { tyLe: 50, soTien: '30000.00' };
+    const full = { tyLe: 100, soTien: '60000.00' };
+    for (const [input, expected] of [
+      [patientInput, half],
+      [leTanInput('2'), half],
+      [qtvInput, full],
+      [leaveInput, full],
+    ] as const) {
+      s = setup();
+      s.ports.paymentSummary.refundable({ '9001': '60000.00' });
+      await expect(s.service.cancel(input)).resolves.toMatchObject({
+        kind: 'Cancelled',
+        hoanCoc: expected,
+      });
+      expect(s.ports.refund.refundCall.calls[0]?.[0]).toMatchObject({
+        soTien: expected.soTien,
+      });
+      expect(s.ports.notifier.notifyCall.calls[0]?.[1]).toMatchObject({
+        huy: { hoanCoc: expected },
+      });
+    }
+  });
+
+  it('CRF-03 đã thu 100.000 nhưng không còn gì hoàn được (đã hoàn hết): hoanCoc null, 0 lần refund, huỷ vẫn thành công', async () => {
+    s.ports.paymentSummary.refundable({}, '0.00');
+    await expect(s.service.cancel(qtvInput)).resolves.toMatchObject({
+      kind: 'Cancelled',
+      hoanCoc: null,
+    });
+    expect(s.ports.refund.refundCall.count).toBe(0);
+    expect(s.ports.notifier.notifyCall.calls[0]?.[1]).toMatchObject({
+      huy: { hoanCoc: null },
+    });
+  });
+});
+
 describe('HL-11 (mức đơn vị) lỗi hoàn KHÔNG hoàn tác việc huỷ; log an toàn', () => {
   it.each([
     [
@@ -434,7 +484,7 @@ describe('CNL-06 (mức đơn vị) NotFound và các kết quả từ chối: k
         written,
       );
       expect(s.ports.notifier.notifyCall.count).toBe(0);
-      expect(s.ports.paymentSummary.amountPaidCall.count).toBe(0);
+      expect(s.ports.paymentSummary.amountRefundableCall.count).toBe(0);
       noPortCalls();
     },
   );
@@ -458,7 +508,9 @@ describe('CNL-06 (mức đơn vị) NotFound và các kết quả từ chối: k
     const manager = s.db.managers[0];
     expect(s.cancel.mock.calls[0]?.[0]).toBe(manager);
     expect(s.ports.notifier.notifyCall.calls[0]?.[0]).toBe(manager);
-    expect(s.ports.paymentSummary.amountPaidCall.calls[0]?.[0]).toBe(manager);
+    expect(s.ports.paymentSummary.amountRefundableCall.calls[0]?.[0]).toBe(
+      manager,
+    );
   });
 });
 
@@ -538,9 +590,11 @@ describe('CNL-10, HL-16 (mức đơn vị) lỗi SAU lần ghi: ném, hoàn tác
         x.ports.notifier.notifyCall.throwsOnce(new Error('thông báo hỏng')),
     ],
     [
-      'cổng đọc tiền đã thu lỗi',
+      'cổng đọc số còn hoàn được lỗi',
       (x: typeof s) =>
-        x.ports.paymentSummary.amountPaidCall.throwsOnce(new Error('ví hỏng')),
+        x.ports.paymentSummary.amountRefundableCall.throwsOnce(
+          new Error('ví hỏng'),
+        ),
     ],
     [
       'snapshot hỏng khi đã thu > 0',

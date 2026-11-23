@@ -60,9 +60,9 @@ describe('HL-16 hoàn tác trọn khi lỗi ở từng bước ghi: lịch và k
         failAfterStatement(db, /^\s*UPDATE khung_gio/i, BOOM),
     ],
     [
-      'cổng đọc tiền đã thu lỗi (sau cả hai UPDATE)',
+      'cổng đọc số còn hoàn được lỗi (sau cả hai UPDATE; payment B9: đọc amountRefundable, Q15)',
       (ports: ReturnType<typeof createCancelStack>['ports']) => {
-        ports.paymentSummary.amountPaidCall.throwsOnce(BOOM);
+        ports.paymentSummary.amountRefundableCall.throwsOnce(BOOM);
         return [];
       },
     ],
