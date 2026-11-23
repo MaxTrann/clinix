@@ -186,6 +186,7 @@ export class BookabilityReader {
       ngayGio: slot.ngayGio,
       thoiLuongPhut,
       dichVuKhamId: doctorRow.dichVuKhamId,
+      ca: located.ca,
     });
     const slotHolder =
       slot.trangThai === 'DangGiuCho'

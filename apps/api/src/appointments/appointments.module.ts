@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PendingBranchChangesModule } from '../admin/branch-change-requests/pending-branch-changes.module.js';
 import { SystemConfigModule } from '../admin/system-config/system-config.module.js';
 import { AuditModule } from '../audit/audit.module.js';
 import { PaymentPortsModule } from '../payment/ports/payment-ports.module.js';
@@ -46,6 +47,8 @@ import { BookingNotifier } from './notifications/booking-notifier.js';
 import { APPOINTMENT_NOTIFIER } from './ports/appointment-notifier.port.js';
 import { DOCTOR_LEAVE_PORT } from './ports/doctor-leave.port.js';
 import { PAYMENT_PORT, PAYMENT_SUMMARY_PORT } from './ports/payment.port.js';
+import { PendingBranchChangesAdapter } from './ports/pending-branch-changes.adapter.js';
+import { PENDING_BRANCH_CHANGES_PORT } from './ports/pending-branch-changes.port.js';
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 import { REFUND_PORT, WALLET_BALANCE_PORT } from './ports/wallet.port.js';
 import { AppointmentQueries } from './queries/appointment-queries.js';
@@ -103,7 +106,7 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 // vào `imports`; module nguồn phải EXPORT CẢ LỚP thật (không chỉ token), nếu không Nest báo không tiêm được. Nghỉ phép (B16a, ĐÃ LÀM) là ví dụ chuẩn:
 //   imports: [SchedulingModule],  providers: [{ provide: DOCTOR_LEAVE_PORT, useExisting: LeaveReader }, …]   (SchedulingModule đã xuất LeaveReader)
 // `SchedulingModule` đòi `DataSource` (doctor B6: `AvailableSlotsReader`); app thật có sẵn toàn cục, còn test dựng riêng module phải cấp bằng `useMocker` (xem `doctor-leave.port.int-spec.ts`).
-// `PendingBranchChangesPort` (B16b, CHƯA làm) cần adapter `useClass` (admin chỉ có `getPendingEffectiveChanges(chiNhanhId)`). Cảnh báo cho payment, wallet, waitlist (suy ra ở P2, ĐÃ ĐO ở B7 bằng Nest thật: HDT-11, TRACKING 3.47.2): các module
+// `PendingBranchChangesPort` (B16b, ĐÃ LÀM, TRACKING 3.50) là adapter `useClass` (admin chỉ có `getPendingEffectiveChanges(em, chiNhanhId)` theo chi nhánh). Cảnh báo cho payment, wallet, waitlist (suy ra ở P2, ĐÃ ĐO ở B7 bằng Nest thật: HDT-11, TRACKING 3.47.2): các module
 // đó `import AppointmentsModule` (gọi `confirmPaid`, `RefundCalculator`, `SlotHoldService`) nên nếu module này cũng import lại họ sẽ thành vòng import module (Nest đòi
 // `forwardRef`): đặt bản thật của cổng trong một module nhỏ KHÔNG import `AppointmentsModule`. Test thay cổng bằng bản giả: `overrideProvider(TOKEN).useValue(fake)`.
 //
@@ -115,15 +118,17 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 // cùng token trong cùng một mảng. `BookingNotifier` không có phụ thuộc nào (nhận `em` của người gọi) nên cả bốn spec dựng riêng module này vẫn dựng được mà không cần `MailModule` hay `ConfigService`; worker gửi thư nằm
 // ở `NotificationsModule` (giai đoạn sau) vì lý do đó.
 // B16a (đã làm; nửa `doctor` của B16, TRACKING 3.39): cổng nghỉ phép hết là `Noop` ở ĐÂY. `imports` đã có `SchedulingModule` từ B6a nên chỉ đổi phần `providers`: token `DOCTOR_LEAVE_PORT` cũng bị LOẠI khỏi phần trải rồi khai lại
-// bằng `useExisting: LeaveReader` (một thể hiện duy nhất, của `SchedulingModule`; `LeaveReader` không có phụ thuộc constructor nên không cần thêm `useMocker` ở các spec dựng riêng module). Nửa `admin` (B16b) CHƯA làm:
-// `PendingBranchChangesPort` vẫn là `Noop` cho tới khi `admin` có `getPendingEffectiveChanges` (B10).
+// bằng `useExisting: LeaveReader` (một thể hiện duy nhất, của `SchedulingModule`; `LeaveReader` không có phụ thuộc constructor nên không cần thêm `useMocker` ở các spec dựng riêng module). Nửa `admin` là B16b (đoạn cuối).
 // payment B7 (B17a lần 1, đã làm; KHÔNG phải B7 `BookingChecksController` ở danh sách trên; TRACKING booking 3.47): ba cổng thanh toán và ví hết là `Noop` ở ĐÂY. `imports` thêm `PaymentPortsModule` và `WalletModule`, hai module LÁ của payment và wallet, không nhập `AppointmentsModule` nên KHÔNG vòng và
 // không `forwardRef` (đã đo bằng Nest thật: BPO-01, AR-03 `walkModuleTree`, `payment/architecture.int-spec.ts` HDT-11). Ba token `PAYMENT_PORT`, `PAYMENT_SUMMARY_PORT`, `WALLET_BALANCE_PORT` cũng bị LOẠI khỏi phần trải rồi khai lại bằng `useExisting` lớp thật
 // (`PaymentRecorder` và `PaymentSummaryReader` của `PaymentPortsModule`, `WalletBalanceReader` của `WalletModule`; mỗi lớp là MỘT thể hiện của module lá, hai module lá đã xuất cả lớp). Lớp thật chỉ đòi `DataSource` hoặc provider cùng module nên các spec dựng riêng module này
 // vẫn chỉ cần `useMocker` cho `DataSource`. BPO-06 canh mỗi token có ĐÚNG MỘT provider (bỏ token khỏi `REAL_PORT_TOKENS` không đổi hành vi nên không ca nào khác bắt được).
 // payment B9 (B17a lần 2, đã làm; TRACKING booking 3.48, issue #459): cổng hoàn tiền hết là `Noop` ở ĐÂY. Token `REFUND_PORT` cũng bị LOẠI khỏi phần trải rồi khai lại bằng `useExisting: RefundService` (MỘT thể hiện của `WalletModule`, đã xuất cả lớp từ B8);
 // `imports` KHÔNG đổi (`WalletModule` đã nhập từ B7) nên không thêm cạnh module nào, không vòng, không `forwardRef`. `RefundService` đã là provider của `WalletModule` nên Nest đã dựng nó mỗi lần dựng module: các spec dựng riêng vẫn chỉ cần `useMocker` cho `DataSource`.
-// `cancel` đọc `amountRefundable` của `PaymentSummaryPort` (Q15) và gọi `refund` SAU commit; `wallet` chỉ thực hiện lại số đã ghi ở `lich_su_hoan_tien`, không tự tính lại (Q16 phương án (d)). Còn `Noop`: `WAITLIST_PORT`, `PENDING_BRANCH_CHANGES_PORT`.
+// `cancel` đọc `amountRefundable` của `PaymentSummaryPort` (Q15) và gọi `refund` SAU commit; `wallet` chỉ thực hiện lại số đã ghi ở `lich_su_hoan_tien`, không tự tính lại (Q16 phương án (d)).
+// B16b (đã làm; nửa `admin` của B16, TRACKING booking 3.50, issue #249): cổng thay đổi chi nhánh hết là `Noop` ở ĐÂY. Token `PENDING_BRANCH_CHANGES_PORT` cũng bị LOẠI khỏi phần trải rồi khai lại bằng `useClass: PendingBranchChangesAdapter`
+// (`ports/`; ADAPTER chứ không `useExisting`: admin trả danh sách theo chi nhánh, booking hỏi theo từng khung giờ) và `imports` thêm `PendingBranchChangesModule` của admin (module LÁ, `imports` rỗng, đã xuất CẢ lớp
+// `PendingBranchChangesReader`) nên KHÔNG vòng, không `forwardRef`. Lớp reader không có phụ thuộc constructor nên các spec dựng riêng module này vẫn chỉ cần `useMocker` cho `DataSource`. Còn `Noop`: `WAITLIST_PORT`.
 const REAL_PORT_TOKENS: readonly unknown[] = [
   APPOINTMENT_NOTIFIER,
   DOCTOR_LEAVE_PORT,
@@ -131,6 +136,7 @@ const REAL_PORT_TOKENS: readonly unknown[] = [
   PAYMENT_SUMMARY_PORT,
   WALLET_BALANCE_PORT,
   REFUND_PORT,
+  PENDING_BRANCH_CHANGES_PORT,
 ];
 const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
   (provider) =>
@@ -145,6 +151,7 @@ const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
     AuditModule,
     PaymentPortsModule,
     WalletModule,
+    PendingBranchChangesModule,
   ],
   controllers: [
     PatientAppointmentsController,
@@ -165,6 +172,10 @@ const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
     { provide: PAYMENT_SUMMARY_PORT, useExisting: PaymentSummaryReader },
     { provide: WALLET_BALANCE_PORT, useExisting: WalletBalanceReader },
     { provide: REFUND_PORT, useExisting: RefundService },
+    {
+      provide: PENDING_BRANCH_CHANGES_PORT,
+      useClass: PendingBranchChangesAdapter,
+    },
     { provide: APPOINTMENT_CODE_RANDOM, useValue: randomCodeSuffix },
     CreateAppointmentService,
     DoctorAppointmentsService,
