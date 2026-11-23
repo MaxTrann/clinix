@@ -53,7 +53,9 @@ describe('yeu_cau_nghi_phep trên MySQL thật', () => {
     });
   });
 
-  it('MG-02 chk_nghi_phep_hinh_thuc: DB từ chối CaNgay có ca, TheoCa không ca, TheoCa nhiều ngày, CaNgay bắt đầu > kết thúc', async () => {
+  // UX7 (đổi MG-02): trước đây ca thứ ba của test này là "DB từ chối TheoCa nhiều ngày" (CaSang, 2026-12-01 đến 2026-12-02); nay đó là hợp lệ (DUX7-17 bên dưới).
+  // Test giữ các ca âm còn lại và thêm ca âm mới: TheoCa có ngày bắt đầu SAU ngày kết thúc.
+  it('MG-02 chk_nghi_phep_hinh_thuc: DB từ chối CaNgay có ca, TheoCa không ca, TheoCa bắt đầu > kết thúc, CaNgay bắt đầu > kết thúc', async () => {
     const { doctorId } = await setup();
     await expect(insert(doctorId, { ca: 'CaSang' })).rejects.toThrow(
       /chk_nghi_phep_hinh_thuc/,
@@ -65,13 +67,48 @@ describe('yeu_cau_nghi_phep trên MySQL thật', () => {
       insert(doctorId, {
         hinhThuc: 'TheoCa',
         ca: 'CaSang',
-        batDau: '2026-12-01',
-        ketThuc: '2026-12-02',
+        batDau: '2026-12-02',
+        ketThuc: '2026-12-01',
       }),
     ).rejects.toThrow(/chk_nghi_phep_hinh_thuc/);
     await expect(
       insert(doctorId, { batDau: '2026-12-05', ketThuc: '2026-12-01' }),
     ).rejects.toThrow(/chk_nghi_phep_hinh_thuc/);
+  });
+
+  it('DUX7-17 chk_nghi_phep_hinh_thuc: DB nhận TheoCa nhiều ngày (cả CaSang lẫn CaChieu, đã duyệt cũng nhận) và ngày đọc lại bằng DATE_FORMAT đúng, không lệch múi giờ', async () => {
+    const { doctorId, adminId } = await setup();
+    await insert(doctorId, {
+      hinhThuc: 'TheoCa',
+      ca: 'CaSang',
+      batDau: '2026-12-01',
+      ketThuc: '2026-12-05',
+    });
+    await insert(doctorId, {
+      hinhThuc: 'TheoCa',
+      ca: 'CaChieu',
+      batDau: '2026-12-10',
+      ketThuc: '2026-12-10',
+    });
+    await insert(doctorId, {
+      hinhThuc: 'TheoCa',
+      ca: 'CaChieu',
+      batDau: '2026-12-20',
+      ketThuc: '2027-01-19',
+      trangThai: 'DaDuyet',
+      nguoiXuLyId: adminId,
+      thoiDiemXuLy: '2026-11-20 08:00:00',
+    });
+    const rows: { batDau: string; ketThuc: string; ca: string }[] =
+      await db.query(
+        `SELECT DATE_FORMAT(ngay_bat_dau, '%Y-%m-%d') AS batDau, DATE_FORMAT(ngay_ket_thuc, '%Y-%m-%d') AS ketThuc, ca
+         FROM yeu_cau_nghi_phep ORDER BY yeu_cau_nghi_phep_id`,
+      );
+    expect(rows).toEqual([
+      { batDau: '2026-12-01', ketThuc: '2026-12-05', ca: 'CaSang' },
+      { batDau: '2026-12-10', ketThuc: '2026-12-10', ca: 'CaChieu' },
+      { batDau: '2026-12-20', ketThuc: '2027-01-19', ca: 'CaChieu' },
+    ]);
   });
 
   it('MG-03 chk_nghi_phep_xu_ly: DB từ chối ChoDuyet có người xử lý, DaDuyet thiếu thời điểm, TuChoi thiếu người', async () => {

@@ -8,6 +8,7 @@ import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-h
 import {
   maskAuditEnums,
   maskLichHenMoc,
+  maskNghiTheoCaNhieuNgay,
   maskThongBaoLichHen,
   normalizeStatement,
   officialStatementsFor,
@@ -218,7 +219,11 @@ describe('doctor P1 — bảng nghỉ phép', () => {
     const official =
       officialStatementsFor(NGHI_PHEP_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    expect(TAO_BANG_NGHI_PHEP_SQL.map(normalizeStatement)).toEqual(official);
+    // Doctor UX7: CHECK `chk_nghi_phep_hinh_thuc` (nhánh TheoCa) và COMMENT bảng được đổi ở migration 1793880000000, nên migration GỐC (không sửa) chỉ trùng sau khi
+    // đưa hai câu đó về chữ cũ; chữ mới được so ở migration-source.spec.ts (NTC-01) và trạng thái cuối bằng SHOW CREATE TABLE ở test phía trên.
+    expect(TAO_BANG_NGHI_PHEP_SQL.map(normalizeStatement)).toEqual(
+      maskNghiTheoCaNhieuNgay(official),
+    );
   });
 
   it('mọi câu lệnh trong migration nghỉ phép chỉ tác động bảng yeu_cau_nghi_phep', () => {

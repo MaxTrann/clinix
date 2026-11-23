@@ -21,6 +21,8 @@ import {
 // `RequireAuth` THẬT với API xác thực giả; dữ liệu tài khoản đi qua API giả có trạng thái của F9 (bộ định tuyến `fetch` ở `startAs`).
 
 const PAGE_PATH = '/admin/tai-khoan-benh-nhan';
+// Đổi ở admin F8 (23/11/2026): mục menu trỏ tab Nhân sự; tab Tài khoản bệnh nhân vào qua thanh tab
+const MENU_PATH = '/admin/nhan-su';
 const MENU_NAME = 'Nhân sự & Tài khoản';
 
 const BRANCH_ME = {
@@ -87,14 +89,17 @@ afterEach(() => {
 });
 
 describe('TKF9-50 Quản trị viên Toàn hệ thống: có mục menu và thấy đủ chức năng', () => {
-  it('TKF9-50 mục "Nhân sự & Tài khoản" là liên kết tới /admin/tai-khoan-benh-nhan; bấm vào thì mở màn và tải danh sách', async () => {
+  it('TKF9-50 mục "Nhân sự & Tài khoản" là liên kết tới /admin/nhan-su (F8); từ tab "Tài khoản bệnh nhân" mở màn và tải danh sách', async () => {
     await startAs('QuanTriVien');
     auth.failNext('/admin/me', () => json({ phamVi: 'ToanHeThong' }));
     const router = renderApp('/admin');
 
     const link = await screen.findByRole('link', { name: MENU_NAME });
-    expect(link).toHaveAttribute('href', PAGE_PATH);
+    expect(link).toHaveAttribute('href', MENU_PATH);
     fireEvent.click(link);
+    fireEvent.click(
+      await screen.findByRole('link', { name: 'Tài khoản bệnh nhân' }),
+    );
 
     expect(
       await screen.findByRole('heading', {
@@ -108,7 +113,11 @@ describe('TKF9-50 Quản trị viên Toàn hệ thống: có mục menu và th�
         name: 'Danh sách tài khoản bệnh nhân',
       }),
     ).toBeInTheDocument();
-    expect(data.lists()).toHaveLength(1);
+    expect(
+      data
+        .lists()
+        .filter((r) => r.search.getAll('vaiTro').includes('BenhNhan')),
+    ).toHaveLength(1);
   });
 
   it('TKF9-50 mở thẳng đường dẫn: đủ bộ lọc (trạng thái, khoá no-show, chi nhánh), cột "Đặt lịch" và nút "Xem chi tiết"; chi tiết có nút "Mở khoá no-show" ở bệnh nhân bị khoá', async () => {
@@ -155,7 +164,7 @@ describe('TKF9-51 Quản trị viên Chi nhánh: vào xem được, không có c
     });
     expect(screen.getByRole('link', { name: MENU_NAME })).toHaveAttribute(
       'href',
-      PAGE_PATH,
+      MENU_PATH,
     );
     expect(
       screen.queryByRole('combobox', { name: 'Lọc khoá đặt lịch do no-show' }),

@@ -9,6 +9,7 @@ import { TaoBangDanhMuc1793024340000 } from './migrations/1793024340000-tao-bang
 import { TaoBangHoSoKham1793620800000 } from './migrations/1793620800000-tao-bang-ho-so-kham.js';
 import { TaoBangThanhToanVi1793707200000 } from './migrations/1793707200000-tao-bang-thanh-toan-vi.js';
 import { MocThoiGianLichHen1793793600000 } from './migrations/1793793600000-moc-thoi-gian-lich-hen.js';
+import { NghiTheoCaNhieuNgay1793880000000 } from './migrations/1793880000000-nghi-theo-ca-nhieu-ngay.js';
 import { TaoBangMocHoanTien1793534400000 } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -110,6 +111,7 @@ const BOOKING_P6_NAME = TaoBangMocHoanTien1793534400000.name;
 const EXAM_NAME = TaoBangHoSoKham1793620800000.name;
 const PAYMENT_NAME = TaoBangThanhToanVi1793707200000.name;
 const MOC_NAME = MocThoiGianLichHen1793793600000.name;
+const NTC_NAME = NghiTheoCaNhieuNgay1793880000000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -679,7 +681,8 @@ describe('vòng đời migration', () => {
 
   it('MOC-04: down của booking B19 gỡ ba cột mốc của lich_hen và bị CHẶN khi còn lịch có mốc (DB nguyên vẹn); up lại thêm đúng ba cột NULL được, liền nhau sau thoi_diem_tao', async () => {
     const later = await revertAfter(MOC_NAME);
-    expect(later).toEqual([]);
+    // UX7 (đổi): trước là `expect(later).toEqual([])` vì B19 là migration cuối; nay migration nghỉ theo ca nhiều ngày đứng sau và được hoàn tác trước
+    expect(later).toEqual([NTC_NAME]);
     const MOC_COLUMNS = [
       'thoi_diem_xac_nhan',
       'thoi_diem_tiep_don',
@@ -753,13 +756,263 @@ describe('vòng đời migration', () => {
         )?.executed,
       ).toBe(false);
 
-      // Up lại: đúng ba cột như trước (cùng thứ tự, kiểu, NULL)
-      expect(await runPendingMigrations(dataSource)).toEqual([MOC_NAME]);
+      // Up lại: đúng ba cột như trước (cùng thứ tự, kiểu, NULL); migration đứng sau (UX7) chạy lại theo sau
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        MOC_NAME,
+        ...later,
+      ]);
       expect(await readColumns()).toEqual(installed);
     } finally {
       await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
       await queryRunner.release();
     }
+  });
+
+  // Doctor UX7 (issue #582): CHECK `chk_nghi_phep_hinh_thuc` cho `TheoCa` nhiều ngày. DUX7-17 đến DUX7-22 (và NTC-06 đến NTC-09 ở tên test) trên DB `clinix_migration_test`.
+  // Dựng dòng bằng SQL thẳng (bỏ kiểm khoá ngoại trên MỘT kết nối như MOC-04): chỉ cần CHECK, không cần bác sĩ thật.
+  describe('doctor UX7: nghỉ theo ca nhiều ngày (CHECK chk_nghi_phep_hinh_thuc)', () => {
+    // Bỏ `AUTO_INCREMENT=n` (đổi mỗi khi chèn dòng, như schema-parity.int-spec.ts) để chỉ so cấu trúc: cột, CHECK, COMMENT
+    const showCreate = async (): Promise<string> =>
+      (
+        (
+          (await dataSource.query(
+            'SHOW CREATE TABLE `yeu_cau_nghi_phep`',
+          )) as Record<string, string>[]
+        )[0]?.['Create Table'] ?? ''
+      ).replace(/ AUTO_INCREMENT=\d+/, '');
+    const countLeaves = async (): Promise<number> =>
+      Number(
+        (
+          (await dataSource.query(
+            'SELECT COUNT(*) AS total FROM `yeu_cau_nghi_phep`',
+          )) as { total: string | number }[]
+        )[0]?.total,
+      );
+    const insertLeave = (
+      queryRunner: QueryRunner,
+      leave: {
+        kind: 'CaNgay' | 'TheoCa';
+        ca: string | null;
+        from: string;
+        to: string;
+        status?: 'ChoDuyet' | 'DaDuyet' | 'TuChoi';
+      },
+    ) => {
+      const status = leave.status ?? 'ChoDuyet';
+      const handled = status !== 'ChoDuyet';
+      return queryRunner.query(
+        `INSERT INTO yeu_cau_nghi_phep (bac_si_id, hinh_thuc_nghi, ngay_bat_dau, ngay_ket_thuc, ca, ly_do, trang_thai, nguoi_xu_ly_id, thoi_diem_xu_ly, thoi_diem_tao)
+         VALUES (900001, ?, ?, ?, ?, 'ly do gia', ?, ?, ?, '2026-11-23 09:00:00')`,
+        [
+          leave.kind,
+          leave.from,
+          leave.to,
+          leave.ca,
+          status,
+          handled ? 900002 : null,
+          handled ? '2026-11-23 10:00:00' : null,
+        ],
+      );
+    };
+    const withQueryRunner = async (
+      work: (queryRunner: QueryRunner) => Promise<void>,
+    ): Promise<void> => {
+      const queryRunner = dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+        await work(queryRunner);
+      } finally {
+        await queryRunner.query('DELETE FROM yeu_cau_nghi_phep');
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+        await queryRunner.release();
+      }
+    };
+
+    it('NTC-06 (DUX7-17, DUX7-18): sau khi áp dụng, CHECK nhận TheoCa nhiều ngày và từ chối TheoCa không ca, TheoCa ngược ngày, CaNgay có ca, CaNgay ngược ngày', async () => {
+      await runPendingMigrations(dataSource);
+      expect(migrationsAfter(NTC_NAME)).toEqual([]);
+      await withQueryRunner(async (queryRunner) => {
+        await insertLeave(queryRunner, {
+          kind: 'TheoCa',
+          ca: 'CaSang',
+          from: '2026-12-24',
+          to: '2026-12-28',
+        });
+        // Biên: một ngày vẫn hợp lệ (mọi dòng cũ), và khoảng dài 31 ngày không bị CHECK chặn (hạn 31 ngày là của API)
+        await insertLeave(queryRunner, {
+          kind: 'TheoCa',
+          ca: 'CaChieu',
+          from: '2026-12-24',
+          to: '2026-12-24',
+        });
+        await insertLeave(queryRunner, {
+          kind: 'TheoCa',
+          ca: 'CaChieu',
+          from: '2027-02-01',
+          to: '2027-03-03',
+        });
+        expect(await countLeaves()).toBe(3);
+
+        const rejected = /chk_nghi_phep_hinh_thuc/;
+        await expect(
+          insertLeave(queryRunner, {
+            kind: 'TheoCa',
+            ca: null,
+            from: '2026-12-24',
+            to: '2026-12-28',
+          }),
+        ).rejects.toThrow(rejected);
+        await expect(
+          insertLeave(queryRunner, {
+            kind: 'TheoCa',
+            ca: 'CaSang',
+            from: '2026-12-28',
+            to: '2026-12-24',
+          }),
+        ).rejects.toThrow(rejected);
+        await expect(
+          insertLeave(queryRunner, {
+            kind: 'CaNgay',
+            ca: 'CaSang',
+            from: '2026-12-24',
+            to: '2026-12-28',
+          }),
+        ).rejects.toThrow(rejected);
+        await expect(
+          insertLeave(queryRunner, {
+            kind: 'CaNgay',
+            ca: null,
+            from: '2026-12-28',
+            to: '2026-12-24',
+          }),
+        ).rejects.toThrow(rejected);
+        expect(await countLeaves()).toBe(3);
+      });
+    });
+
+    it('NTC-07 (DUX7-19, DUX7-20): down bị CHẶN khi còn yêu cầu TheoCa nhiều ngày ở BẤT KỲ trạng thái nào (đếm đúng, không đếm CaNgay nhiều ngày hay TheoCa một ngày); DB và dữ liệu nguyên vẹn', async () => {
+      await runPendingMigrations(dataSource);
+      await withQueryRunner(async (queryRunner) => {
+        // Không bị đếm: CaNgay nhiều ngày, TheoCa một ngày
+        await insertLeave(queryRunner, {
+          kind: 'CaNgay',
+          ca: null,
+          from: '2026-12-24',
+          to: '2026-12-28',
+        });
+        await insertLeave(queryRunner, {
+          kind: 'TheoCa',
+          ca: 'CaSang',
+          from: '2026-12-30',
+          to: '2026-12-30',
+        });
+        // Bị đếm: ChoDuyet rồi TuChoi và DaDuyet (trạng thái đã xử lý cũng vi phạm CHECK cũ)
+        await insertLeave(queryRunner, {
+          kind: 'TheoCa',
+          ca: 'CaSang',
+          from: '2026-12-24',
+          to: '2026-12-26',
+        });
+        const before = await showCreate();
+        const rowsBefore = await countLeaves();
+        await expect(revertLastMigration(dataSource)).rejects.toThrow(
+          /Không hoàn tác được NghiTheoCaNhieuNgay1793880000000[\s\S]*còn 1 yêu cầu nghỉ theo ca/,
+        );
+        await insertLeave(queryRunner, {
+          kind: 'TheoCa',
+          ca: 'CaChieu',
+          from: '2027-01-04',
+          to: '2027-01-05',
+          status: 'TuChoi',
+        });
+        await insertLeave(queryRunner, {
+          kind: 'TheoCa',
+          ca: 'CaChieu',
+          from: '2027-01-11',
+          to: '2027-01-12',
+          status: 'DaDuyet',
+        });
+        const failure = await revertLastMigration(dataSource).then(
+          () => null,
+          (error: unknown) => error,
+        );
+        expect(failure).toBeInstanceOf(Error);
+        expect(String(failure)).toMatch(/còn 3 yêu cầu nghỉ theo ca/);
+        // Thông báo chỉ có số dòng: không id, không lý do nghỉ
+        expect(String(failure)).not.toMatch(/ly do gia|900001/);
+        // Không đổi gì: CHECK, COMMENT và dữ liệu như cũ; migration vẫn ở trạng thái đã áp dụng
+        expect(await showCreate()).toBe(before);
+        expect(await countLeaves()).toBe(rowsBefore + 2);
+        expect(
+          (await listMigrations(dataSource)).find(
+            (item) => item.name === NTC_NAME,
+          )?.executed,
+        ).toBe(true);
+      });
+    });
+
+    it('NTC-08 (DUX7-21, DUX7-22): hết dòng nhiều ngày thì down đưa CHECK và COMMENT về chữ cũ giữ nguyên dòng còn lại; up lại ra đúng bảng như trước và nhận TheoCa nhiều ngày', async () => {
+      await runPendingMigrations(dataSource);
+      const upState = await showCreate();
+      // SHOW CREATE TABLE viết lại biểu thức (thêm tiền tố bộ ký tự `_utf8mb4` trước chuỗi, chữ thường `and`, `is not null`): so bằng biểu thức chính quy
+      const theoCaBranch = (operator: string) =>
+        new RegExp(
+          "`hinh_thuc_nghi` = (?:_utf8mb4)?'TheoCa'\\) and \\(`ca` is not null\\) and \\(`ngay_bat_dau` " +
+            operator +
+            ' `ngay_ket_thuc`\\)',
+        );
+      expect(upState).toMatch(theoCaBranch('<='));
+      expect(upState).toContain('được nghỉ nhiều ngày, một ca');
+      await withQueryRunner(async (queryRunner) => {
+        await insertLeave(queryRunner, {
+          kind: 'CaNgay',
+          ca: null,
+          from: '2026-12-24',
+          to: '2026-12-28',
+        });
+        await insertLeave(queryRunner, {
+          kind: 'TheoCa',
+          ca: 'CaSang',
+          from: '2026-12-30',
+          to: '2026-12-30',
+        });
+        expect(await revertLastMigration(dataSource)).toBe(NTC_NAME);
+        expect(
+          (await listMigrations(dataSource)).find(
+            (item) => item.name === NTC_NAME,
+          )?.executed,
+        ).toBe(false);
+        // Chữ cũ: nhánh TheoCa là `=` (một ngày), COMMENT "chỉ nghỉ 1 ngày"; hai dòng cũ còn nguyên
+        const downState = await showCreate();
+        expect(downState).toMatch(theoCaBranch('='));
+        expect(downState).not.toMatch(theoCaBranch('<='));
+        expect(downState).toContain('chỉ nghỉ 1 ngày');
+        expect(downState).not.toContain('được nghỉ nhiều ngày, một ca');
+        expect(await countLeaves()).toBe(2);
+        // Và CHECK cũ thật sự đang chạy: TheoCa nhiều ngày bị từ chối
+        await expect(
+          insertLeave(queryRunner, {
+            kind: 'TheoCa',
+            ca: 'CaSang',
+            from: '2026-12-24',
+            to: '2026-12-26',
+          }),
+        ).rejects.toThrow(/chk_nghi_phep_hinh_thuc/);
+
+        // Up lại: bảng giống hệt trạng thái lên lần trước, hai dòng còn nguyên, TheoCa nhiều ngày được nhận
+        expect(await runPendingMigrations(dataSource)).toEqual([NTC_NAME]);
+        expect(await showCreate()).toBe(upState);
+        expect(await countLeaves()).toBe(2);
+        await insertLeave(queryRunner, {
+          kind: 'TheoCa',
+          ca: 'CaSang',
+          from: '2026-12-24',
+          to: '2026-12-26',
+        });
+        expect(await countLeaves()).toBe(3);
+      });
+    });
   });
 
   it('hoàn tác hết rồi hoàn tác tiếp: trả về null, không lỗi', async () => {

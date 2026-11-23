@@ -11,7 +11,7 @@ import {
 @Entity({ name: 'yeu_cau_nghi_phep' })
 @Check(
   'chk_nghi_phep_hinh_thuc',
-  "(`hinh_thuc_nghi` = 'CaNgay' AND `ca` IS NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`) OR (`hinh_thuc_nghi` = 'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` = `ngay_ket_thuc`)",
+  "(`hinh_thuc_nghi` = 'CaNgay' AND `ca` IS NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`) OR (`hinh_thuc_nghi` = 'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`)",
 )
 @Check(
   'chk_nghi_phep_xu_ly',

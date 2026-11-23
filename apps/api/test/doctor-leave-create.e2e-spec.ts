@@ -406,15 +406,16 @@ describe('B11 — tạo yêu cầu nghỉ phép', () => {
 
   it('BD-02 lỗi kiểm dữ liệu có đúng hình dạng chuẩn và loi[] theo trường', async () => {
     const w = await setup();
+    // UX7 (đổi BD-02): trước đây thân gửi `denNgay: day(6)` và mong `denNgay: NGHI_THEO_CA_CHI_MOT_NGAY`; nay khoảng nhiều ngày hợp lệ nên lỗi ngày là đảo ngược (`denNgay` trước `tuNgay`)
     const res = await post(
-      { hinhThuc: 'TheoCa', tuNgay: day(5), denNgay: day(6), lyDo: ' ' },
+      { hinhThuc: 'TheoCa', tuNgay: day(5), denNgay: day(4), lyDo: ' ' },
       w.token,
     );
     const body = expectErrorResponse(res, 400, 'DU_LIEU_KHONG_HOP_LE');
     expect(body.loi).toEqual(
       expect.arrayContaining([
         { truong: 'ca', ma: 'CA_BAT_BUOC' },
-        { truong: 'denNgay', ma: 'NGHI_THEO_CA_CHI_MOT_NGAY' },
+        { truong: 'denNgay', ma: 'KHOANG_NGAY_KHONG_HOP_LE' },
         { truong: 'lyDo', ma: 'LY_DO_BAT_BUOC' },
       ]),
     );

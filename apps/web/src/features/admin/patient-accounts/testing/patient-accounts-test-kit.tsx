@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
+import { MemoryRouter } from 'react-router';
 import type { AdminMe } from '../../admin-me';
 import { AdminMeProvider } from '../../admin-me-context';
 import type { PatientAccount } from '../../account-common/account-types';
@@ -264,10 +265,13 @@ export function makeGate() {
 export function renderPatientPage(
   options: { scope?: AdminMe; strict?: boolean } = {},
 ) {
+  // Trang có thanh tab (liên kết) nên cần bộ định tuyến (admin F8)
   const page = (
-    <AdminMeProvider value={options.scope ?? SYSTEM}>
-      <PatientAccountsPage />
-    </AdminMeProvider>
+    <MemoryRouter>
+      <AdminMeProvider value={options.scope ?? SYSTEM}>
+        <PatientAccountsPage />
+      </AdminMeProvider>
+    </MemoryRouter>
   );
   return render(options.strict ? <StrictMode>{page}</StrictMode> : page);
 }

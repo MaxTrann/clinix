@@ -606,7 +606,7 @@ Table yeu_cau_nghi_phep {
     (bac_si_id, ngay_bat_dau, trang_thai)
   }
 
-  Note: 'Ràng buộc theo hình thức nghỉ. CaNgay: không có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày). TheoCa: bắt buộc có ca, chỉ nghỉ 1 ngày.'
+  Note: 'Ràng buộc theo hình thức nghỉ. CaNgay: không có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày). TheoCa: bắt buộc có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày, một ca).'
 }
 
 // ===================== CỤM 4: LỊCH HẸN & DANH SÁCH CHỜ =====================
