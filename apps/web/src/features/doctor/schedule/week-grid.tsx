@@ -38,7 +38,8 @@ function rowHours(shifts: readonly DoctorShift[], ca: ShiftCode) {
 }
 
 // Lưới tuần T2–CN × Sáng/Chiều (Figma `466:2`). Ô có ca là nút mở "Chi tiết ca"; ô trống là chữ "Không có ca".
-// Không có số "lịch khám" trong ô: chưa có dữ liệu booking (WL-10, Q18), hiện "0 lịch" sẽ sai.
+// Từ doctor UX6 (G1b) ô có thêm giờ ca và "N chưa khám" từ `soLichHen` CÓ SẴN của API lịch (booking B17; 0 lời gọi thêm). `soLichHen` chỉ đếm lịch chưa khám xong,
+// nên nhãn là "chưa khám" (Đại chọn 23/11/2026); API cũ không có trường thì KHÔNG hiện số (không bao giờ hiện "0" giả).
 export function WeekGrid({
   weekStart,
   today,
@@ -140,15 +141,18 @@ function ShiftCell({
   onSelect: (shift: DoctorShift) => void;
 }) {
   const status = shiftStatusOf(shift.nghiPhep);
+  const hours = formatShiftHours(shift.batDau, shift.ketThuc);
+  const pending =
+    shift.soLichHen === undefined ? null : `${shift.soLichHen} chưa khám`;
   return (
     <button
       type="button"
-      aria-label={`${SHIFT_LABELS[shift.ca]}, ${formatWeekdayDate(day)}, ${SHIFT_STATUS_LABELS[status]}`}
+      aria-label={`${SHIFT_LABELS[shift.ca]}, ${formatWeekdayDate(day)}, ${SHIFT_STATUS_LABELS[status]}${pending === null ? '' : `, ${pending}`}`}
       onClick={(event) => {
         triggerRef.current = event.currentTarget;
         onSelect(shift);
       }}
-      className={`flex h-full w-full flex-col items-start justify-center gap-1 rounded-lg border px-3 text-left transition-colors ${STATUS_STYLES[status].cell}`}
+      className={`flex min-h-full w-full flex-col items-start justify-center gap-1 rounded-lg border px-3 py-1.5 text-left transition-colors ${STATUS_STYLES[status].cell}`}
     >
       <span className="text-sm leading-tight font-semibold">
         {SHIFT_STATUS_LABELS[status]}
@@ -156,6 +160,10 @@ function ShiftCell({
       <span className="text-xs leading-tight break-words">
         {shift.chiNhanh.ten}
       </span>
+      {hours !== null && <span className="text-xs leading-tight">{hours}</span>}
+      {pending !== null && (
+        <span className="text-xs leading-tight font-medium">{pending}</span>
+      )}
     </button>
   );
 }

@@ -3,7 +3,8 @@ import { UnexpectedResponseError } from '../../../shared/api/errors';
 import type { ShiftCode } from '../../../shared/schedule/shift-labels';
 
 // Hợp đồng `GET /reception/doctor-schedules[/doctors]` (PLAN doctor B8) và `GET /profile` (patient F4). Lễ tân chỉ XEM: không có lời gọi ghi nào.
-// Phạm vi chi nhánh do server quyết (đọc hồ sơ Lễ tân mỗi lần gọi); web không gửi chi nhánh. Không có `soLichHen` (Q18) và không có lý do nghỉ (Q16).
+// Phạm vi chi nhánh do server quyết (đọc hồ sơ Lễ tân mỗi lần gọi); web không gửi chi nhánh. Không có lý do nghỉ (Q16). `soLichHen` (booking B17, Q18) có trong
+// phản hồi nhưng chỉ đếm lịch chưa khám xong; lưới Lễ tân chưa dùng (doctor UX6 lấy số theo trạng thái từ `GET /reception/appointments`).
 export type ReceptionLeaveState = 'DaDuyet' | 'ChoDuyet';
 
 export interface ReceptionDoctor {
@@ -25,6 +26,7 @@ export interface ReceptionShift {
   gioCaKhongCon: boolean;
   // Lễ tân không thấy yêu cầu `TuChoi` (Q16)
   nghiPhep: ReceptionLeaveState | null;
+  soLichHen?: number;
 }
 
 export interface ReceptionDoctorRow extends ReceptionDoctor {
