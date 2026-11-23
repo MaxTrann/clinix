@@ -1,7 +1,10 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Link } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patientAppointmentDetailPath } from '../../../../../shared/routes/booking-paths';
+import {
+  bookingPaymentPath,
+  patientAppointmentDetailPath,
+} from '../../../../../shared/routes/booking-paths';
 import {
   DETAIL_API_PATH,
   DETAIL_CODE,
@@ -329,7 +332,7 @@ describe('thanh toán, hoàn tiền: không bịa số', () => {
 });
 
 describe('lịch chờ thanh toán', () => {
-  it('LCT-04 hạn thanh toán theo giờ Việt Nam (17:30 UTC là 00:30 ngày hôm sau), nút Thanh toán vô hiệu kèm "Chưa được triển khai", KHÔNG bộ hẹn giờ đếm ngược', async () => {
+  it('LCT-04 WPF6-60 hạn thanh toán theo giờ Việt Nam (17:30 UTC là 00:30 ngày hôm sau), nút Thanh toán là LIÊN KẾT tới trang thanh toán của đúng mã, KHÔNG bộ hẹn giờ đếm ngược', async () => {
     const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
     renderDetailPage({
       before: (api) => {
@@ -347,9 +350,13 @@ describe('lịch chờ thanh toán', () => {
     expect(deadline.tagName).toBe('TIME');
     expect(deadline).toHaveAttribute('datetime', '2026-10-19T17:30:00.000Z');
 
-    const pay = screen.getByRole('button', { name: DETAIL_TEXT.payButton });
-    expect(pay).toBeDisabled();
-    expect(pay).toHaveAccessibleDescription(DETAIL_TEXT.payNotReady);
+    // Đổi ở booking F6 (Đại duyệt 23/11/2026, WPF6-60): trước đó là nút vô hiệu kèm "Chưa được triển khai" (nếp LTN-05)
+    const pay = screen.getByRole('link', { name: DETAIL_TEXT.payButton });
+    expect(pay).toHaveAttribute('href', bookingPaymentPath(DETAIL_CODE));
+    expect(
+      screen.queryByRole('button', { name: DETAIL_TEXT.payButton }),
+    ).toBeNull();
+    expect(screen.queryByText('Chưa được triển khai')).toBeNull();
     expect(screen.getByText(DETAIL_TEXT.waitingDeposit)).toBeInTheDocument();
     // Có nút huỷ (Q45) và không có đếm ngược
     expect(cancelButton()).toBeInTheDocument();
@@ -362,7 +369,7 @@ describe('lịch chờ thanh toán', () => {
     setIntervalSpy.mockRestore();
   });
 
-  it('LCT-04 hanThanhToan null ⇒ không có khối hạn, nút Thanh toán vẫn vô hiệu; trạng thái khác ChoThanhToan ⇒ không có nút Thanh toán', async () => {
+  it('LCT-04 WPF6-60 hanThanhToan null ⇒ không có khối hạn, liên kết Thanh toán vẫn có (trang thanh toán tự xử lý); trạng thái khác ChoThanhToan ⇒ không có Thanh toán', async () => {
     renderDetailPage({
       before: (api) => {
         api.detail = makeDetail({
@@ -374,14 +381,17 @@ describe('lịch chờ thanh toán', () => {
     await detailLoaded();
     expect(screen.queryByText(DETAIL_TEXT.payBefore)).toBeNull();
     expect(
-      screen.getByRole('button', { name: DETAIL_TEXT.payButton }),
-    ).toBeDisabled();
+      screen.getByRole('link', { name: DETAIL_TEXT.payButton }),
+    ).toHaveAttribute('href', bookingPaymentPath(DETAIL_CODE));
   });
 
   it('LCT-04 lịch DaXacNhan ⇒ không có khối hạn thanh toán, không có nút Thanh toán', async () => {
     renderDetailPage();
     await detailLoaded();
     expect(screen.queryByText(DETAIL_TEXT.payBefore)).toBeNull();
+    expect(
+      screen.queryByRole('link', { name: DETAIL_TEXT.payButton }),
+    ).toBeNull();
     expect(
       screen.queryByRole('button', { name: DETAIL_TEXT.payButton }),
     ).toBeNull();

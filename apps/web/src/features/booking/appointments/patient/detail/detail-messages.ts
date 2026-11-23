@@ -55,7 +55,6 @@ export const DETAIL_TEXT = {
   waitingDeposit: STATUS_STEP_TEXT.pendingPayment,
   payBefore: 'Hạn thanh toán',
   payButton: 'Thanh toán',
-  payNotReady: 'Chưa được triển khai',
   // Chữ "Chưa đến", "Đã qua", "Hiện tại" của các bước nằm ở `common/status-steps.ts` (`STATUS_STEP_TEXT`)
   timelineTitle: 'Trạng thái lịch hẹn',
   cancelButton: 'Hủy lịch hẹn',

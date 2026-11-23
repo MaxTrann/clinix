@@ -1,5 +1,6 @@
 import type { EligibilityResult } from '../api/booking-types';
 import { createFakeAppointmentDetailApi } from './fake-appointment-detail-api';
+import { createFakeDepositGateway } from './fake-deposit-gateway';
 
 // API giả của booking cho test web (F3; F4 thêm danh sách người thân và `checks`; F5 thêm `POST /booking/appointments`; F6, F7 thêm đường dẫn của mình). Bọc `fetch` của fake auth
 // (`src/test/fake-auth-api.ts`): CHỈ trả lời `GET /api/booking/eligibility`, `GET /api/patient/relatives`, `POST /api/booking/checks` và `POST /api/booking/appointments`; chi tiết lịch hẹn `GET /api/patient/appointments/:maLichHen` (F7: Bước 6 tải từ đó) do API giả của F2
@@ -132,7 +133,9 @@ const jsonResponse = (body: unknown, status = 200) =>
 
 export function createFakeBookingApi(rawDelegate: FetchLike) {
   // Chi tiết lịch hẹn (F7): không có câu trả lời thì API xác thực giả coi là 401 và phiên bị đưa về đăng nhập, nên đường dẫn lạ đi qua API giả của F2 TRƯỚC khi tới `rawDelegate`
-  const detailApi = createFakeAppointmentDetailApi(rawDelegate);
+  // Thanh toán cọc (F6): Bước Thanh toán dựng `DepositPaymentPanel` THẬT, nó gọi `GET …/payment-preview` (và `POST …/payment`); đường dẫn đó cũng phải có câu trả lời, nếu không phiên bị đưa về đăng nhập
+  const depositGateway = createFakeDepositGateway(rawDelegate);
+  const detailApi = createFakeAppointmentDetailApi(depositGateway.fetch);
   const delegate = detailApi.fetch;
   const overrides: Override[] = [];
   const relativesOverrides: Override[] = [];
@@ -142,6 +145,8 @@ export function createFakeBookingApi(rawDelegate: FetchLike) {
   const api = {
     // API giả của chi tiết lịch hẹn mà Bước 6 gọi: test đặt `detailApi.detail` hay `detailApi.failNext('detail', …)`
     detailApi,
+    // API giả của xem trước và thanh toán cọc mà Bước Thanh toán gọi (F6): test đặt `depositGateway.preview`, `depositGateway.paid` hay `depositGateway.failNext(…)`
+    depositGateway,
     // Thân 200 của `GET /booking/eligibility`; kiểu `unknown` để test đặt cả thân sai hợp đồng
     eligibility: ELIGIBLE as unknown,
     // Thân 200 của `GET /patient/relatives` và `POST /booking/checks`
