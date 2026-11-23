@@ -111,6 +111,39 @@ Nút cam của Figma (`#fe9a00`, chữ trắng 2,13:1) KHÔNG dùng chữ trắn
 
 Nền banner theo phương án B: gradient của Figma `257:2` (`#007595`, `#0092b8`, `#00bba7`) nhưng vùng có chữ giữ `#007595` (lớp `hero-gradient` ở `styles/index.css`). **Không cần ngoại lệ AA.** Số đo ngày 17/11/2026 (hộp chữ thật từ Chromium, hiệu chuẩn trắng trên `#007595` = 5,28:1): nền A (gradient phủ cả banner đúng Figma) KHÔNG đạt AA ở 6/8 khối chữ ở 1440 và 768 px, 7/8 ở 375 px (số vàng 2,29, 2,04, 1,85:1; mô tả 3,75:1; chip 3,44:1 ở 1440 px); nền B cho cùng số với nền phẳng cũ ở mọi bề rộng. Ở 768 và 375 px nền B phẳng hoàn toàn; gradient chỉ thấy ở màn rộng, phía phải. Điểm dừng `820px` và `1120px` chỉnh theo khung 1440 (`docs/TECH_DEBT.md` nếu có lối tắt).
 
+## Màu trạng thái lịch làm việc và yêu cầu nghỉ phép (doctor UX3, 23/11/2026; G16, T6)
+
+Đảo quyết định màu của PLAN doctor (WL-02). Trước UX3, ô "Nghỉ đã duyệt" màu đỏ, "Yêu cầu bị từ chối" màu cam, và chip trạng thái của YÊU CẦU nghỉ ở màn Bác sĩ đọc cùng bảng màu đó nên "Đã duyệt" đỏ, "Từ chối" cam; trang Duyệt yêu cầu của Admin lại dùng xanh lá cho "Đã duyệt" và đỏ cho "Từ chối". Cùng một trạng thái, hai màn hai màu ngược nhau (đo bằng Chromium trên bản gốc: chip "Đã duyệt" nền `rgb(254, 242, 242)` ở lịch sử của Bác sĩ, `rgb(240, 253, 244)` ở trang Duyệt yêu cầu), và đỏ ở "Nghỉ đã duyệt" trông như bị từ chối. Trung đồng ý ngày 19/11/2026 (T6); Đại chọn bậc màu ngày 23/11/2026.
+
+Hai thứ tách bạch, mỗi thứ MỘT nơi định nghĩa:
+
+- **Trạng thái CA** (ô lịch tuần và tháng, chip trong hộp "Chi tiết ca", chấm chú giải, số thống kê; cả lịch Lễ tân và lịch Admin, vì "Nghỉ phép" của Lễ tân là `DaDuyet`): bảng `STATUS_STYLES` ở `features/doctor/schedule/status-styles.ts`. Làm việc giữ xanh dương, Chờ duyệt giữ vàng hổ phách; **"Nghỉ đã duyệt" trung tính** và **"Yêu cầu bị từ chối" đỏ nhạt** (ca vẫn làm việc, chỉ yêu cầu nghỉ bị từ chối).
+- **Trạng thái YÊU CẦU nghỉ** (Đã duyệt, Chờ duyệt, Từ chối): một thành phần `StatusBadge` ở `features/doctor/components/status-badge.tsx`, dùng ba token có sẵn `success`, `warning`, `danger`: xanh lá, vàng, đỏ, ở mọi màn (lịch sử và hộp "Chi tiết yêu cầu nghỉ" của Bác sĩ, bảng và ngăn kéo của trang Duyệt yêu cầu). Chip luôn kèm nhãn chữ, không chỉ dựa vào màu.
+
+**Không thêm token.** "Nghỉ đã duyệt" dùng thang chuẩn `slate` ("xám xanh" của G16; ADR này cho màu trung tính dùng thang chuẩn, không tạo token). Chọn bậc `slate-200` chứ không phải bậc 100: `slate-100` có độ chói bằng `gray-100` (1,00:1), mà `gray-100` là nền chấm "Không có lịch" của lịch Lễ tân và `gray-50` là nền ô "Không có ca" của lịch Bác sĩ, nên nền bậc 100 không phân biệt được "nghỉ" với "không có lịch". Bậc 200 cách `gray-100` 1,12:1 và `gray-50` 1,18:1, kèm viền `slate-400` và chữ đậm `slate-800`. Không thêm icon hay sọc (G16 chỉ gợi ý).
+
+Số dưới đây tính từ token thật bằng script (`oklch` sang sRGB, làm tròn 8 bit như điểm ảnh Chrome, công thức WCAG 2.2), và khớp số đo `getComputedStyle` cộng canvas ở Chromium thật cho các cặp đã đo (ô và chip của bốn trạng thái, hover của "Nghỉ đã duyệt", số thống kê; TRACKING admin mục 9A.15). Test `features/doctor/schedule/status-colors.test.tsx` (DUX3-22) tính lại các cặp chữ/nền này từ token ở mỗi lần chạy, nên đổi màu làm tương phản rơi dưới 4,5:1 thì test đỏ.
+
+| Cặp | Màu | Tỉ lệ | Tối thiểu | Kết quả |
+|---|---|---|---|---|
+| Chữ `slate-800` trên `slate-200` (ô, chip "Nghỉ đã duyệt") | #1d293d / #e2e8f0 | 11,86:1 | 4,5:1 | Đạt |
+| Chữ `slate-800` trên `slate-300` (hover ô "Nghỉ đã duyệt") | #1d293d / #cad5e2 | 9,83:1 | 4,5:1 | Đạt |
+| Số thống kê `slate-800` trên trắng ("Nghỉ đã duyệt") | #1d293d / #ffffff | 14,62:1 | 4,5:1 | Đạt |
+| Chữ `red-700` trên `red-50` (ô, chip "Yêu cầu bị từ chối"; chip "Từ chối") | #c10007 / #fef2f2 | 5,87:1 | 4,5:1 | Đạt |
+| Chữ `red-700` trên `red-100` (hover ô "Yêu cầu bị từ chối") | #c10007 / #ffe2e2 | 5,27:1 | 4,5:1 | Đạt |
+| Chữ `green-700` trên `green-50` (chip "Đã duyệt") | #008236 / #f0fdf4 | 4,72:1 | 4,5:1 | Đạt |
+| Chữ `amber-700` trên `amber-50` (ô, chip "Chờ duyệt") | #bb4d00 / #fffbeb | 4,85:1 | 4,5:1 | Đạt |
+| Chữ `amber-700` trên `amber-100` (hover ô "Chờ duyệt") | #bb4d00 / #fef3c6 | 4,52:1 | 4,5:1 | Đạt, sát ngưỡng |
+| Chữ `cyan-700` trên `sky-50` (ô "Làm việc") | #007595 / #f0f9ff | 4,95:1 | 4,5:1 | Đạt |
+| Chữ `cyan-700` trên `sky-100` (hover ô "Làm việc") | #007595 / #dff2fe | 4,59:1 | 4,5:1 | Đạt, sát ngưỡng |
+| Viền `slate-400` của ô "Nghỉ đã duyệt" trên trắng | #90a1b9 / #ffffff | 2,63:1 | 3:1 | Không đạt (nếp có sẵn: viền ô khác `sky-300` 1,67:1, `red-200` 1,45:1, `amber-200` 1,25:1) |
+| Viền `slate-500` của chấm chú giải "Nghỉ đã duyệt" trên trắng | #62748e / #ffffff | 4,76:1 | 3:1 | Đạt |
+| Nền `slate-200` so chấm "Không có lịch" `gray-100` | #e2e8f0 / #f3f4f6 | 1,12:1 | khác nhau | Phân biệt được |
+| Nền `slate-200` so ô "Không có ca" `gray-50` | #e2e8f0 / #f9fafb | 1,18:1 | khác nhau | Phân biệt được |
+| Nền `slate-100` so chấm "Không có lịch" `gray-100` (phương án BỎ) | #f1f5f9 / #f3f4f6 | 1,00:1 | khác nhau | Không phân biệt được |
+
+Viền ô dưới 3:1 là khoảng trống đã biết của mọi ô lịch (cùng loại với viền ô nhập ở trên): ô luôn có nhãn chữ và nền, nhận diện không chỉ dựa vào viền. Figma chỉ là bản phác thảo của nhóm, không đồng bộ lại (`[ĐỒNG BỘ TL]`: PLAN doctor WL-02 và use case 2.4 sửa ở PR tài liệu sau).
+
 ## Việc nhóm cần sửa trong Figma
 
 Mã đã đậm hơn Figma ở các chỗ sau, Figma phải sửa theo: nút chính và liên kết `#0092b8` thành `#007595`, hover nút thành `#005f78`; chữ trong hộp lỗi `#e7000b` thành `#c10007`; viền focus thành `#0092b8`, Figma chưa có frame focus; placeholder thành `#6a7282`. Khoảng trống còn mở: viền ô nhập `#e5e7eb` chỉ đạt 1,24:1, nhóm cần chọn màu đạt 3:1. Thêm 17/11/2026 (search UI PR-A): nút cam chữ trắng `#ffffff` thành chữ `#101828` (nền cam sáng `#ffb900`, hover `#ffd230`); nền banner Trang chủ gradient phủ cả banner thành gradient có vùng chữ giữ `#007595` (phương án B); hover của "Đăng xuất" trong menu tên người dùng `#e7000b` trên `#fef2f2` thành chữ `#c10007`; Figma chưa có frame focus cho ô tìm có biểu tượng đặt trong khung bo tròn (`field-frame`) `[ĐỒNG BỘ TL]`.

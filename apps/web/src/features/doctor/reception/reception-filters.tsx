@@ -43,6 +43,7 @@ const NAV_BUTTON =
 
 // Bộ lọc của lưới Lễ tân (Figma `486:2`): chuyên khoa, bác sĩ, ca, trạng thái + chuyển tuần + "Hôm nay". Chuyên khoa và bác sĩ lấy từ danh sách bác sĩ
 // trong phạm vi chi nhánh của Lễ tân (server quyết phạm vi); chọn chuyên khoa thì danh sách bác sĩ chỉ còn bác sĩ của chuyên khoa đó.
+// Mục đầu của ô ca và ô trạng thái nói rõ ô lọc theo gì: "Buổi: Tất cả", "Trạng thái ca: Tất cả" (doctor UX3, G10); `aria-label` giữ nguyên.
 export function ReceptionToolbar({
   filters,
   onChange,
@@ -147,7 +148,7 @@ export function ReceptionToolbar({
           })
         }
       >
-        <option value={ALL}>Tất cả ca</option>
+        <option value={ALL}>Buổi: Tất cả</option>
         {SHIFT_ORDER.map((ca) => (
           <option key={ca} value={ca}>
             {SHIFT_LABELS[ca]}
@@ -165,7 +166,7 @@ export function ReceptionToolbar({
           })
         }
       >
-        <option value={ALL}>Tất cả trạng thái</option>
+        <option value={ALL}>Trạng thái ca: Tất cả</option>
         {RECEPTION_STATUS_ORDER.map((status) => (
           <option key={status} value={status}>
             {RECEPTION_STATUS_LABELS[status]}
