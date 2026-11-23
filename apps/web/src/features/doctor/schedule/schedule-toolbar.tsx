@@ -6,6 +6,7 @@ import {
   SHIFT_STATUS_LABELS,
   SHIFT_STATUS_ORDER,
 } from '../../../shared/schedule/shift-labels';
+import { PeriodPicker } from './period-picker';
 import { ALL, type ScheduleFilters } from './schedule-filters';
 
 export type ViewMode = 'week' | 'month';
@@ -19,6 +20,11 @@ export interface ScheduleToolbarProps {
   onNext: () => void;
   onToday: () => void;
   todayDisabled: boolean;
+  // Ngày neo của kỳ đang xem (một ngày bất kỳ trong kỳ) và hôm nay theo giờ Việt Nam: hộp chọn kỳ mở ở kỳ đang xem và đánh dấu hôm nay (doctor UX5, G2)
+  anchor: string;
+  today: string;
+  // Nhảy thẳng tới một kỳ: Tuần = ngày đã bấm, Tháng = ngày 1 của tháng đã bấm
+  onPick: (isoDate: string) => void;
   filters: ScheduleFilters;
   onFiltersChange: (filters: ScheduleFilters) => void;
   branches: readonly { chiNhanhId: string; ten: string }[];
@@ -41,6 +47,9 @@ export function ScheduleToolbar({
   onNext,
   onToday,
   todayDisabled,
+  anchor,
+  today,
+  onPick,
   filters,
   onFiltersChange,
   branches,
@@ -56,11 +65,16 @@ export function ScheduleToolbar({
         >
           <ChevronLeft aria-hidden="true" className="size-4" />
         </button>
-        <p
-          aria-live="polite"
-          className="min-w-36 px-3 text-center text-sm font-semibold text-gray-900"
-        >
-          {periodLabel}
+        <PeriodPicker
+          mode={mode}
+          label={periodLabel}
+          anchor={anchor}
+          today={today}
+          onPick={onPick}
+        />
+        {/* Nhãn kỳ là nút mở hộp chọn nên việc đọc kỳ mới khi bấm ‹ › do vùng này lo; tiền tố "Đang xem:" để chữ nhãn chỉ xuất hiện MỘT lần trong trang */}
+        <p aria-live="polite" className="sr-only">
+          Đang xem: {periodLabel}
         </p>
         <button
           type="button"
