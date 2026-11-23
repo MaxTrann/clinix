@@ -22,7 +22,7 @@ export interface LeaveWindow {
 
 /**
  * `CaNgay` phủ cả hai ca của mọi ngày trong [ngayBatDau, ngayKetThuc] (gồm hai đầu);
- * `TheoCa` chỉ phủ đúng ca đó của đúng ngày đó (DB đã ép ngày bắt đầu = ngày kết thúc).
+ * `TheoCa` phủ đúng MỘT ca (cột `ca`) ở mọi ngày trong khoảng (một ngày hoặc nhiều ngày: từ doctor UX7 CHECK chỉ ép ngày bắt đầu ≤ ngày kết thúc).
  */
 export function leaveCoversShift(
   leave: LeaveWindow,

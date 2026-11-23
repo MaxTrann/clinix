@@ -42,6 +42,50 @@ describe('TD-01 nội dung thông báo', () => {
     );
   });
 
+  // UX7: yêu cầu nghỉ theo ca nhiều ngày phải giữ chữ ca ở cả bốn sự kiện, nếu không "từ 10/11 đến 12/11" đọc như nghỉ cả ngày.
+  it('DUX7-14 theo ca nhiều ngày giữ chữ ca ở cả bốn sự kiện; cả ngày nhiều ngày và một ngày giữ nguyên chữ', () => {
+    const range = { ...BASE, ca: 'CaSang' } as const;
+    expect(
+      buildLeaveMessage({ loaiSuKien: LEAVE_EVENTS.Submitted, ...range }),
+    ).toBe(
+      'Yêu cầu nghỉ phép ca sáng từ 10/11/2026 đến 12/11/2026 đã được gửi, đang chờ duyệt.',
+    );
+    expect(
+      buildLeaveMessage({
+        loaiSuKien: LEAVE_EVENTS.Pending,
+        ...range,
+        ca: 'CaChieu',
+      }),
+    ).toBe(
+      'Bác sĩ Nguyễn Văn An gửi yêu cầu nghỉ phép ca chiều từ 10/11/2026 đến 12/11/2026.',
+    );
+    expect(
+      buildLeaveMessage({ loaiSuKien: LEAVE_EVENTS.Approved, ...range }),
+    ).toBe(
+      'Yêu cầu nghỉ phép ca sáng từ 10/11/2026 đến 12/11/2026 đã được duyệt.',
+    );
+    expect(
+      buildLeaveMessage({
+        loaiSuKien: LEAVE_EVENTS.Rejected,
+        ...range,
+        lyDoTuChoi: 'Thiếu người trực',
+      }),
+    ).toBe(
+      'Yêu cầu nghỉ phép ca sáng từ 10/11/2026 đến 12/11/2026 đã bị từ chối. Lý do: Thiếu người trực',
+    );
+    // Không đổi: cả ngày nhiều ngày (ca = null) không có chữ ca; theo ca MỘT ngày vẫn là "ca sáng ngày ..."
+    expect(
+      buildLeaveMessage({ loaiSuKien: LEAVE_EVENTS.Approved, ...BASE }),
+    ).toBe('Yêu cầu nghỉ phép từ 10/11/2026 đến 12/11/2026 đã được duyệt.');
+    expect(
+      buildLeaveMessage({
+        loaiSuKien: LEAVE_EVENTS.Approved,
+        ...range,
+        ngayKetThuc: '2026-11-10',
+      }),
+    ).toBe('Yêu cầu nghỉ phép ca sáng ngày 10/11/2026 đã được duyệt.');
+  });
+
   it('từ chối: có lý do thì kèm lý do, không có (null/rỗng/toàn khoảng trắng) thì bỏ phần "Lý do"', () => {
     const base = { loaiSuKien: LEAVE_EVENTS.Rejected, ...BASE } as const;
     expect(buildLeaveMessage({ ...base, lyDoTuChoi: 'Thiếu người trực' })).toBe(

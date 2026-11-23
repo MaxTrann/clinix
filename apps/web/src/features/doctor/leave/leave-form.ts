@@ -44,29 +44,28 @@ export function validateLeaveForm(
   today: string,
 ): LeaveFieldErrors {
   const errors: LeaveFieldErrors = {};
-  const single = values.hinhThuc === 'TheoCa';
   if (values.tuNgay === '') errors.tuNgay = FIELD_MESSAGES.dateRequired;
   else if (values.tuNgay < today) errors.tuNgay = FIELD_MESSAGES.datePast;
-  if (!single) {
-    if (values.denNgay === '') errors.denNgay = FIELD_MESSAGES.dateRequired;
-    else if (values.tuNgay !== '' && values.denNgay < values.tuNgay)
-      errors.denNgay = FIELD_MESSAGES.dateOrder;
-  }
-  if (single && values.ca === '') errors.ca = FIELD_MESSAGES.shiftRequired;
+  // Cả hai hình thức là khoảng ngày (UX7: "Theo ca" cũng có thể nhiều ngày); "Theo ca" cần thêm MỘT ca.
+  if (values.denNgay === '') errors.denNgay = FIELD_MESSAGES.dateRequired;
+  else if (values.tuNgay !== '' && values.denNgay < values.tuNgay)
+    errors.denNgay = FIELD_MESSAGES.dateOrder;
+  if (values.hinhThuc === 'TheoCa' && values.ca === '')
+    errors.ca = FIELD_MESSAGES.shiftRequired;
   const length = reasonLength(values.lyDo);
   if (length < REASON_MIN || length > REASON_MAX)
     errors.lyDo = FIELD_MESSAGES.reason;
   return errors;
 }
 
-/** Thân gửi lên: `TheoCa` một ngày (`denNgay = tuNgay`) kèm ca; `CaNgay` không có `ca`. Lý do gửi nguyên văn đã cắt hai đầu. */
+/** Thân gửi lên: `TheoCa` là khoảng ngày kèm MỘT ca (một ngày khi Từ ngày = Đến ngày); `CaNgay` không có `ca`. Lý do gửi nguyên văn đã cắt hai đầu. */
 export function toCreateInput(values: LeaveFormValues): CreateLeaveInput {
   const lyDo = values.lyDo.trim();
   if (values.hinhThuc === 'TheoCa') {
     return {
       hinhThuc: 'TheoCa',
       tuNgay: values.tuNgay,
-      denNgay: values.tuNgay,
+      denNgay: values.denNgay,
       ca: values.ca as ShiftCode,
       lyDo,
     };

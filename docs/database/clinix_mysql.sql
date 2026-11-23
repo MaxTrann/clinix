@@ -72,7 +72,7 @@
 --   * Quản trị viên: phạm vi Chi nhánh phải có chi_nhanh_id, Toàn hệ thống thì không  [chk_qtv_pham_vi]
 --   * Tỷ lệ hoàn tiền từ 0 đến 100  [chk_moc_hoan_ty_le]
 --   * Mỗi lần thử hoàn tiền và mỗi lần đối soát nạp ví một dòng, không trùng số lần thử trong cùng giao dịch  [lich_su_hoan_tien_index_20, lan_doi_soat_nap_vi_index_lan_thu]
---   * Nghỉ phép: CaNgay (không có ca, được nghỉ nhiều ngày) hoặc TheoCa (bắt buộc có ca, chỉ 1 ngày)  [chk_nghi_phep_hinh_thuc]
+--   * Nghỉ phép: CaNgay (không có ca, được nghỉ nhiều ngày) hoặc TheoCa (bắt buộc có ca, được nghỉ nhiều ngày, một ca)  [chk_nghi_phep_hinh_thuc]
 --   * Yêu cầu đổi lịch đã xử lý (khác ChoDuyet) phải có ghi chú xử lý  [chk_doi_lich_xu_ly]
 --   * Yêu cầu nghỉ phép, đổi lịch ngoài chính sách, rút tiền: ChoDuyet thì chưa có người và thời điểm xử lý; DaDuyet hoặc TuChoi thì phải có cả hai  [chk_nghi_phep_xu_ly, chk_doi_lich_nguoi_xu_ly, chk_rut_tien_xu_ly]
 --   * Ví: số dư >= 0, tiền đang giữ >= 0 và không vượt số dư  [chk_vi_so_du]
@@ -756,7 +756,7 @@ ALTER TABLE `nhac_lich_hen` COMMENT = 'Ghi nhận việc gửi email nhắc lị
 
 ALTER TABLE `nhat_ky_hanh_dong` COMMENT = 'Audit dùng hanh_dong_nhay_cam_enum và loai_doi_tuong_enum. Các hành động Admin mới gồm TaoTaiKhoanNhanSu, KhoaTaiKhoan, MoKhoaTaiKhoan, MoKhoaNoShow, DuyetThayDoiChiNhanh, TuChoiThayDoiChiNhanh, RutThayDoiChiNhanh, HuyThayDoiChiNhanh, DoiHieuLucThayDoiChiNhanh. CapNhatCauHinh: đối tượng cau_hinh_he_thong mã 1, không có chi nhánh, ghi cùng giao dịch sửa cấu hình. XuLyNapViChuaCong: đối tượng giao_dich_thanh_toan; ghi cùng giao dịch cộng ví/đánh dấu đối soát. Quyền và dữ liệu chi tiết do service kiểm soát; không ghi mật khẩu/token/băm.';
 
-ALTER TABLE `yeu_cau_nghi_phep` COMMENT = 'Ràng buộc theo hình thức nghỉ. CaNgay: không có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày). TheoCa: bắt buộc có ca, chỉ nghỉ 1 ngày.';
+ALTER TABLE `yeu_cau_nghi_phep` COMMENT = 'Ràng buộc theo hình thức nghỉ. CaNgay: không có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày). TheoCa: bắt buộc có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày, một ca).';
 
 ALTER TABLE `yeu_cau_doi_lich_ngoai_chinh_sach` COMMENT = 'Ràng buộc: khi đã xử lý (khác ChoDuyet) thì bắt buộc có ghi_chu_xu_ly.';
 
@@ -962,7 +962,7 @@ ALTER TABLE `moc_hoan_tien` ADD CONSTRAINT `chk_moc_hoan_ty_le` CHECK (
 );
 ALTER TABLE `yeu_cau_nghi_phep` ADD CONSTRAINT `chk_nghi_phep_hinh_thuc` CHECK (
     (`hinh_thuc_nghi` = 'CaNgay' AND `ca` IS NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`)
-    OR (`hinh_thuc_nghi` = 'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` = `ngay_ket_thuc`)
+    OR (`hinh_thuc_nghi` = 'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`)
 );
 ALTER TABLE `yeu_cau_doi_lich_ngoai_chinh_sach` ADD CONSTRAINT `chk_doi_lich_xu_ly` CHECK (
     `trang_thai` = 'ChoDuyet' OR `ghi_chu_xu_ly` IS NOT NULL

@@ -33,7 +33,6 @@ const FIELD_CODE_MESSAGES: Record<string, string> = {
   CA_BAT_BUOC: FIELD_MESSAGES.shiftRequired,
   CA_KHONG_HOP_LE: 'Ca không hợp lệ.',
   CA_KHONG_DUOC_CHON: 'Nghỉ cả ngày không chọn ca.',
-  NGHI_THEO_CA_CHI_MOT_NGAY: 'Nghỉ theo ca chỉ chọn một ngày.',
   LY_DO_BAT_BUOC: `Vui lòng nhập lý do (từ ${REASON_MIN} đến ${REASON_MAX} ký tự).`,
   LY_DO_KHONG_HOP_LE: `Vui lòng nhập lý do (từ ${REASON_MIN} đến ${REASON_MAX} ký tự).`,
   NGAY_KHONG_HOP_LE: FIELD_MESSAGES.dateRequired,

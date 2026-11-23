@@ -155,11 +155,8 @@ function leaveFacts(
   calendarDate(changes.ngay_bat_dau);
   calendarDate(changes.ngay_ket_thuc);
   requireValid(changes.ngay_bat_dau <= changes.ngay_ket_thuc);
-  if (changes.ca !== null) {
-    shiftName(changes.ca);
-    // Nghỉ theo ca chỉ 1 ngày (chk_nghi_phep_hinh_thuc).
-    requireValid(changes.ngay_bat_dau === changes.ngay_ket_thuc);
-  }
+  // Nghỉ theo ca là khoảng ngày + MỘT ca (chk_nghi_phep_hinh_thuc từ migration doctor UX7); chỉ cần ca hợp lệ, `<=` đã kiểm ở trên.
+  if (changes.ca !== null) shiftName(changes.ca);
 }
 function uniqueList(
   value: unknown,

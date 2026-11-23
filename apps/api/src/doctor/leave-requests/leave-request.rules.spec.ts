@@ -4,6 +4,7 @@ import {
   isShiftEnded,
   leaveWindowsOverlap,
   normalizeReason,
+  todaysShift,
   validateLeaveShape,
   type LeaveRequestInput,
 } from './leave-request.rules.js';
@@ -27,10 +28,44 @@ describe('validateLeaveShape', () => {
     ).toEqual([]);
   });
 
-  it('YN-04 TheoCa nhiều ngày ⇒ denNgay: NGHI_THEO_CA_CHI_MOT_NGAY', () => {
-    expect(shape({ hinhThuc: 'TheoCa', ca: 'CaSang' })).toEqual([
-      'denNgay:NGHI_THEO_CA_CHI_MOT_NGAY',
-    ]);
+  // UX7 (đổi YN-04): trước đây `TheoCa` nhiều ngày bị 400 `denNgay: NGHI_THEO_CA_CHI_MOT_NGAY`; nay là hợp lệ (một yêu cầu = khoảng ngày + MỘT ca).
+  it('DUX7-01 YN-04 (đổi) TheoCa nhiều ngày + một ca hợp lệ, cả CaSang lẫn CaChieu; một ngày vẫn hợp lệ', () => {
+    for (const ca of ['CaSang', 'CaChieu'] as const) {
+      expect(shape({ hinhThuc: 'TheoCa', ca })).toEqual([]);
+      expect(shape({ hinhThuc: 'TheoCa', ca, denNgay: base.tuNgay })).toEqual(
+        [],
+      );
+    }
+  });
+
+  it('DUX7-02 TheoCa có tuNgay sau denNgay ⇒ denNgay: KHOANG_NGAY_KHONG_HOP_LE (như CaNgay); ngày liền nhau (biên) hợp lệ', () => {
+    expect(
+      shape({
+        hinhThuc: 'TheoCa',
+        ca: 'CaSang',
+        tuNgay: '2026-12-05',
+        denNgay: '2026-12-01',
+      }),
+    ).toEqual(['denNgay:KHOANG_NGAY_KHONG_HOP_LE']);
+    expect(
+      shape({
+        hinhThuc: 'TheoCa',
+        ca: 'CaSang',
+        tuNgay: '2026-12-01',
+        denNgay: '2026-12-02',
+      }),
+    ).toEqual([]);
+  });
+
+  it('DUX7-03 mã lỗi NGHI_THEO_CA_CHI_MOT_NGAY không còn được phát ra ở bất kỳ hình dạng nào', () => {
+    const shapes: Partial<LeaveRequestInput>[] = [
+      { hinhThuc: 'TheoCa', ca: 'CaSang' },
+      { hinhThuc: 'TheoCa', ca: 'CaSang', denNgay: '2027-12-31' },
+      { hinhThuc: 'TheoCa', ca: 'CaSang', tuNgay: '2026-12-09' },
+      { hinhThuc: 'TheoCa', lyDo: '' },
+    ];
+    for (const patch of shapes)
+      expect(shape(patch).join(' ')).not.toContain('NGHI_THEO_CA_CHI_MOT_NGAY');
   });
 
   it('YN-05 TheoCa thiếu ca / CaToi / ca lạ; CaNgay có ca', () => {
@@ -40,6 +75,14 @@ describe('validateLeaveShape', () => {
     expect(shape({ ...one, ca: 'CaToi' })).toEqual(['ca:CA_KHONG_HOP_LE']);
     expect(shape({ ...one, ca: 'ca-sang' })).toEqual(['ca:CA_KHONG_HOP_LE']);
     expect(shape({ ca: 'CaSang' })).toEqual(['ca:CA_KHONG_DUOC_CHON']);
+  });
+
+  it('DUX7-04 YN-05 với KHOẢNG nhiều ngày: ca vẫn bắt buộc, CaToi và ca lạ vẫn bị từ chối (ca không phụ thuộc số ngày)', () => {
+    const range = { hinhThuc: 'TheoCa' } as const; // base: 01/12 đến 03/12
+    expect(shape({ ...range })).toEqual(['ca:CA_BAT_BUOC']);
+    expect(shape({ ...range, ca: null })).toEqual(['ca:CA_BAT_BUOC']);
+    expect(shape({ ...range, ca: 'CaToi' })).toEqual(['ca:CA_KHONG_HOP_LE']);
+    expect(shape({ ...range, ca: 'ca-sang' })).toEqual(['ca:CA_KHONG_HOP_LE']);
   });
 
   it('CaNgay có tuNgay sau denNgay ⇒ denNgay: KHOANG_NGAY_KHONG_HOP_LE; một ngày thì hợp lệ (biên)', () => {
@@ -61,11 +104,17 @@ describe('validateLeaveShape', () => {
   });
 
   it('gom nhiều lỗi của nhiều trường trong một lần', () => {
+    // UX7 (đổi): trước là `denNgay: '2026-12-09'` ⇒ NGHI_THEO_CA_CHI_MOT_NGAY; nay lỗi ngày là đảo ngược khoảng (`tuNgay` sau `denNgay`)
     expect(
-      shape({ hinhThuc: 'TheoCa', lyDo: '', denNgay: '2026-12-09' }),
+      shape({
+        hinhThuc: 'TheoCa',
+        lyDo: '',
+        tuNgay: '2026-12-09',
+        denNgay: '2026-12-01',
+      }),
     ).toEqual([
       'ca:CA_BAT_BUOC',
-      'denNgay:NGHI_THEO_CA_CHI_MOT_NGAY',
+      'denNgay:KHOANG_NGAY_KHONG_HOP_LE',
       'lyDo:LY_DO_BAT_BUOC',
     ]);
   });
@@ -193,6 +242,125 @@ describe('leaveWindowsOverlap (YN-09, Q21)', () => {
     expect(
       leaveWindowsOverlap(theoCa('03', 'CaSang'), theoCa('03', 'CaChieu')),
     ).toBe(false);
+  });
+});
+
+// UX7: `TheoCa` giờ có khoảng ngày + MỘT ca (cột `ca` quyết định phần "ca"). Luật chồng giữ Q21: khoảng phải giao, và hai `TheoCa` phải CÙNG ca.
+describe('DUX7-10 leaveWindowsOverlap với TheoCa nhiều ngày (Q21)', () => {
+  const range = (
+    a: string,
+    b: string,
+    ca: 'CaSang' | 'CaChieu',
+  ): LeaveWindow => ({
+    hinhThucNghi: 'TheoCa',
+    ngayBatDau: a,
+    ngayKetThuc: b,
+    ca,
+  });
+  const wholeDays = (a: string, b: string): LeaveWindow => ({
+    hinhThucNghi: 'CaNgay',
+    ngayBatDau: a,
+    ngayKetThuc: b,
+    ca: null,
+  });
+
+  it('cùng ca và khoảng giao nhau (kể cả chạm đúng một ngày ở biên) ⇒ trùng', () => {
+    expect(
+      leaveWindowsOverlap(
+        range('2026-12-24', '2026-12-28', 'CaSang'),
+        range('2026-12-26', '2026-12-30', 'CaSang'),
+      ),
+    ).toBe(true);
+    expect(
+      leaveWindowsOverlap(
+        range('2026-12-24', '2026-12-28', 'CaSang'),
+        range('2026-12-28', '2026-12-30', 'CaSang'),
+      ),
+    ).toBe(true);
+    expect(
+      leaveWindowsOverlap(
+        range('2026-12-28', '2026-12-30', 'CaSang'),
+        range('2026-12-24', '2026-12-28', 'CaSang'),
+      ),
+    ).toBe(true);
+  });
+
+  it('khác ca dù khoảng giao nhau ⇒ KHÔNG trùng (Ca sáng 24 đến 28 và Ca chiều 26 đến 30)', () => {
+    expect(
+      leaveWindowsOverlap(
+        range('2026-12-24', '2026-12-28', 'CaSang'),
+        range('2026-12-26', '2026-12-30', 'CaChieu'),
+      ),
+    ).toBe(false);
+  });
+
+  it('cùng ca nhưng khoảng không giao (liền kề, cách một ngày) ⇒ không trùng', () => {
+    expect(
+      leaveWindowsOverlap(
+        range('2026-12-24', '2026-12-28', 'CaSang'),
+        range('2026-12-29', '2026-12-30', 'CaSang'),
+      ),
+    ).toBe(false);
+    expect(
+      leaveWindowsOverlap(
+        range('2026-12-24', '2026-12-28', 'CaSang'),
+        range('2026-12-20', '2026-12-23', 'CaSang'),
+      ),
+    ).toBe(false);
+  });
+
+  it('giao một yêu cầu CaNgay (phủ cả hai ca) ⇒ trùng ở cả hai chiều, miễn là khoảng giao nhau', () => {
+    const ts = range('2026-12-24', '2026-12-28', 'CaChieu');
+    expect(leaveWindowsOverlap(ts, wholeDays('2026-12-28', '2026-12-31'))).toBe(
+      true,
+    );
+    expect(leaveWindowsOverlap(wholeDays('2026-12-20', '2026-12-24'), ts)).toBe(
+      true,
+    );
+    expect(leaveWindowsOverlap(ts, wholeDays('2026-12-29', '2026-12-31'))).toBe(
+      false,
+    );
+  });
+});
+
+// UX7: `isShiftEnded` chỉ so GIỜ trong ngày, nên chỉ được hỏi cho ca của HÔM NAY; ca của ngày sau trong khoảng không bao giờ là "đã kết thúc".
+describe('DUX7-16 todaysShift (Q24 với khoảng nhiều ngày)', () => {
+  const shift = (ngay: string, ca: 'CaSang' | 'CaChieu', id: string) => ({
+    lichLamViecId: id,
+    ngay,
+    ca,
+  });
+
+  it('hôm nay có ca trong các ca bị phủ ⇒ trả đúng ca đó, bất kể thứ tự', () => {
+    const today = shift('2026-12-01', 'CaSang', '1');
+    expect(
+      todaysShift([today, shift('2026-12-02', 'CaSang', '2')], '2026-12-01'),
+    ).toBe(today);
+    expect(
+      todaysShift([shift('2026-12-02', 'CaSang', '2'), today], '2026-12-01'),
+    ).toBe(today);
+  });
+
+  it('khoảng bắt đầu hôm nay nhưng hôm nay KHÔNG có ca đó (ca đầu tiên là ngày mai) ⇒ null: không kiểm ca đã kết thúc', () => {
+    expect(
+      todaysShift(
+        [
+          shift('2026-12-02', 'CaSang', '2'),
+          shift('2026-12-03', 'CaSang', '3'),
+        ],
+        '2026-12-01',
+      ),
+    ).toBeNull();
+  });
+
+  it('khoảng bắt đầu ngày mai, rỗng, hoặc chỉ có ngày đã qua ⇒ null', () => {
+    expect(
+      todaysShift([shift('2026-12-02', 'CaChieu', '2')], '2026-12-01'),
+    ).toBeNull();
+    expect(todaysShift([], '2026-12-01')).toBeNull();
+    expect(
+      todaysShift([shift('2026-11-30', 'CaSang', '0')], '2026-12-01'),
+    ).toBeNull();
   });
 });
 

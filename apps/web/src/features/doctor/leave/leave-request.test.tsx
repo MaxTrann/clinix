@@ -122,10 +122,14 @@ function chooseShiftKind(dialog: HTMLElement) {
   });
 }
 
-function fillByShift(dialog: HTMLElement) {
+// UX7: "Theo ca" là khoảng ngày + MỘT ca. Mặc định Từ ngày = Đến ngày = 26/10 (một ngày); truyền `to` để chọn nhiều ngày.
+function fillByShift(dialog: HTMLElement, to = '2026-10-26') {
   chooseShiftKind(dialog);
-  fireEvent.change(within(dialog).getByLabelText(/Ngày/), {
+  fireEvent.change(within(dialog).getByLabelText(/Từ ngày/), {
     target: { value: '2026-10-26' },
+  });
+  fireEvent.change(within(dialog).getByLabelText(/Đến ngày/), {
+    target: { value: to },
   });
   fireEvent.change(within(dialog).getByLabelText(/^Ca/), {
     target: { value: 'CaSang' },
@@ -163,10 +167,11 @@ describe('gửi yêu cầu nghỉ (F4)', () => {
     expect(screen.getByRole('button', { name: 'Yêu cầu nghỉ' })).toHaveFocus();
   });
 
-  it('WN-02 "Theo ca": một ngày + ca, không có ô "Đến ngày"; thân có denNgay = tuNgay và ca', async () => {
+  // UX7 (đổi WN-02): trước đây test này khẳng định "Theo ca": một ngày + ca, KHÔNG có ô "Đến ngày", thân có denNgay = tuNgay; nay có cả Từ ngày, Đến ngày và Ca.
+  it('DUX7-38 WN-02 (đổi) "Theo ca" một ngày: Từ ngày = Đến ngày, thân có denNgay = tuNgay và ca', async () => {
     const dialog = await openDialog();
     chooseShiftKind(dialog);
-    expect(within(dialog).queryByLabelText(/Đến ngày/)).toBeNull();
+    expect(within(dialog).getByLabelText(/Đến ngày/)).toBeVisible();
     fillByShift(dialog);
     submit(dialog);
 
@@ -289,7 +294,7 @@ describe('gửi yêu cầu nghỉ (F4)', () => {
       apiError(400, 'DU_LIEU_KHONG_HOP_LE', {
         loi: [
           { truong: 'lyDo', ma: 'LY_DO_KHONG_HOP_LE' },
-          { truong: 'denNgay', ma: 'NGHI_THEO_CA_CHI_MOT_NGAY' },
+          { truong: 'denNgay', ma: 'KHOANG_NGAY_KHONG_HOP_LE' },
         ],
       });
     const dialog = await openDialog();
@@ -301,8 +306,11 @@ describe('gửi yêu cầu nghỉ (F4)', () => {
         'Vui lòng nhập lý do (từ 2 đến 500 ký tự).',
       ),
     ).toBeVisible();
+    // UX7 (đổi): trước đây "Nghỉ theo ca chỉ chọn một ngày." (mã NGHI_THEO_CA_CHI_MOT_NGAY đã bỏ)
     expect(
-      within(dialog).getByText('Nghỉ theo ca chỉ chọn một ngày.'),
+      within(dialog).getByText(
+        'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.',
+      ),
     ).toBeVisible();
     expect(within(dialog).getByLabelText(/Lý do/)).toHaveValue('Việc gia đình');
     expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('26/10/2026');
@@ -439,6 +447,156 @@ describe('gửi yêu cầu nghỉ (F4)', () => {
   });
 });
 
+// Doctor UX7 (issue #582): "Theo ca" cho khoảng nhiều ngày + MỘT ca; Admin duyệt một lần.
+describe('"Theo ca" nhiều ngày (UX7)', () => {
+  it('DUX7-39 nhãn "Theo ca (một hoặc nhiều ngày)" thay "Theo ca (một ngày)"; hai ô ngày và ô Ca cùng hiện, "Ca" ở hàng riêng bên dưới', async () => {
+    const dialog = await openDialog();
+    const kind = within(dialog).getByLabelText(/Loại nghỉ/);
+    expect(
+      within(kind).getByRole('option', {
+        name: 'Theo ca (một hoặc nhiều ngày)',
+      }),
+    ).toBeVisible();
+    expect(
+      within(kind).queryByRole('option', { name: /một ngày\)/ }),
+    ).toBeNull();
+    expect(
+      within(kind).getByRole('option', {
+        name: 'Cả ngày (có thể nhiều ngày)',
+      }),
+    ).toBeVisible();
+    // "Cả ngày" không có ô Ca; "Theo ca" có
+    expect(within(dialog).queryByLabelText(/^Ca/)).toBeNull();
+    chooseShiftKind(dialog);
+    const from = within(dialog).getByLabelText(/Từ ngày/);
+    const to = within(dialog).getByLabelText(/Đến ngày/);
+    const shift = within(dialog).getByLabelText(/^Ca/);
+    // Thứ tự tài liệu (và thứ tự Tab): Loại, Từ ngày, Đến ngày, Ca, Lý do
+    const order = [
+      within(dialog).getByLabelText(/Loại nghỉ/),
+      from,
+      to,
+      shift,
+      within(dialog).getByLabelText(/Lý do/),
+    ];
+    for (let i = 1; i < order.length; i += 1)
+      expect(
+        order[i - 1]!.compareDocumentPosition(order[i]!) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+  });
+
+  it('DUX7-41 gõ tay Từ ngày và Đến ngày (dd/mm/yyyy) ở "Theo ca": thân gửi lên là ISO, khoảng nhiều ngày kèm ca', async () => {
+    const dialog = await openDialog();
+    chooseShiftKind(dialog);
+    fillDate(within(dialog).getByLabelText(/Từ ngày/), '24112026');
+    fillDate(within(dialog).getByLabelText(/Đến ngày/), '28112026');
+    fireEvent.change(within(dialog).getByLabelText(/^Ca/), {
+      target: { value: 'CaChieu' },
+    });
+    fillReason(dialog);
+    submit(dialog);
+
+    await waitFor(() =>
+      expect(calls('POST', '/doctor/leave-requests')).toHaveLength(1),
+    );
+    expect(
+      JSON.parse(String(calls('POST', '/doctor/leave-requests')[0][1]?.body)),
+    ).toEqual({
+      hinhThuc: 'TheoCa',
+      tuNgay: '2026-11-24',
+      denNgay: '2026-11-28',
+      ca: 'CaChieu',
+      lyDo: 'Việc gia đình',
+    });
+  });
+
+  it('DUX7-42 kiểm ở máy: thiếu Đến ngày, đảo ngày, thiếu ca, thiếu lý do ⇒ lỗi dưới đúng ô, KHÔNG gọi API', async () => {
+    const dialog = await openDialog();
+    chooseShiftKind(dialog);
+    fireEvent.change(within(dialog).getByLabelText(/Từ ngày/), {
+      target: { value: '2026-10-26' },
+    });
+    submit(dialog);
+    expect(within(dialog).getByText('Vui lòng chọn ngày.')).toBeVisible(); // đúng MỘT chỗ: dưới Đến ngày
+    expect(within(dialog).getByLabelText(/Đến ngày/)).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(within(dialog).getByText('Vui lòng chọn ca.')).toBeVisible();
+
+    fireEvent.change(within(dialog).getByLabelText(/Đến ngày/), {
+      target: { value: '2026-10-25' },
+    });
+    submit(dialog);
+    expect(
+      within(dialog).getByText(
+        'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.',
+      ),
+    ).toBeVisible();
+    expect(calls('POST', '/doctor/leave-requests')).toHaveLength(0);
+  });
+
+  it('DUX7-43 đổi loại nghỉ giữ nguyên Từ ngày và Đến ngày đã nhập; sang "Cả ngày" thì bỏ ca; về "Theo ca" ô ca trống lại', async () => {
+    const dialog = await openDialog();
+    fillByShift(dialog, '2026-10-30');
+    fireEvent.change(within(dialog).getByLabelText(/Loại nghỉ/), {
+      target: { value: 'CaNgay' },
+    });
+    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('26/10/2026');
+    expect(within(dialog).getByLabelText(/Đến ngày/)).toHaveValue('30/10/2026');
+    expect(within(dialog).queryByLabelText(/^Ca/)).toBeNull();
+    chooseShiftKind(dialog);
+    expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue('26/10/2026');
+    expect(within(dialog).getByLabelText(/Đến ngày/)).toHaveValue('30/10/2026');
+    expect(within(dialog).getByLabelText(/^Ca/)).toHaveValue('');
+  });
+
+  // Đột biến W12 sống ở lần đầu: bộ chọn ngày gốc (`{id}-picker`) mang `min`; happy-dom không ép `min` nhưng đọc được thuộc tính.
+  it('DUX7-57 bộ chọn ngày của "Đến ngày" có min = Từ ngày (hôm nay khi chưa chọn); của "Từ ngày" luôn min = hôm nay', async () => {
+    const dialog = await openDialog();
+    chooseShiftKind(dialog);
+    const fromPicker = document.getElementById('leave-from-picker');
+    const toPicker = document.getElementById('leave-to-picker');
+    expect(toPicker).toHaveAttribute('min', '2026-10-14');
+    fireEvent.change(within(dialog).getByLabelText(/Từ ngày/), {
+      target: { value: '2026-10-26' },
+    });
+    expect(toPicker).toHaveAttribute('min', '2026-10-26');
+    expect(fromPicker).toHaveAttribute('min', '2026-10-14');
+  });
+
+  it.each([
+    [
+      'NGHI_NGOAI_LICH_LAM_VIEC',
+      'Ngày/ca xin nghỉ không có trong lịch làm việc',
+    ],
+    ['YEU_CAU_NGHI_TRUNG', 'Bạn đã có yêu cầu nghỉ trùng thời gian này.'],
+    ['CA_DA_KET_THUC', 'Ca này đã kết thúc trong hôm nay.'],
+    ['KHOANG_NGHI_QUA_DAI', 'Khoảng nghỉ tối đa 31 ngày.'],
+  ])(
+    'DUX7-44 lỗi 409 %s với khoảng nhiều ngày: dải lỗi chung, giữ nguyên Từ ngày, Đến ngày, ca và lý do',
+    async (maLoi, text) => {
+      createHandler = () => apiError(409, maLoi);
+      const dialog = await openDialog();
+      fillByShift(dialog, '2026-10-30');
+      submit(dialog);
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(text);
+      expect(within(dialog).getByLabelText(/Từ ngày/)).toHaveValue(
+        '26/10/2026',
+      );
+      expect(within(dialog).getByLabelText(/Đến ngày/)).toHaveValue(
+        '30/10/2026',
+      );
+      expect(within(dialog).getByLabelText(/^Ca/)).toHaveValue('CaSang');
+      expect(within(dialog).getByLabelText(/Lý do/)).toHaveValue(
+        'Việc gia đình',
+      );
+    },
+  );
+});
+
 describe('lịch sử và chi tiết (F4)', () => {
   it('WN-07 rỗng: "Chưa có yêu cầu nghỉ nào."; lọc ra rỗng: câu riêng', async () => {
     render(<DoctorSchedulePage />);
@@ -539,6 +697,33 @@ describe('lịch sử và chi tiết (F4)', () => {
     expect(within(dialog).getByText('26/10/2026 – 28/10/2026')).toBeVisible();
     expect(within(dialog).queryByText('Ca')).toBeNull();
     expect(within(dialog).queryByText('Xử lý lúc')).toBeNull();
+  });
+
+  it('DUX7-45 yêu cầu "Theo ca" nhiều ngày: dòng lịch sử "24/11 – 28/11" kèm "Theo ca · Ca sáng"; hộp chi tiết có Loại, Ngày (khoảng) và Ca', async () => {
+    history = {
+      items: [
+        leave({
+          hinhThuc: 'TheoCa',
+          ca: 'CaSang',
+          tuNgay: '2026-11-24',
+          denNgay: '2026-11-28',
+        }),
+      ],
+      total: 1,
+    };
+    render(<DoctorSchedulePage />);
+    const row = await screen.findByRole('button', {
+      name: /24\/11 – 28\/11.*Theo ca/,
+    });
+    expect(row).toHaveTextContent('24/11 – 28/11');
+    expect(row).toHaveTextContent('Theo ca · Ca sáng');
+    fireEvent.click(row);
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Chi tiết yêu cầu nghỉ',
+    });
+    expect(within(dialog).getByText('Theo ca')).toBeVisible();
+    expect(within(dialog).getByText('24/11/2026 – 28/11/2026')).toBeVisible();
+    expect(within(dialog).getByText('Ca sáng')).toBeVisible();
   });
 
   it('WN-09 không có nút "Hủy yêu cầu" ở đâu cả (Q23), kể cả trong hộp chi tiết', async () => {

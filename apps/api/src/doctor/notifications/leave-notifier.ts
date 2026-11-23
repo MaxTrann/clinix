@@ -62,7 +62,8 @@ function describePeriod(input: LeaveNotificationInput): string {
   const from = formatDate(input.ngayBatDau);
   const shift = input.ca ? `${SHIFT_LABELS[input.ca]} ` : '';
   if (input.ngayBatDau === input.ngayKetThuc) return `${shift}ngày ${from}`;
-  return `từ ${from} đến ${formatDate(input.ngayKetThuc)}`;
+  // Theo ca nhiều ngày (UX7) phải giữ chữ ca, nếu không "từ A đến B" đọc như nghỉ cả ngày.
+  return `${shift}từ ${from} đến ${formatDate(input.ngayKetThuc)}`;
 }
 
 /** Hàm thuần dựng nội dung: một dòng, không ký tự điều khiển, ≤ 500 ký tự. */
