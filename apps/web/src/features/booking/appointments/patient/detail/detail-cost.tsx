@@ -1,5 +1,6 @@
 import { Wallet } from 'lucide-react';
-import { useId } from 'react';
+import { Link } from 'react-router';
+import { bookingPaymentPath } from '../../../../../shared/routes/booking-paths';
 import {
   formatVietnamTime,
   formatVietnamWeekdayDate,
@@ -9,10 +10,16 @@ import type { PatientAppointmentDetail } from '../api/patient-appointment-types'
 import { DetailCard, DetailRow } from '../../common/detail-card';
 import { DETAIL_TEXT } from './detail-messages';
 
-// Khối thanh toán của lịch `ChoThanhToan` (Figma `426:2`). KHÔNG đếm ngược (đếm ngược và hết hạn là WZ-10 của F6, Đại duyệt 12/11/2026): chỉ hiện hạn thanh toán
-// theo giờ Việt Nam. Nút `Thanh toán` vô hiệu kèm "Chưa được triển khai" (nếp LTN-05) vì `payment` và `wallet` chưa có; không có "Số dư ví" (chưa có số).
-function PendingPayment({ deadline }: { deadline: string | null }) {
-  const noteId = useId();
+// Khối thanh toán của lịch `ChoThanhToan` (Figma `426:2`). KHÔNG đếm ngược ở trang này (đếm ngược và hết hạn là của trang Thanh toán, booking F6, WZ-10; Đại duyệt 12/11/2026): chỉ hiện hạn thanh toán
+// theo giờ Việt Nam. Từ F6 (Đại duyệt 23/11/2026) nút `Thanh toán` là LIÊN KẾT tới trang Thanh toán của đúng mã lịch (trước đó vô hiệu kèm "Chưa được triển khai", nếp LTN-05); trang đó tự
+// xử lý lịch đã hết hạn hay đã hủy. Không có "Số dư ví" (số dư là của panel thanh toán ở trang đó).
+function PendingPayment({
+  deadline,
+  maLichHen,
+}: {
+  deadline: string | null;
+  maLichHen: string;
+}) {
   return (
     <div className="mt-3 border-t border-gray-100 pt-4">
       {deadline !== null && (
@@ -26,17 +33,12 @@ function PendingPayment({ deadline }: { deadline: string | null }) {
           </p>
         </div>
       )}
-      <button
-        type="button"
-        disabled
-        aria-describedby={noteId}
-        className="mt-3 min-h-11 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 px-5 text-sm font-semibold text-gray-600"
+      <Link
+        to={bookingPaymentPath(maLichHen)}
+        className="mt-3 flex min-h-11 w-full items-center justify-center rounded-xl bg-brand-strong px-5 text-sm font-semibold text-white hover:bg-cyan-800"
       >
         {DETAIL_TEXT.payButton}
-      </button>
-      <p id={noteId} className="pt-1.5 text-center text-xs text-gray-600">
-        {DETAIL_TEXT.payNotReady}
-      </p>
+      </Link>
     </div>
   );
 }
@@ -91,7 +93,10 @@ export function DetailCostCard({
           )}
         </dl>
         {detail.trangThai === 'ChoThanhToan' && (
-          <PendingPayment deadline={detail.hanThanhToan} />
+          <PendingPayment
+            deadline={detail.hanThanhToan}
+            maLichHen={detail.maLichHen}
+          />
         )}
         <p className="pt-2 pb-3 text-xs text-gray-600">
           {DETAIL_TEXT.costNote}
