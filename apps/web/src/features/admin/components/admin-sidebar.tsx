@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router';
+import { NavLink, useLocation } from 'react-router';
 import {
   ADMIN_DEPOSIT_POLICY_PATH,
   ADMIN_WITHDRAWALS_PATH,
@@ -58,6 +58,8 @@ interface MenuItem {
   to?: string;
   // Chỉ Admin Toàn hệ thống thấy mục này (Figma ẩn với Admin Chi nhánh)
   systemOnly?: boolean;
+  // Đường dẫn khác `to` mà mục này vẫn sáng (các tab cùng một mục menu)
+  alsoActiveFor?: string[];
 }
 
 interface MenuGroup {
@@ -96,8 +98,9 @@ const MENU_GROUPS: MenuGroup[] = [
       {
         label: 'Nhân sự & Tài khoản',
         icon: 'staff',
-        // admin F9: mở màn Tài khoản bệnh nhân; F8 (tab Nhân sự) sẽ đổi `to` và thêm thanh tab
-        to: `${ROLE_HOME_PATHS.QuanTriVien}/tai-khoan-benh-nhan`,
+        // admin F8: đích là tab Nhân sự; tab Tài khoản bệnh nhân (admin F9) cũng làm mục này sáng
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/nhan-su`,
+        alsoActiveFor: [`${ROLE_HOME_PATHS.QuanTriVien}/tai-khoan-benh-nhan`],
       },
       {
         label: 'Bác sĩ',
@@ -191,6 +194,12 @@ function SidebarIcon({ name }: { name: IconName }) {
   return <img className={styles.navIcon} src={ICONS[name]} alt="" />;
 }
 
+// `NavLink` chỉ biết `to` của chính nó: mục có nhiều tab sáng thêm ở các đường dẫn `alsoActiveFor` (và trang con của chúng)
+const isAlsoActive = (item: MenuItem, pathname: string) =>
+  (item.alsoActiveFor ?? []).some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+
 export function AdminSidebar({
   adminMe,
   onLogout,
@@ -198,6 +207,7 @@ export function AdminSidebar({
   logoutFailed,
 }: AdminSidebarProps) {
   const { user } = useAuth();
+  const { pathname } = useLocation();
   const subtitle =
     adminMe.phamVi === 'ToanHeThong'
       ? 'Quản trị viên'
@@ -254,7 +264,7 @@ export function AdminSidebar({
                     <NavLink
                       to={item.to}
                       className={({ isActive }) =>
-                        `${styles.menuItem} ${styles.menuItemLink} ${isActive ? styles.activeLink : ''}`
+                        `${styles.menuItem} ${styles.menuItemLink} ${isActive || isAlsoActive(item, pathname) ? styles.activeLink : ''}`
                       }
                     >
                       <SidebarIcon name={item.icon} />

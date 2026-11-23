@@ -100,7 +100,7 @@ export function PatientFiltersBar({
 }
 
 // Chỉ dựng cho Toàn hệ thống nên chỉ Toàn hệ thống gọi `GET /admin/branches`. Không tải được danh sách thì ô vẫn chọn được "Tất cả chi nhánh".
-function BranchFilter({
+export function BranchFilter({
   value,
   onChange,
 }: {
