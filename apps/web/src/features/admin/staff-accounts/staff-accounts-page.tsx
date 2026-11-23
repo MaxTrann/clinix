@@ -1,4 +1,4 @@
-import { Info } from 'lucide-react';
+import { Info, Plus } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRemote } from '../../../shared/hooks/use-remote';
 import { LoadingState } from '../../../shared/ui/loading-state';
@@ -11,6 +11,7 @@ import { AdminDetailPanel } from '../components/admin-detail-panel';
 import { AdminTable, type AdminTableColumn } from '../components/admin-table';
 import { useAdminScope } from '../use-admin-scope';
 import { useDebouncedValue } from '../patient-accounts/use-patient-accounts';
+import { StaffCreateDialog } from './staff-create-dialog';
 import { StaffDetailBody } from './staff-detail-panel';
 import { describeResendFailure, describeResendOutcome } from './staff-errors';
 import { StaffFiltersBar, type StaffStatusFilter } from './staff-filters';
@@ -31,6 +32,7 @@ import { useStaffAction } from './use-staff-action';
 // Route bọc `AdminScopeGuard policy="Any"`: Admin Chi nhánh vào được nhưng chỉ thấy Bác sĩ và Lễ tân của chi nhánh mình (Q27, L9), không có bộ lọc chi nhánh.
 // Danh sách và chi tiết luôn lấy từ API; sau mỗi hành động ghi, chi tiết và danh sách được TẢI LẠI (không đổi trạng thái cục bộ).
 // Dữ liệu chi tiết, thông báo và hộp xác nhận nằm ở trang này; panel chỉ vẽ, và tạm ẩn khi hộp xác nhận mở (xem `staff-detail-panel.tsx`).
+// Nút "Tạo tài khoản nhân sự" mở hộp tạo (PR2): hộp tạo và panel chi tiết không bao giờ cùng mở; "Xem chi tiết" ở hộp đóng hộp rồi mới mở panel.
 
 const SEARCH_DELAY_MS = 250;
 
@@ -64,6 +66,7 @@ export function StaffAccountsPage() {
   );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [confirmLock, setConfirmLock] = useState(false);
   const [dependents, setDependents] = useState<DoctorDependents | null>(null);
   const detail = useRemote<StaffAccount | null>(
@@ -232,18 +235,28 @@ export function StaffAccountsPage() {
       className="flex min-w-0 flex-col gap-4"
       aria-labelledby="staff-accounts-title"
     >
-      <header>
-        <h1
-          id="staff-accounts-title"
-          className="text-[22.5px] leading-[30px] font-bold text-gray-900"
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1
+            id="staff-accounts-title"
+            className="text-[22.5px] leading-[30px] font-bold text-gray-900"
+          >
+            Nhân sự
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {list.state.status === 'ready'
+              ? `${list.state.data.total} nhân sự`
+              : 'Xem tài khoản của nhân sự.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="inline-flex min-h-[35px] flex-none items-center gap-1.5 rounded-[9.375px] bg-brand-strong px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white"
+          onClick={() => setCreating(true)}
         >
-          Nhân sự
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {list.state.status === 'ready'
-            ? `${list.state.data.total} nhân sự`
-            : 'Xem tài khoản của nhân sự.'}
-        </p>
+          <Plus size={15} aria-hidden="true" />
+          Tạo tài khoản nhân sự
+        </button>
       </header>
 
       <AccountTabs current="staff" />
@@ -318,6 +331,18 @@ export function StaffAccountsPage() {
           onResend={() => account !== null && resend(account)}
         />
       </AdminDetailPanel>
+
+      {creating && (
+        <StaffCreateDialog
+          me={me}
+          onClose={() => setCreating(false)}
+          onCreated={reloadList}
+          onViewDetail={(id) => {
+            setCreating(false);
+            openDetail(id);
+          }}
+        />
+      )}
 
       {account !== null && confirmLock && (
         <AccountLockDialog
