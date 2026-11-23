@@ -5,7 +5,8 @@ import type {
   ShiftCode,
 } from '../../../shared/schedule/shift-labels';
 
-// Hợp đồng `GET /doctor/schedule` (PLAN doctor B7). Không có `soLichHen` (chờ booking D14, Q18): giao diện không được hiện "0 lịch".
+// Hợp đồng `GET /doctor/schedule` (PLAN doctor B7). `soLichHen` do booking B17 (D14, Q18) thêm từ 12/11/2026 và CHỈ đếm lịch chưa khám xong (`ChoThanhToan`, `DaXacNhan`,
+// `DaTiepDon`); khai tuỳ chọn để bản API cũ không có trường thì giao diện không hiện số (không bao giờ hiện "0" giả). Doctor UX6 hiện nó ở ô tuần là "N chưa khám".
 export interface DoctorShift {
   lichLamViecId: string;
   ngay: string;
@@ -16,6 +17,7 @@ export interface DoctorShift {
   ketThuc: string | null;
   gioCaKhongCon: boolean;
   nghiPhep: LeaveStateCode | null;
+  soLichHen?: number;
 }
 
 export interface DoctorSchedule {

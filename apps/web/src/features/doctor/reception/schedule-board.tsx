@@ -279,6 +279,7 @@ export function ScheduleBoard({
           doctor={shiftOpen.doctor}
           shift={shiftOpen.shift}
           showBranch={allBranches}
+          withAppointments={source === 'reception'}
           actions={shiftActions?.({
             doctor: shiftOpen.doctor,
             shift: shiftOpen.shift,
@@ -293,6 +294,7 @@ export function ScheduleBoard({
         <DayDrawer
           day={dayOpen}
           rows={rows}
+          withAppointments={source === 'reception'}
           returnFocusRef={triggerRef}
           onClose={() => setDayOpen(null)}
         />
