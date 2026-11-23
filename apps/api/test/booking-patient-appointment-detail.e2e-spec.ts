@@ -151,7 +151,7 @@ async function world() {
 }
 
 describe('GET /patient/appointments/:maLichHen', () => {
-  it('LSH-10, LSH-14 chi tiết: đúng mười bảy khoá (booking B19: thêm `moc`); thanhToan là đối tượng của cổng thanh toán THẬT (payment B7: chưa thu đồng nào), hoanTien là null (RefundPort còn Noop, chờ B9); lyDoKham và thoiGianMayChu đúng; không khoá nào lộ id, không lyDoHuy, không email, SĐT, băm', async () => {
+  it('LSH-10, LSH-14 chi tiết: đúng mười bảy khoá (booking B19: thêm `moc`); thanhToan là đối tượng của cổng thanh toán THẬT (payment B7: chưa thu đồng nào), hoanTien là null (RefundPort THẬT từ payment B9, nhưng lịch dựng không có khoản cọc qua ví nên findRefund trả null); lyDoKham và thoiGianMayChu đúng; không khoá nào lộ id, không lyDoHuy, không email, SĐT, băm', async () => {
     const w = await world();
     const res = await get(MINE, w.token);
     expect(res.status).toBe(200);
@@ -164,7 +164,7 @@ describe('GET /patient/appointments/:maLichHen', () => {
       choPhepHuy: true,
       lyDoKham: 'Đau đầu ba ngày',
       // payment B7 (TRACKING booking 3.47.4): TRƯỚC là `null` (cổng Noop); lớp thật `PaymentSummaryReader.findPayment` trả `null` CHỈ khi không có lịch (Q21), lịch chưa thu đồng nào là đối tượng
-      // với `conPhaiThu` = `gia_snapshot` của lịch dựng (100000.00) và không dòng giao dịch nào. `hoanTien` GIỮ `null` vì `REFUND_PORT` còn là Noop tới B9.
+      // với `conPhaiThu` = `gia_snapshot` của lịch dựng (100000.00) và không dòng giao dịch nào. `hoanTien` GIỮ `null`: payment B9 (TRACKING booking 3.48.4) đã thay `REFUND_PORT` bằng `RefundService` THẬT, nhưng lịch dựng không có khoản cọc qua ví nên `findRefund` trả `null` (số giữ, chỉ đổi chữ).
       thanhToan: { daThu: '0.00', conPhaiThu: '100000.00', giaoDich: [] },
       hoanTien: null,
       hanThanhToan: null,

@@ -6,6 +6,7 @@ import { PaymentPortsModule } from '../../payment/ports/payment-ports.module.js'
 import { PaymentRecorder } from '../../payment/ports/payment-recorder.js';
 import { PaymentSummaryReader } from '../../payment/ports/payment-summary.reader.js';
 import { WalletBalanceReader } from '../../wallet/balance/wallet-balance.reader.js';
+import { RefundService } from '../../wallet/refund/refund.service.js';
 import { WalletModule } from '../../wallet/wallet.module.js';
 import { AppointmentsModule } from '../appointments.module.js';
 import {
@@ -51,13 +52,15 @@ const EXPECTED = [
 
 // B15 (TRACKING 3.37 B15-J): trong `AppointmentsModule` cổng thông báo là BẢN THẬT (`BookingNotifier`). B16a (TRACKING 3.39 B16a-C): cổng nghỉ phép cũng là BẢN THẬT (`LeaveReader` của `SchedulingModule`, `useExisting`).
 // B7 (TRACKING 3.47; payment B7 = B17a lần 1, HDT-06): ba cổng thanh toán và ví cũng là BẢN THẬT, `useExisting` lớp của hai module lá (`PaymentRecorder`, `PaymentSummaryReader` của `PaymentPortsModule`;
-// `WalletBalanceReader` của `WalletModule`). Chỉ còn ba bản `Noop`: `REFUND_PORT` (chờ B9), `WAITLIST_PORT`, `PENDING_BRANCH_CHANGES_PORT`. Mảng `BOOKING_PORT_PROVIDERS` và lớp `Noop` giữ nguyên (test dựng riêng dùng chúng).
+// `WalletBalanceReader` của `WalletModule`). B9 (TRACKING 3.48; payment B9 = B17a lần 2, HDT-08): `REFUND_PORT` cũng là BẢN THẬT, `useExisting: RefundService` của `WalletModule` (BPO-08). Chỉ còn hai bản `Noop`:
+// `WAITLIST_PORT`, `PENDING_BRANCH_CHANGES_PORT`. Mảng `BOOKING_PORT_PROVIDERS` và lớp `Noop` giữ nguyên (test dựng riêng dùng chúng).
 const REAL_IN_MODULE = new Map<symbol, new (...args: never[]) => unknown>([
   [APPOINTMENT_NOTIFIER, BookingNotifier],
   [DOCTOR_LEAVE_PORT, LeaveReader],
   [PAYMENT_PORT, PaymentRecorder],
   [PAYMENT_SUMMARY_PORT, PaymentSummaryReader],
   [WALLET_BALANCE_PORT, WalletBalanceReader],
+  [REFUND_PORT, RefundService],
 ]);
 const EXPECTED_IN_MODULE = EXPECTED.map(([token, noop]) => {
   const real = REAL_IN_MODULE.get(token);
@@ -83,13 +86,14 @@ const B7_PORTS = [
   ],
 ] as const;
 
-// Cổng nào của module cũng thay được bằng `overrideProvider(token).useValue(fake)` (test dựng riêng): năm cổng thật ở trên.
+// Cổng nào của module cũng thay được bằng `overrideProvider(token).useValue(fake)` (test dựng riêng): sáu cổng thật ở trên.
 const OVERRIDABLE = [
   ['APPOINTMENT_NOTIFIER', APPOINTMENT_NOTIFIER],
   ['DOCTOR_LEAVE_PORT', DOCTOR_LEAVE_PORT],
   ['PAYMENT_PORT', PAYMENT_PORT],
   ['PAYMENT_SUMMARY_PORT', PAYMENT_SUMMARY_PORT],
   ['WALLET_BALANCE_PORT', WALLET_BALANCE_PORT],
+  ['REFUND_PORT', REFUND_PORT],
 ] as const;
 
 // AppointmentsModule có service đọc DB (task B1) nên đòi `DataSource`; app thật có sẵn toàn cục từ DatabaseModule, còn test dựng riêng module cấp một DataSource GIẢ
@@ -119,7 +123,7 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
     ).toEqual(EXPECTED.map(([token, noop]) => [token, noop]));
   });
 
-  it('AppointmentsModule cấp đủ tám token: ba bản Noop (hoàn tiền, danh sách chờ, đổi chi nhánh) và năm bản THẬT (BookingNotifier, LeaveReader, PaymentRecorder, PaymentSummaryReader, WalletBalanceReader), không cần DB', async () => {
+  it('AppointmentsModule cấp đủ tám token: hai bản Noop (danh sách chờ, đổi chi nhánh) và sáu bản THẬT (BookingNotifier, LeaveReader, PaymentRecorder, PaymentSummaryReader, WalletBalanceReader, RefundService), không cần DB', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppointmentsModule],
     })
@@ -183,6 +187,27 @@ describe('BPO-01 token DI và AppointmentsModule', () => {
       moduleRef.get(t, { strict: false }),
     );
     expect(new Set(instances).size).toBe(8);
+    await moduleRef.close();
+  });
+});
+
+describe('BPO-08 REFUND_PORT là RefundService của WalletModule (payment B9, HDT-08, M16)', () => {
+  it('toBe đúng thể hiện RefundService (useExisting, không phải bản sao), không phải NoopRefundPort; hai cổng chưa thật (danh sách chờ, đổi chi nhánh) vẫn là Noop', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [AppointmentsModule],
+    })
+      .useMocker(noDatabase)
+      .compile();
+    const port = moduleRef.get(REFUND_PORT, { strict: false });
+    expect(port).toBeInstanceOf(RefundService);
+    expect(port).not.toBeInstanceOf(NoopRefundPort);
+    expect(port).toBe(moduleRef.get(RefundService, { strict: false }));
+    expect(moduleRef.get(WAITLIST_PORT, { strict: false })).toBeInstanceOf(
+      NoopWaitlistPort,
+    );
+    expect(
+      moduleRef.get(PENDING_BRANCH_CHANGES_PORT, { strict: false }),
+    ).toBeInstanceOf(NoopPendingBranchChangesPort);
     await moduleRef.close();
   });
 });

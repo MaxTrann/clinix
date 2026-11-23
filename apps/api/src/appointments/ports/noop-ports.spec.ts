@@ -65,6 +65,16 @@ const CASES: NoopCase[] = [
     },
   },
   {
+    // payment B9 (TRACKING booking 3.48; Q15) — CRF-05: số còn hoàn được về ví; chưa có `payment` ⇒ "0.00" (không có gì để hoàn), không đọc DB
+    name: 'PaymentSummaryPort.amountRefundable',
+    expected: '0.00',
+    build: () => {
+      const port = new NoopPaymentSummaryPort();
+      const asPort: PaymentSummaryPort = port;
+      return { port, invoke: (em, tag) => asPort.amountRefundable(em, tag) };
+    },
+  },
+  {
     name: 'PaymentSummaryPort.remainingToCollect',
     expected: '350000.00',
     build: () => {
@@ -199,7 +209,7 @@ describe('CG-01a Noop mặc định: không chặn, không ghi', () => {
     },
   );
 
-  it('chỉ remainingToCollect đọc DB: một SELECT thường, không khoá; bảy cổng kia không gọi SQL nào', async () => {
+  it('chỉ remainingToCollect đọc DB: một SELECT thường, không khoá; mọi phương thức khác (kể cả amountRefundable, CRF-05) không gọi SQL nào', async () => {
     for (const { name, build } of CASES) {
       const { em, query } = fakeEntityManager();
       await silent(build()).invoke(em, SENTINEL_ID);
@@ -261,7 +271,7 @@ describe('CG-01b Noop cảnh báo đúng một lần, không nội dung riêng t
       await built.invoke(em, 'KHAC');
       messages.add(String(warn.mock.calls[0]?.[0]));
     }
-    // 11 phương thức nhưng chỉ 8 lớp: ba phương thức của PaymentSummaryPort và hai của RefundPort dùng chung một câu
+    // 12 phương thức nhưng chỉ 8 lớp: bốn phương thức của PaymentSummaryPort và hai của RefundPort dùng chung một câu
     expect(messages.size).toBe(8);
   });
 

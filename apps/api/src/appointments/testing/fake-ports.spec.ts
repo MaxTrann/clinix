@@ -101,6 +101,33 @@ describe('BPO-02 Fake thanh toán và ví', () => {
     expect(port.amountPaidCall.count).toBe(2);
   });
 
+  it('CRF-04 amountRefundable: mặc định "0.00"; paid() đặt CẢ số đã thu lẫn số còn hoàn được; refundable() chỉ đặt số còn hoàn được và không đụng số đã thu; ghi đúng em và lichHenId', async () => {
+    const port = new FakePaymentSummaryPort();
+    const manager = em();
+    await expect(port.amountRefundable(manager, '11')).resolves.toBe('0.00');
+
+    port.paid({ '11': '100000.00' }, '7.00');
+    await expect(port.amountPaid(manager, '11')).resolves.toBe('100000.00');
+    await expect(port.amountRefundable(manager, '11')).resolves.toBe(
+      '100000.00',
+    );
+    await expect(port.amountRefundable(manager, '12')).resolves.toBe('7.00');
+
+    port.refundable({ '11': '60000.00' }, '5.00');
+    await expect(port.amountRefundable(manager, '11')).resolves.toBe(
+      '60000.00',
+    );
+    await expect(port.amountRefundable(manager, '12')).resolves.toBe('5.00');
+    // số đã thu giữ nguyên: hai số độc lập
+    await expect(port.amountPaid(manager, '11')).resolves.toBe('100000.00');
+    await expect(port.amountPaid(manager, '12')).resolves.toBe('7.00');
+
+    expect(port.amountRefundableCall.count).toBe(5);
+    expect(port.amountRefundableCall.calls[0]?.[0]).toBe(manager);
+    expect(port.amountRefundableCall.calls[0]?.[1]).toBe('11');
+    expect(port.amountRefundableCall.calls[2]?.[1]).toBe('12');
+  });
+
   it('FakeRefundPort: ba kết quả Refunded, Failed, NotNeeded và ghi đúng tham số; FakeWalletBalancePort: mặc định null, đặt được', async () => {
     const refund = new FakeRefundPort();
     const input = { lichHenId: '11', soTien: '123456.78', lyDo: 'BenhNhanHuy' };

@@ -116,6 +116,10 @@ export class FakePaymentSummaryPort implements PaymentSummaryPort {
   readonly amountPaidCall = new ScriptedCall<PaymentSummaryPort['amountPaid']>(
     '0.00',
   );
+  /** Số còn hoàn được (payment B9, Q15): `cancel` đọc số này, không đọc `amountPaid`. `paid()` đặt cả hai; `refundable()` chỉ đặt số này. */
+  readonly amountRefundableCall = new ScriptedCall<
+    PaymentSummaryPort['amountRefundable']
+  >('0.00');
   readonly remainingCall = new ScriptedCall<
     PaymentSummaryPort['remainingToCollect']
   >('0.00');
@@ -130,6 +134,12 @@ export class FakePaymentSummaryPort implements PaymentSummaryPort {
     return this.amountPaidCall.call(...args);
   }
 
+  amountRefundable(
+    ...args: Parameters<PaymentSummaryPort['amountRefundable']>
+  ): Promise<string> {
+    return this.amountRefundableCall.call(...args);
+  }
+
   remainingToCollect(
     ...args: Parameters<PaymentSummaryPort['remainingToCollect']>
   ): Promise<string> {
@@ -142,9 +152,21 @@ export class FakePaymentSummaryPort implements PaymentSummaryPort {
     return this.findPaymentCall.call(...args);
   }
 
-  /** Số đã thu theo `lichHenId`; id không nêu ⇒ `fallback`. */
+  /**
+   * Số đã thu theo `lichHenId`; id không nêu ⇒ `fallback`. Đặt CẢ số đã thu lẫn số còn hoàn được (chưa hoàn lần nào, chỉ trả bằng ví) để các ca "đã thu cọc" cũ giữ nguyên khi `cancel` đọc
+   * `amountRefundable`; ca cần hai số KHÁC nhau gọi thêm `refundable()` sau `paid()`.
+   */
   paid(byLichHenId: Record<string, string>, fallback = '0.00'): this {
-    this.amountPaidCall.answers(
+    const answer = (_em: unknown, lichHenId: string) =>
+      byLichHenId[lichHenId] ?? fallback;
+    this.amountPaidCall.answers(answer);
+    this.amountRefundableCall.answers(answer);
+    return this;
+  }
+
+  /** Số CÒN HOÀN ĐƯỢC theo `lichHenId` (không đụng số đã thu); id không nêu ⇒ `fallback`. */
+  refundable(byLichHenId: Record<string, string>, fallback = '0.00'): this {
+    this.amountRefundableCall.answers(
       (_em, lichHenId) => byLichHenId[lichHenId] ?? fallback,
     );
     return this;

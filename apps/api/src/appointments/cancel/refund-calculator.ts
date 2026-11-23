@@ -1,8 +1,8 @@
 import { fromCents, toCents } from '../../pricing/money.js';
 import type { CancelReason } from './cancel.types.js';
 
-// `RefundCalculator`: số tiền hoàn khi huỷ lịch hẹn (PLAN booking 5.6, Q16, Q17, Q18, H11; TRACKING 3.23 B10-E). Hàm THUẦN, MỘT nơi cho cả ba người dùng: `cancel` (số thực tế lúc xác nhận),
-// `cancel-preview` (số dự kiến, cùng hàm nên hai số chỉ khác nhau khi giờ qua mốc) và `wallet` (B17, tính lại nếu tiến trình chết giữa commit và hoàn). Không DB, không đồng hồ: `now` do người gọi truyền.
+// `RefundCalculator`: số tiền hoàn khi huỷ lịch hẹn (PLAN booking 5.6, Q16, Q17, Q18, H11; TRACKING 3.23 B10-E). Hàm THUẦN, MỘT nơi cho cả hai người dùng: `cancel` (số thực tế lúc xác nhận),
+// `cancel-preview` (số dự kiến, cùng hàm nên hai số chỉ khác nhau khi giờ qua mốc, hay khi đã hoàn đặc biệt một phần: `cancel` truyền `amountRefundable`, preview giữ `amountPaid`; TRACKING booking 3.48). `wallet` KHÔNG tính lại số hoàn: chỉ thực hiện lại số đã ghi ở `lich_su_hoan_tien` (Q16 phương án (d); PLAN payment 4.7 #6). Không DB, không đồng hồ: `now` do người gọi truyền.
 
 /** Ai hoàn bao nhiêu (Q17) nằm CHỈ ở `refundPolicyOf`: theo bậc của snapshot, hay toàn bộ cọc đã thu. */
 export type RefundPolicy = 'TheoBac' | 'ToanBo';
@@ -30,7 +30,7 @@ export interface RefundInput {
   thoiGian: Date;
   /** Mốc của lượt, đã `toSecond` */
   now: Date;
-  /** Tiền cọc ĐÃ THU (`PaymentSummaryPort.amountPaid`), chuỗi decimal */
+  /** Tiền cọc làm gốc tính hoàn, chuỗi decimal: `cancel` truyền `PaymentSummaryPort.amountRefundable` (phần trả bằng ví, chưa hoàn; Q15), `cancel-preview` truyền `amountPaid` (tên trường giữ nguyên) */
   daThu: string;
 }
 
