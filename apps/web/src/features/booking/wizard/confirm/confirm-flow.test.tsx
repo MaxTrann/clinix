@@ -13,6 +13,7 @@ import { bookingInfoPath } from '../../../../shared/routes/booking-paths';
 import { createFakeAuthApi } from '../../../../test/fake-auth-api';
 import { resetAuthForTest } from '../../../auth/auth-session';
 import { setAuthState } from '../../../auth/auth-store';
+import { makeDetail } from '../../testing/fake-appointment-detail-api';
 import {
   createFakeBookingApi,
   makeCheckResult,
@@ -98,10 +99,17 @@ afterEach(() => {
 
 describe('booking F5 — điều hướng sau khi tạo (WZ-05)', () => {
   it('XNA-01 WZ-05 cọc > 0 (`canThanhToan` true): tới trang Thanh toán của đúng mã, THAY mục lịch sử (Back không quay lại Bước 5), bản nháp đã xoá (Bước 4 mở lại với form mặc định), một POST', async () => {
+    // Đổi ở booking F6: trang Thanh toán THẬT tải lịch rồi quyết theo trạng thái. Lịch vừa tạo với cọc > 0 là `ChoThanhToan` còn hạn (trước F6 chi tiết mặc định là `DaXacNhan` mà thân tạm không đọc)
+    booking.detailApi.detail = makeDetail({
+      maLichHen: CODE,
+      trangThai: 'ChoThanhToan',
+      hanThanhToan: new Date(Date.now() + 900_000).toISOString(),
+      thoiGianMayChu: new Date().toISOString(),
+    });
     const router = await goToStep5(REASON);
     fireEvent.click(confirmButton());
 
-    // Đích là trang Thanh toán (thân tạm của F3, vẫn là bước 5 trên thanh bước), KHÔNG rơi về Bước 4
+    // Đích là trang Thanh toán (F6, vẫn là bước 5 trên thanh bước), KHÔNG rơi về Bước 4
     await waitFor(() =>
       expect(here(router)).toBe(`/dat-lich/thanh-toan/${CODE}`),
     );
