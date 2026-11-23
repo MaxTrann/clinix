@@ -119,6 +119,11 @@ beforeEach(() => {
       );
     if (url.pathname.endsWith('/reception/doctor-schedules'))
       return Promise.resolve(gridResponse());
+    // doctor UX6: ngăn kéo gọi thêm `GET /reception/appointments`; test cũ chỉ nói về lưới nên trả danh sách rỗng
+    if (url.pathname.endsWith('/reception/appointments'))
+      return Promise.resolve(
+        jsonResponse({ items: [], total: 0, page: 1, pageSize: 100 }),
+      );
     return Promise.resolve(
       jsonResponse({ maLoi: 'KHONG_TIM_THAY', thongBao: 'x' }, 404),
     );
@@ -369,7 +374,8 @@ describe('lỗi và quyền (F5)', () => {
 });
 
 describe('ngăn kéo (F5)', () => {
-  it('WL-08 bấm ô: ngăn kéo "Chi tiết ca" có bác sĩ, chuyên khoa, ngày, ca + giờ, trạng thái; nút "Quản lý lịch hẹn" vô hiệu; không có mục lịch hẹn giả; Esc trả focus', async () => {
+  // doctor UX6 ĐỔI CÓ CHỦ Ý (trước: nút "Quản lý lịch hẹn" vô hiệu bằng `aria-disabled` và "không có mục lịch hẹn giả", vì chưa có trang của booking)
+  it('WL-08 (UX6) bấm ô: ngăn kéo "Chi tiết ca" có bác sĩ, chuyên khoa, ngày, ca + giờ, trạng thái; mục "Lịch hẹn trong ca"; nút "Quản lý lịch hẹn" là LIÊN KẾT; Esc trả focus', async () => {
     renderPage();
     const target = await cell(
       /ThS.BS. Nguyễn Minh Anh, Ca chiều, Thứ 4, 14\/10\/2026, Chờ duyệt/,
@@ -382,20 +388,26 @@ describe('ngăn kéo (F5)', () => {
     expect(within(drawer).getByText('14/10/2026')).toBeVisible();
     expect(within(drawer).getByText(/Ca chiều · 13:30 – 17:00/)).toBeVisible();
     expect(within(drawer).getByText('Chờ duyệt')).toBeVisible();
-    const action = within(drawer).getByRole('button', {
-      name: /Quản lý lịch hẹn/,
+    const action = within(drawer).getByRole('link', {
+      name: 'Quản lý lịch hẹn',
     });
-    expect(action).toHaveAttribute('aria-disabled', 'true');
-    expect(drawer.textContent).not.toMatch(/LỊCH HẸN TRONG CA|\d+ lịch/i);
-    fireEvent.click(action);
-    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(action).toHaveAttribute(
+      'href',
+      '/le-tan/quan-ly-lich-hen?khoang=khoang-ngay&tuNgay=2026-10-14&denNgay=2026-10-14&bacSiId=11',
+    );
+    expect(
+      await within(drawer).findByRole('heading', {
+        name: 'Lịch hẹn trong ca',
+      }),
+    ).toBeVisible();
+    expect(drawer.textContent).not.toMatch(/chưa được triển khai/i);
 
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(target).toHaveFocus();
   });
 
-  it('WL-08 bấm tiêu đề cột: ngăn kéo "Chi tiết ngày" liệt kê từng ca với mọi bác sĩ; "Không có lịch" cho bác sĩ không có ca; nút vô hiệu', async () => {
+  it('WL-08 bấm tiêu đề cột: ngăn kéo "Chi tiết ngày" liệt kê từng ca với mọi bác sĩ; "Không có lịch" cho bác sĩ không có ca; nút "Xem trong Quản lý lịch hẹn" là liên kết (UX6)', async () => {
     renderPage();
     await cell(/Thứ 2, 12\/10\/2026, Làm việc/);
     fireEvent.click(
@@ -421,10 +433,13 @@ describe('ngăn kéo (F5)', () => {
       afternoon.getByText('ThS.BS. Nguyễn Minh Anh').closest('li'),
     ).toHaveTextContent('Chờ duyệt');
     expect(
-      within(drawer).getByRole('button', {
-        name: /Xem trong Quản lý lịch hẹn/,
+      within(drawer).getByRole('link', {
+        name: 'Xem trong Quản lý lịch hẹn',
       }),
-    ).toHaveAttribute('aria-disabled', 'true');
+    ).toHaveAttribute(
+      'href',
+      '/le-tan/quan-ly-lich-hen?khoang=khoang-ngay&tuNgay=2026-10-14&denNgay=2026-10-14',
+    );
   });
 
   it('WL-08 ngày không có ca (Chủ nhật 18/10): tiêu đề "Chủ nhật, 18/10/2026" và "Không có ca làm việc"', async () => {

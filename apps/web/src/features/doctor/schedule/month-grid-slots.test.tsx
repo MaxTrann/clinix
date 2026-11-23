@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { DoctorSchedulePage } from './doctor-schedule-page';
-import { withEmptyLeaveHistory } from '../testing/fetch-routing';
+import {
+  withEmptyAppointments,
+  withEmptyLeaveHistory,
+} from '../testing/fetch-routing';
 import type { DoctorSchedule, DoctorShift } from '../api/schedule-api';
 
 // DUX3-01 đến DUX3-11 (doctor UX3, G3; WL-04, WL-05, WL-06): lưới tháng giữ VỊ TRÍ ca khi lọc. Mỗi ngày có ca vẽ đúng hai `<li>` theo thứ tự ca (sáng rồi chiều);
@@ -63,7 +66,10 @@ function schedule(ca: DoctorShift[]): DoctorSchedule {
 
 beforeEach(() => {
   fetchMock.mockReset();
-  vi.stubGlobal('fetch', withEmptyLeaveHistory(fetchMock));
+  vi.stubGlobal(
+    'fetch',
+    withEmptyAppointments(withEmptyLeaveHistory(fetchMock)),
+  );
   // Hôm nay = thứ Tư 14/10/2026 giờ VN; chỉ giả `Date`, timer thật
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-14T03:00:00Z'));
