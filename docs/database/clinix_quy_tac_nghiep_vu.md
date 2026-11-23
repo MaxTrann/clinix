@@ -12,7 +12,7 @@ Nguồn: `clinix.dbml` và `clinix_mysql.sql` (cùng thư mục `docs/database/`
 | 4 | 1 lịch cũ chỉ sinh tối đa 1 lịch mới khi đổi lịch | `lich_hen.lich_hen_truoc_id UNIQUE` | UNIQUE |
 | 5 | Quản trị viên: phạm vi Chi nhánh phải có chi_nhanh_id, Toàn hệ thống thì không | `chk_qtv_pham_vi` | CHECK |
 | 6 | Tỷ lệ hoàn tiền từ 0 đến 100 | `chk_moc_hoan_ty_le` | CHECK |
-| 7 | Nghỉ phép: CaNgay (không có ca, được nghỉ nhiều ngày) hoặc TheoCa (bắt buộc có ca, chỉ 1 ngày) | `chk_nghi_phep_hinh_thuc` | CHECK |
+| 7 | Nghỉ phép: CaNgay (không có ca, được nghỉ nhiều ngày) hoặc TheoCa (bắt buộc có ca, được nghỉ nhiều ngày, một ca) | `chk_nghi_phep_hinh_thuc` | CHECK |
 | 8 | Yêu cầu đổi lịch đã xử lý (khác ChoDuyet) phải có ghi chú xử lý | `chk_doi_lich_xu_ly` | CHECK |
 | 9 | Yêu cầu nghỉ phép, đổi lịch ngoài chính sách, rút tiền: ChoDuyet thì chưa có người và thời điểm xử lý; DaDuyet hoặc TuChoi thì phải có cả hai | `chk_nghi_phep_xu_ly, chk_doi_lich_nguoi_xu_ly, chk_rut_tien_xu_ly` | CHECK |
 | 10 | Ví: số dư >= 0, tiền đang giữ >= 0 và không vượt số dư | `chk_vi_so_du` | CHECK |
@@ -604,9 +604,9 @@ Việc ghi `thong_bao` của booking (cùng giao dịch với việc đổi tr�
 Không có `ALTER`: `POST /doctor/leave-requests` chỉ ghi `yeu_cau_nghi_phep` và `thong_bao` theo các quy tắc sau (DB không ép, service giữ; hai CHECK sẵn có vẫn là lưới cuối):
 
 - **Chủ sở hữu** lấy từ token, thân yêu cầu không có `bacSiId`. Chỉ vai trò Bác sĩ; không có thao tác huỷ yêu cầu (Bác sĩ chờ Quản trị viên duyệt hoặc từ chối).
-- **Hình thức**: `CaNgay` (một hoặc nhiều ngày liên tiếp, không chọn ca) hoặc `TheoCa` (đúng một ngày, `CaSang` hoặc `CaChieu`; `CaToi` không hợp lệ).
-- **Hạn**: ngày bắt đầu không trước hôm nay (giờ Việt Nam); tối đa 31 ngày liên tiếp (tính cả hai đầu); ngày kết thúc không quá hôm nay + 90 ngày. `TheoCa` vào hôm nay chỉ nhận khi ca chưa kết thúc (giờ kết thúc = giờ kết thúc khoảng nhận khám của chi nhánh ghi trên ca). Các số 31, 90 là `[đề xuất]` đã được nhóm duyệt.
-- **Phải có ca trong lịch làm việc**: `TheoCa` cần đúng (ngày, ca); `CaNgay` cần ít nhất một ca của bác sĩ trong khoảng. Ngày không có ca trong khoảng là vô hại.
+- **Hình thức**: `CaNgay` (một hoặc nhiều ngày liên tiếp, không chọn ca) hoặc `TheoCa` (một hoặc nhiều ngày liên tiếp nhưng chỉ MỘT ca, `CaSang` hoặc `CaChieu`; `CaToi` không hợp lệ; từ doctor UX7).
+- **Hạn**: ngày bắt đầu không trước hôm nay (giờ Việt Nam); tối đa 31 ngày liên tiếp (tính cả hai đầu); ngày kết thúc không quá hôm nay + 90 ngày. `TheoCa` có ca của HÔM NAY trong các ca bị phủ thì chỉ nhận khi ca đó chưa kết thúc (giờ kết thúc = giờ kết thúc khoảng nhận khám của chi nhánh ghi trên ca); khoảng nhiều ngày mà hôm nay không có ca đó thì không kiểm (từ doctor UX7). Các số 31, 90 là `[đề xuất]` đã được nhóm duyệt.
+- **Phải có ca trong lịch làm việc**: cả `TheoCa` lẫn `CaNgay` cần ít nhất một `(ngày, ca)` của bác sĩ bị yêu cầu phủ trong khoảng (`TheoCa` chỉ tính đúng ca đã chọn; từ doctor UX7). Ngày không có ca trong khoảng là vô hại và bị bỏ qua.
 - **Chồng nhau**: từ chối nếu bác sĩ đã có yêu cầu `ChoDuyet` hoặc `DaDuyet` giao khoảng ngày và (một bên là `CaNgay` hoặc hai bên `TheoCa` cùng ca). Yêu cầu `TuChoi` không chặn.
 - **Trần chờ duyệt**: tối đa 5 yêu cầu `ChoDuyet` cùng lúc cho một bác sĩ `[đề xuất]`.
 - **Lý do**: chuẩn hoá NFC, cắt khoảng trắng ASCII hai đầu, 2–500 điểm mã, không có ký tự điều khiển; không bao giờ xuất hiện trong thông báo, nhật ký hay thân lỗi.
@@ -757,3 +757,21 @@ Không có `ALTER`: cột, trạng thái và ràng buộc (`DaRut`, `DaHuy`, c�
 - **Tự duyệt (Q4).** Được phép (quy tắc 32). Chú thích cột `nguoi_duyet_id` trong `CREATE TABLE` còn ghi "[cần điền]" là lỗi thời.
 - **Nhật ký hành động** (cùng giao dịch với thao tác; ghi lỗi thì hoàn tác cả thao tác): `DuyetThayDoiChiNhanh`, `TuChoiThayDoiChiNhanh`, `RutThayDoiChiNhanh`, `HuyThayDoiChiNhanh` (`{ly_do_huy, hieu_luc_tu, qua_han, so_benh_nhan_da_bao}`), `DoiHieuLucThayDoiChiNhanh` (`{truoc:{hieu_luc_tu}, sau:{hieu_luc_tu}, so_lan_doi_hieu_luc, so_benh_nhan_thong_bao_lai}`); áp dụng bởi job không ghi.
 - **Chạy đua.** Mọi thao tác khoá hàng yêu cầu (`FOR UPDATE`) rồi `UPDATE` có điều kiện trạng thái: rút và duyệt đồng thời, hai lần hủy, hai lần dời, hủy và job áp dụng đồng thời đều chỉ một bên thắng (test YCB-30, CN-103, CN-96).
+
+## doctor UX7 — Nghỉ theo ca nhiều ngày: một yêu cầu cho khoảng ngày và MỘT ca (23/11/2026, module doctor; ĐỔI CHECK)
+
+Đổi nhánh `TheoCa` của CHECK `chk_nghi_phep_hinh_thuc` (bảng `yeu_cau_nghi_phep`) từ `ngay_bat_dau = ngay_ket_thuc` thành `ngay_bat_dau <= ngay_ket_thuc` (nhánh `CaNgay` và điều kiện `ca` bắt buộc khi `TheoCa` giữ nguyên), và đổi câu COMMENT của bảng cho khớp. Không thêm cột, không đổi dòng nào (issue #582; G7 phương án A, T3 của kế hoạch cải tiến giao diện doctor ngày 19/11/2026; Trung đã đồng ý). Yêu cầu theo ca của Bác sĩ nay có thể kéo dài nhiều ngày, Admin duyệt MỘT lần, và chỉ ca đã chọn ở mỗi ngày bị chặn hay huỷ lịch.
+
+- **Tác động theo ca.** Mọi nơi đã dùng `(ngày, ca)` đúng cho khoảng mà không đổi mã: `leaveCoversShift` (ca bị phủ khi ngày thuộc khoảng và đúng ca), chặn đặt lịch (D4), lưới lịch làm việc, tìm lịch hẹn bị ảnh hưởng (`tuNgay`, `denNgay` và `ca` trong cùng một lọc) và đếm lịch theo từng ca. Cổng giữa `doctor` và `booking` KHÔNG đổi.
+- **Quy tắc ở API (không đổi schema thêm).** `TheoCa` cần `ca` ∈ {`CaSang`, `CaChieu`} và `tuNgay <= denNgay`; mã lỗi `NGHI_THEO_CA_CHI_MOT_NGAY` không còn. Các hạn 31 ngày liên tiếp, hôm nay + 90 ngày, tối đa 5 yêu cầu chờ duyệt và quy tắc chồng nhau (Q21: hai yêu cầu `TheoCa` chỉ chồng khi giao ngày VÀ cùng ca) áp nguyên cho `TheoCa` nhiều ngày. Nhật ký `DuyetNghiPhep` và `TuChoiNghiPhep` nhận `ca` khác NULL với khoảng nhiều ngày.
+- **Chuyển đổi.** DB mới tạo từ `clinix_mysql.sql` đã có CHECK mới. DB đang ở bản trước thì sao lưu trước, chạy đúng hai lệnh sau theo thứ tự (migration `NghiTheoCaNhieuNgay1793880000000` chạy cùng nội dung); mọi dòng `TheoCa` cũ (một ngày) thoả CHECK mới nên không phải sửa:
+
+```sql yeu_cau_nghi_phep_theo_ca_nhieu_ngay
+ALTER TABLE `yeu_cau_nghi_phep` DROP CHECK `chk_nghi_phep_hinh_thuc`, ADD CONSTRAINT `chk_nghi_phep_hinh_thuc` CHECK (
+    (`hinh_thuc_nghi` = 'CaNgay' AND `ca` IS NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`)
+    OR (`hinh_thuc_nghi` = 'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`)
+);
+ALTER TABLE `yeu_cau_nghi_phep` COMMENT = 'Ràng buộc theo hình thức nghỉ. CaNgay: không có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày). TheoCa: bắt buộc có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày, một ca).';
+```
+
+Kiểm tra sau chuyển đổi: `SHOW CREATE TABLE yeu_cau_nghi_phep` có hai CHECK `chk_nghi_phep_hinh_thuc` (nhánh `TheoCa` dùng `<=`) và `chk_nghi_phep_xu_ly`, và COMMENT mới; chèn thử một dòng `TheoCa` nhiều ngày thành công, một dòng `TheoCa` không có `ca` hay có `ngay_bat_dau` sau `ngay_ket_thuc` bị từ chối. Hoàn tác (`down`) đưa CHECK và COMMENT về chữ cũ; migration CHẶN (không đổi gì, báo số dòng) khi còn yêu cầu `TheoCa` có `ngay_bat_dau` khác `ngay_ket_thuc` (ở mọi trạng thái), để không xoá hay tách dữ liệu của người dùng.

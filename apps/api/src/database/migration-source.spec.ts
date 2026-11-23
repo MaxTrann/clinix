@@ -11,6 +11,12 @@ import {
   MocThoiGianLichHen1793793600000,
 } from './migrations/1793793600000-moc-thoi-gian-lich-hen.js';
 import { TAO_BANG_MOC_HOAN_TIEN_SQL } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
+import { TAO_BANG_NGHI_PHEP_SQL } from './migrations/1793275200000-tao-bang-nghi-phep.js';
+import {
+  NGHI_THEO_CA_NHIEU_NGAY_UP_SQL,
+  NghiTheoCaNhieuNgay1793880000000,
+  nghiTheoCaNhieuNgayDownSql,
+} from './migrations/1793880000000-nghi-theo-ca-nhieu-ngay.js';
 import {
   NHAT_KY_RUT_TIEN_DOWN_SQL,
   NHAT_KY_RUT_TIEN_UP_SQL,
@@ -26,6 +32,7 @@ import {
   targetTable,
   maskAuditEnums,
   maskLichHenMoc,
+  maskNghiTheoCaNhieuNgay,
   maskThongBaoLichHen,
 } from './testing/official-schema.js';
 
@@ -528,6 +535,120 @@ describe('migration payment P1 (năm bảng tiền) khớp schema SQL chính th�
     expect(migration.name).toBe(TaoBangThanhToanVi1793707200000.name);
     const index = MIGRATIONS.findIndex((item) => item.name === migration.name);
     expect(index, 'đã đăng ký ở MIGRATIONS').toBeGreaterThan(0);
+    for (const earlier of MIGRATIONS.slice(0, index)) {
+      expect(timestampOf(earlier.name), earlier.name).toBeLessThan(
+        timestampOf(migration.name),
+      );
+    }
+  });
+});
+
+// Doctor UX7 (issue #582) — CHECK `chk_nghi_phep_hinh_thuc` cho `TheoCa` nhiều ngày. NTC-01 đến NTC-05 là phần chữ DDL (không cần DB). Phần chạy thật (lên, lùi, lùi bị chặn, lên lại,
+// SHOW CREATE TABLE bằng DB dựng thẳng từ SQL chính thức) ở migrations.int-spec.ts (NTC-06 đến NTC-09) và schema-parity.int-spec.ts (MG-01 có mặt nạ, SHOW CREATE TABLE).
+describe('migration doctor UX7 (nghỉ theo ca nhiều ngày) khớp schema SQL chính thức', () => {
+  const ADD = 'ALTER TABLE `yeu_cau_nghi_phep` ';
+  const official = officialStatementsFor(['yeu_cau_nghi_phep']).map(
+    normalizeStatement,
+  );
+  const checkStatement =
+    official.find((sql) =>
+      sql.includes('ADD CONSTRAINT `chk_nghi_phep_hinh_thuc`'),
+    ) ?? '';
+  const commentStatement =
+    official.find((sql) => sql.startsWith(`${ADD}COMMENT = `)) ?? '';
+  const [upCheck = '', upComment = ''] = NGHI_THEO_CA_NHIEU_NGAY_UP_SQL;
+  const buildUpCheck = (addStatement: string): string =>
+    `${ADD}DROP CHECK \`chk_nghi_phep_hinh_thuc\`, ${addStatement.slice(ADD.length)}`;
+  const THEO_CA_BRANCH =
+    "'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`";
+
+  it('NTC-01: câu CHECK = DROP CHECK + đúng câu ADD CONSTRAINT chính thức (từng ký tự); câu COMMENT trùng nguyên văn; ca âm đổi <= thành < không còn trùng', () => {
+    expect(checkStatement.startsWith(`${ADD}ADD CONSTRAINT `)).toBe(true);
+    expect(upCheck).toBe(buildUpCheck(checkStatement));
+    expect(upComment).toBe(commentStatement);
+    // nhánh TheoCa chính thức dùng <=, không còn = (đó là chữ cũ)
+    expect(checkStatement).toContain(THEO_CA_BRANCH);
+    expect(checkStatement).not.toContain(
+      "'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` = `ngay_ket_thuc`",
+    );
+    expect(
+      buildUpCheck(
+        checkStatement.replace(
+          '`ca` IS NOT NULL AND `ngay_bat_dau` <=',
+          '`ca` IS NOT NULL AND `ngay_bat_dau` <',
+        ),
+      ),
+    ).not.toBe(upCheck);
+    // nhánh CaNgay và điều kiện ca không đổi so với migration gốc
+    expect(upCheck).toContain(
+      "(`hinh_thuc_nghi` = 'CaNgay' AND `ca` IS NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`)",
+    );
+  });
+
+  it('NTC-02: đúng 2 câu theo thứ tự CHECK rồi COMMENT, chỉ tác động bảng yeu_cau_nghi_phep và không câu nào đổi hay xoá dữ liệu', () => {
+    expect(NGHI_THEO_CA_NHIEU_NGAY_UP_SQL).toHaveLength(2);
+    expect(upCheck).toMatch(/^ALTER TABLE `yeu_cau_nghi_phep` DROP CHECK /);
+    expect(upComment).toMatch(/^ALTER TABLE `yeu_cau_nghi_phep` COMMENT = /);
+    for (const statement of [
+      ...NGHI_THEO_CA_NHIEU_NGAY_UP_SQL,
+      ...nghiTheoCaNhieuNgayDownSql(),
+    ]) {
+      expect(targetTable(statement)).toBe('yeu_cau_nghi_phep');
+      expect(statement).not.toMatch(/\b(DELETE|UPDATE|TRUNCATE|DROP TABLE)\b/i);
+    }
+  });
+
+  it('NTC-03: down là chữ CŨ của migration nghỉ phép gốc (CHECK TheoCa dùng =, COMMENT "chỉ nghỉ 1 ngày"), không nhân bản chữ', () => {
+    const down = nghiTheoCaNhieuNgayDownSql();
+    const oldCheck = TAO_BANG_NGHI_PHEP_SQL.find((sql) =>
+      sql.includes('ADD CONSTRAINT `chk_nghi_phep_hinh_thuc`'),
+    );
+    const oldComment = TAO_BANG_NGHI_PHEP_SQL.find((sql) =>
+      sql.startsWith(`${ADD}COMMENT = `),
+    );
+    expect(down).toHaveLength(2);
+    expect(down[0]).toBe(buildUpCheck(oldCheck ?? ''));
+    expect(down[0]).toContain(
+      "'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` = `ngay_ket_thuc`",
+    );
+    expect(down[1]).toBe(oldComment);
+    expect(down[1]).toContain('chỉ nghỉ 1 ngày');
+    // chữ cũ và chữ mới khác nhau ở đúng hai câu
+    expect(down[0]).not.toBe(upCheck);
+    expect(down[1]).not.toBe(upComment);
+  });
+
+  it('NTC-04: mặt nạ đưa các câu CHÍNH THỨC về chữ cũ ở đúng hai câu, để migration nghỉ phép gốc vẫn trùng từng câu; không đụng bảng khác', () => {
+    const masked = maskNghiTheoCaNhieuNgay(official);
+    expect(masked).toEqual(TAO_BANG_NGHI_PHEP_SQL.map(normalizeStatement));
+    // đúng hai câu bị đổi (không che nhầm câu khác như CREATE TABLE, CHECK chk_nghi_phep_xu_ly)
+    expect(
+      masked.filter((statement, index) => statement !== official[index]),
+    ).toHaveLength(2);
+    // ca âm: cùng tên ràng buộc và cùng chữ nhưng ở bảng KHÁC thì không bị che
+    const otherCheck =
+      "ALTER TABLE `khac` ADD CONSTRAINT `chk_nghi_phep_hinh_thuc` CHECK (\n    (`hinh_thuc_nghi` = 'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`)\n)";
+    const otherComment =
+      "ALTER TABLE `khac` COMMENT = 'TheoCa: bắt buộc có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày, một ca).'";
+    expect(maskNghiTheoCaNhieuNgay([otherCheck, otherComment])).toEqual([
+      otherCheck,
+      otherComment,
+    ]);
+    // ca âm: mặt nạ không "đúng cho mọi chữ": chữ chính thức bị sửa lệch thì masked không còn trùng migration gốc
+    expect(
+      maskNghiTheoCaNhieuNgay(
+        official.map((sql) => sql.replace('Ràng buộc theo', 'Ràng buoc theo')),
+      ),
+    ).not.toEqual(TAO_BANG_NGHI_PHEP_SQL.map(normalizeStatement));
+  });
+
+  it('NTC-05: name trùng tên lớp, timestamp 13 chữ số lớn hơn mọi migration đứng trước và nằm CUỐI sổ đăng ký', () => {
+    const timestampOf = (name: string): number =>
+      Number(/(\d{13})$/.exec(name)?.[1]);
+    const migration = new NghiTheoCaNhieuNgay1793880000000();
+    expect(migration.name).toBe(NghiTheoCaNhieuNgay1793880000000.name);
+    const index = MIGRATIONS.findIndex((item) => item.name === migration.name);
+    expect(index, 'đã đăng ký ở MIGRATIONS').toBe(MIGRATIONS.length - 1);
     for (const earlier of MIGRATIONS.slice(0, index)) {
       expect(timestampOf(earlier.name), earlier.name).toBeLessThan(
         timestampOf(migration.name),

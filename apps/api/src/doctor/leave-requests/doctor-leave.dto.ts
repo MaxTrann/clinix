@@ -12,7 +12,7 @@ const IsCalendarDate = () =>
     { message: LEAVE_FIELD_ERRORS.DATE },
   );
 
-// DTO chỉ kiểm KIỂU từng trường. Các luật chéo trường (TheoCa cần ca, một ngày...) và lý do (Q25) nằm ở `validateLeaveShape`
+// DTO chỉ kiểm KIỂU từng trường. Các luật chéo trường (TheoCa cần ca, tuNgay ≤ denNgay...) và lý do (Q25) nằm ở `validateLeaveShape`
 // để một nơi duy nhất quyết định. Cố ý KHÔNG có `bacSiId`: trường lạ bị `forbidNonWhitelisted` chặn bằng 400 TRUONG_KHONG_DUOC_PHEP,
 // chủ sở hữu luôn lấy từ token (YN-12).
 export class CreateLeaveRequestDto {

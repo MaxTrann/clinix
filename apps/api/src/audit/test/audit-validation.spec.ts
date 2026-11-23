@@ -316,8 +316,10 @@ describe('TD-06 / P4 — 4 hành động phân công và nghỉ phép', () => {
     ).toThrow('AUDIT_ENTRY_INVALID');
   });
 
+  // UX7 (đổi): trước đây ca thứ hai của test này khẳng định "nghỉ theo ca nhiều ngày" (2026-12-10 đến 2026-12-11, ca CaSang) BỊ TỪ CHỐI; nay đó là hợp lệ,
+  // xem DUX7-15 bên dưới. Test giữ ba ca còn lại: ngày đảo ngược (cả hai kiểu nghỉ), CaToi và lý do của Bác sĩ.
   it.each(['DuyetNghiPhep', 'TuChoiNghiPhep'])(
-    '%s: ngày đảo ngược, nghỉ theo ca nhiều ngày, CaToi và lý do của Bác sĩ đều bị từ chối',
+    '%s: ngày đảo ngược, CaToi và lý do của Bác sĩ đều bị từ chối',
     (action) => {
       expect(() =>
         validateAuditEntry(
@@ -331,8 +333,8 @@ describe('TD-06 / P4 — 4 hành động phân công và nghỉ phép', () => {
       expect(() =>
         validateAuditEntry(
           withChanges(action, {
-            ngay_bat_dau: '2026-12-10',
-            ngay_ket_thuc: '2026-12-11',
+            ngay_bat_dau: '2026-12-20',
+            ngay_ket_thuc: '2026-12-10',
             ca: 'CaSang',
           }),
         ),
@@ -366,6 +368,37 @@ describe('TD-06 / P4 — 4 hành động phân công và nghỉ phép', () => {
     });
     expect(validateAuditEntry(ok)).toEqual(ok);
   });
+
+  // UX7 (issue #582): CHECK `chk_nghi_phep_hinh_thuc` cho `TheoCa` nhiều ngày; nếu nhật ký vẫn ép một ngày thì Duyệt và Từ chối bị AUDIT_ENTRY_INVALID trong giao dịch.
+  it.each(['DuyetNghiPhep', 'TuChoiNghiPhep'])(
+    'DUX7-15 %s nhận nghỉ theo ca NHIỀU ngày (CaSang, CaChieu); vẫn từ chối ngày đảo ngược, CaToi và khoá thừa',
+    (action) => {
+      for (const ca of ['CaSang', 'CaChieu']) {
+        const range = withChanges(action, {
+          ngay_bat_dau: '2026-12-10',
+          ngay_ket_thuc: '2026-12-14',
+          ca,
+        });
+        expect(validateAuditEntry(range)).toEqual(range);
+      }
+      const dayBefore = (patch: Record<string, unknown>) =>
+        withChanges(action, {
+          ngay_bat_dau: '2026-12-10',
+          ngay_ket_thuc: '2026-12-14',
+          ca: 'CaSang',
+          ...patch,
+        });
+      expect(() =>
+        validateAuditEntry(dayBefore({ ngay_bat_dau: '2026-12-15' })),
+      ).toThrow('AUDIT_ENTRY_INVALID');
+      expect(() => validateAuditEntry(dayBefore({ ca: 'CaToi' }))).toThrow(
+        'AUDIT_ENTRY_INVALID',
+      );
+      expect(() =>
+        validateAuditEntry(dayBefore({ ly_do: 'Bận việc gia đình' })),
+      ).toThrow('AUDIT_ENTRY_INVALID');
+    },
+  );
 
   it('DuyetNghiPhep nhận nghỉ theo ca một ngày và nghỉ cả ngày nhiều ngày', () => {
     const byShift = withChanges('DuyetNghiPhep', {

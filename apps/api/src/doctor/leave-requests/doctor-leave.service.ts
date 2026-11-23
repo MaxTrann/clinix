@@ -37,6 +37,7 @@ import {
   isShiftEnded,
   leaveWindowsOverlap,
   normalizeReason,
+  todaysShift,
   validateLeaveShape,
 } from './leave-request.rules.js';
 
@@ -180,7 +181,7 @@ export class DoctorLeaveService {
       });
     }
 
-    // 4. Phải có ca trong lịch làm việc (Q20): TheoCa đúng (ngày, ca); CaNgay ít nhất một ca trong khoảng.
+    // 4. Phải có ca trong lịch làm việc (Q20, T3 của UX7): CẢ HAI hình thức cần ít nhất một `(ngày, ca)` bị phủ trong khoảng; ngày không có ca bị bỏ qua.
     const shifts = await this.repository.findShiftsInRange(
       em,
       input.bacSiId,
@@ -191,9 +192,11 @@ export class DoctorLeaveService {
     if (covered[0] === undefined) {
       throw conflict(LEAVE_ERROR_CODES.OUTSIDE_SCHEDULE);
     }
-    if (input.hinhThuc === 'TheoCa' && input.tuNgay === today) {
-      await this.assertShiftNotEnded(em, covered[0], now);
-    }
+    // Q24: `TheoCa` chỉ nhận khi ca HÔM NAY (nếu có trong các ca bị phủ) chưa kết thúc. Chỉ ca của hôm nay mới kiểm: với khoảng nhiều ngày, ca ngày mai không bao giờ "đã kết thúc".
+    const shiftToday =
+      input.hinhThuc === 'TheoCa' ? todaysShift(covered, today) : null;
+    if (shiftToday !== null)
+      await this.assertShiftNotEnded(em, shiftToday, now);
 
     // 5. Ghi yêu cầu, rồi thông báo trong CÙNG giao dịch: lỗi ghi thông báo hoàn tác cả yêu cầu (H12, YN-18).
     const id = await this.repository.insert(em, {

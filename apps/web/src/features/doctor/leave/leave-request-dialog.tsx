@@ -37,8 +37,8 @@ const NORMAL_BORDER = 'border-gray-300';
 const BUTTON =
   'min-h-11 rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-60';
 
-// Hộp "Yêu cầu nghỉ lịch làm việc" (Figma `468:2`; WN-01…WN-06, WN-10). Hai loại: "Cả ngày (có thể nhiều ngày)" (từ ngày – đến ngày) và "Theo ca"
-// (một ngày + ca; Figma chưa có frame "Theo ca", Q37 [đề xuất]). Lỗi 400 `loi[]` hiện dưới đúng ô; lỗi nghiệp vụ 409 và lỗi mạng hiện ở dải cảnh báo
+// Hộp "Yêu cầu nghỉ lịch làm việc" (Figma `468:2`; WN-01…WN-06, WN-10). Hai loại, cùng có Từ ngày và Đến ngày: "Cả ngày (có thể nhiều ngày)" và "Theo ca (một hoặc nhiều ngày)"
+// (khoảng ngày + MỘT ca ở hàng riêng bên dưới; doctor UX7; Figma chưa có frame "Theo ca", Q37 [đề xuất]). Lỗi 400 `loi[]` hiện dưới đúng ô; lỗi nghiệp vụ 409 và lỗi mạng hiện ở dải cảnh báo
 // trên hàng nút, DỮ LIỆU ĐÃ NHẬP ĐƯỢC GIỮ (WN-10). Chống bấm đúp bằng ref (state chưa kịp render giữa hai lần bấm, WN-05).
 export function LeaveRequestDialog({
   returnFocusRef,
@@ -52,7 +52,7 @@ export function LeaveRequestDialog({
   const submitting = useRef(false);
   const kindRef = useRef<HTMLSelectElement>(null);
   const today = todayVn();
-  const single = values.hinhThuc === 'TheoCa';
+  const byShift = values.hinhThuc === 'TheoCa';
 
   function change<K extends keyof LeaveFormValues>(
     key: K,
@@ -126,77 +126,63 @@ export function LeaveRequestDialog({
                 setValues((current) => ({
                   ...current,
                   hinhThuc: kind,
-                  // Đổi loại thì ô không còn dùng được xoá đi để không gửi nhầm (CA_KHONG_DUOC_CHON, NGHI_THEO_CA_CHI_MOT_NGAY)
+                  // Đổi loại thì ô ca không còn dùng được xoá đi để không gửi nhầm (CA_KHONG_DUOC_CHON); hai ô ngày dùng chung nên giữ nguyên
                   ca: kind === 'TheoCa' ? current.ca : '',
-                  denNgay: kind === 'TheoCa' ? '' : current.denNgay,
                 }));
                 setFieldErrors({});
                 setFormError(null);
               }}
             >
               <option value="CaNgay">Cả ngày (có thể nhiều ngày)</option>
-              <option value="TheoCa">Theo ca (một ngày)</option>
+              <option value="TheoCa">Theo ca (một hoặc nhiều ngày)</option>
             </select>
           </Field>
 
-          {single ? (
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Ngày" error={fieldErrors.tuNgay} id="leave-from">
-                <DateField
-                  id="leave-from"
-                  min={today}
-                  {...invalid('tuNgay', 'leave-from')}
-                  className={`${INPUT} ${border('tuNgay')}`}
-                  value={values.tuNgay}
-                  disabled={pending}
-                  onChange={(iso) => change('tuNgay', iso)}
-                />
-              </Field>
-              <Field label="Ca" error={fieldErrors.ca} id="leave-shift">
-                <select
-                  id="leave-shift"
-                  {...invalid('ca', 'leave-shift')}
-                  className={`${INPUT} ${border('ca')}`}
-                  value={values.ca}
-                  disabled={pending}
-                  onChange={(event) =>
-                    change('ca', event.target.value as LeaveFormValues['ca'])
-                  }
-                >
-                  <option value="">Chọn ca</option>
-                  {SHIFT_ORDER.map((ca) => (
-                    <option key={ca} value={ca}>
-                      {SHIFT_LABELS[ca]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Từ ngày" error={fieldErrors.tuNgay} id="leave-from">
-                <DateField
-                  id="leave-from"
-                  min={today}
-                  {...invalid('tuNgay', 'leave-from')}
-                  className={`${INPUT} ${border('tuNgay')}`}
-                  value={values.tuNgay}
-                  disabled={pending}
-                  onChange={(iso) => change('tuNgay', iso)}
-                />
-              </Field>
-              <Field label="Đến ngày" error={fieldErrors.denNgay} id="leave-to">
-                <DateField
-                  id="leave-to"
-                  min={values.tuNgay || today}
-                  {...invalid('denNgay', 'leave-to')}
-                  className={`${INPUT} ${border('denNgay')}`}
-                  value={values.denNgay}
-                  disabled={pending}
-                  onChange={(iso) => change('denNgay', iso)}
-                />
-              </Field>
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Từ ngày" error={fieldErrors.tuNgay} id="leave-from">
+              <DateField
+                id="leave-from"
+                min={today}
+                {...invalid('tuNgay', 'leave-from')}
+                className={`${INPUT} ${border('tuNgay')}`}
+                value={values.tuNgay}
+                disabled={pending}
+                onChange={(iso) => change('tuNgay', iso)}
+              />
+            </Field>
+            <Field label="Đến ngày" error={fieldErrors.denNgay} id="leave-to">
+              <DateField
+                id="leave-to"
+                min={values.tuNgay || today}
+                {...invalid('denNgay', 'leave-to')}
+                className={`${INPUT} ${border('denNgay')}`}
+                value={values.denNgay}
+                disabled={pending}
+                onChange={(iso) => change('denNgay', iso)}
+              />
+            </Field>
+          </div>
+
+          {byShift && (
+            <Field label="Ca" error={fieldErrors.ca} id="leave-shift">
+              <select
+                id="leave-shift"
+                {...invalid('ca', 'leave-shift')}
+                className={`${INPUT} ${border('ca')}`}
+                value={values.ca}
+                disabled={pending}
+                onChange={(event) =>
+                  change('ca', event.target.value as LeaveFormValues['ca'])
+                }
+              >
+                <option value="">Chọn ca</option>
+                {SHIFT_ORDER.map((ca) => (
+                  <option key={ca} value={ca}>
+                    {SHIFT_LABELS[ca]}
+                  </option>
+                ))}
+              </select>
+            </Field>
           )}
 
           <Field label="Lý do" error={fieldErrors.lyDo} id="leave-reason">

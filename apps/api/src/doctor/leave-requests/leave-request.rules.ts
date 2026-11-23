@@ -79,25 +79,18 @@ export function validateLeaveShape(input: LeaveRequestInput): FieldError[] {
   const errors: FieldError[] = [];
   const hasShift = input.ca !== undefined && input.ca !== null;
 
+  // `TheoCa` bắt buộc có đúng MỘT ca; `CaNgay` không có ca. Cả hai đều là khoảng ngày `tuNgay ≤ denNgay` (UX7: `TheoCa` nhiều ngày, một yêu cầu một ca).
   if (input.hinhThuc === 'TheoCa') {
     if (!hasShift) {
       errors.push({ truong: 'ca', ma: LEAVE_FIELD_ERRORS.SHIFT_REQUIRED });
     } else if (!(LEAVE_SHIFTS as readonly string[]).includes(input.ca ?? '')) {
       errors.push({ truong: 'ca', ma: LEAVE_FIELD_ERRORS.SHIFT_INVALID });
     }
-    if (input.tuNgay !== input.denNgay) {
-      errors.push({
-        truong: 'denNgay',
-        ma: LEAVE_FIELD_ERRORS.SINGLE_DAY_ONLY,
-      });
-    }
-  } else {
-    if (hasShift) {
-      errors.push({ truong: 'ca', ma: LEAVE_FIELD_ERRORS.SHIFT_NOT_ALLOWED });
-    }
-    if (input.tuNgay > input.denNgay) {
-      errors.push({ truong: 'denNgay', ma: LEAVE_FIELD_ERRORS.DATE_ORDER });
-    }
+  } else if (hasShift) {
+    errors.push({ truong: 'ca', ma: LEAVE_FIELD_ERRORS.SHIFT_NOT_ALLOWED });
+  }
+  if (input.tuNgay > input.denNgay) {
+    errors.push({ truong: 'denNgay', ma: LEAVE_FIELD_ERRORS.DATE_ORDER });
   }
 
   const reason = normalizeReason(input.lyDo);
@@ -144,6 +137,17 @@ export function leaveWindowsOverlap(a: LeaveWindow, b: LeaveWindow): boolean {
     return a.ca === b.ca;
   }
   return true;
+}
+
+/**
+ * Ca của HÔM NAY trong các ca mà yêu cầu phủ, hoặc `null`. `isShiftEnded` chỉ so giờ trong ngày nên chỉ được hỏi cho ca hôm nay (Q24):
+ * với khoảng nhiều ngày, ca của ngày mai không bao giờ là "đã kết thúc", và ngày hôm nay không có ca đó thì không có gì để kiểm.
+ */
+export function todaysShift<T extends { ngay: string }>(
+  covered: readonly T[],
+  today: string,
+): T | null {
+  return covered.find((shift) => shift.ngay === today) ?? null;
 }
 
 /**

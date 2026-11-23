@@ -7,14 +7,17 @@ import type {
 import { REJECT_REASON_MAX } from '../../api/admin-leave-api';
 import { LEAVE_KIND_LABELS, formatVnDateTime } from '../../leave/leave-format';
 
-/** "Ca chiều ngày 29/10/2026" hoặc "Cả ngày 26/10/2026 – 27/10/2026" (cột Thời gian, Figma `582:2`). */
+/**
+ * "Ca chiều ngày 29/10/2026" (theo ca, một ngày), "Ca sáng 24/11/2026 – 28/11/2026" (theo ca, nhiều ngày; doctor UX7) hoặc "Cả ngày 26/10/2026 – 27/10/2026"
+ * (cột Thời gian, Figma `582:2`; cũng là "Thời gian" của ngăn chi tiết và hộp Duyệt).
+ */
 export function formatLeaveTime(item: AdminLeaveItem): string {
+  const oneDay = item.tuNgay === item.denNgay;
+  const days = oneDay
+    ? formatDate(item.tuNgay)
+    : `${formatDate(item.tuNgay)} – ${formatDate(item.denNgay)}`;
   if (item.hinhThuc === 'TheoCa' && item.ca !== null)
-    return `${SHIFT_LABELS[item.ca]} ngày ${formatDate(item.tuNgay)}`;
-  const days =
-    item.tuNgay === item.denNgay
-      ? formatDate(item.tuNgay)
-      : `${formatDate(item.tuNgay)} – ${formatDate(item.denNgay)}`;
+    return `${SHIFT_LABELS[item.ca]} ${oneDay ? 'ngày ' : ''}${days}`;
   return `Cả ngày ${days}`;
 }
 
