@@ -21,7 +21,13 @@ export interface MonthGridProps {
 // Chữ cái đầu của ca trong chip: "S" (sáng), "C" (chiều), như Figma `467:2`
 const SHIFT_INITIAL = { CaSang: 'S', CaChieu: 'C' } as const;
 
-// Lưới tháng (Figma `467:2`, WL-04): mỗi ngày của tháng là số ngày + mỗi ca một chip "S · Làm việc" (mở "Chi tiết ca"), hoặc "—" khi không có ca.
+// Chỗ giữ chỗ của một ca không có (không phân công, hoặc bị bộ lọc loại): cùng cỡ chữ, đệm và viền với chip nên cao đúng bằng chip, chỉ không thấy và không đọc được.
+const SLOT_PLACEHOLDER =
+  'invisible block rounded border border-transparent px-1.5 py-0.5 text-xs';
+
+// Lưới tháng (Figma `467:2`, WL-04): mỗi ngày là số ngày + mỗi ca một chip "S · Làm việc" (mở "Chi tiết ca"), hoặc "—" khi không có ca nào.
+// Mỗi ngày có ca giữ HAI chỗ cố định theo thứ tự ca (sáng trên, chiều dưới): ca bị lọc mất để lại chỗ trống chứ không dồn lên, nên chip ca chiều không nhảy
+// lên chỗ ca sáng khi lọc (doctor UX3, G3). Lưới tuần vốn đã giữ hàng Sáng và Chiều. Mỗi (bác sĩ, ngày, ca) có tối đa một ca (UNIQUE ở DB).
 // Ngày của tháng liền kề để trống (không số, không chip) và không đếm vào thống kê. Hôm nay là vòng tròn đặc.
 export function MonthGrid({
   monthStart,
@@ -31,13 +37,10 @@ export function MonthGrid({
   onSelect,
 }: MonthGridProps) {
   const { weeks } = useMemo(() => monthGrid(monthStart), [monthStart]);
-  const byDay = useMemo(() => {
-    const map = new Map<string, DoctorShift[]>();
-    for (const shift of shifts) {
-      map.set(shift.ngay, [...(map.get(shift.ngay) ?? []), shift]);
-    }
-    return map;
-  }, [shifts]);
+  const byCell = useMemo(
+    () => new Map(shifts.map((shift) => [`${shift.ngay}|${shift.ca}`, shift])),
+    [shifts],
+  );
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
@@ -69,9 +72,8 @@ export function MonthGrid({
                   );
                 }
                 const isToday = day === today;
-                const dayShifts = [...(byDay.get(day) ?? [])].sort(
-                  (a, b) =>
-                    SHIFT_ORDER.indexOf(a.ca) - SHIFT_ORDER.indexOf(b.ca),
+                const hasShift = SHIFT_ORDER.some((ca) =>
+                  byCell.has(`${day}|${ca}`),
                 );
                 return (
                   <td
@@ -88,7 +90,7 @@ export function MonthGrid({
                       {Number(day.slice(8, 10))}
                       {isToday && <span className="sr-only"> (hôm nay)</span>}
                     </span>
-                    {dayShifts.length === 0 ? (
+                    {!hasShift ? (
                       <p
                         aria-label="Không có ca"
                         className="mt-1.5 text-center text-gray-300"
@@ -97,10 +99,22 @@ export function MonthGrid({
                       </p>
                     ) : (
                       <ul className="mt-1 flex flex-col gap-1">
-                        {dayShifts.map((shift) => {
+                        {SHIFT_ORDER.map((ca) => {
+                          const shift = byCell.get(`${day}|${ca}`);
+                          if (!shift) {
+                            return (
+                              <li
+                                key={ca}
+                                aria-hidden="true"
+                                className={SLOT_PLACEHOLDER}
+                              >
+                                {'\u00a0'}
+                              </li>
+                            );
+                          }
                           const status = shiftStatusOf(shift.nghiPhep);
                           return (
-                            <li key={shift.lichLamViecId}>
+                            <li key={ca}>
                               <button
                                 type="button"
                                 aria-label={`${SHIFT_LABELS[shift.ca]}, ${formatWeekdayDate(day)}, ${SHIFT_STATUS_LABELS[status]}`}

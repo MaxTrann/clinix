@@ -1,12 +1,11 @@
 import { useRef, type RefObject } from 'react';
 import type { LeaveRequest } from '../api/leave-api';
 import { ModalFrame } from '../components/modal-frame';
-import { STATUS_STYLES } from '../schedule/status-styles';
+import { StatusBadge } from '../components/status-badge';
 import {
   formatLeaveDays,
   formatVnDateTime,
   LEAVE_KIND_LABELS,
-  LEAVE_STATUS_LABELS,
 } from './leave-format';
 import { SHIFT_LABELS } from '../../../shared/schedule/shift-labels';
 
@@ -35,11 +34,7 @@ export function LeaveDetailDialog({
       showCloseIcon
     >
       <div className="min-h-0 overflow-y-auto px-6 py-5">
-        <span
-          className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[request.trangThai].chip}`}
-        >
-          {LEAVE_STATUS_LABELS[request.trangThai]}
-        </span>
+        <StatusBadge status={request.trangThai} />
         <dl className="mt-4 grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-3 text-sm">
           <dt className="text-gray-500">Loại</dt>
           <dd className="text-gray-900">
