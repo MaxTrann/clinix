@@ -159,9 +159,9 @@ export function DoctorProfilesPage() {
         </h1>
         <p className="mt-1 text-sm text-text-muted">
           Tạo tài khoản bác sĩ mới tại{' '}
-          {/* Cùng đích với mục "Nhân sự & Tài khoản" của thanh bên (F8 sẽ đổi khi có tab Nhân sự) */}
+          {/* Cùng đích với mục "Nhân sự & Tài khoản" của thanh bên: tab Nhân sự, nơi có nút "Tạo tài khoản nhân sự" (F8) */}
           <Link
-            to={`${ROLE_HOME_PATHS.QuanTriVien}/tai-khoan-benh-nhan`}
+            to={`${ROLE_HOME_PATHS.QuanTriVien}/nhan-su`}
             className="text-brand"
           >
             Nhân sự &amp; Tài khoản

@@ -343,7 +343,7 @@ describe('hai lần gọi chồng nhau', () => {
 });
 
 describe('bề mặt công khai của features/auth', () => {
-  it('EX-01 index.ts xuất đúng các hàm đã chọn, cùng tham chiếu với bản gốc, và không xuất isPlausibleEmail', async () => {
+  it('EX-01 index.ts xuất đúng các hàm đã chọn, cùng tham chiếu với bản gốc, kể cả isPlausibleEmail (thêm ở admin F8 PR2)', async () => {
     const publicApi = await import('./index');
     expect(publicApi.refreshCurrentUser).toBe(session.refreshCurrentUser);
     expect(publicApi.isValidFullName).toBe(policy.isValidFullName);
@@ -352,6 +352,7 @@ describe('bề mặt công khai của features/auth', () => {
     expect(isValidFullName).toBe(policy.isValidFullName);
     expect(isValidPhone).toBe(policy.isValidPhone);
     expect(trimAsciiWhitespace).toBe(policy.trimAsciiWhitespace);
-    expect('isPlausibleEmail' in publicApi).toBe(false);
+    // admin F8 PR2 (Đại duyệt 23/11/2026): biểu mẫu tạo tài khoản nhân sự dùng luật email của đăng ký; trước đó email ở hồ sơ chỉ đọc nên chưa xuất
+    expect(publicApi.isPlausibleEmail).toBe(policy.isPlausibleEmail);
   });
 });

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router';
 import type { AdminMe } from '../../admin-me';
+import { DEGREE_OF_TITLE } from '../../doctor-profiles/doctor-profile-format';
 import { AdminMeProvider } from '../../admin-me-context';
 import {
   SYSTEM,
@@ -17,7 +18,7 @@ import type {
 } from '../staff-types';
 
 // Dụng cụ chung của test admin F8 (chỉ dùng trong test): nhân sự mẫu (DỮ LIỆU GIẢ, `@example.invalid`), API giả CÓ TRẠNG THÁI ở mức hợp đồng B17 (danh sách,
-// chi tiết), B18 (khoá, mở khoá), B20 (gửi lại) và B7 (chi nhánh), cùng bộ dựng trang. Không có mật khẩu, token, liên kết kích hoạt hay thông tin thật.
+// chi tiết), B18 (khoá, mở khoá), B20 (gửi lại), B7 (chi nhánh kèm dịch vụ), B15 (tạo tài khoản; PR2) và chuyên khoa, cùng bộ dựng trang. Không có mật khẩu, token, liên kết kích hoạt hay thông tin thật.
 
 /** Hạn của liên kết mà lần gửi lại thành công của API giả cấp: 10:00 giờ Việt Nam ngày 25/11/2026. */
 export const RESEND_EXPIRY = '2026-11-25T03:00:00.000Z';
@@ -25,6 +26,47 @@ export const RESEND_EXPIRY = '2026-11-25T03:00:00.000Z';
 const BRANCH_5 = { chiNhanhId: '5', ten: 'Chi nhánh Quận 1' };
 const BRANCH_6 = { chiNhanhId: '6', ten: 'Chi nhánh Quận 3' };
 export const BRANCHES = [BRANCH_5, BRANCH_6];
+
+/** Dịch vụ khám của từng chi nhánh (B7 trả kèm `dichVuKham`): dịch vụ 12 có ở cả hai chi nhánh, 11 chỉ ở chi nhánh 5. */
+export const SERVICES_BY_BRANCH: Record<
+  string,
+  { dichVuKhamId: string; ten: string }[]
+> = {
+  '5': [
+    { dichVuKhamId: '11', ten: 'Khám tổng quát' },
+    { dichVuKhamId: '12', ten: 'Khám tim mạch' },
+  ],
+  '6': [{ dichVuKhamId: '12', ten: 'Khám tim mạch' }],
+};
+
+export const SPECIALTIES = [
+  { chuyenKhoaId: '1', ten: 'Tim mạch' },
+  { chuyenKhoaId: '2', ten: 'Nhi khoa' },
+];
+
+// Khoá thân của B15 theo vai trò (API từ chối khoá ngoài tập này bằng `TRUONG_KHONG_DUOC_PHEP`)
+const COMMON_KEYS = ['vaiTro', 'hoTen', 'email', 'soDienThoai'];
+const DOCTOR_KEYS = [
+  ...COMMON_KEYS,
+  'chiNhanhId',
+  'chuyenKhoaId',
+  'dichVuKhamId',
+  'chucDanh',
+  'hocVi',
+  'soNamKinhNghiem',
+];
+const FIELD_CODES: Record<string, string> = {
+  hoTen: 'HO_TEN_KHONG_HOP_LE',
+  email: 'EMAIL_KHONG_HOP_LE',
+  soDienThoai: 'SDT_KHONG_HOP_LE',
+  chiNhanhId: 'CHI_NHANH_KHONG_HOP_LE',
+  chuyenKhoaId: 'CHUYEN_KHOA_KHONG_HOP_LE',
+  dichVuKhamId: 'DICH_VU_KHAM_ID_KHONG_HOP_LE',
+  chucDanh: 'CHUC_DANH_KHONG_HOP_LE',
+  hocVi: 'HOC_VI_KHONG_HOP_LE',
+  soNamKinhNghiem: 'SO_NAM_KINH_NGHIEM_KHONG_HOP_LE',
+  phamVi: 'PHAM_VI_KHONG_HOP_LE',
+};
 
 export function makeStaff(
   n: number,
@@ -80,6 +122,10 @@ export interface FakeStaffApiOptions {
   /** Việc phụ thuộc của Bác sĩ (theo id): API chỉ trả khi khoá Bác sĩ. Mặc định rỗng. */
   dependents?: Record<string, DoctorDependents>;
   branches?: { chiNhanhId: string; ten: string }[];
+  /** Chuyên khoa đang hoạt động cho `GET /admin/options/specialties`. */
+  specialties?: { chuyenKhoaId: string; ten: string }[];
+  /** Kết quả gửi thư của lần tạo: mặc định `DaGui`; `ThatBai` vẫn là HTTP 201 (B15, NS-19). */
+  mail?: 'DaGui' | 'ThatBai';
 }
 
 /** Thay `fetch` toàn cục bằng API giả; gọi `vi.unstubAllGlobals()` ở afterEach. */
@@ -87,7 +133,13 @@ export function installFakeStaffApi(options: FakeStaffApiOptions = {}) {
   const scope = options.scope ?? SYSTEM;
   const accounts = (options.accounts ?? []).map((account) => ({ ...account }));
   const branches = options.branches ?? BRANCHES;
+  const specialties = options.specialties ?? SPECIALTIES;
   const requests: RecordedRequest[] = [];
+  // Thân của MỌI lần tạo đã được THỰC THI (không chỉ được gọi): đếm ở đây chứng minh không có tài khoản trùng (NSF8-108)
+  const created: Record<string, unknown>[] = [];
+  // Số giây còn phải chờ trước khi gửi lại được liên kết của tài khoản vừa tạo (B20: tối thiểu 60 giây giữa hai lần gửi)
+  const resendWait = new Map<string, number>();
+  let mail: 'DaGui' | 'ThatBai' = options.mail ?? 'DaGui';
   const overrides: {
     match: (r: RecordedRequest) => boolean;
     respond: Respond;
@@ -207,6 +259,16 @@ export function installFakeStaffApi(options: FakeStaffApiOptions = {}) {
       return apiError(404, 'KHONG_TIM_THAY');
     if (account.trangThai !== 'ChoKichHoat')
       return apiError(409, 'TAI_KHOAN_KHONG_CHO_KICH_HOAT');
+    const wait = resendWait.get(id);
+    if (wait !== undefined)
+      return json(
+        {
+          maLoi: 'GUI_LAI_QUA_SOM',
+          thongBao: 'câu của API',
+          chiTiet: { soGiayCho: wait },
+        },
+        429,
+      );
     account.lienKetKichHoat = validLink(RESEND_EXPIRY);
     return json({
       taiKhoanId: id,
@@ -215,16 +277,144 @@ export function installFakeStaffApi(options: FakeStaffApiOptions = {}) {
     });
   }
 
+  /** B8: Chi nhánh chỉ nhận chi nhánh của mình; mỗi chi nhánh kèm dịch vụ khám. */
+  const visibleBranches = () =>
+    (scope.phamVi === 'ToanHeThong'
+      ? branches
+      : branches.filter((b) => b.chiNhanhId === scope.chiNhanh.id)
+    ).map((b) => ({
+      ...b,
+      dichVuKham: SERVICES_BY_BRANCH[b.chiNhanhId] ?? [],
+    }));
+
+  // B15 (PLAN 5.9): thứ tự kiểm 403 (Quản trị viên mà người tạo là Chi nhánh) → 400 khoá lạ → 400 thiếu → 400 chi nhánh ngoài phạm vi (Q40: cùng mã với "không có")
+  // → 400 dịch vụ không ở chi nhánh → 400 chức danh/học vị → 409 email trùng; rồi mới tạo (trạng thái Chờ kích hoạt) và gửi thư.
+  function create(request: RecordedRequest): Response {
+    const data = request.body;
+    if (typeof data !== 'object' || data === null || Array.isArray(data))
+      return apiError(400, 'DU_LIEU_KHONG_HOP_LE');
+    const body = data as Record<string, unknown>;
+    const role = body.vaiTro;
+    if (role !== 'BacSi' && role !== 'LeTan' && role !== 'QuanTriVien')
+      return apiError(400, 'DU_LIEU_KHONG_HOP_LE', [
+        { truong: 'vaiTro', ma: 'VAI_TRO_KHONG_HOP_LE' },
+      ]);
+    if (role === 'QuanTriVien' && scope.phamVi !== 'ToanHeThong')
+      return apiError(403, 'KHONG_DU_QUYEN');
+    const allowed =
+      role === 'BacSi'
+        ? DOCTOR_KEYS
+        : role === 'LeTan'
+          ? [...COMMON_KEYS, 'chiNhanhId']
+          : [
+              ...COMMON_KEYS,
+              'phamVi',
+              ...(body.phamVi === 'ChiNhanh' ? ['chiNhanhId'] : []),
+            ];
+    const extra = Object.keys(body).filter((key) => !allowed.includes(key));
+    if (extra.length > 0)
+      return apiError(
+        400,
+        'DU_LIEU_KHONG_HOP_LE',
+        extra.map((truong) => ({ truong, ma: 'TRUONG_KHONG_DUOC_PHEP' })),
+      );
+    const missing = allowed.filter(
+      (key) =>
+        key !== 'vaiTro' &&
+        (body[key] === undefined ||
+          body[key] === null ||
+          body[key] === '' ||
+          (key === 'soNamKinhNghiem' && typeof body[key] !== 'number')),
+    );
+    if (missing.length > 0)
+      return apiError(
+        400,
+        'DU_LIEU_KHONG_HOP_LE',
+        missing.map((truong) => ({ truong, ma: FIELD_CODES[truong] })),
+      );
+    const branchId =
+      typeof body.chiNhanhId === 'string' ? body.chiNhanhId : null;
+    const branch =
+      branchId === null
+        ? null
+        : (visibleBranches().find((b) => b.chiNhanhId === branchId) ?? null);
+    if (branchId !== null && branch === null)
+      return apiError(400, 'DU_LIEU_KHONG_HOP_LE', [
+        { truong: 'chiNhanhId', ma: 'CHI_NHANH_KHONG_HOP_LE' },
+      ]);
+    if (role === 'BacSi') {
+      if (!specialties.some((s) => s.chuyenKhoaId === body.chuyenKhoaId))
+        return apiError(400, 'DU_LIEU_KHONG_HOP_LE', [
+          { truong: 'chuyenKhoaId', ma: 'CHUYEN_KHOA_KHONG_HOP_LE' },
+        ]);
+      if (!branch?.dichVuKham.some((s) => s.dichVuKhamId === body.dichVuKhamId))
+        return apiError(400, 'DICH_VU_KHONG_O_CHI_NHANH');
+      const expected = (DEGREE_OF_TITLE as Record<string, string>)[
+        String(body.chucDanh)
+      ];
+      if (expected === undefined)
+        return apiError(400, 'DU_LIEU_KHONG_HOP_LE', [
+          { truong: 'chucDanh', ma: 'CHUC_DANH_KHONG_HOP_LE' },
+        ]);
+      if (expected !== body.hocVi)
+        return apiError(400, 'CHUC_DANH_HOC_VI_KHONG_TUONG_THICH');
+    }
+    const email = String(body.email).trim().toLowerCase();
+    if (accounts.some((a) => a.email.toLowerCase() === email))
+      return apiError(409, 'EMAIL_DA_DUNG');
+
+    const id = String(
+      Math.max(0, ...accounts.map((a) => Number(a.taiKhoanId))) + 1,
+    );
+    created.push(body);
+    accounts.push({
+      taiKhoanId: id,
+      loaiTaiKhoan: role,
+      hoTen: String(body.hoTen).trim(),
+      email,
+      soDienThoai: String(body.soDienThoai),
+      trangThai: 'ChoKichHoat',
+      thoiDiemTao: '2026-11-23T03:00:00.000Z',
+      chiNhanh:
+        branch === null
+          ? null
+          : { chiNhanhId: branch.chiNhanhId, ten: branch.ten },
+      ...(role === 'QuanTriVien'
+        ? { phamViQuanTri: body.phamVi as 'ToanHeThong' | 'ChiNhanh' }
+        : {}),
+      ...(mail === 'DaGui' ? { lienKetKichHoat: validLink() } : {}),
+    });
+    resendWait.set(id, 45);
+    return json(
+      {
+        taiKhoanId: id,
+        loaiTaiKhoan: role,
+        trangThai: 'ChoKichHoat',
+        guiEmail:
+          mail === 'DaGui'
+            ? { ketQua: 'DaGui' }
+            : { ketQua: 'ThatBai', maLoi: 'GUI_MAIL_LOI' },
+      },
+      201,
+    );
+  }
+
   function handle(request: RecordedRequest): Response {
     const { method, path } = request;
     if (method === 'GET' && path === '/admin/accounts') return list(request);
-    if (method === 'GET' && path === '/admin/branches')
+    if (method === 'POST' && path === '/admin/staff-accounts')
+      return create(request);
+    if (method === 'GET' && path === '/admin/options/specialties')
       return json({
-        items: branches,
-        total: branches.length,
+        items: specialties,
+        total: specialties.length,
         page: 1,
         pageSize: 100,
       });
+    if (method === 'GET' && path === '/admin/branches') {
+      const items = visibleBranches();
+      return json({ items, total: items.length, page: 1, pageSize: 100 });
+    }
     const detail = /^\/admin\/accounts\/([^/]+)$/.exec(path);
     if (method === 'GET' && detail !== null) {
       const account = find(decodeURIComponent(detail[1]));
@@ -272,6 +462,13 @@ export function installFakeStaffApi(options: FakeStaffApiOptions = {}) {
     fetch: fetchMock,
     requests,
     accounts,
+    /** Thân các lần tạo đã THỰC THI. */
+    created,
+    /** Còn chờ bao lâu mới gửi lại được liên kết của tài khoản vừa tạo (xoá để cho phép gửi lại). */
+    resendWait,
+    setMail(next: 'DaGui' | 'ThatBai') {
+      mail = next;
+    },
     /** Thay câu trả lời của lời gọi khớp `match`; `once` (mặc định) chỉ áp cho MỘT lời gọi đầu tiên. */
     override(
       match: (r: RecordedRequest) => boolean,
