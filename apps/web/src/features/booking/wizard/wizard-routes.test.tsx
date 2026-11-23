@@ -23,6 +23,7 @@ import { createFakeAuthApi } from '../../../test/fake-auth-api';
 import { resetAuthForTest } from '../../auth/auth-session';
 import { setAuthState } from '../../auth/auth-store';
 import { RequireAuth } from '../../auth';
+import { makeDetail } from '../testing/fake-appointment-detail-api';
 import { LOCKED, createFakeBookingApi } from '../testing/fake-booking-api';
 import { useBookingDraft } from './booking-draft-context';
 import { BOOKING_WIZARD_ROUTES } from './wizard-routes';
@@ -173,6 +174,13 @@ describe('booking F3 — khung wizard trong ứng dụng', () => {
 
   it('BWZ-06 Thanh toán và Hoàn tất: không qua cổng A4 (cả khi bị khoá), đọc mã lịch hẹn từ URL, đúng bước trên thanh bước', async () => {
     booking.eligibility = LOCKED;
+    // F6: trang Thanh toán TẢI lịch rồi mới quyết (lịch DaXacNhan thì chuyển Bước 6). Đặt lịch ChoThanhToan còn hạn để ca không chạy đua với lần tải (trước F6 chỉ xanh vì kiểm lúc còn "đang tải")
+    booking.detailApi.detail = makeDetail({
+      maLichHen: 'CP20261018001',
+      trangThai: 'ChoThanhToan',
+      hanThanhToan: new Date(Date.now() + 900_000).toISOString(),
+      thoiGianMayChu: new Date().toISOString(),
+    });
 
     renderApp('/dat-lich/thanh-toan/CP20261018001');
     const payment = await screen.findByTestId('booking-step-5-body');

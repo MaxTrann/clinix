@@ -94,6 +94,8 @@ const TUE_AFTERNOON = 'Ca chiều, Thứ 3, 13/10/2026, Chờ duyệt';
 const WED_AFTERNOON = 'Ca chiều, Thứ 4, 14/10/2026, Làm việc';
 const THU_MORNING = 'Ca sáng, Thứ 5, 15/10/2026, Làm việc';
 const THU_AFTERNOON = 'Ca chiều, Thứ 5, 15/10/2026, Làm việc';
+// doctor UX8 ĐỔI CÓ CHỦ Ý: lưới TUẦN thêm tên chi nhánh vào CUỐI tên truy cập khi `chiNhanhLoc` có từ 2 chi nhánh (fixture này có hai); chip của lưới THÁNG không đổi.
+const WEEK_MON_AFTERNOON = `${MON_AFTERNOON}, ${BRANCH_A.ten}`;
 
 async function openMonth() {
   render(<DoctorSchedulePage />);
@@ -292,7 +294,7 @@ describe('DUX3-01 đến DUX3-10 lưới tháng giữ vị trí ca (G3)', () => 
 describe('DUX3-11 đối chứng: lưới tuần vốn đã giữ hàng Sáng và Chiều', () => {
   it('DUX3-11 WL-05 lọc "Ca chiều" ở lưới tuần: ô sáng thứ 2 là "Không có ca", chip chiều ở hàng Chiều (lưới tuần không đổi)', async () => {
     render(<DoctorSchedulePage />);
-    await screen.findByRole('button', { name: MON_AFTERNOON });
+    await screen.findByRole('button', { name: WEEK_MON_AFTERNOON });
     filter('Lọc theo ca', 'CaChieu');
 
     const table = screen.getByRole('table', {
@@ -308,7 +310,7 @@ describe('DUX3-11 đối chứng: lưới tuần vốn đã giữ hàng Sáng v�
     ).toBeVisible();
     expect(
       within(afternoonRow[0] as HTMLElement).getByRole('button', {
-        name: MON_AFTERNOON,
+        name: WEEK_MON_AFTERNOON,
       }),
     ).toBeVisible();
   });
