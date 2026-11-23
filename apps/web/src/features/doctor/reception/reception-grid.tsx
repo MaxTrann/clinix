@@ -15,6 +15,7 @@ import {
 } from '../../../shared/schedule/week';
 import type { ReceptionDoctorRow, ReceptionShift } from '../api/reception-api';
 import { STATUS_STYLES } from '../schedule/status-styles';
+import { sharedRowHours } from '../schedule/week-grid-display';
 import { RECEPTION_STATUS_LABELS, receptionStatusOf } from './reception-labels';
 
 export interface ReceptionGridProps {
@@ -37,18 +38,22 @@ export interface ReceptionGridProps {
 // Nhãn thứ ngắn của Figma `486:2`: "T2" … "T7", "CN"
 const shortWeekday = (day: string) => weekdayLabel(day).replace('Thứ ', 'T');
 
-function rowHours(shifts: readonly ReceptionShift[], ca: ShiftCode) {
-  for (const shift of shifts) {
-    if (shift.ca !== ca) continue;
-    const hours = formatShiftHours(shift.batDau, shift.ketThuc);
-    if (hours !== null) return hours;
-  }
-  return null;
+// Giờ ghi ở NHÃN của hai hàng Sáng/Chiều của MỘT bác sĩ (doctor UX9), tính bằng `sharedRowHours` của UX8: chỉ ghi khi mọi ca có giờ hợp lệ trong hàng trùng nhau.
+// Hàng lệch giờ thì `null` (nhãn chỉ ghi chữ ca, mỗi ô ghi giờ riêng). Hàng không có ca cũng `null`: KHÔNG mượn giờ của bác sĩ khác, vì giờ ca lấy từ lịch hoạt động
+// của chi nhánh THEO THỨ nên bác sĩ khác (nhất là chi nhánh khác của Admin Toàn hệ thống) có thể khác giờ, và nhãn sẽ đổi theo thứ tự bác sĩ API trả về.
+function doctorRowHours(
+  shifts: readonly ReceptionShift[],
+): Record<ShiftCode, string | null> {
+  return {
+    CaSang: sharedRowHours(shifts, 'CaSang'),
+    CaChieu: sharedRowHours(shifts, 'CaChieu'),
+  };
 }
 
 // Lưới tuần của MỌI bác sĩ trong phạm vi Lễ tân (Figma `486:2`): mỗi bác sĩ một khối "tên · chuyên khoa" với hai hàng Sáng/Chiều × T2…CN.
 // Chỉ xem: ô có ca mở ngăn kéo "Chi tiết ca", tiêu đề cột mở ngăn kéo "Chi tiết ngày"; không có "+" hay nút sửa. Ô trống để trống như Figma;
 // không có dòng "N lịch hẹn / Chưa có lịch" vì chưa có dữ liệu booking (Q18, WL-10).
+// Doctor UX9: giờ chuẩn ghi ở nhãn hàng của TỪNG bác sĩ khi các ca trong hàng trùng giờ (ô không ghi giờ); tuần lệch giờ thì nhãn chỉ ghi chữ ca và MỌI ô có ca ghi giờ riêng.
 export function ReceptionGrid({
   weekStart,
   today,
@@ -60,8 +65,6 @@ export function ReceptionGrid({
   onAssignCell,
 }: ReceptionGridProps) {
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
-  // Giờ hàng lấy từ mọi ca của mọi bác sĩ trong tuần (cùng chi nhánh nên thường trùng nhau)
-  const allShifts = useMemo(() => rows.flatMap((row) => row.ca), [rows]);
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
@@ -120,6 +123,7 @@ export function ReceptionGrid({
             const byCell = new Map(
               doctor.ca.map((shift) => [`${shift.ngay}|${shift.ca}`, shift]),
             );
+            const rowHours = doctorRowHours(doctor.ca);
             return (
               <Fragment key={doctor.bacSiId}>
                 <tr>
@@ -159,9 +163,11 @@ export function ReceptionGrid({
                       className="border-r border-b border-gray-100 px-2 py-2 text-center text-xs font-semibold text-gray-900"
                     >
                       {SHIFT_SHORT_LABELS[ca]}
-                      <span className="mt-0.5 block font-normal text-gray-500">
-                        {rowHours(doctor.ca, ca) ?? rowHours(allShifts, ca)}
-                      </span>
+                      {rowHours[ca] !== null && (
+                        <span className="mt-0.5 block font-normal text-gray-500">
+                          {rowHours[ca]}
+                        </span>
+                      )}
                     </th>
                     {days.map((day) => {
                       const shift = byCell.get(`${day}|${ca}`);
@@ -176,6 +182,7 @@ export function ReceptionGrid({
                             <ShiftButton
                               doctor={doctor}
                               shift={shift}
+                              showHours={rowHours[ca] === null}
                               triggerRef={triggerRef}
                               onSelect={onSelectShift}
                             />
@@ -211,29 +218,48 @@ export function ReceptionGrid({
   );
 }
 
+// `showHours`: nhãn hàng KHÔNG ghi giờ (hàng lệch giờ) nên ô ghi giờ riêng của ca, nếu ca còn giờ (ca "mồ côi" thì không ghi). Tên truy cập: phần đầu như cũ, thêm CUỐI giờ
+// chỉ khi ô đang hiện giờ để chữ nhìn thấy nằm trong tên (WCAG 2.5.3); ô không hiện giờ thì tên y như trước UX9.
 function ShiftButton({
   doctor,
   shift,
+  showHours,
   triggerRef,
   onSelect,
 }: {
   doctor: ReceptionDoctorRow;
   shift: ReceptionShift;
+  showHours: boolean;
   triggerRef: RefObject<HTMLElement | null>;
   onSelect: (doctor: ReceptionDoctorRow, shift: ReceptionShift) => void;
 }) {
   const status = receptionStatusOf(shift.nghiPhep);
+  const hours = showHours
+    ? formatShiftHours(shift.batDau, shift.ketThuc)
+    : null;
+  const name = [
+    doctor.hoTen,
+    SHIFT_LABELS[shift.ca],
+    formatWeekdayDate(shift.ngay),
+    RECEPTION_STATUS_LABELS[status],
+    hours,
+  ]
+    .filter((part) => part !== null)
+    .join(', ');
   return (
     <button
       type="button"
-      aria-label={`${doctor.hoTen}, ${SHIFT_LABELS[shift.ca]}, ${formatWeekdayDate(shift.ngay)}, ${RECEPTION_STATUS_LABELS[status]}`}
+      aria-label={name}
       onClick={(event) => {
         triggerRef.current = event.currentTarget;
         onSelect(doctor, shift);
       }}
-      className={`flex h-full w-full items-center rounded-md border px-2 text-left text-xs font-semibold transition-colors ${STATUS_STYLES[status].cell}`}
+      className={`flex h-full w-full flex-col justify-center gap-0.5 rounded-md border px-2 text-left text-xs font-semibold transition-colors ${STATUS_STYLES[status].cell}`}
     >
-      {RECEPTION_STATUS_LABELS[status]}
+      <span>{RECEPTION_STATUS_LABELS[status]}</span>
+      {hours !== null && (
+        <span className="leading-tight font-normal">{hours}</span>
+      )}
     </button>
   );
 }
