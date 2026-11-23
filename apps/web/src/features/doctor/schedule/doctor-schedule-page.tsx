@@ -145,6 +145,9 @@ export function DoctorSchedulePage() {
         onNext={() => step(1)}
         onToday={() => setAnchor(today)}
         todayDisabled={containsToday}
+        anchor={anchor}
+        today={today}
+        onPick={setAnchor}
         filters={effectiveFilters}
         onFiltersChange={setFilters}
         branches={branchOptions}

@@ -89,6 +89,9 @@ describe('lịch Bác sĩ: ô Chi nhánh (G12)', () => {
         onNext={() => undefined}
         onToday={() => undefined}
         todayDisabled={false}
+        anchor="2026-11-18"
+        today="2026-11-23"
+        onPick={() => undefined}
         filters={NO_FILTERS}
         onFiltersChange={() => undefined}
         branches={BRANCHES}
