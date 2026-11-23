@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { DoctorSchedulePage } from './doctor-schedule-page';
-import { withEmptyLeaveHistory } from '../testing/fetch-routing';
+import {
+  withEmptyAppointments,
+  withEmptyLeaveHistory,
+} from '../testing/fetch-routing';
 import type { DoctorSchedule, DoctorShift } from '../api/schedule-api';
 
 // doctor F2: WL-01, WL-02, WL-03, WL-06, WL-07, WL-10 (PLAN doctor mục 7.12).
@@ -44,7 +47,10 @@ function lastQuery() {
 
 beforeEach(() => {
   fetchMock.mockReset();
-  vi.stubGlobal('fetch', withEmptyLeaveHistory(fetchMock));
+  vi.stubGlobal(
+    'fetch',
+    withEmptyAppointments(withEmptyLeaveHistory(fetchMock)),
+  );
   // Chỉ giả `Date` (hôm nay = thứ Tư 14/10/2026, giờ VN); timer thật để hook tải xong
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-14T03:00:00Z'));
@@ -247,19 +253,22 @@ describe('DoctorSchedulePage (F2)', () => {
     ).toBeVisible();
   });
 
-  it('WL-10 không có số lịch hẹn: không hiện "lịch khám", "0 lịch" hay nút xem lịch hẹn, cả ở ô lẫn hộp chi tiết', async () => {
+  // doctor UX6 ĐỔI CÓ CHỦ Ý (trước đây: "không có số lịch hẹn: không hiện lịch khám, 0 lịch hay nút xem lịch hẹn, cả ở ô lẫn hộp chi tiết", vì chưa có dữ liệu booking).
+  // Nay hộp có mục "Lịch hẹn trong ca" và ô có "N chưa khám", nhưng API cũ không có `soLichHen` thì vẫn KHÔNG được hiện số giả.
+  it('WL-10 (UX6) API lịch không có `soLichHen`: ô KHÔNG hiện số lịch nào (kể cả "0"); hộp có mục "Lịch hẹn trong ca" và câu rỗng, không có "0 lịch" giả', async () => {
     fetchMock.mockResolvedValueOnce(response(schedule([shift({})])));
     render(<DoctorSchedulePage />);
     const cell = await screen.findByRole('button', { name: /Ca sáng, Thứ 2/ });
-    expect(document.body.textContent).not.toMatch(
-      /lịch khám|\d lịch|lịch hẹn/i,
-    );
+    expect(cell.textContent).not.toMatch(/chưa khám|\d+ lịch/i);
 
     fireEvent.click(cell);
     const dialog = await screen.findByRole('dialog', {
       name: 'Chi tiết ca làm việc',
     });
-    expect(dialog.textContent).not.toMatch(/lịch khám|\d lịch|lịch hẹn/i);
+    expect(
+      await within(dialog).findByText('Ca này chưa có lịch hẹn.'),
+    ).toBeVisible();
+    expect(dialog.textContent).not.toMatch(/\d+ lịch/);
   });
 
   it('WL-06 hộp "Chi tiết ca": ngày, ca + giờ, chi nhánh; Esc và "Đóng" đóng, focus về ô', async () => {

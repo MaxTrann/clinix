@@ -113,6 +113,37 @@ export function maskLichHenMoc(statements: readonly string[]): string[] {
   );
 }
 
+const NGHI_PHEP_NEW_COMMENT_TAIL =
+  'TheoCa: bắt buộc có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày, một ca).';
+const NGHI_PHEP_OLD_COMMENT_TAIL = 'TheoCa: bắt buộc có ca, chỉ nghỉ 1 ngày.';
+const NGHI_PHEP_NEW_THEO_CA =
+  "'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` <= `ngay_ket_thuc`";
+const NGHI_PHEP_OLD_THEO_CA =
+  "'TheoCa' AND `ca` IS NOT NULL AND `ngay_bat_dau` = `ngay_ket_thuc`";
+
+/**
+ * Đưa phần doctor UX7 (nghỉ theo ca nhiều ngày) của bảng `yeu_cau_nghi_phep` về CHỮ CŨ trong các câu CHÍNH THỨC. Migration nghỉ phép gốc (1793275200000, không được sửa) tạo bảng
+ * với CHECK `chk_nghi_phep_hinh_thuc` nhánh `TheoCa` = một ngày và COMMENT cũ; migration UX7 đổi hai thứ đó bằng ALTER nên không thể trùng chữ với file SQL chính thức đã sửa.
+ * Chỉ đổi đúng hai câu của bảng `yeu_cau_nghi_phep`: câu COMMENT (đoạn nói về TheoCa) và câu ADD CONSTRAINT của `chk_nghi_phep_hinh_thuc` (nhánh TheoCa). Trạng thái cuối được so bằng
+ * SHOW CREATE TABLE (schema-parity.int-spec.ts). Nhận câu ĐÃ chuẩn hóa xuống dòng (normalizeStatement).
+ */
+export function maskNghiTheoCaNhieuNgay(
+  statements: readonly string[],
+): string[] {
+  return statements.map((statement) => {
+    if (targetTable(statement) !== 'yeu_cau_nghi_phep') return statement;
+    if (statement.startsWith('ALTER TABLE `yeu_cau_nghi_phep` COMMENT = ')) {
+      return statement.replace(
+        NGHI_PHEP_NEW_COMMENT_TAIL,
+        NGHI_PHEP_OLD_COMMENT_TAIL,
+      );
+    }
+    return statement.includes('ADD CONSTRAINT `chk_nghi_phep_hinh_thuc`')
+      ? statement.replace(NGHI_PHEP_NEW_THEO_CA, NGHI_PHEP_OLD_THEO_CA)
+      : statement;
+  });
+}
+
 /**
  * Che phần booking P7 (thong_bao.lich_hen_id) khỏi các câu CHÍNH THỨC của bảng vận hành. Migration vận hành (P3) tạo
  * `thong_bao` trước khi cột này có; migration P7 thêm bằng ALTER nên không thể trùng chữ với CREATE TABLE. Bỏ đúng ba thứ:

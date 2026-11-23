@@ -67,6 +67,43 @@ describe('leaveCoversShift', () => {
   });
 });
 
+// UX7: `TheoCa` có thể là khoảng nhiều ngày + một ca (CHECK cho `ngay_bat_dau <= ngay_ket_thuc`).
+describe('DUX7-11 leaveCoversShift với TheoCa nhiều ngày', () => {
+  const leave: LeaveWindow = {
+    hinhThucNghi: 'TheoCa',
+    ngayBatDau: '2026-12-24',
+    ngayKetThuc: '2026-12-28',
+    ca: 'CaSang',
+  };
+
+  it('phủ đúng ca đã chọn ở MỌI ngày trong khoảng, gồm cả hai biên', () => {
+    for (const ngay of [
+      '2026-12-24',
+      '2026-12-25',
+      '2026-12-26',
+      '2026-12-27',
+      '2026-12-28',
+    ])
+      expect(leaveCoversShift(leave, { ngay, ca: 'CaSang' }), ngay).toBe(true);
+  });
+
+  it('KHÔNG phủ ca kia ở bất kỳ ngày nào trong khoảng (kể cả hai biên)', () => {
+    for (const ngay of ['2026-12-24', '2026-12-26', '2026-12-28'])
+      expect(leaveCoversShift(leave, { ngay, ca: 'CaChieu' }), ngay).toBe(
+        false,
+      );
+  });
+
+  it('DUX7-12 biên ngày: ngày liền trước và liền sau khoảng không bị phủ dù đúng ca', () => {
+    expect(leaveCoversShift(leave, { ngay: '2026-12-23', ca: 'CaSang' })).toBe(
+      false,
+    );
+    expect(leaveCoversShift(leave, { ngay: '2026-12-29', ca: 'CaSang' })).toBe(
+      false,
+    );
+  });
+});
+
 describe('pickBlockingLeave', () => {
   const pending = { yeuCauNghiPhepId: '5', trangThai: 'ChoDuyet' as const };
   const approved = { yeuCauNghiPhepId: '9', trangThai: 'DaDuyet' as const };

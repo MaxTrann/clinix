@@ -116,6 +116,13 @@ const ITEMS: AdminLeaveItem[] = [
   }),
 ];
 const STATS = { choDuyet: 2, daDuyet: 0, tuChoi: 0, tong: 2 };
+// UX7: yêu cầu "Theo ca" kéo dài nhiều ngày (một ca, năm ngày liên tiếp)
+const THEO_CA_NHIEU_NGAY = leave({
+  yeuCauNghiPhepId: '7',
+  ca: 'CaSang',
+  tuNgay: '2026-11-24',
+  denNgay: '2026-11-28',
+});
 const DOCTORS: ReceptionDoctor[] = [
   {
     bacSiId: '11',
@@ -281,6 +288,20 @@ describe('trang Duyệt yêu cầu - nghỉ phép (F8)', () => {
     );
   });
 
+  it('DUX7-46 WA-07 (UX7) "Theo ca" nhiều ngày: cột Loại nghỉ vẫn "Theo ca", cột Thời gian in CẢ khoảng "Ca sáng 24/11/2026 – 28/11/2026" (không chỉ ngày đầu); một ngày giữ "Ca chiều ngày 29/10/2026"', async () => {
+    listResponse = () => page([THEO_CA_NHIEU_NGAY, leave({})]);
+    await renderPage();
+    const table = await screen.findByRole('table', {
+      name: 'Yêu cầu nghỉ phép của bác sĩ',
+    });
+    expect(
+      within(table).getByText('Ca sáng 24/11/2026 – 28/11/2026'),
+    ).toBeVisible();
+    expect(within(table).queryByText('Ca sáng ngày 24/11/2026')).toBeNull();
+    expect(within(table).getByText('Ca chiều ngày 29/10/2026')).toBeVisible();
+    expect(within(table).getAllByText('Theo ca')).toHaveLength(2);
+  });
+
   it('WA-07 /admin/duyet-yeu-cau chuyển tới tab nghỉ phép (Q36)', async () => {
     const router = await renderPage(
       { phamVi: 'ToanHeThong' },
@@ -427,6 +448,25 @@ describe('trang Duyệt yêu cầu - nghỉ phép (F8)', () => {
 });
 
 describe('chi tiết yêu cầu (F8)', () => {
+  it('DUX7-48 WA-08 (UX7) ngăn chi tiết "Theo ca" nhiều ngày: Loại nghỉ "Theo ca" và Thời gian "Ca sáng 24/11/2026 – 28/11/2026"', async () => {
+    listResponse = () => page([THEO_CA_NHIEU_NGAY]);
+    const user = userEvent.setup();
+    await renderPage();
+    const table = await screen.findByRole('table');
+    await user.click(
+      within(table).getAllByRole('button', {
+        name: 'ThS.BS. Nguyễn Minh Anh',
+      })[0],
+    );
+    const drawer = await screen.findByRole('dialog', {
+      name: 'ThS.BS. Nguyễn Minh Anh',
+    });
+    expect(within(drawer).getByText('Theo ca')).toBeVisible();
+    expect(
+      within(drawer).getByText('Ca sáng 24/11/2026 – 28/11/2026'),
+    ).toBeVisible();
+  });
+
   it('WA-08 bấm tên bác sĩ mở ngăn kéo: tên, chuyên khoa, chi nhánh, loại, thời gian, lý do (từ GET /:id), ngày gửi; Esc đóng và trả focus', async () => {
     const user = userEvent.setup();
     await renderPage();
@@ -718,6 +758,15 @@ describe('Duyệt yêu cầu nghỉ (F9)', () => {
     });
     return { user, dialog, confirm };
   }
+
+  it('DUX7-47 WA-10 (UX7) hộp Xác nhận duyệt "Theo ca" nhiều ngày nêu CẢ khoảng ngày và ca ("Ca sáng 24/11/2026 – 28/11/2026"), không chỉ ngày đầu', async () => {
+    listResponse = () => page([THEO_CA_NHIEU_NGAY]);
+    const { dialog } = await openApprove();
+    expect(
+      within(dialog).getByText('Ca sáng 24/11/2026 – 28/11/2026'),
+    ).toBeVisible();
+    expect(within(dialog).queryByText(/ngày 24\/11\/2026/)).toBeNull();
+  });
 
   it('WA-10 hộp Xác nhận duyệt: focus ở "Hủy", nêu bác sĩ, thời gian, số lịch huỷ, số lịch hoàn cọc 100%, số bệnh nhân (Q32)', async () => {
     const { dialog, confirm } = await openApprove();
