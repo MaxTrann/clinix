@@ -88,7 +88,10 @@ describe('routes', () => {
         children: [{ path: '/hong', element: <Broken /> }],
       },
     ]);
-    expect(screen.getByRole('alert')).toHaveTextContent('Đã có lỗi xảy ra');
+    // Đổi ở doctor UX4 (G18, DUX4-40): lỗi route hiện màn 500 cả trang, tiêu đề "Hệ thống đang gặp sự cố" (trước đó là khối nhỏ "Đã có lỗi xảy ra")
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Hệ thống đang gặp sự cố',
+    );
     expect(screen.queryByText(/chi tiết nội bộ/)).not.toBeInTheDocument();
     vi.restoreAllMocks();
   });

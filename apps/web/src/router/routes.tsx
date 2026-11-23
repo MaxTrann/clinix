@@ -16,11 +16,11 @@ import {
 } from '../features/search';
 import { STAFF_ACTIVATION_ROUTES } from '../features/staff-activation';
 import { NotFoundPage } from '../pages/not-found-page';
-import { RouteErrorPage } from '../pages/route-error-page';
 import { LoadingState } from '../shared/ui/loading-state';
 import { createRoleRoutes } from './role-routes';
 import { PUBLIC_NAV } from './public-nav';
 import { RootLayout } from './root-layout';
+import { RouteErrorElement } from './route-error-element';
 
 // `protectedChildren`: route cần đăng nhập, mọi vai trò. Route theo vai trò nằm ở role-routes.tsx.
 export function createAppRoutes(
@@ -29,7 +29,7 @@ export function createAppRoutes(
   return [
     {
       element: <RootLayout />,
-      errorElement: <RouteErrorPage />,
+      errorElement: <RouteErrorElement />,
       // Mở thẳng route `lazy`: router chờ chunk rồi mới render, thiếu dòng này thì màn hình trắng (đo thật ở F3)
       hydrateFallbackElement: <LoadingState />,
       children: [

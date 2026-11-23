@@ -167,3 +167,59 @@ describe('ErrorPageCard (nền cho 404, 403 và màn 500 của UX4)', () => {
     ).toBeInTheDocument();
   });
 });
+
+// doctor UX4 (G18): thêm `focusTitle` cho màn 500. 404 và 403 là trang thường nên KHÔNG tự lấy focus (mặc định tắt).
+describe('ErrorPageCard: focusTitle (UX4)', () => {
+  it('DUX4-20 mặc định tắt: 404 và 403 không tự lấy focus, tiêu đề không có tabindex', () => {
+    const notFound = renderAt(['/x'], <NotFoundCard />);
+    expect(screen.getByRole('heading', { level: 1 })).not.toHaveAttribute(
+      'tabindex',
+    );
+    expect(document.body).toHaveFocus();
+    notFound.unmount();
+
+    renderAt(['/x'], <ForbiddenCard />);
+    expect(screen.getByRole('heading', { level: 1 })).not.toHaveAttribute(
+      'tabindex',
+    );
+    expect(document.body).toHaveFocus();
+  });
+
+  it('DUX4-21 bật `focusTitle`: tiêu đề có `tabIndex=-1` và nhận focus khi hiện', () => {
+    renderAt(
+      ['/x'],
+      <ErrorPageCard
+        icon={SearchX}
+        title="Tiêu đề thử"
+        message="Câu."
+        focusTitle
+      />,
+    );
+    const title = screen.getByRole('heading', {
+      level: 1,
+      name: 'Tiêu đề thử',
+    });
+
+    expect(title).toHaveAttribute('tabindex', '-1');
+    expect(title).toHaveFocus();
+  });
+
+  it('DUX4-23 nút của 404 và 403 đủ cỡ chạm 44 px như màn 500 (`min-h-11` chỉ ra 41,25 px vì cỡ chữ gốc là 15 px; Đại duyệt đổi chung 23/11/2026)', () => {
+    const notFound = renderAt(['/trang-truoc', '/x'], <NotFoundCard />);
+    expect(screen.getByRole('link', { name: 'Về trang chủ' })).toHaveClass(
+      'min-h-[44px]',
+    );
+    expect(screen.getByRole('button', { name: 'Quay lại' })).toHaveClass(
+      'min-h-[44px]',
+    );
+    notFound.unmount();
+
+    renderAt(['/trang-truoc', '/x'], <ForbiddenCard />);
+    expect(screen.getByRole('link', { name: 'Về trang chủ' })).toHaveClass(
+      'min-h-[44px]',
+    );
+    expect(screen.getByRole('button', { name: 'Quay lại' })).toHaveClass(
+      'min-h-[44px]',
+    );
+  });
+});
