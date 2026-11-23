@@ -14,7 +14,7 @@ import {
   formatSentDate,
 } from './approvals-format';
 import { AffectedAppointmentsList } from './affected-appointments';
-import { StatusBadge } from './status-badge';
+import { StatusBadge } from '../../components/status-badge';
 
 interface DrawerProps {
   item: AdminLeaveItem;

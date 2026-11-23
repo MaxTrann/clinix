@@ -37,7 +37,7 @@ import { ALL, EMPTY_FILTERS, type ApprovalFilters } from './approval-filters';
 import { LeaveApprovalFilters } from './leave-approval-filters';
 import { LeaveStats } from './leave-stats';
 import { RejectDialog } from './reject-dialog';
-import { StatusBadge } from './status-badge';
+import { StatusBadge } from '../../components/status-badge';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_LENGTH = 2;

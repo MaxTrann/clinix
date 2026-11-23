@@ -137,8 +137,9 @@ describe('bộ lọc Lễ tân: sắp xếp lựa chọn từ API (G12)', () => 
   it('UX1-67 ca CỐ ĐỊNH giữ thứ tự nghiệp vụ Sáng rồi Chiều (xếp theo chữ cái sẽ ra "Ca chiều" trước "Ca sáng")', () => {
     renderToolbar();
 
+    // Chữ mục đầu đổi ở doctor UX3 (G10, DUX3-44): "Buổi: Tất cả"; thứ tự nghiệp vụ vẫn khẳng định như cũ
     expect(optionsOf('Lọc theo ca')).toEqual([
-      'Tất cả ca',
+      'Buổi: Tất cả',
       'Ca sáng',
       'Ca chiều',
     ]);
@@ -148,7 +149,8 @@ describe('bộ lọc Lễ tân: sắp xếp lựa chọn từ API (G12)', () => 
     renderToolbar();
 
     const labels = optionsOf('Lọc theo trạng thái');
-    expect(labels[0]).toBe('Tất cả trạng thái');
+    // Chữ mục đầu đổi ở doctor UX3 (G10, DUX3-44): "Trạng thái ca: Tất cả"
+    expect(labels[0]).toBe('Trạng thái ca: Tất cả');
     expect(labels).toHaveLength(1 + RECEPTION_STATUS_ORDER.length);
     expect(labels.slice(1)).not.toEqual([...labels.slice(1)].sort());
   });

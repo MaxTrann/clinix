@@ -1,5 +1,5 @@
-import type { LeaveStatus } from '../../api/leave-api';
-import { LEAVE_STATUS_LABELS } from '../../leave/leave-format';
+import type { LeaveStatus } from '../api/leave-api';
+import { LEAVE_STATUS_LABELS } from '../leave/leave-format';
 
 const STATUS_STYLES: Record<LeaveStatus, string> = {
   ChoDuyet: 'border-warning-line bg-warning-soft text-warning',
