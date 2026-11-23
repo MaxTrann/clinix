@@ -114,14 +114,15 @@ export class AppointmentCancellationService {
     });
     if (written.kind !== 'Cancelled') return written;
 
-    // Đọc tiền đã thu DƯỚI khoá lịch (tầng 6 trước tầng 7): `payment` thật muốn xác nhận thanh toán thì phải khoá lịch trước, nên không đua với lần huỷ này
-    const daThu = await this.payments.amountPaid(em, keys.lichHenId);
+    // Đọc số CÒN HOÀN ĐƯỢC về ví (payment B9, Q15: phần trả bằng ví trừ mọi lần đã hoàn, không tính tiền mặt) DƯỚI khoá lịch và bằng CHÍNH `em` của giao dịch huỷ (tầng 6 trước tầng 7):
+    // `payment` thật muốn xác nhận thanh toán thì phải khoá lịch trước, nên không đua với lần huỷ này. Số này là gốc tính hoàn nên con số trả cho Bệnh nhân khớp với số `wallet` cộng vào ví.
+    const hoanDuoc = await this.payments.amountRefundable(em, keys.lichHenId);
     const refund = calculateRefund({
       policy: refundPolicyOf(input.reason),
       snapshot: written.before.chinhSachHoan,
       thoiGian: written.before.thoiGian,
       now,
-      daThu,
+      daThu: hoanDuoc,
     });
     const hoanCoc =
       refund === null ? null : { tyLe: refund.tyLe, soTien: refund.soTien };
@@ -144,7 +145,8 @@ export class AppointmentCancellationService {
     };
   }
 
-  // Sau commit. CHỈ khi số hoàn > 0 (lịch cọc 0đ, chưa thu hay ngoài mọi bậc thì không có gì để hoàn). MỘT lần: thử lại 3 lần cách 5 phút rồi giao Quản trị viên là việc của `wallet` (B17), không phải ở đây.
+  // Sau commit. CHỈ khi số hoàn > 0 (lịch cọc 0đ, chưa thu, không còn gì hoàn được hay ngoài mọi bậc thì không có gì để hoàn). MỘT lần: thử lại 3 lần cách 5 phút rồi giao Quản trị viên là việc của `wallet`
+  // (`RefundRetryJob`, payment B8), không phải ở đây; `wallet` chỉ thực hiện lại số và lý do ĐÃ ghi ở `lich_su_hoan_tien`, không tính lại (Q16 phương án (d)).
   // Cổng ném hay trả `Failed` ⇒ lịch đã `DaHuy` thật nên chỉ ghi log: chỉ id nội bộ và TÊN lớp lỗi (không `message`, không mã lịch hẹn, không số tiền).
   private async refundDeposit(
     work: Extract<CancelWork, { kind: 'Cancelled' }>,

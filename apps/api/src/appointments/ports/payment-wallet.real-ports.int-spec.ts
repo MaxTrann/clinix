@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { PaymentRecorder } from '../../payment/ports/payment-recorder.js';
 import { PaymentSummaryReader } from '../../payment/ports/payment-summary.reader.js';
 import { WalletBalanceReader } from '../../wallet/balance/wallet-balance.reader.js';
+import { RefundService } from '../../wallet/refund/refund.service.js';
 import { WalletFixtures } from '../../wallet/testing/wallet-fixtures.js';
 import { AppointmentsModule } from '../appointments.module.js';
 import { BookingChecksService } from '../create/booking-checks.service.js';
@@ -31,12 +32,17 @@ import {
   type PaymentPort,
   type PaymentSummaryPort,
 } from './payment.port.js';
-import { WALLET_BALANCE_PORT, type WalletBalancePort } from './wallet.port.js';
+import {
+  REFUND_PORT,
+  WALLET_BALANCE_PORT,
+  type RefundPort,
+  type WalletBalancePort,
+} from './wallet.port.js';
 
 // payment B7 = booking B17a lần 1 (TRACKING booking 3.47; PLAN payment 7 HDT-06, HDT-07, HDT-09, HDT-10) — ba cổng thanh toán và ví THẬT trong `AppointmentsModule`, trên MySQL 8.4 THẬT. Mẫu: `doctor-leave.real-port.int-spec.ts` (B16a).
 // Khác các test cũ ở chỗ NÀY dịch vụ KHÔNG dựng tay với cổng giả: lấy từ MODULE THẬT (`Test.createTestingModule({ imports: [AppointmentsModule] })`, `DataSource` thật qua `useMocker`), nên bắt được cả lỗi nối dây
 // (sai token, thiếu `useExisting`, thiếu module). Dữ liệu thanh toán là dòng `giao_dich_thanh_toan` THẬT do `WalletFixtures.insertPayment` chèn (booking chỉ ĐỌC lớp của `payment`, `wallet`; không sửa mã của họ).
-// Mã PWR-nn là `[đề xuất]` (đã `Grep` chưa dùng). PWR-06 (DT-04 với lớp thật, đồng thời): payment-wallet.real-ports.concurrency.int-spec.ts. Phần HTTP: test/booking-checks.e2e-spec.ts (BCK-06) và
+// payment B9 (TRACKING 3.48): PWR-07 thêm `REFUND_PORT` (`RefundService`) và `amountRefundable` qua token. Mã PWR-nn là `[đề xuất]` (đã `Grep` chưa dùng). PWR-06 (DT-04 với lớp thật, đồng thời): payment-wallet.real-ports.concurrency.int-spec.ts. Phần HTTP: test/booking-checks.e2e-spec.ts (BCK-06) và
 // test/booking-patient-appointment-detail.e2e-spec.ts (LSH-10, LSH-14).
 const PRICE = '100000.00';
 
@@ -343,5 +349,80 @@ describe('PWR-05 POST /booking/checks: soDuVi từ WalletBalanceReader thật (H
       w.patientId,
     ]);
     expect((await check()).tomTat.soDuVi).toBeNull();
+  });
+});
+
+describe('PWR-07 REFUND_PORT là RefundService THẬT và amountRefundable THẬT qua token (payment B9; HDT-06, HDT-08, HDT-15, Q15)', () => {
+  it('REFUND_PORT toBe đúng thể hiện RefundService; findRefund: null khi chưa hoàn, rồi đúng ba khoá của dòng mới nhất (không lộ id ví hay số lần thử); amountRefundable: ví 100.000 + tiền mặt 40.000 ⇒ amountPaid 140.000 nhưng chỉ 100.000 hoàn được; trừ dòng hoàn ThanhCong, KHÔNG trừ dòng ThatBai', async () => {
+    const w = await world();
+    const lich = await w.booked('DaXacNhan', 0);
+    const wallets = new WalletFixtures(db);
+    const walletId = await walletIdOf(w.patientId);
+    const paymentId = await wallets.insertWalletDeposit({
+      viNoiBoId: walletId,
+      lichHenId: lich.lichHenId,
+      soTien: '100000.00',
+    });
+    await wallets.insertPayment({
+      viNoiBoId: null,
+      lichHenId: lich.lichHenId,
+      loai: 'ThanhToanLichHen',
+      phuongThuc: 'TienMatTaiQuay',
+      soTien: '40000.00',
+      nguoiThuId: w.receptionist.account.taiKhoanId,
+    });
+    await openModule();
+    const refunds = inModule<RefundPort>(REFUND_PORT);
+    const summary = inModule<PaymentSummaryPort>(PAYMENT_SUMMARY_PORT);
+    expect(refunds).toBeInstanceOf(RefundService);
+    expect(refunds).toBe(inModule<RefundService>(RefundService));
+
+    await db.transaction(async (em) => {
+      expect(await refunds.findRefund(em, lich.lichHenId)).toBeNull();
+      expect(await summary.amountPaid(em, lich.lichHenId)).toBe('140000.00');
+      expect(await summary.amountRefundable(em, lich.lichHenId)).toBe(
+        '100000.00',
+      );
+    });
+
+    await wallets.insertRefund({
+      giaoDichThanhToanId: paymentId,
+      viNoiBoId: walletId,
+      soTien: '30000.00',
+      soLanThu: 1,
+    });
+    await db.transaction(async (em) => {
+      const view = await refunds.findRefund(em, lich.lichHenId);
+      expect(view).toEqual({
+        soTien: '30000.00',
+        trangThai: 'ThanhCong',
+        thoiDiem: expect.any(String),
+      });
+      expect(Object.keys(view ?? {}).sort()).toEqual([
+        'soTien',
+        'thoiDiem',
+        'trangThai',
+      ]);
+      expect(await summary.amountRefundable(em, lich.lichHenId)).toBe(
+        '70000.00',
+      );
+    });
+
+    await wallets.insertRefund({
+      giaoDichThanhToanId: paymentId,
+      viNoiBoId: walletId,
+      soTien: '70000.00',
+      trangThai: 'ThatBai',
+      soLanThu: 2,
+    });
+    await db.transaction(async (em) => {
+      expect(await refunds.findRefund(em, lich.lichHenId)).toMatchObject({
+        soTien: '70000.00',
+        trangThai: 'ThatBai',
+      });
+      expect(await summary.amountRefundable(em, lich.lichHenId)).toBe(
+        '70000.00',
+      );
+    });
   });
 });
