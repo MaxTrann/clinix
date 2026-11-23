@@ -181,6 +181,7 @@ export function DoctorSchedulePage() {
               weekStart={range.start}
               today={today}
               shifts={shown}
+              branches={branchOptions}
               triggerRef={triggerRef}
               onSelect={setSelected}
             />

@@ -17,33 +17,29 @@ import {
 } from '../../../shared/schedule/week';
 import type { DoctorShift } from '../api/schedule-api';
 import { STATUS_STYLES } from './status-styles';
+import { hasManyBranches, sharedRowHours } from './week-grid-display';
 
 export interface WeekGridProps {
   weekStart: string;
   today: string;
   shifts: readonly DoctorShift[];
+  // `chiNhanhLoc` của kỳ đang xem: từ 2 chi nhánh thì ô ghi tên chi nhánh (UX8)
+  branches: readonly { chiNhanhId: string }[];
   // Nút mở "Chi tiết ca" ghi lại ở đây để hộp thoại trả focus khi đóng
   triggerRef: RefObject<HTMLElement | null>;
   onSelect: (shift: DoctorShift) => void;
 }
 
-// Giờ của hàng: giờ ca đầu tiên trong tuần có giờ hợp lệ (giờ có thể khác nhau theo chi nhánh và thứ, giờ riêng từng ô nằm ở hộp "Chi tiết ca").
-function rowHours(shifts: readonly DoctorShift[], ca: ShiftCode) {
-  for (const shift of shifts) {
-    if (shift.ca !== ca) continue;
-    const hours = formatShiftHours(shift.batDau, shift.ketThuc);
-    if (hours !== null) return hours;
-  }
-  return null;
-}
-
 // Lưới tuần T2–CN × Sáng/Chiều (Figma `466:2`). Ô có ca là nút mở "Chi tiết ca"; ô trống là chữ "Không có ca".
-// Từ doctor UX6 (G1b) ô có thêm giờ ca và "N chưa khám" từ `soLichHen` CÓ SẴN của API lịch (booking B17; 0 lời gọi thêm). `soLichHen` chỉ đếm lịch chưa khám xong,
+// Từ doctor UX6 (G1b) ô có "N chưa khám" từ `soLichHen` CÓ SẴN của API lịch (booking B17; 0 lời gọi thêm). `soLichHen` chỉ đếm lịch chưa khám xong,
 // nên nhãn là "chưa khám" (Đại chọn 23/11/2026); API cũ không có trường thì KHÔNG hiện số (không bao giờ hiện "0" giả).
+// Doctor UX8 gọn ô: giờ chuẩn ghi ở NHÃN HÀNG khi mọi ca có giờ trong hàng trùng giờ (ô không ghi giờ); tuần lệch giờ thì nhãn chỉ ghi chữ ca và MỌI ô ghi giờ riêng.
+// Tên chi nhánh chỉ ở ô khi bác sĩ làm từ 2 chi nhánh (`branches`); một chi nhánh thì đầu trang đã ghi.
 export function WeekGrid({
   weekStart,
   today,
   shifts,
+  branches,
   triggerRef,
   onSelect,
 }: WeekGridProps) {
@@ -52,6 +48,14 @@ export function WeekGrid({
     () => new Map(shifts.map((shift) => [`${shift.ngay}|${shift.ca}`, shift])),
     [shifts],
   );
+  const rowHours = useMemo<Record<ShiftCode, string | null>>(
+    () => ({
+      CaSang: sharedRowHours(shifts, 'CaSang'),
+      CaChieu: sharedRowHours(shifts, 'CaChieu'),
+    }),
+    [shifts],
+  );
+  const showBranch = hasManyBranches(branches);
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
@@ -94,9 +98,11 @@ export function WeekGrid({
                 className="border-r border-b border-gray-200 bg-gray-50 px-2 py-3 text-center text-xs font-semibold text-gray-900"
               >
                 {SHIFT_SHORT_LABELS[ca]}
-                <span className="mt-0.5 block font-normal text-gray-500">
-                  {rowHours(shifts, ca)}
-                </span>
+                {rowHours[ca] !== null && (
+                  <span className="mt-0.5 block font-normal text-gray-500">
+                    {rowHours[ca]}
+                  </span>
+                )}
               </th>
               {days.map((day) => {
                 const shift = byCell.get(`${day}|${ca}`);
@@ -109,6 +115,8 @@ export function WeekGrid({
                       <ShiftCell
                         shift={shift}
                         day={day}
+                        showHours={rowHours[ca] === null}
+                        showBranch={showBranch}
                         triggerRef={triggerRef}
                         onSelect={onSelect}
                       />
@@ -129,25 +137,44 @@ export function WeekGrid({
   );
 }
 
+// `showHours`: nhãn hàng KHÔNG ghi giờ (tuần lệch giờ) nên ô ghi giờ riêng của nó. `showBranch`: bác sĩ làm từ 2 chi nhánh.
+// Tên truy cập: phần đầu như cũ, thêm CUỐI chỉ phần đang hiện ở ô (giờ rồi chi nhánh) để chữ nhìn thấy nằm trong tên (WCAG 2.5.3).
 function ShiftCell({
   shift,
   day,
+  showHours,
+  showBranch,
   triggerRef,
   onSelect,
 }: {
   shift: DoctorShift;
   day: string;
+  showHours: boolean;
+  showBranch: boolean;
   triggerRef: RefObject<HTMLElement | null>;
   onSelect: (shift: DoctorShift) => void;
 }) {
   const status = shiftStatusOf(shift.nghiPhep);
-  const hours = formatShiftHours(shift.batDau, shift.ketThuc);
+  const hours = showHours
+    ? formatShiftHours(shift.batDau, shift.ketThuc)
+    : null;
+  const branch = showBranch ? shift.chiNhanh.ten : null;
   const pending =
     shift.soLichHen === undefined ? null : `${shift.soLichHen} chưa khám`;
+  const name = [
+    SHIFT_LABELS[shift.ca],
+    formatWeekdayDate(day),
+    SHIFT_STATUS_LABELS[status],
+    pending,
+    hours,
+    branch,
+  ]
+    .filter((part) => part !== null)
+    .join(', ');
   return (
     <button
       type="button"
-      aria-label={`${SHIFT_LABELS[shift.ca]}, ${formatWeekdayDate(day)}, ${SHIFT_STATUS_LABELS[status]}${pending === null ? '' : `, ${pending}`}`}
+      aria-label={name}
       onClick={(event) => {
         triggerRef.current = event.currentTarget;
         onSelect(shift);
@@ -157,9 +184,9 @@ function ShiftCell({
       <span className="text-sm leading-tight font-semibold">
         {SHIFT_STATUS_LABELS[status]}
       </span>
-      <span className="text-xs leading-tight break-words">
-        {shift.chiNhanh.ten}
-      </span>
+      {branch !== null && (
+        <span className="text-xs leading-tight break-words">{branch}</span>
+      )}
       {hours !== null && <span className="text-xs leading-tight">{hours}</span>}
       {pending !== null && (
         <span className="text-xs leading-tight font-medium">{pending}</span>

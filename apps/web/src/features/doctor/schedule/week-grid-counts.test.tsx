@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { DoctorShift } from '../api/schedule-api';
 import { WeekGrid } from './week-grid';
 
-// doctor UX6 (G1b): ô lịch tuần hiện giờ ca và "N chưa khám" từ `soLichHen` CÓ SẴN của `GET /doctor/schedule` (booking B17; 0 lời gọi thêm). DUX6-35 đến
+// doctor UX6 (G1b): ô lịch tuần hiện "N chưa khám" (giờ ca: từ UX8 ghi ở nhãn hàng khi đồng giờ, xem `week-grid-hours.test.tsx`) từ `soLichHen` CÓ SẴN của `GET /doctor/schedule` (booking B17; 0 lời gọi thêm). DUX6-35 đến
 // DUX6-39 [đề xuất]; phủ WL-10 (nay: số lịch ở ô) và WL-13 [đề xuất]. `soLichHen` chỉ đếm lịch CHƯA khám xong (Chờ thanh toán, Đã xác nhận, Đã tiếp đón), nên
 // nhãn là "chưa khám", không phải "lịch hẹn" (Đại chọn 23/11/2026).
 const BRANCH = { chiNhanhId: '1', ten: 'CLINIX Chi nhánh Quận 3' };
@@ -28,6 +28,7 @@ function renderGrid(shifts: DoctorShift[], onSelect = vi.fn()) {
       weekStart="2026-10-12"
       today="2026-10-14"
       shifts={shifts}
+      branches={[BRANCH]}
       triggerRef={{ current: null }}
       onSelect={onSelect}
     />,
@@ -72,7 +73,9 @@ describe('Ô lịch tuần: giờ ca và số lịch chưa khám (G1b)', () => {
     ).toBeVisible();
   });
 
-  it('DUX6-38 giờ ca hiện ở ô; giờ không còn hiệu lực (null) thì bỏ dòng giờ', () => {
+  // doctor UX8 ĐỔI CÓ CHỦ Ý (trước đây: "giờ ca hiện ở ô; giờ không còn hiệu lực (null) thì bỏ dòng giờ", khẳng định ô Thứ 2 có chữ '08:30 – 11:30'). Nay giờ đồng giờ ghi ở NHÃN HÀNG
+  // và ô không ghi giờ; ca null bị bỏ qua khi xét đồng giờ (tuần lệch giờ: xem `week-grid-hours.test.tsx`, DUX8-21).
+  it('DUX6-38 (UX8 đổi) giờ đồng giờ ghi ở NHÃN HÀNG, ô không ghi giờ; ca không còn hiệu lực (null) bị bỏ qua khi xét đồng giờ và không có dòng giờ', () => {
     renderGrid([
       shift({ soLichHen: 1 }),
       shift({
@@ -85,12 +88,14 @@ describe('Ô lịch tuần: giờ ca và số lịch chưa khám (G1b)', () => {
       }),
     ]);
     expect(
-      within(cellOf(/^Ca sáng, Thứ 2, 12\/10\/2026/)).getByText(
-        '08:30 – 11:30',
-      ),
+      screen.getByRole('rowheader', { name: /Sáng\s*08:30 – 11:30/ }),
     ).toBeVisible();
-    const noHours = cellOf(/^Ca sáng, Thứ 3, 13\/10\/2026/);
-    expect(noHours.textContent).not.toMatch(/\d{2}:\d{2}/);
+    expect(cellOf(/^Ca sáng, Thứ 2, 12\/10\/2026/).textContent).not.toMatch(
+      /\d{2}:\d{2}/,
+    );
+    expect(cellOf(/^Ca sáng, Thứ 3, 13\/10\/2026/).textContent).not.toMatch(
+      /\d{2}:\d{2}/,
+    );
   });
 
   it('DUX6-39 `aria-label` của nút ô có thêm số lịch chưa khám; không có trường thì giữ nguyên nhãn cũ', () => {
