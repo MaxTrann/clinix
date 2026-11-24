@@ -7,8 +7,10 @@ import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-s
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
 import {
   maskAuditEnums,
+  maskLichHenDoiLich,
   maskLichHenMoc,
   maskNghiTheoCaNhieuNgay,
+  maskThongBaoDoiLich,
   maskThongBaoLichHen,
   normalizeStatement,
   officialStatementsFor,
@@ -70,6 +72,8 @@ const PAYMENT_TABLES = [
   'giao_dich_vi',
   'lan_doi_soat_nap_vi',
 ];
+// reschedule P1: bảng yêu cầu đổi lịch ngoài chính sách (có trong file SQL từ trước, nay mới có migration)
+const DOI_LICH_TABLES = ['yeu_cau_doi_lich_ngoai_chinh_sach'];
 const MIGRATED_TABLES = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
@@ -80,6 +84,7 @@ const MIGRATED_TABLES = [
   ...MOC_HOAN_TIEN_TABLES,
   ...EXAM_TABLES,
   ...PAYMENT_TABLES,
+  ...DOI_LICH_TABLES,
 ];
 let migrated: DataSource;
 let reference: DataSource;
@@ -119,6 +124,8 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
   // MHT-03: gồm cả moc_hoan_tien (COMMENT, UNIQUE moc_hoan_tien_index_1, khóa ngoại moc_hoan_tien_ibfk_1, CHECK chk_moc_hoan_ty_le).
   // MOC-03: gồm cả ba cột mốc của lich_hen (thoi_diem_xac_nhan, thoi_diem_tiep_don, thoi_diem_hoan_thanh: thứ tự cột sau thoi_diem_tao, kiểu, NULL, COMMENT).
   // MGK-05: gồm cả ho_so_kham và danh_gia_bac_si (UNIQUE lich_hen_id, khóa ngoại *_ibfk_1, COMMENT bảng và cột, hai CHECK chk_danh_gia_*).
+  // MDL-04 (reschedule P1): gồm cả bảng yeu_cau_doi_lich_ngoai_chinh_sach (chỉ mục _index_12, ba khóa ngoại, hai CHECK, COMMENT bảng), cột lich_hen.so_lan_tu_doi_lich và CHECK
+  // chk_lich_hen_so_lan_tu_doi, cột thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id cùng UNIQUE thong_bao_index_yeu_cau_doi_lich và khóa ngoại thong_bao_ibfk_4, ENUM hanh_dong 27 giá trị.
   it('SHOW CREATE TABLE của DB dựng bằng migration giống hệt DB dựng thẳng từ file SQL chính thức', async () => {
     const tables = (await listTables(migrated)).filter(
       (table) => table !== 'migrations' && table !== 'typeorm_metadata',
@@ -153,6 +160,30 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     expect(await showCreateTable(migrated, 'ho_so_kham')).toContain(
       'UNIQUE KEY `lich_hen_id`',
     );
+
+    // MDL-04: các phần của reschedule P1 có mặt thật trong DB dựng bằng migration, để phép so ở trên không rỗng
+    const lichHen = await showCreateTable(migrated, 'lich_hen');
+    expect(lichHen).toContain('`so_lan_tu_doi_lich` int NOT NULL DEFAULT');
+    expect(lichHen).toContain('CONSTRAINT `chk_lich_hen_so_lan_tu_doi` CHECK');
+    const thongBao = await showCreateTable(migrated, 'thong_bao');
+    expect(thongBao).toContain('`yeu_cau_doi_lich_ngoai_chinh_sach_id` bigint');
+    expect(thongBao).toContain('UNIQUE KEY `thong_bao_index_yeu_cau_doi_lich`');
+    expect(thongBao).toContain('CONSTRAINT `thong_bao_ibfk_4` FOREIGN KEY');
+    const yeuCau = await showCreateTable(
+      migrated,
+      'yeu_cau_doi_lich_ngoai_chinh_sach',
+    );
+    for (const part of [
+      'KEY `yeu_cau_doi_lich_ngoai_chinh_sach_index_12`',
+      'CONSTRAINT `chk_doi_lich_xu_ly` CHECK',
+      'CONSTRAINT `chk_doi_lich_nguoi_xu_ly` CHECK',
+      'yeu_cau_doi_lich_ngoai_chinh_sach_ibfk_3',
+    ]) {
+      expect(yeuCau, part).toContain(part);
+    }
+    expect(await showCreateTable(migrated, 'nhat_ky_hanh_dong')).toContain(
+      "'TuChoiRutTien','DoiLichHo')",
+    );
   });
 
   it('mọi câu lệnh trong migration thuộc đúng 5 bảng auth', () => {
@@ -183,9 +214,10 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     const official =
       officialStatementsFor(STAFF_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    // Ba cột mốc của lich_hen được thêm ở migration booking B19 (sau migration này): phần B19 được che, xem MOC-01, MOC-02 và MOC-03
+    // Ba cột mốc của lich_hen được thêm ở migration booking B19 và bộ đếm so_lan_tu_doi_lich (cùng CHECK) ở migration reschedule P1 (đều sau migration này): hai phần được che,
+    // xem MOC-01, MOC-02, MOC-03 và MDL-04, MDL-08
     expect(TAO_BANG_NHAN_SU_SQL.map(normalizeStatement)).toEqual(
-      maskLichHenMoc(official),
+      maskLichHenDoiLich(maskLichHenMoc(official)),
     );
   });
 
@@ -201,10 +233,12 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     expect(official.length).toBeGreaterThan(0);
     // Hai enum của nhat_ky_hanh_dong được mở rộng ở migration P4 và cột thong_bao.lich_hen_id (cùng chỉ mục, khóa ngoại)
     // được thêm ở migration booking P7 (đều sau migration này); trạng thái cuối được so bằng SHOW CREATE TABLE ở test
-    // phía trên, MG-08 và TBLH-01.
+    // phía trên, MG-08 và TBLH-01. Cột thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id (cùng chỉ mục, khóa ngoại) được thêm ở migration reschedule P1: được che, xem MDL-04, MDL-08.
     expect(
       TAO_BANG_VAN_HANH_SQL.map(normalizeStatement).map(maskAuditEnums),
-    ).toEqual(maskThongBaoLichHen(official).map(maskAuditEnums));
+    ).toEqual(
+      maskThongBaoDoiLich(maskThongBaoLichHen(official)).map(maskAuditEnums),
+    );
   });
 
   it('mọi câu lệnh trong migration P3 chỉ tác động bảy bảng vận hành', () => {

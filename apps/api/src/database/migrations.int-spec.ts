@@ -10,6 +10,7 @@ import { TaoBangHoSoKham1793620800000 } from './migrations/1793620800000-tao-ban
 import { TaoBangThanhToanVi1793707200000 } from './migrations/1793707200000-tao-bang-thanh-toan-vi.js';
 import { MocThoiGianLichHen1793793600000 } from './migrations/1793793600000-moc-thoi-gian-lich-hen.js';
 import { NghiTheoCaNhieuNgay1793880000000 } from './migrations/1793880000000-nghi-theo-ca-nhieu-ngay.js';
+import { DoiLich1793966400000 } from './migrations/1793966400000-doi-lich.js';
 import { TaoBangMocHoanTien1793534400000 } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -80,7 +81,13 @@ const TABLES_BEFORE_P6 = [
 ];
 const TABLES_BEFORE_EXAM = [...TABLES_BEFORE_P6, ...MOC_HOAN_TIEN_TABLES];
 const TABLES_BEFORE_PAYMENT = [...TABLES_BEFORE_EXAM, ...EXAM_TABLES];
-const MIGRATED_TABLES = [...TABLES_BEFORE_PAYMENT, ...PAYMENT_TABLES];
+// reschedule P1: bảng yêu cầu đổi lịch ngoài chính sách (có trong file SQL từ trước, nay mới có migration)
+const DOI_LICH_TABLES = ['yeu_cau_doi_lich_ngoai_chinh_sach'];
+const MIGRATED_TABLES = [
+  ...TABLES_BEFORE_PAYMENT,
+  ...PAYMENT_TABLES,
+  ...DOI_LICH_TABLES,
+];
 // 20 hành động đã có trước P4 (đúng thứ tự trong migration vận hành).
 const HANH_DONG_TRUOC_P4 = [
   'DoiQuyen',
@@ -112,6 +119,7 @@ const EXAM_NAME = TaoBangHoSoKham1793620800000.name;
 const PAYMENT_NAME = TaoBangThanhToanVi1793707200000.name;
 const MOC_NAME = MocThoiGianLichHen1793793600000.name;
 const NTC_NAME = NghiTheoCaNhieuNgay1793880000000.name;
+const DOI_LICH_NAME = DoiLich1793966400000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -681,8 +689,9 @@ describe('vòng đời migration', () => {
 
   it('MOC-04: down của booking B19 gỡ ba cột mốc của lich_hen và bị CHẶN khi còn lịch có mốc (DB nguyên vẹn); up lại thêm đúng ba cột NULL được, liền nhau sau thoi_diem_tao', async () => {
     const later = await revertAfter(MOC_NAME);
-    // UX7 (đổi): trước là `expect(later).toEqual([])` vì B19 là migration cuối; nay migration nghỉ theo ca nhiều ngày đứng sau và được hoàn tác trước
-    expect(later).toEqual([NTC_NAME]);
+    // UX7 (đổi): trước là `expect(later).toEqual([])` vì B19 là migration cuối; nay migration nghỉ theo ca nhiều ngày đứng sau và được hoàn tác trước.
+    // reschedule P1 (đổi): thêm migration đổi lịch đứng sau nữa, cũng được hoàn tác trước (down của nó không chặn vì DB chưa có dữ liệu đổi lịch).
+    expect(later).toEqual([NTC_NAME, DOI_LICH_NAME]);
     const MOC_COLUMNS = [
       'thoi_diem_xac_nhan',
       'thoi_diem_tiep_don',
@@ -756,12 +765,18 @@ describe('vòng đời migration', () => {
         )?.executed,
       ).toBe(false);
 
-      // Up lại: đúng ba cột như trước (cùng thứ tự, kiểu, NULL); migration đứng sau (UX7) chạy lại theo sau
+      // Up lại: đúng ba cột như trước (cùng thứ tự, kiểu, NULL); migration đứng sau (UX7, reschedule P1) chạy lại theo sau.
+      // Vị trí tuyệt đối có thể lệch khi migration đứng sau CHÈN cột vào trước các cột này (reschedule P1 thêm so_lan_tu_doi_lich sau lich_hen_truoc_id nên mọi vị trí +1): so vị trí TƯƠNG ĐỐI.
       expect(await runPendingMigrations(dataSource)).toEqual([
         MOC_NAME,
         ...later,
       ]);
-      expect(await readColumns()).toEqual(installed);
+      const relative = (columns: typeof installed) =>
+        columns.map((column) => ({
+          ...column,
+          position: Number(column.position) - Number(columns[0]?.position),
+        }));
+      expect(relative(await readColumns())).toEqual(relative(installed));
     } finally {
       await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
       await queryRunner.release();
@@ -831,7 +846,6 @@ describe('vòng đời migration', () => {
 
     it('NTC-06 (DUX7-17, DUX7-18): sau khi áp dụng, CHECK nhận TheoCa nhiều ngày và từ chối TheoCa không ca, TheoCa ngược ngày, CaNgay có ca, CaNgay ngược ngày', async () => {
       await runPendingMigrations(dataSource);
-      expect(migrationsAfter(NTC_NAME)).toEqual([]);
       await withQueryRunner(async (queryRunner) => {
         await insertLeave(queryRunner, {
           kind: 'TheoCa',
@@ -893,6 +907,8 @@ describe('vòng đời migration', () => {
 
     it('NTC-07 (DUX7-19, DUX7-20): down bị CHẶN khi còn yêu cầu TheoCa nhiều ngày ở BẤT KỲ trạng thái nào (đếm đúng, không đếm CaNgay nhiều ngày hay TheoCa một ngày); DB và dữ liệu nguyên vẹn', async () => {
       await runPendingMigrations(dataSource);
+      // Hoàn tác migration đứng sau (reschedule P1 trở đi) để NTC thành migration cuối đã áp dụng: `revertLastMigration` ở dưới nhắm đúng NTC
+      await revertAfter(NTC_NAME);
       await withQueryRunner(async (queryRunner) => {
         // Không bị đếm: CaNgay nhiều ngày, TheoCa một ngày
         await insertLeave(queryRunner, {
@@ -954,6 +970,7 @@ describe('vòng đời migration', () => {
 
     it('NTC-08 (DUX7-21, DUX7-22): hết dòng nhiều ngày thì down đưa CHECK và COMMENT về chữ cũ giữ nguyên dòng còn lại; up lại ra đúng bảng như trước và nhận TheoCa nhiều ngày', async () => {
       await runPendingMigrations(dataSource);
+      const later = await revertAfter(NTC_NAME);
       const upState = await showCreate();
       // SHOW CREATE TABLE viết lại biểu thức (thêm tiền tố bộ ký tự `_utf8mb4` trước chuỗi, chữ thường `and`, `is not null`): so bằng biểu thức chính quy
       const theoCaBranch = (operator: string) =>
@@ -1001,7 +1018,10 @@ describe('vòng đời migration', () => {
         ).rejects.toThrow(/chk_nghi_phep_hinh_thuc/);
 
         // Up lại: bảng giống hệt trạng thái lên lần trước, hai dòng còn nguyên, TheoCa nhiều ngày được nhận
-        expect(await runPendingMigrations(dataSource)).toEqual([NTC_NAME]);
+        expect(await runPendingMigrations(dataSource)).toEqual([
+          NTC_NAME,
+          ...later,
+        ]);
         expect(await showCreate()).toBe(upState);
         expect(await countLeaves()).toBe(2);
         await insertLeave(queryRunner, {
@@ -1011,6 +1031,292 @@ describe('vòng đời migration', () => {
           to: '2026-12-26',
         });
         expect(await countLeaves()).toBe(3);
+      });
+    });
+  });
+
+  // Reschedule P1 (issue #634): MDL-01 (up, down, up lại) và MDL-06 (down bị chặn khi còn dữ liệu mới) trên DB `clinix_migration_test`. Ràng buộc thật (CHECK, UNIQUE, ENUM, entity) ở
+  // doi-lich-schema.int-spec.ts; phần chữ DDL ở migration-source.spec.ts; SHOW CREATE TABLE so với file SQL chính thức ở schema-parity.int-spec.ts.
+  describe('reschedule P1: bảng yêu cầu, bộ đếm, cột thông báo, DoiLichHo', () => {
+    const REQUEST_TABLE = 'yeu_cau_doi_lich_ngoai_chinh_sach';
+    // Bỏ `AUTO_INCREMENT=n` (đổi mỗi khi chèn dòng) để chỉ so cấu trúc
+    const showCreate = async (table: string): Promise<string> => {
+      const rows = (await dataSource.query(
+        `SHOW CREATE TABLE \`${table}\``,
+      )) as Record<string, string>[];
+      return (rows[0]?.['Create Table'] ?? '').replace(
+        / AUTO_INCREMENT=\d+/,
+        '',
+      );
+    };
+    const tableExists = async (table: string): Promise<boolean> =>
+      (await listTables(dataSource)).includes(table);
+    const columnPositions = async (table: string): Promise<string[]> =>
+      (
+        (await dataSource.query(
+          'SELECT COLUMN_NAME AS name FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION',
+          [table],
+        )) as { name: string }[]
+      ).map((row) => row.name);
+    const hanhDongValues = async (): Promise<string[]> => {
+      const rows = (await dataSource.query(
+        "SELECT COLUMN_TYPE AS type FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'nhat_ky_hanh_dong' AND COLUMN_NAME = 'hanh_dong'",
+      )) as { type: string }[];
+      return [...(rows[0]?.type ?? '').matchAll(/'([^']+)'/g)].map(
+        (match) => match[1] as string,
+      );
+    };
+    const hasConstraint = async (
+      table: string,
+      name: string,
+    ): Promise<boolean> =>
+      (
+        (await dataSource.query(
+          'SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = ?',
+          [table, name],
+        )) as unknown[]
+      ).length > 0;
+    const count = async (table: string, where = '1 = 1'): Promise<number> =>
+      Number(
+        (
+          (await dataSource.query(
+            `SELECT COUNT(*) AS total FROM \`${table}\` WHERE ${where}`,
+          )) as { total: string | number }[]
+        )[0]?.total,
+      );
+    const isApplied = async (): Promise<boolean | undefined> =>
+      (await listMigrations(dataSource)).find(
+        (item) => item.name === DOI_LICH_NAME,
+      )?.executed;
+    /** Chạy `work` trên MỘT kết nối đã tắt kiểm khóa ngoại (dựng dòng mà không cần bác sĩ, khung giờ... thật), luôn bật lại. */
+    const withoutForeignKeys = async (
+      work: (run: (sql: string) => Promise<unknown>) => Promise<void>,
+    ): Promise<void> => {
+      const queryRunner = dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+        await work((sql) => queryRunner.query(sql));
+      } finally {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+        await queryRunner.release();
+      }
+    };
+    // DaHuy để cột sinh khung_gio_dang_giu = NULL (UNIQUE không đụng nhau giữa các dòng thử)
+    const insertLichHen = (code: string, soLan: number | null): string =>
+      `INSERT INTO lich_hen (ma_lich_hen, khung_gio_id, benh_nhan_id, bac_si_id, chi_nhanh_id, dich_vu_kham_id, thoi_gian, gia_snapshot, trang_thai, thoi_diem_tao${soLan === null ? '' : ', so_lan_tu_doi_lich'})
+       VALUES ('${code}', 900001, 900001, 900001, 900001, 900001, '2026-11-20 08:00:00', 100000, 'DaHuy', NOW()${soLan === null ? '' : `, ${soLan}`})`;
+
+    it('MDL-01: down (chưa có dữ liệu đổi lịch) bỏ cột, CHECK, bảng yêu cầu, cột thông báo và DoiLichHo mà giữ nguyên dòng khác; up lại: lịch có trước nhận 0, cột sau lich_hen_truoc_id, bảng giống hệt lần lên đầu', async () => {
+      await runPendingMigrations(dataSource);
+      const later = await revertAfter(DOI_LICH_NAME);
+      const upState = {
+        lichHen: await showCreate('lich_hen'),
+        thongBao: await showCreate('thong_bao'),
+        nhatKy: await showCreate('nhat_ky_hanh_dong'),
+        yeuCau: await showCreate(REQUEST_TABLE),
+      };
+      const lichHenColumns = await columnPositions('lich_hen');
+      expect(lichHenColumns.indexOf('so_lan_tu_doi_lich')).toBe(
+        lichHenColumns.indexOf('lich_hen_truoc_id') + 1,
+      );
+      const hanhDongUp = await hanhDongValues();
+      expect(hanhDongUp).toHaveLength(27);
+      expect(hanhDongUp.at(-1)).toBe('DoiLichHo');
+
+      // Down: không có dữ liệu mới nên không bị chặn; gỡ đủ mọi thứ, ENUM về đúng 26 giá trị cũ
+      expect(await revertLastMigration(dataSource)).toBe(DOI_LICH_NAME);
+      expect(await isApplied()).toBe(false);
+      expect(await columnPositions('lich_hen')).not.toContain(
+        'so_lan_tu_doi_lich',
+      );
+      expect(
+        await hasConstraint('lich_hen', 'chk_lich_hen_so_lan_tu_doi'),
+      ).toBe(false);
+      expect(await columnPositions('thong_bao')).not.toContain(
+        'yeu_cau_doi_lich_ngoai_chinh_sach_id',
+      );
+      expect(await tableExists(REQUEST_TABLE)).toBe(false);
+      expect(await hanhDongValues()).toEqual(hanhDongUp.slice(0, -1));
+      expect(await showCreate('thong_bao')).not.toContain(
+        'thong_bao_index_yeu_cau_doi_lich',
+      );
+      expect(await showCreate('thong_bao')).not.toContain('thong_bao_ibfk_4');
+
+      // Dựng lịch hẹn theo cấu trúc CŨ (chưa có cột bộ đếm) rồi lên lại: dòng có trước nhận 0, không điền giả
+      await withoutForeignKeys(async (run) => {
+        await run(insertLichHen('CLX-20261124-MDL01', null));
+      });
+      const rowsBefore = await count('lich_hen');
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        DOI_LICH_NAME,
+        ...later,
+      ]);
+      expect(await count('lich_hen')).toBe(rowsBefore);
+      expect(await count('lich_hen', 'so_lan_tu_doi_lich = 0')).toBe(
+        rowsBefore,
+      );
+      expect(await showCreate('lich_hen')).toBe(upState.lichHen);
+      expect(await showCreate('thong_bao')).toBe(upState.thongBao);
+      expect(await showCreate('nhat_ky_hanh_dong')).toBe(upState.nhatKy);
+      expect(await showCreate(REQUEST_TABLE)).toBe(upState.yeuCau);
+      expect(await hanhDongValues()).toEqual(hanhDongUp);
+      expect(await isApplied()).toBe(true);
+      await withoutForeignKeys(async (run) => {
+        await run(
+          "DELETE FROM lich_hen WHERE ma_lich_hen = 'CLX-20261124-MDL01'",
+        );
+      });
+    });
+
+    it('MDL-06: down bị CHẶN TRƯỚC mọi câu DDL khi còn dữ liệu mới, từng loại một (bộ đếm khác 0, thông báo gắn yêu cầu, nhật ký DoiLichHo, yêu cầu đổi lịch), chỉ báo SỐ dòng; DB nguyên vẹn; hết dữ liệu thì down được và không mất dòng nào khác', async () => {
+      await runPendingMigrations(dataSource);
+      const later = await revertAfter(DOI_LICH_NAME);
+      const state = async () => ({
+        lichHen: await showCreate('lich_hen'),
+        thongBao: await showCreate('thong_bao'),
+        nhatKy: await showCreate('nhat_ky_hanh_dong'),
+        yeuCau: await showCreate(REQUEST_TABLE),
+        hanhDong: await hanhDongValues(),
+      });
+      const before = await state();
+      const expectBlocked = async (message: RegExp): Promise<string> => {
+        const failure = await revertLastMigration(dataSource).then(
+          () => null,
+          (error: unknown) => error,
+        );
+        expect(failure).toBeInstanceOf(Error);
+        const text = String(failure);
+        expect(text).toMatch(/Không hoàn tác được DoiLich1793966400000/);
+        expect(text).toMatch(message);
+        // Thông báo chỉ có số dòng: không id, không nội dung
+        expect(text).not.toMatch(/900001|MDL06/);
+        // Không đổi gì: cấu trúc như cũ, migration vẫn ở trạng thái đã áp dụng
+        expect(await state()).toEqual(before);
+        expect(await isApplied()).toBe(true);
+        return text;
+      };
+
+      // Dòng KHÔNG thuộc dữ liệu mới: phải còn nguyên sau cùng
+      await withoutForeignKeys(async (run) => {
+        await run(insertLichHen('CLX-20261124-KEEP1', 0));
+        await run(
+          "INSERT INTO thong_bao (tai_khoan_id, noi_dung, loai_su_kien, thoi_diem_tao) VALUES (900001, 'MDL06', 'KEEP', NOW())",
+        );
+        await run(
+          "INSERT INTO nhat_ky_hanh_dong (tai_khoan_id, hanh_dong, loai_doi_tuong, ma_doi_tuong, thoi_diem, ket_qua) VALUES (900001, 'DoiQuyen', 'tai_khoan', 1, NOW(), 'ThanhCong')",
+        );
+      });
+      const keep = {
+        lichHen: await count('lich_hen'),
+        thongBao: await count('thong_bao'),
+        nhatKy: await count('nhat_ky_hanh_dong'),
+      };
+
+      // (a) lịch hẹn có bộ đếm khác 0
+      await withoutForeignKeys(async (run) => {
+        await run(insertLichHen('CLX-20261124-MDL06A', 2));
+      });
+      await expectBlocked(
+        /còn 1 lịch hẹn có so_lan_tu_doi_lich khác 0, 0 thông báo gắn yêu cầu đổi lịch, 0 dòng nhật ký DoiLichHo và 0 yêu cầu/,
+      );
+      await withoutForeignKeys(async (run) => {
+        await run(
+          "DELETE FROM lich_hen WHERE ma_lich_hen = 'CLX-20261124-MDL06A'",
+        );
+      });
+
+      // (b) thông báo gắn yêu cầu đổi lịch
+      await withoutForeignKeys(async (run) => {
+        await run(
+          "INSERT INTO thong_bao (tai_khoan_id, noi_dung, loai_su_kien, yeu_cau_doi_lich_ngoai_chinh_sach_id, thoi_diem_tao) VALUES (900001, 'MDL06', 'MDL06', 900001, NOW())",
+        );
+      });
+      await expectBlocked(
+        /còn 0 lịch hẹn có so_lan_tu_doi_lich khác 0, 1 thông báo gắn yêu cầu đổi lịch, 0 dòng nhật ký DoiLichHo và 0 yêu cầu/,
+      );
+      await withoutForeignKeys(async (run) => {
+        await run("DELETE FROM thong_bao WHERE loai_su_kien = 'MDL06'");
+      });
+
+      // (c) nhật ký DoiLichHo
+      await withoutForeignKeys(async (run) => {
+        await run(
+          "INSERT INTO nhat_ky_hanh_dong (tai_khoan_id, hanh_dong, loai_doi_tuong, ma_doi_tuong, thoi_diem, ket_qua) VALUES (900001, 'DoiLichHo', 'lich_hen', 900001, NOW(), 'ThanhCong')",
+        );
+      });
+      await expectBlocked(
+        /còn 0 lịch hẹn có so_lan_tu_doi_lich khác 0, 0 thông báo gắn yêu cầu đổi lịch, 1 dòng nhật ký DoiLichHo và 0 yêu cầu/,
+      );
+      await withoutForeignKeys(async (run) => {
+        await run(
+          "DELETE FROM nhat_ky_hanh_dong WHERE hanh_dong = 'DoiLichHo'",
+        );
+      });
+
+      // (d) yêu cầu đổi lịch ngoài chính sách (bảng sắp bị bỏ)
+      await withoutForeignKeys(async (run) => {
+        await run(
+          "INSERT INTO yeu_cau_doi_lich_ngoai_chinh_sach (lich_hen_id, khung_gio_mong_muon_id, ly_do_yeu_cau, thoi_diem_tao) VALUES (900001, 900001, 'MDL06', NOW())",
+        );
+      });
+      await expectBlocked(
+        /còn 0 lịch hẹn có so_lan_tu_doi_lich khác 0, 0 thông báo gắn yêu cầu đổi lịch, 0 dòng nhật ký DoiLichHo và 1 yêu cầu/,
+      );
+
+      // Cả bốn cùng lúc: số đúng ở từng loại
+      await withoutForeignKeys(async (run) => {
+        await run(insertLichHen('CLX-20261124-MDL06A', 3));
+        await run(
+          "INSERT INTO thong_bao (tai_khoan_id, noi_dung, loai_su_kien, yeu_cau_doi_lich_ngoai_chinh_sach_id, thoi_diem_tao) VALUES (900001, 'MDL06', 'MDL06', 900001, NOW())",
+        );
+        await run(
+          "INSERT INTO nhat_ky_hanh_dong (tai_khoan_id, hanh_dong, loai_doi_tuong, ma_doi_tuong, thoi_diem, ket_qua) VALUES (900001, 'DoiLichHo', 'lich_hen', 900001, NOW(), 'ThanhCong')",
+        );
+      });
+      await expectBlocked(
+        /còn 1 lịch hẹn có so_lan_tu_doi_lich khác 0, 1 thông báo gắn yêu cầu đổi lịch, 1 dòng nhật ký DoiLichHo và 1 yêu cầu/,
+      );
+
+      // Hết dữ liệu mới: down gỡ được; các dòng không thuộc dữ liệu mới còn nguyên
+      await withoutForeignKeys(async (run) => {
+        await run(
+          "DELETE FROM lich_hen WHERE ma_lich_hen = 'CLX-20261124-MDL06A'",
+        );
+        await run("DELETE FROM thong_bao WHERE loai_su_kien = 'MDL06'");
+        await run(
+          "DELETE FROM nhat_ky_hanh_dong WHERE hanh_dong = 'DoiLichHo'",
+        );
+        await run('DELETE FROM yeu_cau_doi_lich_ngoai_chinh_sach');
+      });
+      expect(await revertLastMigration(dataSource)).toBe(DOI_LICH_NAME);
+      expect(await isApplied()).toBe(false);
+      expect(await tableExists(REQUEST_TABLE)).toBe(false);
+      expect({
+        lichHen: await count('lich_hen'),
+        thongBao: await count('thong_bao'),
+        nhatKy: await count('nhat_ky_hanh_dong'),
+      }).toEqual(keep);
+
+      // Up lại ra đúng cấu trúc như trước và các dòng giữ lại vẫn còn
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        DOI_LICH_NAME,
+        ...later,
+      ]);
+      expect(await state()).toEqual(before);
+      expect({
+        lichHen: await count('lich_hen'),
+        thongBao: await count('thong_bao'),
+        nhatKy: await count('nhat_ky_hanh_dong'),
+      }).toEqual(keep);
+      await withoutForeignKeys(async (run) => {
+        await run(
+          "DELETE FROM lich_hen WHERE ma_lich_hen = 'CLX-20261124-KEEP1'",
+        );
+        await run("DELETE FROM thong_bao WHERE loai_su_kien = 'KEEP'");
+        await run(
+          "DELETE FROM nhat_ky_hanh_dong WHERE hanh_dong = 'DoiQuyen' AND ma_doi_tuong = 1",
+        );
       });
     });
   });

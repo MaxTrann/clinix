@@ -70,7 +70,7 @@ Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Ph
 | `AppointmentTransitionService` | Có `confirmPaid`, `complete`, `checkIn`, `markNoShow`, `restoreConfirmed`, `expire`, `cancel`; **KHÔNG có `markReplaced`**; ma trận 6 actor (`BenhNhan`, `LeTan`, `QuanTriVien`, `BacSi`, `HeThong`, `ThanhToan`) không có ô nào tới `DaDoiLich` | `state/appointment-state.matrix.ts:27-60`, booking PLAN 5.2 dòng "→ `DaDoiLich`" |
 | `lich_hen.lich_hen_truoc_id` | Cột UNIQUE + FK tự tham chiếu đã có ở DDL, migration và entity (`lichHenTruocId`); **không có mã nào ghi nó**; quy tắc 27 ("không tự trỏ chính nó") ghi "CHƯA có mã triển khai" | `admin/entities/lich-hen.entity.ts:40`, `docs/database/clinix_quy_tac_nghiep_vu.md` dòng 82 |
 | Bộ đếm số lần tự đổi | **Không có cột nào** (chỉ cấu hình `cau_hinh_he_thong.so_lan_tu_doi_lich_toi_da int NOT NULL`, `[cần điền]`, không DEFAULT; form cấu hình của admin đã đọc và ghi cột này) | `clinix_mysql.sql:346`, `admin/system-config/system-config-params.ts` |
-| Bảng `yeu_cau_doi_lich_ngoai_chinh_sach` | **Đã có** migration (`1793090000000-tao-bang-van-hanh.ts`), CHECK `chk_doi_lich_xu_ly`, `chk_doi_lich_nguoi_xu_ly`, chỉ mục `(trang_thai, thoi_diem_tao)`, FK tới `lich_hen`, `khung_gio` và `tai_khoan` (`nguoi_xu_ly_id`); **chưa có entity**; không có UNIQUE chặn nhiều `ChoDuyet` | `clinix_mysql.sql:414-424, 669, 967-975` |
+| Bảng `yeu_cau_doi_lich_ngoai_chinh_sach` | **Có trong `clinix_mysql.sql` nhưng CHƯA có migration nào tạo** (sửa 24/11/2026 khi làm reschedule P1: bản đầu ghi nhầm là đã có ở `1793090000000-tao-bang-van-hanh.ts`, migration đó chỉ nhắc tên bảng trong ENUM `loai_doi_tuong`; file SQL có 46 bảng, migration tạo 36; reschedule P1 tạo bảng bằng đúng 8 câu của file SQL); trong file SQL bảng có CHECK `chk_doi_lich_xu_ly`, `chk_doi_lich_nguoi_xu_ly`, chỉ mục `(trang_thai, thoi_diem_tao)`, FK tới `lich_hen`, `khung_gio` và `tai_khoan` (`nguoi_xu_ly_id`); **chưa có entity**; không có UNIQUE chặn nhiều `ChoDuyet` | `clinix_mysql.sql:414-424, 669, 967-975` |
 | Audit | ENUM `hanh_dong` đã có `XuLyDoiLichNgoaiChinhSach` và `loai_doi_tuong` đã có `yeu_cau_doi_lich_ngoai_chinh_sach`, nhưng `audit-validation.ts` **chưa có `case`** cho hành động này (tầng audit từ chối hành động không có luật) | `audit/audit-validation.ts` (`case` đến `TuChoiRutTien`), `audit-entry.ts` |
 | Cổng của booking | `PaymentPort`, `PaymentSummaryPort`, `WalletBalancePort`, `RefundPort` bản **thật** (payment B7, B9); `DoctorLeavePort` thật (B16a); `PendingBranchChangesPort` thật (B16b, 23/11/2026) nhưng **chỉ `BookabilityReader.read` gọi** (TECH_DEBT 260); `WaitlistPort` còn `Noop` | `appointments/ports/`, TECH_DEBT dòng 147, 148, 260 |
 | `BookabilityReader`, `evaluateBookability` | Dùng cho `checks` và `create`; đã loại "lịch chủ hết hạn của chính khung giờ" khỏi đếm và chồng giờ; **chưa có tham số "lịch đang đổi"**; `findActiveAppointments` và `findOverlappingAppointments` chưa nhận id loại trừ | `slots/bookability.reader.ts`, `bookability.rules.ts`, `active-appointment.query.ts`, `overlapping-appointment.query.ts` |
@@ -189,7 +189,7 @@ Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Ph
 | **Q11** | Danh sách yêu cầu chỉ `ChoDuyet` hay thêm tab `Đã xử lý`? | **ĐÃ TRẢ LỜI (24/11/2026, Đại trả lời trực tiếp): theo đề xuất — hai tab Chờ duyệt (mặc định) và Đã xử lý (chỉ đọc).** Cùng một API, bộ lọc `trangThai` | 2.4.31 b1 |
 | **Q12** | `thoi_diem_tao` của lịch mới? | **ĐÃ TRẢ LỜI (24/11/2026, Đại trả lời trực tiếp): theo đề xuất — lúc đổi** (`now`, cùng hàm tạo lịch); `thoi_diem_xac_nhan` = `now`. Module báo cáo sau này loại lịch có `lich_hen_truoc_id` khi đếm "lượt đặt" (ghi ở TRACKING mục 7) | R13 |
 | **Q13** | Mã sự kiện thông báo, câu chữ thông báo và thư, mã lỗi tiếng Việt? | **`[CHỜ Đại]`** `[đề xuất]` ở 5.10 và 5.13; nhóm duyệt khi review PR của B3, B6 | Q13 booking nếp |
-| **Q14** | Thứ tự lát cắt, hạn mức giờ mỗi tuần và Iteration của Đại? | **`[CHỜ Đại]`** `[cần điền]` hạn mức; đề xuất ở 6.4: S1 → S2 → S3 → S4 → S5, tổng 98 giờ | 6.4 |
+| **Q14** | Thứ tự lát cắt, hạn mức giờ mỗi tuần và Iteration của Đại? | **`[CHỜ Đại]`** `[cần điền]` hạn mức; đề xuất ở 6.4: S1 → S2 → S3 → S4 → S5, tổng 103 giờ | 6.4 |
 | **Q15** | Có file Excel của Trung (hoặc bảng khác ngoài repo) cần đồng bộ cho use case đổi lịch không? | **`[CHỜ Đại]`** `[cần điền]`; phiên này không có file đó | `[ĐỒNG BỘ TL]` |
 | **Q16** | Trung xác nhận các điểm chạm file của Trung | **`[CHỜ Trung]`** (approve PR tài liệu coi là xác nhận): `audit/audit-validation.ts` và `audit-entry.ts` (P2), `admin/entities/*` + `database/` + migration + ba file `docs/database/*` (P1), `features/search/slots/slot-cell.tsx` và `doctor-slot-grid.tsx` (F1), `features/doctor/admin/approvals/approvals-host-page.tsx` + ca WA-13 (F5) | mục 6.3 |
 
@@ -261,7 +261,7 @@ Controller chỉ nhận/trả, DTO + `class-validator`, import tương đối c�
 
 ### 5.2 Dữ liệu: một migration, ba file DDL (task P1, `[ĐỒNG BỘ TL]`)
 
-Một migration tên `DoiLich<mốc thời gian lớn hơn migration cuối>` (nếp B19: ba cột, migration, ba file docs trong cùng PR; Trung review). Nội dung (DDL `[đề xuất]`, đối chiếu từng dòng với `clinix_mysql.sql` khi viết):
+Một migration `DoiLich1793966400000` (file `1793966400000-doi-lich.ts`; mốc = mốc cuối `1793880000000` + 86.400.000; tên ban đầu của PLAN là `DoiLich<mốc thời gian lớn hơn migration cuối>`) (nếp B19: ba cột, migration, ba file docs trong cùng PR; Trung review). Nội dung (DDL `[đề xuất]`, đối chiếu từng dòng với `clinix_mysql.sql` khi viết):
 
 ```sql
 -- Q1: bộ đếm số lần tự đổi (lịch cũ nhận 0, không điền giả)
@@ -271,17 +271,18 @@ ALTER TABLE `lich_hen` ADD CONSTRAINT `chk_lich_hen_so_lan_tu_doi` CHECK (`so_la
 -- Q5: thông báo của yêu cầu đổi lịch (nếp thong_bao_index_yeu_cau_chi_nhanh)
 ALTER TABLE `thong_bao` ADD COLUMN `yeu_cau_doi_lich_ngoai_chinh_sach_id` bigint
   COMMENT 'Chỉ có với thông báo sinh từ một yêu cầu đổi lịch ngoài chính sách; khi có thì lich_hen_id để trống (tránh trùng UNIQUE khi một lịch có nhiều yêu cầu theo thời gian)' AFTER `lich_hen_id`;
-ALTER TABLE `thong_bao` ADD FOREIGN KEY (`yeu_cau_doi_lich_ngoai_chinh_sach_id`) REFERENCES `yeu_cau_doi_lich_ngoai_chinh_sach` (`yeu_cau_doi_lich_ngoai_chinh_sach_id`);
 CREATE UNIQUE INDEX `thong_bao_index_yeu_cau_doi_lich` ON `thong_bao` (`yeu_cau_doi_lich_ngoai_chinh_sach_id`, `tai_khoan_id`, `loai_su_kien`);
+ALTER TABLE `thong_bao` ADD FOREIGN KEY (`yeu_cau_doi_lich_ngoai_chinh_sach_id`) REFERENCES `yeu_cau_doi_lich_ngoai_chinh_sach` (`yeu_cau_doi_lich_ngoai_chinh_sach_id`);
 -- Q6: giá trị mới ở CUỐI ENUM (giữ nguyên mọi giá trị cũ và thứ tự)
 ALTER TABLE `nhat_ky_hanh_dong` MODIFY `hanh_dong` ENUM (<26 giá trị hiện có, giữ nguyên thứ tự>, 'DoiLichHo') NOT NULL;
 ```
 
-- **Không** đổi bảng `yeu_cau_doi_lich_ngoai_chinh_sach` (Q4: không UNIQUE DB). Hai CHECK sẵn có (`chk_doi_lich_xu_ly`, `chk_doi_lich_nguoi_xu_ly`) giữ nguyên và được test lại trên entity (MDL-07).
+- **Không** đổi cấu trúc bảng `yeu_cau_doi_lich_ngoai_chinh_sach` so với `clinix_mysql.sql` (Q4: không UNIQUE DB); migration P1 chỉ **tạo** bảng vì chưa migration nào tạo (xem đoạn "Sửa 24/11/2026" ở cuối mục này). Hai CHECK sẵn có (`chk_doi_lich_xu_ly`, `chk_doi_lich_nguoi_xu_ly`) giữ nguyên và được test lại trên entity (MDL-07).
 - `chk_lich_hen_so_lan_tu_doi` chỉ tham chiếu cột mới (không tham chiếu cột AUTO_INCREMENT nên không dính lỗi 3818 của quy tắc 27).
 - **Ba file `docs/database/*` sửa cùng PR:** `clinix.dbml` (cột, FK, index, ENUM), `clinix_mysql.sql` (DDL, đầu file ghi dòng "24/11/2026 (booking scope #9, task P1)…" theo nếp dòng 46 của file, các `COMMENT`, danh sách CHECK ở đầu file), `clinix_quy_tac_nghiep_vu.md` (mục mới "booking scope #9 — Đổi lịch": ý nghĩa `so_lan_tu_doi_lich`, quy tắc cột này; xác nhận quy tắc 2 bỏ chữ "[đề xuất, chưa xác nhận]"; cập nhật quy tắc 27 "đã có mã" khi B1 xong; dòng B19 "Đổi lịch (chưa có mã)" đổi thành tham chiếu mục mới; hai dòng mới ở bảng "quy tắc DB không ép": chuỗi tối đa `MAX_CHAIN_DEPTH - 1` và "mỗi lịch cũ chỉ có một lịch mới" đã là UNIQUE).
 - Entity: `YeuCauDoiLichNgoaiChinhSach` (mới, đủ cột bảng, enum trạng thái), `LichHen.soLanTuDoiLich`, `ThongBao.yeuCauDoiLichNgoaiChinhSachId`; `enums.ts` thêm `DoiLichHo`; `database/entities.ts` và `migrations/index.ts` đăng ký.
-- Test chạy ở P1: parity `schema-parity` và `audit-enum-parity`, migration lên và xuống trên MySQL thật (MDL-01 đến MDL-07).
+- Test chạy ở P1: parity `schema-parity` và `audit-enum-parity`, migration lên và xuống trên MySQL thật (MDL-01 đến MDL-10).
+- **Sửa 24/11/2026 khi làm P1 (đã kiểm bằng mã và DDL; Đại duyệt các điểm này cùng ngày, câu E1, E3, E7 của TRACKING 1.1):** (1) bảng `yeu_cau_doi_lich_ngoai_chinh_sach` có trong `clinix_mysql.sql` nhưng **CHƯA migration nào tạo** (bản đầu của PLAN ghi nhầm là đã có ở `1793090000000-tao-bang-van-hanh.ts`; migration đó chỉ nhắc tên bảng trong ENUM `loai_doi_tuong`; file SQL có 46 bảng, migration tạo 36), nên migration P1 **TẠO bảng** bằng đúng 8 câu nguyên văn của file SQL, đặt TRƯỚC các câu khác vì khóa ngoại của `thong_bao` cần bảng; (2) ba câu của `thong_bao` chạy theo thứ tự **cột, chỉ mục, khóa ngoại** (nếp P7; khối SQL trên ghi cột, khóa ngoại, chỉ mục) để `SHOW CREATE TABLE` trùng DB dựng từ file SQL chính thức; (3) ENUM `hanh_dong` hiện có **26** giá trị (đếm ở `clinix_mysql.sql`), thành 27; (4) CHECK viết nhiều dòng theo nếp file SQL, COMMENT của hai cột ghi "(reschedule P1, Q1)" và "(reschedule P1, Q5)" (chữ cuối cùng ở migration và `clinix_mysql.sql`); (5) `down` **CHẶN** khi còn dữ liệu mới (bộ đếm khác 0, thông báo gắn yêu cầu, nhật ký `DoiLichHo`, dòng của bảng yêu cầu), báo SỐ dòng, theo nếp P7, B19, UX7, payment P1; (6) thêm MDL-08 đến MDL-10 (hai mặt nạ cho test của migration cũ, mốc migration, `dbml-parity.spec.ts`) và hai mặt nạ ở `database/testing/official-schema.ts`; (7) bỏ chữ "[đề xuất, chưa xác nhận]" ở quy tắc service 2 (căn cứ Q7 (a)), quy tắc 27 để B1.
 
 ### 5.3 Máy trạng thái và bất biến
 
@@ -526,7 +527,7 @@ Lát cắt giao được: **S2** là MVP (Bệnh nhân tự đổi lịch và g�
 
 | ID | Việc (file chính) | Phụ thuộc | Truy vết | Test case | Thẻ | Giờ | Mức |
 |---|---|---|---|---|---|---|---|
-| **P1** | Migration, entity, DDL ba file: `lich_hen.so_lan_tu_doi_lich` + CHECK, `thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id` + FK + UNIQUE, ENUM `DoiLichHo`; entity `YeuCauDoiLichNgoaiChinhSach`; `enums.ts`; đăng ký `entities.ts`, `migrations/index.ts`; `clinix.dbml`, `clinix_mysql.sql`, `clinix_quy_tac_nghiep_vu.md` | — | Q1, Q5, Q6; L4 | MDL-01…MDL-07 | `[ĐỒNG BỘ TL]` `[ĐỤNG admin]` `[ĐỤNG database]` `[CHỜ Trung]` | 5 | ĐẦY ĐỦ |
+| **P1** | Migration (kể cả TẠO bảng `yeu_cau_doi_lich_ngoai_chinh_sach`, chưa có migration; sửa 24/11/2026), entity, DDL ba file: `lich_hen.so_lan_tu_doi_lich` + CHECK, `thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id` + FK + UNIQUE, ENUM `DoiLichHo`; entity `YeuCauDoiLichNgoaiChinhSach`; `enums.ts`; đăng ký `entities.ts`, `migrations/index.ts`; `clinix.dbml`, `clinix_mysql.sql`, `clinix_quy_tac_nghiep_vu.md` | — | Q1, Q5, Q6; L4 | MDL-01…MDL-10 | `[ĐỒNG BỘ TL]` `[ĐỤNG admin]` `[ĐỤNG database]` `[CHỜ Trung]` | 10 (đã nâng từ 5, Đại chấp nhận 24/11/2026) | ĐẦY ĐỦ |
 | **P2** | Luật kiểm Audit cho `XuLyDoiLichNgoaiChinhSach` và `DoiLichHo`: `audit-validation.ts`, `audit-entry.ts` (kiểu `chi_tiet`, ánh xạ đối tượng), test cạnh mã; sửa `audit-enum-parity` nếu cần | P1 | 2.4.70; 2.4.31 HĐK; Q6, Q9 | NDL-04 (phần luật), NDL-08 | `[ĐỤNG audit]` `[CHỜ Trung]` | 3,5 | GỌN |
 | **X1** | Đo thật M1 đến M7 (5.14); tiêu chí đặt trước; spec đo tạm rồi xoá; ghi TRACKING mục 6 | P1 | R1, R2, R4 | — (số đo) | `[TIỀN ĐỀ]` | 4,5 | ĐẦY ĐỦ |
 | **B1** | Nền ghi đổi lịch: actor `DoiLich` và `markReplaced`; `insertLichHen` thêm `lichHenTruocId`, `soLanTuDoiLich`, kết quả `DuplicateChain`; `claim-slot.ts` dùng chung với `create` (R8); `reschedule-locks.ts`; INV-7 đến INV-10; cập nhật AR-01, AR-06, AR-07 và ca ma trận | P1, X1 | 2.4.9 HĐK; quy tắc DB 2, 3, 27 | HDL-01, HDL-02, HDL-08, HDL-10, INV-7…INV-10 | `[ĐỤNG booking]` | 5 | ĐẦY ĐỦ |
@@ -547,7 +548,7 @@ Lát cắt giao được: **S2** là MVP (Bệnh nhân tự đổi lịch và g�
 | **X2** | Đồng thời và bất biến trên MySQL thật: bộ TDL-01…TDL-18, mỗi ca đồng thời chạy một mình, INV và IVT sau mỗi ca, đếm 1213/1205/503 | B6, B7, B9 | R1, R2 | TDL-01…TDL-18 | | 5,5 | ĐẦY ĐỦ |
 | **X3** | Kiểm tay trình duyệt ba vai trò (KTD-01…KTD-12), đột biến lô (18 đột biến, 5.14), jscpd và gitleaks (CI đo), tổng kết TRACKING, seed demo | mọi task | mục 10 | KTD-01…KTD-12 | `[CHỜ Đại]` (seed, DB `clinix`) | 5 | ĐẦY ĐỦ |
 
-**Tổng 98 giờ** (không tính D2 của Đại ngoài repo).
+**Tổng 103 giờ** (không tính D2 của Đại ngoài repo).
 
 ### 6.3 File của module khác và file dùng chung bị chạm, cách tránh xung đột
 
@@ -569,16 +570,16 @@ Lát cắt giao được: **S2** là MVP (Bệnh nhân tự đổi lịch và g�
 
 | Lát cắt | Task (giờ) | Giờ |
 |---|---|---|
-| **S1 Nền** | P1 5 · P2 3,5 · X1 4,5 · B1 5 · B2 5,5 · B3 5 | **28,5** |
+| **S1 Nền** | P1 10 · P2 3,5 · X1 4,5 · B1 5 · B2 5,5 · B3 5 | **33,5** |
 | **S2 Bệnh nhân tự đổi** | B4 6,5 · B5 5 · B6 5,5 · F1 5 · F2 5 | **27** |
 | **S3 Lễ tân đổi hộ** | B7 4,5 · F3 4,5 | **9** |
 | **S4 Xử lý yêu cầu** | B8 5 · B9 6 · F4 6,5 · F5 3,5 | **21** |
 | **S5 Hoàn tất** | D1 2 · X2 5,5 · X3 5 | **12,5** |
-| **Tổng** | | **98** |
+| **Tổng** | | **103** |
 
 | Iteration | Task | Giờ | Ghi chú |
 |---|---|---|---|
-| **8** (01/12 đến 07/12) | S1 trọn, B4, B5 | **40** | P1 và P2 cần Trung duyệt sớm; X1 chạy khi máy rảnh (lane nặng) |
+| **8** (01/12 đến 07/12) | S1 trọn, B4, B5 | **45** | P1 và P2 cần Trung duyệt sớm; X1 chạy khi máy rảnh (lane nặng) |
 | **9** (08/12 đến 14/12) | B6, F1, F2, B7, F3, B8, B9, F4 | **42** | F1, F4 `[SOẠN TRƯỚC]` được từ Iteration 8 nếu hợp đồng 5.8 đã duyệt |
 | **10** (15/12 đến 21/12) `[đề xuất]`, chưa có trong Project | F5, D1, X2, X3 | **16** | Iteration 9 và 10 chưa có trong Project: việc của Đại |
 
@@ -601,7 +602,7 @@ Nhãn `blocked` (gỡ khi điều kiện có): **P1, P2, F1, F5**: `[CHỜ Trung
 
 | ID | Tiêu đề issue | Tiêu đề PR (`feat(<scope>): …`) | Iter. | "Đóng khi" (ngoài bốn ô chuẩn) |
 |---|---|---|---|---|
-| P1 | `[reschedule] P1 · Migration bộ đếm tự đổi lịch, cột thông báo yêu cầu, hành động DoiLichHo (backend)` | `feat(db): thêm bộ đếm tự đổi lịch, cột thông báo yêu cầu và hành động DoiLichHo (reschedule P1)` | 8 | Migration lên và xuống được; ba file `docs/database/*` khớp; `schema-parity` và `audit-enum-parity` xanh; MDL-01…MDL-07 Pass; entity khớp |
+| P1 | `[reschedule] P1 · Migration bộ đếm tự đổi lịch, cột thông báo yêu cầu, hành động DoiLichHo (backend)` | `feat(db): thêm bộ đếm tự đổi lịch, cột thông báo yêu cầu và hành động DoiLichHo (reschedule P1)` | 8 | Migration lên và xuống được; ba file `docs/database/*` khớp; `schema-parity` và `audit-enum-parity` xanh; MDL-01…MDL-10 Pass; entity khớp |
 | P2 | `[reschedule] P2 · Luật kiểm Audit cho đổi lịch hộ và xử lý yêu cầu đổi lịch (backend)` | `feat(audit): thêm luật kiểm nhật ký đổi lịch hộ và xử lý yêu cầu đổi lịch (reschedule P2)` | 8 | NDL-04 (luật) và NDL-08 Pass; ca âm (thiếu khoá, khoá lạ, ghi chú quá dài, kết quả lạ) bị từ chối |
 | X1 | `[reschedule] X1 · Đo thật khoá hai khung giờ, khoá ngầm khoá ngoại, chỉ mục (backend)` | `test(booking): đo thật khoá hai khung giờ, khoá ngầm khoá ngoại và chỉ mục yêu cầu (reschedule X1)` | 8 | M1 đến M7 có số đo ở TRACKING mục 6; tiêu chí đặt trước; spec đo tạm đã xoá |
 | B1 | `[reschedule] B1 · Nền ghi đổi lịch: markReplaced, chèn lịch nối chuỗi, khoá (backend)` | `feat(booking): thêm markReplaced, chèn lịch nối chuỗi và khoá hai khung giờ (reschedule B1)` | 8 | HDL-01, HDL-02, HDL-08, HDL-10, INV-7…INV-10 Pass; AR-01, AR-06, AR-07 cập nhật; `create` không đổi hành vi (DL-* cũ Pass) |
@@ -759,8 +760,11 @@ Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.i
 | MDL-03 | I | ENUM `hanh_dong` thêm `DoiLichHo` | mọi giá trị cũ giữ nguyên thứ tự; ghi được `DoiLichHo`; `audit-enum-parity` Pass |
 | MDL-04 | U | `schema-parity`: ba file `docs/database/*` so với migration | khớp từng dòng (CHECK, UNIQUE, FK, index, ENUM) |
 | MDL-05 | I | entity so với DB | không chênh (không `synchronize`) |
-| MDL-06 | I | xuống migration khi đã có dữ liệu lịch mới | cảnh báo trong mô tả migration; không mất dòng nào ngoài cột bỏ |
+| MDL-06 | I | xuống migration khi còn dữ liệu mới (bộ đếm khác 0, thông báo gắn yêu cầu, nhật ký `DoiLichHo`, dòng của bảng yêu cầu) | `down` CHẶN trước mọi câu DDL (Đại duyệt 24/11/2026), báo SỐ dòng, DB nguyên vẹn; hết dữ liệu thì xuống được và không mất dòng nào khác; cảnh báo ở đầu file migration |
 | MDL-07 | I | CHECK sẵn có của bảng yêu cầu qua entity | `ChoDuyet` mà có người xử lý ⇒ vi phạm; `DaDuyet` thiếu ghi chú ⇒ vi phạm |
+| MDL-08 | U | hai mặt nạ test của migration cũ (`maskLichHenDoiLich`, `maskThongBaoDoiLich`) | bỏ đúng phần của P1, không che nhầm bảng khác (P1) |
+| MDL-09 | U | `name` của migration trùng tên lớp, mốc 13 chữ số lớn hơn mọi migration trước, đã đăng ký | đúng (P1) |
+| MDL-10 | U | `clinix.dbml` so với `clinix_mysql.sql` | cùng tên và thứ tự cột của `lich_hen`, `thong_bao`, `yeu_cau_doi_lich_ngoai_chinh_sach`, `nhat_ky_hanh_dong`; khối Enum `hanh_dong_nhay_cam_enum` 27 giá trị; các UNIQUE của `thong_bao` (P1) |
 
 ### 7.8 Thông báo và nhật ký (NDL) — B3, P2, B7, B9
 

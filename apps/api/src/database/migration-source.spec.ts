@@ -27,12 +27,26 @@ import { TAO_BANG_NHAN_SU_SQL } from './migrations/1793080000000-tao-bang-nhan-s
 import { TAO_BANG_VAN_HANH_SQL } from './migrations/1793090000000-tao-bang-van-hanh.js';
 import { THONG_BAO_LICH_HEN_UP_SQL } from './migrations/1793448000000-thong-bao-lich-hen.js';
 import {
+  DOI_LICH_DOWN_SQL,
+  DOI_LICH_LICH_HEN_SQL,
+  DOI_LICH_NHAT_KY_DOWN_SQL,
+  DOI_LICH_NHAT_KY_UP_SQL,
+  DOI_LICH_TAO_BANG_YEU_CAU_SQL,
+  DOI_LICH_THONG_BAO_SQL,
+  DOI_LICH_UP_SQL,
+  DoiLich1793966400000,
+  HANH_DONG_DOI_LICH,
+  HANH_DONG_TRUOC_DOI_LICH,
+} from './migrations/1793966400000-doi-lich.js';
+import {
   normalizeStatement,
   officialStatementsFor,
   targetTable,
   maskAuditEnums,
+  maskLichHenDoiLich,
   maskLichHenMoc,
   maskNghiTheoCaNhieuNgay,
+  maskThongBaoDoiLich,
   maskThongBaoLichHen,
 } from './testing/official-schema.js';
 
@@ -89,9 +103,10 @@ describe('migration P2 khớp schema SQL chính thức', () => {
     const official =
       officialStatementsFor(STAFF_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
-    // Ba cột mốc của lich_hen được thêm ở migration booking B19 (sau migration này): phần B19 được che, xem MOC-01, MOC-02 ở dưới.
+    // Ba cột mốc của lich_hen được thêm ở migration booking B19 và bộ đếm so_lan_tu_doi_lich (cùng CHECK) ở migration reschedule P1 (đều sau migration này): hai phần được che,
+    // xem MOC-01, MOC-02 và MDL-04, MDL-08 ở dưới.
     expect(TAO_BANG_NHAN_SU_SQL.map(normalizeStatement)).toEqual(
-      maskLichHenMoc(official),
+      maskLichHenDoiLich(maskLichHenMoc(official)),
     );
   });
 
@@ -108,10 +123,13 @@ describe('migration P3 khớp schema SQL chính thức', () => {
       officialStatementsFor(OPERATIONS_TABLES).map(normalizeStatement);
     expect(official.length).toBeGreaterThan(0);
     // Hai enum của nhat_ky_hanh_dong được mở rộng ở migration P4 và thong_bao.lich_hen_id được thêm ở migration
-    // booking P7 (đều sau migration này); phần P7 được che, xem TBLH-01 đến TBLH-03 ở dưới.
+    // booking P7 (đều sau migration này); phần P7 được che, xem TBLH-01 đến TBLH-03 ở dưới. Cột thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id (cùng chỉ mục, khóa ngoại)
+    // được thêm ở migration reschedule P1: cũng được che, xem MDL-04 và MDL-08.
     expect(
       TAO_BANG_VAN_HANH_SQL.map(normalizeStatement).map(maskAuditEnums),
-    ).toEqual(maskThongBaoLichHen(official).map(maskAuditEnums));
+    ).toEqual(
+      maskThongBaoDoiLich(maskThongBaoLichHen(official)).map(maskAuditEnums),
+    );
   });
 
   it('mọi câu migration chỉ tác động bảy bảng vận hành P3', () => {
@@ -508,8 +526,9 @@ describe('migration payment P1 (năm bảng tiền) khớp schema SQL chính th�
       officialStatementsFor(['nhat_ky_hanh_dong'])
         .map(normalizeStatement)
         .find((sql) => sql.startsWith('CREATE TABLE')) ?? '';
+    // Hai giá trị của payment P1 không còn ở cuối từ khi reschedule P1 thêm DoiLichHo (MDL-04): chúng vẫn liền nhau và đứng ngay trước giá trị mới.
     expect(create).toContain(
-      "'DuyetNghiPhep', 'TuChoiNghiPhep', 'DuyetRutTien', 'TuChoiRutTien') NOT NULL",
+      "'DuyetNghiPhep', 'TuChoiNghiPhep', 'DuyetRutTien', 'TuChoiRutTien', 'DoiLichHo') NOT NULL",
     );
     expect(create).toContain(
       "'yeu_cau_nghi_phep', 'yeu_cau_rut_tien') NOT NULL COMMENT",
@@ -642,13 +661,273 @@ describe('migration doctor UX7 (nghỉ theo ca nhiều ngày) khớp schema SQL 
     ).not.toEqual(TAO_BANG_NGHI_PHEP_SQL.map(normalizeStatement));
   });
 
-  it('NTC-05: name trùng tên lớp, timestamp 13 chữ số lớn hơn mọi migration đứng trước và nằm CUỐI sổ đăng ký', () => {
+  // "Nằm CUỐI sổ" chỉ đúng tới khi có migration sau nó (reschedule P1 thêm DoiLich1793966400000): từ đó chỉ còn khẳng định đã đăng ký và đứng sau mọi migration cũ; MDL-09 giữ ca "cuối sổ" cho migration mới nhất.
+  it('NTC-05: name trùng tên lớp, timestamp 13 chữ số lớn hơn mọi migration đứng trước trong sổ đăng ký', () => {
     const timestampOf = (name: string): number =>
       Number(/(\d{13})$/.exec(name)?.[1]);
     const migration = new NghiTheoCaNhieuNgay1793880000000();
     expect(migration.name).toBe(NghiTheoCaNhieuNgay1793880000000.name);
     const index = MIGRATIONS.findIndex((item) => item.name === migration.name);
-    expect(index, 'đã đăng ký ở MIGRATIONS').toBe(MIGRATIONS.length - 1);
+    expect(index, 'đã đăng ký ở MIGRATIONS').toBeGreaterThan(0);
+    for (const earlier of MIGRATIONS.slice(0, index)) {
+      expect(timestampOf(earlier.name), earlier.name).toBeLessThan(
+        timestampOf(migration.name),
+      );
+    }
+  });
+});
+
+// Reschedule P1 (issue #634) — MDL-04, MDL-06 (phần chữ down), MDL-08, MDL-09 là phần chữ DDL (không cần DB). Phần chạy thật ở doi-lich-schema.int-spec.ts (MDL-01, 02, 03, 05, 07),
+// migrations.int-spec.ts (MDL-01 up/down, MDL-06) và schema-parity.int-spec.ts (MDL-04, SHOW CREATE TABLE).
+describe('migration reschedule P1 (bảng yêu cầu, bộ đếm, cột thông báo, DoiLichHo) khớp schema SQL chính thức', () => {
+  const REQUEST_TABLE = 'yeu_cau_doi_lich_ngoai_chinh_sach';
+  const officialRequest = officialStatementsFor([REQUEST_TABLE]).map(
+    normalizeStatement,
+  );
+  const lichHen = officialStatementsFor(['lich_hen']).map(normalizeStatement);
+  const thongBao = officialStatementsFor(['thong_bao']).map(normalizeStatement);
+  const isCreateOf =
+    (table: string) =>
+    (sql: string): boolean =>
+      sql.startsWith(`CREATE TABLE \`${table}\` (`);
+  /** Dòng cột (bỏ dấu phẩy cuối) và tên cột đứng ngay trước nó, trích từ CREATE TABLE chính thức. */
+  const columnOf = (
+    create: string,
+    name: string,
+  ): { index: number; line: string; previous: string } => {
+    const lines = create.split('\n');
+    const index = lines.findIndex((line) => line.startsWith(`  \`${name}\` `));
+    return {
+      index,
+      line: (lines[index] ?? '').trim().replace(/,$/, ''),
+      previous: /^ {2}`(\w+)`/.exec(lines[index - 1] ?? '')?.[1] ?? '',
+    };
+  };
+  const enumValues = (sql: string, pattern: RegExp): string[] =>
+    [...(pattern.exec(sql)?.[1] ?? '').matchAll(/'([^']+)'/g)].map(
+      (match) => match[1] as string,
+    );
+
+  it('MDL-04: tám câu tạo bảng yêu cầu trùng TỪNG CÂU, cùng thứ tự, với file SQL chính thức; ca âm đổi một chữ thì lệch', () => {
+    expect(officialRequest).toHaveLength(8);
+    expect(DOI_LICH_TAO_BANG_YEU_CAU_SQL.map(normalizeStatement)).toEqual(
+      officialRequest,
+    );
+    for (const statement of DOI_LICH_TAO_BANG_YEU_CAU_SQL) {
+      expect(targetTable(statement)).toBe(REQUEST_TABLE);
+    }
+    const [createTable = ''] = DOI_LICH_TAO_BANG_YEU_CAU_SQL;
+    expect(createTable).toContain('Lý do bệnh nhân cần đổi lịch');
+    expect(
+      [
+        createTable.replace('Lý do', 'Ly do'),
+        ...DOI_LICH_TAO_BANG_YEU_CAU_SQL.slice(1),
+      ].map(normalizeStatement),
+    ).not.toEqual(officialRequest);
+  });
+
+  it('MDL-04: ADD COLUMN của lich_hen trùng TỪNG KÝ TỰ dòng cột ở CREATE TABLE chính thức và đúng cột đứng trước; CHECK trùng nguyên văn', () => {
+    const create = lichHen.find(isCreateOf('lich_hen')) ?? '';
+    const column = columnOf(create, 'so_lan_tu_doi_lich');
+    expect(column.index).toBeGreaterThan(0);
+    expect(column.line).toMatch(
+      /^`so_lan_tu_doi_lich` int NOT NULL DEFAULT 0 COMMENT '/,
+    );
+    expect(column.previous).toBe('lich_hen_truoc_id');
+    const [addColumn = '', addCheck = ''] = DOI_LICH_LICH_HEN_SQL;
+    expect(DOI_LICH_LICH_HEN_SQL).toHaveLength(2);
+    expect(addColumn).toBe(
+      `ALTER TABLE \`lich_hen\` ADD COLUMN ${column.line} AFTER \`${column.previous}\``,
+    );
+    expect(
+      lichHen.filter((sql) =>
+        sql.startsWith(
+          'ALTER TABLE `lich_hen` ADD CONSTRAINT `chk_lich_hen_so_lan_tu_doi` ',
+        ),
+      ),
+    ).toEqual([addCheck]);
+    expect(addCheck).toContain('`so_lan_tu_doi_lich` >= 0');
+    // Ca âm: đổi chữ trong COMMENT hay đổi >= thành > thì không còn trùng
+    expect(column.line).toContain('TỰ');
+    expect(
+      `ALTER TABLE \`lich_hen\` ADD COLUMN ${column.line.replace('TỰ', 'TU')} AFTER \`${column.previous}\``,
+    ).not.toBe(addColumn);
+    expect(addCheck.replace('>= 0', '> 0')).not.toBe(
+      lichHen.find((sql) => sql.includes('chk_lich_hen_so_lan_tu_doi')),
+    );
+  });
+
+  it('MDL-04: ADD COLUMN của thong_bao trùng dòng cột chính thức; chỉ mục và khóa ngoại trùng nguyên văn, chỉ mục đứng TRƯỚC khóa ngoại (cùng thứ tự file chính thức)', () => {
+    const create = thongBao.find(isCreateOf('thong_bao')) ?? '';
+    const column = columnOf(create, 'yeu_cau_doi_lich_ngoai_chinh_sach_id');
+    expect(column.index).toBeGreaterThan(0);
+    expect(column.previous).toBe('lich_hen_id');
+    const [addColumn = '', createIndex = '', addForeignKey = ''] =
+      DOI_LICH_THONG_BAO_SQL;
+    expect(DOI_LICH_THONG_BAO_SQL).toHaveLength(3);
+    expect(addColumn).toBe(
+      `ALTER TABLE \`thong_bao\` ADD COLUMN ${column.line} AFTER \`${column.previous}\``,
+    );
+    expect(
+      thongBao.filter((sql) =>
+        sql.startsWith(
+          'CREATE UNIQUE INDEX `thong_bao_index_yeu_cau_doi_lich` ',
+        ),
+      ),
+    ).toEqual([createIndex]);
+    expect(
+      thongBao.filter((sql) =>
+        sql.startsWith(
+          'ALTER TABLE `thong_bao` ADD FOREIGN KEY (`yeu_cau_doi_lich_ngoai_chinh_sach_id`) ',
+        ),
+      ),
+    ).toEqual([addForeignKey]);
+    expect(createIndex).toContain(
+      '(`yeu_cau_doi_lich_ngoai_chinh_sach_id`, `tai_khoan_id`, `loai_su_kien`)',
+    );
+    expect(thongBao.indexOf(createIndex)).toBeLessThan(
+      thongBao.indexOf(addForeignKey),
+    );
+    // Ca âm: chỉ khác thứ tự cột UNIQUE thì không còn trùng
+    expect(
+      createIndex.replace(
+        '(`yeu_cau_doi_lich_ngoai_chinh_sach_id`, `tai_khoan_id`,',
+        '(`tai_khoan_id`, `yeu_cau_doi_lich_ngoai_chinh_sach_id`,',
+      ),
+    ).not.toBe(createIndex);
+  });
+
+  it('MDL-04: ENUM hanh_dong: 26 giá trị cũ giữ nguyên thứ tự, DoiLichHo ở CUỐI; câu MODIFY của up khớp file chính thức, của down khớp danh sách cũ; loai_doi_tuong không đổi', () => {
+    const create =
+      officialStatementsFor(['nhat_ky_hanh_dong'])
+        .map(normalizeStatement)
+        .find((sql) => sql.startsWith('CREATE TABLE')) ?? '';
+    const officialValues = enumValues(create, /`hanh_dong` ENUM \(([^)]*)\)/);
+    const modify = /MODIFY `hanh_dong` ENUM \(([^)]*)\)/;
+    const upValues = enumValues(DOI_LICH_NHAT_KY_UP_SQL, modify);
+    const downValues = enumValues(DOI_LICH_NHAT_KY_DOWN_SQL, modify);
+    expect(officialValues).toHaveLength(27);
+    expect(upValues).toEqual(officialValues);
+    expect(officialValues.at(-1)).toBe(HANH_DONG_DOI_LICH);
+    expect(downValues).toHaveLength(26);
+    expect(downValues).toEqual(officialValues.slice(0, -1));
+    expect([...HANH_DONG_TRUOC_DOI_LICH]).toEqual(downValues);
+    // Cột chính thức không có COMMENT, nên câu MODIFY chỉ kết thúc bằng NOT NULL; không đụng cột loai_doi_tuong
+    expect(create).toMatch(/`hanh_dong` ENUM \([^)]*\) NOT NULL,\n/);
+    expect(DOI_LICH_NHAT_KY_UP_SQL).toMatch(/\) NOT NULL$/);
+    expect(DOI_LICH_NHAT_KY_UP_SQL).not.toContain('loai_doi_tuong');
+    expect(targetTable(DOI_LICH_NHAT_KY_UP_SQL)).toBe('nhat_ky_hanh_dong');
+  });
+
+  it('MDL-04: đúng 14 câu theo thứ tự (bảng yêu cầu trước khóa ngoại tới nó), mỗi câu chỉ tác động bảng của nó', () => {
+    expect(DOI_LICH_UP_SQL).toHaveLength(14);
+    expect(DOI_LICH_UP_SQL.map(targetTable)).toEqual([
+      ...Array<string>(8).fill(REQUEST_TABLE),
+      'lich_hen',
+      'lich_hen',
+      'thong_bao',
+      'thong_bao',
+      'thong_bao',
+      'nhat_ky_hanh_dong',
+    ]);
+  });
+
+  it('MDL-06: câu của down gỡ đủ và đúng thứ tự (chỉ mục trước cột thong_bao, CHECK trước cột lich_hen, ENUM về 26 giá trị, bỏ bảng cuối cùng); không câu nào xoá hay sửa dữ liệu', () => {
+    const at = (needle: string): number =>
+      DOI_LICH_DOWN_SQL.findIndex((sql) => sql.includes(needle));
+    expect(DOI_LICH_DOWN_SQL).toHaveLength(6);
+    expect(at('DROP INDEX `thong_bao_index_yeu_cau_doi_lich`')).toBe(0);
+    expect(
+      at('`thong_bao` DROP COLUMN `yeu_cau_doi_lich_ngoai_chinh_sach_id`'),
+    ).toBe(1);
+    expect(at('DROP CHECK `chk_lich_hen_so_lan_tu_doi`')).toBe(2);
+    expect(at('`lich_hen` DROP COLUMN `so_lan_tu_doi_lich`')).toBe(3);
+    expect(DOI_LICH_DOWN_SQL[4]).toBe(DOI_LICH_NHAT_KY_DOWN_SQL);
+    expect(DOI_LICH_DOWN_SQL.at(-1)).toBe(
+      'DROP TABLE `yeu_cau_doi_lich_ngoai_chinh_sach`',
+    );
+    for (const statement of DOI_LICH_DOWN_SQL) {
+      expect(statement).not.toMatch(/\b(DELETE|UPDATE|TRUNCATE)\b/i);
+    }
+  });
+
+  it('MDL-08: mặt nạ lich_hen bỏ đúng một dòng cột và một câu CHECK, giữ nguyên mọi câu và mọi dòng khác; không che nhầm bảng khác', () => {
+    const masked = maskLichHenDoiLich(lichHen);
+    expect(masked).toHaveLength(lichHen.length - 1);
+    const before = lichHen.find(isCreateOf('lich_hen')) ?? '';
+    const after = masked.find(isCreateOf('lich_hen')) ?? '';
+    expect(before).toContain('`so_lan_tu_doi_lich`');
+    expect(after).not.toContain('so_lan_tu_doi_lich');
+    expect(after.split('\n')).toEqual(
+      before
+        .split('\n')
+        .filter((line) => !line.startsWith('  `so_lan_tu_doi_lich` ')),
+    );
+    expect(masked.filter((sql) => !isCreateOf('lich_hen')(sql))).toEqual(
+      lichHen.filter(
+        (sql) =>
+          !isCreateOf('lich_hen')(sql) &&
+          !sql.includes('chk_lich_hen_so_lan_tu_doi'),
+      ),
+    );
+    // Ca âm: bảng KHÁC có dòng cột hay CHECK cùng chữ không bị che
+    const otherTable =
+      "CREATE TABLE `khac` (\n  `so_lan_tu_doi_lich` int NOT NULL DEFAULT 0 COMMENT 'x',\n  `a` int\n)";
+    const otherCheck =
+      'ALTER TABLE `khac` ADD CONSTRAINT `chk_lich_hen_so_lan_tu_doi` CHECK (\n    `a` >= 0\n)';
+    expect(maskLichHenDoiLich([otherTable, otherCheck])).toEqual([
+      otherTable,
+      otherCheck,
+    ]);
+  });
+
+  it('MDL-08: mặt nạ thong_bao bỏ đúng một dòng cột, một chỉ mục và một khóa ngoại của reschedule P1, giữ nguyên mọi thứ khác; không che nhầm khóa ngoại lich_hen_id của P7 hay bảng khác', () => {
+    const masked = maskThongBaoDoiLich(thongBao);
+    expect(masked).toHaveLength(thongBao.length - 2);
+    const before = thongBao.find(isCreateOf('thong_bao')) ?? '';
+    const after = masked.find(isCreateOf('thong_bao')) ?? '';
+    expect(before).toContain('`yeu_cau_doi_lich_ngoai_chinh_sach_id`');
+    expect(after).not.toContain('yeu_cau_doi_lich_ngoai_chinh_sach_id');
+    expect(after.split('\n')).toEqual(
+      before
+        .split('\n')
+        .filter(
+          (line) =>
+            !line.startsWith('  `yeu_cau_doi_lich_ngoai_chinh_sach_id` '),
+        ),
+    );
+    const isRescheduleStatement = (sql: string): boolean =>
+      sql.startsWith(
+        'CREATE UNIQUE INDEX `thong_bao_index_yeu_cau_doi_lich` ',
+      ) ||
+      sql.startsWith(
+        'ALTER TABLE `thong_bao` ADD FOREIGN KEY (`yeu_cau_doi_lich_ngoai_chinh_sach_id`) ',
+      );
+    expect(thongBao.filter(isRescheduleStatement)).toHaveLength(2);
+    expect(masked.filter((sql) => !isCreateOf('thong_bao')(sql))).toEqual(
+      thongBao.filter(
+        (sql) => !isCreateOf('thong_bao')(sql) && !isRescheduleStatement(sql),
+      ),
+    );
+    // Ca âm: khóa ngoại lich_hen_id của thong_bao (P7) và cột cùng chữ ở bảng KHÁC không bị che
+    const p7ForeignKey =
+      'ALTER TABLE `thong_bao` ADD FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen` (`lich_hen_id`)';
+    const otherTable =
+      "CREATE TABLE `khac` (\n  `yeu_cau_doi_lich_ngoai_chinh_sach_id` bigint COMMENT 'x',\n  `a` int\n)";
+    expect(thongBao).toContain(p7ForeignKey);
+    expect(maskThongBaoDoiLich([p7ForeignKey, otherTable])).toEqual([
+      p7ForeignKey,
+      otherTable,
+    ]);
+  });
+
+  it('MDL-09: name trùng tên lớp, timestamp 13 chữ số lớn hơn mọi migration đứng trước trong sổ đăng ký', () => {
+    const timestampOf = (name: string): number =>
+      Number(/(\d{13})$/.exec(name)?.[1]);
+    const migration = new DoiLich1793966400000();
+    expect(migration.name).toBe(DoiLich1793966400000.name);
+    const index = MIGRATIONS.findIndex((item) => item.name === migration.name);
+    expect(index, 'đã đăng ký ở MIGRATIONS').toBeGreaterThan(0);
     for (const earlier of MIGRATIONS.slice(0, index)) {
       expect(timestampOf(earlier.name), earlier.name).toBeLessThan(
         timestampOf(migration.name),

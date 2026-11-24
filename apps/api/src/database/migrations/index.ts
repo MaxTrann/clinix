@@ -1,3 +1,4 @@
+import { DoiLich1793966400000 } from './1793966400000-doi-lich.js';
 import { MocThoiGianLichHen1793793600000 } from './1793793600000-moc-thoi-gian-lich-hen.js';
 import { NghiTheoCaNhieuNgay1793880000000 } from './1793880000000-nghi-theo-ca-nhieu-ngay.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -28,4 +29,5 @@ export const MIGRATIONS = [
   TaoBangThanhToanVi1793707200000,
   MocThoiGianLichHen1793793600000,
   NghiTheoCaNhieuNgay1793880000000,
+  DoiLich1793966400000,
 ];

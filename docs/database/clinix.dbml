@@ -15,6 +15,9 @@
 // thêm một dòng chú thích quy tắc service ở đầu CỤM 5; quy tắc 54 đến 62 và mục "payment D1" ở clinix_quy_tac_nghiep_vu.md, ba khối TRUY VẤN MẪU cuối clinix_mysql.sql.
 // 22/11/2026 (module admin, task D6): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa Note nào của Table: Note của nguoi_duyet_id,
 // hieu_luc_tu, thong_bao.loai_su_kien đã lỗi thời và được thay bằng quy tắc 30 đến 34 cùng mục "admin D6" (bảy mã sự kiện) ở clinix_quy_tac_nghiep_vu.md.
+// 24/11/2026 (module booking, scope #9 "Đổi lịch hẹn", task P1): lich_hen thêm so_lan_tu_doi_lich (int, not null, default 0, sau lich_hen_truoc_id; CHECK chk_lich_hen_so_lan_tu_doi >= 0 ở clinix_mysql.sql);
+// thong_bao thêm yeu_cau_doi_lich_ngoai_chinh_sach_id (ref: >?, nullable) và index unique (yeu_cau_doi_lich_ngoai_chinh_sach_id, tai_khoan_id, loai_su_kien); enum nhật ký thêm DoiLichHo ở cuối;
+// không thêm bảng hay khối Enum mới. Chuyển đổi từ DB cũ: mục "reschedule P1" ở cuối clinix_quy_tac_nghiep_vu.md.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17
@@ -208,6 +211,7 @@ Enum hanh_dong_nhay_cam_enum {
   TuChoiNghiPhep
   DuyetRutTien
   TuChoiRutTien
+  DoiLichHo
 }
 
 Enum loai_doi_tuong_enum {
@@ -617,6 +621,7 @@ Table lich_hen {
   khung_gio_id bigint [not null, ref: > khung_gio.khung_gio_id, note: 'KHÔNG unique: lịch đã hủy hoặc đã đổi vẫn giữ khung_gio_id để truy vết']
   khung_gio_dang_giu bigint [unique, note: 'Bằng khung_gio_id khi lịch còn hiệu lực (ChoThanhToan, DaXacNhan, DaTiepDon, HoanThanh, VangMat); NULL khi DaHuy hoặc DaDoiLich. Cột sinh STORED + UNIQUE: mỗi slot chỉ có 1 lịch còn hiệu lực.']
   lich_hen_truoc_id bigint [unique, ref: - lich_hen.lich_hen_id, note: 'Lịch cũ bị thay thế khi đổi lịch. UNIQUE: 1 lịch cũ chỉ sinh tối đa 1 lịch mới. Chỉ tạo lịch mới trong cùng giao dịch với việc chuyển lịch cũ sang DaDoiLich. Lịch không tự trỏ chính nó: kiểm tra ở service (không có CHECK vì MySQL cấm CHECK tham chiếu cột AUTO_INCREMENT). Chi tiết xem tài liệu quy tắc nghiệp vụ.']
+  so_lan_tu_doi_lich int [not null, default: 0, note: 'Số lần Bệnh nhân đã TỰ đổi trong chuỗi đổi lịch tính tới lịch này (reschedule P1, Q1). Lịch mới = lịch cũ + 1 khi Bệnh nhân tự đổi; bằng lịch cũ khi Lễ tân đổi hộ hoặc Lễ tân/QTV duyệt yêu cầu ngoài chính sách; lịch không phải do đổi lịch tạo, và mọi lịch tạo trước P1, = 0']
   benh_nhan_id bigint [not null, ref: > benh_nhan.tai_khoan_id, note: 'Người đặt']
   ho_so_nguoi_than_id bigint [note: 'NULL = chính bệnh nhân đi khám (bản thân); có giá trị = hồ sơ người thân và PHẢI thuộc cùng benh_nhan_id (khóa ngoại kép (ho_so_nguoi_than_id, benh_nhan_id), DB chặn). Hồ sơ đi khám = (benh_nhan_id, ho_so_nguoi_than_id); khi đếm hoặc so sánh dùng <=> vì NULL = NULL không đúng']
   bac_si_id bigint [not null, ref: > bac_si.tai_khoan_id]
@@ -867,12 +872,14 @@ Table thong_bao {
   trang_thai_doc boolean [not null, default: false]
   yeu_cau_thay_doi_chi_nhanh_id bigint [ref: >? yeu_cau_thay_doi_chi_nhanh.yeu_cau_thay_doi_chi_nhanh_id, note: 'Chỉ có với thông báo sinh từ yêu cầu thay đổi chi nhánh; các thông báo khác để trống. Cùng (yêu cầu, tài khoản, loại sự kiện) chỉ có 1 thông báo nên duyệt lại/chạy lại không tạo thông báo trùng']
   lich_hen_id bigint [ref: >? lich_hen.lich_hen_id, note: 'Chỉ có với thông báo sinh từ một lịch hẹn (xác nhận, hủy, vắng mặt, khóa đặt lịch do no-show); các thông báo khác để trống. Cùng (lịch hẹn, tài khoản, loại sự kiện) chỉ có 1 thông báo nên ghi lại hoặc chạy lại không tạo thông báo trùng']
+  yeu_cau_doi_lich_ngoai_chinh_sach_id bigint [ref: >? yeu_cau_doi_lich_ngoai_chinh_sach.yeu_cau_doi_lich_ngoai_chinh_sach_id, note: 'Chỉ có với thông báo sinh từ một yêu cầu đổi lịch ngoài chính sách (reschedule P1, Q5); khi có thì thông báo không gắn lịch hẹn (tránh trùng UNIQUE thong_bao_index_lich_hen khi một lịch có nhiều yêu cầu theo thời gian). Cùng (yêu cầu, tài khoản, loại sự kiện) chỉ có 1 thông báo']
   thoi_diem_tao datetime [not null]
 
   indexes {
     (tai_khoan_id, trang_thai_doc, thoi_diem_tao)
     (yeu_cau_thay_doi_chi_nhanh_id, tai_khoan_id, loai_su_kien) [unique]
     (lich_hen_id, tai_khoan_id, loai_su_kien) [unique]
+    (yeu_cau_doi_lich_ngoai_chinh_sach_id, tai_khoan_id, loai_su_kien) [unique]
   }
 
   Note: 'Thông báo trong ứng dụng (kênh thứ nhất). "Đẩy tức thời" là cách giao diện hiển thị ngay thông báo này cho phiên đang mở; không phải thông báo đẩy trên thiết bị di động và CSDL không có bảng token thiết bị. Email của thông báo nằm ở email_thong_bao.'

@@ -10,6 +10,11 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 @Index('thong_bao_index_lich_hen', ['lichHenId', 'taiKhoanId', 'loaiSuKien'], {
   unique: true,
 })
+@Index(
+  'thong_bao_index_yeu_cau_doi_lich',
+  ['yeuCauDoiLichNgoaiChinhSachId', 'taiKhoanId', 'loaiSuKien'],
+  { unique: true },
+)
 export class ThongBao {
   @PrimaryGeneratedColumn({ type: 'bigint', name: 'thong_bao_id' })
   thongBaoId!: string;
@@ -36,6 +41,14 @@ export class ThongBao {
   // Chỉ có với thông báo sinh từ một lịch hẹn (booking P7); bigint ra chuỗi như các cột khóa khác.
   @Column({ name: 'lich_hen_id', type: 'bigint', nullable: true })
   lichHenId!: string | null;
+
+  // Chỉ có với thông báo sinh từ một yêu cầu đổi lịch ngoài chính sách (reschedule P1, Q5); khi có thì lich_hen_id để trống.
+  @Column({
+    name: 'yeu_cau_doi_lich_ngoai_chinh_sach_id',
+    type: 'bigint',
+    nullable: true,
+  })
+  yeuCauDoiLichNgoaiChinhSachId!: string | null;
 
   @Column({ name: 'thoi_diem_tao', type: 'datetime' })
   thoiDiemTao!: Date;
