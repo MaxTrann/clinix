@@ -63,6 +63,15 @@ export const TRANG_THAI_YEU_CAU_THAY_DOI_CHI_NHANH = [
 export type TrangThaiYeuCauThayDoiChiNhanh =
   (typeof TRANG_THAI_YEU_CAU_THAY_DOI_CHI_NHANH)[number];
 
+// Yêu cầu đổi lịch ngoài chính sách (reschedule P1): ENUM `trang_thai` của bảng yeu_cau_doi_lich_ngoai_chinh_sach.
+export const TRANG_THAI_YEU_CAU_DOI_LICH = [
+  'ChoDuyet',
+  'DaDuyet',
+  'TuChoi',
+] as const;
+export type TrangThaiYeuCauDoiLich =
+  (typeof TRANG_THAI_YEU_CAU_DOI_LICH)[number];
+
 export const LY_DO_ANH_HUONG_LICH_HEN = [
   'NgayNghi',
   'NgoaiGioHoatDong',
@@ -79,6 +88,8 @@ export const TRANG_THAI_EMAIL_THONG_BAO = [
 export type TrangThaiEmailThongBao =
   (typeof TRANG_THAI_EMAIL_THONG_BAO)[number];
 
+// Bản sao ĐỦ ENUM `nhat_ky_hanh_dong.hanh_dong` của DB (audit-enum-parity so tập hợp ba nguồn); `DoiLichHo` thêm ở reschedule P1,
+// luật kiểm của nó ở `audit/` là việc của reschedule P2.
 export const HANH_DONG_NHAY_CAM = [
   'DoiQuyen',
   'OverrideLichHen',
@@ -106,6 +117,7 @@ export const HANH_DONG_NHAY_CAM = [
   'TuChoiNghiPhep',
   'DuyetRutTien',
   'TuChoiRutTien',
+  'DoiLichHo',
 ] as const;
 export type HanhDongNhayCam = (typeof HANH_DONG_NHAY_CAM)[number];
 

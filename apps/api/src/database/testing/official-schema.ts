@@ -113,6 +113,52 @@ export function maskLichHenMoc(statements: readonly string[]): string[] {
   );
 }
 
+const LICH_HEN_DOI_LICH_COLUMN_LINE =
+  /\n {2}`so_lan_tu_doi_lich` int NOT NULL DEFAULT 0 COMMENT '[^']*',(?=\n)/;
+const LICH_HEN_DOI_LICH_CHECK =
+  /^ALTER TABLE `lich_hen` ADD CONSTRAINT `chk_lich_hen_so_lan_tu_doi` /;
+
+/**
+ * Che phần reschedule P1 (bộ đếm `so_lan_tu_doi_lich`) khỏi các câu CHÍNH THỨC của bảng `lich_hen`. Migration nhân sự (P2) tạo `lich_hen` trước khi cột này có; migration reschedule P1
+ * thêm bằng ALTER ... ADD COLUMN nên không thể trùng chữ với CREATE TABLE. Bỏ đúng hai thứ: dòng cột `so_lan_tu_doi_lich` trong CREATE TABLE `lich_hen` và câu ADD CONSTRAINT
+ * `chk_lich_hen_so_lan_tu_doi`. Trạng thái cuối được so bằng SHOW CREATE TABLE (schema-parity.int-spec.ts). Nhận câu ĐÃ chuẩn hóa xuống dòng (normalizeStatement).
+ */
+export function maskLichHenDoiLich(statements: readonly string[]): string[] {
+  return statements
+    .filter((statement) => !LICH_HEN_DOI_LICH_CHECK.test(statement))
+    .map((statement) =>
+      statement.startsWith('CREATE TABLE `lich_hen` (')
+        ? statement.replace(LICH_HEN_DOI_LICH_COLUMN_LINE, '')
+        : statement,
+    );
+}
+
+const THONG_BAO_DOI_LICH_COLUMN_LINE =
+  /\n {2}`yeu_cau_doi_lich_ngoai_chinh_sach_id` bigint COMMENT '[^']*',(?=\n)/;
+const THONG_BAO_DOI_LICH_INDEX =
+  /^CREATE UNIQUE INDEX `thong_bao_index_yeu_cau_doi_lich` ON `thong_bao` /;
+const THONG_BAO_DOI_LICH_FOREIGN_KEY =
+  /^ALTER TABLE `thong_bao` ADD FOREIGN KEY \(`yeu_cau_doi_lich_ngoai_chinh_sach_id`\) /;
+
+/**
+ * Che phần reschedule P1 (thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id) khỏi các câu CHÍNH THỨC của bảng vận hành. Migration vận hành (P3) tạo `thong_bao` trước khi cột này có; migration
+ * reschedule P1 thêm bằng ALTER nên không thể trùng chữ với CREATE TABLE. Bỏ đúng ba thứ: dòng cột trong CREATE TABLE `thong_bao`, câu CREATE UNIQUE INDEX `thong_bao_index_yeu_cau_doi_lich`
+ * và câu ADD FOREIGN KEY (`yeu_cau_doi_lich_ngoai_chinh_sach_id`) của thong_bao. Trạng thái cuối được so bằng SHOW CREATE TABLE. Nhận câu ĐÃ chuẩn hóa xuống dòng (normalizeStatement).
+ */
+export function maskThongBaoDoiLich(statements: readonly string[]): string[] {
+  return statements
+    .filter(
+      (statement) =>
+        !THONG_BAO_DOI_LICH_INDEX.test(statement) &&
+        !THONG_BAO_DOI_LICH_FOREIGN_KEY.test(statement),
+    )
+    .map((statement) =>
+      statement.startsWith('CREATE TABLE `thong_bao` (')
+        ? statement.replace(THONG_BAO_DOI_LICH_COLUMN_LINE, '')
+        : statement,
+    );
+}
+
 const NGHI_PHEP_NEW_COMMENT_TAIL =
   'TheoCa: bắt buộc có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày, một ca).';
 const NGHI_PHEP_OLD_COMMENT_TAIL = 'TheoCa: bắt buộc có ca, chỉ nghỉ 1 ngày.';

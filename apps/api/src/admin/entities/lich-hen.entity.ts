@@ -1,8 +1,9 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { Check, Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { TRANG_THAI_LICH_HEN, type TrangThaiLichHen } from './enums.js';
 
 // Bảng lịch hẹn Admin chỉ đọc để phát hiện ảnh hưởng; giá và tiền cọc là snapshot.
 @Entity({ name: 'lich_hen' })
+@Check('chk_lich_hen_so_lan_tu_doi', '`so_lan_tu_doi_lich` >= 0')
 @Index('ma_lich_hen', ['maLichHen'], { unique: true })
 @Index('khung_gio_dang_giu', ['khungGioDangGiu'], { unique: true })
 @Index('lich_hen_truoc_id', ['lichHenTruocId'], { unique: true })
@@ -39,6 +40,10 @@ export class LichHen {
 
   @Column({ name: 'lich_hen_truoc_id', type: 'bigint', nullable: true })
   lichHenTruocId!: string | null;
+
+  // Bộ đếm số lần Bệnh nhân TỰ đổi trong chuỗi đổi lịch (reschedule P1, Q1): lịch mới = cũ + 1 khi tự đổi, bằng cũ khi Lễ tân đổi hộ hoặc duyệt yêu cầu; lịch có trước = 0.
+  @Column({ name: 'so_lan_tu_doi_lich', type: 'int', default: 0 })
+  soLanTuDoiLich!: number;
 
   @Column({ name: 'benh_nhan_id', type: 'bigint' })
   benhNhanId!: string;

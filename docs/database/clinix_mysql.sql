@@ -62,6 +62,12 @@
 -- 22/11/2026 (module admin, task D6): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE hay ALTER TABLE nào:
 -- dòng "Đã chốt" ở khối quy tắc service (tự duyệt, một yêu cầu mở mỗi chi nhánh, quá hạn, chặn đặt). COMMENT của nguoi_duyet_id, hieu_luc_tu, thong_bao.loai_su_kien
 -- đã lỗi thời và được thay bằng quy tắc 30 đến 34 cùng mục "admin D6" (bảy mã sự kiện) ở clinix_quy_tac_nghiep_vu.md; các số bảng, enum, CHECK ở các dòng trên không đổi.
+-- 24/11/2026 (module booking, scope #9 "Đổi lịch hẹn", task P1, issue #634): lich_hen thêm so_lan_tu_doi_lich (int NOT NULL DEFAULT 0, đặt sau lich_hen_truoc_id) và CHECK
+-- chk_lich_hen_so_lan_tu_doi (>= 0): bộ đếm số lần Bệnh nhân TỰ đổi lịch (Q1); thong_bao thêm yeu_cau_doi_lich_ngoai_chinh_sach_id (nullable, khóa ngoại tới
+-- yeu_cau_doi_lich_ngoai_chinh_sach) và UNIQUE thong_bao_index_yeu_cau_doi_lich (yeu_cau_doi_lich_ngoai_chinh_sach_id, tai_khoan_id, loai_su_kien) (Q5); ENUM
+-- nhat_ky_hanh_dong.hanh_dong thêm DoiLichHo Ở CUỐI (Q6; 27 giá trị). Không thêm bảng hay khối Enum mới: bảng yeu_cau_doi_lich_ngoai_chinh_sach đã có trong file này, chỉ nay mới có
+-- migration (migration DoiLich1793966400000 tạo bảng này cùng các thay đổi trên). Quy tắc service 2 (đổi lịch chỉ khi lịch cũ ở DaXacNhan) đã được xác nhận (Q7 (a)).
+-- Chuyển đổi từ DB cũ: mục "reschedule P1" ở cuối clinix_quy_tac_nghiep_vu.md.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -69,6 +75,7 @@
 --   * Mỗi khung giờ chỉ có 1 người đang được mời từ danh sách chờ  [muc_cho_danh_sach_cho.khung_gio_dang_moi]
 --   * Trạng thái DaMoi thì phải có khung giờ được mời  [chk_muc_cho_da_moi]
 --   * 1 lịch cũ chỉ sinh tối đa 1 lịch mới khi đổi lịch  [lich_hen.lich_hen_truoc_id UNIQUE]
+--   * Số lần tự đổi lịch của lịch hẹn >= 0 (bộ đếm; lịch có trước nhận 0)  [chk_lich_hen_so_lan_tu_doi]
 --   * Quản trị viên: phạm vi Chi nhánh phải có chi_nhanh_id, Toàn hệ thống thì không  [chk_qtv_pham_vi]
 --   * Tỷ lệ hoàn tiền từ 0 đến 100  [chk_moc_hoan_ty_le]
 --   * Mỗi lần thử hoàn tiền và mỗi lần đối soát nạp ví một dòng, không trùng số lần thử trong cùng giao dịch  [lich_su_hoan_tien_index_20, lan_doi_soat_nap_vi_index_lan_thu]
@@ -92,7 +99,7 @@
 --   * Lịch hoạt động chi nhánh: thứ 1 đến 7; mỗi (chi nhánh, thứ) tối đa 1 dòng; tối đa hai khoảng nhận khám (sáng, chiều), mỗi khoảng hoặc để trống cả hai giờ hoặc đủ giờ với bắt đầu < kết thúc trong ngày (không qua đêm); hai khoảng không chồng nhau; hoat_dong = true thì có ít nhất một khoảng, ngày nghỉ thì cả bốn giờ để trống  [chk_lich_hoat_dong_thu, chk_lich_hoat_dong_khoang, chk_lich_hoat_dong_khong_chong, chk_lich_hoat_dong_ngay, PRIMARY KEY]
 --   * Tên chuyên khoa duy nhất; tên dịch vụ duy nhất trong cùng nhóm dịch vụ  [chuyen_khoa_index_ten, dich_vu_kham_index_nhom_ten]
 --   * Yêu cầu thay đổi chi nhánh: nội dung trước/sau là JSON object không rỗng; ChoDuyet chưa có người duyệt và hiệu lực; DaDuyet có người duyệt, số ngày báo trước và hieu_luc_tu >= thời điểm duyệt + số ngày báo trước; TuChoi bắt buộc có lý do  [chk_yc_chi_nhanh_noi_dung, chk_yc_chi_nhanh_xu_ly]
---   * Mỗi thông báo có tối đa 1 dòng email; thông báo của 1 yêu cầu thay đổi chi nhánh hoặc của 1 lịch hẹn không trùng theo (yêu cầu hoặc lịch hẹn, tài khoản, loại sự kiện); email DaGui phải có da_gui_luc, ThatBai phải có lỗi  [email_thong_bao.thong_bao_id UNIQUE, thong_bao_index_yeu_cau_chi_nhanh, thong_bao_index_lich_hen, chk_email_thong_bao_ket_qua]
+--   * Mỗi thông báo có tối đa 1 dòng email; thông báo của 1 yêu cầu thay đổi chi nhánh, của 1 yêu cầu đổi lịch ngoài chính sách hoặc của 1 lịch hẹn không trùng theo (yêu cầu hoặc lịch hẹn, tài khoản, loại sự kiện); email DaGui phải có da_gui_luc, ThatBai phải có lỗi  [email_thong_bao.thong_bao_id UNIQUE, thong_bao_index_yeu_cau_chi_nhanh, thong_bao_index_lich_hen, thong_bao_index_yeu_cau_doi_lich, chk_email_thong_bao_ket_qua]
 --   * Cấu hình hệ thống: thời gian giữ chỗ, thời hạn phản hồi lời mời > 0; ngưỡng no-show và số lịch hẹn tối đa mỗi hồ sơ >= 1; các số còn lại >= 0 [đề xuất, chưa có giới hạn trên]; mốc nhắc lịch là mảng số nguyên dương không trùng  [chk_cau_hinh_gia_tri, chk_cau_hinh_nhac_lich]
 --   * Cột cấu hình chưa chốt là NOT NULL không DEFAULT: không tạo được dòng cấu hình khi thiếu giá trị, không có giá trị ngầm (lỗi 1364)  [cau_hinh_he_thong]
 --   * Hồ sơ người thân của lịch hẹn phải thuộc đúng bệnh nhân đặt lịch (lịch của bản thân, ho_so_nguoi_than_id NULL, không bị kiểm tra)  [fk_lich_hen_ho_so_chu_so_huu]
@@ -103,9 +110,11 @@
 --
 -- QUY TẮC DO TẦNG ỨNG DỤNG (SERVICE) BẢO VỆ - database không tự kiểm tra
 --   * Cặp (chi nhánh, dịch vụ) của bác sĩ và của lịch hẹn phải có trong chi_nhanh_dich_vu_kham
---   * Đổi lịch: tạo lịch mới, đổi lịch cũ sang DaDoiLich trong CÙNG 1 giao dịch; chỉ cho đổi khi lịch cũ ở DaXacNhan [đề xuất, chưa xác nhận]
+--   * Đổi lịch: tạo lịch mới, đổi lịch cũ sang DaDoiLich trong CÙNG 1 giao dịch; chỉ cho đổi khi lịch cũ ở DaXacNhan (Q7 (a), Đại xác nhận 24/11/2026)
 --   * Lịch mới do đổi lịch sao chép gia_snapshot, tien_coc_snapshot, chinh_sach_hoan_snapshot từ lịch trước
 --   * Tài chính sau đổi lịch: không tạo giao dịch thanh toán mới; lần theo lich_hen_truoc_id về lịch gốc để tìm giao dịch (xem truy vấn mẫu cuối file)
+--   * Bộ đếm lich_hen.so_lan_tu_doi_lich: lịch mới = lịch cũ + 1 khi Bệnh nhân TỰ đổi; bằng lịch cũ khi Lễ tân đổi hộ hoặc Lễ tân/Quản trị viên duyệt yêu cầu ngoài chính sách; lịch không phải do đổi lịch tạo = 0. So với cau_hinh_he_thong.so_lan_tu_doi_lich_toi_da ở service, cùng giao dịch và dưới khóa lich_hen
+--   * Chuỗi đổi lịch (lich_hen_truoc_id nối tiếp) dài tối đa MAX_CHAIN_DEPTH - 1 lịch (hằng của PaymentChain) [đề xuất]; vượt thì service từ chối TRƯỚC khi chạm. Mỗi lịch cũ chỉ có MỘT lịch mới: DB đã ép bằng UNIQUE nên service chỉ bắt lỗi 1062 thành kết quả có kiểu
 --   * lich_hen.bac_si_id, chi_nhanh_id, thoi_gian khớp với khung giờ (dữ liệu snapshot)
 --   * loai_tai_khoan của tai_khoan khớp đúng 1 bảng con (benh_nhan / bac_si / le_tan / quan_tri_vien); nhân sự được tạo cùng hồ sơ vai trò trong 1 giao dịch, kể cả khi ChoKichHoat
 --   * Chỉ cho đánh giá khi lịch hẹn ở trạng thái HoanThanh
@@ -390,6 +399,7 @@ CREATE TABLE `lich_hen` (
   `khung_gio_id` bigint NOT NULL COMMENT 'KHÔNG unique: lịch đã hủy hoặc đã đổi vẫn giữ khung_gio_id để truy vết',
   `khung_gio_dang_giu` bigint GENERATED ALWAYS AS (IF(`trang_thai` IN ('ChoThanhToan','DaXacNhan','DaTiepDon','HoanThanh','VangMat'), `khung_gio_id`, NULL)) STORED UNIQUE COMMENT 'Bằng khung_gio_id khi lịch còn hiệu lực (ChoThanhToan, DaXacNhan, DaTiepDon, HoanThanh, VangMat); NULL khi DaHuy hoặc DaDoiLich. Cột sinh STORED + UNIQUE: mỗi slot chỉ có 1 lịch còn hiệu lực.',
   `lich_hen_truoc_id` bigint UNIQUE COMMENT 'Lịch cũ bị thay thế khi đổi lịch. UNIQUE: 1 lịch cũ chỉ sinh tối đa 1 lịch mới. Chỉ tạo lịch mới trong cùng giao dịch với việc chuyển lịch cũ sang DaDoiLich. Lịch không tự trỏ chính nó: kiểm tra ở service (không có CHECK vì MySQL cấm CHECK tham chiếu cột AUTO_INCREMENT). Chi tiết xem tài liệu quy tắc nghiệp vụ.',
+  `so_lan_tu_doi_lich` int NOT NULL DEFAULT 0 COMMENT 'Số lần Bệnh nhân đã TỰ đổi trong chuỗi đổi lịch tính tới lịch này (reschedule P1, Q1). Lịch mới = lịch cũ + 1 khi Bệnh nhân tự đổi; bằng lịch cũ khi Lễ tân đổi hộ hoặc Lễ tân/QTV duyệt yêu cầu ngoài chính sách; lịch không phải do đổi lịch tạo, và mọi lịch tạo trước P1, = 0',
   `benh_nhan_id` bigint NOT NULL COMMENT 'Người đặt',
   `ho_so_nguoi_than_id` bigint COMMENT 'NULL = chính bệnh nhân đi khám (bản thân); có giá trị = hồ sơ người thân và PHẢI thuộc cùng benh_nhan_id (khóa ngoại kép fk_lich_hen_ho_so_chu_so_huu, DB chặn). Hồ sơ đi khám = (benh_nhan_id, ho_so_nguoi_than_id); khi đếm hoặc so sánh dùng <=> vì NULL = NULL không đúng',
   `bac_si_id` bigint NOT NULL,
@@ -561,6 +571,7 @@ CREATE TABLE `thong_bao` (
   `trang_thai_doc` boolean NOT NULL DEFAULT false,
   `yeu_cau_thay_doi_chi_nhanh_id` bigint COMMENT 'Chỉ có với thông báo sinh từ yêu cầu thay đổi chi nhánh; các thông báo khác để trống. Cùng (yêu cầu, tài khoản, loại sự kiện) chỉ có 1 thông báo nên duyệt lại/chạy lại không tạo thông báo trùng',
   `lich_hen_id` bigint COMMENT 'Chỉ có với thông báo sinh từ một lịch hẹn (xác nhận, hủy, vắng mặt, khóa đặt lịch do no-show); các thông báo khác để trống. Cùng (lịch hẹn, tài khoản, loại sự kiện) chỉ có 1 thông báo nên ghi lại hoặc chạy lại không tạo thông báo trùng',
+  `yeu_cau_doi_lich_ngoai_chinh_sach_id` bigint COMMENT 'Chỉ có với thông báo sinh từ một yêu cầu đổi lịch ngoài chính sách (reschedule P1, Q5); khi có thì thông báo không gắn lịch hẹn (tránh trùng UNIQUE thong_bao_index_lich_hen khi một lịch có nhiều yêu cầu theo thời gian). Cùng (yêu cầu, tài khoản, loại sự kiện) chỉ có 1 thông báo',
   `thoi_diem_tao` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -615,7 +626,7 @@ CREATE TABLE `nhat_ky_hanh_dong` (
   `nhat_ky_hanh_dong_id` bigint PRIMARY KEY AUTO_INCREMENT,
   `tai_khoan_id` bigint NOT NULL COMMENT 'Người thực hiện',
   `chi_nhanh_id` bigint COMMENT 'Chi nhánh liên quan, để Quản trị viên phạm vi Chi nhánh lọc nhật ký',
-  `hanh_dong` ENUM ('DoiQuyen', 'OverrideLichHen', 'HoanTienDacBiet', 'DoiChiNhanhBacSi', 'ChinhNoShow', 'AnDanhGia', 'XuLyDoiLichNgoaiChinhSach', 'SuaGhiChuKham', 'BacSiHuyDotXuat', 'CapNhatCauHinh', 'XuLyNapViChuaCong', 'TaoTaiKhoanNhanSu', 'KhoaTaiKhoan', 'MoKhoaTaiKhoan', 'MoKhoaNoShow', 'DuyetThayDoiChiNhanh', 'TuChoiThayDoiChiNhanh', 'RutThayDoiChiNhanh', 'HuyThayDoiChiNhanh', 'DoiHieuLucThayDoiChiNhanh', 'PhanCongLichLamViec', 'GoLichLamViec', 'DuyetNghiPhep', 'TuChoiNghiPhep', 'DuyetRutTien', 'TuChoiRutTien') NOT NULL,
+  `hanh_dong` ENUM ('DoiQuyen', 'OverrideLichHen', 'HoanTienDacBiet', 'DoiChiNhanhBacSi', 'ChinhNoShow', 'AnDanhGia', 'XuLyDoiLichNgoaiChinhSach', 'SuaGhiChuKham', 'BacSiHuyDotXuat', 'CapNhatCauHinh', 'XuLyNapViChuaCong', 'TaoTaiKhoanNhanSu', 'KhoaTaiKhoan', 'MoKhoaTaiKhoan', 'MoKhoaNoShow', 'DuyetThayDoiChiNhanh', 'TuChoiThayDoiChiNhanh', 'RutThayDoiChiNhanh', 'HuyThayDoiChiNhanh', 'DoiHieuLucThayDoiChiNhanh', 'PhanCongLichLamViec', 'GoLichLamViec', 'DuyetNghiPhep', 'TuChoiNghiPhep', 'DuyetRutTien', 'TuChoiRutTien', 'DoiLichHo') NOT NULL,
   `loai_doi_tuong` ENUM ('tai_khoan', 'benh_nhan', 'lich_hen', 'ho_so_kham', 'danh_gia_bac_si', 'giao_dich_thanh_toan', 'yeu_cau_doi_lich_ngoai_chinh_sach', 'cau_hinh_he_thong', 'yeu_cau_thay_doi_chi_nhanh', 'lich_lam_viec', 'yeu_cau_nghi_phep', 'yeu_cau_rut_tien') NOT NULL COMMENT 'Bảng bị tác động',
   `ma_doi_tuong` bigint NOT NULL COMMENT 'Khóa chính của bản ghi bị tác động; không có FK để nhật ký còn nguyên khi bản ghi gốc bị xóa hoặc ẩn',
   `thoi_diem` datetime NOT NULL,
@@ -699,6 +710,8 @@ CREATE INDEX `thong_bao_index_25` ON `thong_bao` (`tai_khoan_id`, `trang_thai_do
 CREATE UNIQUE INDEX `thong_bao_index_yeu_cau_chi_nhanh` ON `thong_bao` (`yeu_cau_thay_doi_chi_nhanh_id`, `tai_khoan_id`, `loai_su_kien`);
 
 CREATE UNIQUE INDEX `thong_bao_index_lich_hen` ON `thong_bao` (`lich_hen_id`, `tai_khoan_id`, `loai_su_kien`);
+
+CREATE UNIQUE INDEX `thong_bao_index_yeu_cau_doi_lich` ON `thong_bao` (`yeu_cau_doi_lich_ngoai_chinh_sach_id`, `tai_khoan_id`, `loai_su_kien`);
 
 CREATE INDEX `email_thong_bao_index_trang_thai` ON `email_thong_bao` (`trang_thai`, `lan_thu_cuoi_luc`);
 
@@ -911,6 +924,8 @@ ALTER TABLE `thong_bao` ADD FOREIGN KEY (`yeu_cau_thay_doi_chi_nhanh_id`) REFERE
 
 ALTER TABLE `thong_bao` ADD FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen` (`lich_hen_id`);
 
+ALTER TABLE `thong_bao` ADD FOREIGN KEY (`yeu_cau_doi_lich_ngoai_chinh_sach_id`) REFERENCES `yeu_cau_doi_lich_ngoai_chinh_sach` (`yeu_cau_doi_lich_ngoai_chinh_sach_id`);
+
 ALTER TABLE `email_thong_bao` ADD FOREIGN KEY (`thong_bao_id`) REFERENCES `thong_bao` (`thong_bao_id`);
 
 ALTER TABLE `nhac_lich_hen` ADD FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen` (`lich_hen_id`);
@@ -975,6 +990,9 @@ ALTER TABLE `yeu_cau_doi_lich_ngoai_chinh_sach` ADD CONSTRAINT `chk_doi_lich_ngu
 );
 ALTER TABLE `yeu_cau_rut_tien` ADD CONSTRAINT `chk_rut_tien_xu_ly` CHECK (
     (`trang_thai` = 'ChoDuyet' AND `nguoi_xu_ly_id` IS NULL AND `thoi_diem_xu_ly` IS NULL) OR (`trang_thai` IN ('DaDuyet','TuChoi') AND `nguoi_xu_ly_id` IS NOT NULL AND `thoi_diem_xu_ly` IS NOT NULL)
+);
+ALTER TABLE `lich_hen` ADD CONSTRAINT `chk_lich_hen_so_lan_tu_doi` CHECK (
+    `so_lan_tu_doi_lich` >= 0
 );
 -- (không có chk_lich_hen_truoc cho lich_hen: xem ghi chú đầu file; quy tắc lịch không tự trỏ chính nó nằm ở service)
 ALTER TABLE `muc_cho_danh_sach_cho` ADD CONSTRAINT `chk_muc_cho_da_moi` CHECK (

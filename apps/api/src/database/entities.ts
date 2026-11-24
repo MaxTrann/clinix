@@ -34,6 +34,7 @@ import { HoSoKham } from '../doctor/entities/ho-so-kham.entity.js';
 import { YeuCauNghiPhep } from '../doctor/entities/yeu-cau-nghi-phep.entity.js';
 import { YeuCauThayDoiChiNhanh } from '../admin/entities/yeu-cau-thay-doi-chi-nhanh.entity.js';
 import { YeuCauThayDoiChiNhanhLichHen } from '../admin/entities/yeu-cau-thay-doi-chi-nhanh-lich-hen.entity.js';
+import { YeuCauDoiLichNgoaiChinhSach } from '../admin/entities/yeu-cau-doi-lich-ngoai-chinh-sach.entity.js';
 
 // Sổ đăng ký entity (một nơi duy nhất cho app, script migration và test). Module mới (admin…) thêm entity của
 // mình vào đây; bài test registry.spec.ts báo lỗi nếu có file *.entity.ts chưa được đăng ký.
@@ -61,6 +62,7 @@ export const ENTITIES = [
   LichHen,
   YeuCauThayDoiChiNhanh,
   YeuCauThayDoiChiNhanhLichHen,
+  YeuCauDoiLichNgoaiChinhSach,
   ThongTinPhongKham,
   CauHinhHeThong,
   ThongBao,
