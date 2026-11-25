@@ -3,12 +3,13 @@ import { DataSource } from 'typeorm';
 import { AppException } from '../../common/errors/app.exception.js';
 import { COMMON_ERROR_CODES } from '../../common/errors/error-codes.js';
 import { runReadOnly } from '../../common/transaction/read-only-tx.js';
-import { nowVN } from '../../common/time/time.js';
+import { nowVN, toSecond } from '../../common/time/time.js';
 import {
   PAYMENT_SUMMARY_PORT,
   type PaymentSummaryPort,
 } from '../ports/payment.port.js';
 import { REFUND_PORT, type RefundPort } from '../ports/wallet.port.js';
+import { RescheduleDetailReader } from '../reschedule/reschedule-detail.reader.js';
 import { toDetail } from './patient-appointment.mapper.js';
 import {
   PATIENT_VISIBLE_STATES,
@@ -29,6 +30,8 @@ export class PatientAppointmentDetailService {
     private readonly appointments: PatientAppointmentsRepository,
     @Inject(PAYMENT_SUMMARY_PORT) private readonly payments: PaymentSummaryPort,
     @Inject(REFUND_PORT) private readonly refunds: RefundPort,
+    @Inject(RescheduleDetailReader)
+    private readonly reschedule: RescheduleDetailReader,
   ) {}
 
   /** `maLichHen` đã được `ParseAppointmentCodePipe` chuẩn hoá và kiểm dạng. */
@@ -36,7 +39,9 @@ export class PatientAppointmentDetailService {
     patientId: string,
     maLichHen: string,
   ): Promise<PatientAppointmentDetail> {
-    // MỘT lần `runReadOnly`: hàng `lich_hen` và hai cổng (bản thật đọc `giao_dich_thanh_toan`, `lich_su_hoan_tien`) cùng ảnh chụp nên trạng thái và tiền không lệch nhau
+    // Một mốc cho hạn đổi lịch (reschedule B5): so với giờ hẹn của lịch ở bộ luật `evaluateRescheduleAvailability`
+    const now = toSecond(nowVN());
+    // MỘT lần `runReadOnly`: hàng `lich_hen`, hai cổng (bản thật đọc `giao_dich_thanh_toan`, `lich_su_hoan_tien`) và hai khoá đổi lịch cùng ảnh chụp nên trạng thái, tiền và cờ đổi lịch không lệch nhau
     const read = await runReadOnly(this.dataSource, async (manager) => {
       const row = await this.appointments.findDetail(
         manager,
@@ -47,7 +52,13 @@ export class PatientAppointmentDetailService {
       if (row === null) return null;
       const thanhToan = await this.payments.findPayment(manager, row.lichHenId);
       const hoanTien = await this.refunds.findRefund(manager, row.lichHenId);
-      return { row, thanhToan, hoanTien };
+      const reschedule = await this.reschedule.forPatient(manager, {
+        accountId: patientId,
+        maLichHen,
+        lichHenId: row.lichHenId,
+        now,
+      });
+      return { row, thanhToan, hoanTien, reschedule };
     });
     // Ném SAU khi giao dịch đã đóng (nếp B1) và ở MỘT chỗ duy nhất cho mọi lý do "không xem được"
     if (read === null)
@@ -56,6 +67,7 @@ export class PatientAppointmentDetailService {
     return toDetail(read.row, {
       thanhToan: read.thanhToan,
       hoanTien: read.hoanTien,
+      reschedule: read.reschedule,
       serverTime: nowVN(),
     });
   }

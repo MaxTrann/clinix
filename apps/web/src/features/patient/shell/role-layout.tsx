@@ -1,5 +1,9 @@
 import { Outlet } from 'react-router';
-import { RoleShell, type RoleNavItem } from '../../../shared/ui/role-shell';
+import {
+  RoleShell,
+  type RoleNavItem,
+  type RoleShellNotifications,
+} from '../../../shared/ui/role-shell';
 import {
   LOGOUT_FAILED_MESSAGE,
   ROLE_LABELS,
@@ -16,6 +20,8 @@ export interface RoleLayoutProps {
   navLabel: string;
   items: RoleNavItem[];
   footerItems?: RoleNavItem[];
+  // notification F1: chuông và số đếm do router thăm dò rồi truyền xuống (module này không import `features/notification`, WTB-16)
+  notifications?: RoleShellNotifications;
 }
 
 export function RoleLayout({
@@ -23,6 +29,7 @@ export function RoleLayout({
   navLabel,
   items,
   footerItems,
+  notifications,
 }: RoleLayoutProps) {
   const { user } = useAuth();
   // MỘT hook cho cả hai nút Đăng xuất: dùng chung `pending`/`failed`, bấm cả hai vẫn một request
@@ -38,6 +45,7 @@ export function RoleLayout({
       userSubtitle={ROLE_LABELS[vaiTro]}
       items={items}
       footerItems={footerItems}
+      notifications={notifications}
       logout={{
         onLogout: () => void run(),
         pending,

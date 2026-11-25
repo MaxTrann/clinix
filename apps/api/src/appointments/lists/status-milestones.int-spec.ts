@@ -58,6 +58,7 @@ const NO_EXTRAS = {
   thanhToan: null,
   hoanTien: null,
   serverTime: new Date('2026-11-18T03:00:00.000Z'),
+  reschedule: { choPhepDoiLich: false, yeuCauDoiLich: null },
 };
 
 describe('MOC-19 Bệnh nhân: câu chi tiết và toDetail trả `moc`', () => {

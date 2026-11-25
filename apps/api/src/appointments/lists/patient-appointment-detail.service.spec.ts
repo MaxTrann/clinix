@@ -6,6 +6,7 @@ import {
   FakePaymentSummaryPort,
   FakeRefundPort,
 } from '../testing/fake-ports.js';
+import type { RescheduleDetailReader } from '../reschedule/reschedule-detail.reader.js';
 import { PatientAppointmentDetailService } from './patient-appointment-detail.service.js';
 import { PATIENT_VISIBLE_STATES } from './patient-appointments.dto.js';
 import type {
@@ -56,6 +57,7 @@ function row(
 }
 
 let findDetail: ReturnType<typeof vi.fn>;
+let forPatient: ReturnType<typeof vi.fn>;
 let payments: FakePaymentSummaryPort;
 let refunds: FakeRefundPort;
 let service: PatientAppointmentDetailService;
@@ -63,6 +65,10 @@ let service: PatientAppointmentDetailService;
 beforeEach(() => {
   vi.mocked(runReadOnly).mockClear();
   findDetail = vi.fn().mockResolvedValue(row());
+  // Bộ đọc hai khoá đổi lịch (reschedule B5) là GIẢ ở đây; SQL thật và bộ luật ở `reschedule-detail.reader.*` và `patient-appointment-detail.int-spec.ts`
+  forPatient = vi
+    .fn()
+    .mockResolvedValue({ choPhepDoiLich: false, yeuCauDoiLich: null });
   payments = new FakePaymentSummaryPort();
   refunds = new FakeRefundPort();
   service = new PatientAppointmentDetailService(
@@ -70,6 +76,7 @@ beforeEach(() => {
     { findDetail } as unknown as PatientAppointmentsRepository,
     payments,
     refunds,
+    { forPatient } as unknown as RescheduleDetailReader,
   );
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-10T03:00:00.000Z'));
@@ -104,11 +111,11 @@ describe('LSH-10 chi tiết: một lần runReadOnly, hàng và hai cổng chung
     ]);
   });
 
-  it('LSH-10 cổng mặc định (như Noop) trả null ⇒ thanhToan và hoanTien là null; đủ mười bảy khoá (có `moc`); không lichHenId', async () => {
+  it('LSH-10 cổng mặc định (như Noop) trả null ⇒ thanhToan và hoanTien là null; đủ mười chín khoá (có `moc`, `choPhepDoiLich`, `yeuCauDoiLich`); không lichHenId', async () => {
     const detail = await service.detail(PATIENT, CODE);
     expect(detail.thanhToan).toBeNull();
     expect(detail.hoanTien).toBeNull();
-    expect(Object.keys(detail)).toHaveLength(17);
+    expect(Object.keys(detail)).toHaveLength(19);
     expect(detail.moc).toStrictEqual({
       xacNhan: null,
       tiepDon: null,
@@ -152,6 +159,39 @@ describe('LSH-10 chi tiết: một lần runReadOnly, hàng và hai cổng chung
   });
 });
 
+describe('DLH-15, DLH-46 hai khoá đổi lịch (reschedule B5): cùng manager, cùng mốc, chép nguyên từ bộ đọc', () => {
+  it('bộ đọc nhận ĐÚNG manager của runReadOnly, tài khoản từ token, mã lịch, lichHenId của hàng và mốc `now` cắt giây', async () => {
+    vi.setSystemTime(new Date('2026-11-10T03:00:00.987Z'));
+    await service.detail(PATIENT, CODE);
+    expect(forPatient).toHaveBeenCalledTimes(1);
+    expect(forPatient).toHaveBeenCalledWith(hoisted.manager, {
+      accountId: PATIENT,
+      maLichHen: CODE,
+      lichHenId: '9001',
+      now: new Date('2026-11-10T03:00:00.000Z'),
+    });
+  });
+
+  it('giá trị của bộ đọc ra nguyên ở JSON: `choPhepDoiLich` true và yêu cầu mới nhất; sai kiểu không bị đổi', async () => {
+    const yeuCauDoiLich = {
+      trangThai: 'ChoDuyet' as const,
+      thoiGianMongMuon: '2026-11-20T01:30:00.000Z',
+      ghiChuXuLy: null,
+      thoiDiemTao: '2026-11-10T02:00:00.000Z',
+    };
+    forPatient.mockResolvedValue({ choPhepDoiLich: true, yeuCauDoiLich });
+    const detail = await service.detail(PATIENT, CODE);
+    expect(detail.choPhepDoiLich).toBe(true);
+    expect(detail.yeuCauDoiLich).toStrictEqual(yeuCauDoiLich);
+  });
+
+  it('lỗi của bộ đọc lan ra nguyên vẹn (không nuốt thành choPhepDoiLich false)', async () => {
+    const failure = new Error('bộ đọc đổi lịch hỏng');
+    forPatient.mockRejectedValue(failure);
+    await expect(service.detail(PATIENT, CODE)).rejects.toBe(failure);
+  });
+});
+
 describe('LSH-11, LSH-22, QB-01 không xem được ⇒ MỘT lỗi 404 KHONG_TIM_THAY, ở một chỗ', () => {
   it('không có hàng (của người khác, không tồn tại, DaDoiLich đều ra "không có hàng" từ SQL) ⇒ AppException 404 và KHÔNG gọi cổng nào', async () => {
     findDetail.mockResolvedValue(null);
@@ -161,6 +201,7 @@ describe('LSH-11, LSH-22, QB-01 không xem được ⇒ MỘT lỗi 404 KHONG_TI
     expect((error as AppException).maLoi).toBe('KHONG_TIM_THAY');
     expect(payments.findPaymentCall.count).toBe(0);
     expect(refunds.findRefundCall.count).toBe(0);
+    expect(forPatient).not.toHaveBeenCalled();
   });
 
   it('lỗi của cổng (hay của DB) lan ra nguyên vẹn, KHÔNG bị đổi thành 404', async () => {

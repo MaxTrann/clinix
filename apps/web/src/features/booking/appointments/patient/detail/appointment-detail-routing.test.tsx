@@ -94,9 +94,12 @@ describe('route chi tiết lịch hẹn', () => {
     expect(router.state.location.pathname).toBe(
       '/benh-nhan/lich-hen-cua-toi/CP%2F1%3Fx%23y',
     );
-    expect(detail.requests.map((request) => request.path)).toEqual([
-      '/patient/appointments/CP%2F1%3Fx%23y',
-    ]);
+    // Đổi ở notification F1: khung Bệnh nhân còn thăm dò `/notifications/unread-count`, nên chỉ xét lời gọi của trang lịch hẹn
+    expect(
+      detail.requests
+        .map((request) => request.path)
+        .filter((path) => path.startsWith('/patient/')),
+    ).toEqual(['/patient/appointments/CP%2F1%3Fx%23y']);
   });
 
   // Quyền thật do API kiểm; cổng ở giao diện chỉ để không hiện trang sai vai (PLAN 5.13). Sai vai hiện 404 như `RequireAuth` đã làm

@@ -1,8 +1,10 @@
 import { NavLink, useLocation } from 'react-router';
+import { ADMIN_NOTIFICATIONS_PATH } from '../../../shared/routes/notification-paths';
 import {
   ADMIN_DEPOSIT_POLICY_PATH,
   ADMIN_WITHDRAWALS_PATH,
 } from '../../../shared/routes/wallet-paths';
+import { unreadBadgeText, unreadLabel } from '../../../shared/ui/unread-badge';
 import { ROLE_HOME_PATHS, useAuth } from '../../auth';
 import type { AdminMe } from '../admin-me';
 import styles from './admin-layout.module.css';
@@ -60,6 +62,8 @@ interface MenuItem {
   systemOnly?: boolean;
   // Đường dẫn khác `to` mà mục này vẫn sáng (các tab cùng một mục menu)
   alsoActiveFor?: string[];
+  // notification F3: mục hiện số chưa đọc (chỉ "Thông báo")
+  unreadBadge?: boolean;
 }
 
 interface MenuGroup {
@@ -173,7 +177,13 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Tài khoản',
     items: [
-      { label: 'Thông báo', icon: 'notification' },
+      // notification F3: trang Thông báo dùng chung với ba khung kia (WTB-15)
+      {
+        label: 'Thông báo',
+        icon: 'notification',
+        to: ADMIN_NOTIFICATIONS_PATH,
+        unreadBadge: true,
+      },
       {
         label: 'Thông tin cá nhân',
         icon: 'profile',
@@ -188,6 +198,8 @@ interface AdminSidebarProps {
   onLogout: () => void;
   logoutPending: boolean;
   logoutFailed: boolean;
+  // notification F3: số chưa đọc cho mục có `unreadBadge`; không truyền ⇒ không số
+  unread?: number;
 }
 
 function SidebarIcon({ name }: { name: IconName }) {
@@ -205,6 +217,7 @@ export function AdminSidebar({
   onLogout,
   logoutPending,
   logoutFailed,
+  unread,
 }: AdminSidebarProps) {
   const { user } = useAuth();
   const { pathname } = useLocation();
@@ -258,33 +271,48 @@ export function AdminSidebar({
           <section className={styles.menuGroup} key={group.label}>
             <h2 className={styles.groupLabel}>{group.label}</h2>
             <ul className={styles.menuList}>
-              {group.items.map((item) => (
-                <li key={item.label}>
-                  {item.to ? (
-                    <NavLink
-                      to={item.to}
-                      className={({ isActive }) =>
-                        `${styles.menuItem} ${styles.menuItemLink} ${isActive || isAlsoActive(item, pathname) ? styles.activeLink : ''}`
-                      }
-                    >
-                      <SidebarIcon name={item.icon} />
-                      <span>{item.label}</span>
-                      <SidebarIcon name="chevron-right" />
-                    </NavLink>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.menuItem}
-                      disabled
-                      aria-disabled="true"
-                      title="Chưa được triển khai"
-                    >
-                      <SidebarIcon name={item.icon} />
-                      <span>{item.label}</span>
-                    </button>
-                  )}
-                </li>
-              ))}
+              {group.items.map((item) => {
+                const badge =
+                  item.unreadBadge && unread !== undefined
+                    ? unreadBadgeText(unread)
+                    : null;
+                return (
+                  <li key={item.label}>
+                    {item.to ? (
+                      <NavLink
+                        to={item.to}
+                        // Có số: tên của liên kết là "Thông báo, N chưa đọc" như chuông; số hiển thị ẩn với trình đọc màn hình
+                        aria-label={
+                          badge !== null ? unreadLabel(unread ?? 0) : undefined
+                        }
+                        className={({ isActive }) =>
+                          `${styles.menuItem} ${styles.menuItemLink} ${isActive || isAlsoActive(item, pathname) ? styles.activeLink : ''}`
+                        }
+                      >
+                        <SidebarIcon name={item.icon} />
+                        <span>{item.label}</span>
+                        {badge !== null && (
+                          <span aria-hidden="true" className={styles.menuBadge}>
+                            {badge}
+                          </span>
+                        )}
+                        <SidebarIcon name="chevron-right" />
+                      </NavLink>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.menuItem}
+                        disabled
+                        aria-disabled="true"
+                        title="Chưa được triển khai"
+                      >
+                        <SidebarIcon name={item.icon} />
+                        <span>{item.label}</span>
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         ))}

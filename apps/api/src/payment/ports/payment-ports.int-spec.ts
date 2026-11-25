@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 import { PatientAppointmentsRepository } from '../../appointments/lists/patient-appointments.repository.js';
 import { PatientAppointmentDetailService } from '../../appointments/lists/patient-appointment-detail.service.js';
 import { createAppointmentWorld } from '../../appointments/testing/create-appointment-world.js';
+import { realRescheduleDetailReader } from '../../appointments/testing/reschedule-detail-world.js';
 import { BookingFixtures } from '../../appointments/testing/booking-fixtures.js';
 import { withRowLock } from '../../appointments/testing/concurrency-harness.js';
 import { failAfterStatement } from '../../appointments/testing/statement-recorder.js';
@@ -471,6 +472,7 @@ describe('HDT-15 chi tiết lịch của Bệnh nhân dùng lớp THẬT', () =>
       new PatientAppointmentsRepository(),
       reader,
       refunds,
+      realRescheduleDetailReader(db),
     );
     const detail = await service.detail(w.patientId, lich.maLichHen);
     expect(detail.thanhToan).toEqual({

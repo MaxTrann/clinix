@@ -87,12 +87,15 @@ export interface OperationsAppointmentDetail extends OperationsAppointmentItem {
 }
 
 /**
- * Chi tiết cho Lễ tân: ĐÚNG 17 khoá = chi tiết dùng chung cộng `chuyenDuoc` (các trạng thái Lễ tân được chuyển tới, từ ma trận P1) và `conPhaiThu` (chuỗi decimal, CHỈ ở `DaXacNhan`;
- * trạng thái khác là `null`).
+ * Chi tiết cho Lễ tân: ĐÚNG 19 khoá = chi tiết dùng chung cộng `chuyenDuoc` (các trạng thái Lễ tân được chuyển tới, từ ma trận P1), `conPhaiThu` (chuỗi decimal, CHỈ ở `DaXacNhan`;
+ * trạng thái khác là `null`) và hai khoá đổi lịch (reschedule B5): `choPhepDoiLich` (Lễ tân đổi hộ được không: vai `DoiHo` trong chi nhánh của họ, không giới hạn số lần, hạn là
+ * `thoi_gian + check_in_sau_phut`, được phép khi lịch đang có yêu cầu chờ) và `coYeuCauChoDuyet` (có yêu cầu `ChoDuyet`, kể cả lịch đã tồn). Trước B5 là 17 khoá.
  */
 export interface ReceptionAppointmentDetail extends OperationsAppointmentDetail {
   chuyenDuoc: TrangThaiLichHen[];
   conPhaiThu: string | null;
+  choPhepDoiLich: boolean;
+  coYeuCauChoDuyet: boolean;
 }
 
 export type OperationsAppointmentsPage = Paged<OperationsAppointmentItem>;

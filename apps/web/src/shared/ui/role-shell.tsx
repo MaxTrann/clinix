@@ -1,10 +1,11 @@
 import type { LucideIcon } from 'lucide-react';
-import { LogOut, Menu, X } from 'lucide-react';
+import { Bell, LogOut, Menu, X } from 'lucide-react';
 import { useCallback, useId, useRef, useState, type ReactNode } from 'react';
-import { useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { useMediaQuery } from '../hooks/use-media-query';
 import { useModalDialog } from '../hooks/use-modal-dialog';
 import { LogoutAlert, RoleShellSidebar } from './role-shell-sidebar';
+import { unreadBadgeText, unreadLabel } from './unread-badge';
 
 // Khung dùng chung của Bệnh nhân, Lễ tân (patient F1, F2) và Bác sĩ (module doctor), theo Figma `416:2`, `483:2`.
 // Thuần hiển thị: không đọc phiên, không gọi API. Nơi dùng (PatientLayout…) nối `useAuth()` và `useLogout()` rồi truyền vào.
@@ -18,6 +19,17 @@ export interface RoleNavItem {
   to?: string;
   // Chỉ sáng khi đúng đường dẫn này, không sáng ở trang con
   end?: boolean;
+  // notification F1: mục hiện số chưa đọc của `RoleShellProps.notifications` (chỉ mục "Thông báo")
+  badge?: 'notifications';
+}
+
+// notification F1 (PLAN 5.10, TECH_DEBT 62): số chưa đọc do router thăm dò rồi truyền xuống. Không truyền = khung cũ (không chuông, không số đếm).
+export interface RoleShellNotifications {
+  unread: number;
+  // Đích của chuông: trang Thông báo của vai trò
+  to: string;
+  // Số vừa tăng: vùng `aria-live` đọc "Bạn có thông báo mới"
+  announce: boolean;
 }
 
 export interface RoleShellLogout {
@@ -36,6 +48,7 @@ export interface RoleShellProps {
   // Mục dưới cùng, trên nút Đăng xuất (Bệnh nhân có "Về trang chủ", Lễ tân không có)
   footerItems?: RoleNavItem[];
   logout: RoleShellLogout;
+  notifications?: RoleShellNotifications;
   children: ReactNode;
 }
 
@@ -49,6 +62,7 @@ export function RoleShell({
   items,
   footerItems = [],
   logout,
+  notifications,
   children,
 }: RoleShellProps) {
   const wide = useMediaQuery(WIDE_QUERY);
@@ -83,7 +97,9 @@ export function RoleShell({
     footerItems,
     logout,
     showLogoutAlert: alertInSidebar,
+    unread: notifications?.unread,
   };
+  const badge = notifications ? unreadBadgeText(notifications.unread) : null;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -137,7 +153,7 @@ export function RoleShell({
 
       {/* Ngăn kéo mở thì phần còn lại không nhận focus, không bấm được */}
       <div className="flex min-w-0 flex-1 flex-col" inert={open}>
-        {/* Chuông và số đếm ẩn tới khi module notification có (Q21b).
+        {/* Chuông chỉ hiện khi nơi dùng truyền `notifications` (notification F1; trước đó ẩn theo Q21b).
             Màn hẹp: thanh trên dính đỉnh để nút "Mở menu" luôn thấy và đóng ngăn kéo không kéo trang về đầu (F11-K mục 10).
             Lớp z: thanh trên 30 < nền mờ 40 < ngăn kéo 50. Màn rộng giữ như F1, F2 */}
         <header
@@ -157,17 +173,44 @@ export function RoleShell({
               <Menu className="size-5" aria-hidden="true" />
             </button>
           )}
-          <button
-            type="button"
-            disabled={logout.pending}
-            onClick={logout.onLogout}
-            // h-8 (30px): chữ của Figma chỉ cao 19px, dưới vùng bấm tối thiểu 24px (WCAG 2.5.8)
-            className="flex h-8 items-center gap-1.5 rounded-lg px-1 text-sm font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50"
-          >
-            <LogOut className="size-4" aria-hidden="true" />
-            <span>Đăng xuất</span>
-          </button>
+          <div className="flex items-center gap-4">
+            {notifications && (
+              // Q14: chuông là LIÊN KẾT tới trang Thông báo (không hộp thả xuống). Tên truy cập kèm số; số hiển thị ẩn với trình đọc màn hình để không đọc hai lần
+              <Link
+                to={notifications.to}
+                aria-label={unreadLabel(notifications.unread)}
+                className="relative flex size-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50"
+              >
+                <Bell className="size-5" aria-hidden="true" />
+                {badge !== null && (
+                  // Chữ trắng trên `danger` (red-600) đạt 4,83:1
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-1 -right-1 min-w-5 rounded-full bg-danger px-1 text-center text-xs leading-5 font-semibold text-white"
+                  >
+                    {badge}
+                  </span>
+                )}
+              </Link>
+            )}
+            <button
+              type="button"
+              disabled={logout.pending}
+              onClick={logout.onLogout}
+              // h-8 (30px): chữ của Figma chỉ cao 19px, dưới vùng bấm tối thiểu 24px (WCAG 2.5.8)
+              className="flex h-8 items-center gap-1.5 rounded-lg px-1 text-sm font-medium text-gray-500 hover:text-gray-700 disabled:opacity-50"
+            >
+              <LogOut className="size-4" aria-hidden="true" />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
         </header>
+        {/* Vùng đọc khi số chưa đọc tăng (WTB-03). Luôn có mặt khi có chuông để trình đọc màn hình đã theo dõi nó trước lúc chữ xuất hiện */}
+        {notifications && (
+          <p aria-live="polite" className="sr-only">
+            {notifications.announce ? 'Bạn có thông báo mới' : ''}
+          </p>
+        )}
         {/* Dải lỗi dính ngay dưới thanh trên (`top-14` = `h-14`): đang cuộn mà bấm Đăng xuất lỗi vẫn thấy câu lỗi */}
         {logout.failed && !alertInSidebar && (
           <LogoutAlert
