@@ -22,6 +22,7 @@ import {
   DOCTOR_APPOINTMENTS_PATH,
   PATIENT_APPOINTMENTS_PATH,
   RECEPTION_APPOINTMENTS_PATH,
+  RECEPTION_RESCHEDULE_REQUESTS_PATH,
 } from '../shared/routes/booking-paths';
 import {
   DOCTOR_NOTIFICATIONS_PATH,
@@ -84,7 +85,12 @@ export const RECEPTION_NAV: { items: RoleNavItem[] } = {
       icon: Stethoscope,
       to: RECEPTION_SCHEDULE_PATH,
     },
-    { label: 'Yêu cầu đổi lịch', icon: RefreshCw },
+    // reschedule F4: trang hai tab Chờ duyệt, Đã xử lý (không `end`: trang chi tiết một yêu cầu là trang con nên mục này vẫn sáng)
+    {
+      label: 'Yêu cầu đổi lịch',
+      icon: RefreshCw,
+      to: RECEPTION_RESCHEDULE_REQUESTS_PATH,
+    },
     { label: 'Danh sách chờ', icon: ListOrdered },
     { label: 'Tin nhắn', icon: MessageCircle },
     // notification F1: trang Thông báo, có số chưa đọc (TECH_DEBT 62)

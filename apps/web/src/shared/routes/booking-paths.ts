@@ -130,3 +130,16 @@ export const receptionAppointmentRescheduleConfirmPath = (
     ':maLichHen',
     encodeURIComponent(maLichHen),
   )}?${BOOKING_SLOT_PARAM}=${encodeURIComponent(khungGioId)}`;
+
+// "Yêu cầu đổi lịch" của Lễ tân (reschedule F4; tên đường dẫn là [đề xuất], phiên kiểm duyệt 25/11/2026). `*_SEGMENT` là mẫu TƯƠNG ĐỐI với `/le-tan` cho route con của khung Lễ tân
+// (`RECEPTION_RESCHEDULE_REQUEST_ROUTES`, cắm vào `RECEPTION_APPOINTMENT_ROUTES`), `*_PATH` và `*_ROUTE` là đường dẫn đầy đủ (mục menu, liên kết). Đoạn đường là nhãn menu không dấu. Chi tiết một yêu cầu là
+// TRANG con (tải lại được), id yêu cầu là BIGINT dạng chuỗi nằm trên đường dẫn, `encodeURIComponent`. Đặt ở CUỐI file để không chạm chỗ F3 (Lễ tân đổi hộ) thêm tên.
+export const RECEPTION_RESCHEDULE_REQUESTS_SEGMENT = 'yeu-cau-doi-lich';
+export const RECEPTION_RESCHEDULE_REQUESTS_PATH = `/le-tan/${RECEPTION_RESCHEDULE_REQUESTS_SEGMENT}`;
+export const RECEPTION_RESCHEDULE_REQUEST_DETAIL_SEGMENT = `${RECEPTION_RESCHEDULE_REQUESTS_SEGMENT}/:yeuCauId`;
+export const RECEPTION_RESCHEDULE_REQUEST_DETAIL_ROUTE = `/le-tan/${RECEPTION_RESCHEDULE_REQUEST_DETAIL_SEGMENT}`;
+export const receptionRescheduleRequestDetailPath = (yeuCauId: string) =>
+  RECEPTION_RESCHEDULE_REQUEST_DETAIL_ROUTE.replace(
+    ':yeuCauId',
+    encodeURIComponent(yeuCauId),
+  );
