@@ -4,8 +4,10 @@ import { DIALOG_FIELD_BORDER } from './action-dialog';
 // Ô lý do bắt buộc của hộp đổi trạng thái: `Lý do hủy *` của Lễ tân (booking F9, Figma `490:2`) và `Lý do *` của override (F10). Chuyển ra `common/` ở F10 để hai hộp không chép nhau.
 // Ô nhiều dòng, dấu `*` ẩn với trình đọc màn hình (`aria-required` thay vào đó), KHÔNG `maxLength` (cắt thầm lúc dán là nói dối người dùng; luật ở `status-reason.ts`). Lời báo dưới ô
 // do nơi gọi truyền (`error`). `readOnly` (không `disabled`) khi đang gửi hay đã dừng: ô vẫn nhận Tab nên bẫy tiêu điểm của hộp không bị rỗng.
+// `hint` (tuỳ chọn; reschedule F4: "Bệnh nhân sẽ đọc ghi chú này"): đoạn chữ dưới nhãn, nối vào `aria-describedby` của ô; hộp không truyền thì không đổi gì.
 export function ReasonField({
   label,
+  hint,
   value,
   onChange,
   error,
@@ -13,6 +15,7 @@ export function ReasonField({
   fieldRef,
 }: {
   label: string;
+  hint?: string;
   value: string;
   onChange: (value: string) => void;
   error: string | null;
@@ -20,6 +23,13 @@ export function ReasonField({
   fieldRef: RefObject<HTMLTextAreaElement | null>;
 }) {
   const fieldId = useId();
+  const describedBy =
+    [
+      hint === undefined ? null : `${fieldId}-hint`,
+      error === null ? null : `${fieldId}-error`,
+    ]
+      .filter((id) => id !== null)
+      .join(' ') || undefined;
   return (
     <div className="pt-3">
       <label
@@ -31,6 +41,11 @@ export function ReasonField({
           *
         </span>
       </label>
+      {hint !== undefined && (
+        <p id={`${fieldId}-hint`} className="pb-1.5 text-xs text-gray-600">
+          {hint}
+        </p>
+      )}
       <textarea
         id={`${fieldId}-reason`}
         ref={fieldRef}
@@ -39,7 +54,7 @@ export function ReasonField({
         readOnly={locked}
         aria-required="true"
         aria-invalid={error !== null}
-        aria-describedby={error === null ? undefined : `${fieldId}-error`}
+        aria-describedby={describedBy}
         onChange={(event) => onChange(event.target.value)}
         className={`block w-full rounded-xl px-3 py-2 text-sm text-gray-900 ${DIALOG_FIELD_BORDER} ${error === null ? '' : 'border-danger-strong'}`}
       />
