@@ -77,6 +77,7 @@ const detailOf = (res: { body: unknown }) =>
 const DETAIL_KEYS = [
   'bacSi',
   'chiNhanh',
+  'choPhepDoiLich',
   'choPhepHuy',
   'chuyenKhoa',
   'dichVu',
@@ -92,6 +93,7 @@ const DETAIL_KEYS = [
   'thoiGianMayChu',
   'tienCoc',
   'trangThai',
+  'yeuCauDoiLich',
 ];
 
 // Bệnh nhân A (đăng nhập) với bốn lịch (bản thân, người thân, chờ thanh toán, đã đổi), Bệnh nhân B với lịch của mình và của người thân, cùng MỘT bác sĩ có SĐT và email riêng
@@ -151,7 +153,7 @@ async function world() {
 }
 
 describe('GET /patient/appointments/:maLichHen', () => {
-  it('LSH-10, LSH-14 chi tiết: đúng mười bảy khoá (booking B19: thêm `moc`); thanhToan là đối tượng của cổng thanh toán THẬT (payment B7: chưa thu đồng nào), hoanTien là null (RefundPort THẬT từ payment B9, nhưng lịch dựng không có khoản cọc qua ví nên findRefund trả null); lyDoKham và thoiGianMayChu đúng; không khoá nào lộ id, không lyDoHuy, không email, SĐT, băm', async () => {
+  it('LSH-10, LSH-14, HDL-11 chi tiết: đúng mười chín khoá (booking B19: thêm `moc`; reschedule B5: thêm `choPhepDoiLich`, `yeuCauDoiLich`); thanhToan là đối tượng của cổng thanh toán THẬT (payment B7: chưa thu đồng nào), hoanTien là null (RefundPort THẬT từ payment B9, nhưng lịch dựng không có khoản cọc qua ví nên findRefund trả null); lyDoKham và thoiGianMayChu đúng; không khoá nào lộ id, không lyDoHuy, không email, SĐT, băm', async () => {
     const w = await world();
     const res = await get(MINE, w.token);
     expect(res.status).toBe(200);
@@ -196,6 +198,60 @@ describe('GET /patient/appointments/:maLichHen', () => {
     expect(text).not.toContain(DOCTOR_PHONE);
     expect(text).not.toContain(doctorEmail[0]?.email ?? '?');
     expect(text).not.toContain('argon2');
+  });
+
+  it('HDL-11, DLH-15 hai khoá đổi lịch (reschedule B5) qua HTTP: kiểu đúng như web đọc NGHIÊM; chưa cấu hình ⇒ false; có cấu hình và lịch còn đổi được ⇒ true; có yêu cầu chờ ⇒ false kèm yeuCauDoiLich đúng bốn khoá; lịch ChoThanhToan ⇒ false', async () => {
+    const w = await world();
+    await h.db.query('DELETE FROM cau_hinh_he_thong');
+    const bare = detailOf(await get(MINE, w.token));
+    // Không có dòng `cau_hinh_he_thong`: không đổi được, nhưng chi tiết vẫn 200 và đủ khoá (không 409)
+    expect(bare.choPhepDoiLich).toBe(false);
+    expect(bare.yeuCauDoiLich).toBeNull();
+
+    await fx.systemConfig({ soLanTuDoiLichToiDa: 2 });
+    const open = detailOf(await get(MINE, w.token));
+    expect(open.choPhepDoiLich).toBe(true);
+    expect(open.yeuCauDoiLich).toBeNull();
+    expect(detailOf(await get(MINE_PENDING, w.token)).choPhepDoiLich).toBe(
+      false,
+    );
+
+    const [lich] = await h.db.query<{ id: string }[]>(
+      'SELECT CAST(lich_hen_id AS CHAR) AS id FROM lich_hen WHERE ma_lich_hen = ?',
+      [MINE],
+    );
+    const [slot] = await h.db.query<{ id: string }[]>(
+      'SELECT CAST(MAX(khung_gio_id) AS CHAR) AS id FROM khung_gio',
+    );
+    // Hết lần tự đổi (2 trên 2) và đã có yêu cầu chờ duyệt: không gửi thêm được, yêu cầu hiện ở chi tiết
+    await h.db.query(
+      'UPDATE lich_hen SET so_lan_tu_doi_lich = 2 WHERE lich_hen_id = ?',
+      [lich!.id],
+    );
+    await h.db.query(
+      `INSERT INTO yeu_cau_doi_lich_ngoai_chinh_sach (lich_hen_id, khung_gio_mong_muon_id, ly_do_yeu_cau, trang_thai, thoi_diem_tao)
+       VALUES (?, ?, 'LY-DO-RIENG-TU-9981', 'ChoDuyet', '2026-11-02 08:00:00')`,
+      [lich!.id, slot!.id],
+    );
+    const waiting = detailOf(await get(MINE, w.token));
+    expect(waiting.choPhepDoiLich).toBe(false);
+    expect(Object.keys(waiting.yeuCauDoiLich ?? {}).sort()).toStrictEqual([
+      'ghiChuXuLy',
+      'thoiDiemTao',
+      'thoiGianMongMuon',
+      'trangThai',
+    ]);
+    expect(waiting.yeuCauDoiLich).toMatchObject({
+      trangThai: 'ChoDuyet',
+      ghiChuXuLy: null,
+      thoiDiemTao: '2026-11-02T01:00:00.000Z',
+    });
+    expect(typeof waiting.yeuCauDoiLich?.thoiGianMongMuon).toBe('string');
+    expect(
+      new Date(waiting.yeuCauDoiLich?.thoiGianMongMuon ?? '').toISOString(),
+    ).toBe(waiting.yeuCauDoiLich?.thoiGianMongMuon);
+    // Lý do yêu cầu KHÔNG ra ngoài
+    expect(JSON.stringify(waiting)).not.toContain('LY-DO-RIENG-TU');
   });
 
   it('LSH-10, LSH-13 lịch người thân HoanThanh: laBanThan false, choPhepHuy false; lịch ChoThanhToan: hanThanhToan là ISO, choPhepHuy true', async () => {

@@ -1,5 +1,6 @@
 import type { PaymentView } from '../ports/payment.port.js';
 import type { RefundView } from '../ports/wallet.port.js';
+import type { PatientRescheduleRequest } from '../reschedule/reschedule-request.types.js';
 import { canTransition } from '../state/appointment-state.matrix.js';
 import { toItemCore } from './list-item.mapper.js';
 import { toMilestones } from './status-milestones.mapper.js';
@@ -53,13 +54,33 @@ function toRefund(view: RefundView | null): RefundView | null {
   };
 }
 
-/** Chi tiết = mười hai khoá của `toItem` cộng năm khoá (`lyDoKham`, `thanhToan`, `hoanTien`, `thoiGianMayChu`, `moc`). `serverTime` do người gọi lấy (đồng hồ giả được trong test); ISO 8601 UTC, GIỮ mili giây (3.15.1, câu (d)). */
+// Cùng lý do với `toPayment`: ánh xạ TỪNG khoá của hình dạng đã khai, để dữ liệu thừa của bộ đọc đổi lịch (nếu có) không lọt ra JSON.
+function toRescheduleRequest(
+  view: PatientRescheduleRequest | null,
+): PatientRescheduleRequest | null {
+  if (view === null) return null;
+  return {
+    trangThai: view.trangThai,
+    thoiGianMongMuon: view.thoiGianMongMuon,
+    ghiChuXuLy: view.ghiChuXuLy,
+    thoiDiemTao: view.thoiDiemTao,
+  };
+}
+
+/**
+ * Chi tiết = mười hai khoá của `toItem` cộng bảy khoá (`lyDoKham`, `thanhToan`, `hoanTien`, `thoiGianMayChu`, `moc`, `choPhepDoiLich`, `yeuCauDoiLich`). `serverTime` do người gọi lấy (đồng hồ giả
+ * được trong test); ISO 8601 UTC, GIỮ mili giây (3.15.1, câu (d)). Hai khoá đổi lịch (reschedule B5) do `RescheduleDetailReader` quyết.
+ */
 export function toDetail(
   row: PatientAppointmentDetailRow,
   extras: {
     thanhToan: PaymentView | null;
     hoanTien: RefundView | null;
     serverTime: Date;
+    reschedule: {
+      choPhepDoiLich: boolean;
+      yeuCauDoiLich: PatientRescheduleRequest | null;
+    };
   },
 ): PatientAppointmentDetail {
   return {
@@ -69,5 +90,7 @@ export function toDetail(
     hoanTien: toRefund(extras.hoanTien),
     thoiGianMayChu: extras.serverTime.toISOString(),
     moc: toMilestones(row),
+    choPhepDoiLich: extras.reschedule.choPhepDoiLich,
+    yeuCauDoiLich: toRescheduleRequest(extras.reschedule.yeuCauDoiLich),
   };
 }

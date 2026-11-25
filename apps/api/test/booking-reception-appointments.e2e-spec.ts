@@ -106,8 +106,10 @@ const ITEM_KEYS = [
 const DETAIL_KEYS = [
   'bacSi',
   'chiNhanh',
+  'choPhepDoiLich',
   'chuyenDuoc',
   'chuyenKhoa',
+  'coYeuCauChoDuyet',
   'conPhaiThu',
   'dichVu',
   'giaSnapshot',
@@ -310,7 +312,7 @@ describe('GET /reception/appointments — kiểm query (DSV-14)', () => {
 });
 
 describe('GET /reception/appointments/:maLichHen', () => {
-  it('DSV-13, DSV-08 chi tiết: đúng mười bảy khoá (booking B19: thêm `moc`); lịch bản thân có lyDoKham; không khoá lộ id, email, băm; không SĐT bác sĩ', async () => {
+  it('DSV-13, DSV-08 chi tiết: đúng mười chín khoá (booking B19: thêm `moc`; reschedule B5: thêm `choPhepDoiLich`, `coYeuCauChoDuyet`); lịch bản thân có lyDoKham; không khoá lộ id, email, băm; không SĐT bác sĩ', async () => {
     const w = await world();
     const res = await get(`/${CODES.a1}`, w.tokenA);
     expect(res.status).toBe(200);
@@ -335,6 +337,43 @@ describe('GET /reception/appointments/:maLichHen', () => {
     expect(JSON.stringify(res.body)).not.toContain(DOCTOR_PHONE);
     const cancelled = await get(`/${CODES.a4}`, w.tokenA);
     expect(detailOf(cancelled).lyDoHuy).toBe('Fixture huỷ lịch');
+  });
+
+  it('DLH-45 hai khoá đổi lịch (reschedule B5) qua HTTP: boolean; không cấu hình ⇒ choPhepDoiLich false; lịch có yêu cầu CHỜ DUYỆT ⇒ coYeuCauChoDuyet true (và vẫn đổi hộ được: KDL-19); chi nhánh khác không thấy', async () => {
+    const w = await world();
+    await h.db.query('DELETE FROM cau_hinh_he_thong');
+    const none = detailOf(await get(`/${CODES.a1}`, w.tokenA));
+    expect(none.choPhepDoiLich).toBe(false);
+    expect(none.coYeuCauChoDuyet).toBe(false);
+
+    await fx.systemConfig({ soLanTuDoiLichToiDa: 2 });
+    // Đồng hồ giả của harness là T0 (trước giờ hẹn): a1 DaXacNhan trong chi nhánh A đổi hộ được
+    const open = detailOf(await get(`/${CODES.a1}`, w.tokenA));
+    expect(open.choPhepDoiLich).toBe(true);
+    expect(open.coYeuCauChoDuyet).toBe(false);
+
+    const [lich] = await h.db.query<{ id: string }[]>(
+      'SELECT CAST(lich_hen_id AS CHAR) AS id FROM lich_hen WHERE ma_lich_hen = ?',
+      [CODES.a1],
+    );
+    const [slot] = await h.db.query<{ id: string }[]>(
+      'SELECT CAST(MAX(khung_gio_id) AS CHAR) AS id FROM khung_gio',
+    );
+    await h.db.query(
+      `INSERT INTO yeu_cau_doi_lich_ngoai_chinh_sach (lich_hen_id, khung_gio_mong_muon_id, ly_do_yeu_cau, trang_thai, thoi_diem_tao)
+       VALUES (?, ?, 'LY-DO-RIENG-TU-4417', 'ChoDuyet', '2026-11-02 08:00:00')`,
+      [lich!.id, slot!.id],
+    );
+    const waiting = detailOf(await get(`/${CODES.a1}`, w.tokenA));
+    expect(waiting.coYeuCauChoDuyet).toBe(true);
+    expect(waiting.choPhepDoiLich).toBe(true);
+    expect(JSON.stringify(waiting)).not.toContain('LY-DO-RIENG-TU');
+
+    // Lễ tân chi nhánh khác: 404 cùng thân với lịch không tồn tại (không lộ cờ)
+    const outside = await get(`/${CODES.a1}`, w.tokenB);
+    const missing = await get('/CLX-20261110-ZZZZZ', w.tokenB);
+    expect(outside.status).toBe(404);
+    expect(outside.text).toBe(missing.text);
   });
 
   it('CT-11, DSV-10 chi tiết qua HTTP: lịch đã thu đủ (giá 0) trong cửa sổ có DaTiepDon và DaHuy; lịch còn phải thu chỉ DaHuy và `conPhaiThu` bằng giá (chưa thu đồng nào, cổng thanh toán thật); lịch ChoThanhToan: conPhaiThu null', async () => {

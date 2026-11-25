@@ -21,6 +21,7 @@ import {
   FakePaymentSummaryPort,
   FakeRefundPort,
 } from '../testing/fake-ports.js';
+import { realRescheduleDetailReader } from '../testing/reschedule-detail-world.js';
 import { PatientAppointmentDetailService } from './patient-appointment-detail.service.js';
 import { PatientAppointmentsRepository } from './patient-appointments.repository.js';
 import { PatientAppointmentsService } from './patient-appointments.service.js';
@@ -48,7 +49,13 @@ function detailServiceWith(
   payments: PaymentSummaryPort,
   refunds: RefundPort,
 ): PatientAppointmentDetailService {
-  return new PatientAppointmentDetailService(db, repo, payments, refunds);
+  return new PatientAppointmentDetailService(
+    db,
+    repo,
+    payments,
+    refunds,
+    realRescheduleDetailReader(db),
+  );
 }
 
 useIntegrationHooks((testDb) => {
@@ -66,6 +73,7 @@ const OTHER_CODE = 'CLX-20261110-7K3QE';
 const DETAIL_KEYS = [
   'bacSi',
   'chiNhanh',
+  'choPhepDoiLich',
   'choPhepHuy',
   'chuyenKhoa',
   'dichVu',
@@ -81,6 +89,7 @@ const DETAIL_KEYS = [
   'thoiGianMayChu',
   'tienCoc',
   'trangThai',
+  'yeuCauDoiLich',
 ];
 
 // Lịch DaXacNhan của `patientId` với bác sĩ của `scene` (viết tắt cho nhiều ca, để jscpd không thấy dựng dữ liệu lặp lại)
@@ -111,8 +120,8 @@ async function rejection(promise: Promise<unknown>): Promise<AppException> {
 const bodyOf = (error: AppException) =>
   JSON.stringify(toErrorResponse(error).body);
 
-describe('LSH-10 chi tiết: đủ mười bảy khoá, hai cổng Noop dựng tay cho null', () => {
-  it('LSH-10 lịch bản thân DaXacNhan: đúng mười bảy khoá (booking B19: thêm `moc`); thanhToan, hoanTien là null; lyDoKham, thoiGianMayChu đúng; cùng mười hai khoá với dòng danh sách', async () => {
+describe('LSH-10 chi tiết: đủ mười chín khoá, hai cổng Noop dựng tay cho null', () => {
+  it('LSH-10 lịch bản thân DaXacNhan: đúng mười chín khoá (booking B19: thêm `moc`; reschedule B5: thêm `choPhepDoiLich`, `yeuCauDoiLich`); thanhToan, hoanTien là null; lyDoKham, thoiGianMayChu đúng; cùng mười hai khoá với dòng danh sách', async () => {
     const s = await lf.scene({
       doctorName: 'Bác Sĩ Chi Tiết',
       patientName: 'Bệnh Nhân Chi Tiết',
