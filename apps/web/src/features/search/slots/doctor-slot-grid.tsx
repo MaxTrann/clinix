@@ -23,7 +23,14 @@ function groupByShift(slots: readonly PublicSlot[]) {
 }
 
 // Lưới khung giờ của MỘT bác sĩ trong MỘT ngày (Figma 446:248). Toàn bộ trạng thái do máy chủ tính; ở đây chỉ chọn cách hiển thị.
-export function DoctorSlotGrid({ day }: { day: DoctorDaySlots }) {
+// `onSelect` (reschedule F1, TUỲ CHỌN) chỉ được chuyển xuống từng ô: xem `SlotCell`.
+export function DoctorSlotGrid({
+  day,
+  onSelect,
+}: {
+  day: DoctorDaySlots;
+  onSelect?: (slot: PublicSlot) => void;
+}) {
   const title = slotDayNoticeTitle(day);
   if (title !== null) return <SlotDayNotice title={title} />;
 
@@ -45,7 +52,7 @@ export function DoctorSlotGrid({ day }: { day: DoctorDaySlots }) {
           </h3>
           <ul className="mt-1.5 grid grid-cols-3 gap-2">
             {slots.map((slot) => (
-              <SlotCell key={slot.khungGioId} slot={slot} />
+              <SlotCell key={slot.khungGioId} slot={slot} onSelect={onSelect} />
             ))}
           </ul>
         </section>

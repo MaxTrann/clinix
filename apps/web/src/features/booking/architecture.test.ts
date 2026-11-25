@@ -29,8 +29,17 @@ function featureTarget(
 // Module ngoài booking được import, CHỈ qua `index.ts` của nó (dừng ở tên thư mục, không đi sâu vào file): `auth` (đăng nhập, vai trò), `admin` (booking F10: `AdminScopeGuard` bọc route và
 // `useAdminScope` cho trang Lịch hẹn của Quản trị viên; Đại duyệt 13/11/2026) và `doctor` (doctor-exam F1: `ExamHeaderActions` cắm vào `headerAside` của trang chi tiết Bác sĩ; Q20 phương án C, Đại 14/11/2026;
 // chiều ngược lại `features/doctor` KHÔNG import booking do WHT-10 khoá), `payment` và `wallet` (payment F3, F4 và booking F6: `DepositPaymentPanel` gắn vào Bước Thanh toán, hộp Thu tiền
-// gắn vào tiếp đón; Q19 của PLAN payment, Đại duyệt khi review PR F3; chiều ngược lại `features/payment` KHÔNG import booking do `features/wallet/architecture.test.ts` khoá). Mọi module khác vẫn cấm.
-const THROUGH_INDEX_ONLY = ['auth', 'admin', 'doctor', 'payment', 'wallet'];
+// gắn vào tiếp đón; Q19 của PLAN payment, Đại duyệt khi review PR F3; chiều ngược lại `features/payment` KHÔNG import booking do `features/wallet/architecture.test.ts` khoá) và `search`
+// (reschedule F1: `SlotPicker`, bộ chọn khung giờ dùng chung của trang đổi lịch; Đại chọn 25/11/2026 bằng hộp câu hỏi, câu B, báo Trung; chiều ngược lại `features/search` KHÔNG import booking do
+// UIB-08 ở `features/search/architecture.test.ts` khoá). Mọi module khác vẫn cấm.
+const THROUGH_INDEX_ONLY = [
+  'auth',
+  'admin',
+  'doctor',
+  'payment',
+  'wallet',
+  'search',
+];
 
 function isAllowedImport(
   target: { feature: string; rest: string[] } | null,
@@ -61,21 +70,40 @@ describe('booking F3 — features/booking không import chéo', () => {
     const file = './appointments/admin/x.ts';
     const allowed = (specifier: string) =>
       isAllowedImport(featureTarget(file, specifier));
-    // Cho phép: chính booking, shared/, thư viện, auth, admin và doctor chỉ qua index.ts
+    // Cho phép: chính booking, shared/, thư viện, auth, admin, doctor và search chỉ qua index.ts
     expect(allowed('./detail/y')).toBe(true);
     expect(allowed('../../../../shared/api/client')).toBe(true);
     expect(allowed('react')).toBe(true);
     expect(allowed('../../../auth')).toBe(true);
     expect(allowed('../../../admin')).toBe(true);
     expect(allowed('../../../doctor')).toBe(true);
-    // Cấm: đi sâu vào admin, auth hay doctor, và mọi module khác
+    expect(allowed('../../../search')).toBe(true);
+    // Cấm: đi sâu vào admin, auth, doctor hay search, và mọi module khác
     expect(allowed('../../../admin/admin-layout')).toBe(false);
     expect(allowed('../../../admin/components/admin-sidebar')).toBe(false);
     expect(allowed('../../../auth/use-page-active')).toBe(false);
-    expect(allowed('../../../search')).toBe(false);
+    expect(allowed('../../../search/slots/slot-picker')).toBe(false);
+    expect(allowed('../../../search/slots/slot-cell')).toBe(false);
+    expect(allowed('../../../search/slots')).toBe(false);
     expect(allowed('../../../doctor/examination')).toBe(false);
     expect(allowed('../../../doctor/components/modal-frame')).toBe(false);
     expect(allowed('../../../patient')).toBe(false);
+  });
+
+  it('WDH-26 (reschedule F1) luật nhận search CHỈ qua index.ts từ thư mục đổi lịch; đi sâu vào search (kể cả `slots/`) vẫn cấm, module khác vẫn cấm (đối chứng)', () => {
+    const file = './appointments/patient/reschedule/x.tsx';
+    const allowed = (specifier: string) =>
+      isAllowedImport(featureTarget(file, specifier));
+    expect(allowed('../../../../search')).toBe(true);
+    expect(allowed('../../../../search/index')).toBe(false);
+    expect(allowed('../../../../search/slots/slot-picker')).toBe(false);
+    expect(allowed('../../../../search/slots/use-doctor-slots')).toBe(false);
+    expect(allowed('../../../../search/api/search-service')).toBe(false);
+    expect(allowed('../../../../patient')).toBe(false);
+    expect(allowed('../../../../search-extra')).toBe(false);
+    // `shared/` và chính booking vẫn tự do
+    expect(allowed('../../../../../shared/routes/booking-paths')).toBe(true);
+    expect(allowed('../../common/response-readers')).toBe(true);
   });
 
   it('WTT-06 (payment F3) luật nhận payment và wallet CHỈ qua index.ts; đi sâu vào hai module này bị cấm (đối chứng)', () => {
