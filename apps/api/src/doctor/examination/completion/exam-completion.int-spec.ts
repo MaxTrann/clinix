@@ -232,6 +232,26 @@ describe('HTK-07 ghi thong_bao lỗi ⇒ hoàn tác CẢ lần hoàn thành (Q17
     expect(retryStats(logs).retries).toEqual({});
   });
 
+  it('EMT-01 (notification B4): INSERT email_thong_bao chạy thật rồi ném lỗi: hoàn tác CẢ lần hoàn thành; lịch còn DaTiepDon, 0 thong_bao, 0 email_thong_bao', async () => {
+    const w = await setup();
+    const lich = await w.inVisit(0);
+    const before = await snapshot(w, lich);
+    const failure = new Error('INSERT email_thong_bao hỏng');
+    const matched = failAfterStatement(
+      db,
+      /^INSERT INTO email_thong_bao/,
+      failure,
+    );
+
+    await expect(w.service.complete(w.doctorId, lich.maLichHen)).rejects.toBe(
+      failure,
+    );
+
+    expect(matched).toHaveLength(1);
+    expect(await snapshot(w, lich)).toEqual(before);
+    expect(before.rest.email).toBe(0);
+  });
+
   it('đã có sẵn thong_bao cùng (lịch, tài khoản, loại): 1062 được coi là "đã có", vẫn hoàn thành, vẫn MỘT dòng và nội dung cũ không bị ghi đè', async () => {
     const w = await setup();
     const lich = await w.inVisit(0);
@@ -274,7 +294,7 @@ describe('HTK-08 thân chạy lại sau 1213 an toàn', () => {
 });
 
 describe('HTK-11 chuỗi khoá thật của hoàn thành (PLAN 5.3)', () => {
-  it('đọc thường lich_hen (không khoá) → lich_hen FOR UPDATE theo khoá chính → UPDATE lich_hen → INSERT thong_bao sau cùng; chỉ khoá lich_hen; không chạm khung_gio, tầng 2 đến 4, hồ sơ, nhật ký, email; không vi phạm thứ tự khoá', async () => {
+  it('đọc thường lich_hen (không khoá) → lich_hen FOR UPDATE theo khoá chính → UPDATE lich_hen → INSERT thong_bao → INSERT email_thong_bao sau cùng (notification B4, Q6); chỉ khoá lich_hen; không chạm khung_gio, tầng 2 đến 4, hồ sơ, nhật ký; không vi phạm thứ tự khoá', async () => {
     const w = await setup();
     const lich = await w.inVisit(0);
     const seen = recordStatements(db);
@@ -287,8 +307,9 @@ describe('HTK-11 chuỗi khoá thật của hoàn thành (PLAN 5.3)', () => {
           sql,
         ),
     );
-    expect(body).toHaveLength(4);
-    const [read, lock, update, insert] = body as [
+    expect(body).toHaveLength(5);
+    const [read, lock, update, insert, email] = body as [
+      string,
       string,
       string,
       string,
@@ -300,6 +321,7 @@ describe('HTK-11 chuỗi khoá thật của hoàn thành (PLAN 5.3)', () => {
     expectLichLockByPrimaryKey(lock);
     expect(update).toMatch(/^UPDATE lich_hen SET trang_thai = 'HoanThanh'/);
     expect(insert).toMatch(/^INSERT INTO thong_bao/);
+    expect(email).toMatch(/^INSERT INTO email_thong_bao/);
     expect(lockedTablesOf(body)).toEqual(['lich_hen']);
     expect(
       findLockOrderViolation([...lockedTablesOf(body), 'thong_bao']),
@@ -307,20 +329,18 @@ describe('HTK-11 chuỗi khoá thật của hoàn thành (PLAN 5.3)', () => {
     expectNoHigherTierTables(body);
     for (const sql of body) {
       expect(sql).not.toMatch(/khung_gio\b/);
-      expect(sql).not.toMatch(
-        /INSERT INTO (ho_so_kham|nhat_ky_hanh_dong|email_thong_bao)/,
-      );
+      expect(sql).not.toMatch(/INSERT INTO (ho_so_kham|nhat_ky_hanh_dong)/);
     }
   });
 });
 
-describe('HTK-12, TDK-06 hoàn thành KHÔNG ghi nhật ký, không đụng khung giờ, không ghi email_thong_bao, không tạo hồ sơ', () => {
-  it('số dòng nhat_ky_hanh_dong, email_thong_bao, ho_so_kham và nội dung khung_gio không đổi; chỉ thong_bao tăng một dòng', async () => {
+describe('HTK-12, TDK-06 hoàn thành KHÔNG ghi nhật ký, không đụng khung giờ, không tạo hồ sơ; từ notification B4 (Q6, EMT-01) ghi MỘT dòng email_thong_bao', () => {
+  it('số dòng nhat_ky_hanh_dong, ho_so_kham và nội dung khung_gio không đổi; thong_bao và email_thong_bao mỗi bảng tăng một dòng', async () => {
     const w = await setup();
     const lich = await w.inVisit(0);
     const before = await untouchedByCompletion(db);
     await w.service.complete(w.doctorId, lich.maLichHen);
-    expect(await untouchedByCompletion(db)).toEqual(before);
+    expect(await untouchedByCompletion(db)).toEqual({ ...before, email: 1 });
     expect(before).toMatchObject({ nhatKy: 0, email: 0, hoSo: 0 });
     expect(await countRows(db, 'thong_bao')).toBe(1);
   });

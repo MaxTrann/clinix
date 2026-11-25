@@ -30,7 +30,7 @@ export const EXAM_FIELD_ERROR_CODES = {
   HIDE_REASON_TOO_LONG: 'LY_DO_QUA_DAI',
 } as const;
 
-// Sự kiện của `thong_bao.loai_su_kien` (varchar 100). `[đề xuất]` Q17: khác bốn loại của booking nên `EmailOutboxService` bỏ qua (HDK-06).
+// Sự kiện của `thong_bao.loai_su_kien` (varchar 100). `[đề xuất]` Q17. Từ notification B4 loại này CÓ thư: booking giữ bản viết bằng chữ ở `EXAM_MAIL_EVENTS` (`notifications.constants.ts`).
 export const EXAM_NOTIFICATION_EVENTS = {
   COMPLETED: 'LichHenHoanThanh',
 } as const;

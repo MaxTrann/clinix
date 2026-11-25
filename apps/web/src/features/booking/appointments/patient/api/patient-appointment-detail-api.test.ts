@@ -10,7 +10,7 @@ import {
 } from './patient-appointment-detail-api';
 
 // booking F2: bộ kiểm hình dạng và lời gọi `GET /patient/appointments/:maLichHen` (hợp đồng B2, TRACKING 3.15, 3.27 F2-D). Mã LCT là [đề xuất] (PLAN booking mục
-// 7.33 sau khi duyệt); mỗi ca ghi mã. Dữ liệu giả: đủ mười sáu khoá.
+// 7.33 sau khi duyệt); mỗi ca ghi mã. Dữ liệu giả: đủ mười chín khoá (reschedule F1: thêm `choPhepDoiLich`, `yeuCauDoiLich` theo PLAN reschedule 5.8, mã WDH-13 [đề xuất]).
 const DETAIL = {
   maLichHen: 'CP20261020001',
   trangThai: 'DaXacNhan',
@@ -33,6 +33,14 @@ const DETAIL = {
     tiepDon: null,
     hoanThanh: null,
   },
+  choPhepDoiLich: true,
+  yeuCauDoiLich: null,
+};
+const REQUEST = {
+  trangThai: 'TuChoi',
+  thoiGianMongMuon: '2026-10-22T02:00:00.000Z',
+  ghiChuXuLy: 'Khung giờ này đã có lịch ưu tiên.',
+  thoiDiemTao: '2026-10-18T01:00:00.000Z',
 };
 const PAYMENT = {
   daThu: '100000.00',
@@ -62,8 +70,89 @@ const without = <T extends object>(value: T, key: keyof T) => {
 };
 
 describe('parsePatientAppointmentDetail', () => {
-  it('LCT-05 đủ mười bảy khoá ⇒ giữ nguyên mười hai khoá của danh sách, lyDoKham, thanhToan, hoanTien, thoiGianMayChu, moc (booking B19)', () => {
+  it('LCT-05 đủ mười chín khoá ⇒ giữ nguyên mười hai khoá của danh sách, lyDoKham, thanhToan, hoanTien, thoiGianMayChu, moc (booking B19), choPhepDoiLich, yeuCauDoiLich (reschedule B5)', () => {
     expect(parsePatientAppointmentDetail(DETAIL)).toEqual(DETAIL);
+  });
+
+  it('WDH-13 `choPhepDoiLich` và `yeuCauDoiLich`: yêu cầu null hoặc đủ bốn khoá; `ghiChuXuLy` null (chưa xử lý) được giữ null', () => {
+    expect(
+      parsePatientAppointmentDetail({ ...DETAIL, choPhepDoiLich: false })
+        .choPhepDoiLich,
+    ).toBe(false);
+    const withRequest = parsePatientAppointmentDetail({
+      ...DETAIL,
+      yeuCauDoiLich: REQUEST,
+    });
+    expect(withRequest.yeuCauDoiLich).toEqual(REQUEST);
+    const pending = parsePatientAppointmentDetail({
+      ...DETAIL,
+      yeuCauDoiLich: { ...REQUEST, trangThai: 'ChoDuyet', ghiChuXuLy: null },
+    });
+    expect(pending.yeuCauDoiLich).toEqual({
+      ...REQUEST,
+      trangThai: 'ChoDuyet',
+      ghiChuXuLy: null,
+    });
+    for (const trangThai of ['ChoDuyet', 'DaDuyet', 'TuChoi']) {
+      expect(
+        parsePatientAppointmentDetail({
+          ...DETAIL,
+          yeuCauDoiLich: { ...REQUEST, trangThai },
+        }).yeuCauDoiLich?.trangThai,
+      ).toBe(trangThai);
+    }
+  });
+
+  it('WDH-13 thiếu `choPhepDoiLich` hay `yeuCauDoiLich` (kể cả khi có thể null) ⇒ phản hồi 17 khoá cũ KHÔNG dùng được', () => {
+    unusable(without(DETAIL, 'choPhepDoiLich'));
+    unusable(without(DETAIL, 'yeuCauDoiLich'));
+    unusable(without(without(DETAIL, 'choPhepDoiLich'), 'yeuCauDoiLich'));
+  });
+
+  it('WDH-13 sai kiểu hay sai hình dạng của hai khoá mới ⇒ không dùng được', () => {
+    unusable({ ...DETAIL, choPhepDoiLich: 'true' });
+    unusable({ ...DETAIL, choPhepDoiLich: 1 });
+    unusable({ ...DETAIL, choPhepDoiLich: null });
+    unusable({ ...DETAIL, yeuCauDoiLich: 'ChoDuyet' });
+    unusable({ ...DETAIL, yeuCauDoiLich: [] });
+    // trạng thái lạ: không đoán nhãn cho một trạng thái yêu cầu chưa biết
+    unusable({
+      ...DETAIL,
+      yeuCauDoiLich: { ...REQUEST, trangThai: 'DangXuLy' },
+    });
+    unusable({
+      ...DETAIL,
+      yeuCauDoiLich: { ...REQUEST, trangThai: 'choduyet' },
+    });
+    unusable({
+      ...DETAIL,
+      yeuCauDoiLich: { ...REQUEST, thoiGianMongMuon: 'mai' },
+    });
+    unusable({ ...DETAIL, yeuCauDoiLich: { ...REQUEST, thoiDiemTao: 5 } });
+    unusable({ ...DETAIL, yeuCauDoiLich: { ...REQUEST, ghiChuXuLy: 5 } });
+    for (const key of [
+      'trangThai',
+      'thoiGianMongMuon',
+      'ghiChuXuLy',
+      'thoiDiemTao',
+    ] as const) {
+      unusable({ ...DETAIL, yeuCauDoiLich: without(REQUEST, key) });
+    }
+  });
+
+  it('WDH-13 khoá thừa của yêu cầu (id, người xử lý) không lọt ra kết quả', () => {
+    const parsed = parsePatientAppointmentDetail({
+      ...DETAIL,
+      yeuCauDoiLich: {
+        ...REQUEST,
+        yeuCauId: '5',
+        nguoiXuLyId: '9',
+        lyDoYeuCau: 'LO_RA',
+      },
+    });
+    expect(JSON.stringify(parsed.yeuCauDoiLich)).not.toMatch(
+      /yeuCauId|nguoiXuLyId|LO_RA/,
+    );
   });
 
   it('LCT-05 khoá thừa của API (id nội bộ, mã cổng thanh toán, giao dịch) không lọt ra kết quả', () => {

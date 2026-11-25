@@ -35,9 +35,15 @@ export function useAppointmentDetail(maLichHen: string) {
         ? { kind: 'ready', detail: kept.data, refreshing: kept.refreshing }
         : kept;
   if (view.kind === 'ready' && cancelled && view.detail.trangThai !== 'DaHuy') {
+    // `choPhepDoiLich: false` (reschedule F1): lịch vừa huỷ không còn đổi được, nút "Đổi lịch" biến mất cùng nút Hủy mà không phải GET lại
     view = {
       ...view,
-      detail: { ...view.detail, trangThai: 'DaHuy', choPhepHuy: false },
+      detail: {
+        ...view.detail,
+        trangThai: 'DaHuy',
+        choPhepHuy: false,
+        choPhepDoiLich: false,
+      },
     };
   }
 

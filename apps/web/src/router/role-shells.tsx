@@ -1,7 +1,9 @@
+import { AdminLayout } from '../features/admin/admin-layout';
 import { DoctorLayout } from '../features/doctor';
 import { useUnreadCount } from '../features/notification';
 import { PatientLayout, ReceptionLayout } from '../features/patient';
 import {
+  ADMIN_NOTIFICATIONS_PATH,
   DOCTOR_NOTIFICATIONS_PATH,
   PATIENT_NOTIFICATIONS_PATH,
   RECEPTION_NOTIFICATIONS_PATH,
@@ -32,6 +34,15 @@ export function ReceptionShell() {
     <ReceptionLayout
       {...RECEPTION_NAV}
       notifications={useShellNotifications(RECEPTION_NOTIFICATIONS_PATH)}
+    />
+  );
+}
+
+// notification F3: khung Quản trị viên (cả hai phạm vi), cùng cách nối chuông như ba khung trên
+export function AdminShell() {
+  return (
+    <AdminLayout
+      notifications={useShellNotifications(ADMIN_NOTIFICATIONS_PATH)}
     />
   );
 }

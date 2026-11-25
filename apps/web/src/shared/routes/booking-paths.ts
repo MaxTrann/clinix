@@ -43,6 +43,27 @@ export const patientAppointmentDetailPath = (maLichHen: string) =>
     encodeURIComponent(maLichHen),
   );
 
+// Đổi lịch hẹn của Bệnh nhân (reschedule F1, WDH-25; tên đường dẫn là [đề xuất]). Hai route nằm DƯỚI chi tiết lịch hẹn nên cùng mảng `PATIENT_APPOINTMENT_ROUTES` (không chạm `router/`):
+// `doi-lich` là trang chọn khung giờ mới, `doi-lich/xac-nhan` là màn xác nhận (thân do reschedule F2). Màn xác nhận nhận khung giờ qua query `khungGioId` (cùng tên khoá với luồng đặt lịch,
+// `BOOKING_SLOT_PARAM`): id là BIGINT dạng chuỗi, không lưu ở trình duyệt, tải lại trang vẫn chạy. Mã lịch và id đều qua `encodeURIComponent`.
+export const PATIENT_APPOINTMENT_RESCHEDULE_SEGMENT = `${PATIENT_APPOINTMENT_DETAIL_SEGMENT}/doi-lich`;
+export const PATIENT_APPOINTMENT_RESCHEDULE_ROUTE = `/benh-nhan/${PATIENT_APPOINTMENT_RESCHEDULE_SEGMENT}`;
+export const PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_SEGMENT = `${PATIENT_APPOINTMENT_RESCHEDULE_SEGMENT}/xac-nhan`;
+export const PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_ROUTE = `/benh-nhan/${PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_SEGMENT}`;
+export const patientAppointmentReschedulePath = (maLichHen: string) =>
+  PATIENT_APPOINTMENT_RESCHEDULE_ROUTE.replace(
+    ':maLichHen',
+    encodeURIComponent(maLichHen),
+  );
+export const patientAppointmentRescheduleConfirmPath = (
+  maLichHen: string,
+  khungGioId: string,
+) =>
+  `${PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_ROUTE.replace(
+    ':maLichHen',
+    encodeURIComponent(maLichHen),
+  )}?${BOOKING_SLOT_PARAM}=${encodeURIComponent(khungGioId)}`;
+
 // "Quản lý lịch hẹn" của Lễ tân (booking F8, BP-11; tên đường dẫn là [đề xuất], Đại duyệt 12/11/2026). `*_SEGMENT` là mẫu TƯƠNG ĐỐI với `/le-tan` cho route con của
 // khung Lễ tân (`RECEPTION_APPOINTMENT_ROUTES`), `*_PATH` là đường dẫn đầy đủ cho mục menu. File này không import gì nên gốc khu Lễ tân viết thẳng `/le-tan`; ca BP-11 khoá
 // nó khớp `ROLE_HOME_PATHS.LeTan`. Đoạn đường là nhãn menu không dấu (như `tra-cuu-benh-nhan` của patient). Chi tiết một lịch là NGĂN KÉO ở F8 và F9; từ F12b (BP-15; Đại duyệt

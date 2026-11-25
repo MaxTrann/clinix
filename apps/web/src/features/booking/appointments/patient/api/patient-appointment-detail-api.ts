@@ -1,6 +1,7 @@
 import { request } from '../../../../../shared/api/client';
 import {
   readAmount,
+  readFlag,
   readIsoDateTime,
   readMilestones,
   readRecord,
@@ -8,10 +9,12 @@ import {
   unusableResponse,
 } from '../../common/response-readers';
 import { parseAppointment } from './patient-appointments-api';
-import type {
-  PatientAppointmentDetail,
-  PaymentSummary,
-  RefundSummary,
+import {
+  RESCHEDULE_REQUEST_STATES,
+  type PatientAppointmentDetail,
+  type PaymentSummary,
+  type RefundSummary,
+  type RescheduleRequestSummary,
 } from './patient-appointment-types';
 
 // Gọi và kiểm hình dạng `GET /patient/appointments/:maLichHen` (booking F2; PLAN 5.9, hợp đồng B2: TRACKING 3.15, 3.27 F2-D). Route của Bệnh nhân nên GẮN
@@ -39,8 +42,24 @@ function parseRefund(raw: unknown): RefundSummary | null {
   return { soTien: readAmount(view.soTien), trangThai };
 }
 
-// Đủ mười bảy khoá: mười hai của dòng danh sách (dùng lại `parseAppointment` của F1) + `lyDoKham`, `thanhToan`, `hoanTien`, `thoiGianMayChu`, `moc` (booking B19).
-// Thiếu một khoá (kể cả `thanhToan` hay `hoanTien`, vốn có thể `null` nhưng luôn có mặt) ⇒ phản hồi không dùng được.
+// `null` khi lịch chưa từng có yêu cầu đổi lịch. Trạng thái lạ ⇒ không dùng được (không đoán nhãn cho một trạng thái yêu cầu chưa biết); khoá thừa không chép theo.
+function parseRescheduleRequest(raw: unknown): RescheduleRequestSummary | null {
+  if (raw === null) return null;
+  const view = readRecord(raw);
+  const trangThai = readText(view.trangThai);
+  const state = RESCHEDULE_REQUEST_STATES.find((item) => item === trangThai);
+  if (state === undefined) return unusableResponse();
+  return {
+    trangThai: state,
+    thoiGianMongMuon: readIsoDateTime(view.thoiGianMongMuon),
+    ghiChuXuLy: view.ghiChuXuLy === null ? null : readText(view.ghiChuXuLy),
+    thoiDiemTao: readIsoDateTime(view.thoiDiemTao),
+  };
+}
+
+// Đủ mười chín khoá: mười hai của dòng danh sách (dùng lại `parseAppointment` của F1) + `lyDoKham`, `thanhToan`, `hoanTien`, `thoiGianMayChu`, `moc` (booking B19),
+// `choPhepDoiLich`, `yeuCauDoiLich` (reschedule B5; F1 đọc NGHIÊM vì PR chỉ merge sau B5 và B6, phiên kiểm duyệt 25/11/2026).
+// Thiếu một khoá (kể cả `thanhToan`, `hoanTien` hay `yeuCauDoiLich`, vốn có thể `null` nhưng luôn có mặt) ⇒ phản hồi không dùng được.
 export function parsePatientAppointmentDetail(
   raw: unknown,
 ): PatientAppointmentDetail {
@@ -52,6 +71,8 @@ export function parsePatientAppointmentDetail(
     hoanTien: parseRefund(body.hoanTien),
     thoiGianMayChu: readIsoDateTime(body.thoiGianMayChu),
     moc: readMilestones(body.moc),
+    choPhepDoiLich: readFlag(body.choPhepDoiLich),
+    yeuCauDoiLich: parseRescheduleRequest(body.yeuCauDoiLich),
   };
 }
 

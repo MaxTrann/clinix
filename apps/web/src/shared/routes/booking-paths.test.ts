@@ -25,10 +25,16 @@ import {
   doctorListPath,
   PATIENT_APPOINTMENT_DETAIL_ROUTE,
   PATIENT_APPOINTMENT_DETAIL_SEGMENT,
+  PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_ROUTE,
+  PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_SEGMENT,
+  PATIENT_APPOINTMENT_RESCHEDULE_ROUTE,
+  PATIENT_APPOINTMENT_RESCHEDULE_SEGMENT,
   PATIENT_APPOINTMENTS_PATH,
   PATIENT_APPOINTMENTS_SEGMENT,
   PATIENT_PROFILE_PATH,
   patientAppointmentDetailPath,
+  patientAppointmentRescheduleConfirmPath,
+  patientAppointmentReschedulePath,
   RECEPTION_APPOINTMENT_DETAIL_ROUTE,
   RECEPTION_APPOINTMENT_DETAIL_SEGMENT,
   RECEPTION_APPOINTMENTS_PATH,
@@ -357,5 +363,75 @@ describe('booking F12b — chi tiết lịch hẹn của Lễ tân là trang', (
     expect(
       RECEPTION_APPOINTMENT_DETAIL_ROUTE.startsWith(`${BOOKING_PATH}/`),
     ).toBe(false);
+  });
+});
+
+// reschedule F1. Mã ca WDH-25 là [đề xuất] (PLAN reschedule 7.11). Trang chọn khung giờ đổi lịch và màn xác nhận nằm DƯỚI chi tiết lịch hẹn của Bệnh nhân: mẫu tương đối
+// (cho route con của `PATIENT_APPOINTMENT_ROUTES`) và mẫu đầy đủ khớp nhau, `khungGioId` đi trên query với tên chung của luồng đặt lịch.
+describe('reschedule F1 — đường dẫn đổi lịch của Bệnh nhân', () => {
+  it('WDH-25 mẫu route khớp hàm dựng, nằm dưới chi tiết, khác mọi đường dẫn đã có', () => {
+    expect(PATIENT_APPOINTMENT_RESCHEDULE_SEGMENT).toBe(
+      'lich-hen-cua-toi/:maLichHen/doi-lich',
+    );
+    expect(PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_SEGMENT).toBe(
+      'lich-hen-cua-toi/:maLichHen/doi-lich/xac-nhan',
+    );
+    // Mẫu đầy đủ = gốc khu Bệnh nhân + mẫu tương đối (cùng nếp BP-10) và nằm dưới chi tiết
+    expect(PATIENT_APPOINTMENT_RESCHEDULE_ROUTE).toBe(
+      `${ROLE_HOME_PATHS.BenhNhan}/${PATIENT_APPOINTMENT_RESCHEDULE_SEGMENT}`,
+    );
+    expect(PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_ROUTE).toBe(
+      `${ROLE_HOME_PATHS.BenhNhan}/${PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_SEGMENT}`,
+    );
+    expect(
+      PATIENT_APPOINTMENT_RESCHEDULE_ROUTE.startsWith(
+        `${PATIENT_APPOINTMENT_DETAIL_ROUTE}/`,
+      ),
+    ).toBe(true);
+    expect(
+      PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_ROUTE.startsWith(
+        `${PATIENT_APPOINTMENT_RESCHEDULE_ROUTE}/`,
+      ),
+    ).toBe(true);
+
+    expect(patientAppointmentReschedulePath('CP20261018001')).toBe(
+      '/benh-nhan/lich-hen-cua-toi/CP20261018001/doi-lich',
+    );
+    // Cùng tên khoá query với luồng đặt lịch; id lớn hơn 2^53 giữ nguyên chuỗi
+    expect(BOOKING_SLOT_PARAM).toBe('khungGioId');
+    expect(
+      patientAppointmentRescheduleConfirmPath(
+        'CP20261018001',
+        '9007199254740993',
+      ),
+    ).toBe(
+      '/benh-nhan/lich-hen-cua-toi/CP20261018001/doi-lich/xac-nhan?khungGioId=9007199254740993',
+    );
+  });
+
+  it('WDH-25 ca âm: mã lịch và id có ký tự đặc biệt được mã hoá ở CẢ hai hàm, không thoát khỏi đoạn đường hay query', () => {
+    expect(patientAppointmentReschedulePath('A/B?c#d e')).toBe(
+      '/benh-nhan/lich-hen-cua-toi/A%2FB%3Fc%23d%20e/doi-lich',
+    );
+    expect(patientAppointmentRescheduleConfirmPath('A/B?c#d', '1&x=2')).toBe(
+      '/benh-nhan/lich-hen-cua-toi/A%2FB%3Fc%23d/doi-lich/xac-nhan?khungGioId=1%26x%3D2',
+    );
+  });
+
+  it('WDH-25 đường dẫn chi tiết cũ KHÔNG đổi (nút Huỷ và danh sách trỏ vào nó)', () => {
+    expect(PATIENT_APPOINTMENT_DETAIL_ROUTE).toBe(
+      '/benh-nhan/lich-hen-cua-toi/:maLichHen',
+    );
+    expect(patientAppointmentDetailPath('X')).toBe(
+      '/benh-nhan/lich-hen-cua-toi/X',
+    );
+    const taken = [
+      ...Object.values(ROLE_HOME_PATHS),
+      PATIENT_APPOINTMENT_DETAIL_ROUTE,
+      BOOKING_INFO_PATH,
+      BOOKING_CONFIRM_PATH,
+    ];
+    expect(taken).not.toContain(PATIENT_APPOINTMENT_RESCHEDULE_ROUTE);
+    expect(taken).not.toContain(PATIENT_APPOINTMENT_RESCHEDULE_CONFIRM_ROUTE);
   });
 });

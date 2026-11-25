@@ -14,3 +14,5 @@ export { DOCTOR_TEAM_PATH } from './search-paths';
 export { BOOKING_PATH } from './search-paths';
 export { BranchListPage } from './branches/branch-list-page';
 export { BranchDetailPage } from './branches/branch-detail-page';
+// reschedule F1: bộ chọn khung giờ dùng chung (dải ngày + lưới của MỘT bác sĩ, ô còn trống là nút); booking import qua đây (BWZ-08, WDH-26).
+export { SlotPicker } from './slots/slot-picker';

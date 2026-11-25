@@ -1,6 +1,5 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { ADMIN_ROUTES } from '../features/admin/admin-routes';
-import { AdminLayout } from '../features/admin/admin-layout';
 import { RequireAuth, ROLE_HOME_PATHS, type VaiTro } from '../features/auth';
 import {
   ADMIN_APPROVALS_ROUTES,
@@ -31,7 +30,12 @@ import {
   PATIENT_WALLET_ROUTES,
 } from '../features/wallet';
 import { ShellContentError } from '../shared/ui/shell-content-error';
-import { DoctorShell, PatientShell, ReceptionShell } from './role-shells';
+import {
+  AdminShell,
+  DoctorShell,
+  PatientShell,
+  ReceptionShell,
+} from './role-shells';
 import { RouteErrorElement } from './route-error-element';
 
 // Bảng "vai trò ⇒ route". Khi trang thật xong, chỉ thay ĐÚNG mục của vai trò đó (ví dụ admin F1 thay QuanTriVien); cổng theo vai trò do hàm dưới gắn.
@@ -112,7 +116,7 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
   },
   QuanTriVien: {
     path: ROLE_HOME_PATHS.QuanTriVien,
-    element: <AdminLayout />,
+    element: <AdminShell />,
     // doctor F6, F8: Lịch làm việc bác sĩ và Duyệt yêu cầu của Quản trị viên (đã bọc AdminScopeGuard ở từng mảng route)
     children: [
       ...ADMIN_ROUTES,
@@ -127,6 +131,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
       ...ADMIN_DEPOSIT_POLICY_ROUTES,
       // payment F7: Quản lý tài chính ví, tab Yêu cầu rút tiền (đã bọc AdminScopeGuard ToanHeThong)
       ...ADMIN_FINANCE_ROUTES,
+      // notification F3: Thông báo (cả hai phạm vi: dữ liệu của chính tài khoản, không bọc AdminScopeGuard)
+      ...NOTIFICATION_ROUTES,
     ],
     // doctor UX4 (G18): cùng màn 500 với route gốc (thay AdminErrorBoundary)
     errorElement: <RouteErrorElement />,
