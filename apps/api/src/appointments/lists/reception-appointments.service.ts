@@ -8,6 +8,7 @@ import { runReadOnly } from '../../common/transaction/read-only-tx.js';
 import type { ReceptionScope } from '../../rbac/reception-scope.js';
 import { ReceptionScopeService } from '../../rbac/reception-scope.service.js';
 import { resolveReceptionBranch } from '../reception-branch.js';
+import { RescheduleDetailReader } from '../reschedule/reschedule-detail.reader.js';
 import {
   PAYMENT_SUMMARY_PORT,
   type PaymentSummaryPort,
@@ -41,6 +42,8 @@ export class ReceptionAppointmentsService {
     private readonly operations: OperationsAppointmentsService,
     @Inject(PAYMENT_SUMMARY_PORT) private readonly payments: PaymentSummaryPort,
     @Inject(SystemConfigService) private readonly configs: SystemConfigService,
+    @Inject(RescheduleDetailReader)
+    private readonly reschedule: RescheduleDetailReader,
   ) {}
 
   // Phạm vi chi nhánh kiểm LẠI lúc chạy: hàm dùng chung với route GHI của B12 (`reception-branch.ts`), nên route ghi không yếu hơn route đọc
@@ -68,6 +71,8 @@ export class ReceptionAppointmentsService {
     maLichHen: string,
   ): Promise<ReceptionAppointmentDetail> {
     const scope = await this.receptionScope(accountId);
+    // Một mốc cho hạn đổi hộ (reschedule B5): `thoi_gian + check_in_sau_phut`
+    const rescheduleNow = toSecond(nowVN());
     const read = await runReadOnly(this.dataSource, async (manager) => {
       const row = await this.operations.findDetail(manager, scope, maLichHen);
       if (row === null) return null;
@@ -75,7 +80,13 @@ export class ReceptionAppointmentsService {
         row.trangThai === 'DaXacNhan'
           ? await this.payments.remainingToCollect(manager, row.lichHenId)
           : null;
-      return { row, conPhaiThu };
+      // Cùng ảnh chụp với hàng lịch; vai `DoiHo` trong chi nhánh của Lễ tân (không phải quy tắc của Bệnh nhân)
+      const reschedule = await this.reschedule.forReception(manager, {
+        chiNhanhId: scope.chiNhanhId,
+        maLichHen,
+        now: rescheduleNow,
+      });
+      return { row, conPhaiThu, reschedule };
     });
     // Ném SAU khi giao dịch đã đóng, ở MỘT chỗ duy nhất cho mọi lý do "không xem được"
     if (read === null)
@@ -96,6 +107,8 @@ export class ReceptionAppointmentsService {
       ...toOperationsDetail(read.row),
       chuyenDuoc: allowedTargets('LeTan', read.row.trangThai, ctx),
       conPhaiThu: read.conPhaiThu,
+      choPhepDoiLich: read.reschedule.choPhepDoiLich,
+      coYeuCauChoDuyet: read.reschedule.coYeuCauChoDuyet,
     };
   }
 }

@@ -9,6 +9,7 @@ import { AppException } from '../../common/errors/app.exception.js';
 import type { AdminScope } from '../../rbac/admin-scope.js';
 import type { ReceptionScopeService } from '../../rbac/reception-scope.service.js';
 import type { PaymentSummaryPort } from '../ports/payment.port.js';
+import type { RescheduleDetailReader } from '../reschedule/reschedule-detail.reader.js';
 import type { OperationsAppointmentDetailRow } from './operations-appointments.repository.js';
 import type { OperationsAppointmentsService } from './operations-appointments.service.js';
 import { ReceptionAppointmentsService } from './reception-appointments.service.js';
@@ -40,6 +41,7 @@ let operations: {
 };
 let payments: { remainingToCollect: ReturnType<typeof vi.fn> };
 let configs: { get: ReturnType<typeof vi.fn> };
+let forReception: ReturnType<typeof vi.fn>;
 let service: ReceptionAppointmentsService;
 
 function detailRow(
@@ -88,12 +90,17 @@ beforeEach(() => {
       checkInSauPhut: 15,
     } as CauHinhHeThong),
   };
+  // Bộ đọc hai khoá đổi lịch (reschedule B5) GIẢ ở đây; bộ luật và SQL thật ở `reschedule-detail.reader.*` và `reception-appointments.int-spec.ts`
+  forReception = vi
+    .fn()
+    .mockResolvedValue({ choPhepDoiLich: false, coYeuCauChoDuyet: false });
   service = new ReceptionAppointmentsService(
     DB,
     scopes as unknown as ReceptionScopeService,
     operations as unknown as OperationsAppointmentsService,
     payments as unknown as PaymentSummaryPort,
     configs as unknown as SystemConfigService,
+    { forReception } as unknown as RescheduleDetailReader,
   );
 });
 
@@ -169,6 +176,7 @@ describe('chi tiết: 404 và phạm vi (DSV-09, QB-04)', () => {
     });
     expect(payments.remainingToCollect).not.toHaveBeenCalled();
     expect(configs.get).not.toHaveBeenCalled();
+    expect(forReception).not.toHaveBeenCalled();
   });
 
   it('QB-04 tìm trong ĐÚNG phạm vi đã giải và trong `manager` của một lần `runReadOnly`', async () => {
@@ -183,14 +191,44 @@ describe('chi tiết: 404 và phạm vi (DSV-09, QB-04)', () => {
 });
 
 describe('chi tiết: hình dạng và conPhaiThu (DSV-10, DSV-13)', () => {
-  it('DSV-13 đúng 17 khoá (có `moc`); `lichHenId` (dùng gọi cổng) không lọt ra JSON', async () => {
+  it('DSV-13 đúng 19 khoá (có `moc`; reschedule B5: thêm `choPhepDoiLich`, `coYeuCauChoDuyet`); `lichHenId` (dùng gọi cổng) không lọt ra JSON', async () => {
     const detail = await service.detail('77', CODE);
-    expect(Object.keys(detail)).toHaveLength(17);
-    expect(Object.keys(detail).slice(-2)).toStrictEqual([
+    expect(Object.keys(detail)).toHaveLength(19);
+    expect(Object.keys(detail).slice(-4)).toStrictEqual([
       'chuyenDuoc',
       'conPhaiThu',
+      'choPhepDoiLich',
+      'coYeuCauChoDuyet',
     ]);
     expect(JSON.stringify(detail)).not.toContain('4242');
+  });
+
+  it('DLH-45 hai khoá đổi lịch: bộ đọc nhận ĐÚNG manager, chi nhánh của PHẠM VI đã giải (không phải của query) và mã lịch; mốc `now` cắt giây; giá trị chép nguyên', async () => {
+    vi.setSystemTime(new Date(APPOINTMENT_AT.getTime() - 60 * MIN + 987));
+    forReception.mockResolvedValue({
+      choPhepDoiLich: true,
+      coYeuCauChoDuyet: true,
+    });
+    const detail = await service.detail('77', CODE);
+    expect(forReception).toHaveBeenCalledTimes(1);
+    expect(forReception).toHaveBeenCalledWith(hoisted.manager, {
+      chiNhanhId: '5',
+      maLichHen: CODE,
+      now: new Date(APPOINTMENT_AT.getTime() - 60 * MIN),
+    });
+    expect(detail.choPhepDoiLich).toBe(true);
+    expect(detail.coYeuCauChoDuyet).toBe(true);
+  });
+
+  it('DLH-42 thiếu `cau_hinh_he_thong` ⇒ vẫn KHÔNG 409, hai khoá đổi lịch do bộ đọc quyết (nó tự trả `choPhepDoiLich` false)', async () => {
+    configs.get.mockResolvedValue(null);
+    forReception.mockResolvedValue({
+      choPhepDoiLich: false,
+      coYeuCauChoDuyet: false,
+    });
+    const detail = await service.detail('77', CODE);
+    expect(detail.choPhepDoiLich).toBe(false);
+    expect(Object.keys(detail)).toHaveLength(19);
   });
 
   it('DSV-10 `DaXacNhan`: `conPhaiThu` lấy từ cổng, truyền ĐÚNG `manager` của giao dịch và `lichHenId`', async () => {

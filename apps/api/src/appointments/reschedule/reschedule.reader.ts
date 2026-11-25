@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
+import type { CauHinhHeThong } from '../../admin/entities/cau-hinh-he-thong.entity.js';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import { SystemConfigService } from '../../admin/system-config/system-config.service.js';
 import { AppException } from '../../common/errors/app.exception.js';
@@ -28,6 +29,28 @@ import type {
 //    ĐÚNG MỘT lần, với `ca` của khung giờ đích (TECH_DEBT 260, phần kiểm; KDL-17).
 
 const CONFIG_MISSING_CODE = 'HE_THONG_CHUA_CAU_HINH';
+
+const configMissing = (): AppException =>
+  new AppException(409, CONFIG_MISSING_CODE, {
+    thongBao: 'Hệ thống chưa được cấu hình.',
+  });
+
+// Ba giá trị đổi lịch dùng, hoặc `null` khi có giá trị không phải số nguyên `>= 0` (dữ liệu hỏng coi như chưa cấu hình, không số ngầm).
+function configOf(
+  row: Pick<
+    CauHinhHeThong,
+    'soLanTuDoiLichToiDa' | 'checkInSauPhut' | 'soLichHenToiDaMoiHoSo'
+  >,
+): RescheduleConfig | null {
+  const config: RescheduleConfig = {
+    soLanTuDoiLichToiDa: row.soLanTuDoiLichToiDa,
+    checkInSauPhut: row.checkInSauPhut,
+    soLichHenToiDaMoiHoSo: row.soLichHenToiDaMoiHoSo,
+  };
+  for (const value of Object.values(config))
+    if (!Number.isInteger(value) || value < 0) return null;
+  return config;
+}
 // DATE_FORMAT: chuỗi giờ VN nguyên văn (không để driver đổi), như `BookabilityReader` (H13)
 const DATE_TIME_FORMAT = "'%Y-%m-%d %H:%i:%s'";
 
@@ -95,6 +118,20 @@ export interface RescheduleReadInput {
   requestReasonGiven: boolean;
 }
 
+export interface AvailabilityReadInput {
+  actor: RescheduleActor;
+  maLichHen: string;
+  /** `toSecond(nowVN())` */
+  now: Date;
+  config: Pick<RescheduleConfig, 'soLanTuDoiLichToiDa' | 'checkInSauPhut'>;
+}
+
+/** Dữ kiện không có khung giờ đích: đủ cho `evaluateRescheduleAvailability` (không `bookability`, không `requestReasonGiven`). */
+export type AvailabilityFacts = Omit<
+  ReschedulabilityFacts,
+  'bookability' | 'requestReasonGiven'
+>;
+
 export interface RescheduleRead {
   facts: ReschedulabilityFacts;
   /** Có ở chế độ `locked` khi khung giờ đích đọc được: bằng chứng cho `SlotHoldService` */
@@ -111,18 +148,18 @@ export class RescheduleReader {
 
   /** Cấu hình của đổi lịch. Không có dòng cấu hình, hay có giá trị không phải số nguyên `>= 0`, là 409 `HE_THONG_CHUA_CAU_HINH`: KHÔNG dùng số ngầm. */
   async config(): Promise<RescheduleConfig> {
-    const row = await this.systemConfig.getOrThrow();
-    const config: RescheduleConfig = {
-      soLanTuDoiLichToiDa: row.soLanTuDoiLichToiDa,
-      checkInSauPhut: row.checkInSauPhut,
-      soLichHenToiDaMoiHoSo: row.soLichHenToiDaMoiHoSo,
-    };
-    for (const value of Object.values(config))
-      if (!Number.isInteger(value) || value < 0)
-        throw new AppException(409, CONFIG_MISSING_CODE, {
-          thongBao: 'Hệ thống chưa được cấu hình.',
-        });
+    const config = configOf(await this.systemConfig.getOrThrow());
+    if (config === null) throw configMissing();
     return config;
+  }
+
+  /**
+   * Như `config()` nhưng KHÔNG ném: `null` khi thiếu dòng cấu hình hay giá trị lạ (reschedule B5). Dành cho chi tiết lịch, vốn đọc được dù chưa cấu hình (`choPhepDoiLich` là `false`);
+   * route GHI và preview dùng `config()` để trả 409.
+   */
+  async tryConfig(): Promise<RescheduleConfig | null> {
+    const row = await this.systemConfig.get();
+    return row === null ? null : configOf(row);
   }
 
   /**
@@ -211,6 +248,42 @@ export class RescheduleReader {
         pendingRequest,
       },
       locked: read.kind === 'Read' ? read.locked : null,
+    };
+  }
+
+  /**
+   * Dữ kiện cho `evaluateRescheduleAvailability` (reschedule B5): lịch này có đổi được KHÔNG KÈM khung giờ đích không. CHỈ ĐỌC THƯỜNG, không khoá, không đọc khung giờ nào (nên không gọi
+   * `BookabilityReader`, cổng nghỉ phép hay cổng thay đổi chi nhánh). Dùng cho chi tiết lịch và preview không có `khungGioId`; người gọi truyền `em` của MỘT lần `runReadOnly` để cùng ảnh chụp.
+   * Không có lịch, ngoài phạm vi hay hồ sơ người thân không thuộc chủ lịch (dữ liệu lệch) ⇒ `source` `null` (cùng một kết quả như `read`).
+   */
+  async readAvailability(
+    em: EntityManager,
+    input: AvailabilityReadInput,
+  ): Promise<AvailabilityFacts> {
+    const base = {
+      actor: input.actor,
+      now: toSecond(input.now),
+      config: input.config,
+    };
+    const source = await this.readSource(em, input.actor, input.maLichHen);
+    const profile =
+      source === null
+        ? 'missing'
+        : await readVisitProfile(em, source.benhNhanId, source.hoSoNguoiThanId);
+    if (source === null || profile === 'missing')
+      return {
+        ...base,
+        source: null,
+        profileActive: true,
+        chainLength: 0,
+        pendingRequest: false,
+      };
+    return {
+      ...base,
+      source,
+      profileActive: profile === 'active',
+      chainLength: await this.readChainLength(em, source.lichHenId),
+      pendingRequest: await this.readPendingRequest(em, source.lichHenId),
     };
   }
 

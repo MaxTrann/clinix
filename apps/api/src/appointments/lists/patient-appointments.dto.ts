@@ -9,6 +9,7 @@ import {
 } from '../active-appointment-states.js';
 import type { PaymentView } from '../ports/payment.port.js';
 import type { RefundView } from '../ports/wallet.port.js';
+import type { PatientRescheduleRequest } from '../reschedule/reschedule-request.types.js';
 import {
   CalendarDayParam,
   IdFilterParam,
@@ -109,10 +110,11 @@ export interface PatientAppointmentItem {
 }
 
 /**
- * Chi tiết MỘT lịch hẹn (task B2; PLAN booking 5.8, 5.9, L17; TRACKING 3.15.1): ĐÚNG mười bảy khoá = mười hai khoá của một dòng danh sách (cùng hàm ánh xạ) cộng
+ * Chi tiết MỘT lịch hẹn (task B2; PLAN booking 5.8, 5.9, L17; TRACKING 3.15.1): ĐÚNG mười chín khoá = mười hai khoá của một dòng danh sách (cùng hàm ánh xạ) cộng
  * `lyDoKham` (chuỗi hoặc `null`), `thanhToan` và `hoanTien` (`null` tới khi `payment` và `wallet` có, qua cổng), `thoiGianMayChu` (ISO 8601 UTC, giữ mili giây:
- * để giao diện bù lệch đồng hồ khi đếm ngược theo `hanThanhToan`) và `moc` (booking B19: ba mốc `xacNhan`, `tiepDon`, `hoanThanh`). Không `lich_hen_id`, `benh_nhan_id`, `khung_gio_id`, `ho_so_nguoi_than_id`, không email hay SĐT
- * của bác sĩ (LSH-14), không `lyDoHuy` (chờ F2, B12 và Figma `691:2` chốt: thêm khoá sau là cộng thêm).
+ * để giao diện bù lệch đồng hồ khi đếm ngược theo `hanThanhToan`), `moc` (booking B19: ba mốc `xacNhan`, `tiepDon`, `hoanThanh`) và hai khoá đổi lịch (reschedule B5: `choPhepDoiLich`, `yeuCauDoiLich`;
+ * web đọc NGHIÊM, thiếu hay thừa một khoá là cả trang báo lỗi). Không `lich_hen_id`, `benh_nhan_id`, `khung_gio_id`, `ho_so_nguoi_than_id`, không email hay SĐT
+ * của bác sĩ (LSH-14), không `lyDoHuy` (chờ F2, B12 và Figma `691:2` chốt: thêm khoá sau là cộng thêm), không `ly_do_yeu_cau`, id yêu cầu hay người xử lý.
  */
 export interface PatientAppointmentDetail extends PatientAppointmentItem {
   lyDoKham: string | null;
@@ -121,6 +123,10 @@ export interface PatientAppointmentDetail extends PatientAppointmentItem {
   thoiGianMayChu: string;
   /** Mốc từng bước (booking B19): ISO 8601 UTC hoặc `null` từng bước; lịch cũ ba `null` */
   moc: StatusMilestones;
+  /** Bệnh nhân bấm "Đổi lịch" hoặc "Gửi yêu cầu đổi lịch" được không: CÙNG bộ luật B2 với `choPhepDoi` của preview (reschedule B5) */
+  choPhepDoiLich: boolean;
+  /** Yêu cầu đổi lịch MỚI NHẤT của lịch (`thoi_diem_tao` lớn nhất, hoà thì id lớn nhất), hoặc `null` khi chưa có */
+  yeuCauDoiLich: PatientRescheduleRequest | null;
 }
 
 /** Số lịch theo từng trạng thái hiển thị: đủ sáu khoá, trạng thái không có dòng nào là `0`. */

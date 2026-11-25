@@ -34,7 +34,12 @@ function row(
     ...overrides,
   };
 }
-const NO_EXTRAS = { thanhToan: null, hoanTien: null, serverTime: SERVER_TIME };
+const NO_EXTRAS = {
+  thanhToan: null,
+  hoanTien: null,
+  serverTime: SERVER_TIME,
+  reschedule: { choPhepDoiLich: false, yeuCauDoiLich: null },
+};
 
 const ITEM_KEYS = [
   'bacSi',
@@ -52,11 +57,13 @@ const ITEM_KEYS = [
 ];
 const DETAIL_KEYS = [
   ...ITEM_KEYS,
+  'choPhepDoiLich',
   'hoanTien',
   'lyDoKham',
   'moc',
   'thanhToan',
   'thoiGianMayChu',
+  'yeuCauDoiLich',
 ].sort();
 
 describe('MOC-19 toDetail: khoá `moc` (booking B19)', () => {
@@ -112,11 +119,11 @@ describe('LSH-13 choPhepHuy từ ma trận P1', () => {
   });
 });
 
-describe('LSH-10 toDetail: đúng mười bảy khoá', () => {
-  it('mười hai khoá đầu GIỐNG HỆT toItem (cùng hàm ánh xạ), cộng năm khoá của chi tiết (booking B19: thêm `moc`)', () => {
+describe('LSH-10 toDetail: đúng mười chín khoá (HDL-11)', () => {
+  it('mười hai khoá đầu GIỐNG HỆT toItem (cùng hàm ánh xạ), cộng bảy khoá của chi tiết (booking B19: thêm `moc`; reschedule B5: thêm `choPhepDoiLich`, `yeuCauDoiLich`)', () => {
     const detail = toDetail(row(), NO_EXTRAS);
     expect(Object.keys(detail).sort()).toStrictEqual(DETAIL_KEYS);
-    expect(DETAIL_KEYS).toHaveLength(17);
+    expect(DETAIL_KEYS).toHaveLength(19);
     const item = toItem(row());
     expect(Object.keys(item).sort()).toStrictEqual(ITEM_KEYS);
     for (const key of ITEM_KEYS)
@@ -179,9 +186,9 @@ describe('LSH-23 thanhToan, hoanTien qua cổng: ánh xạ từng khoá', () => 
       thoiDiem: '2026-11-11T02:00:00.000Z',
     };
     const detail = toDetail(row(), {
+      ...NO_EXTRAS,
       thanhToan,
       hoanTien,
-      serverTime: SERVER_TIME,
     });
     expect(detail.thanhToan).toStrictEqual(thanhToan);
     expect(detail.hoanTien).toStrictEqual(hoanTien);
@@ -212,9 +219,9 @@ describe('LSH-23 thanhToan, hoanTien qua cổng: ánh xạ từng khoá', () => 
     };
     const json = JSON.stringify(
       toDetail(row(), {
+        ...NO_EXTRAS,
         thanhToan: leakyPayment,
         hoanTien: leakyRefund,
-        serverTime: SERVER_TIME,
       }),
     );
     for (const secret of [
@@ -227,5 +234,67 @@ describe('LSH-23 thanhToan, hoanTien qua cổng: ánh xạ từng khoá', () => 
       'soLanThu',
     ])
       expect(json).not.toContain(secret);
+  });
+});
+
+describe('DLH-44 hai khoá đổi lịch (reschedule B5): danh sách trắng', () => {
+  const REQUEST = {
+    trangThai: 'TuChoi' as const,
+    thoiGianMongMuon: '2026-11-20T01:30:00.000Z',
+    ghiChuXuLy: 'Bác sĩ nghỉ phép hôm đó',
+    thoiDiemTao: '2026-11-10T02:00:00.000Z',
+  };
+
+  it('đúng bốn khoá của yêu cầu, kiểu và giá trị như bộ đọc đưa vào; `choPhepDoiLich` chép nguyên', () => {
+    const detail = toDetail(row(), {
+      ...NO_EXTRAS,
+      reschedule: { choPhepDoiLich: true, yeuCauDoiLich: REQUEST },
+    });
+    expect(detail.choPhepDoiLich).toBe(true);
+    expect(detail.yeuCauDoiLich).toStrictEqual(REQUEST);
+    expect(Object.keys(detail.yeuCauDoiLich ?? {}).sort()).toStrictEqual([
+      'ghiChuXuLy',
+      'thoiDiemTao',
+      'thoiGianMongMuon',
+      'trangThai',
+    ]);
+  });
+
+  it('bộ đọc trả THỪA trường (lý do yêu cầu, id yêu cầu, người xử lý) ⇒ không lọt ra JSON', () => {
+    const leaky = {
+      ...REQUEST,
+      lyDoYeuCau: 'LY-DO-RIENG-TU-4471',
+      yeuCauId: '777001',
+      nguoiXuLyId: '888002',
+    };
+    const json = JSON.stringify(
+      toDetail(row(), {
+        ...NO_EXTRAS,
+        reschedule: { choPhepDoiLich: false, yeuCauDoiLich: leaky },
+      }),
+    );
+    for (const secret of [
+      'LY-DO-RIENG-TU',
+      '777001',
+      '888002',
+      'lyDoYeuCau',
+      'yeuCauId',
+      'nguoiXuLy',
+    ])
+      expect(json).not.toContain(secret);
+  });
+
+  it('chưa có yêu cầu ⇒ `yeuCauDoiLich` là null (không phải đối tượng rỗng); ghiChuXuLy null được giữ', () => {
+    expect(toDetail(row(), NO_EXTRAS).yeuCauDoiLich).toBeNull();
+    const waiting = {
+      ...REQUEST,
+      trangThai: 'ChoDuyet' as const,
+      ghiChuXuLy: null,
+    };
+    const detail = toDetail(row(), {
+      ...NO_EXTRAS,
+      reschedule: { choPhepDoiLich: false, yeuCauDoiLich: waiting },
+    });
+    expect(detail.yeuCauDoiLich).toStrictEqual(waiting);
   });
 });
