@@ -3,6 +3,7 @@ import { Outlet } from 'react-router';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { ApiError } from '../../shared/api/errors';
+import type { RoleShellNotifications } from '../../shared/ui/role-shell';
 import { logout } from '../auth';
 import { AdminForbiddenPage } from './admin-forbidden-page';
 import { AdminMeProvider } from './admin-me-context';
@@ -11,7 +12,12 @@ import { AdminHeader } from './components/admin-header';
 import { AdminSidebar } from './components/admin-sidebar';
 import styles from './components/admin-layout.module.css';
 
-export function AdminLayout() {
+export interface AdminLayoutProps {
+  // notification F3: chuông và số đếm do router thăm dò rồi truyền xuống (module admin không import `features/notification`, WTB-16)
+  notifications?: RoleShellNotifications;
+}
+
+export function AdminLayout({ notifications }: AdminLayoutProps = {}) {
   const { state, retry } = useAdminMe();
   const [logoutPending, setLogoutPending] = useState(false);
   const [logoutFailed, setLogoutFailed] = useState(false);
@@ -47,11 +53,13 @@ export function AdminLayout() {
           onLogout={() => void handleLogout()}
           logoutPending={logoutPending}
           logoutFailed={logoutFailed}
+          unread={notifications?.unread}
         />
         <div className={styles.mainColumn}>
           <AdminHeader
             onLogout={() => void handleLogout()}
             logoutPending={logoutPending}
+            notifications={notifications}
           />
           <main className={styles.mainContent} aria-label="Khu vực Admin">
             <div className={styles.shellContent}>
