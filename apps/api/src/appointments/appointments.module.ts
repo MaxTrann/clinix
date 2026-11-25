@@ -52,6 +52,7 @@ import { PENDING_BRANCH_CHANGES_PORT } from './ports/pending-branch-changes.port
 import { BOOKING_PORT_PROVIDERS } from './ports/ports.providers.js';
 import { REFUND_PORT, WALLET_BALANCE_PORT } from './ports/wallet.port.js';
 import { AppointmentQueries } from './queries/appointment-queries.js';
+import { AppointmentRescheduleService } from './reschedule/appointment-reschedule.service.js';
 import { RescheduleDetailReader } from './reschedule/reschedule-detail.reader.js';
 import { RescheduleRequestRepository } from './reschedule/reschedule-request.repository.js';
 import { RescheduleRequestService } from './reschedule/reschedule-request.service.js';
@@ -116,6 +117,10 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 // `PendingBranchChangesPort` (B16b, ĐÃ LÀM, TRACKING 3.50) là adapter `useClass` (admin chỉ có `getPendingEffectiveChanges(em, chiNhanhId)` theo chi nhánh). Cảnh báo cho payment, wallet, waitlist (suy ra ở P2, ĐÃ ĐO ở B7 bằng Nest thật: HDT-11, TRACKING 3.47.2): các module
 // đó `import AppointmentsModule` (gọi `confirmPaid`, `RefundCalculator`, `SlotHoldService`) nên nếu module này cũng import lại họ sẽ thành vòng import module (Nest đòi
 // `forwardRef`): đặt bản thật của cổng trong một module nhỏ KHÔNG import `AppointmentsModule`. Test thay cổng bằng bản giả: `overrideProvider(TOKEN).useValue(fake)`.
+//
+// reschedule B4 (đã làm; TRACKING reschedule 1.7): `RescheduleReader` (B2) và `AppointmentRescheduleService` (`reschedule/`; LÕI đổi lịch, MỘT thân giao dịch cho tự đổi, đổi hộ và duyệt yêu cầu) vào `providers`. KHÔNG `exports`: các
+// đường gọi (route Bệnh nhân B6, Lễ tân B7, duyệt B9) đều nằm trong module này; không `imports` mới (cổng danh sách chờ vẫn là `Noop`, cổng thông báo là `BookingNotifier`). Tiêm `DataSource`, `SlotHoldService`,
+// `AppointmentTransitionService`, `APPOINTMENT_NOTIFIER`, `WAITLIST_PORT`, `APPOINTMENT_CODE_RANDOM` đã có sẵn; `RescheduleReader` cần thêm `BookabilityReader` và `SystemConfigService` (đã nhập qua `SystemConfigModule`).
 //
 // Chiều phụ thuộc DUY NHẤT: doctor → appointments → scheduling (doctor H20). Module này KHÔNG BAO GIỜ import `DoctorModule`, KHÔNG import `ScheduleModule` và KHÔNG gọi
 // `ScheduleModule.forRoot()` (app.module.ts đã đăng ký một lần; gọi thêm thì mọi job `@Cron` chạy gấp đôi, TECH_DEBT dòng 33; job B9, B13 chỉ dùng `@Cron`).
@@ -185,6 +190,8 @@ const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
     },
     { provide: APPOINTMENT_CODE_RANDOM, useValue: randomCodeSuffix },
     CreateAppointmentService,
+    RescheduleReader,
+    AppointmentRescheduleService,
     DoctorAppointmentsService,
     DoctorAppointmentsRepository,
     PatientAppointmentsService,
@@ -211,7 +218,6 @@ const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
     NoShowJob,
     AppointmentCancellationService,
     CancelPreviewService,
-    RescheduleReader,
     RescheduleRequestRepository,
     RescheduleRequestService,
     RescheduleDetailReader,
