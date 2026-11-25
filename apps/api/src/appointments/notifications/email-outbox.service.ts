@@ -6,6 +6,7 @@ import {
   BOOKING_JOB_BATCH_SIZE,
   BOOKING_JOB_MAX_BATCHES,
   BOOKING_NOTIFICATION_EVENTS,
+  RESCHEDULE_NOTIFICATION_EVENTS,
 } from '../appointments.constants.js';
 import {
   renderBookingConfirmationMail,
@@ -47,6 +48,12 @@ import {
   renderWithdrawalApprovedMail,
   renderWithdrawalRejectedMail,
 } from './payment-mail.templates.js';
+import {
+  renderRescheduledMail,
+  renderRescheduleRequestApprovedMail,
+  renderRescheduleRequestPendingMail,
+  renderRescheduleRequestRejectedMail,
+} from './reschedule-mail.templates.js';
 
 const PAYMENT_MAIL_LOAI: ReadonlySet<string> = new Set(
   Object.values(PAYMENT_MAIL_EVENTS),
@@ -54,6 +61,12 @@ const PAYMENT_MAIL_LOAI: ReadonlySet<string> = new Set(
 const BRANCH_CHANGE_MAIL_LOAI: ReadonlySet<string> = new Set(
   Object.values(BRANCH_CHANGE_MAIL_EVENTS),
 );
+// Ba loại của YÊU CẦU đổi lịch (gắn `yeu_cau_…_id`, không gắn lịch); `LichHenDaDoiLich` gắn lịch mới nên đi theo nhánh lịch hẹn ở cuối `buildMessage`
+const RESCHEDULE_REQUEST_LOAI: ReadonlySet<string> = new Set([
+  RESCHEDULE_NOTIFICATION_EVENTS.REQUEST_PENDING,
+  RESCHEDULE_NOTIFICATION_EVENTS.REQUEST_APPROVED,
+  RESCHEDULE_NOTIFICATION_EVENTS.REQUEST_REJECTED,
+]);
 
 /** Phần gốc của mã sự kiện: bỏ hậu tố phiên bản `:v{n}` của admin C4 (`ThayDoiChiNhanhAnhHuongLichHen:v2` ⇒ `ThayDoiChiNhanhAnhHuongLichHen`), khớp `SUBSTRING_INDEX` của câu chọn lô. */
 export function baseEventOf(loai: string): string {
@@ -184,6 +197,8 @@ export class EmailOutboxService {
     if (paymentMail !== null) return { to: payload.email, ...paymentMail };
     const branchMail = await this.renderBranchChangeMail(payload);
     if (branchMail !== null) return { to: payload.email, ...branchMail };
+    const requestMail = await this.renderRescheduleRequestMail(payload);
+    if (requestMail !== null) return { to: payload.email, ...requestMail };
     if (payload.lichHenId === null)
       throw new EmailOutboxDataError('THIEU_THONG_BAO');
     const context = await readNotificationContext(em, payload.lichHenId);
@@ -211,6 +226,11 @@ export class EmailOutboxService {
           return renderNoShowRestrictionMail({
             ...common,
             ...(await readNoShowFacts(em, payload.taiKhoanId)),
+          });
+        case RESCHEDULE_NOTIFICATION_EVENTS.RESCHEDULED:
+          return renderRescheduledMail({
+            ...common,
+            noiDung: payload.noiDung,
           });
         default:
           throw new EmailOutboxDataError('LOAI_SU_KIEN_LA');
@@ -257,6 +277,34 @@ export class EmailOutboxService {
         return renderWithdrawalApprovedMail(common);
       case PAYMENT_MAIL_EVENTS.WITHDRAWAL_REJECTED:
         return renderWithdrawalRejectedMail(common);
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Thư của YÊU CẦU đổi lịch ngoài chính sách (reschedule B3): chi tiết là `thong_bao.noi_dung`, bảng chỉ có trạng thái và thời điểm ghi (`reschedule-mail.templates.ts`). Cố ý KHÔNG đọc bảng yêu cầu,
+   * nên `ly_do_yeu_cau` không có đường nào vào thư. Thiếu `yeu_cau_doi_lich_ngoai_chinh_sach_id` ⇒ `THIEU_YEU_CAU`. `null` = không phải loại của yêu cầu đổi lịch (nhánh sau xử lý tiếp).
+   */
+  private async renderRescheduleRequestMail(
+    payload: EmailPayload,
+  ): Promise<RenderedMail | null> {
+    if (!RESCHEDULE_REQUEST_LOAI.has(payload.loai)) return null;
+    if (payload.yeuCauDoiLichId === null)
+      throw new EmailOutboxDataError('THIEU_YEU_CAU');
+    const common = {
+      recipientName: payload.hoTen,
+      noiDung: payload.noiDung,
+      thoiDiem: payload.thoiDiem,
+      footer: await readClinicFooter(this.db.manager),
+    };
+    switch (payload.loai) {
+      case RESCHEDULE_NOTIFICATION_EVENTS.REQUEST_PENDING:
+        return renderRescheduleRequestPendingMail(common);
+      case RESCHEDULE_NOTIFICATION_EVENTS.REQUEST_APPROVED:
+        return renderRescheduleRequestApprovedMail(common);
+      case RESCHEDULE_NOTIFICATION_EVENTS.REQUEST_REJECTED:
+        return renderRescheduleRequestRejectedMail(common);
       default:
         return null;
     }

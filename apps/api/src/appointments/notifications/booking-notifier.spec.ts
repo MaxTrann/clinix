@@ -1,4 +1,7 @@
-import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
+import {
+  BOOKING_NOTIFICATION_EVENTS,
+  RESCHEDULE_NOTIFICATION_EVENTS,
+} from '../appointments.constants.js';
 import {
   contextOf,
   duplicateEntryError,
@@ -8,6 +11,11 @@ import {
   MA_LICH_HEN,
   TAI_KHOAN_DAT,
 } from '../testing/notification-fixtures.js';
+import {
+  REQUEST_LOAI,
+  requestEvent,
+  rescheduledEvent,
+} from '../testing/reschedule-notification-world.js';
 import { isLockingStatement } from '../testing/query-spy.js';
 import { ScriptedEntityManager } from '../testing/scripted-entity-manager.js';
 import { BookingNotifier } from './booking-notifier.js';
@@ -19,7 +27,9 @@ import {
 import {
   INSERT_EMAIL_THONG_BAO_SQL,
   INSERT_THONG_BAO_SQL,
+  INSERT_THONG_BAO_YEU_CAU_SQL,
   THONG_BAO_LICH_HEN_KEY,
+  THONG_BAO_YEU_CAU_DOI_LICH_KEY,
 } from './thong-bao-insert.query.js';
 
 // Task B15 — `BookingNotifier` với `EntityManager` GIẢ (PLAN booking 5.12; TRACKING 3.37 B15-G): thứ tự câu, tham số, "không khoá", và NTF-04 (chỉ nuốt 1062 của ĐÚNG chỉ mục thong_bao_index_lich_hen; mọi lỗi khác nổi lên).
@@ -31,7 +41,8 @@ function answerOf(sql: string): unknown {
   if (sql === READ_CONTEXT_SQL) return [contextOf()];
   if (sql === READ_NO_SHOW_COUNT_SQL) return [{ soLan: 3 }];
   if (sql === READ_NO_SHOW_THRESHOLD_SQL) return [{ nguong: 3 }];
-  if (sql === INSERT_THONG_BAO_SQL) return { insertId: 900 };
+  if (sql === INSERT_THONG_BAO_SQL || sql === INSERT_THONG_BAO_YEU_CAU_SQL)
+    return { insertId: 900 };
   return { insertId: 1 };
 }
 
@@ -195,5 +206,207 @@ describe('NTF-04 chỉ nuốt 1062 của ĐÚNG chỉ mục; mọi lỗi khác n
       new BookingNotifier().notify(em.em, eventOf(CONFIRMED)),
     ).rejects.toThrow(/không có khi ghi thông báo/);
     expect(em.queries.map((q) => q.sql)).toEqual([READ_CONTEXT_SQL]);
+  });
+});
+
+// reschedule B3 — bốn sự kiện đổi lịch qua `BookingNotifier` với `EntityManager` GIẢ (PLAN reschedule 5.10, 7.8): NDL-01 (chuỗi câu, tham số, "không khoá", thiếu trường ⇒ ném trước mọi INSERT), NDL-03 (1062 đúng khoá ⇒ "đã có"),
+// NDL-01 ca âm (chỉ nuốt 1062 của ĐÚNG khoá của đường mình; mọi lỗi khác nổi lên). Hành vi thật trên MySQL (hoàn tác, UNIQUE, người nhận): `reschedule-notifier.int-spec.ts`.
+const { RESCHEDULED } = RESCHEDULE_NOTIFICATION_EVENTS;
+const MA_CU = 'CLX-20261105-0007';
+const rescheduledOf = () =>
+  rescheduledEvent({
+    lichHenMoiId: LICH_HEN_ID,
+    taiKhoanId: TAI_KHOAN_DAT,
+    maLichHenCu: MA_CU,
+  });
+const requestOf = (loai: (typeof REQUEST_LOAI)[number]) =>
+  requestEvent(loai, {
+    lichHenCuId: LICH_HEN_ID,
+    taiKhoanId: TAI_KHOAN_DAT,
+    yeuCauId: '5',
+    ghiChu: 'Ghi chú thử',
+    maLichHenMoi: 'CLX-20261110-0099',
+  });
+
+describe('NDL-01 (đơn vị) chuỗi câu của bốn sự kiện đổi lịch: đọc, ghi thong_bao, ghi email — cùng em, không khoá', () => {
+  it('LichHenDaDoiLich: SELECT ngữ cảnh của lịch MỚI, INSERT thong_bao theo `lich_hen_id` = lịch mới (đường cũ), rồi email với id vừa chèn', async () => {
+    const { em, notifier } = setup();
+    await notifier.notify(em.em, rescheduledOf());
+    expect(em.queries.map((q) => q.sql)).toEqual([
+      READ_CONTEXT_SQL,
+      INSERT_THONG_BAO_SQL,
+      INSERT_EMAIL_THONG_BAO_SQL,
+    ]);
+    expect(em.queries[0]!.params).toEqual([LICH_HEN_ID]);
+    const [taiKhoanId, noiDung, loai, lichHenId, thoiDiem] =
+      em.queries[1]!.params;
+    expect([taiKhoanId, loai, lichHenId]).toEqual([
+      TAI_KHOAN_DAT,
+      RESCHEDULED,
+      LICH_HEN_ID,
+    ]);
+    expect(noiDung).toContain(MA_CU);
+    expect(noiDung).toContain(MA_LICH_HEN);
+    expect((thoiDiem as Date).getMilliseconds()).toBe(0);
+    expect(em.queries[2]!.params).toEqual(['900']);
+  });
+
+  it.each(REQUEST_LOAI)(
+    '%s: INSERT thong_bao theo `yeu_cau_…_id` (KHÔNG có cột lich_hen_id), rồi email; ngữ cảnh đọc từ lịch CŨ',
+    async (loai) => {
+      const { em, notifier } = setup();
+      await notifier.notify(em.em, requestOf(loai));
+      expect(em.queries.map((q) => q.sql)).toEqual([
+        READ_CONTEXT_SQL,
+        INSERT_THONG_BAO_YEU_CAU_SQL,
+        INSERT_EMAIL_THONG_BAO_SQL,
+      ]);
+      expect(INSERT_THONG_BAO_YEU_CAU_SQL).not.toMatch(/lich_hen_id/);
+      expect(em.queries[0]!.params).toEqual([LICH_HEN_ID]);
+      const [taiKhoanId, noiDung, loaiGhi, yeuCauId] = em.queries[1]!.params;
+      expect([taiKhoanId, loaiGhi, yeuCauId]).toEqual([
+        TAI_KHOAN_DAT,
+        loai,
+        '5',
+      ]);
+      expect(noiDung).toContain(MA_LICH_HEN);
+      expect(em.queries[2]!.params).toEqual(['900']);
+    },
+  );
+
+  it('ghi cho `event.taiKhoanId` do người gọi truyền (tài khoản ĐẶT), không suy ra người nhận từ nơi nào khác', async () => {
+    for (const event of [rescheduledOf(), requestOf(REQUEST_LOAI[0])]) {
+      const { em, notifier } = setup();
+      await notifier.notify(em.em, { ...event, taiKhoanId: '555' });
+      expect(em.queries[1]!.params[0], event.loaiSuKien).toBe('555');
+    }
+  });
+
+  it('KHÔNG có câu nào khoá hàng và KHÔNG đọc bộ đếm no-show (không thêm chu trình khoá, không đọc thừa)', () => {
+    return Promise.all(
+      [rescheduledOf(), ...REQUEST_LOAI.map(requestOf)].map(async (event) => {
+        const { em, notifier } = setup();
+        await notifier.notify(em.em, event);
+        expect(
+          em.queries.filter((q) => isLockingStatement(q.sql)),
+          event.loaiSuKien,
+        ).toEqual([]);
+        expect(em.queries.map((q) => q.sql)).not.toContain(
+          READ_NO_SHOW_COUNT_SQL,
+        );
+      }),
+    );
+  });
+
+  it('thiếu `doiLich` hay `yeuCau` là lỗi lập trình của người gọi: NÉM sau câu đọc, TRƯỚC mọi INSERT (hoàn tác hành động gốc)', async () => {
+    const withoutDoiLich = { ...rescheduledOf() };
+    delete withoutDoiLich.doiLich;
+    const withoutYeuCau = { ...requestOf(REQUEST_LOAI[1]) };
+    delete withoutYeuCau.yeuCau;
+    for (const event of [withoutDoiLich, withoutYeuCau]) {
+      const { em, notifier } = setup();
+      await expect(notifier.notify(em.em, event)).rejects.toThrow(/thiếu/);
+      expect(em.queries.map((q) => q.sql)).toEqual([READ_CONTEXT_SQL]);
+    }
+  });
+
+  it('lịch không tồn tại khi ghi thông báo đổi lịch: NÉM trước mọi INSERT (dữ liệu lệch)', async () => {
+    const em = new ScriptedEntityManager((sql) =>
+      sql === READ_CONTEXT_SQL ? [] : answerOf(sql),
+    );
+    await expect(
+      new BookingNotifier().notify(em.em, rescheduledOf()),
+    ).rejects.toThrow(/không có khi ghi thông báo/);
+    expect(em.queries.map((q) => q.sql)).toEqual([READ_CONTEXT_SQL]);
+  });
+});
+
+describe('NDL-03 (đơn vị) UNIQUE trùng của đổi lịch là "đã có": không lỗi, không dòng email thứ hai', () => {
+  it('ba loại yêu cầu: 1062 của thong_bao_index_yeu_cau_doi_lich ⇒ trả về bình thường, KHÔNG ghi email', async () => {
+    for (const loai of REQUEST_LOAI) {
+      const { em, notifier } = setup();
+      em.failQuery = (sql) =>
+        sql === INSERT_THONG_BAO_YEU_CAU_SQL
+          ? duplicateEntryError(`thong_bao.${THONG_BAO_YEU_CAU_DOI_LICH_KEY}`)
+          : undefined;
+      await expect(
+        notifier.notify(em.em, requestOf(loai)),
+      ).resolves.toBeUndefined();
+      expect(
+        em.queries.map((q) => q.sql),
+        loai,
+      ).not.toContain(INSERT_EMAIL_THONG_BAO_SQL);
+    }
+  });
+
+  it('LichHenDaDoiLich: 1062 của thong_bao_index_lich_hen ⇒ "đã có", KHÔNG ghi email', async () => {
+    const { em, notifier } = setup();
+    em.failQuery = (sql) =>
+      sql === INSERT_THONG_BAO_SQL
+        ? duplicateEntryError(`thong_bao.${THONG_BAO_LICH_HEN_KEY}`)
+        : undefined;
+    await expect(
+      notifier.notify(em.em, rescheduledOf()),
+    ).resolves.toBeUndefined();
+    expect(em.queries.map((q) => q.sql)).not.toContain(
+      INSERT_EMAIL_THONG_BAO_SQL,
+    );
+  });
+});
+
+describe('NDL-01 (đơn vị) ca âm: mỗi đường chỉ nuốt 1062 của ĐÚNG khoá của mình; mọi lỗi khác nổi lên và hoàn tác hành động gốc', () => {
+  it.each([
+    [
+      'yêu cầu: 1062 của khoá lịch hẹn (khoá của đường khác)',
+      requestOf(REQUEST_LOAI[0]),
+      INSERT_THONG_BAO_YEU_CAU_SQL,
+      duplicateEntryError(`thong_bao.${THONG_BAO_LICH_HEN_KEY}`),
+    ],
+    [
+      'yêu cầu: 1062 của yêu cầu đổi chi nhánh',
+      requestOf(REQUEST_LOAI[1]),
+      INSERT_THONG_BAO_YEU_CAU_SQL,
+      duplicateEntryError('thong_bao.thong_bao_index_yeu_cau_chi_nhanh'),
+    ],
+    [
+      'yêu cầu: 1062 không nêu tên khoá',
+      requestOf(REQUEST_LOAI[2]),
+      INSERT_THONG_BAO_YEU_CAU_SQL,
+      duplicateEntryError(null),
+    ],
+    [
+      'yêu cầu: 1452 (yêu cầu hay tài khoản không tồn tại)',
+      requestOf(REQUEST_LOAI[0]),
+      INSERT_THONG_BAO_YEU_CAU_SQL,
+      foreignKeyError(),
+    ],
+    [
+      'đã đổi lịch: 1062 của khoá yêu cầu (khoá của đường khác)',
+      rescheduledOf(),
+      INSERT_THONG_BAO_SQL,
+      duplicateEntryError(`thong_bao.${THONG_BAO_YEU_CAU_DOI_LICH_KEY}`),
+    ],
+    [
+      'đã đổi lịch: 1452',
+      rescheduledOf(),
+      INSERT_THONG_BAO_SQL,
+      foreignKeyError(),
+    ],
+    [
+      'lỗi email_thong_bao của yêu cầu',
+      requestOf(REQUEST_LOAI[1]),
+      INSERT_EMAIL_THONG_BAO_SQL,
+      new Error('email hỏng'),
+    ],
+    [
+      'lỗi email_thong_bao của đã đổi lịch',
+      rescheduledOf(),
+      INSERT_EMAIL_THONG_BAO_SQL,
+      new Error('email hỏng'),
+    ],
+  ])('%s: ném lại nguyên lỗi', async (_name, event, failingSql, error) => {
+    const { em, notifier } = setup();
+    em.failQuery = (sql) => (sql === failingSql ? error : undefined);
+    await expect(notifier.notify(em.em, event)).rejects.toBe(error);
   });
 });

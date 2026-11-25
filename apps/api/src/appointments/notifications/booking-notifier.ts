@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { nowVN, toSecond } from '../../common/time/time.js';
-import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
+import {
+  BOOKING_NOTIFICATION_EVENTS,
+  type BookingNotificationEvent,
+} from '../appointments.constants.js';
 import type {
   AppointmentEvent,
   AppointmentNotifier,
@@ -15,6 +18,7 @@ import {
   buildNotificationText,
   type NotificationTextInput,
 } from './notification-text.js';
+import { isRescheduleEvent, notifyReschedule } from './reschedule-notify.js';
 import { insertEmailRow, insertThongBao } from './thong-bao-insert.query.js';
 
 /**
@@ -27,6 +31,8 @@ import { insertEmailRow, insertThongBao } from './thong-bao-insert.query.js';
  *
  * Sự kiện ghi lần hai cho cùng (lịch, tài khoản, loại) đụng UNIQUE của P7 ⇒ "đã có": không lỗi, không dòng email thứ hai (`insertThongBao`). Hết hạn giữ chỗ KHÔNG đi qua đây (Q6): `expire` không gọi `notify`.
  * Không log gì: mọi dữ liệu ở đây là dữ liệu cá nhân (H12).
+ *
+ * Bốn sự kiện của đổi lịch và yêu cầu đổi lịch (reschedule B3; `RESCHEDULE_NOTIFICATION_EVENTS`) cũng đi qua cổng này nhưng ghi ở `reschedule-notify.ts` (thông báo của yêu cầu gắn `yeu_cau_…_id`, không gắn lịch).
  */
 @Injectable()
 export class BookingNotifier implements AppointmentNotifier {
@@ -36,8 +42,13 @@ export class BookingNotifier implements AppointmentNotifier {
       throw new Error(
         `lịch hẹn ${event.lichHenId} không có khi ghi thông báo ${event.loaiSuKien}`,
       );
+    const loai = event.loaiSuKien;
+    if (isRescheduleEvent(loai)) {
+      await notifyReschedule(em, event, loai, context);
+      return;
+    }
     const noiDung = buildNotificationText(
-      await textInputOf(em, event, context),
+      await textInputOf(em, event, loai, context),
     );
     const inserted = await insertThongBao(em, {
       taiKhoanId: event.taiKhoanId,
@@ -55,17 +66,18 @@ export class BookingNotifier implements AppointmentNotifier {
 async function textInputOf(
   em: EntityManager,
   event: AppointmentEvent,
+  loai: BookingNotificationEvent,
   context: NotificationContext,
 ): Promise<NotificationTextInput> {
-  switch (event.loaiSuKien) {
+  switch (loai) {
     case BOOKING_NOTIFICATION_EVENTS.CONFIRMED:
-      return { loai: event.loaiSuKien, context };
+      return { loai, context };
     case BOOKING_NOTIFICATION_EVENTS.CANCELLED:
-      return { loai: event.loaiSuKien, context, huy: event.huy };
+      return { loai, context, huy: event.huy };
     case BOOKING_NOTIFICATION_EVENTS.NO_SHOW:
     case BOOKING_NOTIFICATION_EVENTS.NO_SHOW_LOCK:
       return {
-        loai: event.loaiSuKien,
+        loai,
         context,
         ...(await readNoShowFacts(em, event.taiKhoanId)),
       };

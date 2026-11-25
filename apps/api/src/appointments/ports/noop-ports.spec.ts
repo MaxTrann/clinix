@@ -224,6 +224,38 @@ describe('CG-01a Noop mặc định: không chặn, không ghi', () => {
     }
   });
 
+  it('NDL-10 NoopAppointmentNotifier nhận sự kiện đổi lịch có `doiLich` và `yeuCau` (reschedule B3): xong, không SQL nào, không ghi gì', async () => {
+    const { em, query } = fakeEntityManager();
+    const port = new NoopAppointmentNotifier();
+    port.logger = { warn: vi.fn() };
+    const asPort: AppointmentNotifier = port;
+    await expect(
+      asPort.notify(em, {
+        loaiSuKien: 'LichHenDaDoiLich',
+        lichHenId: '1',
+        taiKhoanId: '2',
+        doiLich: {
+          maLichHenCu: 'CLX-20261105-0007',
+          thoiGianCu: new Date('2026-11-10T01:00:00Z'),
+          thoiGianMoi: new Date('2026-11-10T02:30:00Z'),
+          via: 'TuDoi',
+        },
+      }),
+    ).resolves.toBeUndefined();
+    await expect(
+      asPort.notify(em, {
+        loaiSuKien: 'YeuCauDoiLichDaDuyet',
+        lichHenId: '1',
+        taiKhoanId: '2',
+        yeuCau: {
+          yeuCauId: '5',
+          thoiGianMongMuon: new Date('2026-11-10T02:30:00Z'),
+        },
+      }),
+    ).resolves.toBeUndefined();
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it('remainingToCollect: lịch không tồn tại ⇒ ném lỗi lập trình (người gọi phải khoá lịch trước)', async () => {
     const em = {
       query: vi.fn().mockResolvedValue([]),
