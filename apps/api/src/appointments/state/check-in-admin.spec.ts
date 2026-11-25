@@ -5,6 +5,7 @@ import {
   type ScriptedCore,
 } from '../testing/override-core-contract.js';
 import {
+  BAC_SI_ID,
   CONFIG,
   LICH_HEN_ID,
   THOI_GIAN,
@@ -46,6 +47,14 @@ describeOverrideCoreContract({
   success: 'CheckedIn',
   run: (s, options) => s.service.checkIn(s.em.em, input(s, options)),
   driftMessage: /không còn DaXacNhan/,
+  // notification B6 (DMS-10, đường Quản trị viên override): đúng MỘT sự kiện tiếp đón cho Bác sĩ phụ trách
+  successEvents: [
+    {
+      loaiSuKien: 'LichHenDaTiepDon',
+      lichHenId: LICH_HEN_ID,
+      taiKhoanId: BAC_SI_ID,
+    },
+  ],
 });
 
 describe('OVR-01 (riêng checkIn) override KHÔNG bị cửa sổ tiếp đón và không cần cấu hình (quy tắc 40, 47; CT-21)', () => {

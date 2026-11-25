@@ -77,6 +77,8 @@ const freshRound =
     };
   };
 
+/** Thông báo tiếp đón cho Bác sĩ phụ trách (notification B6), sinh khi override sang DaTiepDon */
+const CHECKED_IN = 'LichHenDaTiepDon';
 const eventsOf = async () =>
   (await notificationRows(db)).map((row) => row.loai).sort();
 
@@ -187,7 +189,8 @@ describe('NSO-10 (P3) Quản trị viên lùi DaTiepDon rồi khôi phục DaXac
                 'DaXacNhan',
               ),
             ]);
-            expect(await eventsOf()).toEqual([NO_SHOW]);
+            // notification B6: lệnh override sang DaTiepDon (luôn chạy) báo Bác sĩ phụ trách MỘT lần
+            expect(await eventsOf()).toEqual([CHECKED_IN, NO_SHOW]);
             tally.add('job đánh Vắng mặt trước lệnh đầu của Admin');
           } else {
             expect(noShow).toEqual({ soLan: 0, khoa: false });
@@ -207,7 +210,8 @@ describe('NSO-10 (P3) Quản trị viên lùi DaTiepDon rồi khôi phục DaXac
                 'DaXacNhan',
               ),
             ]);
-            expect(await eventsOf()).toEqual([]);
+            // Không thông báo cho Bệnh nhân; chỉ MỘT thông báo tiếp đón cho Bác sĩ (notification B6)
+            expect(await eventsOf()).toEqual([CHECKED_IN]);
             // Job không đánh: ba cách, tuỳ lúc nó chọn và lúc nó khoá so với hai lệnh của Admin
             if (summary?.notDue === 1) {
               expect(summary).toEqual({ ...ZERO, notDue: 1 });

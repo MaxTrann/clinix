@@ -45,8 +45,8 @@ export const DEFAULT_TITLE = 'Thông báo';
 
 // Lưu ý về cột `coThu` (theo đúng worker thư hiện hành):
 //  - `LichHenHoanThanh` có thư từ notification B4.
-//  - ba mã nghỉ phép `NghiPhepDaGui`, `NghiPhepDaDuyet`, `NghiPhepTuChoi` chưa có thư: task notification B5 bật.
-// Bật sớm thì DMS-04 đỏ, vì worker chưa xử lý các loại này.
+//  - ba mã nghỉ phép gửi Bác sĩ `NghiPhepDaGui`, `NghiPhepDaDuyet`, `NghiPhepTuChoi` có thư từ notification B5; `NghiPhepChoDuyet` (gửi Quản trị viên) không thư.
+// Cột này phải khớp `MAIL_EVENTS` của worker (DMS-04): bật mà worker chưa xử lý, hay ngược lại, đều làm DMS-04 đỏ.
 export const NOTIFICATION_CATALOG: readonly CatalogEntry[] = [
   // Lịch hẹn (booking, doctor-exam)
   {
@@ -113,7 +113,7 @@ export const NOTIFICATION_CATALOG: readonly CatalogEntry[] = [
     coThu: false,
     lienKet: 'LichHen',
     nguon: 'booking checkIn (notification B6)',
-    trangThai: 'ChoModule',
+    trangThai: 'CoMa',
   },
 
   // Đổi lịch (reschedule B3)
@@ -169,7 +169,7 @@ export const NOTIFICATION_CATALOG: readonly CatalogEntry[] = [
     nhom: 'NghiPhep',
     tieuDe: 'Đã gửi yêu cầu nghỉ phép',
     nguoiNhan: ['BacSi'],
-    coThu: false, // notification B5 bật
+    coThu: true, // notification B5
     lienKet: 'NghiPhep',
     nguon: 'doctor LeaveNotifier',
     trangThai: 'CoMa',
@@ -191,7 +191,7 @@ export const NOTIFICATION_CATALOG: readonly CatalogEntry[] = [
     nhom: 'NghiPhep',
     tieuDe: 'Yêu cầu nghỉ phép được duyệt',
     nguoiNhan: ['BacSi'],
-    coThu: false, // notification B5 bật
+    coThu: true, // notification B5
     lienKet: 'NghiPhep',
     nguon: 'doctor LeaveNotifier',
     trangThai: 'CoMa',
@@ -202,7 +202,7 @@ export const NOTIFICATION_CATALOG: readonly CatalogEntry[] = [
     nhom: 'NghiPhep',
     tieuDe: 'Yêu cầu nghỉ phép bị từ chối',
     nguoiNhan: ['BacSi'],
-    coThu: false, // notification B5 bật
+    coThu: true, // notification B5
     lienKet: 'NghiPhep',
     nguon: 'doctor LeaveNotifier',
     trangThai: 'CoMa',

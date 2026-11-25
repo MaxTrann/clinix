@@ -10,7 +10,7 @@ import { NoopPort } from './noop-warning.js';
 // (notification/admin B9). Bản thật: B15.
 
 /**
- * Sự kiện tối thiểu `[đề xuất]`: gửi cho tài khoản đặt (`lich_hen.benh_nhan_id`) theo 5.12. B10 và B15 thêm trường TUỲ CHỌN khi cần (biến thể huỷ theo `reason`,
+ * Sự kiện tối thiểu `[đề xuất]`: gửi cho tài khoản đặt (`lich_hen.benh_nhan_id`) theo 5.12; riêng tiếp đón gửi Bác sĩ phụ trách (xem `taiKhoanId`). B10 và B15 thêm trường TUỲ CHỌN khi cần (biến thể huỷ theo `reason`,
  * `hoanDuKien`) mà không phá bản Fake.
  */
 export interface AppointmentEvent {
@@ -20,6 +20,10 @@ export interface AppointmentEvent {
    * KHÔNG ghi vào `thong_bao.lich_hen_id` (thông báo của yêu cầu gắn `yeuCau.yeuCauId`, reschedule B3, Q5).
    */
   lichHenId: string;
+  /**
+   * NGƯỜI NHẬN thông báo. Mọi sự kiện của luồng đặt lịch và đổi lịch: tài khoản ĐẶT (`lich_hen.benh_nhan_id`). Riêng `LichHenDaTiepDon` (notification B6, Q7): BÁC SĨ phụ trách
+   * (`lich_hen.bac_si_id`, cũng là `tai_khoan_id` của bác sĩ).
+   */
   taiKhoanId: string;
   /**
    * Chỉ `LichHenDaXacNhan` (task B11, Q20, Q46): tổng tiền `payment` đã thu thật cho lịch, chuỗi decimal (H11), để thư dựng "Tổng giá, cọc, còn lại" mà KHÔNG đọc bảng của

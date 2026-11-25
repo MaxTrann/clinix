@@ -37,6 +37,7 @@ import {
   PAYMENT_MAIL_EVENTS,
 } from './notifications.constants.js';
 import { renderExamCompletedMail } from './exam-mail.templates.js';
+import { isLeaveMailEvent, renderLeaveMail } from './leave-mail.templates.js';
 import { readBranchChangeMailContext } from './branch-change-context.query.js';
 import {
   renderBranchChangeAffectedMail,
@@ -201,6 +202,16 @@ export class EmailOutboxService {
     if (branchMail !== null) return { to: payload.email, ...branchMail };
     const requestMail = await this.renderRescheduleRequestMail(payload);
     if (requestMail !== null) return { to: payload.email, ...requestMail };
+    // notification B5: thư nghỉ phép không gắn lịch hẹn, nên rẽ nhánh TRƯỚC khi đòi `lich_hen_id`; người nhận là Bác sĩ (tài khoản của dòng `thong_bao`, EMT-06)
+    if (isLeaveMailEvent(payload.loai)) {
+      const leaveMail = renderLeaveMail(payload.loai, {
+        recipientName: payload.hoTen,
+        noiDung: payload.noiDung,
+        thoiDiem: payload.thoiDiem,
+        footer: await readClinicFooter(em),
+      });
+      return { to: payload.email, ...leaveMail };
+    }
     if (payload.lichHenId === null)
       throw new EmailOutboxDataError('THIEU_THONG_BAO');
     const context = await readNotificationContext(em, payload.lichHenId);

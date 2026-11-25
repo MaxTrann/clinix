@@ -224,14 +224,14 @@ describe('BDL-04 chữ người nhập chứa `<script>`, `&`, dấu nháy: `noi
 });
 
 describe('NDL-11 loại chỉ có trong ứng dụng và loại lạ vẫn bị bỏ qua khi worker đã quét thêm bốn loại', () => {
-  it('thông báo chỉ trong ứng dụng (nạp ví thành công), nghỉ phép, loại lạ: không chọn, không gửi, không đổi; thư đổi lịch vẫn gửi (hoàn thành ca khám CÓ thư từ notification B4 nên không còn ở đây)', async () => {
+  it('thông báo chỉ trong ứng dụng (nạp ví thành công), nghỉ phép, loại lạ: không chọn, không gửi, không đổi; thư đổi lịch vẫn gửi (hoàn thành ca khám CÓ thư từ notification B4, nghỉ phép gửi Bác sĩ từ notification B5, nên ví dụ nghỉ phép là `NghiPhepChoDuyet`)', async () => {
     const w = await world();
     const cu = await w.booked('DaXacNhan', 0);
     const yeuCauId = await insertRescheduleRequest(db, {
       lichHenId: cu.lichHenId,
       khungGioMongMuonId: w.slotId(3),
     });
-    for (const loai of ['NapViThanhCong', 'NghiPhepDaDuyet', 'DoiLichLa'])
+    for (const loai of ['NapViThanhCong', 'NghiPhepChoDuyet', 'DoiLichLa'])
       await insertQueuedEmail(db, {
         taiKhoanId: w.patientId,
         lichHenId: null,

@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
+import { insertEmailRow } from '../../appointments/notifications/thong-bao-insert.query.js';
 import { toSingleLine } from '../../mail/mail-safety.js';
 import { nowVN, toSecond } from '../../common/time/time.js';
 
-// Doctor B10 — thông báo trong ứng dụng cho luồng nghỉ phép (PLAN doctor Q33, 5.12).
-// Chỉ ghi `thong_bao`, KHÔNG ghi `email_thong_bao` (chưa có worker gửi thư: [CHỜ notification]).
-// Ghi bằng `em` của NGƯỜI GỌI để thông báo và thao tác nghỉ phép cùng commit/cùng rollback (H12).
+// Doctor B10 — thông báo cho luồng nghỉ phép (PLAN doctor Q33, 5.12).
+// Ghi `thong_bao`; từ notification B5 (Q6) ba loại gửi BÁC SĨ ghi thêm MỘT dòng `email_thong_bao` `ChoGui` (worker thư của booking gửi, Figma `688:2`).
+// `NghiPhepChoDuyet` gửi Quản trị viên vẫn CHỈ trong ứng dụng (EMT-04). Giữ `LeaveNotifier`, không thay bằng dịch vụ chung (notification Q5).
+// Ghi bằng `em` của NGƯỜI GỌI để thông báo, dòng thư và thao tác nghỉ phép cùng commit/cùng rollback (H12).
 
 /** Độ dài tối đa của `thong_bao.noi_dung`. */
 export const LEAVE_NOTIFICATION_MAX_LENGTH = 500;
@@ -94,16 +96,25 @@ export function buildLeaveMessage(event: LeaveEvent): string {
 
 @Injectable()
 export class LeaveNotifier {
-  /** Ghi thông báo vào giao dịch của người gọi. Không tự mở giao dịch, không nuốt lỗi (lỗi ⇒ người gọi hoàn tác). */
+  /** Ghi thông báo (và dòng thư nếu gửi Bác sĩ) vào giao dịch của người gọi. Không tự mở giao dịch, không nuốt lỗi (lỗi ⇒ người gọi hoàn tác). */
   async notify(em: EntityManager, event: LeaveEvent): Promise<void> {
-    const recipients =
-      event.loaiSuKien === LEAVE_EVENTS.Pending
-        ? await this.findAdminRecipients(em, event.chiNhanhId)
-        : [event.bacSiId];
-    if (recipients.length === 0) return;
-
     const content = buildLeaveMessage(event);
     const now = toSecond(nowVN());
+    if (event.loaiSuKien !== LEAVE_EVENTS.Pending) {
+      // Một người nhận (Bác sĩ): ghi một dòng rồi gắn dòng thư vào đúng `thong_bao_id` vừa tạo
+      const thongBaoId = await this.insertOne(
+        em,
+        event.bacSiId,
+        content,
+        event.loaiSuKien,
+        now,
+      );
+      await insertEmailRow(em, thongBaoId);
+      return;
+    }
+
+    const recipients = await this.findAdminRecipients(em, event.chiNhanhId);
+    if (recipients.length === 0) return;
     const placeholders = recipients.map(() => '(?, ?, ?, ?, ?)').join(', ');
     const params = recipients.flatMap((id) => [
       id,
@@ -117,6 +128,22 @@ export class LeaveNotifier {
        VALUES ${placeholders}`,
       params,
     );
+  }
+
+  /** Ghi MỘT dòng `thong_bao`, trả `thong_bao_id` dạng chuỗi (bigint có thể vượt `Number.MAX_SAFE_INTEGER`). */
+  private async insertOne(
+    em: EntityManager,
+    taiKhoanId: string,
+    content: string,
+    loaiSuKien: LeaveEventCode,
+    now: Date,
+  ): Promise<string> {
+    const result: { insertId: number | string } = await em.query(
+      `INSERT INTO thong_bao (tai_khoan_id, noi_dung, loai_su_kien, trang_thai_doc, thoi_diem_tao)
+       VALUES (?, ?, ?, ?, ?)`,
+      [taiKhoanId, content, loaiSuKien, false, now],
+    );
+    return String(result.insertId);
   }
 
   /** Admin Toàn hệ thống + Admin Chi nhánh đúng chi nhánh của bác sĩ, chỉ tài khoản đang hoạt động (TYN b6). */

@@ -1,3 +1,5 @@
+import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
+
 // Hằng của hộp thư đi và worker gửi thư (task B15; PLAN booking 5.12; TRACKING 3.37 B15-H). Để RIÊNG ở đây, không thêm vào `appointments.constants.ts` (file dùng chung của B1 đến B14). Các số là `[đề xuất]`.
 // `BOOKING_JOB_BATCH_SIZE` (100) và `BOOKING_JOB_MAX_BATCHES` (10) dùng chung với job B9, B13: import từ `appointments.constants.ts`, không khai lại.
 
@@ -42,4 +44,25 @@ export const BRANCH_CHANGE_MAIL_EVENTS = {
  */
 export const EXAM_MAIL_EVENTS = {
   COMPLETED: 'LichHenHoanThanh',
+} as const;
+
+/**
+ * Ba loại thông báo nghỉ phép CÓ thư, gửi BÁC SĨ (notification B5; PLAN notification 5.7, Q6; doctor Q33; Figma `688:2`). `NghiPhepChoDuyet` (gửi Quản trị viên) cố ý KHÔNG có ở đây: chỉ trong ứng dụng.
+ * Viết bằng CHỮ vì lý do như `EXAM_MAIL_EVENTS`; `leave-mail.templates.spec.ts` kiểm chữ khớp `LEAVE_EVENTS` của `doctor/notifications/leave-notifier.ts`.
+ */
+export const LEAVE_MAIL_EVENTS = {
+  SUBMITTED: 'NghiPhepDaGui',
+  APPROVED: 'NghiPhepDaDuyet',
+  REJECTED: 'NghiPhepTuChoi',
+} as const;
+
+/**
+ * Bốn loại thông báo của luồng đặt lịch CÓ thư (B15). `BOOKING_NOTIFICATION_EVENTS.CHECKED_IN` (notification B6, Q7) cố ý KHÔNG có ở đây: thông báo tiếp đón gửi Bác sĩ chỉ trong ứng dụng, nên
+ * `BookingNotifier` không ghi dòng thư và worker không chọn loại này.
+ */
+export const BOOKING_MAIL_EVENTS = {
+  CONFIRMED: BOOKING_NOTIFICATION_EVENTS.CONFIRMED,
+  CANCELLED: BOOKING_NOTIFICATION_EVENTS.CANCELLED,
+  NO_SHOW: BOOKING_NOTIFICATION_EVENTS.NO_SHOW,
+  NO_SHOW_LOCK: BOOKING_NOTIFICATION_EVENTS.NO_SHOW_LOCK,
 } as const;

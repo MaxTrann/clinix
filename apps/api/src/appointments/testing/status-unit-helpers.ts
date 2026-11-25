@@ -12,6 +12,8 @@ export const LICH_HEN_ID = '41';
 /** Tài khoản ĐẶT của lịch (nhận thông báo, bị cộng no-show) */
 export const BENH_NHAN_ID = '77';
 export const CHI_NHANH_ID = '2';
+/** `lich_hen.bac_si_id` của hàng khoá giả: người nhận thông báo tiếp đón (notification B6) */
+export const BAC_SI_ID = '31';
 export const KHAC_CHI_NHANH_ID = '3';
 
 const MINUTE = 60_000;
@@ -38,6 +40,7 @@ export function lockedRows(
   return [
     {
       benhNhanId: overrides.benhNhanId ?? BENH_NHAN_ID,
+      bacSiId: BAC_SI_ID,
       chiNhanhId: overrides.chiNhanhId ?? CHI_NHANH_ID,
       trangThai,
       thoiGian: THOI_GIAN_TEXT,
