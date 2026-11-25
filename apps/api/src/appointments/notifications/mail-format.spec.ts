@@ -1,9 +1,11 @@
 import {
   formatAppointmentTime,
   formatDoctorName,
+  formatVnDateTime,
   formatVnd,
   isZeroMoney,
   remainingAfterDeposit,
+  truncateWithEllipsis,
 } from './mail-format.js';
 
 // Task B15 — định dạng tiền của `noi_dung` và thư (PLAN booking 5.12; TRACKING 3.37 B15-F). Đơn vị, không DB. Mã `[đề xuất]` `MLT-11` (định dạng dùng chung cho mẫu thư).
@@ -84,5 +86,45 @@ describe('MLT-11 formatDoctorName và remainingAfterDeposit', () => {
     expect(remainingAfterDeposit('350000.00', '350000.00')).toBe('0.00');
     expect(remainingAfterDeposit('100000.00', '150000.00')).toBe('0.00');
     expect(remainingAfterDeposit('0.10', '0.03')).toBe('0.07');
+  });
+});
+
+// reschedule B3 — hai hàm dùng chung của câu chữ đổi lịch (NDL-09 giờ Việt Nam; NDL-06 cắt không chẻ cặp thay thế). Đơn vị, không DB.
+describe('NDL-09 formatVnDateTime: "HH:mm dd/MM/yyyy" theo giờ Việt Nam, không phụ thuộc múi giờ máy', () => {
+  it.each([
+    ['2026-11-10T08:00:00+07:00', '08:00 10/11/2026'],
+    ['2026-11-10T01:05:00Z', '08:05 10/11/2026'],
+    // gần nửa đêm: UTC còn ngày 10, giờ Việt Nam đã sang ngày 11
+    ['2026-11-10T16:59:00Z', '23:59 10/11/2026'],
+    ['2026-11-10T17:00:00Z', '00:00 11/11/2026'],
+    ['2026-12-31T17:30:00Z', '00:30 01/01/2027'],
+  ])('%s ⇒ %s', (instant, expected) => {
+    expect(formatVnDateTime(new Date(instant))).toBe(expected);
+  });
+});
+
+describe('NDL-06 truncateWithEllipsis: cắt theo đơn vị UTF-16, thêm "…", không chẻ cặp thay thế', () => {
+  it('đủ chỗ (kể cả đúng bằng giới hạn) thì giữ nguyên', () => {
+    expect(truncateWithEllipsis('abc', 3)).toBe('abc');
+    expect(truncateWithEllipsis('abc', 10)).toBe('abc');
+    expect(truncateWithEllipsis('', 0)).toBe('');
+  });
+
+  it('vượt thì kết quả đúng `maxUnits` đơn vị, kết thúc bằng "…"', () => {
+    expect(truncateWithEllipsis('abcdef', 4)).toBe('abc…');
+    expect(truncateWithEllipsis('abcdef', 5)).toHaveLength(5);
+    expect(truncateWithEllipsis('abcdef', 1)).toBe('…');
+    expect(truncateWithEllipsis('abcdef', 0)).toBe('');
+  });
+
+  it('chỗ cắt rơi GIỮA cặp thay thế (emoji): bỏ cả nửa cặp, không để lại ký tự hỏng', () => {
+    // 'ab' + 😀 (2 đơn vị) + 'cd': giữ 3 đơn vị = 'ab' + nửa cao của emoji
+    const cut = truncateWithEllipsis('ab😀cd', 4);
+    expect(cut).toBe('ab…');
+    expect(cut).not.toMatch(/[\uD800-\uDFFF]/);
+  });
+
+  it('emoji nằm trọn trong phần giữ thì được giữ', () => {
+    expect(truncateWithEllipsis('ab😀cd', 5)).toBe('ab😀…');
   });
 });

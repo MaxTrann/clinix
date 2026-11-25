@@ -179,6 +179,21 @@ export const BOOKING_NOTIFICATION_EVENTS = {
 export type BookingNotificationEvent =
   (typeof BOOKING_NOTIFICATION_EVENTS)[keyof typeof BOOKING_NOTIFICATION_EVENTS];
 
+// Bốn mã thông báo của ĐỔI LỊCH và YÊU CẦU ĐỔI LỊCH (reschedule B3; PLAN reschedule 5.10; Q13 `[đề xuất]`). Hằng RIÊNG, KHÔNG nằm trong `BOOKING_NOTIFICATION_EVENTS` (bốn mã của luồng đặt lịch giữ nguyên:
+// BCS-04 và ca của `doctor` đếm "bốn"); worker thư (`MAIL_EVENTS`) thêm đúng bốn mã này. Một khi đã dùng thì phải ổn định (UNIQUE `thong_bao_index_lich_hen` và `thong_bao_index_yeu_cau_doi_lich`
+// chống ghi trùng theo chuỗi này; so không phân biệt hoa thường). Danh mục sự kiện của scope thông báo (Trung) phải liệt kê hằng này.
+//  - RESCHEDULED: ghi cho lịch MỚI (`thong_bao.lich_hen_id` = lịch mới).
+//  - ba loại còn lại: ghi cho YÊU CẦU (`thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id`), `lich_hen_id` để trống.
+export const RESCHEDULE_NOTIFICATION_EVENTS = {
+  RESCHEDULED: 'LichHenDaDoiLich',
+  REQUEST_PENDING: 'YeuCauDoiLichDangCho',
+  REQUEST_APPROVED: 'YeuCauDoiLichDaDuyet',
+  REQUEST_REJECTED: 'YeuCauDoiLichBiTuChoi',
+} as const;
+
+export type RescheduleNotificationEvent =
+  (typeof RESCHEDULE_NOTIFICATION_EVENTS)[keyof typeof RESCHEDULE_NOTIFICATION_EVENTS];
+
 // Lý do huỷ khi hết hạn giữ chỗ (Q6: `DaHuy` kèm `ly_do_huy` là MỘT hằng, không thông báo). MỘT chuỗi cho cả hết hạn lười (`cancelLapsedHold`, B6b) và `HoldExpiryJob` (B9);
 // `lich_hen.ly_do_huy` là `varchar(255)`.
 export const HOLD_EXPIRED_CANCEL_REASON = 'Hết thời gian giữ chỗ';

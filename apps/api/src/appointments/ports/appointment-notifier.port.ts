@@ -1,5 +1,8 @@
 import type { EntityManager } from 'typeorm';
-import type { BookingNotificationEvent } from '../appointments.constants.js';
+import type {
+  BookingNotificationEvent,
+  RescheduleNotificationEvent,
+} from '../appointments.constants.js';
 import type { CancelReason } from '../cancel/cancel.types.js';
 import { NoopPort } from './noop-warning.js';
 
@@ -11,7 +14,11 @@ import { NoopPort } from './noop-warning.js';
  * `hoanDuKien`) mà không phá bản Fake.
  */
 export interface AppointmentEvent {
-  loaiSuKien: BookingNotificationEvent;
+  loaiSuKien: BookingNotificationEvent | RescheduleNotificationEvent;
+  /**
+   * Lịch hẹn mà thông báo nói về. Với `LichHenDaDoiLich` là lịch MỚI (ghi vào `thong_bao.lich_hen_id`). Với ba loại yêu cầu đổi lịch là lịch CŨ của yêu cầu: chỉ để đọc mã và giờ hiện tại,
+   * KHÔNG ghi vào `thong_bao.lich_hen_id` (thông báo của yêu cầu gắn `yeuCau.yeuCauId`, reschedule B3, Q5).
+   */
   lichHenId: string;
   taiKhoanId: string;
   /**
@@ -26,6 +33,28 @@ export interface AppointmentEvent {
   huy?: {
     reason: CancelReason;
     hoanCoc: { tyLe: number; soTien: string } | null;
+  };
+  /**
+   * Chỉ có ở `LichHenDaDoiLich` (reschedule B3; PLAN reschedule 5.10): `via` là đường đổi (`TuDoi` Bệnh nhân tự đổi, `DoiHo` Lễ tân đổi hộ, kèm `lyDo` bắt buộc ở đường này, Q9). Giờ là thời điểm tuyệt đối,
+   * chữ in ra theo giờ Việt Nam. Người nhận là tài khoản ĐẶT do người gọi truyền ở `taiKhoanId`.
+   */
+  doiLich?: {
+    maLichHenCu: string;
+    thoiGianCu: Date;
+    thoiGianMoi: Date;
+    via: 'TuDoi' | 'DoiHo';
+    lyDo?: string;
+  };
+  /**
+   * Chỉ có ở ba loại `YeuCauDoiLich…` (reschedule B3). `ghiChu` là ghi chú xử lý của nhân sự (duyệt, từ chối; Q10: gửi nguyên văn cho bệnh nhân), `maLichHenMoi` và `thoiGianMoi` chỉ khi DUYỆT
+   * (giờ mới có thể khác `thoiGianMongMuon` vì người duyệt được chọn khung giờ thay thế, Q7 (g)). KHÔNG mang `ly_do_yeu_cau` (lý do của bệnh nhân không vào thông báo hay thư).
+   */
+  yeuCau?: {
+    yeuCauId: string;
+    ghiChu?: string;
+    maLichHenMoi?: string;
+    thoiGianMongMuon: Date;
+    thoiGianMoi?: Date;
   };
 }
 
