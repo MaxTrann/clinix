@@ -18,9 +18,11 @@ import { LIST_TEXT } from '../list-messages';
 import { DETAIL_TEXT } from '../detail/detail-messages';
 import { CurrentAppointmentCard } from './current-appointment-card';
 import {
+  rescheduleMessageForCode,
   rescheduleMessageForError,
   rescheduleReasonMessage,
 } from './reschedule-errors';
+import { SLOT_NOTICES, useOneShotNotice } from './reschedule-notice-state';
 import { RESCHEDULE_TEXT } from './reschedule-text';
 import type { ReschedulePreview } from './reschedule-types';
 import { useReschedulePreview } from './use-reschedule-preview';
@@ -150,6 +152,8 @@ function Reschedule({ maLichHen }: { maLichHen: string }) {
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
+  // Về từ màn xác nhận vì khung giờ vừa chọn không còn chọn được (reschedule F2, WDH-43): câu của mã đó, MỘT lần (trang gắn lại nên preview và lưới đã tải lại)
+  const slotNotice = useOneShotNotice(SLOT_NOTICES);
 
   return (
     <DetailPageFrame
@@ -158,6 +162,14 @@ function Reschedule({ maLichHen }: { maLichHen: string }) {
       title={RESCHEDULE_TEXT.title}
       headingRef={headingRef}
     >
+      {slotNotice !== null && (
+        <BookingNotice
+          message={
+            rescheduleMessageForCode(slotNotice)?.message ??
+            RESCHEDULE_TEXT.slotNotUsable
+          }
+        />
+      )}
       {state.status === 'loading' && (
         <LoadingState message={RESCHEDULE_TEXT.loading} />
       )}

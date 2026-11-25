@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-// reschedule F1, mã ca WDH-10 (PLAN reschedule 7.11, "ca kiến trúc như BWZ-08"): bộ quét TĨNH các file mã của trang đổi lịch (thư mục `reschedule/` và `detail/reschedule-section.tsx`):
-// không `fetch` ngoài lớp API client, đường dẫn dựng từ `booking-paths` (không viết tay), không `dangerouslySetInnerHTML`, không kho trình duyệt, id không qua `Number`. Đọc mã bằng
-// `import.meta.glob` của Vite với `?raw` (nếp BWZ-08), bỏ file test, và bỏ chú thích trước khi quét (chú thích có thể nhắc các từ này).
+// reschedule F1, mã ca WDH-10 (PLAN reschedule 7.11, "ca kiến trúc như BWZ-08"): bộ quét TĨNH các file mã của trang đổi lịch (thư mục `reschedule/` và mọi `detail/reschedule-*`: nút, banner, thông báo):
+// không `fetch` ngoài lớp API client, đường dẫn dựng từ `booking-paths` (không viết tay), không `dangerouslySetInnerHTML`, không kho trình duyệt, id không qua `Number`. reschedule F2 thêm: không ghi
+// ra `console` (lý do, mã lịch là dữ liệu cá nhân). Đọc mã bằng `import.meta.glob` của Vite với `?raw` (nếp BWZ-08), bỏ file test, và bỏ chú thích trước khi quét (chú thích có thể nhắc các từ này).
 const SOURCES = import.meta.glob(
-  ['./*.{ts,tsx}', '!./*.test.{ts,tsx}', '../detail/reschedule-section.tsx'],
+  [
+    './*.{ts,tsx}',
+    '!./*.test.{ts,tsx}',
+    '../detail/reschedule-*.{ts,tsx}',
+    '!../detail/reschedule-*.test.{ts,tsx}',
+  ],
   { query: '?raw', import: 'default', eager: true },
 ) as Record<string, string>;
 
@@ -30,6 +35,7 @@ const RULES: readonly Rule[] = [
     /['"`]\/(benh-nhan|dat-lich|le-tan|admin|bac-si-portal)\b/,
   ],
   ['ép id sang số', /\b(Number|parseInt|parseFloat|BigInt)\s*\(/],
+  ['ghi ra console (lý do, mã lịch là dữ liệu cá nhân)', /\bconsole\s*\./],
 ];
 
 function violations(sources: Record<string, string>): string[] {
@@ -55,6 +61,17 @@ describe('reschedule F1 — kiến trúc web của trang đổi lịch (WDH-10)'
         './reschedule-text.ts',
         './current-appointment-card.tsx',
         '../detail/reschedule-section.tsx',
+        // reschedule F2
+        './reschedule-submit-api.ts',
+        './use-submit-reschedule.ts',
+        './reschedule-failure.ts',
+        './reschedule-reason-rules.ts',
+        './reschedule-reason-field.tsx',
+        './reschedule-confirm-form.tsx',
+        './reschedule-notice-state.ts',
+        '../detail/reschedule-request-banner.tsx',
+        '../detail/reschedule-result-notice.tsx',
+        '../detail/reschedule-alive.ts',
       ]),
     );
   });
@@ -63,13 +80,29 @@ describe('reschedule F1 — kiến trúc web của trang đổi lịch (WDH-10)'
     expect(violations(SOURCES)).toEqual([]);
   });
 
-  it('WDH-10 mọi lời gọi mạng đi qua `request()` của lớp API client duy nhất, và chỉ ở bộ đọc preview', () => {
+  it('WDH-10 mọi lời gọi mạng đi qua `request()` của lớp API client duy nhất, và chỉ ở hai bộ đọc: preview (GET) và gửi (POST)', () => {
     const callers = Object.entries(SOURCES)
       .filter(([, source]) => /\brequest\s*(<[^>]*>)?\s*\(/.test(strip(source)))
+      .map(([file]) => file)
+      .sort();
+    expect(callers).toEqual([
+      './reschedule-preview-api.ts',
+      './reschedule-submit-api.ts',
+    ]);
+    for (const file of callers) {
+      expect(SOURCES[file]).toContain(
+        "from '../../../../../shared/api/client'",
+      );
+    }
+  });
+
+  it('WDH-10 chỉ MỘT nơi gửi POST đổi lịch (`reschedule-submit-api.ts`) và nó không truyền `signal` (nếp hộp huỷ: yêu cầu đã gửi thì máy chủ vẫn xử lý)', () => {
+    const posters = Object.entries(SOURCES)
+      .filter(([, source]) => /method:\s*'POST'/.test(strip(source)))
       .map(([file]) => file);
-    expect(callers).toEqual(['./reschedule-preview-api.ts']);
-    expect(SOURCES['./reschedule-preview-api.ts']).toContain(
-      "from '../../../../../shared/api/client'",
+    expect(posters).toEqual(['./reschedule-submit-api.ts']);
+    expect(strip(SOURCES['./reschedule-submit-api.ts'])).not.toMatch(
+      /\bsignal\b/,
     );
   });
 
@@ -103,6 +136,8 @@ describe('reschedule F1 — kiến trúc web của trang đổi lịch (WDH-10)'
       './g.ts': 'document.cookie = "a=b";',
       './h.ts': 'el.innerHTML = x;',
       './i.ts': 'const x = axios.get("/api");',
+      './j.ts': 'console.log(lyDo);',
+      './k.ts': 'console.error(maLichHen)',
     };
     expect(violations(bad)).toHaveLength(Object.keys(bad).length);
   });
