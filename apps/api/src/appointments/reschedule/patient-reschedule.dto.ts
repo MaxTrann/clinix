@@ -7,7 +7,7 @@ import { normalizeRequestReason } from './reschedule-reason.js';
 
 // Id BIGINT dạng CHUỖI (id lớn hơn 2^53 mà ép `Number` sẽ trỏ nhầm dòng khác): số JSON, chuỗi rỗng, có khoảng trắng, `0`, số 0 đứng đầu, vượt BIGINT đều bị từ chối. Tên ràng buộc `isBigintId` ⇒ mã
 // lỗi trường `IS_BIGINT_ID` (đúng nếp `create/booking-checks.dto.ts`, `lists/`). Viết lại ở đây (8 dòng) vì `create/` không thuộc phạm vi B6; chỗ định nghĩa id thật là `isBigintId`.
-const BigintId = () =>
+export const BigintId = () =>
   ValidateBy({
     name: 'isBigintId',
     validator: {
