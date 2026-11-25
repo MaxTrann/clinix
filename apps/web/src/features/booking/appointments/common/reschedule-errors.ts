@@ -1,9 +1,9 @@
-import { ApiError } from '../../../../../shared/api/errors';
+import { ApiError } from '../../../../shared/api/errors';
 import {
   BOOKING_ERROR_CODES,
   knownBookingErrorByCode,
-} from '../../../api/booking-errors';
-import { BUSY_MESSAGE } from '../../common/failure-text';
+} from '../../api/booking-errors';
+import { BUSY_MESSAGE } from './failure-text';
 
 // Mã lỗi nghiệp vụ của đổi lịch và câu hiển thị (PLAN reschedule 5.13; reschedule F1, F2 dùng lại cho `POST`). Chữ là `[đề xuất]` (Q13), Đại sửa khi duyệt PR. Giao diện chọn câu theo
 // `maLoi`, KHÔNG theo `thongBao` hay mã HTTP (CODING_CONVENTION): cùng mã ở thân 409 hay ở `lyDoKhongDoi` của preview 200 ra cùng một câu.
@@ -18,6 +18,9 @@ export const RESCHEDULE_ERROR_CODES = {
   REQUEST_PENDING: 'DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET',
   CHAIN_TOO_LONG: 'CHUOI_DOI_LICH_QUA_DAI',
 } as const;
+
+// Mã của 500 do máy chủ (B7: `AuditError` hoàn tác TRỌN đổi lịch, DB nguyên vẹn). Không thuộc bảng câu 5.13: nơi dùng (Lễ tân đổi hộ) tự đặt câu "Không thực hiện được, vui lòng thử lại".
+export const CODE_SYSTEM_ERROR = 'LOI_HE_THONG';
 
 // Câu CỦA 5.13, nguyên văn. Dùng `Map` (không phải đối tượng thường) để `maLoi` lạ như "constructor" không trúng khoá của nguyên mẫu.
 // `VUOT_SO_LAN_TU_DOI` không dùng `chiTiet` (câu 5.13 không có số).

@@ -35,7 +35,7 @@ export const BOOKING_ERROR_CODES = {
   CHECK_IN_WINDOW_NOT_OVER: 'CHUA_QUA_GIO_HEN',
   SYSTEM_BUSY: 'HE_THONG_DANG_BAN', // [đề xuất] mã thứ 25, duyệt 09/11/2026: hết lượt thử lại 1213/1205 (booking-transaction.ts), thay cho 500
   // Chín mã của ĐỔI LỊCH (reschedule B2; PLAN reschedule 5.13). [đề xuất] chữ và mã, Q13 duyệt ở PR. Hai mã của yêu cầu đổi lịch (`YEU_CAU_DOI_LICH_KHONG_TON_TAI`,
-  // `YEU_CAU_DA_XU_LY`) thuộc B5, B8, B9 nên chưa khai ở đây.
+  // `YEU_CAU_DA_XU_LY`) do B9 thêm ở cuối khối này (route duyệt và từ chối; GET của B8 vẫn trả `KHONG_TIM_THAY`).
   NOT_RESCHEDULABLE: 'LICH_HEN_KHONG_CHO_DOI',
   RESCHEDULE_TOO_LATE: 'LICH_HEN_DA_QUA_GIO',
   SAME_AS_CURRENT_SLOT: 'KHUNG_GIO_TRUNG_LICH_CU',
@@ -45,6 +45,9 @@ export const BOOKING_ERROR_CODES = {
   RESCHEDULE_CHAIN_TOO_LONG: 'CHUOI_DOI_LICH_QUA_DAI',
   OVER_SELF_RESCHEDULE_LIMIT: 'VUOT_SO_LAN_TU_DOI',
   RESCHEDULE_REQUEST_PENDING: 'DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET',
+  // Hai mã của DUYỆT và TỪ CHỐI yêu cầu (reschedule B9; PLAN reschedule 5.13). [đề xuất] chữ.
+  REQUEST_NOT_FOUND: 'YEU_CAU_DOI_LICH_KHONG_TON_TAI',
+  REQUEST_HANDLED: 'YEU_CAU_DA_XU_LY',
 } as const;
 
 export type BookingErrorCode =
@@ -204,6 +207,14 @@ export const BOOKING_ERRORS: Record<BookingErrorCode, BookingErrorSpec> = {
     status: 409,
     thongBao: 'Lịch hẹn này đã có yêu cầu đổi lịch đang chờ duyệt.',
   },
+  YEU_CAU_DOI_LICH_KHONG_TON_TAI: {
+    status: 404,
+    thongBao: 'Không tìm thấy yêu cầu đổi lịch.',
+  },
+  YEU_CAU_DA_XU_LY: {
+    status: 409,
+    thongBao: 'Yêu cầu này đã được xử lý.',
+  },
 };
 
 /**
@@ -223,18 +234,20 @@ export function bookingException(
 
 // Mã sự kiện của `thong_bao.loai_su_kien` (PLAN 5.12; Q29; `varchar(100)`, không enum). [đề xuất]: một khi đã dùng thì phải ổn định, vì UNIQUE
 // `(lich_hen_id, tai_khoan_id, loai_su_kien)` của P7 chống gửi trùng theo chuỗi này.
+// `CHECKED_IN` (notification B6; PLAN notification 5.8, Q7): gửi BÁC SĨ phụ trách khi tiếp đón, CHỈ trong ứng dụng; bốn loại có thư của booking là `BOOKING_MAIL_EVENTS` (`notifications/notifications.constants.ts`).
 export const BOOKING_NOTIFICATION_EVENTS = {
   CONFIRMED: 'LichHenDaXacNhan',
   CANCELLED: 'LichHenDaHuy',
   NO_SHOW: 'LichHenVangMat',
   NO_SHOW_LOCK: 'KhoaDatLichNoShow',
+  CHECKED_IN: 'LichHenDaTiepDon',
 } as const;
 
 export type BookingNotificationEvent =
   (typeof BOOKING_NOTIFICATION_EVENTS)[keyof typeof BOOKING_NOTIFICATION_EVENTS];
 
 // Bốn mã thông báo của ĐỔI LỊCH và YÊU CẦU ĐỔI LỊCH (reschedule B3; PLAN reschedule 5.10; Q13 `[đề xuất]`). Hằng RIÊNG, KHÔNG nằm trong `BOOKING_NOTIFICATION_EVENTS` (bốn mã của luồng đặt lịch giữ nguyên:
-// BCS-04 và ca của `doctor` đếm "bốn"); worker thư (`MAIL_EVENTS`) thêm đúng bốn mã này. Một khi đã dùng thì phải ổn định (UNIQUE `thong_bao_index_lich_hen` và `thong_bao_index_yeu_cau_doi_lich`
+// BCS-04 và ca của `doctor` đếm năm mã sau notification B6); worker thư (`MAIL_EVENTS`) thêm đúng bốn mã này. Một khi đã dùng thì phải ổn định (UNIQUE `thong_bao_index_lich_hen` và `thong_bao_index_yeu_cau_doi_lich`
 // chống ghi trùng theo chuỗi này; so không phân biệt hoa thường). Danh mục sự kiện của scope thông báo (Trung) phải liệt kê hằng này.
 //  - RESCHEDULED: ghi cho lịch MỚI (`thong_bao.lich_hen_id` = lịch mới).
 //  - ba loại còn lại: ghi cho YÊU CẦU (`thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id`), `lich_hen_id` để trống.

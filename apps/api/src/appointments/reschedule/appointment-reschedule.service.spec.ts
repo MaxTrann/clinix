@@ -156,6 +156,7 @@ const readOf = (
 
 const APPOINTMENT_LOCKED: LockedAppointment = {
   benhNhanId: OWNER_ID,
+  bacSiId: '31',
   chiNhanhId: '1',
   trangThai: 'DaXacNhan',
   thoiGian: new Date('2026-11-09T08:00:00+07:00'),

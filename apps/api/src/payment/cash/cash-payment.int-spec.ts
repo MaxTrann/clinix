@@ -119,7 +119,7 @@ describe('đường thành công', () => {
     expect(await stateOf(db, leaf.lichHenId)).toBe('DaTiepDon');
   });
 
-  it('TTQ-14 không ghi nhật ký; không thêm thong_bao nào (kể cả cho Bác sĩ, L18)', async () => {
+  it('TTQ-14 không ghi nhật ký; payment KHÔNG tự thêm thong_bao; DMS-10 (notification B6, đường thu tiền mặt): `checkIn` của booking thêm đúng MỘT LichHenDaTiepDon cho Bác sĩ phụ trách (payment Q26, L18 đã chuyển cho booking)', async () => {
     const w = await world();
     const lich = await w.appointment(0);
     const count = async (table: string) =>
@@ -132,7 +132,14 @@ describe('đường thành công', () => {
     await collect(w, lich.maLichHen, '300000');
 
     expect(await count('nhat_ky_hanh_dong')).toBe(before.log);
-    expect(await count('thong_bao')).toBe(before.notice);
+    expect(await count('thong_bao')).toBe(before.notice + 1);
+    const added: { taiKhoanId: string; loai: string }[] = await db.query(
+      "SELECT CAST(tai_khoan_id AS CHAR) AS taiKhoanId, loai_su_kien AS loai FROM thong_bao WHERE lich_hen_id = ? AND loai_su_kien = 'LichHenDaTiepDon'",
+      [lich.lichHenId],
+    );
+    expect(added).toEqual([
+      { taiKhoanId: w.doctor.account.taiKhoanId, loai: 'LichHenDaTiepDon' },
+    ]);
   });
 
   it('HDT-13 trình tự câu SQL trong giao dịch: checkIn (khoá rồi UPDATE lich_hen) TRƯỚC INSERT giao_dich_thanh_toan', async () => {

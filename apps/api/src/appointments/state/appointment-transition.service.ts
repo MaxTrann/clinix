@@ -216,11 +216,11 @@ export class AppointmentTransitionService {
 
   /**
    * Tiếp đón (họ B, PLAN 5.7, 5.10 B, Q22; TRACKING 3.26 B12-C): `DaXacNhan` thành `DaTiepDon`. Hai người gọi: route của Lễ tân (`actor: 'LeTan'`, đòi `conPhaiThu = 0`) và `payment` B17 trong giao dịch tiền mặt
-   * của nó (`actor: 'ThanhToan'`, không đòi `conPhaiThu = 0`, quy tắc 46). Nhận `em`, KHÔNG mở giao dịch, KHÔNG ném `AppException`; chỉ khoá `lich_hen` theo khoá chính, không đụng khung giờ, không thông báo.
-   * Điều kiện người gọi phải giữ (thứ tự so với ghi bảng có khoá ngoại tới `lich_hen`): chú thích đầu `check-in.ts`.
+   * của nó (`actor: 'ThanhToan'`, không đòi `conPhaiThu = 0`, quy tắc 46). Nhận `em`, KHÔNG mở giao dịch, KHÔNG ném `AppException`; chỉ khoá `lich_hen` theo khoá chính, không đụng khung giờ; ghi thông báo
+   * `LichHenDaTiepDon` cho Bác sĩ phụ trách (notification B6). Điều kiện người gọi phải giữ (thứ tự so với ghi bảng có khoá ngoại tới `lich_hen`): chú thích đầu `check-in.ts`.
    */
   checkIn(em: EntityManager, input: CheckInInput): Promise<CheckInOutcome> {
-    return checkInWithin(em, input);
+    return checkInWithin(em, input, { notifier: this.notifier });
   }
 
   /**

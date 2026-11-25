@@ -1,8 +1,12 @@
 import { request } from '../../../../../shared/api/client';
 import {
+  parseRescheduleCandidate,
+  parseRescheduleCurrent,
+  readOptionalText,
+} from '../../common/reschedule-payload';
+import {
   readCount,
   readFlag,
-  readId,
   readIsoDateTime,
   readRecord,
   readText,
@@ -11,7 +15,6 @@ import {
 import { appointmentApiPath } from '../api/patient-appointment-detail-api';
 import {
   RESCHEDULE_KINDS,
-  type RescheduleCandidate,
   type RescheduleKind,
   type ReschedulePreview,
 } from './reschedule-types';
@@ -24,26 +27,8 @@ function readKind(value: unknown): RescheduleKind {
   return RESCHEDULE_KINDS.find((kind) => kind === text) ?? unusableResponse();
 }
 
-// Khoá tuỳ chọn: vắng hoặc chuỗi (`null`, số, đối tượng ⇒ không dùng được: hợp đồng chỉ có "vắng")
-function readOptionalText(value: unknown): string | undefined {
-  return value === undefined ? undefined : readText(value);
-}
-
-function parseCandidate(raw: unknown): RescheduleCandidate | null {
-  if (raw === null) return null;
-  const row = readRecord(raw);
-  const reason = readOptionalText(row.lyDoKhongHopLe);
-  return {
-    khungGioId: readId(row.khungGioId),
-    thoiGian: readIsoDateTime(row.thoiGian),
-    hopLe: readFlag(row.hopLe),
-    ...(reason === undefined ? {} : { lyDoKhongHopLe: reason }),
-  };
-}
-
 export function parseReschedulePreview(raw: unknown): ReschedulePreview {
   const body = readRecord(raw);
-  const current = readRecord(body.lichCu);
   const reason = readOptionalText(body.lyDoKhongDoi);
   return {
     choPhepDoi: readFlag(body.choPhepDoi),
@@ -52,11 +37,8 @@ export function parseReschedulePreview(raw: unknown): ReschedulePreview {
     soLanDaDoi: readCount(body.soLanDaDoi),
     soLanToiDa: readCount(body.soLanToiDa),
     coYeuCauChoDuyet: readFlag(body.coYeuCauChoDuyet),
-    lichCu: {
-      thoiGian: readIsoDateTime(current.thoiGian),
-      bacSiId: readId(current.bacSiId),
-    },
-    lichMoi: parseCandidate(body.lichMoi),
+    lichCu: parseRescheduleCurrent(body.lichCu),
+    lichMoi: parseRescheduleCandidate(body.lichMoi),
     thoiGianMayChu: readIsoDateTime(body.thoiGianMayChu),
   };
 }

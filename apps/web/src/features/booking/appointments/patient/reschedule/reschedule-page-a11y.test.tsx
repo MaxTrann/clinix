@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanUpDetailPage } from '../../../testing/appointment-detail-harness';
 import { fakeDay, fakeSlot } from '../../../testing/fake-reschedule-api';
 import { renderReschedule } from '../../../testing/reschedule-harness';
-import { RESCHEDULE_TEXT } from './reschedule-text';
+import { RESCHEDULE_TEXT } from '../../common/reschedule-text';
 
 // reschedule F1, mã ca WDH-08 (PLAN reschedule 7.11): bàn phím và trình đọc màn hình của trang chọn khung giờ. Chứng cứ là test (tên, vai trò, tiêu điểm, thứ tự); KHÔNG có trình đọc màn hình thật
 // nên đây là chứng cứ gián tiếp (số đo trình duyệt ở TRACKING nếu được cấp lượt). Hôm nay giả là 25/11/2026 (thứ Tư). Dữ liệu giả.

@@ -1,6 +1,8 @@
 import type { RouteObject } from 'react-router';
 import {
   RECEPTION_APPOINTMENT_DETAIL_SEGMENT,
+  RECEPTION_APPOINTMENT_RESCHEDULE_CONFIRM_SEGMENT,
+  RECEPTION_APPOINTMENT_RESCHEDULE_SEGMENT,
   RECEPTION_APPOINTMENTS_SEGMENT,
 } from '../../../../shared/routes/booking-paths';
 import { RECEPTION_RESCHEDULE_REQUEST_ROUTES } from './reschedule-requests/reception-request-routes';
@@ -24,5 +26,22 @@ export const RECEPTION_APPOINTMENT_ROUTES: RouteObject[] = [
       import('./detail/reception-detail-page').then((module) => ({
         Component: module.ReceptionDetailRoute,
       })),
+  },
+  // reschedule F3: đổi lịch HỘ bệnh nhân, hai route DƯỚI chi tiết lịch (trang chọn khung giờ và màn xác nhận); cùng nếp F1 của Bệnh nhân nên không chạm `router/role-routes.tsx`.
+  {
+    path: RECEPTION_APPOINTMENT_RESCHEDULE_SEGMENT,
+    lazy: () =>
+      import('./reschedule/reception-reschedule-page').then((module) => ({
+        Component: module.ReceptionReschedulePage,
+      })),
+  },
+  {
+    path: RECEPTION_APPOINTMENT_RESCHEDULE_CONFIRM_SEGMENT,
+    lazy: () =>
+      import('./reschedule/reception-reschedule-confirm-page').then(
+        (module) => ({
+          Component: module.ReceptionRescheduleConfirmPage,
+        }),
+      ),
   },
 ];

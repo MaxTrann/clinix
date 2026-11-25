@@ -1,4 +1,14 @@
-import { Controller, Get, Header, Inject, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  Inject,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -11,6 +21,15 @@ import {
 } from './reschedule-request-list.dto.js';
 import { RescheduleRequestListService } from './reschedule-request-list.service.js';
 import type { RescheduleRequestDetail } from './reschedule-request-list.types.js';
+// Import GIÁ TRỊ cho hai DTO của B9 (cùng lý do với query DTO ở trên: ValidationPipe cần metadata của lớp lúc chạy)
+import {
+  ApproveRescheduleRequestDto,
+  RejectRescheduleRequestDto,
+  type ApproveRescheduleRequestResult,
+  type RejectRescheduleRequestResult,
+} from './reschedule-request-handle.dto.js';
+import { RescheduleRequestApproveService } from './reschedule-request-approve.service.js';
+import { RescheduleRequestRejectService } from './reschedule-request-reject.service.js';
 
 // Danh sách và chi tiết YÊU CẦU ĐỔI LỊCH ngoài chính sách của LỄ TÂN (reschedule B8; PLAN reschedule 5.7, 5.8). Controller chỉ nhận/trả; logic ở `RescheduleRequestListService`. CHỈ ĐỌC.
 //  - `@Roles('LeTan')` DUY NHẤT, ghi trên từng route (AR-02): Bệnh nhân, Bác sĩ, Quản trị viên nhận 403 kể cả khi gửi query sai hay id sai dạng (guard chạy TRƯỚC pipe).
@@ -23,6 +42,10 @@ export class ReceptionRescheduleRequestsController {
   constructor(
     @Inject(RescheduleRequestListService)
     private readonly service: RescheduleRequestListService,
+    @Inject(RescheduleRequestApproveService)
+    private readonly approveService: RescheduleRequestApproveService,
+    @Inject(RescheduleRequestRejectService)
+    private readonly rejectService: RescheduleRequestRejectService,
   ) {}
 
   // 200 (mặc định của @Get). Không yêu cầu nào khớp, hoặc trang vượt cuối ⇒ `items: []`, không 404
@@ -52,5 +75,36 @@ export class ReceptionRescheduleRequestsController {
     @Param('yeuCauId') yeuCauId: string,
   ): Promise<RescheduleRequestDetail> {
     return this.service.detailForReception(user.accountId, yeuCauId);
+  }
+
+  // Hai route GHI của B9 (TRACKING reschedule 1.13). `@HttpCode(200)`: `@Post` mặc định trả 201, mà hợp đồng là 200 (xử lý một yêu cầu có sẵn; lịch mới của duyệt nằm TRONG thân). `@Roles('LeTan')` trên TỪNG route
+  // (AR-02). `:yeuCauId` là chuỗi THÔ (service giải phạm vi rồi mới phân tích id). Chuyển TƯỜNG MINH từng trường của thân, không truyền nguyên DTO.
+  @Post(':yeuCauId/approve')
+  @HttpCode(200)
+  @Roles('LeTan')
+  @Header('Cache-Control', 'no-store')
+  approve(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('yeuCauId') yeuCauId: string,
+    @Body() body: ApproveRescheduleRequestDto,
+  ): Promise<ApproveRescheduleRequestResult> {
+    return this.approveService.approveAsReception(user.accountId, yeuCauId, {
+      ghiChu: body.ghiChu,
+      khungGioId: body.khungGioId,
+    });
+  }
+
+  @Post(':yeuCauId/reject')
+  @HttpCode(200)
+  @Roles('LeTan')
+  @Header('Cache-Control', 'no-store')
+  reject(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('yeuCauId') yeuCauId: string,
+    @Body() body: RejectRescheduleRequestDto,
+  ): Promise<RejectRescheduleRequestResult> {
+    return this.rejectService.rejectAsReception(user.accountId, yeuCauId, {
+      ghiChu: body.ghiChu,
+    });
   }
 }

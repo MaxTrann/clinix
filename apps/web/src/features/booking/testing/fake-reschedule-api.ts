@@ -1,8 +1,6 @@
 import { isSlotId } from '../wizard/slot-id';
-import type {
-  RescheduleCandidate,
-  ReschedulePreview,
-} from '../appointments/patient/reschedule/reschedule-types';
+import type { RescheduleCandidate } from '../appointments/common/reschedule-payload';
+import type { ReschedulePreview } from '../appointments/patient/reschedule/reschedule-types';
 import { createFakeAppointmentDetailApi } from './fake-appointment-detail-api';
 import { jsonResponse } from './fake-appointment-list-api';
 

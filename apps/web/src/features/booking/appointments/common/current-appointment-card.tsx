@@ -2,8 +2,8 @@ import { CalendarCheck, CalendarClock, type LucideIcon } from 'lucide-react';
 import {
   formatVietnamTime,
   formatVietnamWeekdayDate,
-} from '../../common/appointment-format';
-import { DetailCard, DetailRow } from '../../common/detail-card';
+} from './appointment-format';
+import { DetailCard, DetailRow } from './detail-card';
 import { RESCHEDULE_TEXT } from './reschedule-text';
 
 // Hai thẻ giờ của trang đổi lịch (reschedule F1, WDH-02; F2 thêm "Lịch mới" cho màn xác nhận): chỉ có NGÀY và GIỜ KHÁM vì preview (PLAN 5.8) chỉ trả `thoiGian` (và `bacSiId` để vẽ lưới). Prop chỉ cần

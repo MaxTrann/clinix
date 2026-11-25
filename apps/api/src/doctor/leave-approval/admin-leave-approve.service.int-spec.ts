@@ -14,7 +14,10 @@ import {
   firstTableOf,
   isLockingStatement,
 } from '../../appointments/testing/query-spy.js';
-import { recordStatements } from '../../appointments/testing/statement-recorder.js';
+import {
+  failAfterStatement,
+  recordStatements,
+} from '../../appointments/testing/statement-recorder.js';
 import { AuditService } from '../../audit/audit.service.js';
 import { useIntegrationHooks } from '../../auth/testing/int-hooks.js';
 import { AppException } from '../../common/errors/app.exception.js';
@@ -227,6 +230,29 @@ describe('B15 — Duyệt yêu cầu nghỉ phép (mức dịch vụ, MySQL th�
     ).rejects.toThrow('nhat_ky hỏng');
     expect((await requestRow(id)).trangThai).toBe('ChoDuyet');
     expect(await count('FROM thong_bao')).toBe(0);
+    expect((await appointmentRow(lich.lichHenId)).trangThai).toBe('DaXacNhan');
+  });
+
+  it('EMT-04 (notification B5): INSERT email_thong_bao chạy thật rồi ném lỗi ⇒ hoàn tác cả việc duyệt (yêu cầu ChoDuyet, 0 thong_bao, 0 email_thong_bao, 0 nhật ký) và KHÔNG chạy bước 2', async () => {
+    const { adminId, leave, w } = await setup();
+    const lich = await w.booked('DaXacNhan', 0);
+    const id = await leave();
+    const failure = new Error('INSERT email_thong_bao hỏng');
+    const matched = failAfterStatement(
+      db,
+      /^INSERT INTO email_thong_bao/,
+      failure,
+    );
+
+    await expect(
+      createServices().approval.approve(SYSTEM, adminId, id),
+    ).rejects.toBe(failure);
+
+    expect(matched).toHaveLength(1);
+    expect((await requestRow(id)).trangThai).toBe('ChoDuyet');
+    expect(await count('FROM thong_bao')).toBe(0);
+    expect(await count('FROM email_thong_bao')).toBe(0);
+    expect(await count('FROM nhat_ky_hanh_dong')).toBe(0);
     expect((await appointmentRow(lich.lichHenId)).trangThai).toBe('DaXacNhan');
   });
 

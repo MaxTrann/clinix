@@ -1,4 +1,18 @@
-import { Controller, Get, Header, Inject, Param, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  Inject,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
+import {
+  CurrentUser,
+  type AuthenticatedUser,
+} from '../../auth/decorators/current-user.decorator.js';
 import { Roles } from '../../auth/decorators/roles.decorator.js';
 import type { AdminScope } from '../../rbac/admin-scope.js';
 import { AdminScopeCtx } from '../../rbac/decorators/admin-scope-ctx.decorator.js';
@@ -10,6 +24,15 @@ import {
 } from './reschedule-request-list.dto.js';
 import { RescheduleRequestListService } from './reschedule-request-list.service.js';
 import type { RescheduleRequestDetail } from './reschedule-request-list.types.js';
+// Import GIÁ TRỊ cho hai DTO của B9 (cùng lý do với query DTO ở trên: ValidationPipe cần metadata của lớp lúc chạy)
+import {
+  ApproveRescheduleRequestDto,
+  RejectRescheduleRequestDto,
+  type ApproveRescheduleRequestResult,
+  type RejectRescheduleRequestResult,
+} from './reschedule-request-handle.dto.js';
+import { RescheduleRequestApproveService } from './reschedule-request-approve.service.js';
+import { RescheduleRequestRejectService } from './reschedule-request-reject.service.js';
 
 // Danh sách và chi tiết YÊU CẦU ĐỔI LỊCH ngoài chính sách của QUẢN TRỊ VIÊN (reschedule B8; PLAN reschedule 5.7, 5.8). Controller chỉ nhận/trả; logic ở `RescheduleRequestListService`. CHỈ ĐỌC.
 //  - `@Roles('QuanTriVien')` và `@RequireAdminScope('Any')` GHI TRÊN TỪNG ROUTE (AR-02): Bệnh nhân, Bác sĩ, Lễ tân nhận 403 kể cả khi gửi query sai hay id sai dạng. Cả hai phạm vi (Toàn hệ thống,
@@ -23,6 +46,10 @@ export class AdminRescheduleRequestsController {
   constructor(
     @Inject(RescheduleRequestListService)
     private readonly service: RescheduleRequestListService,
+    @Inject(RescheduleRequestApproveService)
+    private readonly approveService: RescheduleRequestApproveService,
+    @Inject(RescheduleRequestRejectService)
+    private readonly rejectService: RescheduleRequestRejectService,
   ) {}
 
   // 200 (mặc định của @Get). Không yêu cầu nào khớp, hoặc trang vượt cuối ⇒ `items: []`, không 404
@@ -55,5 +82,40 @@ export class AdminRescheduleRequestsController {
     @Param('yeuCauId') yeuCauId: string,
   ): Promise<RescheduleRequestDetail> {
     return this.service.detail(scope, yeuCauId);
+  }
+
+  // Hai route GHI của B9 (TRACKING reschedule 1.13), cùng nếp `AdminOverrideController` (B14): `@HttpCode(200)` (`@Post` mặc định 201, hợp đồng là 200), `@Roles('QuanTriVien')` và `@RequireAdminScope('Any')` trên TỪNG
+  // route (AR-02). Phạm vi chỉ từ `AdminScopeCtx`, người xử lý chỉ từ access token; `:yeuCauId` là chuỗi THÔ. Chuyển TƯỜNG MINH từng trường của thân, không truyền nguyên DTO.
+  @Post(':yeuCauId/approve')
+  @HttpCode(200)
+  @Roles('QuanTriVien')
+  @RequireAdminScope('Any')
+  @Header('Cache-Control', 'no-store')
+  approve(
+    @AdminScopeCtx() scope: AdminScope,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('yeuCauId') yeuCauId: string,
+    @Body() body: ApproveRescheduleRequestDto,
+  ): Promise<ApproveRescheduleRequestResult> {
+    return this.approveService.approveAsAdmin(scope, user.accountId, yeuCauId, {
+      ghiChu: body.ghiChu,
+      khungGioId: body.khungGioId,
+    });
+  }
+
+  @Post(':yeuCauId/reject')
+  @HttpCode(200)
+  @Roles('QuanTriVien')
+  @RequireAdminScope('Any')
+  @Header('Cache-Control', 'no-store')
+  reject(
+    @AdminScopeCtx() scope: AdminScope,
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('yeuCauId') yeuCauId: string,
+    @Body() body: RejectRescheduleRequestDto,
+  ): Promise<RejectRescheduleRequestResult> {
+    return this.rejectService.rejectAsAdmin(scope, user.accountId, yeuCauId, {
+      ghiChu: body.ghiChu,
+    });
   }
 }
