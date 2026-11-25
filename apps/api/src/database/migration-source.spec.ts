@@ -43,6 +43,12 @@ import {
   TaoBangNhacLichHen1794052800000,
 } from './migrations/1794052800000-tao-bang-nhac-lich-hen.js';
 import {
+  CHI_MUC_THONG_BAO_TAI_KHOAN_SQL,
+  ChiMucThongBaoTaiKhoan1794139200000,
+} from './migrations/1794139200000-chi-muc-thong-bao-tai-khoan.js';
+import { getMetadataArgsStorage } from 'typeorm';
+import { ThongBao } from '../admin/entities/thong-bao.entity.js';
+import {
   normalizeStatement,
   officialStatementsFor,
   targetTable,
@@ -50,6 +56,7 @@ import {
   maskLichHenDoiLich,
   maskLichHenMoc,
   maskNghiTheoCaNhieuNgay,
+  maskThongBaoChiMucTaiKhoan,
   maskThongBaoDoiLich,
   maskThongBaoLichHen,
 } from './testing/official-schema.js';
@@ -128,11 +135,13 @@ describe('migration P3 khớp schema SQL chính thức', () => {
     expect(official.length).toBeGreaterThan(0);
     // Hai enum của nhat_ky_hanh_dong được mở rộng ở migration P4 và thong_bao.lich_hen_id được thêm ở migration
     // booking P7 (đều sau migration này); phần P7 được che, xem TBLH-01 đến TBLH-03 ở dưới. Cột thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id (cùng chỉ mục, khóa ngoại)
-    // được thêm ở migration reschedule P1: cũng được che, xem MDL-04 và MDL-08.
+    // được thêm ở migration reschedule P1: cũng được che, xem MDL-04 và MDL-08. Chỉ mục thong_bao_index_tai_khoan_thoi_diem (notification P2) cũng được che, xem MTB-10.
     expect(
       TAO_BANG_VAN_HANH_SQL.map(normalizeStatement).map(maskAuditEnums),
     ).toEqual(
-      maskThongBaoDoiLich(maskThongBaoLichHen(official)).map(maskAuditEnums),
+      maskThongBaoChiMucTaiKhoan(
+        maskThongBaoDoiLich(maskThongBaoLichHen(official)),
+      ).map(maskAuditEnums),
     );
   });
 
@@ -989,11 +998,56 @@ describe('migration notification P1 (nhac_lich_hen) khớp schema SQL chính th�
     }
   });
 
-  it('MTB-11: mốc P1 là migration cuối của sổ, lớn hơn mốc reschedule P1 (1793966400000); các mốc tăng dần', () => {
+  it('MTB-11: mốc P1 đứng ngay sau reschedule P1 (1793966400000) và lớn hơn nó; các mốc tăng dần', () => {
     const stamps = MIGRATIONS.map((m) => Number(/(\d{13})$/.exec(m.name)?.[1]));
     expect(stamps).toEqual([...stamps].sort((a, b) => a - b));
-    expect(MIGRATIONS.at(-1)).toBe(TaoBangNhacLichHen1794052800000);
-    expect(MIGRATIONS.at(-2)).toBe(DoiLich1793966400000);
-    expect(stamps.at(-1)).toBeGreaterThan(1793966400000);
+    const index = MIGRATIONS.indexOf(TaoBangNhacLichHen1794052800000);
+    expect(MIGRATIONS[index - 1]).toBe(DoiLich1793966400000);
+    expect(stamps[index]).toBeGreaterThan(1793966400000);
+  });
+});
+
+// notification P2 (#657): MTB-10 phần chữ DDL, mặt nạ, entity và thứ tự mốc. SHOW CREATE TABLE ở schema-parity.int-spec.ts, EXPLAIN ở thong-bao-chi-muc.int-spec.ts,
+// vòng đời up/down ở migrations.int-spec.ts, dbml ở dbml-parity.spec.ts.
+describe('migration notification P2 (chỉ mục thong_bao theo tài khoản) khớp schema SQL chính thức', () => {
+  const isNewIndex = (sql: string): boolean =>
+    sql.startsWith('CREATE INDEX `thong_bao_index_tai_khoan_thoi_diem` ');
+  const thongBao = officialStatementsFor(['thong_bao']).map(normalizeStatement);
+
+  it('MTB-10: câu CREATE INDEX trùng nguyên văn câu duy nhất trong clinix_mysql.sql; ba cột đúng thứ tự', () => {
+    expect(thongBao.filter(isNewIndex)).toEqual([
+      CHI_MUC_THONG_BAO_TAI_KHOAN_SQL,
+    ]);
+    expect(CHI_MUC_THONG_BAO_TAI_KHOAN_SQL).toMatch(
+      /\(`tai_khoan_id`, `thoi_diem_tao`, `thong_bao_id`\)$/,
+    );
+    expect(targetTable(CHI_MUC_THONG_BAO_TAI_KHOAN_SQL)).toBe('thong_bao');
+  });
+
+  it('MTB-10: mặt nạ bỏ đúng một câu đó, giữ nguyên các câu khác của thong_bao (kể cả thong_bao_index_25); ca âm: chỉ mục cùng tên ở bảng khác không bị che', () => {
+    const masked = maskThongBaoChiMucTaiKhoan(thongBao);
+    expect(masked).toEqual(thongBao.filter((sql) => !isNewIndex(sql)));
+    expect(masked).toHaveLength(thongBao.length - 1);
+    expect(masked.some((sql) => sql.includes('`thong_bao_index_25`'))).toBe(
+      true,
+    );
+    const other =
+      'CREATE INDEX `thong_bao_index_tai_khoan_thoi_diem` ON `khac` (`a`)';
+    expect(maskThongBaoChiMucTaiKhoan([other])).toEqual([other]);
+  });
+
+  it('MTB-10: entity ThongBao khai chỉ mục cùng tên, cùng ba cột theo thứ tự', () => {
+    const index = getMetadataArgsStorage().indices.find(
+      (item) =>
+        item.target === ThongBao &&
+        item.name === 'thong_bao_index_tai_khoan_thoi_diem',
+    );
+    expect(index?.columns).toEqual(['taiKhoanId', 'thoiDiemTao', 'thongBaoId']);
+    expect(index?.unique).toBeFalsy();
+  });
+
+  it('MTB-10: migration P2 đứng cuối sổ, ngay sau notification P1, mốc lớn hơn', () => {
+    expect(MIGRATIONS.at(-1)).toBe(ChiMucThongBaoTaiKhoan1794139200000);
+    expect(MIGRATIONS.at(-2)).toBe(TaoBangNhacLichHen1794052800000);
   });
 });
