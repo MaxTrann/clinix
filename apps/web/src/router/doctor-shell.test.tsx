@@ -120,14 +120,15 @@ describe('khung Bác sĩ', () => {
   });
 
   // booking F11 (Đại duyệt 14/11/2026): mục "Lịch hẹn" nay có `to` nên là liên kết; còn bốn mục chưa có trang vẫn là nút vô hiệu
-  it('WK-02 mục chưa có trang là nút vô hiệu (chỉ "Lịch hẹn" và "Lịch làm việc" là liên kết)', async () => {
+  // notification F1: "Thông báo" nay có `to` nên là liên kết thứ ba; ba mục còn lại vẫn vô hiệu
+  it('WK-02 mục chưa có trang là nút vô hiệu (chỉ "Lịch hẹn", "Lịch làm việc" và "Thông báo" là liên kết)', async () => {
     signedInAs('BacSi');
     renderAt(DOCTOR_PATHS.schedule);
     const aside = await shell();
     const menu = within(aside).getByRole('navigation', { name: 'Menu chính' });
-    expect(within(menu).getAllByRole('link')).toHaveLength(2);
+    expect(within(menu).getAllByRole('link')).toHaveLength(3);
     const buttons = within(menu).getAllByRole('button');
-    expect(buttons).toHaveLength(4);
+    expect(buttons).toHaveLength(3);
     for (const button of buttons) expect(button).toBeDisabled();
   });
 

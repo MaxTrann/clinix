@@ -43,6 +43,9 @@ export function createFakeAuthApi(
     requests: [] as { path: string; method: string; headers: Headers }[],
     // Thân JSON của từng lần gọi (để kiểm đúng các trường gửi đi); KHÔNG gộp vào `requests` để test cũ giữ nguyên
     bodies: [] as { path: string; body: unknown }[],
+    // notification F1: số trả cho `GET /notifications/unread-count`. Mọi khung vai trò thăm dò đường dẫn này khi gắn, nên bộ giả trả nó KHÔNG cần token
+    // (như một trang đã có API giả riêng); nếu không, test chỉ đặt trạng thái đăng nhập sẽ nhận 401, làm mới phiên thất bại và bị đăng xuất giữa ca
+    unreadCount: 0,
 
     issueToken() {
       const token = `tok-${++tokenCounter}`;
@@ -137,6 +140,9 @@ export function createFakeAuthApi(
         return json(200, { taiKhoanNgung: false, canDangKyLai: false });
       }
       if (path === '/auth/refresh') return api.handleRefresh();
+      if (path === '/notifications/unread-count') {
+        return json(200, { soChuaDoc: api.unreadCount });
+      }
       if (path === '/auth/logout') {
         api.revoked = true;
         api.cookie = null;
