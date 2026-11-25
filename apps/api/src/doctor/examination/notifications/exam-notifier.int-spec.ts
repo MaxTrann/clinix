@@ -1,5 +1,4 @@
 import type { DataSource } from 'typeorm';
-import { BOOKING_NOTIFICATION_EVENTS } from '../../../appointments/appointments.constants.js';
 import { selectDueEmails } from '../../../appointments/notifications/email-outbox.query.js';
 import { insertThongBao } from '../../../appointments/notifications/thong-bao-insert.query.js';
 import { BookingFixtures } from '../../../appointments/testing/booking-fixtures.js';
@@ -9,7 +8,8 @@ import { countRows, thongBaoRows } from '../testing/exam-completion-stack.js';
 import { examWorld } from '../testing/exam-world.js';
 import { buildCompletedText, ExamNotifier } from './exam-notifier.js';
 
-// doctor-exam B1 — ExamNotifier trên MySQL 8.4 THẬT: TDK-01, TDK-02 (PLAN 7.11), cộng HDK-06 `[đề xuất]` (7.10; chưa task nào nhận ở TRACKING mục 2). Phần chữ của thông báo: exam-notifier.spec.ts.
+// doctor-exam B1 — ExamNotifier trên MySQL 8.4 THẬT: TDK-01, TDK-02 (PLAN 7.11); notification B4: EMT-01 (dòng thư cùng giao dịch, không thư thứ hai khi "đã có") và EMT-03 (HDK-06 đã sửa: worker CHỌN loại
+// hoàn thành; loại lạ vẫn bị bỏ qua). Phần chữ của thông báo: exam-notifier.spec.ts.
 // Toàn bộ qua `db.transaction` (như người gọi thật: `em` của giao dịch hoàn thành). Dữ liệu giả.
 let db: DataSource;
 let fx: BookingFixtures;
@@ -21,6 +21,15 @@ useIntegrationHooks((d) => {
 const COMPLETED = EXAM_NOTIFICATION_EVENTS.COMPLETED;
 const AT = new Date('2026-11-10T09:00:00+07:00');
 const notifier = new ExamNotifier();
+
+/** Dòng hộp thư đi kèm loại của thông báo, theo khoá chính. */
+async function emailRows() {
+  const rows: { loai: string; trangThai: string; soLanThu: number | string }[] =
+    await db.query(
+      'SELECT t.loai_su_kien AS loai, e.trang_thai AS trangThai, e.so_lan_thu AS soLanThu FROM email_thong_bao e JOIN thong_bao t ON t.thong_bao_id = e.thong_bao_id ORDER BY e.email_thong_bao_id',
+    );
+  return rows.map((row) => ({ ...row, soLanThu: Number(row.soLanThu) }));
+}
 
 async function world() {
   const w = await examWorld(db, fx);
@@ -38,7 +47,7 @@ async function world() {
 }
 
 describe('TDK-01 thong_bao LichHenHoanThanh: người nhận, lịch, loại, chưa đọc, giờ', () => {
-  it('đúng MỘT dòng cho tài khoản ĐẶT (không cho bác sĩ): lich_hen_id, loai_su_kien, trang_thai_doc = 0, nội dung dựng từ mã lịch, thoi_diem_tao đúng giây; không dòng email', async () => {
+  it('đúng MỘT dòng cho tài khoản ĐẶT (không cho bác sĩ): lich_hen_id, loai_su_kien, trang_thai_doc = 0, nội dung dựng từ mã lịch, thoi_diem_tao đúng giây; MỘT dòng email ChoGui (notification B4)', async () => {
     const { w, lich, notify } = await world();
     await expect(notify()).resolves.toMatchObject({ kind: 'Inserted' });
     expect(await thongBaoRows(db)).toEqual([
@@ -52,13 +61,16 @@ describe('TDK-01 thong_bao LichHenHoanThanh: người nhận, lịch, loại, ch
       },
     ]);
     expect(w.patientId).not.toBe(w.doctorId);
-    expect(await countRows(db, 'email_thong_bao')).toBe(0);
+    expect(await emailRows()).toEqual([
+      { loai: COMPLETED, trangThai: 'ChoGui', soLanThu: 0 },
+    ]);
   });
 
   it('lỗi khác 1062 (khoá ngoại: tài khoản không tồn tại) NỔI LÊN, không bị nuốt, và không để lại dòng nào', async () => {
     const { notify } = await world();
     await expect(notify('999999999')).rejects.toThrow();
     expect(await countRows(db, 'thong_bao')).toBe(0);
+    expect(await countRows(db, 'email_thong_bao')).toBe(0);
   });
 });
 
@@ -71,6 +83,8 @@ describe('TDK-02 ghi hai lần cùng (lịch, tài khoản, loại): "đã có",
       notify(undefined, new Date(AT.getTime() + 60_000)),
     ).resolves.toEqual({ kind: 'AlreadyExists' });
     expect(await thongBaoRows(db)).toEqual(before);
+    // EMT-01: "đã có" thì KHÔNG ghi dòng thư thứ hai
+    expect(await countRows(db, 'email_thong_bao')).toBe(1);
   });
 
   it('lần hai NGAY TRONG CÙNG giao dịch ⇒ AlreadyExists và giao dịch dùng tiếp được: một câu khác vẫn chạy, một thông báo loại khác vẫn ghi, commit còn hai dòng (1062 chỉ ở cấp câu lệnh, X1 M12)', async () => {
@@ -102,38 +116,27 @@ describe('TDK-02 ghi hai lần cùng (lịch, tài khoản, loại): "đã có",
   });
 });
 
-describe('HDK-06 [đề xuất] hộp thư đi của booking BỎ QUA loại LichHenHoanThanh', () => {
-  it('dòng email_thong_bao ChoGui gắn một thong_bao LichHenHoanThanh KHÔNG được chọn vào lô thư đến lượt; đối chứng: cùng dòng nhưng loại của booking thì được chọn; không lỗi', async () => {
+describe('EMT-03 (HDK-06 đã sửa) hộp thư đi của booking CHỌN loại LichHenHoanThanh; loại lạ vẫn bị bỏ qua', () => {
+  it('dòng thư do ExamNotifier ghi được chọn vào lô thư đến lượt; dòng ChoGui gắn một thông báo loại lạ (ngoài MAIL_EVENTS) thì không', async () => {
     const { w, lich, notify } = await world();
     await notify();
-    const queue = async (thongBaoId: string) =>
-      db.query('INSERT INTO email_thong_bao (thong_bao_id) VALUES (?)', [
-        thongBaoId,
-      ]);
-    // B1 KHÔNG ghi dòng email; ở đây gài tay một dòng ChoGui cho thông báo hoàn thành, rồi một dòng cho thông báo loại của booking làm đối chứng dương
+    const strange: { insertId: string } = await db.query(
+      'INSERT INTO thong_bao (tai_khoan_id, noi_dung, loai_su_kien, lich_hen_id, thoi_diem_tao) VALUES (?, ?, ?, ?, ?)',
+      [w.patientId, 'loại lạ', 'LoaiLa', lich.lichHenId, AT],
+    );
+    await db.query('INSERT INTO email_thong_bao (thong_bao_id) VALUES (?)', [
+      String(strange.insertId),
+    ]);
     const completed: { id: string }[] = await db.query(
       'SELECT CAST(thong_bao_id AS CHAR) AS id FROM thong_bao WHERE loai_su_kien = ?',
       [COMPLETED],
     );
-    await queue(completed[0]?.id ?? '');
-    const control: { insertId: string } = await db.query(
-      'INSERT INTO thong_bao (tai_khoan_id, noi_dung, loai_su_kien, lich_hen_id, thoi_diem_tao) VALUES (?, ?, ?, ?, ?)',
-      [
-        w.patientId,
-        'đối chứng',
-        BOOKING_NOTIFICATION_EVENTS.CONFIRMED,
-        lich.lichHenId,
-        AT,
-      ],
-    );
-    const controlId = String(control.insertId);
-    await queue(controlId);
 
     const due = await selectDueEmails(db.manager, {
       now: AT,
       afterId: '0',
       limit: 100,
     });
-    expect(due.map((email) => email.thongBaoId)).toEqual([controlId]);
+    expect(due.map((email) => email.thongBaoId)).toEqual([completed[0]?.id]);
   });
 });

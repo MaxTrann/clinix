@@ -60,6 +60,7 @@ const KNOWN_DERIVED_SETS = [
   'MAIL_EVENTS',
   'PAYMENT_MAIL_EVENTS',
   'BRANCH_CHANGE_MAIL_EVENTS',
+  'EXAM_MAIL_EVENTS', // notification B4: bản chữ của EXAM_NOTIFICATION_EVENTS cho worker thư
 ];
 
 const sourceCodes: string[] = Object.values(SOURCE_EVENT_SETS).flatMap((set) =>
@@ -127,12 +128,12 @@ describe('DMS-03 mã duy nhất và đúng dạng', () => {
 });
 
 describe('DMS-04 tập "có thư" khớp MAIL_EVENTS của worker thư', () => {
-  it('bằng nhau (hiện 17 loại; B4, B5 nâng lên 21)', () => {
+  it('bằng nhau (hiện 18 loại sau notification B4; B5 nâng lên 21)', () => {
     const withMail = NOTIFICATION_CATALOG.filter((e) => e.coThu)
       .map((e) => e.ma)
       .sort();
     expect(withMail).toEqual([...MAIL_EVENTS].sort());
-    expect(withMail).toHaveLength(17);
+    expect(withMail).toHaveLength(18);
   });
 });
 

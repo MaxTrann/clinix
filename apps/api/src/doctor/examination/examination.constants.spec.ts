@@ -3,6 +3,7 @@ import {
   BOOKING_NOTIFICATION_EVENTS,
 } from '../../appointments/appointments.constants.js';
 import { MAIL_EVENTS } from '../../appointments/notifications/email-outbox.query.js';
+import { EXAM_MAIL_EVENTS } from '../../appointments/notifications/notifications.constants.js';
 import {
   COMMON_ERROR_CODES,
   ERROR_CODE_PATTERN,
@@ -24,7 +25,7 @@ import {
 } from './examination.constants.js';
 
 // doctor-exam P3 (#393) — hằng của phần khám bệnh. Không có mã test case riêng trong PLAN (hỗ trợ): chặn gõ sai mã lỗi ở PLAN 5.14 (Frontend chọn thông báo theo MÃ),
-// mã mới trùng mã của module khác (hai nghĩa một chuỗi), và chuẩn bị cho HDK-06 (loại sự kiện mới KHÁC bốn loại của booking và KHÔNG thuộc `MAIL_EVENTS` của worker thư nên worker bỏ qua; chữ sửa ở reschedule B3).
+// mã mới trùng mã của module khác (hai nghĩa một chuỗi), và loại sự kiện hoàn thành (KHÁC bốn loại của booking; từ notification B4 THUỘC `MAIL_EVENTS` nên worker thư gửi thư hoàn thành, EMT-03).
 // Danh sách mong đợi viết RIÊNG ở đây theo PLAN 5.14, không đọc lại từ hằng. Giá trị `[đề xuất]` (Q2, Q7, Q8) KHÔNG khẳng định số cụ thể, chỉ khẳng định quan hệ.
 const EXPECTED_ERROR_CODES = [
   'KHONG_THE_GHI_HO_SO_KHAM',
@@ -89,13 +90,14 @@ describe('mã lỗi của phần khám bệnh (PLAN 5.14)', () => {
   });
 });
 
-describe('sự kiện thông báo (PLAN 5.12; HDK-06 phần chuẩn bị)', () => {
-  it('loại sự kiện hoàn thành ca khám khác cả bốn loại của booking và không thuộc MAIL_EVENTS của worker thư (worker chỉ quét các loại trong MAIL_EVENTS nên bỏ qua loại này)', () => {
+describe('sự kiện thông báo (PLAN 5.12; notification B4: EMT-03, EMT-13)', () => {
+  it('loại sự kiện hoàn thành ca khám khác cả bốn loại của booking; từ notification B4 THUỘC MAIL_EVENTS và bản chữ `EXAM_MAIL_EVENTS` của booking khớp hằng của doctor-exam', () => {
     expect(Object.values(BOOKING_NOTIFICATION_EVENTS)).toHaveLength(4);
     expect(Object.values(BOOKING_NOTIFICATION_EVENTS)).not.toContain(
       EXAM_NOTIFICATION_EVENTS.COMPLETED,
     );
-    expect(MAIL_EVENTS).not.toContain(EXAM_NOTIFICATION_EVENTS.COMPLETED);
+    expect(MAIL_EVENTS).toContain(EXAM_NOTIFICATION_EVENTS.COMPLETED);
+    expect(EXAM_MAIL_EVENTS).toEqual(EXAM_NOTIFICATION_EVENTS);
   });
 
   it('vừa cột thong_bao.loai_su_kien (varchar 100), viết dạng PascalCase như các loại của booking', () => {
