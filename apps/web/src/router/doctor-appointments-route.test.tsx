@@ -189,7 +189,7 @@ describe('route "Lịch hẹn" của Bác sĩ (F11)', () => {
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('DAR-06 menu Bác sĩ vẫn đủ sáu mục đúng thứ tự Figma; đúng hai liên kết (`Lịch hẹn`, `Lịch làm việc`) và bốn nút vô hiệu (cặp với WK-02)', async () => {
+  it('DAR-06 menu Bác sĩ vẫn đủ sáu mục đúng thứ tự Figma; đúng ba liên kết (`Lịch hẹn`, `Lịch làm việc`, `Thông báo`) và ba nút vô hiệu (cặp với WK-02)', async () => {
     signedInAs('BacSi');
     renderAt(DOCTOR_APPOINTMENTS_PATH);
     const menu = within(await shell()).getByRole('navigation', {
@@ -213,9 +213,10 @@ describe('route "Lịch hẹn" của Bác sĩ (F11)', () => {
       within(menu)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Lịch hẹn', 'Lịch làm việc']);
+      // Đổi ở notification F1: "Thông báo" có trang
+    ).toEqual(['Lịch hẹn', 'Lịch làm việc', 'Thông báo']);
     const buttons = within(menu).getAllByRole('button');
-    expect(buttons).toHaveLength(4);
+    expect(buttons).toHaveLength(3);
     for (const button of buttons) expect(button).toBeDisabled();
   });
 });

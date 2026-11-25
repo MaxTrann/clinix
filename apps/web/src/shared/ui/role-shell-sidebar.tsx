@@ -2,6 +2,7 @@ import { ChevronRight, LogOut, Stethoscope, User } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
 import type { RoleNavItem, RoleShellLogout } from './role-shell';
+import { unreadBadgeText, unreadLabel } from './unread-badge';
 
 // Thân thanh bên của RoleShell (tách ở patient F11): dùng nguyên cho thanh bên màn rộng (trong `aside`) và cho ngăn kéo màn hẹp
 // (trong `role="dialog"`), nên lúc nào trang cũng chỉ có MỘT bản. Chỉ dùng trong `role-shell.tsx`.
@@ -13,8 +14,13 @@ const NOT_IMPLEMENTED_TITLE = 'Chưa được triển khai';
 const ITEM_BASE =
   'flex h-10 w-full items-center gap-3 rounded-[0.625rem] px-3 text-left text-sm';
 
-function NavItemLink({ item }: { item: RoleNavItem }) {
+function NavItemLink({ item, unread }: { item: RoleNavItem; unread?: number }) {
   const Icon = item.icon;
+  // notification F1: số chưa đọc trên mục "Thông báo" (ẩn khi 0 hay khi khung không có `notifications`)
+  const badge =
+    item.badge === 'notifications' && unread !== undefined
+      ? unreadBadgeText(unread)
+      : null;
   if (!item.to) {
     // `disabled` như AdminSidebar: không vào được bằng Tab nên chữ ẩn đọc cho trình đọc màn hình
     return (
@@ -34,6 +40,8 @@ function NavItemLink({ item }: { item: RoleNavItem }) {
     <NavLink
       to={item.to}
       end={item.end}
+      // Có số: tên của liên kết là "Thông báo, N chưa đọc" (như chuông); số hiển thị bên dưới ẩn với trình đọc màn hình
+      aria-label={badge !== null ? unreadLabel(unread ?? 0) : undefined}
       className={({ isActive }) =>
         `${ITEM_BASE} ${
           // Figma `#0092b8` chữ trắng chỉ 3,62:1, dùng brand-strong 5,28:1 (ADR 0004)
@@ -47,9 +55,24 @@ function NavItemLink({ item }: { item: RoleNavItem }) {
         <>
           <Icon className="size-4 shrink-0" aria-hidden="true" />
           <span className="min-w-0 truncate">{item.label}</span>
+          {badge !== null && (
+            <>
+              <span
+                aria-hidden="true"
+                className={`ml-auto min-w-5 shrink-0 rounded-full px-1 text-center text-xs leading-5 font-semibold ${
+                  // Trên nền mục đang mở (brand-strong) dùng nền trắng chữ brand-strong; còn lại chữ trắng trên `danger`
+                  isActive
+                    ? 'bg-white text-brand-strong'
+                    : 'bg-danger text-white'
+                }`}
+              >
+                {badge}
+              </span>
+            </>
+          )}
           {isActive && (
             <ChevronRight
-              className="ml-auto size-3 shrink-0"
+              className={`${badge !== null ? 'ml-1' : 'ml-auto'} size-3 shrink-0`}
               aria-hidden="true"
             />
           )}
@@ -59,12 +82,18 @@ function NavItemLink({ item }: { item: RoleNavItem }) {
   );
 }
 
-function NavItemList({ items }: { items: RoleNavItem[] }) {
+function NavItemList({
+  items,
+  unread,
+}: {
+  items: RoleNavItem[];
+  unread?: number;
+}) {
   return (
     <ul className="flex flex-col gap-0.5">
       {items.map((item) => (
         <li key={item.label}>
-          <NavItemLink item={item} />
+          <NavItemLink item={item} unread={unread} />
         </li>
       ))}
     </ul>
@@ -107,6 +136,8 @@ export interface RoleShellSidebarProps {
   showLogoutAlert: boolean;
   // Nút "Đóng menu" của ngăn kéo, đặt ở góc phải khối logo; màn rộng không có
   closeButton?: ReactNode;
+  // notification F1: số chưa đọc cho mục có `badge`; không có = khung không có chuông
+  unread?: number;
 }
 
 export function RoleShellSidebar({
@@ -117,6 +148,7 @@ export function RoleShellSidebar({
   logout,
   showLogoutAlert,
   closeButton,
+  unread,
 }: RoleShellSidebarProps) {
   return (
     <>
@@ -161,7 +193,7 @@ export function RoleShellSidebar({
       </div>
 
       <nav aria-label="Menu chính" className="flex-1 overflow-y-auto p-3">
-        <NavItemList items={items} />
+        <NavItemList items={items} unread={unread} />
       </nav>
 
       <div className="flex flex-col gap-1 border-t border-gray-100 p-3">

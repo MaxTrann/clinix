@@ -20,6 +20,7 @@ import {
   HOLD_MINUTES,
 } from '../testing/booking-fixtures.js';
 import { FakePaymentSummaryPort } from '../testing/fake-ports.js';
+import { realRescheduleDetailReader } from '../testing/reschedule-detail-world.js';
 import {
   CODES,
   OperationsListFixtures,
@@ -51,7 +52,14 @@ function silentNoopPayments(): NoopPaymentSummaryPort {
 }
 
 const serviceWith = (payments: PaymentSummaryPort) =>
-  new ReceptionAppointmentsService(db, scopes, operations, payments, configs);
+  new ReceptionAppointmentsService(
+    db,
+    scopes,
+    operations,
+    payments,
+    configs,
+    realRescheduleDetailReader(db),
+  );
 
 useIntegrationHooks((testDb) => {
   db = testDb;
@@ -94,8 +102,10 @@ const bodyOf = (error: AppException) =>
 const DETAIL_KEYS = [
   'bacSi',
   'chiNhanh',
+  'choPhepDoiLich',
   'chuyenDuoc',
   'chuyenKhoa',
+  'coYeuCauChoDuyet',
   'conPhaiThu',
   'dichVu',
   'giaSnapshot',
@@ -191,7 +201,7 @@ describe('DSV-09, QB-04 chi tiết: ca không xem được', () => {
 });
 
 describe('DSV-13 hình dạng chi tiết', () => {
-  it('DSV-13 đúng MƯỜI SÁU khoá; lịch bản thân: lyDoKham, hanThanhToan null, nguoiDat và nguoiKham đúng; không `lichHenId`, `thanhToan`, `hoanTien`, `thoiGianMayChu`', async () => {
+  it('DSV-13 đúng MƯỜI CHÍN khoá (reschedule B5: thêm `choPhepDoiLich`, `coYeuCauChoDuyet`, cả hai boolean; thế giới này không có yêu cầu nào nên `coYeuCauChoDuyet` false); lịch bản thân: lyDoKham, hanThanhToan null, nguoiDat và nguoiKham đúng; không `lichHenId`, `thanhToan`, `hoanTien`, `thoiGianMayChu`', async () => {
     const w = await ofx.world();
     const detail = await service.detail(idOf(w.receptionA), CODES.a1);
     expect(Object.keys(detail).sort()).toStrictEqual(DETAIL_KEYS);
@@ -226,6 +236,12 @@ describe('DSV-13 hình dạng chi tiết', () => {
     expect(pending.nguoiDat.hoTen).toBe(PATIENT_ONE.hoTen);
     const cancelled = await service.detail(idOf(w.receptionA), CODES.a4);
     expect(cancelled.lyDoHuy).toBe('Fixture huỷ lịch');
+    // Hai khoá đổi lịch (reschedule B5) luôn là boolean, kể cả khi không có yêu cầu nào hay lịch đã huỷ
+    for (const detail of [pending, cancelled]) {
+      expect(typeof detail.choPhepDoiLich).toBe('boolean');
+      expect(detail.coYeuCauChoDuyet).toBe(false);
+    }
+    expect(cancelled.choPhepDoiLich).toBe(false);
   });
 });
 

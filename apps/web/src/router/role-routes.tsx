@@ -8,7 +8,6 @@ import {
   ADMIN_SCHEDULE_ROUTES,
   DOCTOR_PATHS,
   DOCTOR_ROUTES,
-  DoctorLayout,
   PATIENT_EXAM_ROUTES,
   RECEPTION_SCHEDULE_ROUTES,
 } from '../features/doctor';
@@ -16,10 +15,8 @@ import {
   ADMIN_PROFILE_ROUTES,
   PATIENT_PATHS,
   PATIENT_ROUTES,
-  PatientLayout,
   RECEPTION_PATHS,
   RECEPTION_ROUTES,
-  ReceptionLayout,
 } from '../features/patient';
 import {
   ADMIN_APPOINTMENT_ROUTES,
@@ -27,13 +24,14 @@ import {
   PATIENT_APPOINTMENT_ROUTES,
   RECEPTION_APPOINTMENT_ROUTES,
 } from '../features/booking';
+import { NOTIFICATION_ROUTES } from '../features/notification';
 import { ADMIN_DEPOSIT_POLICY_ROUTES } from '../features/payment';
 import {
   ADMIN_FINANCE_ROUTES,
   PATIENT_WALLET_ROUTES,
 } from '../features/wallet';
 import { ShellContentError } from '../shared/ui/shell-content-error';
-import { DOCTOR_NAV, PATIENT_NAV, RECEPTION_NAV } from './role-nav';
+import { DoctorShell, PatientShell, ReceptionShell } from './role-shells';
 import { RouteErrorElement } from './route-error-element';
 
 // Bảng "vai trò ⇒ route". Khi trang thật xong, chỉ thay ĐÚNG mục của vai trò đó (ví dụ admin F1 thay QuanTriVien); cổng theo vai trò do hàm dưới gắn.
@@ -42,7 +40,7 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
   // và đặt `to` cho mục menu ở role-nav.ts (docs/features/patient/TRACKING.md F1-E)
   BenhNhan: {
     path: ROLE_HOME_PATHS.BenhNhan,
-    element: <PatientLayout {...PATIENT_NAV} />,
+    element: <PatientShell />,
     children: [
       {
         // Lỗi của trang con hiện trong vùng nội dung, khung vẫn còn (F1-F)
@@ -60,6 +58,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
           ...PATIENT_EXAM_ROUTES,
           // payment F1: Ví của tôi
           ...PATIENT_WALLET_ROUTES,
+          // notification F1: Thông báo
+          ...NOTIFICATION_ROUTES,
         ],
       },
     ],
@@ -67,7 +67,7 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
   // doctor F1: khung Bác sĩ, cùng khuôn với BenhNhan. Module khác cắm trang cạnh DOCTOR_ROUTES và đặt `to` ở role-nav.ts
   BacSi: {
     path: ROLE_HOME_PATHS.BacSi,
-    element: <DoctorLayout {...DOCTOR_NAV} />,
+    element: <DoctorShell />,
     children: [
       {
         errorElement: <ShellContentError />,
@@ -80,6 +80,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
           ...DOCTOR_ROUTES,
           // booking F11: Lịch hẹn của Bác sĩ
           ...DOCTOR_APPOINTMENT_ROUTES,
+          // notification F1: Thông báo
+          ...NOTIFICATION_ROUTES,
         ],
       },
     ],
@@ -87,7 +89,7 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
   // patient F2: khung Lễ tân, cùng khuôn với BenhNhan. Module khác cắm trang cạnh RECEPTION_ROUTES (TRACKING F2-D)
   LeTan: {
     path: ROLE_HOME_PATHS.LeTan,
-    element: <ReceptionLayout {...RECEPTION_NAV} />,
+    element: <ReceptionShell />,
     children: [
       {
         errorElement: <ShellContentError />,
@@ -102,6 +104,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
           ...RECEPTION_APPOINTMENT_ROUTES,
           // doctor F5: Lịch làm việc bác sĩ của Lễ tân
           ...RECEPTION_SCHEDULE_ROUTES,
+          // notification F1: Thông báo
+          ...NOTIFICATION_ROUTES,
         ],
       },
     ],
