@@ -1,5 +1,8 @@
 import type { EntityManager } from 'typeorm';
-import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
+import {
+  BOOKING_NOTIFICATION_EVENTS,
+  RESCHEDULE_NOTIFICATION_EVENTS,
+} from '../appointments.constants.js';
 import {
   BRANCH_CHANGE_MAIL_EVENTS,
   EMAIL_MAX_ATTEMPTS,
@@ -27,13 +30,14 @@ export interface DueEmail {
 }
 
 /**
- * Loại có thư mà worker xử lý: bốn loại của booking (B15), năm loại của payment, wallet (payment B17) và bốn loại của yêu cầu thay đổi chi nhánh (admin C4). Thứ tự cố định: booking trước.
- * Đây là PHẦN GỐC của mã: mã có phiên bản (`ThayDoiChiNhanhAnhHuongLichHen:v2`) khớp nhờ câu chọn lô so phần trước dấu `:`.
+ * Loại có thư mà worker xử lý (17 loại): bốn loại của booking (B15), năm loại của payment, wallet (payment B17), bốn loại của yêu cầu thay đổi chi nhánh (admin C4) và bốn loại của đổi lịch và yêu cầu
+ * đổi lịch (reschedule B3). Thứ tự cố định: booking trước, đổi lịch sau cùng. Đây là PHẦN GỐC của mã: mã có phiên bản (`ThayDoiChiNhanhAnhHuongLichHen:v2`) khớp nhờ câu chọn lô so phần trước dấu `:`.
  */
 export const MAIL_EVENTS: readonly string[] = [
   ...Object.values(BOOKING_NOTIFICATION_EVENTS),
   ...Object.values(PAYMENT_MAIL_EVENTS),
   ...Object.values(BRANCH_CHANGE_MAIL_EVENTS),
+  ...Object.values(RESCHEDULE_NOTIFICATION_EVENTS),
 ];
 
 /**
@@ -145,6 +149,8 @@ export interface EmailPayload {
   lichHenId: string | null;
   /** Chỉ có với thông báo của yêu cầu thay đổi chi nhánh (admin C4) */
   yeuCauId: string | null;
+  /** Chỉ có với thông báo của yêu cầu đổi lịch ngoài chính sách (reschedule B3); khi có thì `lichHenId` để trống */
+  yeuCauDoiLichId: string | null;
   email: string;
   hoTen: string;
   /** Lúc ghi thông báo "dd/MM/yyyy — HH:mm" (giờ Việt Nam như đã lưu, đọc bằng `DATE_FORMAT` nên không lệch múi giờ): "thời gian" của thư payment, wallet (B17) */
@@ -152,7 +158,7 @@ export interface EmailPayload {
 }
 
 export const READ_EMAIL_PAYLOAD_SQL = `SELECT CAST(t.tai_khoan_id AS CHAR) AS taiKhoanId, t.noi_dung AS noiDung, t.loai_su_kien AS loai, CAST(t.lich_hen_id AS CHAR) AS lichHenId,
-       CAST(t.yeu_cau_thay_doi_chi_nhanh_id AS CHAR) AS yeuCauId, tk.email AS email, tk.ho_ten AS hoTen, DATE_FORMAT(t.thoi_diem_tao, '%d/%m/%Y — %H:%i') AS thoiDiem
+       CAST(t.yeu_cau_thay_doi_chi_nhanh_id AS CHAR) AS yeuCauId, CAST(t.yeu_cau_doi_lich_ngoai_chinh_sach_id AS CHAR) AS yeuCauDoiLichId, tk.email AS email, tk.ho_ten AS hoTen, DATE_FORMAT(t.thoi_diem_tao, '%d/%m/%Y — %H:%i') AS thoiDiem
   FROM thong_bao t
   JOIN tai_khoan tk ON tk.tai_khoan_id = t.tai_khoan_id
  WHERE t.thong_bao_id = ?`;

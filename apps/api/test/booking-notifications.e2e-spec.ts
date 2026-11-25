@@ -7,6 +7,18 @@ import {
   readOutbox,
   readThongBao,
 } from './../src/appointments/testing/notification-world.js';
+import {
+  APPOINTMENT_NOTIFIER,
+  type AppointmentNotifier,
+} from './../src/appointments/ports/appointment-notifier.port.js';
+import {
+  insertRescheduleRequest,
+  MARKER_LY_DO_KHAM,
+  MARKER_LY_DO_YEU_CAU,
+  REQUEST_LOAI,
+  requestEvent,
+  rescheduledEvent,
+} from './../src/appointments/testing/reschedule-notification-world.js';
 import { T0 } from './../src/auth/testing/otp-int-helpers.js';
 import {
   openRefreshHarness,
@@ -157,5 +169,73 @@ describe('OBX-10 worker trong app thật: job có mặt trong AppModule, thư đ
       sent: 0,
     });
     expect(h.mail.attempts).toHaveLength(1);
+  });
+});
+
+describe('NDL-02 (e2e) bốn sự kiện đổi lịch trong app thật (reschedule B3): cổng thông báo của app ghi, worker của app gửi qua MailService GIẢ', () => {
+  it('ghi bốn sự kiện bằng `APPOINTMENT_NOTIFIER` của AppModule rồi chạy `EmailOutboxJob.run(now)`: đúng BỐN thư tới email của Bệnh nhân đặt, tiêu đề cố định, không lý do khám và lý do yêu cầu; lượt sau không gửi lại', async () => {
+    const w = await cancelWorld(h.db, fx);
+    const cu = await w.booked('DaXacNhan', 0, { maLichHen: CODE });
+    const moi = await w.booked('DaXacNhan', 3);
+    await h.db.query(
+      'UPDATE lich_hen SET ly_do_kham = ? WHERE lich_hen_id = ?',
+      [MARKER_LY_DO_KHAM, cu.lichHenId],
+    );
+    const yeuCauId = await insertRescheduleRequest(h.db, {
+      lichHenId: cu.lichHenId,
+      khungGioMongMuonId: w.slotId(3),
+      lyDoYeuCau: MARKER_LY_DO_YEU_CAU,
+    });
+    const notifier = h.app.get<AppointmentNotifier>(APPOINTMENT_NOTIFIER, {
+      strict: false,
+    });
+    await h.db.transaction(async (em) => {
+      await notifier.notify(
+        em,
+        rescheduledEvent({
+          lichHenMoiId: moi.lichHenId,
+          taiKhoanId: w.patientId,
+          maLichHenCu: CODE,
+        }),
+      );
+      for (const loai of REQUEST_LOAI)
+        await notifier.notify(
+          em,
+          requestEvent(loai, {
+            lichHenCuId: cu.lichHenId,
+            taiKhoanId: w.patientId,
+            yeuCauId,
+            ghiChu: 'Ghi chú của nhân sự',
+            maLichHenMoi: moi.maLichHen,
+          }),
+        );
+    });
+    expect(h.mail.attempts).toEqual([]);
+
+    const job = h.app.get(EmailOutboxJob);
+    const now = new Date('2026-11-02T08:30:00+07:00');
+    expect(await job.run(now)).toMatchObject({ sent: 4, failed: 0 });
+
+    const [{ email }] = await h.db.query<{ email: string }[]>(
+      'SELECT email FROM tai_khoan WHERE tai_khoan_id = ?',
+      [w.patientId],
+    );
+    expect(h.mail.sent.map((m) => [m.to, m.subject])).toEqual([
+      [email, '[CLINIX] Lịch hẹn đã được đổi'],
+      [email, '[CLINIX] Đã nhận yêu cầu đổi lịch hẹn'],
+      [email, '[CLINIX] Yêu cầu đổi lịch hẹn đã được duyệt'],
+      [email, '[CLINIX] Yêu cầu đổi lịch hẹn bị từ chối'],
+    ]);
+    for (const sent of h.mail.sent) {
+      expect(sent.text).not.toContain(MARKER_LY_DO_KHAM);
+      expect(sent.text).not.toContain(MARKER_LY_DO_YEU_CAU);
+    }
+    expect((await readOutbox(h.db)).map((r) => r.trangThai)).toEqual(
+      Array(4).fill('DaGui'),
+    );
+    expect(await job.run(new Date(now.getTime() + 30 * 60_000))).toMatchObject({
+      sent: 0,
+    });
+    expect(h.mail.attempts).toHaveLength(4);
   });
 });

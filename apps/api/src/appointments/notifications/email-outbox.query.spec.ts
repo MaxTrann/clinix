@@ -1,8 +1,12 @@
-import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
+import {
+  BOOKING_NOTIFICATION_EVENTS,
+  RESCHEDULE_NOTIFICATION_EVENTS,
+} from '../appointments.constants.js';
 import { isLockingStatement } from '../testing/query-spy.js';
 import { ScriptedEntityManager } from '../testing/scripted-entity-manager.js';
 import {
   CLAIM_EMAIL_SQL,
+  MAIL_EVENTS,
   MARK_FAILED_SQL,
   MARK_SENT_SQL,
   READ_EMAIL_PAYLOAD_SQL,
@@ -22,11 +26,12 @@ import {
   PAYMENT_MAIL_EVENTS,
 } from './notifications.constants.js';
 
-// payment B17: bốn loại của booking rồi năm loại có thư của payment, wallet; admin C4: thêm bốn loại của yêu cầu thay đổi chi nhánh (thứ tự cố định)
+// payment B17: bốn loại của booking rồi năm loại có thư của payment, wallet; admin C4: thêm bốn loại của yêu cầu thay đổi chi nhánh; reschedule B3: thêm bốn loại của đổi lịch và yêu cầu đổi lịch (thứ tự cố định)
 const MAIL_LOAI = [
   ...Object.values(BOOKING_NOTIFICATION_EVENTS),
   ...Object.values(PAYMENT_MAIL_EVENTS),
   ...Object.values(BRANCH_CHANGE_MAIL_EVENTS),
+  ...Object.values(RESCHEDULE_NOTIFICATION_EVENTS),
 ];
 
 // Task B15 — câu SQL của hộp thư đi (PLAN booking 5.12; TRACKING 3.37 B15-H): chỉ thư của booking, nhận việc có điều kiện, kết quả chỉ ghi khi còn đúng lần nhận việc của mình, không khoá nào giữ lâu. OBX-01 (chọn lô), OBX-06 (chỉ bốn
@@ -42,7 +47,7 @@ const DUE: DueEmail = {
 const NOW = new Date('2026-11-02T08:00:00+07:00');
 
 describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiện trạng thái, lần thử và nhịp', () => {
-  it('JOIN thong_bao và lọc đúng MƯỜI BA loại gốc có thư: bốn của booking, năm của payment, wallet (payment B17), bốn của yêu cầu thay đổi chi nhánh (admin C4); loại chỉ có trong ứng dụng không bị chọn', async () => {
+  it('JOIN thong_bao và lọc đúng MƯỜI BẢY loại gốc có thư: bốn của booking, năm của payment, wallet (payment B17), bốn của yêu cầu thay đổi chi nhánh (admin C4), bốn của đổi lịch và yêu cầu đổi lịch (reschedule B3); loại chỉ có trong ứng dụng không bị chọn', async () => {
     const em = new ScriptedEntityManager(() => []);
     await selectDueEmails(em.em, { now: NOW, afterId: '0', limit: 100 });
     const { sql, params } = em.queries[0]!;
@@ -53,10 +58,10 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
     // admin C4: so PHẦN GỐC (bỏ hậu tố `:v{n}`)
     expect(sql).toMatch(
       new RegExp(
-        `SUBSTRING_INDEX\\(t\\.loai_su_kien, ':', 1\\) IN \\(${Array(13).fill('\\?').join(', ')}\\)`,
+        `SUBSTRING_INDEX\\(t\\.loai_su_kien, ':', 1\\) IN \\(${Array(17).fill('\\?').join(', ')}\\)`,
       ),
     );
-    expect(MAIL_LOAI).toHaveLength(13);
+    expect(MAIL_LOAI).toHaveLength(17);
     expect(params.filter((p) => MAIL_LOAI.includes(p as never))).toEqual(
       MAIL_LOAI,
     );
@@ -72,7 +77,7 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
       expect(params).not.toContain(inAppOnly);
   });
 
-  it('tham số: trần lần thử, mốc "đã quá nhịp" = now trừ 5 phút, mười ba loại, con trỏ, cỡ lô — đúng thứ tự', async () => {
+  it('tham số: trần lần thử, mốc "đã quá nhịp" = now trừ 5 phút, mười bảy loại, con trỏ, cỡ lô — đúng thứ tự', async () => {
     const em = new ScriptedEntityManager(() => []);
     await selectDueEmails(em.em, { now: NOW, afterId: '41', limit: 100 });
     const params = em.queries[0]!.params;
@@ -80,8 +85,26 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
     expect((params[1] as Date).getTime()).toBe(
       NOW.getTime() - EMAIL_RETRY_GAP_MINUTES * 60_000,
     );
-    expect(params.slice(2, 15)).toEqual(MAIL_LOAI);
-    expect(params.slice(15)).toEqual(['41', 100]);
+    expect(params.slice(2, 19)).toEqual(MAIL_LOAI);
+    expect(params.slice(19)).toEqual(['41', 100]);
+  });
+
+  it('NDL-11 `MAIL_EVENTS` đúng 17 loại, đúng thứ tự (booking, payment, chi nhánh, đổi lịch), khác nhau kể cả không phân biệt hoa thường (`utf8mb4_unicode_ci`), ≤ 100 ký tự; không mất loại nào của nhóm cũ', () => {
+    expect(MAIL_EVENTS).toEqual(MAIL_LOAI);
+    expect(MAIL_EVENTS).toHaveLength(17);
+    expect(new Set(MAIL_EVENTS.map((e) => e.toLowerCase())).size).toBe(17);
+    for (const loai of MAIL_EVENTS)
+      expect(loai.length).toBeLessThanOrEqual(100);
+    for (const loai of Object.values(RESCHEDULE_NOTIFICATION_EVENTS))
+      expect(MAIL_EVENTS, loai).toContain(loai);
+    // 13 loại có từ trước giữ nguyên, bốn loại mới đứng CUỐI
+    expect(MAIL_EVENTS.slice(0, 13)).toEqual(MAIL_LOAI.slice(0, 13));
+    expect(MAIL_EVENTS.slice(13)).toEqual([
+      'LichHenDaDoiLich',
+      'YeuCauDoiLichDangCho',
+      'YeuCauDoiLichDaDuyet',
+      'YeuCauDoiLichBiTuChoi',
+    ]);
   });
 
   it('chỉ ChoGui và ThatBai (không DaGui, không BoQua); chưa thử hoặc đã quá nhịp; sắp theo khoá chính', () => {
@@ -183,7 +206,14 @@ describe('OBX-02 câu đọc người nhận: tài khoản của dòng thong_bao
       'JOIN tai_khoan tk ON tk.tai_khoan_id = t.tai_khoan_id',
     );
     expect(READ_EMAIL_PAYLOAD_SQL).not.toMatch(
-      /so_dien_thoai|mat_khau|ly_do_kham|ly_do_huy/,
+      /so_dien_thoai|mat_khau|ly_do_kham|ly_do_huy|ly_do_yeu_cau/,
+    );
+    // reschedule B3: đọc id yêu cầu đổi lịch (chuỗi) để worker biết thông báo thuộc yêu cầu; KHÔNG đọc chính bảng yêu cầu
+    expect(READ_EMAIL_PAYLOAD_SQL).toContain(
+      'CAST(t.yeu_cau_doi_lich_ngoai_chinh_sach_id AS CHAR) AS yeuCauDoiLichId',
+    );
+    expect(READ_EMAIL_PAYLOAD_SQL).not.toMatch(
+      /yeu_cau_doi_lich_ngoai_chinh_sach\s+(?:y|AS|WHERE|ON)/i,
     );
     expect(isLockingStatement(READ_EMAIL_PAYLOAD_SQL)).toBe(false);
   });
