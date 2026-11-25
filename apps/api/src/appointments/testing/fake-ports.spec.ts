@@ -12,6 +12,11 @@ import {
   ScriptedCall,
   createFakePorts,
 } from './fake-ports.js';
+import {
+  REQUEST_LOAI,
+  requestEvent,
+  rescheduledEvent,
+} from './reschedule-notification-world.js';
 
 // Task P2 — BPO-02, BPO-03, BPO-04 (PLAN booking 7.19; TRACKING 3.6 P2-E): bản Fake lập trình được. Không DB: `EntityManager` là đối tượng giả, chỉ cần so DANH TÍNH.
 const em = (): EntityManager => ({}) as unknown as EntityManager;
@@ -218,6 +223,32 @@ describe('BPO-03 Fake danh sách chờ và thông báo', () => {
       'ghi thông báo hỏng',
     );
     expect(notifier.events).toHaveLength(3);
+  });
+
+  it('NDL-10 FakeAppointmentNotifier nhận bốn sự kiện đổi lịch và ghi NGUYÊN `doiLich`, `yeuCau` (reschedule B3: cổng không vỡ khi sự kiện có trường mới)', async () => {
+    const notifier = new FakeAppointmentNotifier();
+    const manager = em();
+    const rescheduled = rescheduledEvent({
+      lichHenMoiId: '12',
+      taiKhoanId: '7',
+      maLichHenCu: 'CLX-20261105-0007',
+      via: 'DoiHo',
+      lyDo: 'Bác sĩ có việc đột xuất',
+    });
+    const requests = REQUEST_LOAI.map((loai) =>
+      requestEvent(loai, {
+        lichHenCuId: '11',
+        taiKhoanId: '7',
+        yeuCauId: '5',
+        ghiChu: 'Ghi chú thử',
+        maLichHenMoi: 'CLX-20261110-0099',
+      }),
+    );
+    for (const event of [rescheduled, ...requests])
+      await notifier.notify(manager, event);
+    expect(notifier.events).toEqual([rescheduled, ...requests]);
+    expect(notifier.events[0]?.doiLich?.via).toBe('DoiHo');
+    expect(notifier.events[2]?.yeuCau?.yeuCauId).toBe('5');
   });
 
   it('createFakePorts trả tám Fake độc lập, mỗi lần gọi một bộ mới', async () => {

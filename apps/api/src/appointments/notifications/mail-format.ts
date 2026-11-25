@@ -1,3 +1,4 @@
+import { VIETNAM_TIME_ZONE } from '../../common/time/time.js';
 import { fromCents, toCents } from '../../pricing/money.js';
 import type {
   ChucDanh,
@@ -63,4 +64,44 @@ export function remainingAfterDeposit(price: string, deposit: string): string {
   const total = toCents(price);
   const paid = toCents(deposit);
   return fromCents(total > paid ? total - paid : 0n);
+}
+
+const VN_DATE_TIME = new Intl.DateTimeFormat('en-GB', {
+  timeZone: VIETNAM_TIME_ZONE,
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+/**
+ * Thời điểm tuyệt đối ⇒ "HH:mm dd/MM/yyyy" theo giờ Việt Nam (đổi lịch, reschedule B3). Tính bằng `Intl` với múi giờ cố định nên KHÔNG phụ thuộc múi giờ của máy chạy API; cùng dạng chữ với
+ * giờ hẹn đọc từ DB (`gio` rồi `ngay` của `NotificationContext`).
+ */
+export function formatVnDateTime(instant: Date): string {
+  const part = (type: Intl.DateTimeFormatPartTypes): string => {
+    const found = VN_DATE_TIME.formatToParts(instant).find(
+      (p) => p.type === type,
+    );
+    if (found === undefined) throw new RangeError(`thiếu phần ${type}`);
+    return found.value;
+  };
+  return `${part('hour')}:${part('minute')} ${part('day')}/${part('month')}/${part('year')}`;
+}
+
+const ELLIPSIS = '…';
+
+/**
+ * Cắt `text` còn tối đa `maxUnits` đơn vị UTF-16 (cùng thước với `toSingleLine` và luôn vừa `varchar` đếm theo điểm mã), thêm "…" khi có cắt, và KHÔNG chẻ đôi một cặp thay thế (emoji): nếu chỗ cắt rơi
+ * giữa cặp thì bỏ cả nửa cặp đã lấy. `toSingleLine` cắt thẳng bằng `slice` nên để lại nửa cặp ở biên (đo ở reschedule B3).
+ */
+export function truncateWithEllipsis(text: string, maxUnits: number): string {
+  if (text.length <= maxUnits) return text;
+  if (maxUnits < 1) return '';
+  let kept = text.slice(0, maxUnits - ELLIPSIS.length);
+  const last = kept.charCodeAt(kept.length - 1);
+  if (last >= 0xd800 && last <= 0xdbff) kept = kept.slice(0, -1);
+  return `${kept}${ELLIPSIS}`;
 }

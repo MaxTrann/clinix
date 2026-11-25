@@ -45,6 +45,16 @@ const EXPECTED_STATUS: Record<string, number> = {
   NGOAI_KHUNG_GIO_TIEP_DON: 409,
   CHUA_QUA_GIO_HEN: 409,
   HE_THONG_DANG_BAN: 503,
+  // Chín mã của đổi lịch (reschedule B2, PLAN reschedule 5.13): đều 409
+  LICH_HEN_KHONG_CHO_DOI: 409,
+  LICH_HEN_DA_QUA_GIO: 409,
+  KHUNG_GIO_TRUNG_LICH_CU: 409,
+  KHUNG_GIO_KHAC_BAC_SI: 409,
+  LICH_HEN_KHAC_DICH_VU_HIEN_TAI: 409,
+  LICH_HEN_KHAC_CHI_NHANH_HIEN_TAI: 409,
+  CHUOI_DOI_LICH_QUA_DAI: 409,
+  VUOT_SO_LAN_TU_DOI: 409,
+  DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET: 409,
 };
 const EXPECTED_FIELD_CODES = [
   'LY_DO_KHAM_KHONG_HOP_LE',
@@ -55,7 +65,7 @@ const EXPECTED_FIELD_CODES = [
 const allCodes = Object.values(BOOKING_ERROR_CODES);
 
 describe('BCS-01 bảng mã lỗi của 5.14', () => {
-  it('đủ 22 mã có HTTP và 3 mã trường (tổng 25), khớp danh sách viết riêng, không mã nào thiếu hay thừa', () => {
+  it('đủ 31 mã có HTTP (22 của booking cộng 9 của đổi lịch, reschedule B2) và 3 mã trường (tổng 34), khớp danh sách viết riêng, không mã nào thiếu hay thừa', () => {
     expect([...allCodes].sort()).toEqual(Object.keys(EXPECTED_STATUS).sort());
     expect(Object.keys(BOOKING_ERRORS).sort()).toEqual(
       Object.keys(EXPECTED_STATUS).sort(),
@@ -63,7 +73,7 @@ describe('BCS-01 bảng mã lỗi của 5.14', () => {
     expect(Object.values(BOOKING_FIELD_ERROR_CODES).sort()).toEqual(
       [...EXPECTED_FIELD_CODES].sort(),
     );
-    expect(allCodes.length + EXPECTED_FIELD_CODES.length).toBe(25);
+    expect(allCodes.length + EXPECTED_FIELD_CODES.length).toBe(34);
   });
 
   it('không mã nào trùng nhau (kể cả giữa nhóm có HTTP và nhóm mã trường)', () => {
@@ -74,7 +84,7 @@ describe('BCS-01 bảng mã lỗi của 5.14', () => {
     expect(new Set(everything).size).toBe(everything.length);
   });
 
-  it('mọi mã đúng ERROR_CODE_PATTERN (HOA_GACH_DUOI); HTTP đúng cột 5.14: 403 cho khoá no-show, 404 cho khung giờ không có, 503 cho hết lượt thử lại, còn lại 409', () => {
+  it('mọi mã đúng ERROR_CODE_PATTERN (HOA_GACH_DUOI); HTTP đúng cột 5.14 và 5.13 của reschedule: 403 cho khoá no-show, 404 cho khung giờ không có, 503 cho hết lượt thử lại, còn lại 409', () => {
     for (const code of [
       ...allCodes,
       ...Object.values(BOOKING_FIELD_ERROR_CODES),

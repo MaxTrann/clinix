@@ -494,7 +494,7 @@ describe('NTF-06 khoá no-show KHÔNG lặp khi cờ đã bật (A4, 10b; TB-03)
   });
 });
 
-describe('NTF-07 chỉ ghi bốn loại của booking; không đụng dòng của nguồn khác', () => {
+describe('NTF-07 các luồng của booking chỉ ghi bốn loại của booking (bốn loại đổi lịch: reschedule-notifier.int-spec.ts); không đụng dòng của nguồn khác', () => {
   it('dòng thong_bao sẵn có của nghỉ phép (không `lich_hen_id`) nguyên vẹn sau một lần huỷ; chỉ thêm đúng một dòng', async () => {
     const w = await world();
     await insertForeignThongBao(db, w.patientId);
