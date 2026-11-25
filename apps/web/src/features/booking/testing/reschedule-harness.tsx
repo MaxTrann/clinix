@@ -22,6 +22,8 @@ import { LocationProbe } from './location-probe';
 export interface RescheduleHarnessOptions {
   // Đường dẫn lúc dựng (mặc định: trang chọn khung giờ của `DETAIL_CODE`)
   path?: string;
+  // `location.state` của lần vào đầu tiên (reschedule F2: thông báo một lần sau khi gửi đi qua đây)
+  state?: unknown;
   // Phần tử thêm vào trong router
   extra?: ReactNode;
   // Chạy sau khi API giả đã có và trước khi render: đặt dữ liệu, giữ hay làm lỗi yêu cầu đầu tiên
@@ -34,10 +36,17 @@ export function renderReschedule(options: RescheduleHarnessOptions = {}) {
   );
   installFakeFetch(api.fetch);
   options.before?.(api);
+  const [pathname, search = ''] = (
+    options.path ?? patientAppointmentReschedulePath(DETAIL_CODE)
+  ).split('?');
   const view = render(
     <MemoryRouter
       initialEntries={[
-        options.path ?? patientAppointmentReschedulePath(DETAIL_CODE),
+        {
+          pathname,
+          search: search === '' ? '' : `?${search}`,
+          state: options.state,
+        },
       ]}
     >
       <Routes>

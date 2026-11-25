@@ -18,7 +18,16 @@ import { type AuthUser, type VaiTro } from '../../../../auth';
 import { resetAuthForTest } from '../../../../auth/auth-session';
 import { setAuthState } from '../../../../auth/auth-store';
 import { makeDetail } from '../../../testing/fake-appointment-detail-api';
-import { createFakeRescheduleApi } from '../../../testing/fake-reschedule-api';
+import {
+  createFakeRescheduleApi,
+  makePreview,
+  makeRequestResult,
+  NEW_APPOINTMENT_CODE,
+} from '../../../testing/fake-reschedule-api';
+import {
+  becomeNewAppointment,
+  becomePendingRequest,
+} from '../../../testing/reschedule-confirm-helpers';
 import { DETAIL_TEXT } from '../detail/detail-messages';
 import { RESCHEDULE_TEXT } from './reschedule-text';
 
@@ -145,8 +154,14 @@ describe('route trang chọn khung giờ đổi lịch', () => {
       name: RESCHEDULE_TEXT.title,
     });
     expect(router.state.location.pathname).toBe(PICKER);
-    // lưới được GET lại (không nhớ gì ở trình duyệt)
-    expect(fake.previewCalls).toHaveLength(3);
+    // lưới được GET lại (không nhớ gì ở trình duyệt): preview của nút ở chi tiết, của trang chọn, của màn xác nhận (có `khungGioId`, reschedule F2), rồi của trang chọn lần hai
+    expect(fake.previewCalls).toHaveLength(4);
+    expect(fake.previewCalls.map((call) => call.khungGioId === null)).toEqual([
+      true,
+      true,
+      false,
+      true,
+    ]);
   });
 
   it('WDH-23 bấm đúp một ô ⇒ MỘT lần Back là về lại trang chọn (không có hai mục lịch sử của màn xác nhận)', async () => {
@@ -169,7 +184,7 @@ describe('route trang chọn khung giờ đổi lịch', () => {
     expect(router.state.location.pathname).toBe(PICKER);
   });
 
-  it('WDH-23 tải lại ở màn xác nhận (dựng router mới với cùng URL) vẫn chạy: id đọc từ URL, không gọi API nào', async () => {
+  it('WDH-23 tải lại ở màn xác nhận (dựng router mới với cùng URL) vẫn chạy: id đọc từ URL, preview GET đúng id đó (nguyên chuỗi), KHÔNG ghi gì', async () => {
     signedInAs('BenhNhan');
     renderAt(`${CONFIRM}?khungGioId=9223372036854775807`);
     expect(
@@ -178,8 +193,17 @@ describe('route trang chọn khung giờ đổi lịch', () => {
         name: RESCHEDULE_TEXT.confirmTitle,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(RESCHEDULE_TEXT.confirmNotReady)).toBeVisible();
-    expect(apiCalls()).toEqual([]);
+    expect(
+      await screen.findByRole('heading', {
+        level: 2,
+        name: RESCHEDULE_TEXT.newTitle,
+      }),
+    ).toBeInTheDocument();
+    expect(fake.previewCalls).toEqual([
+      { maLichHen: CODE, khungGioId: '9223372036854775807' },
+    ]);
+    expect(fake.submitCalls).toEqual([]);
+    expect(fake.detail.writes()).toEqual([]);
   });
 
   it('WDH-23 mã lịch hẹn có ký tự đặc biệt ⇒ URL mã hoá, preview gọi với mã đã mã hoá (không thoát khỏi đoạn đường)', async () => {
@@ -234,5 +258,111 @@ describe('route trang chọn khung giờ đổi lịch', () => {
       fake.detail.callsTo('GET', `/patient/appointments/${CODE}`),
     ).toHaveLength(1);
     expect(fake.previewCalls).toEqual([]);
+  });
+});
+
+// reschedule F2, mã ca WDH-44 [đề xuất]: luồng ĐỦ qua ứng dụng thật (`createAppRoutes`) với API giả: chi tiết → nút → lưới → chọn ô → xác nhận → gửi → chi tiết (lịch mới hay lịch cũ kèm banner). Dữ liệu giả.
+describe('luồng đủ đổi lịch (WDH-44)', () => {
+  it('WDH-44 tự đổi: chi tiết → "Đổi lịch" → lưới → chọn ô → "Xác nhận đổi lịch" → chi tiết lịch MỚI kèm thông báo; Back không quay lại màn xác nhận (đã `replace`)', async () => {
+    fake.detail.detail = makeDetail({ choPhepDoiLich: true });
+    fake.onSubmit = () => becomeNewAppointment(fake);
+    signedInAs('BenhNhan');
+    const router = renderAt(patientAppointmentDetailPath(CODE));
+
+    fireEvent.click(
+      await screen.findByRole('link', { name: RESCHEDULE_TEXT.changeButton }),
+    );
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: /còn trống/ }))[0],
+    );
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: RESCHEDULE_TEXT.confirmButton,
+      }),
+    );
+
+    expect(await screen.findByText(NEW_APPOINTMENT_CODE)).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(
+      patientAppointmentDetailPath(NEW_APPOINTMENT_CODE),
+    );
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(screen.getByText(RESCHEDULE_TEXT.doneNotice)).toBeVisible();
+    expect(fake.submitCalls).toHaveLength(1);
+    expect(fake.submitCalls[0].body).toMatchObject({
+      khungGioId: expect.stringMatching(/^1\d{2}1$/) as unknown,
+    });
+
+    // Back từ lịch mới về TRANG CHỌN (màn xác nhận đã bị thay): lịch cũ nay là 404 cùng thân
+    fake.preview = null;
+    await router.navigate(-1);
+    await screen.findByRole('heading', {
+      level: 1,
+      name: RESCHEDULE_TEXT.title,
+    });
+    expect(router.state.location.pathname).toBe(PICKER);
+  });
+
+  it('WDH-44 hết lần tự đổi: nút "Gửi yêu cầu đổi lịch" → lưới → chọn ô → nhập lý do → gửi → về chi tiết lịch CŨ kèm thông báo và banner "Đang chờ duyệt"', async () => {
+    fake.detail.detail = makeDetail({ choPhepDoiLich: true });
+    fake.preview = makePreview({
+      loai: 'GuiYeuCau',
+      soLanDaDoi: 2,
+      soLanToiDa: 2,
+    });
+    fake.submitResult = makeRequestResult();
+    fake.onSubmit = () => becomePendingRequest(fake);
+    signedInAs('BenhNhan');
+    const router = renderAt(patientAppointmentDetailPath(CODE));
+
+    fireEvent.click(
+      await screen.findByRole('link', { name: RESCHEDULE_TEXT.requestButton }),
+    );
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: /còn trống/ }))[0],
+    );
+    const field = await screen.findByRole('textbox', {
+      name: RESCHEDULE_TEXT.reasonLabel,
+    });
+    fireEvent.change(field, { target: { value: 'Có việc đột xuất' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: RESCHEDULE_TEXT.requestButton }),
+    );
+
+    expect(
+      await screen.findByRole('region', { name: RESCHEDULE_TEXT.bannerTitle }),
+    ).toHaveTextContent(RESCHEDULE_TEXT.bannerPending);
+    expect(router.state.location.pathname).toBe(
+      patientAppointmentDetailPath(CODE),
+    );
+    expect(screen.getByText(RESCHEDULE_TEXT.requestSentNotice)).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: RESCHEDULE_TEXT.changeButton }),
+    ).toBeDisabled();
+    expect(fake.submitCalls[0].body).toMatchObject({
+      lyDoYeuCau: 'Có việc đột xuất',
+    });
+  });
+
+  it.each(['LeTan', 'BacSi', 'QuanTriVien'] as const)(
+    'WDH-44 %s mở màn xác nhận ⇒ 404, không thấy trang, không gọi API nào',
+    async (vaiTro) => {
+      signedInAs(vaiTro);
+      renderAt(`${CONFIRM}?khungGioId=5`);
+      expect(
+        await screen.findByRole('heading', { name: 'Không tìm thấy trang' }),
+      ).toBeInTheDocument();
+      expect(apiCalls()).toEqual([]);
+      expect(fake.submitCalls).toEqual([]);
+    },
+  );
+
+  it('WDH-44 khách chưa đăng nhập mở màn xác nhận ⇒ về /dang-nhap, không gọi API, không gửi', async () => {
+    setAuthState({ status: 'unauthenticated' });
+    const router = renderAt(`${CONFIRM}?khungGioId=5`);
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/dang-nhap'),
+    );
+    expect(apiCalls()).toEqual([]);
+    expect(fake.submitCalls).toEqual([]);
   });
 });
