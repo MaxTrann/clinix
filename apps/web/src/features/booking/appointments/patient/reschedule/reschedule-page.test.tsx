@@ -10,7 +10,7 @@ import {
   makePreview,
 } from '../../../testing/fake-reschedule-api';
 import { renderReschedule } from '../../../testing/reschedule-harness';
-import { RESCHEDULE_TEXT } from './reschedule-text';
+import { RESCHEDULE_TEXT } from '../../common/reschedule-text';
 
 // reschedule F1: trang chọn khung giờ mới. Mã WDH-02, WDH-03, WDH-22 (PLAN reschedule 7.11 và [đề xuất]); API giả theo PLAN 5.8 (backend B6 chưa có). Hôm nay giả là 25/11/2026 (giờ Việt Nam,
 // thứ Tư); đồng hồ giả chỉ cho `Date` nên hẹn giờ thật vẫn chạy. Dữ liệu giả.

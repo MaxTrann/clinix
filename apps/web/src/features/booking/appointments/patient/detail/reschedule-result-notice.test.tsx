@@ -18,7 +18,7 @@ import {
   slotNoticeFor,
   useOneShotNotice,
   type RescheduleNotice,
-} from '../reschedule/reschedule-notice-state';
+} from '../../common/reschedule-notice-state';
 import { DETAIL_TEXT } from './detail-messages';
 
 // reschedule F2: thông báo MỘT LẦN giữa các trang đổi lịch. Mã WDH-41 (`location.state` đọc nghiêm, đọc một lần, tải lại không hiện lại), WDH-42 (404 của chi tiết: lịch cũ sau khi đổi), WDH-43 (thông báo

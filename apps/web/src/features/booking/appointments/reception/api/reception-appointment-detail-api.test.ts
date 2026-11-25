@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setApiAuthHooks } from '../../../../../shared/api/auth-hooks';
 import { UnexpectedResponseError } from '../../../../../shared/api/errors';
+import { parseOperationsDetail } from '../../common/operations-appointment';
 import { makeReceptionDetail } from '../../../testing/fake-reception-api';
 import {
   getReceptionAppointment,
@@ -9,10 +10,13 @@ import {
 } from './reception-appointment-detail-api';
 
 // booking F8: bộ đọc và lời gọi `GET /reception/appointments/:maLichHen`. Mã LTC là [đề xuất] (PLAN booking mục 7.34). Hợp đồng đọc từ mã backend B3 (TRACKING 3.28 F8-D):
-// chi tiết ĐÚNG mười sáu khoá = mười một khoá của dòng cộng `lyDoKham`, `lyDoHuy`, `hanThanhToan`, `chuyenDuoc`, `conPhaiThu`.
+// chi tiết ĐÚNG mười sáu khoá = mười một khoá của dòng cộng `lyDoKham`, `lyDoHuy`, `hanThanhToan`, `chuyenDuoc`, `conPhaiThu`; reschedule F3 (WDO-10): cộng hai cờ đổi lịch của B5, `choPhepDoiLich` và
+// `coYeuCauChoDuyet` ⇒ mười tám khoá (bộ đọc CHUNG với Quản trị viên vẫn mười sáu, hai cờ chỉ có ở Lễ tân).
 const DETAIL_KEYS = [
   'bacSi',
   'chiNhanh',
+  'choPhepDoiLich',
+  'coYeuCauChoDuyet',
   'chuyenDuoc',
   'chuyenKhoa',
   'conPhaiThu',
@@ -27,7 +31,7 @@ const DETAIL_KEYS = [
   'thoiGian',
   'tienCoc',
   'trangThai',
-];
+].sort();
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -35,7 +39,7 @@ afterEach(() => {
 });
 
 describe('parseReceptionAppointmentDetail', () => {
-  it('LTC-05 giữ đúng mười sáu khoá và đúng kiểu', () => {
+  it('LTC-05 giữ đúng mười tám khoá (WDO-10) và đúng kiểu', () => {
     const parsed = parseReceptionAppointmentDetail(
       makeReceptionDetail({
         trangThai: 'ChoThanhToan',
@@ -125,6 +129,56 @@ describe('parseReceptionAppointmentDetail', () => {
         parseReceptionAppointmentDetail({ ...makeReceptionDetail(), ...patch }),
       ).toThrow(UnexpectedResponseError);
     }
+  });
+});
+
+describe('parseReceptionAppointmentDetail: hai cờ đổi lịch (WDO-10)', () => {
+  it('WDO-10 đọc `choPhepDoiLich` và `coYeuCauChoDuyet` đúng giá trị, kể cả cả hai cùng `true`', () => {
+    for (const [can, pending] of [
+      [true, false],
+      [false, true],
+      [true, true],
+      [false, false],
+    ] as const) {
+      const parsed = parseReceptionAppointmentDetail(
+        makeReceptionDetail({ choPhepDoiLich: can, coYeuCauChoDuyet: pending }),
+      );
+      expect(parsed.choPhepDoiLich).toBe(can);
+      expect(parsed.coYeuCauChoDuyet).toBe(pending);
+    }
+  });
+
+  it('WDO-10 thiếu một cờ, `null`, chuỗi hay số ⇒ không dùng được (không đoán "đổi được")', () => {
+    for (const key of ['choPhepDoiLich', 'coYeuCauChoDuyet']) {
+      const missing: Record<string, unknown> = { ...makeReceptionDetail() };
+      delete missing[key];
+      expect(() => parseReceptionAppointmentDetail(missing), key).toThrow(
+        UnexpectedResponseError,
+      );
+      for (const bad of [null, 'true', 1, 0, {}, []]) {
+        expect(
+          () =>
+            parseReceptionAppointmentDetail({
+              ...makeReceptionDetail(),
+              [key]: bad,
+            }),
+          `${key}=${String(bad)}`,
+        ).toThrow(UnexpectedResponseError);
+      }
+    }
+  });
+
+  it('WDO-10 đối chứng: bộ đọc CHUNG của Quản trị viên không đòi và không chép hai cờ (Quản trị viên không có chúng)', () => {
+    const adminLike: Record<string, unknown> = { ...makeReceptionDetail() };
+    delete adminLike.choPhepDoiLich;
+    delete adminLike.coYeuCauChoDuyet;
+    const parsed = parseOperationsDetail(adminLike);
+    expect(Object.keys(parsed)).not.toContain('choPhepDoiLich');
+    expect(Object.keys(parsed)).not.toContain('coYeuCauChoDuyet');
+    // và ngay cả khi thân có hai cờ, bộ đọc chung không chép chúng
+    expect(
+      Object.keys(parseOperationsDetail(makeReceptionDetail())),
+    ).not.toContain('choPhepDoiLich');
   });
 });
 

@@ -35,7 +35,7 @@ import { LIST_TEXT } from '../list-messages';
 import {
   RESCHEDULE_ERROR_CODES as OWN,
   rescheduleMessageForCode,
-} from './reschedule-errors';
+} from '../../common/reschedule-errors';
 
 // reschedule F2: lỗi khi GỬI đổi lịch. Mã WDH-38 [đề xuất] (từng mã 409, 404, 400, 503 ⇒ câu và hành động), WDH-06 (`KHUNG_GIO_DA_DAT` về lưới và tải lại; câu tiếng Việt theo `maLoi`), WDH-39 [đề xuất] (mất mạng,
 // hết 15 giây, phản hồi lạ ⇒ "chưa rõ"; "Thử lại" gửi lại đúng một lần), WDH-46 và WDH-47 [đề xuất] (sau "chưa rõ", lần gửi lại ra 404 hay 409 yêu cầu đang chờ ⇒ thêm gợi ý). Chọn câu theo `maLoi`, KHÔNG theo

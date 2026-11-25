@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { strip, violations } from '../../../testing/static-scan';
 
 // reschedule F1, mã ca WDH-10 (PLAN reschedule 7.11, "ca kiến trúc như BWZ-08"): bộ quét TĨNH các file mã của trang đổi lịch (thư mục `reschedule/` và mọi `detail/reschedule-*`: nút, banner, thông báo):
 // không `fetch` ngoài lớp API client, đường dẫn dựng từ `booking-paths` (không viết tay), không `dangerouslySetInnerHTML`, không kho trình duyệt, id không qua `Number`. reschedule F2 thêm: không ghi
@@ -9,45 +10,14 @@ const SOURCES = import.meta.glob(
     '!./*.test.{ts,tsx}',
     '../detail/reschedule-*.{ts,tsx}',
     '!../detail/reschedule-*.test.{ts,tsx}',
+    // reschedule F3: phần dùng chung đã chuyển lên `appointments/common/`
+    '../../common/reschedule-*.{ts,tsx}',
+    '!../../common/reschedule-*.test.{ts,tsx}',
+    '../../common/current-appointment-card.tsx',
+    '../../common/use-reschedule-submit.ts',
   ],
   { query: '?raw', import: 'default', eager: true },
 ) as Record<string, string>;
-
-const strip = (source: string) =>
-  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
-
-type Rule = readonly [name: string, pattern: RegExp];
-
-const RULES: readonly Rule[] = [
-  ['gọi fetch', /(?<![\w.])fetch\s*\(/],
-  [
-    'XMLHttpRequest hay axios',
-    /XMLHttpRequest|\baxios\b|navigator\.sendBeacon/,
-  ],
-  ['dangerouslySetInnerHTML', /dangerouslySetInnerHTML/],
-  ['innerHTML hay outerHTML', /\.(inner|outer)HTML\b/],
-  [
-    'kho trình duyệt',
-    /\b(localStorage|sessionStorage|indexedDB)\b|document\.cookie|caches\./,
-  ],
-  [
-    'đường dẫn viết tay (phải dựng từ booking-paths)',
-    /['"`]\/(benh-nhan|dat-lich|le-tan|admin|bac-si-portal)\b/,
-  ],
-  ['ép id sang số', /\b(Number|parseInt|parseFloat|BigInt)\s*\(/],
-  ['ghi ra console (lý do, mã lịch là dữ liệu cá nhân)', /\bconsole\s*\./],
-];
-
-function violations(sources: Record<string, string>): string[] {
-  const found: string[] = [];
-  for (const [file, source] of Object.entries(sources)) {
-    const code = strip(source);
-    for (const [name, pattern] of RULES) {
-      if (pattern.test(code)) found.push(`${file}: ${name}`);
-    }
-  }
-  return found;
-}
 
 describe('reschedule F1 — kiến trúc web của trang đổi lịch (WDH-10)', () => {
   it('WDH-10 bộ quét thấy mã thật: trang, bộ đọc, hook, mã lỗi, màn xác nhận và nút ở chi tiết', () => {
@@ -57,18 +27,23 @@ describe('reschedule F1 — kiến trúc web của trang đổi lịch (WDH-10)'
         './reschedule-confirm-page.tsx',
         './reschedule-preview-api.ts',
         './use-reschedule-preview.ts',
-        './reschedule-errors.ts',
-        './reschedule-text.ts',
-        './current-appointment-card.tsx',
+        '../../common/reschedule-errors.ts',
+        '../../common/reschedule-text.ts',
+        '../../common/current-appointment-card.tsx',
         '../detail/reschedule-section.tsx',
         // reschedule F2
         './reschedule-submit-api.ts',
         './use-submit-reschedule.ts',
-        './reschedule-failure.ts',
-        './reschedule-reason-rules.ts',
-        './reschedule-reason-field.tsx',
-        './reschedule-confirm-form.tsx',
-        './reschedule-notice-state.ts',
+        '../../common/reschedule-failure.ts',
+        '../../common/reschedule-reason-rules.ts',
+        '../../common/reschedule-reason-field.tsx',
+        '../../common/reschedule-confirm-form.tsx',
+        '../../common/reschedule-notice-state.ts',
+        // reschedule F3: phần cắt ra để Lễ tân đổi hộ dùng chung
+        '../../common/reschedule-payload.ts',
+        '../../common/reschedule-views.tsx',
+        '../../common/use-reschedule-submit.ts',
+        './reschedule-links.ts',
         '../detail/reschedule-request-banner.tsx',
         '../detail/reschedule-result-notice.tsx',
         '../detail/reschedule-alive.ts',

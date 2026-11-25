@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { BOOKING_ERROR_CODES } from '../../../api/booking-errors';
+import { BOOKING_ERROR_CODES } from '../../api/booking-errors';
 
 // Thông báo MỘT LẦN giữa các trang của đổi lịch (reschedule F2; WDH-41, WDH-43). Đi qua `location.state` của router (không URL, không storage): trang đích đọc ở lần gắn đầu, giữ ở state của
 // trang, rồi `navigate(cùng URL, { replace: true, state: null })` nên TẢI LẠI không hiện lại. Giá trị đọc theo danh sách trắng: khoá lạ hay giá trị lạ ⇒ bỏ qua, không bao giờ in ra màn hình.

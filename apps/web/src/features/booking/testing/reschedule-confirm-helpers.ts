@@ -19,7 +19,7 @@ import {
   renderReschedule,
   type RescheduleHarnessOptions,
 } from './reschedule-harness';
-import { RESCHEDULE_TEXT } from '../appointments/patient/reschedule/reschedule-text';
+import { RESCHEDULE_TEXT } from '../appointments/common/reschedule-text';
 
 // Đồ dùng chung của các test màn xác nhận đổi lịch (reschedule F2). Chỉ test dùng; dữ liệu giả, KHÔNG gọi backend thật. Id khung giờ LỚN HƠN 2^53 để mọi ca đều chứng minh id đi nguyên chuỗi.
 export const SLOT_ID = '9007199254740993';

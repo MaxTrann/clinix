@@ -16,8 +16,8 @@ import { fakeDay, fakeSlot } from '../../../testing/fake-reschedule-api';
 import { renderReschedule } from '../../../testing/reschedule-harness';
 import { DETAIL_TEXT } from '../detail/detail-messages';
 import { LIST_TEXT } from '../list-messages';
-import { RESCHEDULE_ERROR_CODES } from './reschedule-errors';
-import { RESCHEDULE_TEXT } from './reschedule-text';
+import { RESCHEDULE_ERROR_CODES } from '../../common/reschedule-errors';
+import { RESCHEDULE_TEXT } from '../../common/reschedule-text';
 
 // reschedule F1: đủ trạng thái của trang chọn khung giờ. Mã WDH-07 (đang tải, rỗng, lỗi, mất mạng, hết thời gian; PLAN reschedule 7.11) và WDH-27 [đề xuất] (không lộ thông điệp máy chủ, mã
 // nội bộ hay `requestId`). Chọn câu theo `maLoi`, KHÔNG theo mã HTTP hay `thongBao` (PLAN 5.13). Hôm nay giả là 25/11/2026. Dữ liệu giả.

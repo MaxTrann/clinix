@@ -3,25 +3,28 @@ import {
   GENERIC_ERROR_MESSAGE,
   NETWORK_ERROR_MESSAGE,
   TIMEOUT_ERROR_MESSAGE,
-} from '../../../../../shared/api/error-message';
+} from '../../../../shared/api/error-message';
 import {
   ApiError,
   NetworkError,
   RequestAbortedError,
   TimeoutError,
   UnexpectedResponseError,
-} from '../../../../../shared/api/errors';
-import { BOOKING_ERROR_CODES } from '../../../api/booking-errors';
-import { DETAIL_TEXT } from '../detail/detail-messages';
-import { LIST_TEXT } from '../list-messages';
+} from '../../../../shared/api/errors';
+import { BOOKING_ERROR_CODES } from '../../api/booking-errors';
+import { DETAIL_TEXT } from '../patient/detail/detail-messages';
+import { LIST_TEXT } from '../patient/list-messages';
 import {
   candidateReasonMessage,
   describeRescheduleFailure,
   isSlotGoneCode,
+  PATIENT_FAILURE_CONTEXT,
   withUncertainHint,
+  type FailureContext,
   type RescheduleFailureKind,
 } from './reschedule-failure';
 import {
+  CODE_SYSTEM_ERROR,
   RESCHEDULE_ERROR_CODES,
   rescheduleMessageForCode,
 } from './reschedule-errors';
@@ -331,5 +334,136 @@ describe('withUncertainHint và candidateReasonMessage (WDH-32, WDH-46, WDH-47)'
         RESCHEDULE_TEXT.slotNotUsable,
       );
     }
+  });
+});
+
+// reschedule F3, mã ca WDO-11 [đề xuất]: NGỮ CẢNH của `describeRescheduleFailure` (Lễ tân đổi hộ dùng cùng bảng mã với Bệnh nhân nhưng khác tên trường lý do, không có hạn mức tự đổi, khác câu "chưa rõ" và khác
+// mã nghĩa là "lần trước đã thành công"). Ngữ cảnh mặc định là Bệnh nhân nên mọi ca WDH-32 ở trên chạy nguyên văn. Ở đây dùng một ngữ cảnh DỰNG TAY để thử riêng hàm dùng chung; ngữ cảnh THẬT của Lễ tân
+// được thử ở `reception-reschedule-submit-errors.test.tsx` (WDO-05).
+const STAFF: FailureContext = {
+  reasonField: 'lyDo',
+  reasonInvalidMessage: 'CAU_LY_DO_NHAN_SU',
+  askReasonOnOverLimit: false,
+  uncertainMessage: 'CAU_CHUA_RO_NHAN_SU',
+  afterUncertainHint: 'GOI_Y_NHAN_SU',
+  succeededAfterUncertain: [OWN.NOT_RESCHEDULABLE],
+  systemErrorMessage: 'CAU_LOI_HE_THONG_NHAN_SU',
+};
+const staffKind = (error: unknown, phase: 'load' | 'submit') =>
+  describeRescheduleFailure(error, phase, STAFF);
+
+describe('describeRescheduleFailure: ngữ cảnh Lễ tân (WDO-11)', () => {
+  it('WDO-11 ngữ cảnh mặc định LÀ Bệnh nhân: truyền tường minh hay bỏ trống cho cùng kết quả', () => {
+    for (const error of [
+      api(OWN.OVER_SELF_LIMIT),
+      api(OWN.NOT_RESCHEDULABLE),
+      api(BOOKING.SLOT_TAKEN),
+      api('DU_LIEU_KHONG_HOP_LE', {
+        status: 400,
+        loi: [{ truong: 'lyDoYeuCau', ma: 'LY_DO_YEU_CAU_KHONG_HOP_LE' }],
+      }),
+      api('KHONG_TIM_THAY', { status: 404 }),
+      new NetworkError(),
+    ]) {
+      for (const phase of ['load', 'submit'] as const) {
+        expect(
+          describeRescheduleFailure(error, phase, PATIENT_FAILURE_CONTEXT),
+        ).toEqual(describeRescheduleFailure(error, phase));
+      }
+    }
+    expect(PATIENT_FAILURE_CONTEXT.reasonField).toBe('lyDoYeuCau');
+    expect(PATIENT_FAILURE_CONTEXT.askReasonOnOverLimit).toBe(true);
+  });
+
+  it('WDO-11 400 ở trường `lyDo` ⇒ `reasonInvalid` kèm câu của ngữ cảnh, chỉ ở pha gửi; cùng thân ở ngữ cảnh Bệnh nhân KHÔNG phải lỗi ô lý do (khác tên trường)', () => {
+    const error = api('DU_LIEU_KHONG_HOP_LE', {
+      status: 400,
+      loi: [{ truong: 'lyDo', ma: 'LY_DO_BAT_BUOC' }],
+    });
+    expect(staffKind(error, 'submit')).toMatchObject({
+      kind: 'reasonInvalid',
+      message: 'CAU_LY_DO_NHAN_SU',
+    });
+    expect(staffKind(error, 'load').kind).toBe('retry');
+    expect(kindOf(error, 'submit')).toBe('retry');
+    // khoá lạ ở thân ⇒ không phải lỗi ô lý do
+    const stray = api('DU_LIEU_KHONG_HOP_LE', {
+      status: 400,
+      loi: [{ truong: 'lyDoYeuCau', ma: 'TRUONG_KHONG_DUOC_PHEP' }],
+    });
+    expect(staffKind(stray, 'submit').kind).toBe('retry');
+  });
+
+  it('WDO-11 `VUOT_SO_LAN_TU_DOI` KHÔNG mở ô lý do kiểu Bệnh nhân khi ngữ cảnh không có hạn mức: vẫn là một câu kèm đường về chi tiết', () => {
+    const error = api(OWN.OVER_SELF_LIMIT);
+    expect(staffKind(error, 'submit').kind).toBe('backToDetail');
+    expect(kindOf(error, 'submit')).toBe('needsReason');
+  });
+
+  it('WDO-11 `LOI_HE_THONG` (500, AuditError): câu riêng của ngữ cảnh, loại `retry` ở cả hai pha; thiếu câu thì dùng câu chung', () => {
+    const error = api(CODE_SYSTEM_ERROR, { status: 500 });
+    for (const phase of ['load', 'submit'] as const) {
+      expect(staffKind(error, phase)).toMatchObject({
+        kind: 'retry',
+        message: 'CAU_LOI_HE_THONG_NHAN_SU',
+        maLoi: CODE_SYSTEM_ERROR,
+      });
+    }
+    expect(describeRescheduleFailure(error, 'submit')).toMatchObject({
+      kind: 'retry',
+      message: GENERIC_ERROR_MESSAGE,
+    });
+  });
+
+  it('WDO-11 mạng, quá giờ, phản hồi lạ lúc GỬI ⇒ `uncertain` kèm câu của ngữ cảnh; lúc TẢI ⇒ `retry`', () => {
+    for (const error of [
+      new NetworkError(),
+      new TimeoutError(),
+      new UnexpectedResponseError(200),
+    ]) {
+      expect(staffKind(error, 'submit')).toMatchObject({
+        kind: 'uncertain',
+        message: 'CAU_CHUA_RO_NHAN_SU',
+      });
+      expect(staffKind(error, 'load').kind).toBe('retry');
+    }
+  });
+
+  it('WDO-11 404 ngoài chi nhánh, 404 không có và 403 là MỘT thẻ: cùng loại, cùng câu, không lộ mã', () => {
+    const messages = [
+      api('KHONG_TIM_THAY', { status: 404, thongBao: 'NGOAI_CHI_NHANH' }),
+      api('KHONG_TIM_THAY', { status: 404, thongBao: 'KHONG_CO' }),
+      api('KHONG_DU_QUYEN', { status: 403 }),
+    ].map((error) => staffKind(error, 'submit'));
+    expect(messages.map((item) => item.kind)).toEqual([
+      'notFound',
+      'notFound',
+      'notFound',
+    ]);
+    expect(new Set(messages.map((item) => item.message)).size).toBe(1);
+    expect(messages[0].message).not.toMatch(/NGOAI_CHI_NHANH|KHONG_CO/);
+  });
+
+  it('WDO-11 gợi ý sau "chưa rõ": ở ngữ cảnh Lễ tân là 409 `LICH_HEN_KHONG_CHO_DOI` (lịch cũ đã thành `DaDoiLich`), KHÔNG phải `DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET`; 404 luôn có gợi ý', () => {
+    const notReschedulable = staffKind(api(OWN.NOT_RESCHEDULABLE), 'submit');
+    expect(withUncertainHint(notReschedulable, STAFF).message).toBe(
+      `${notReschedulable.message} GOI_Y_NHAN_SU`,
+    );
+    // không phải mã "đã thành công" của ngữ cảnh ⇒ không thêm
+    const pending = staffKind(api(OWN.REQUEST_PENDING), 'submit');
+    expect(withUncertainHint(pending, STAFF)).toEqual(pending);
+    const other = staffKind(api(BOOKING.SLOT_TAKEN), 'submit');
+    expect(withUncertainHint(other, STAFF)).toEqual(other);
+    // 404 ⇒ có gợi ý
+    const gone = staffKind(api('KHONG_TIM_THAY', { status: 404 }), 'submit');
+    expect(withUncertainHint(gone, STAFF).message).toBe(
+      `${gone.message} GOI_Y_NHAN_SU`,
+    );
+    // ngữ cảnh Bệnh nhân giữ nguyên: 409 `LICH_HEN_KHONG_CHO_DOI` KHÔNG có gợi ý
+    const patient = describeRescheduleFailure(
+      api(OWN.NOT_RESCHEDULABLE),
+      'submit',
+    );
+    expect(withUncertainHint(patient)).toEqual(patient);
   });
 });

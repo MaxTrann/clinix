@@ -10,12 +10,15 @@ import {
   countReasonLength,
   type ReasonError,
   type ReasonLimits,
+  type ReasonUnit,
 } from './reschedule-reason-rules';
 import { RESCHEDULE_TEXT } from './reschedule-text';
 
 interface ReasonConfig extends ReasonLimits {
   label: string;
   hint: string;
+  // Đơn vị đếm độ dài (mặc định điểm mã như B5; Lễ tân đổi hộ dùng `utf16` như B7)
+  unit?: ReasonUnit;
 }
 
 interface RescheduleConfirmFormProps {
@@ -92,7 +95,8 @@ export function RescheduleConfirmForm({
     if (focusKey > 0) fieldRef.current?.focus();
   }, [focusKey]);
 
-  const checked = reason === null ? null : checkRescheduleReason(text, reason);
+  const checked =
+    reason === null ? null : checkRescheduleReason(text, reason, reason.unit);
   const showLocal =
     checked !== null &&
     !checked.ok &&
@@ -108,7 +112,7 @@ export function RescheduleConfirmForm({
       onSubmit(null);
       return;
     }
-    const result = checkRescheduleReason(text, reason);
+    const result = checkRescheduleReason(text, reason, reason.unit);
     if (!result.ok) {
       setAttempted(true);
       setFocusAsked((n) => n + 1);
@@ -133,7 +137,7 @@ export function RescheduleConfirmForm({
           onChange={setText}
           error={localError ?? reasonError}
           counter={RESCHEDULE_TEXT.reasonCount(
-            countReasonLength(text),
+            countReasonLength(text, reason.unit),
             reason.max,
           )}
           locked={submitting}

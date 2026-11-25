@@ -1,5 +1,5 @@
 import { request } from '../../../../../shared/api/client';
-import { APPOINTMENT_CODE } from '../../../api/booking-errors';
+import { parseRescheduleDone } from '../../common/reschedule-payload';
 import {
   readIsoDateTime,
   readRecord,
@@ -8,7 +8,6 @@ import {
 } from '../../common/response-readers';
 import { appointmentApiPath } from '../api/patient-appointment-detail-api';
 import type {
-  RescheduleDone,
   RescheduleRequestSent,
   RescheduleResult,
   RescheduleSubmitInput,
@@ -17,27 +16,6 @@ import type {
 // Gọi và kiểm hình dạng `POST /patient/appointments/:maLichHen/reschedule` (reschedule F2; PLAN reschedule 5.8; hợp đồng THẬT của B6: TRACKING mục 7). Route của Bệnh nhân nên GẮN access token
 // (mặc định của `request()`); chủ sở hữu do backend lấy từ token. Bộ đọc NGHIÊM: thiếu khoá hay sai kiểu ⇒ `UnexpectedResponseError`, khoá thừa (kể cả `yeuCauId` nếu máy chủ lỡ trả) không bao giờ
 // được chép ra kết quả. Ở pha GỬI, `UnexpectedResponseError` là "chưa rõ" (máy chủ có thể đã ghi), nên bộ đọc chỉ từ chối khi hình dạng thật sự sai.
-
-// Mã lịch hẹn đi vào URL điều hướng: chỉ nhận đúng dạng mà luồng đặt lịch cũng nhận (`APPOINTMENT_CODE`)
-function readAppointmentCode(value: unknown): string {
-  const text = readText(value);
-  return APPOINTMENT_CODE.test(text) ? text : unusableResponse();
-}
-
-function parseDone(body: Record<string, unknown>): RescheduleDone {
-  const created = readRecord(body.lichHenMoi);
-  const replaced = readRecord(body.lichHenCu);
-  return {
-    ketQua: 'DaDoi',
-    lichHenMoi: {
-      maLichHen: readAppointmentCode(created.maLichHen),
-      thoiGian: readIsoDateTime(created.thoiGian),
-      trangThai: readText(created.trangThai),
-    },
-    lichHenCu: { maLichHen: readAppointmentCode(replaced.maLichHen) },
-    thoiGianMayChu: readIsoDateTime(body.thoiGianMayChu),
-  };
-}
 
 function parseRequestSent(
   body: Record<string, unknown>,
@@ -58,7 +36,7 @@ function parseRequestSent(
 export function parseRescheduleResult(raw: unknown): RescheduleResult {
   const body = readRecord(raw);
   const outcome = readText(body.ketQua);
-  if (outcome === 'DaDoi') return parseDone(body);
+  if (outcome === 'DaDoi') return parseRescheduleDone(body);
   if (outcome === 'DaGuiYeuCau') return parseRequestSent(body);
   return unusableResponse();
 }

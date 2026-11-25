@@ -20,7 +20,12 @@ export type ReceptionAppointmentPage = OperationsAppointmentPage;
 // Chi tiết: ĐÚNG mười sáu khoá = mười một khoá của dòng cộng bốn khoá dưới (và `lyDoKham`). `chuyenDuoc` là các trạng thái Lễ tân ĐANG chuyển tới được
 // (`allowedTargets('LeTan', …)` của backend, đã tính cả cửa sổ tiếp đón và còn phải thu): web KHÔNG có ma trận thứ hai, nút hiện theo mảng này. Giữ mã thô (chuỗi):
 // mã không phải một trong ba đích của Lễ tân bị bỏ qua ở `reception-actions.tsx`. `conPhaiThu` chỉ ở `DaXacNhan` (còn lại `null`); chuỗi decimal, không tính toán.
-export type ReceptionAppointmentDetail = OperationsAppointmentDetail;
+// reschedule F3: cộng HAI cờ đổi lịch mà B5 thêm cho chi tiết của Lễ tân (Quản trị viên không có): `choPhepDoiLich` (Lễ tân đổi hộ được không: vai đổi hộ, trong chi nhánh, không giới hạn số lần, hạn là
+// `thoi_gian + check_in_sau_phut`, được phép khi lịch đang có yêu cầu chờ) và `coYeuCauChoDuyet` (lịch đang có yêu cầu `ChoDuyet`; KHÔNG chặn đổi hộ). Web chỉ đọc hai cờ này để chọn nút, KHÔNG có bộ luật thứ hai.
+export interface ReceptionAppointmentDetail extends OperationsAppointmentDetail {
+  choPhepDoiLich: boolean;
+  coYeuCauChoDuyet: boolean;
+}
 
 // Bộ lọc và trang của một lần tải. Mọi bộ lọc tuỳ chọn; giá trị rỗng không được gửi (B3 trả 400 với `q=` rỗng). Ngày là chuỗi `YYYY-MM-DD` (ngày Việt Nam, không qua
 // `Date`). KHÔNG có `dichVuKhamId` (Figma không có ô lọc dịch vụ), `chiNhanhId` (Lễ tân bị ép theo chi nhánh của mình ở backend, tham số bị bỏ qua) và `pageSize`
