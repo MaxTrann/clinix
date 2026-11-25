@@ -11,6 +11,7 @@ import { TaoBangThanhToanVi1793707200000 } from './migrations/1793707200000-tao-
 import { MocThoiGianLichHen1793793600000 } from './migrations/1793793600000-moc-thoi-gian-lich-hen.js';
 import { NghiTheoCaNhieuNgay1793880000000 } from './migrations/1793880000000-nghi-theo-ca-nhieu-ngay.js';
 import { DoiLich1793966400000 } from './migrations/1793966400000-doi-lich.js';
+import { TaoBangNhacLichHen1794052800000 } from './migrations/1794052800000-tao-bang-nhac-lich-hen.js';
 import { TaoBangMocHoanTien1793534400000 } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -83,10 +84,13 @@ const TABLES_BEFORE_EXAM = [...TABLES_BEFORE_P6, ...MOC_HOAN_TIEN_TABLES];
 const TABLES_BEFORE_PAYMENT = [...TABLES_BEFORE_EXAM, ...EXAM_TABLES];
 // reschedule P1: bảng yêu cầu đổi lịch ngoài chính sách (có trong file SQL từ trước, nay mới có migration)
 const DOI_LICH_TABLES = ['yeu_cau_doi_lich_ngoai_chinh_sach'];
+// notification P1: bảng nhắc lịch hẹn (có trong file SQL từ trước, nay mới có migration)
+const NHAC_LICH_HEN_TABLES = ['nhac_lich_hen'];
 const MIGRATED_TABLES = [
   ...TABLES_BEFORE_PAYMENT,
   ...PAYMENT_TABLES,
   ...DOI_LICH_TABLES,
+  ...NHAC_LICH_HEN_TABLES,
 ];
 // 20 hành động đã có trước P4 (đúng thứ tự trong migration vận hành).
 const HANH_DONG_TRUOC_P4 = [
@@ -120,6 +124,7 @@ const PAYMENT_NAME = TaoBangThanhToanVi1793707200000.name;
 const MOC_NAME = MocThoiGianLichHen1793793600000.name;
 const NTC_NAME = NghiTheoCaNhieuNgay1793880000000.name;
 const DOI_LICH_NAME = DoiLich1793966400000.name;
+const NHAC_LICH_HEN_NAME = TaoBangNhacLichHen1794052800000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -691,7 +696,8 @@ describe('vòng đời migration', () => {
     const later = await revertAfter(MOC_NAME);
     // UX7 (đổi): trước là `expect(later).toEqual([])` vì B19 là migration cuối; nay migration nghỉ theo ca nhiều ngày đứng sau và được hoàn tác trước.
     // reschedule P1 (đổi): thêm migration đổi lịch đứng sau nữa, cũng được hoàn tác trước (down của nó không chặn vì DB chưa có dữ liệu đổi lịch).
-    expect(later).toEqual([NTC_NAME, DOI_LICH_NAME]);
+    // notification P1 (đổi): migration bảng nhắc lịch hẹn đứng sau cùng, cũng được hoàn tác trước (down của nó không chặn).
+    expect(later).toEqual([NTC_NAME, DOI_LICH_NAME, NHAC_LICH_HEN_NAME]);
     const MOC_COLUMNS = [
       'thoi_diem_xac_nhan',
       'thoi_diem_tiep_don',
@@ -1316,6 +1322,107 @@ describe('vòng đời migration', () => {
         await run("DELETE FROM thong_bao WHERE loai_su_kien = 'KEEP'");
         await run(
           "DELETE FROM nhat_ky_hanh_dong WHERE hanh_dong = 'DoiQuyen' AND ma_doi_tuong = 1",
+        );
+      });
+    });
+  });
+
+  // notification P1 (#656): MTB-02 (up, down, up) và MTB-09 (chạy trên DB đã có dữ liệu của bảng khác). MTB-01 ở migration-source.spec.ts và schema-parity.int-spec.ts.
+  describe('notification P1: bảng nhac_lich_hen', () => {
+    const TABLE = 'nhac_lich_hen';
+    const showCreate = async (): Promise<string> =>
+      (
+        (await dataSource.query(`SHOW CREATE TABLE \`${TABLE}\``)) as Record<
+          string,
+          string
+        >[]
+      )[0]?.['Create Table'] ?? '';
+    const tableExists = async (): Promise<boolean> =>
+      (await listTables(dataSource)).includes(TABLE);
+    /** Checksum nội dung của ba bảng mà nhắc lịch đọc hay nằm cạnh: không được đổi dòng nào khi lên/xuống P1. */
+    const checksums = async (): Promise<Record<string, string>> => {
+      const rows = (await dataSource.query(
+        'CHECKSUM TABLE `lich_hen`, `thong_bao`, `email_thong_bao`',
+      )) as { Table: string; Checksum: string | number }[];
+      return Object.fromEntries(
+        rows.map((row) => [row.Table, String(row.Checksum)]),
+      );
+    };
+    /** Chạy `work` trên MỘT kết nối đã tắt kiểm khóa ngoại (dựng dòng mà không cần bác sĩ, khung giờ... thật), luôn bật lại. */
+    const withoutForeignKeys = async (
+      work: (
+        run: (sql: string, params?: unknown[]) => Promise<unknown>,
+      ) => Promise<void>,
+    ): Promise<void> => {
+      const queryRunner = dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+        await work((sql, params) => queryRunner.query(sql, params));
+      } finally {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+        await queryRunner.release();
+      }
+    };
+
+    it('MTB-02: up, down, up: down xoá bảng (kể cả còn dòng, không chặn), schema trở về trước; up lại ra bảng RỖNG cùng cấu trúc', async () => {
+      await runPendingMigrations(dataSource);
+      expect(await revertAfter(NHAC_LICH_HEN_NAME)).toEqual([]);
+      const upState = await showCreate();
+      const otherTables = (await listTables(dataSource)).filter(
+        (table) => table !== TABLE,
+      );
+      await withoutForeignKeys(async (run) => {
+        await run(
+          `INSERT INTO ${TABLE} (lich_hen_id, so_gio_truoc) VALUES (900001, 24)`,
+        );
+      });
+
+      expect(await revertLastMigration(dataSource)).toBe(NHAC_LICH_HEN_NAME);
+      expect(await tableExists()).toBe(false);
+      // Chỉ mất đúng một bảng, các bảng khác còn nguyên
+      expect(await listTables(dataSource)).toEqual(otherTables);
+
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        NHAC_LICH_HEN_NAME,
+      ]);
+      expect(await showCreate()).toBe(upState);
+      const [{ total }] = (await dataSource.query(
+        `SELECT COUNT(*) AS total FROM ${TABLE}`,
+      )) as [{ total: string | number }];
+      expect(Number(total)).toBe(0);
+    });
+
+    it('MTB-09: down rồi up trên DB đã có lịch hẹn, thông báo và thư: không đổi dòng nào của ba bảng đó', async () => {
+      await runPendingMigrations(dataSource);
+      await withoutForeignKeys(async (run) => {
+        await run(
+          `INSERT INTO lich_hen (ma_lich_hen, khung_gio_id, benh_nhan_id, bac_si_id, chi_nhanh_id, dich_vu_kham_id, thoi_gian, gia_snapshot, trang_thai, thoi_diem_tao)
+           VALUES ('CLX-20261125-MTB09', 900001, 900001, 900001, 900001, 900001, '2026-12-02 14:30:00', 100000, 'DaHuy', '2026-11-25 08:00:00')`,
+        );
+        const notice = (await run(
+          "INSERT INTO thong_bao (tai_khoan_id, noi_dung, loai_su_kien, thoi_diem_tao) VALUES (900001, 'MTB09', 'MTB09', '2026-11-25 08:00:00')",
+        )) as { insertId: number | string };
+        await run(
+          'INSERT INTO email_thong_bao (thong_bao_id, thoi_diem_tao) VALUES (?, ?)',
+          [notice.insertId, '2026-11-25 08:00:00'],
+        );
+      });
+      const before = await checksums();
+      expect(Object.values(before).every((sum) => sum !== '0')).toBe(true);
+
+      expect(await revertLastMigration(dataSource)).toBe(NHAC_LICH_HEN_NAME);
+      expect(await checksums()).toEqual(before);
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        NHAC_LICH_HEN_NAME,
+      ]);
+      expect(await checksums()).toEqual(before);
+
+      await withoutForeignKeys(async (run) => {
+        await run('DELETE FROM email_thong_bao');
+        await run("DELETE FROM thong_bao WHERE loai_su_kien = 'MTB09'");
+        await run(
+          "DELETE FROM lich_hen WHERE ma_lich_hen = 'CLX-20261125-MTB09'",
         );
       });
     });

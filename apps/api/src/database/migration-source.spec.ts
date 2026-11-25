@@ -39,6 +39,10 @@ import {
   HANH_DONG_TRUOC_DOI_LICH,
 } from './migrations/1793966400000-doi-lich.js';
 import {
+  TAO_BANG_NHAC_LICH_HEN_SQL,
+  TaoBangNhacLichHen1794052800000,
+} from './migrations/1794052800000-tao-bang-nhac-lich-hen.js';
+import {
   normalizeStatement,
   officialStatementsFor,
   targetTable,
@@ -933,5 +937,63 @@ describe('migration reschedule P1 (bảng yêu cầu, bộ đếm, cột thông 
         timestampOf(migration.name),
       );
     }
+  });
+});
+
+// notification P1 (#656): MTB-01 phần chữ DDL (không cần DB) và MTB-11 (thứ tự mốc). SHOW CREATE TABLE ở schema-parity.int-spec.ts,
+// ràng buộc thật ở nhac-lich-hen.int-spec.ts, vòng đời up/down ở migrations.int-spec.ts.
+describe('migration notification P1 (nhac_lich_hen) khớp schema SQL chính thức', () => {
+  const official = officialStatementsFor(['nhac_lich_hen']).map(
+    normalizeStatement,
+  );
+  const [
+    createTable = '',
+    createIndex = '',
+    tableComment = '',
+    addForeignKey = '',
+    checkMoc = '',
+    checkKetQua = '',
+  ] = TAO_BANG_NHAC_LICH_HEN_SQL;
+
+  it('MTB-01: 6 câu DDL trùng từng câu, cùng thứ tự, với clinix_mysql.sql; ca âm: đổi một chữ trong COMMENT thì không còn trùng', () => {
+    expect(official).toHaveLength(6);
+    expect(TAO_BANG_NHAC_LICH_HEN_SQL.map(normalizeStatement)).toEqual(
+      official,
+    );
+    // Ca âm: chỉ khác một chữ ở COMMENT bảng cũng làm lệch văn bản
+    const changed = TAO_BANG_NHAC_LICH_HEN_SQL.map((sql) =>
+      sql === tableComment ? sql.replace('3 lần', '4 lần') : sql,
+    );
+    expect(changed).not.toEqual(TAO_BANG_NHAC_LICH_HEN_SQL);
+    expect(changed.map(normalizeStatement)).not.toEqual(official);
+  });
+
+  it('MTB-01: thứ tự bảng, chỉ mục, COMMENT, khóa ngoại, hai CHECK; mọi câu chỉ tác động nhac_lich_hen', () => {
+    expect(createTable).toMatch(/^CREATE TABLE `nhac_lich_hen` /);
+    expect(createTable).toContain(
+      'PRIMARY KEY (`lich_hen_id`, `so_gio_truoc`)',
+    );
+    expect(createIndex).toBe(
+      'CREATE INDEX `nhac_lich_hen_index_trang_thai` ON `nhac_lich_hen` (`trang_thai`, `lan_thu_cuoi_luc`)',
+    );
+    expect(tableComment).toMatch(/^ALTER TABLE `nhac_lich_hen` COMMENT = '/);
+    expect(addForeignKey).toBe(
+      'ALTER TABLE `nhac_lich_hen` ADD FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen` (`lich_hen_id`)',
+    );
+    expect(checkMoc).toMatch(/ADD CONSTRAINT `chk_nhac_lich_hen_moc` CHECK /);
+    expect(checkKetQua).toMatch(
+      /ADD CONSTRAINT `chk_nhac_lich_hen_ket_qua` CHECK /,
+    );
+    for (const statement of TAO_BANG_NHAC_LICH_HEN_SQL) {
+      expect(targetTable(statement)).toBe('nhac_lich_hen');
+    }
+  });
+
+  it('MTB-11: mốc P1 là migration cuối của sổ, lớn hơn mốc reschedule P1 (1793966400000); các mốc tăng dần', () => {
+    const stamps = MIGRATIONS.map((m) => Number(/(\d{13})$/.exec(m.name)?.[1]));
+    expect(stamps).toEqual([...stamps].sort((a, b) => a - b));
+    expect(MIGRATIONS.at(-1)).toBe(TaoBangNhacLichHen1794052800000);
+    expect(MIGRATIONS.at(-2)).toBe(DoiLich1793966400000);
+    expect(stamps.at(-1)).toBeGreaterThan(1793966400000);
   });
 });

@@ -74,6 +74,8 @@ const PAYMENT_TABLES = [
 ];
 // reschedule P1: bảng yêu cầu đổi lịch ngoài chính sách (có trong file SQL từ trước, nay mới có migration)
 const DOI_LICH_TABLES = ['yeu_cau_doi_lich_ngoai_chinh_sach'];
+// notification P1: bảng nhắc lịch hẹn (có trong file SQL từ trước, nay mới có migration)
+const NHAC_LICH_HEN_TABLES = ['nhac_lich_hen'];
 const MIGRATED_TABLES = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
@@ -85,6 +87,7 @@ const MIGRATED_TABLES = [
   ...EXAM_TABLES,
   ...PAYMENT_TABLES,
   ...DOI_LICH_TABLES,
+  ...NHAC_LICH_HEN_TABLES,
 ];
 let migrated: DataSource;
 let reference: DataSource;
@@ -126,6 +129,7 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
   // MGK-05: gồm cả ho_so_kham và danh_gia_bac_si (UNIQUE lich_hen_id, khóa ngoại *_ibfk_1, COMMENT bảng và cột, hai CHECK chk_danh_gia_*).
   // MDL-04 (reschedule P1): gồm cả bảng yeu_cau_doi_lich_ngoai_chinh_sach (chỉ mục _index_12, ba khóa ngoại, hai CHECK, COMMENT bảng), cột lich_hen.so_lan_tu_doi_lich và CHECK
   // chk_lich_hen_so_lan_tu_doi, cột thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id cùng UNIQUE thong_bao_index_yeu_cau_doi_lich và khóa ngoại thong_bao_ibfk_4, ENUM hanh_dong 27 giá trị.
+  // MTB-01 (notification P1): gồm cả bảng nhac_lich_hen (khóa chính kép, chỉ mục nhac_lich_hen_index_trang_thai, khóa ngoại nhac_lich_hen_ibfk_1, hai CHECK, COMMENT bảng).
   it('SHOW CREATE TABLE của DB dựng bằng migration giống hệt DB dựng thẳng từ file SQL chính thức', async () => {
     const tables = (await listTables(migrated)).filter(
       (table) => table !== 'migrations' && table !== 'typeorm_metadata',
@@ -184,6 +188,19 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     expect(await showCreateTable(migrated, 'nhat_ky_hanh_dong')).toContain(
       "'TuChoiRutTien','DoiLichHo')",
     );
+
+    // MTB-01: bảng nhac_lich_hen có mặt thật và mang đủ ràng buộc, để phép so ở trên không rỗng
+    const nhacLich = await showCreateTable(migrated, 'nhac_lich_hen');
+    for (const part of [
+      'PRIMARY KEY (`lich_hen_id`,`so_gio_truoc`)',
+      'KEY `nhac_lich_hen_index_trang_thai` (`trang_thai`,`lan_thu_cuoi_luc`)',
+      'CONSTRAINT `nhac_lich_hen_ibfk_1` FOREIGN KEY (`lich_hen_id`) REFERENCES `lich_hen`',
+      'CONSTRAINT `chk_nhac_lich_hen_moc` CHECK',
+      'CONSTRAINT `chk_nhac_lich_hen_ket_qua` CHECK',
+      'Nhắc lịch chỉ qua email',
+    ]) {
+      expect(nhacLich, part).toContain(part);
+    }
   });
 
   it('mọi câu lệnh trong migration thuộc đúng 5 bảng auth', () => {
