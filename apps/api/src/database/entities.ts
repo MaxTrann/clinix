@@ -22,6 +22,7 @@ import { PhuPhiBacSi } from '../admin/entities/phu-phi-bac-si.entity.js';
 import { QuanTriVien } from '../admin/entities/quan-tri-vien.entity.js';
 import { CauHinhHeThong } from '../admin/entities/cau-hinh-he-thong.entity.js';
 import { EmailThongBao } from '../admin/entities/email-thong-bao.entity.js';
+import { NhacLichHen } from '../admin/entities/nhac-lich-hen.entity.js';
 import { ThongBao } from '../admin/entities/thong-bao.entity.js';
 import { ThongTinPhongKham } from '../admin/entities/thong-tin-phong-kham.entity.js';
 import { GiaoDichThanhToan } from '../payment/entities/giao-dich-thanh-toan.entity.js';
@@ -67,6 +68,7 @@ export const ENTITIES = [
   CauHinhHeThong,
   ThongBao,
   EmailThongBao,
+  NhacLichHen,
   NhatKyHanhDong,
   YeuCauNghiPhep,
   HoSoKham,
