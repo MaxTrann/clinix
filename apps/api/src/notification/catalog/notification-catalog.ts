@@ -43,8 +43,8 @@ export const TITLE_MAX = 60;
 /** Tiêu đề dùng khi gặp mã không có trong danh mục (dữ liệu cũ hay mã lạ): không ném lỗi 500 (TTB-11). */
 export const DEFAULT_TITLE = 'Thông báo';
 
-// Lưu ý về cột `coThu` (theo đúng worker thư ở thời điểm B1):
-//  - `LichHenHoanThanh` chưa có thư: task notification B4 thêm thư rồi mới bật `coThu`.
+// Lưu ý về cột `coThu` (theo đúng worker thư hiện hành):
+//  - `LichHenHoanThanh` có thư từ notification B4.
 //  - ba mã nghỉ phép `NghiPhepDaGui`, `NghiPhepDaDuyet`, `NghiPhepTuChoi` chưa có thư: task notification B5 bật.
 // Bật sớm thì DMS-04 đỏ, vì worker chưa xử lý các loại này.
 export const NOTIFICATION_CATALOG: readonly CatalogEntry[] = [
@@ -99,7 +99,7 @@ export const NOTIFICATION_CATALOG: readonly CatalogEntry[] = [
     nhom: 'LichHen',
     tieuDe: 'Đã hoàn thành lịch khám',
     nguoiNhan: ['BenhNhan'],
-    coThu: false, // notification B4 bật
+    coThu: true, // notification B4
     lienKet: 'LichHen',
     nguon: 'doctor-exam ExamNotifier',
     trangThai: 'CoMa',
