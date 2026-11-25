@@ -35,7 +35,7 @@ export const BOOKING_ERROR_CODES = {
   CHECK_IN_WINDOW_NOT_OVER: 'CHUA_QUA_GIO_HEN',
   SYSTEM_BUSY: 'HE_THONG_DANG_BAN', // [đề xuất] mã thứ 25, duyệt 09/11/2026: hết lượt thử lại 1213/1205 (booking-transaction.ts), thay cho 500
   // Chín mã của ĐỔI LỊCH (reschedule B2; PLAN reschedule 5.13). [đề xuất] chữ và mã, Q13 duyệt ở PR. Hai mã của yêu cầu đổi lịch (`YEU_CAU_DOI_LICH_KHONG_TON_TAI`,
-  // `YEU_CAU_DA_XU_LY`) thuộc B5, B8, B9 nên chưa khai ở đây.
+  // `YEU_CAU_DA_XU_LY`) do B9 thêm ở cuối khối này (route duyệt và từ chối; GET của B8 vẫn trả `KHONG_TIM_THAY`).
   NOT_RESCHEDULABLE: 'LICH_HEN_KHONG_CHO_DOI',
   RESCHEDULE_TOO_LATE: 'LICH_HEN_DA_QUA_GIO',
   SAME_AS_CURRENT_SLOT: 'KHUNG_GIO_TRUNG_LICH_CU',
@@ -45,6 +45,9 @@ export const BOOKING_ERROR_CODES = {
   RESCHEDULE_CHAIN_TOO_LONG: 'CHUOI_DOI_LICH_QUA_DAI',
   OVER_SELF_RESCHEDULE_LIMIT: 'VUOT_SO_LAN_TU_DOI',
   RESCHEDULE_REQUEST_PENDING: 'DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET',
+  // Hai mã của DUYỆT và TỪ CHỐI yêu cầu (reschedule B9; PLAN reschedule 5.13). [đề xuất] chữ.
+  REQUEST_NOT_FOUND: 'YEU_CAU_DOI_LICH_KHONG_TON_TAI',
+  REQUEST_HANDLED: 'YEU_CAU_DA_XU_LY',
 } as const;
 
 export type BookingErrorCode =
@@ -203,6 +206,14 @@ export const BOOKING_ERRORS: Record<BookingErrorCode, BookingErrorSpec> = {
   DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET: {
     status: 409,
     thongBao: 'Lịch hẹn này đã có yêu cầu đổi lịch đang chờ duyệt.',
+  },
+  YEU_CAU_DOI_LICH_KHONG_TON_TAI: {
+    status: 404,
+    thongBao: 'Không tìm thấy yêu cầu đổi lịch.',
+  },
+  YEU_CAU_DA_XU_LY: {
+    status: 409,
+    thongBao: 'Yêu cầu này đã được xử lý.',
   },
 };
 

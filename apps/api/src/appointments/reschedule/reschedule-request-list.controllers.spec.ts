@@ -24,6 +24,8 @@ import {
 } from './reschedule-request-list.dto.js';
 import type { RescheduleRequestListService } from './reschedule-request-list.service.js';
 import type { RescheduleRequestDetail } from './reschedule-request-list.types.js';
+import type { RescheduleRequestApproveService } from './reschedule-request-approve.service.js';
+import type { RescheduleRequestRejectService } from './reschedule-request-reject.service.js';
 
 // reschedule B8 — hai controller chỉ nhận/trả (không DB): QDL-12 (`@Roles` trên TỪNG route, `@RequireAdminScope('Any')`, `Cache-Control: no-store`, không `@Public`, AR-02 qua `findRouteRoleViolations`),
 // XDL-13 phần metadata, QDL-02 (`:yeuCauId` là chuỗi THÔ, không pipe: phạm vi giải trước ở service). Guard chạy thật ở e2e `booking-reschedule-requests.e2e-spec.ts`.
@@ -52,9 +54,16 @@ function setup() {
     list,
     detail,
   } as unknown as RescheduleRequestListService;
+  // Hai dịch vụ ghi của B9 không được gọi ở spec này (route đọc); route ghi kiểm ở `reschedule-request-handle.controllers.spec.ts`
+  const approve = {} as unknown as RescheduleRequestApproveService;
+  const reject = {} as unknown as RescheduleRequestRejectService;
   return {
-    reception: new ReceptionRescheduleRequestsController(service),
-    admin: new AdminRescheduleRequestsController(service),
+    reception: new ReceptionRescheduleRequestsController(
+      service,
+      approve,
+      reject,
+    ),
+    admin: new AdminRescheduleRequestsController(service, approve, reject),
     listForReception,
     detailForReception,
     list,
@@ -107,7 +116,7 @@ describe.each([
       },
     );
 
-    it('chỉ có HAI route (đọc): không route ghi nào lọt vào trước B9', () => {
+    it('có đúng BỐN route: hai đọc (B8) và hai ghi (B9: approve, reject); không route nào khác lọt vào', () => {
       const routes = Object.getOwnPropertyNames(controller.prototype).filter(
         (key) =>
           key !== 'constructor' &&
@@ -116,7 +125,12 @@ describe.each([
             Reflect.get(controller.prototype as object, key) as object,
           ) !== undefined,
       );
-      expect(routes.sort()).toStrictEqual(['detail', 'list']);
+      expect(routes.sort()).toStrictEqual([
+        'approve',
+        'detail',
+        'list',
+        'reject',
+      ]);
     });
 
     it('QDL-12, AR-02 bộ quét route của booking (`findRouteRoleViolations`) không thấy route nào thiếu @Roles', () => {
