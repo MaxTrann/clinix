@@ -82,6 +82,7 @@ const lockedRow = (
   overrides: Partial<LockedAppointment> = {},
 ): LockedAppointment => ({
   benhNhanId: '77',
+  bacSiId: '31',
   chiNhanhId: '2',
   trangThai: 'DaXacNhan',
   thoiGian: THOI_GIAN,

@@ -410,3 +410,53 @@ describe('NDL-01 (đơn vị) ca âm: mỗi đường chỉ nuốt 1062 của Đ
     await expect(notifier.notify(em.em, event)).rejects.toBe(error);
   });
 });
+
+// notification B6 (PLAN notification 5.8; Q7): `LichHenDaTiepDon` gửi Bác sĩ phụ trách, CHỈ trong ứng dụng.
+describe('DMS-09 (đơn vị) sự kiện tiếp đón: chỉ thong_bao, không email_thong_bao', () => {
+  const BAC_SI = '31';
+  const checkedIn = () => ({
+    ...eventOf(BOOKING_NOTIFICATION_EVENTS.CHECKED_IN),
+    taiKhoanId: BAC_SI,
+  });
+
+  it('SELECT ngữ cảnh rồi INSERT thong_bao cho tài khoản BÁC SĨ (người gọi truyền), gắn lich_hen_id; KHÔNG câu INSERT email_thong_bao, không đọc bộ đếm no-show', async () => {
+    const { em, notifier } = setup();
+    await notifier.notify(em.em, checkedIn());
+    expect(em.queries.map((q) => q.sql)).toEqual([
+      READ_CONTEXT_SQL,
+      INSERT_THONG_BAO_SQL,
+    ]);
+    const [taiKhoanId, noiDung, loai, lichHenId] = em.queries[1]!.params;
+    expect([taiKhoanId, loai, lichHenId]).toEqual([
+      BAC_SI,
+      'LichHenDaTiepDon',
+      LICH_HEN_ID,
+    ]);
+    expect(noiDung).toContain(MA_LICH_HEN);
+    expect(noiDung).toMatch(/^Bệnh nhân .+ đã được tiếp đón cho lịch hẹn /);
+  });
+
+  it('1062 của thong_bao_index_lich_hen: "đã có", trả về bình thường, không email', async () => {
+    const em = new ScriptedEntityManager((sql) => {
+      if (sql === INSERT_THONG_BAO_SQL)
+        throw duplicateEntryError(`thong_bao.${THONG_BAO_LICH_HEN_KEY}`);
+      return answerOf(sql);
+    });
+    await new BookingNotifier().notify(em.em, checkedIn());
+    expect(em.queries.map((q) => q.sql)).toEqual([
+      READ_CONTEXT_SQL,
+      INSERT_THONG_BAO_SQL,
+    ]);
+  });
+
+  it('bốn loại cũ của booking VẪN ghi email (tập "có thư" không bị thu hẹp nhầm)', async () => {
+    for (const loai of [CONFIRMED, CANCELLED, NO_SHOW, NO_SHOW_LOCK]) {
+      const { em, notifier } = setup();
+      await notifier.notify(em.em, eventOf(loai));
+      expect(
+        em.queries.map((q) => q.sql),
+        loai,
+      ).toContain(INSERT_EMAIL_THONG_BAO_SQL);
+    }
+  });
+});

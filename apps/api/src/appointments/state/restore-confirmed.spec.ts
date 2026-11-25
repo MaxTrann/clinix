@@ -20,4 +20,6 @@ describeOverrideCoreContract({
         : { onChanged: options?.onChanged ?? s.onChanged }),
     }),
   driftMessage: /không còn VangMat/,
+  // Khôi phục DaXacNhan KHÔNG sinh thông báo tiếp đón (notification DMS-12)
+  successEvents: [],
 });

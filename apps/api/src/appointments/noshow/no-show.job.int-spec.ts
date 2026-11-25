@@ -667,7 +667,10 @@ describe('VM-16 NODE_ENV=test: job không tự chạy; test gọi run(now) (ph�
 
 // Task B18 — NSO-04…NSO-08 (PLAN booking 7.46 `[đề xuất]`; TRACKING 3.40 B18-F; TECH_DEBT 120): lịch ĐÃ TỪNG được Quản trị viên override thành công không bị job đánh Vắng mặt LẠI. Override qua `AdminOverrideService` THẬT
 // (một giao dịch, một dòng `nhat_ky_hanh_dong` thật mỗi lần), job THẬT, MySQL thật. `AFTER_ALL_WINDOWS` là 12:00 ngày 10/11/2026 (đúng giờ kết thúc ca sáng): mọi lịch ca sáng đã quá hạn.
-const overrideEvents = async () => (await notificationRows(db)).length;
+/** Số thông báo cho BỆNH NHÂN (vắng mặt, khoá): override sang DaTiepDon có thêm MỘT `LichHenDaTiepDon` cho Bác sĩ (notification B6), không tính ở đây */
+const overrideEvents = async () =>
+  (await notificationRows(db)).filter((row) => row.loai !== 'LichHenDaTiepDon')
+    .length;
 
 describe('NSO-04 "khôi phục rồi job" VangMat → DaXacNhan (đúng ca TECH_DEBT 120): job KHÔNG đánh lại, so_lan_no_show không tăng thêm', () => {
   it('job đánh Vắng mặt (+1), Quản trị viên khôi phục, job chạy lại hai lượt: lịch DaXacNhan, so_lan_no_show giữ 1, một dòng nhật ký, không thông báo mới, khung giờ DaDat', async () => {
@@ -766,7 +769,8 @@ describe('NSO-06 không làm yếu B13: lịch chưa từng override vẫn bị 
       soLan: 2,
       khoa: false,
     });
-    expect(await events()).toEqual([NO_SHOW, NO_SHOW]);
+    // Lịch được miễn đã qua DaTiepDon nên có MỘT thông báo tiếp đón cho Bác sĩ (notification B6)
+    expect(await events()).toEqual(['LichHenDaTiepDon', NO_SHOW, NO_SHOW]);
     await assertBookingInvariants(db);
   });
 });

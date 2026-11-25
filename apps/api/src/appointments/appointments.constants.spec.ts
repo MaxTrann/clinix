@@ -151,12 +151,13 @@ describe('BCS-03 bookingException', () => {
 });
 
 describe('BCS-04 mã sự kiện thông báo (5.12)', () => {
-  it('đúng bốn mã của 5.12, dạng PascalCase, khác nhau, ≤ 100 ký tự (thong_bao.loai_su_kien là varchar(100))', () => {
+  it('đúng năm mã (bốn của 5.12 và LichHenDaTiepDon của notification B6), dạng PascalCase, khác nhau, ≤ 100 ký tự (thong_bao.loai_su_kien là varchar(100))', () => {
     const events = Object.values(BOOKING_NOTIFICATION_EVENTS);
     expect([...events].sort()).toEqual(
       [
         'KhoaDatLichNoShow',
         'LichHenDaHuy',
+        'LichHenDaTiepDon',
         'LichHenDaXacNhan',
         'LichHenVangMat',
       ].sort(),

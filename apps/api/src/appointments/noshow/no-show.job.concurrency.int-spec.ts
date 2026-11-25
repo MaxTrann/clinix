@@ -194,7 +194,14 @@ describe('VM-10 Lễ tân tiếp đón cùng lúc job tự Vắng mặt CÙNG m�
           expect([ZERO, { ...ZERO, notConfirmed: 1 }]).toContainEqual(summary);
           expect(row.trangThai).toBe('DaTiepDon');
           expect(counter).toEqual({ soLan: 0, khoa: false });
-          expect(await notificationRows(db)).toEqual([]);
+          // notification B6: tiếp đón thắng thì có đúng MỘT thông báo cho Bác sĩ phụ trách, không gì cho Bệnh nhân
+          expect(await notificationRows(db)).toEqual([
+            {
+              taiKhoanId: w.doctor.account.taiKhoanId,
+              lichHenId: lich.lichHenId,
+              loai: 'LichHenDaTiepDon',
+            },
+          ]);
           tally.add('Lễ tân tiếp đón');
         } else {
           expect(checked).toEqual({

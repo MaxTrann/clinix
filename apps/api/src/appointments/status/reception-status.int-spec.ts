@@ -228,7 +228,7 @@ describe('CT-03, CT-04 Lễ tân đánh Vắng mặt: chỉ SAU hết cửa sổ
 });
 
 describe('CT-05, CT-06, CT-07 Lễ tân tiếp đón (DaTiepDon): đủ tiền (A2) và trong cửa sổ đóng hai đầu (Q22)', () => {
-  it('CT-05 đủ tiền (cổng giả trả 0), trong cửa sổ: DaTiepDon, khung giờ giữ DaDat, không thông báo, không mời chờ', async () => {
+  it('CT-05 đủ tiền (cổng giả trả 0), trong cửa sổ: DaTiepDon, khung giờ giữ DaDat, không mời chờ; DMS-10 (notification B6, đường Lễ tân): đúng MỘT thông báo LichHenDaTiepDon cho Bác sĩ phụ trách, không cho Bệnh nhân', async () => {
     const { w, stack, lich, slotBefore } = await arrange(IN_WINDOW);
     expect(await change(w, stack, lich.maLichHen, 'DaTiepDon')).toStrictEqual({
       maLichHen: lich.maLichHen,
@@ -238,7 +238,13 @@ describe('CT-05, CT-06, CT-07 Lễ tân tiếp đón (DaTiepDon): đủ tiền (
       'DaTiepDon',
     );
     expect(await fx.slotState(w.slotId(0))).toEqual(slotBefore);
-    expect(await notificationRows(db)).toEqual([]);
+    expect(await notificationRows(db)).toEqual([
+      {
+        taiKhoanId: w.doctor.account.taiKhoanId,
+        lichHenId: lich.lichHenId,
+        loai: 'LichHenDaTiepDon',
+      },
+    ]);
     expect(stack.ports.waitlist.onSlotReleasedCall.count).toBe(0);
     await assertBookingInvariants(db);
   });

@@ -1,9 +1,7 @@
 import type { EntityManager } from 'typeorm';
+import { RESCHEDULE_NOTIFICATION_EVENTS } from '../appointments.constants.js';
 import {
-  BOOKING_NOTIFICATION_EVENTS,
-  RESCHEDULE_NOTIFICATION_EVENTS,
-} from '../appointments.constants.js';
-import {
+  BOOKING_MAIL_EVENTS,
   BRANCH_CHANGE_MAIL_EVENTS,
   EMAIL_MAX_ATTEMPTS,
   EXAM_MAIL_EVENTS,
@@ -33,10 +31,10 @@ export interface DueEmail {
 
 /**
  * Loại có thư mà worker xử lý (21 loại): bốn loại của booking (B15), năm loại của payment, wallet (payment B17), bốn loại của yêu cầu thay đổi chi nhánh (admin C4), bốn loại của đổi lịch và yêu cầu
- * đổi lịch (reschedule B3), loại hoàn thành lịch khám (notification B4) và ba loại nghỉ phép gửi Bác sĩ (notification B5). Thứ tự cố định: booking trước, loại mới thêm vào CUỐI. Đây là PHẦN GỐC của mã: mã có phiên bản (`ThayDoiChiNhanhAnhHuongLichHen:v2`) khớp nhờ câu chọn lô so phần trước dấu `:`.
+ * đổi lịch (reschedule B3), loại hoàn thành lịch khám (notification B4) và ba loại nghỉ phép gửi Bác sĩ (notification B5). Thứ tự cố định: booking trước, loại mới thêm vào CUỐI. Loại tiếp đón `LichHenDaTiepDon` (notification B6) không có thư nên không ở đây. Đây là PHẦN GỐC của mã: mã có phiên bản (`ThayDoiChiNhanhAnhHuongLichHen:v2`) khớp nhờ câu chọn lô so phần trước dấu `:`.
  */
 export const MAIL_EVENTS: readonly string[] = [
-  ...Object.values(BOOKING_NOTIFICATION_EVENTS),
+  ...Object.values(BOOKING_MAIL_EVENTS),
   ...Object.values(PAYMENT_MAIL_EVENTS),
   ...Object.values(BRANCH_CHANGE_MAIL_EVENTS),
   ...Object.values(RESCHEDULE_NOTIFICATION_EVENTS),
