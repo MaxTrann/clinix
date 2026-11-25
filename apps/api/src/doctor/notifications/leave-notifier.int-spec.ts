@@ -7,7 +7,7 @@ import {
   type LeaveNotificationInput,
 } from './leave-notifier.js';
 
-// Doctor B10 — LeaveNotifier trên MySQL 8.4 THẬT: TD-02, TD-03, TD-04 (và ghi đúng người nhận cho 3 sự kiện gửi Bác sĩ).
+// Doctor B10 — LeaveNotifier trên MySQL 8.4 THẬT: TD-02, TD-03 (và ghi đúng người nhận cho 3 sự kiện gửi Bác sĩ); notification B5: EMT-04 (thay TD-04).
 let db: DataSource;
 let fx: DoctorFixtures;
 useIntegrationHooks((d) => {
@@ -147,8 +147,18 @@ describe('TD-03 ghi cùng giao dịch', () => {
   });
 });
 
-describe('TD-04 không ghi email_thong_bao', () => {
-  it('sau đủ 4 sự kiện, bảng email_thong_bao vẫn rỗng', async () => {
+// notification B5 (Q6) thay ca TD-04 cũ ("không ghi email_thong_bao"): ba loại gửi Bác sĩ nay có MỘT dòng thư, loại gửi Admin vẫn không.
+const emailRows = (): Promise<
+  { loai: string; taiKhoanId: string; trangThai: string; soLanThu: number }[]
+> =>
+  db.query(
+    `SELECT t.loai_su_kien AS loai, CAST(t.tai_khoan_id AS CHAR) AS taiKhoanId, e.trang_thai AS trangThai, e.so_lan_thu AS soLanThu
+       FROM email_thong_bao e JOIN thong_bao t ON t.thong_bao_id = e.thong_bao_id
+      ORDER BY e.email_thong_bao_id`,
+  );
+
+describe('EMT-04 dòng thư của thông báo nghỉ phép', () => {
+  it('NghiPhepDaGui, NghiPhepDaDuyet, NghiPhepTuChoi: mỗi thông báo đúng MỘT dòng thư ChoGui của Bác sĩ; NghiPhepChoDuyet: có thông báo cho Admin, KHÔNG thư', async () => {
     const w = await fx.world();
     const input = inputOf(w);
     await db.transaction(async (em) => {
@@ -166,10 +176,43 @@ describe('TD-04 không ghi email_thong_bao', () => {
         ...input,
       });
     });
-    expect((await rows()).length).toBeGreaterThanOrEqual(4);
-    const email: { n: string }[] = await db.query(
-      'SELECT COUNT(*) AS n FROM email_thong_bao',
-    );
-    expect(Number(email[0]?.n)).toBe(0);
+    const notes = await rows();
+    // 3 thông báo cho Bác sĩ + 2 cho Admin (Toàn hệ thống và Chi nhánh)
+    expect(notes).toHaveLength(5);
+    expect(await emailRows()).toEqual([
+      {
+        loai: 'NghiPhepDaGui',
+        taiKhoanId: input.bacSiId,
+        trangThai: 'ChoGui',
+        soLanThu: 0,
+      },
+      {
+        loai: 'NghiPhepDaDuyet',
+        taiKhoanId: input.bacSiId,
+        trangThai: 'ChoGui',
+        soLanThu: 0,
+      },
+      {
+        loai: 'NghiPhepTuChoi',
+        taiKhoanId: input.bacSiId,
+        trangThai: 'ChoGui',
+        soLanThu: 0,
+      },
+    ]);
+  });
+
+  it('giao dịch của người gọi lỗi sau khi notify ⇒ không còn thông báo lẫn dòng thư', async () => {
+    const w = await fx.world();
+    await expect(
+      db.transaction(async (em) => {
+        await notifier.notify(em, {
+          loaiSuKien: LEAVE_EVENTS.Approved,
+          ...inputOf(w),
+        });
+        throw new Error('lỗi giả sau khi ghi thông báo');
+      }),
+    ).rejects.toThrow('lỗi giả');
+    expect(await rows()).toEqual([]);
+    expect(await emailRows()).toEqual([]);
   });
 });

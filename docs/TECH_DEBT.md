@@ -267,5 +267,5 @@ chấp nhận một lối tắt; đóng dòng khi xử lý xong.
 
 ## Doctor B10 — thông báo nghỉ phép (10/11/2026)
 
-- `LeaveNotifier` ghi `thong_bao` trong ứng dụng nhưng chuông thông báo vẫn ẩn tới khi module `notification` có (patient Q21b), nên các dòng này tạm chưa ai đọc. Không ghi `email_thong_bao` vì chưa có worker gửi (ghi hàng `ChoGui` rồi gửi thư cũ về sau là sai). Khi `notification` có `NotificationService`: thay `LeaveNotifier` và gửi email (doctor Q33).
+- `LeaveNotifier` ghi `thong_bao` trong ứng dụng nhưng chuông thông báo vẫn ẩn tới khi module `notification` có (patient Q21b), nên các dòng này tạm chưa ai đọc. Không ghi `email_thong_bao` vì chưa có worker gửi (ghi hàng `ChoGui` rồi gửi thư cũ về sau là sai). Khi `notification` có `NotificationService`: thay `LeaveNotifier` và gửi email (doctor Q33). **Đã đóng (25/11/2026):** chuông có từ notification F1; notification B5 thêm thư cho ba loại gửi Bác sĩ (`NghiPhepDaGui`, `NghiPhepDaDuyet`, `NghiPhepTuChoi`, Figma `688:2`), `NghiPhepChoDuyet` gửi Admin vẫn chỉ trong ứng dụng; **không** thay `LeaveNotifier` bằng dịch vụ chung (notification Q5). Thông báo nghỉ phép ghi trước B5 không có thư (không backfill, notification EMT-07).
 - Người nhận Admin được truy vấn lại mỗi lần gửi (không cache) và mỗi Admin một dòng `thong_bao`; ổn ở quy mô TLCN.
