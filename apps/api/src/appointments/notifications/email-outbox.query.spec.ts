@@ -1,7 +1,4 @@
-import {
-  BOOKING_NOTIFICATION_EVENTS,
-  RESCHEDULE_NOTIFICATION_EVENTS,
-} from '../appointments.constants.js';
+import { RESCHEDULE_NOTIFICATION_EVENTS } from '../appointments.constants.js';
 import { isLockingStatement } from '../testing/query-spy.js';
 import { ScriptedEntityManager } from '../testing/scripted-entity-manager.js';
 import {
@@ -20,6 +17,7 @@ import {
   type DueEmail,
 } from './email-outbox.query.js';
 import {
+  BOOKING_MAIL_EVENTS,
   BRANCH_CHANGE_MAIL_EVENTS,
   EMAIL_MAX_ATTEMPTS,
   EMAIL_RETRY_GAP_MINUTES,
@@ -31,7 +29,7 @@ import {
 // payment B17: bốn loại của booking rồi năm loại có thư của payment, wallet; admin C4: thêm bốn loại của yêu cầu thay đổi chi nhánh; reschedule B3: thêm bốn loại của đổi lịch và yêu cầu đổi lịch;
 // notification B4: thêm loại hoàn thành lịch khám; notification B5: thêm ba loại nghỉ phép gửi Bác sĩ (thứ tự cố định)
 const MAIL_LOAI = [
-  ...Object.values(BOOKING_NOTIFICATION_EVENTS),
+  ...Object.values(BOOKING_MAIL_EVENTS),
   ...Object.values(PAYMENT_MAIL_EVENTS),
   ...Object.values(BRANCH_CHANGE_MAIL_EVENTS),
   ...Object.values(RESCHEDULE_NOTIFICATION_EVENTS),
@@ -78,6 +76,8 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
       'HoanCocCanXuLy',
       'YeuCauThayDoiChiNhanhQuaHan',
       'RutThayDoiChiNhanh',
+      'LichHenDaTiepDon', // notification B6: thông báo tiếp đón chỉ trong ứng dụng (EMT-12)
+      'NghiPhepChoDuyet',
     ])
       expect(params).not.toContain(inAppOnly);
   });

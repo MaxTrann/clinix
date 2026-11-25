@@ -61,6 +61,15 @@ const NOTIFIED: Record<TrangThaiLichHen, string[]> = {
   VangMat: [NO_SHOW],
   DaDoiLich: [],
 };
+/** Dòng thông báo tiếp đón cho Bác sĩ phụ trách (notification B6; PLAN notification 5.8) */
+const checkedInRow = (
+  w: { doctor: { account: { taiKhoanId: string } } },
+  lichHenId: string,
+) => ({
+  taiKhoanId: w.doctor.account.taiKhoanId,
+  lichHenId,
+  loai: 'LichHenDaTiepDon',
+});
 const pairs = (
   list: readonly (readonly [TrangThaiLichHen, TrangThaiLichHen])[],
 ) =>
@@ -114,13 +123,15 @@ describe('CT-14, CT-20 override từng cặp hợp lệ của Q24: trạng thái
       expect(await readAudit(db)).toMatchObject([
         expectedAudit(w, 'Toan', lich.lichHenId, from, to),
       ]);
-      expect(await notificationRows(db)).toEqual(
-        NOTIFIED[to].map((loai) => ({
+      expect(await notificationRows(db)).toEqual([
+        ...NOTIFIED[to].map((loai) => ({
           taiKhoanId: w.patientId,
           lichHenId: lich.lichHenId,
           loai,
         })),
-      );
+        // notification B6 (DMS-10, đường Quản trị viên override): đích DaTiepDon báo Bác sĩ phụ trách
+        ...(to === 'DaTiepDon' ? [checkedInRow(w, lich.lichHenId)] : []),
+      ]);
       await assertBookingInvariants(db);
     },
   );
@@ -313,7 +324,7 @@ describe('CT-20 khôi phục và VangMat → DaTiepDon KHÔNG trừ so_lan_no_sh
     ['DaTiepDon', 'DaXacNhan'],
     ['VangMat', 'DaTiepDon'],
   ] as const)(
-    '%s → %s với số lần 3 và cờ BẬT: bộ đếm và cờ nguyên vẹn, không thông báo, khung giờ DaDat',
+    '%s → %s với số lần 3 và cờ BẬT: bộ đếm và cờ nguyên vẹn, không thông báo cho Bệnh nhân (đích DaTiepDon chỉ báo Bác sĩ, notification B6; khôi phục DaXacNhan không báo ai, DMS-12), khung giờ DaDat',
     async (from, to) => {
       const { w, stack, lich } = await arrange(from, {
         counter: { soLan: 3, khoa: true },
@@ -323,7 +334,9 @@ describe('CT-20 khôi phục và VangMat → DaTiepDon KHÔNG trừ so_lan_no_sh
         soLan: 3,
         khoa: true,
       });
-      expect(await notificationRows(db)).toEqual([]);
+      expect(await notificationRows(db)).toEqual(
+        to === 'DaTiepDon' ? [checkedInRow(w, lich.lichHenId)] : [],
+      );
       expect((await fx.slotState(w.slotId(0))).trangThai).toBe('DaDat');
     },
   );

@@ -73,16 +73,18 @@ export interface CoreSubject {
   ) => Promise<{ kind: string; trangThai?: TrangThaiLichHen }>;
   /** Mẩu chữ của lỗi dữ liệu lệch khi `UPDATE` không trúng 1 hàng (khẳng định `rejects.toThrow`) */
   driftMessage: RegExp;
+  /** Sự kiện thông báo lõi phải gửi khi thành công (cổng giả, không câu SQL): `checkIn` báo Bác sĩ từ notification B6; `restoreConfirmed` không báo (`[]`) */
+  successEvents: readonly unknown[];
 }
 
 /** Các ca chung của hợp đồng; gọi MỘT lần trong spec của mỗi lõi (ngoài `describe`). */
 export function describeOverrideCoreContract(subject: CoreSubject): void {
-  const { tag, name, okFrom, to, success, run } = subject;
+  const { tag, name, okFrom, to, success, run, successEvents } = subject;
   const badFrom = statesExcept(...okFrom);
 
   describe(`${tag} ${name} biến thể Quản trị viên: nguồn theo ma trận Q24, phạm vi, không đụng khung giờ và bộ đếm no-show`, () => {
     it.each(okFrom)(
-      'nguồn %s: thành công; khoá lịch theo khoá chính rồi MỘT UPDATE có điều kiện nguồn; KHÔNG câu nào chạm khung_gio, benh_nhan (không trừ so_lan_no_show, không mở cờ khoá), thong_bao; không thông báo, không danh sách chờ',
+      'nguồn %s: thành công; khoá lịch theo khoá chính rồi MỘT UPDATE có điều kiện nguồn; KHÔNG câu nào chạm khung_gio, benh_nhan (không trừ so_lan_no_show, không mở cờ khoá), thong_bao; thông báo đúng như lõi khai, không danh sách chờ',
       async (from) => {
         const s = scriptedCore(from);
         expect(await run(s)).toEqual({ kind: success });
@@ -98,7 +100,7 @@ export function describeOverrideCoreContract(subject: CoreSubject): void {
             s.em.queries.some(({ sql }) => touchesTable(sql, table)),
             table,
           ).toBe(false);
-        expect(s.notifier.events).toEqual([]);
+        expect(s.notifier.events).toEqual(successEvents);
         expect(s.waitlist.releasedSlotIds).toEqual([]);
       },
     );

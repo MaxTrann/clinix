@@ -113,7 +113,7 @@ export const NOTIFICATION_CATALOG: readonly CatalogEntry[] = [
     coThu: false,
     lienKet: 'LichHen',
     nguon: 'booking checkIn (notification B6)',
-    trangThai: 'ChoModule',
+    trangThai: 'CoMa',
   },
 
   // Đổi lịch (reschedule B3)

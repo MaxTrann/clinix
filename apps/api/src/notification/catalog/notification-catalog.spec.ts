@@ -62,6 +62,7 @@ const KNOWN_DERIVED_SETS = [
   'BRANCH_CHANGE_MAIL_EVENTS',
   'EXAM_MAIL_EVENTS', // notification B4: bản chữ của EXAM_NOTIFICATION_EVENTS cho worker thư
   'LEAVE_MAIL_EVENTS', // notification B5: bản chữ của ba mã nghỉ phép gửi Bác sĩ trong LEAVE_EVENTS
+  'BOOKING_MAIL_EVENTS', // notification B6: bốn loại có thư của BOOKING_NOTIFICATION_EVENTS (bỏ LichHenDaTiepDon)
 ];
 
 const sourceCodes: string[] = Object.values(SOURCE_EVENT_SETS).flatMap((set) =>
@@ -88,11 +89,11 @@ describe('DMS-02 không có mục "CoMa" mồ côi', () => {
     expect(orphans).toEqual([]);
   });
 
-  it('mục ChoModule được phép chưa có hằng (LichHenDaTiepDon chờ notification B6)', () => {
+  it('không còn mục ChoModule nào trong danh mục (LichHenDaTiepDon có mã từ notification B6)', () => {
     const waiting = NOTIFICATION_CATALOG.filter(
       (entry) => entry.trangThai === 'ChoModule',
     ).map((entry) => entry.ma);
-    expect(waiting).toEqual(['LichHenDaTiepDon']);
+    expect(waiting).toEqual([]);
   });
 });
 

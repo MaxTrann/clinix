@@ -186,3 +186,37 @@ describe('NTF-08 an toàn: ≤ 500 ký tự, MỘT dòng, không dữ liệu ri�
     }
   });
 });
+
+// notification B6 (PLAN notification 5.8; Q7): chữ của `LichHenDaTiepDon` gửi Bác sĩ phụ trách. Chữ `[đề xuất]`; giờ là giờ TIẾP ĐÓN theo giờ Việt Nam, không phụ thuộc múi giờ máy chạy.
+describe('DMS-09 chữ thông báo tiếp đón cho Bác sĩ', () => {
+  const checkedIn = (context = contextOf(), at = '2026-11-10T08:05:59+07:00') =>
+    buildNotificationText({
+      loai: BOOKING_NOTIFICATION_EVENTS.CHECKED_IN,
+      context,
+      tiepDonLuc: new Date(at),
+    });
+
+  it('có tên người được khám, mã lịch và giờ tiếp đón "HH:mm" theo giờ Việt Nam', () => {
+    expect(checkedIn(contextOf({ nguoiDuocKham: 'Trần Thị Bình' }))).toBe(
+      `Bệnh nhân Trần Thị Bình đã được tiếp đón cho lịch hẹn ${MA_LICH_HEN} lúc 08:05.`,
+    );
+    // Cùng một thời điểm viết ở UTC: vẫn in giờ Việt Nam
+    expect(checkedIn(contextOf(), '2026-11-10T01:05:00Z')).toContain(
+      'lúc 08:05.',
+    );
+  });
+
+  it('không có email, tên người đặt, SĐT hay lý do khám (context không mang ba thứ sau); tên chứa xuống dòng và chữ quá dài: một dòng, ≤ 500', () => {
+    const text = checkedIn(
+      contextOf({
+        emailNguoiDat: 'rieng.tu@example.test',
+        tenNguoiDat: 'Tên Người Đặt Riêng',
+        nguoiDuocKham: `Tên\nhai dòng${'Đ'.repeat(2000)}`,
+      }),
+    );
+    expect(text).not.toContain('rieng.tu@example.test');
+    expect(text).not.toContain('Tên Người Đặt Riêng');
+    expect(text).not.toMatch(CONTROL_OR_LINE_BREAK);
+    expect(text.length).toBeLessThanOrEqual(NOTIFICATION_MAX_LENGTH);
+  });
+});

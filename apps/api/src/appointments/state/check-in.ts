@@ -1,6 +1,8 @@
 import type { EntityManager } from 'typeorm';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import { toSecond } from '../../common/time/time.js';
+import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
+import type { AppointmentNotifier } from '../ports/appointment-notifier.port.js';
 import {
   canTransition,
   type TransitionContext,
@@ -24,8 +26,10 @@ import { windowOf, type StatusConfig } from './status-config.js';
 //    `VangMat`). `onChanged` (tuỳ chọn) là điểm cắm audit: `on-changed.ts`.
 // Luật nằm ở `canTransition` (một nơi, dùng cả cho `chuyenDuoc[]` của B3); ở đây chỉ dựng ngữ cảnh rồi đổi từ chối của ma trận thành kết quả có kiểu.
 //
-// KHOÁ: chỉ `lich_hen` theo khoá chính (tầng 6, quy tắc 7). KHÔNG khoá `khung_gio` (khung giờ giữ `DaDat`, INV-3) và KHÔNG khoá `benh_nhan`. KHÔNG thông báo (PLAN 5.12 không có sự kiện tiếp đón) và không
-// cổng nào sau commit. `now` và `config` do người gọi đọc NGOÀI giao dịch một lần: thân chạy lại được khi 1213, 1205 (`withBookingTransaction`) mà không giữ trạng thái.
+// KHOÁ: chỉ `lich_hen` theo khoá chính (tầng 6, quy tắc 7). KHÔNG khoá `khung_gio` (khung giờ giữ `DaDat`, INV-3) và KHÔNG khoá `benh_nhan`. Không cổng nào sau commit.
+// THÔNG BÁO (notification B6; PLAN notification 5.8, Q7): sau khi đổi trạng thái, ghi MỘT `thong_bao` `LichHenDaTiepDon` cho BÁC SĨ phụ trách (`lich_hen.bac_si_id`, đọc dưới khoá) bằng `em` của người gọi,
+// chỉ trong ứng dụng (không thư). Ba người gọi đều đi qua đây nên đường nào cũng báo đúng một lần (UNIQUE chống trùng). Lỗi ghi NỔI LÊN ⇒ người gọi hoàn tác cả lần tiếp đón. `INSERT thong_bao` chỉ
+// xin khoá S trên hàng cha `tai_khoan` (của bác sĩ) và `lich_hen` (đã là X của chính giao dịch), sau khi đã khoá lịch: đúng thứ tự tầng của PLAN booking 5.3. `now` và `config` do người gọi đọc NGOÀI giao dịch một lần: thân chạy lại được khi 1213, 1205 (`withBookingTransaction`) mà không giữ trạng thái.
 //
 // ĐIỀU KIỆN NGƯỜI GỌI `payment` (B17) PHẢI GIỮ (TRACKING 3.26 B12-C; CKI-08 chứng minh): (1) gọi trong giao dịch của chính mình qua `withBookingTransaction`, thân chạy lại được; (2) gọi `checkIn` TRƯỚC mọi
 // INSERT vào bảng có khoá ngoại tới `lich_hen` (`giao_dich_thanh_toan`, `thong_bao`…), HOẶC sau khi chính `payment` đã `SELECT … FOR UPDATE` hàng `lich_hen` theo khoá chính (quy tắc 46 bước 2). LÝ DO (đo ở
@@ -62,7 +66,7 @@ export type CheckInInput = {
 );
 
 export type CheckInOutcome =
-  /** `DaXacNhan` (Quản trị viên: hoặc `VangMat`) thành `DaTiepDon`; khung giờ giữ `DaDat`; không thông báo */
+  /** `DaXacNhan` (Quản trị viên: hoặc `VangMat`) thành `DaTiepDon`; khung giờ giữ `DaDat`; đã ghi thông báo `LichHenDaTiepDon` cho Bác sĩ phụ trách */
   | { kind: 'CheckedIn' }
   /** Không có lịch đó, hoặc (`LeTan`, `QuanTriVien`) lịch ngoài phạm vi: cùng một 404 */
   | { kind: 'NotFound' }
@@ -106,6 +110,7 @@ function refusalOf(
 export async function checkInWithin(
   em: EntityManager,
   input: CheckInInput,
+  deps: { notifier: AppointmentNotifier },
 ): Promise<CheckInOutcome> {
   const now = toSecond(input.now);
 
@@ -151,6 +156,12 @@ export async function checkInWithin(
     throw new Error(
       `lịch hẹn ${input.lichHenId} không còn ${row.trangThai} dưới khoá khi tiếp đón`,
     );
+  // notification B6: báo Bác sĩ phụ trách, cùng giao dịch, sau khi trạng thái đã đổi
+  await deps.notifier.notify(em, {
+    loaiSuKien: BOOKING_NOTIFICATION_EVENTS.CHECKED_IN,
+    lichHenId: input.lichHenId,
+    taiKhoanId: row.bacSiId,
+  });
   // Điểm cắm audit của Quản trị viên (B14): sau lần ghi, dưới khoá, một lần; ném ⇒ người gọi hoàn tác trọn
   if (input.actor === 'QuanTriVien')
     await input.onChanged?.(em, { from: row.trangThai });
