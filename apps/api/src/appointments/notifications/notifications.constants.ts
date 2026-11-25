@@ -43,3 +43,13 @@ export const BRANCH_CHANGE_MAIL_EVENTS = {
 export const EXAM_MAIL_EVENTS = {
   COMPLETED: 'LichHenHoanThanh',
 } as const;
+
+/**
+ * Ba loại thông báo nghỉ phép CÓ thư, gửi BÁC SĨ (notification B5; PLAN notification 5.7, Q6; doctor Q33; Figma `688:2`). `NghiPhepChoDuyet` (gửi Quản trị viên) cố ý KHÔNG có ở đây: chỉ trong ứng dụng.
+ * Viết bằng CHỮ vì lý do như `EXAM_MAIL_EVENTS`; `leave-mail.templates.spec.ts` kiểm chữ khớp `LEAVE_EVENTS` của `doctor/notifications/leave-notifier.ts`.
+ */
+export const LEAVE_MAIL_EVENTS = {
+  SUBMITTED: 'NghiPhepDaGui',
+  APPROVED: 'NghiPhepDaDuyet',
+  REJECTED: 'NghiPhepTuChoi',
+} as const;

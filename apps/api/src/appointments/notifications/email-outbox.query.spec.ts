@@ -24,17 +24,19 @@ import {
   EMAIL_MAX_ATTEMPTS,
   EMAIL_RETRY_GAP_MINUTES,
   EXAM_MAIL_EVENTS,
+  LEAVE_MAIL_EVENTS,
   PAYMENT_MAIL_EVENTS,
 } from './notifications.constants.js';
 
 // payment B17: bốn loại của booking rồi năm loại có thư của payment, wallet; admin C4: thêm bốn loại của yêu cầu thay đổi chi nhánh; reschedule B3: thêm bốn loại của đổi lịch và yêu cầu đổi lịch;
-// notification B4: thêm loại hoàn thành lịch khám (thứ tự cố định)
+// notification B4: thêm loại hoàn thành lịch khám; notification B5: thêm ba loại nghỉ phép gửi Bác sĩ (thứ tự cố định)
 const MAIL_LOAI = [
   ...Object.values(BOOKING_NOTIFICATION_EVENTS),
   ...Object.values(PAYMENT_MAIL_EVENTS),
   ...Object.values(BRANCH_CHANGE_MAIL_EVENTS),
   ...Object.values(RESCHEDULE_NOTIFICATION_EVENTS),
   ...Object.values(EXAM_MAIL_EVENTS),
+  ...Object.values(LEAVE_MAIL_EVENTS),
 ];
 
 // Task B15 — câu SQL của hộp thư đi (PLAN booking 5.12; TRACKING 3.37 B15-H): chỉ thư của booking, nhận việc có điều kiện, kết quả chỉ ghi khi còn đúng lần nhận việc của mình, không khoá nào giữ lâu. OBX-01 (chọn lô), OBX-06 (chỉ bốn
@@ -50,7 +52,7 @@ const DUE: DueEmail = {
 const NOW = new Date('2026-11-02T08:00:00+07:00');
 
 describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiện trạng thái, lần thử và nhịp', () => {
-  it('JOIN thong_bao và lọc đúng MƯỜI TÁM loại gốc có thư: bốn của booking, năm của payment, wallet (payment B17), bốn của yêu cầu thay đổi chi nhánh (admin C4), bốn của đổi lịch và yêu cầu đổi lịch (reschedule B3), hoàn thành lịch khám (notification B4); loại chỉ có trong ứng dụng không bị chọn', async () => {
+  it('JOIN thong_bao và lọc đúng HAI MƯƠI MỐT loại gốc có thư: bốn của booking, năm của payment, wallet (payment B17), bốn của yêu cầu thay đổi chi nhánh (admin C4), bốn của đổi lịch và yêu cầu đổi lịch (reschedule B3), hoàn thành lịch khám (notification B4), ba loại nghỉ phép gửi Bác sĩ (notification B5); loại chỉ có trong ứng dụng không bị chọn', async () => {
     const em = new ScriptedEntityManager(() => []);
     await selectDueEmails(em.em, { now: NOW, afterId: '0', limit: 100 });
     const { sql, params } = em.queries[0]!;
@@ -61,10 +63,10 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
     // admin C4: so PHẦN GỐC (bỏ hậu tố `:v{n}`)
     expect(sql).toMatch(
       new RegExp(
-        `SUBSTRING_INDEX\\(t\\.loai_su_kien, ':', 1\\) IN \\(${Array(18).fill('\\?').join(', ')}\\)`,
+        `SUBSTRING_INDEX\\(t\\.loai_su_kien, ':', 1\\) IN \\(${Array(21).fill('\\?').join(', ')}\\)`,
       ),
     );
-    expect(MAIL_LOAI).toHaveLength(18);
+    expect(MAIL_LOAI).toHaveLength(21);
     expect(params.filter((p) => MAIL_LOAI.includes(p as never))).toEqual(
       MAIL_LOAI,
     );
@@ -80,7 +82,7 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
       expect(params).not.toContain(inAppOnly);
   });
 
-  it('tham số: trần lần thử, mốc "đã quá nhịp" = now trừ 5 phút, mười tám loại, con trỏ, cỡ lô — đúng thứ tự', async () => {
+  it('tham số: trần lần thử, mốc "đã quá nhịp" = now trừ 5 phút, hai mươi mốt loại, con trỏ, cỡ lô — đúng thứ tự', async () => {
     const em = new ScriptedEntityManager(() => []);
     await selectDueEmails(em.em, { now: NOW, afterId: '41', limit: 100 });
     const params = em.queries[0]!.params;
@@ -88,19 +90,19 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
     expect((params[1] as Date).getTime()).toBe(
       NOW.getTime() - EMAIL_RETRY_GAP_MINUTES * 60_000,
     );
-    expect(params.slice(2, 20)).toEqual(MAIL_LOAI);
-    expect(params.slice(20)).toEqual(['41', 100]);
+    expect(params.slice(2, 23)).toEqual(MAIL_LOAI);
+    expect(params.slice(23)).toEqual(['41', 100]);
   });
 
-  it('NDL-11, EMT-13 `MAIL_EVENTS` đúng 18 loại, đúng thứ tự (booking, payment, chi nhánh, đổi lịch, hoàn thành lịch khám), khác nhau kể cả không phân biệt hoa thường (`utf8mb4_unicode_ci`), ≤ 100 ký tự; không mất loại nào của nhóm cũ', () => {
+  it('NDL-11, EMT-13 `MAIL_EVENTS` đúng 21 loại, đúng thứ tự (booking, payment, chi nhánh, đổi lịch, hoàn thành lịch khám, nghỉ phép), khác nhau kể cả không phân biệt hoa thường (`utf8mb4_unicode_ci`), ≤ 100 ký tự; không mất loại nào của nhóm cũ', () => {
     expect(MAIL_EVENTS).toEqual(MAIL_LOAI);
-    expect(MAIL_EVENTS).toHaveLength(18);
-    expect(new Set(MAIL_EVENTS.map((e) => e.toLowerCase())).size).toBe(18);
+    expect(MAIL_EVENTS).toHaveLength(21);
+    expect(new Set(MAIL_EVENTS.map((e) => e.toLowerCase())).size).toBe(21);
     for (const loai of MAIL_EVENTS)
       expect(loai.length).toBeLessThanOrEqual(100);
     for (const loai of Object.values(RESCHEDULE_NOTIFICATION_EVENTS))
       expect(MAIL_EVENTS, loai).toContain(loai);
-    // 13 loại có từ trước giữ nguyên, bốn loại của đổi lịch rồi loại của notification B4 đứng CUỐI (EMT-13: thêm đúng một loại so với bản 17 loại)
+    // 13 loại có từ trước giữ nguyên, bốn loại của đổi lịch rồi loại của notification B4, ba loại của notification B5 đứng CUỐI (EMT-13: thêm đúng bốn loại so với bản 17 loại)
     expect(MAIL_EVENTS.slice(0, 13)).toEqual(MAIL_LOAI.slice(0, 13));
     expect(MAIL_EVENTS.slice(13)).toEqual([
       'LichHenDaDoiLich',
@@ -108,6 +110,9 @@ describe('OBX-06 câu chọn lô: chỉ thư của booking, đúng điều kiệ
       'YeuCauDoiLichDaDuyet',
       'YeuCauDoiLichBiTuChoi',
       'LichHenHoanThanh',
+      'NghiPhepDaGui',
+      'NghiPhepDaDuyet',
+      'NghiPhepTuChoi',
     ]);
   });
 
