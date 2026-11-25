@@ -28,6 +28,11 @@ describe('TAO-02 duplicateKeyOf', () => {
       'khung_gio_dang_giu',
     ],
     [
+      'lich_hen_truoc_id (UNIQUE của đổi lịch, reschedule B1 HDL-08)',
+      "Duplicate entry '5' for key 'lich_hen.lich_hen_truoc_id'",
+      'lich_hen_truoc_id',
+    ],
+    [
       'khoá khác của bảng khác',
       "Duplicate entry 'x' for key 'thong_bao.thong_bao_index_lich_hen'",
       'thong_bao_index_lich_hen',

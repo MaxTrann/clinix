@@ -16,6 +16,7 @@ export const TRANSITION_ACTORS = [
   'BacSi', // chỉ `complete`
   'HeThong', // hết hạn giữ chỗ, duyệt nghỉ phép, job Vắng mặt: điều kiện thời gian/ca của từng luồng kiểm DƯỚI KHOÁ ở B9, B11, B13
   'ThanhToan', // đường `confirmPaid` của payment (B11) và `checkIn` của thanh toán offline; cọc 0đ KHÔNG đi đường này: `create` INSERT thẳng `DaXacNhan` (B8, TRACKING 3.21 câu (a))
+  'DoiLich', // chỉ `markReplaced` (reschedule B1): lịch cũ `DaXacNhan` thành `DaDoiLich` trong CÙNG giao dịch với việc chèn lịch mới; KHÔNG có API đổi trạng thái tay
 ] as const;
 export type TransitionActor = (typeof TRANSITION_ACTORS)[number];
 
@@ -24,8 +25,8 @@ type TransitionTable = Record<
   Partial<Record<TrangThaiLichHen, readonly TrangThaiLichHen[]>>
 >;
 
-// 22 ô được phép trên 6 × 7 × 7 = 294 ô; mọi ô còn lại bị từ chối. Không có actor cho "tạo" (INSERT, không có trạng thái nguồn) và cho `DaDoiLich`
-// (module đổi lịch làm sau: nó sẽ thêm actor riêng cùng `markReplaced`, PLAN 5.2). `HoanThanh` chỉ `BacSi` tới được.
+// 23 ô được phép trên 7 × 7 × 7 = 343 ô; mọi ô còn lại bị từ chối. Không có actor cho "tạo" (INSERT, không có trạng thái nguồn). `DaDoiLich` chỉ `DoiLich` tới được
+// (reschedule B1: ô duy nhất `DaXacNhan` → `DaDoiLich`, do `markReplaced`); `HoanThanh` chỉ `BacSi` tới được.
 const TRANSITIONS: TransitionTable = {
   BenhNhan: {
     ChoThanhToan: ['DaHuy'],
@@ -53,6 +54,10 @@ const TRANSITIONS: TransitionTable = {
   ThanhToan: {
     ChoThanhToan: ['DaXacNhan'], // Q4
     DaXacNhan: ['DaTiepDon'], // thanh toán offline: tự ghi tiền nên không cần `conPhaiThu = 0`, nhưng vẫn phải trong cửa sổ (quy tắc 40, 46, 47)
+  },
+  DoiLich: {
+    // PLAN reschedule 5.3: ô DUY NHẤT tới `DaDoiLich`; không điều kiện thời gian hay tiền (hạn giờ và hạn mức do `evaluateReschedulability` kiểm trước, dưới khoá)
+    DaXacNhan: ['DaDoiLich'],
   },
 };
 
