@@ -209,12 +209,20 @@ const KNOWN_ERRORS = new Map<string, (chiTiet: unknown) => KnownBookingError>([
   ],
 ]);
 
+// Câu riêng cho một `maLoi` (chuỗi mã, không cần `ApiError`: reschedule F1 còn nhận mã ở thân 200 `lyDoKhongDoi`); undefined nếu mã lạ
+export function knownBookingErrorByCode(
+  maLoi: string,
+  chiTiet?: unknown,
+): KnownBookingError | undefined {
+  return KNOWN_ERRORS.get(maLoi)?.(chiTiet);
+}
+
 // Câu riêng cho một `maLoi` đã biết; undefined nếu không biết (mạng, quá giờ, 5xx, thân lạ, mã lạ): nơi gọi dùng câu chung của `ErrorState`
 export function knownBookingError(
   error: unknown,
 ): KnownBookingError | undefined {
   return error instanceof ApiError
-    ? KNOWN_ERRORS.get(error.maLoi)?.(error.chiTiet)
+    ? knownBookingErrorByCode(error.maLoi, error.chiTiet)
     : undefined;
 }
 

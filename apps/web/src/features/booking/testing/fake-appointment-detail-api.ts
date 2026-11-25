@@ -25,7 +25,8 @@ export interface DetailFakeRequest {
   body: string | null;
 }
 
-// Một chi tiết mẫu (dữ liệu giả, không phải của ai): lịch `DaXacNhan` cọc 100.000đ, chưa có payment và wallet
+// Một chi tiết mẫu (dữ liệu giả, không phải của ai): lịch `DaXacNhan` cọc 100.000đ, chưa có payment và wallet. Đủ mười chín khoá: `choPhepDoiLich = false` và chưa có yêu cầu đổi lịch
+// (reschedule F1) để mọi test cũ không thấy nút "Đổi lịch" và không có lời gọi xem trước thêm; test đổi lịch ghi đè hai khoá này.
 export function makeDetail(
   overrides: Partial<PatientAppointmentDetail> = {},
 ): PatientAppointmentDetail {
@@ -36,6 +37,8 @@ export function makeDetail(
     hoanTien: null,
     thoiGianMayChu: '2026-10-18T02:00:00.000Z',
     moc: { xacNhan: null, tiepDon: null, hoanThanh: null },
+    choPhepDoiLich: false,
+    yeuCauDoiLich: null,
     ...overrides,
   };
 }

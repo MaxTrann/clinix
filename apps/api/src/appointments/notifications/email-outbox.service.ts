@@ -33,8 +33,10 @@ import {
 import {
   BRANCH_CHANGE_MAIL_EVENTS,
   EMAIL_MAX_ATTEMPTS,
+  EXAM_MAIL_EVENTS,
   PAYMENT_MAIL_EVENTS,
 } from './notifications.constants.js';
+import { renderExamCompletedMail } from './exam-mail.templates.js';
 import { readBranchChangeMailContext } from './branch-change-context.query.js';
 import {
   renderBranchChangeAffectedMail,
@@ -232,6 +234,9 @@ export class EmailOutboxService {
             ...common,
             noiDung: payload.noiDung,
           });
+        // notification B4: thư hoàn thành lịch khám, dữ kiện đọc lại từ lịch (`678:2`)
+        case EXAM_MAIL_EVENTS.COMPLETED:
+          return renderExamCompletedMail(common);
         default:
           throw new EmailOutboxDataError('LOAI_SU_KIEN_LA');
       }

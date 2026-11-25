@@ -29,7 +29,15 @@ const CELL =
 
 // Chỉ ô `ConTrong` là liên kết sang Bước 4 (T5: chưa giữ chỗ; khách chưa đăng nhập đi qua cổng có sẵn và `khungGioId` được giữ qua đăng nhập).
 // Ô khác KHÔNG bấm được (không `href`, không tabindex) và trạng thái hết hạn do MÁY CHỦ tính: máy khách không tự đổi ô theo đồng hồ.
-export function SlotCell({ slot }: { slot: PublicSlot }) {
+// `onSelect` (reschedule F1, TUỲ CHỌN): có ⇒ ô `ConTrong` là NÚT gọi `onSelect(slot)` thay cho liên kết (chọn khung giờ mới để đổi lịch); vắng ⇒ y như trước.
+// Quy tắc "ô nào chọn được" KHÔNG đổi: vẫn chỉ `ConTrong` theo trạng thái của máy chủ.
+export function SlotCell({
+  slot,
+  onSelect,
+}: {
+  slot: PublicSlot;
+  onSelect?: (slot: PublicSlot) => void;
+}) {
   const time = timeLabel(slot.batDau);
   const label = slotAccessibleName(time, slot.trangThai);
   const body = (
@@ -49,7 +57,16 @@ export function SlotCell({ slot }: { slot: PublicSlot }) {
   );
   return (
     <li>
-      {slot.trangThai === 'ConTrong' ? (
+      {slot.trangThai === 'ConTrong' && onSelect !== undefined ? (
+        <button
+          type="button"
+          onClick={() => onSelect(slot)}
+          aria-label={label}
+          className={`${CELL} ${CELL_TONE.ConTrong} w-full hover:bg-cyan-50`}
+        >
+          {body}
+        </button>
+      ) : slot.trangThai === 'ConTrong' ? (
         <Link
           to={bookingInfoPath(slot.khungGioId)}
           aria-label={label}
