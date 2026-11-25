@@ -12,6 +12,8 @@ import { parseVnDateTime } from '../slots/slot-lock.js';
 /** Hàng `lich_hen` đọc DƯỚI khoá: nguồn của mọi quyết định (phạm vi, ma trận, số hoàn). */
 export interface LockedAppointment {
   benhNhanId: string;
+  /** `lich_hen.bac_si_id` (= `tai_khoan_id` của bác sĩ): người nhận thông báo tiếp đón (notification B6) */
+  bacSiId: string;
   chiNhanhId: string;
   trangThai: TrangThaiLichHen;
   /** `lich_hen.thoi_gian` (giờ Việt Nam, đọc bằng `DATE_FORMAT` nên không lệch múi giờ, H13) */
@@ -24,7 +26,7 @@ interface RawLockedAppointment extends Omit<LockedAppointment, 'thoiGian'> {
   thoiGian: string;
 }
 
-const LOCK_SQL = `SELECT CAST(benh_nhan_id AS CHAR) AS benhNhanId, CAST(chi_nhanh_id AS CHAR) AS chiNhanhId, trang_thai AS trangThai,
+const LOCK_SQL = `SELECT CAST(benh_nhan_id AS CHAR) AS benhNhanId, CAST(bac_si_id AS CHAR) AS bacSiId, CAST(chi_nhanh_id AS CHAR) AS chiNhanhId, trang_thai AS trangThai,
   DATE_FORMAT(thoi_gian, '%Y-%m-%d %H:%i:%s') AS thoiGian, chinh_sach_hoan_snapshot AS chinhSachHoan
 FROM lich_hen WHERE lich_hen_id = ?
 FOR UPDATE`;

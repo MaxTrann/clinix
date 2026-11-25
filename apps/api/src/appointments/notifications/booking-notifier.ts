@@ -18,8 +18,14 @@ import {
   buildNotificationText,
   type NotificationTextInput,
 } from './notification-text.js';
+import { BOOKING_MAIL_EVENTS } from './notifications.constants.js';
 import { isRescheduleEvent, notifyReschedule } from './reschedule-notify.js';
 import { insertEmailRow, insertThongBao } from './thong-bao-insert.query.js';
+
+// Loại của booking CÓ thư (B15); `LichHenDaTiepDon` (notification B6) chỉ trong ứng dụng
+const BOOKING_MAIL_LOAI: ReadonlySet<string> = new Set(
+  Object.values(BOOKING_MAIL_EVENTS),
+);
 
 /**
  * `AppointmentNotifier` THẬT (task B15; PLAN booking 5.12; thay bản `Noop` của P2). Ghi MỘT dòng `thong_bao` cho tài khoản ĐẶT (`event.taiKhoanId` = `lich_hen.benh_nhan_id`, không phải người thân) và MỘT dòng
@@ -31,6 +37,8 @@ import { insertEmailRow, insertThongBao } from './thong-bao-insert.query.js';
  *
  * Sự kiện ghi lần hai cho cùng (lịch, tài khoản, loại) đụng UNIQUE của P7 ⇒ "đã có": không lỗi, không dòng email thứ hai (`insertThongBao`). Hết hạn giữ chỗ KHÔNG đi qua đây (Q6): `expire` không gọi `notify`.
  * Không log gì: mọi dữ liệu ở đây là dữ liệu cá nhân (H12).
+ *
+ * Sự kiện tiếp đón `LichHenDaTiepDon` (notification B6; PLAN notification 5.8, Q7): người nhận là BÁC SĨ phụ trách (người gọi truyền `lich_hen.bac_si_id` ở `taiKhoanId`), CHỈ ghi `thong_bao`, không dòng thư.
  *
  * Bốn sự kiện của đổi lịch và yêu cầu đổi lịch (reschedule B3; `RESCHEDULE_NOTIFICATION_EVENTS`) cũng đi qua cổng này nhưng ghi ở `reschedule-notify.ts` (thông báo của yêu cầu gắn `yeu_cau_…_id`, không gắn lịch).
  */
@@ -47,18 +55,20 @@ export class BookingNotifier implements AppointmentNotifier {
       await notifyReschedule(em, event, loai, context);
       return;
     }
+    const now = toSecond(nowVN());
     const noiDung = buildNotificationText(
-      await textInputOf(em, event, loai, context),
+      await textInputOf(em, event, loai, context, now),
     );
     const inserted = await insertThongBao(em, {
       taiKhoanId: event.taiKhoanId,
       noiDung,
       loaiSuKien: event.loaiSuKien,
       lichHenId: event.lichHenId,
-      thoiDiemTao: toSecond(nowVN()),
+      thoiDiemTao: now,
     });
     if (inserted.kind === 'AlreadyExists') return;
-    await insertEmailRow(em, inserted.thongBaoId);
+    if (BOOKING_MAIL_LOAI.has(loai))
+      await insertEmailRow(em, inserted.thongBaoId);
   }
 }
 
@@ -68,6 +78,7 @@ async function textInputOf(
   event: AppointmentEvent,
   loai: BookingNotificationEvent,
   context: NotificationContext,
+  now: Date,
 ): Promise<NotificationTextInput> {
   switch (loai) {
     case BOOKING_NOTIFICATION_EVENTS.CONFIRMED:
@@ -81,5 +92,7 @@ async function textInputOf(
         context,
         ...(await readNoShowFacts(em, event.taiKhoanId)),
       };
+    case BOOKING_NOTIFICATION_EVENTS.CHECKED_IN:
+      return { loai, context, tiepDonLuc: now };
   }
 }

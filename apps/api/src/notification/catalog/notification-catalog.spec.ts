@@ -61,6 +61,8 @@ const KNOWN_DERIVED_SETS = [
   'PAYMENT_MAIL_EVENTS',
   'BRANCH_CHANGE_MAIL_EVENTS',
   'EXAM_MAIL_EVENTS', // notification B4: bản chữ của EXAM_NOTIFICATION_EVENTS cho worker thư
+  'LEAVE_MAIL_EVENTS', // notification B5: bản chữ của ba mã nghỉ phép gửi Bác sĩ trong LEAVE_EVENTS
+  'BOOKING_MAIL_EVENTS', // notification B6: bốn loại có thư của BOOKING_NOTIFICATION_EVENTS (bỏ LichHenDaTiepDon)
 ];
 
 const sourceCodes: string[] = Object.values(SOURCE_EVENT_SETS).flatMap((set) =>
@@ -87,11 +89,11 @@ describe('DMS-02 không có mục "CoMa" mồ côi', () => {
     expect(orphans).toEqual([]);
   });
 
-  it('mục ChoModule được phép chưa có hằng (LichHenDaTiepDon chờ notification B6)', () => {
+  it('không còn mục ChoModule nào trong danh mục (LichHenDaTiepDon có mã từ notification B6)', () => {
     const waiting = NOTIFICATION_CATALOG.filter(
       (entry) => entry.trangThai === 'ChoModule',
     ).map((entry) => entry.ma);
-    expect(waiting).toEqual(['LichHenDaTiepDon']);
+    expect(waiting).toEqual([]);
   });
 });
 
@@ -128,12 +130,12 @@ describe('DMS-03 mã duy nhất và đúng dạng', () => {
 });
 
 describe('DMS-04 tập "có thư" khớp MAIL_EVENTS của worker thư', () => {
-  it('bằng nhau (hiện 18 loại sau notification B4; B5 nâng lên 21)', () => {
+  it('bằng nhau (21 loại sau notification B4, B5)', () => {
     const withMail = NOTIFICATION_CATALOG.filter((e) => e.coThu)
       .map((e) => e.ma)
       .sort();
     expect(withMail).toEqual([...MAIL_EVENTS].sort());
-    expect(withMail).toHaveLength(18);
+    expect(withMail).toHaveLength(21);
   });
 });
 

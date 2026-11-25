@@ -8,6 +8,7 @@ import {
   ScriptedEntityManager,
 } from '../testing/scripted-entity-manager.js';
 import {
+  BAC_SI_ID,
   CHI_NHANH_ID,
   CONFIG,
   DEN,
@@ -303,7 +304,7 @@ describe('CKI-03 hai biên cửa sổ tiếp đón (đóng hai đầu, Q22; CT-0
   });
 });
 
-describe('CKI-04 chuỗi câu của checkIn: chỉ lich_hen, khoá theo khoá chính, không khung_gio, không benh_nhan, không thông báo', () => {
+describe('CKI-04 chuỗi câu của checkIn: chỉ lich_hen, khoá theo khoá chính, không khung_gio, không benh_nhan; thông báo qua cổng (notification B6)', () => {
   it('đúng hai câu: SELECT … FOR UPDATE theo lich_hen_id rồi UPDATE có điều kiện nguồn; không câu nào chạm khung_gio, benh_nhan hay thong_bao', async () => {
     const s = setup();
     await s.run(s.leTan());
@@ -320,11 +321,37 @@ describe('CKI-04 chuỗi câu của checkIn: chỉ lich_hen, khoá theo khoá ch
         expect(touchesTable(sql, table), `${table}: ${sql}`).toBe(false);
   });
 
-  it('không thông báo, không WaitlistPort (PLAN 5.12 không có sự kiện tiếp đón; khung giờ giữ DaDat)', async () => {
+  it('DMS-09 (notification B6): đúng MỘT sự kiện LichHenDaTiepDon cho Bác sĩ phụ trách (bac_si_id đọc dưới khoá), gọi SAU câu UPDATE, cùng `em`; không WaitlistPort (khung giờ giữ DaDat)', async () => {
     const s = setup();
+    // Nhãn các câu đã chạy tại lúc gọi cổng: phải đã khoá và đã UPDATE (thông báo SAU khi đổi trạng thái)
+    let labelsAtNotify: string[] = [];
+    s.notifier.notifyCall.answers(() => {
+      labelsAtNotify = [...s.em.labels];
+    });
     await s.run(s.leTan());
-    expect(s.notifier.notifyCall.count).toBe(0);
+    expect(s.notifier.events).toEqual([
+      {
+        loaiSuKien: 'LichHenDaTiepDon',
+        lichHenId: LICH_HEN_ID,
+        taiKhoanId: BAC_SI_ID,
+      },
+    ]);
+    expect(s.notifier.notifyCall.calls[0]?.[0]).toBe(s.em.em);
+    expect(labelsAtNotify).toEqual(['lock lich_hen', 'write lich_hen']);
     expect(s.waitlist.onSlotReleasedCall.count).toBe(0);
+  });
+
+  it('DMS-09 (notification B6): cổng thông báo ném ⇒ checkIn ném nguyên lỗi (người gọi hoàn tác cả lần tiếp đón), không nuốt', async () => {
+    const s = setup();
+    const failure = new Error('INSERT thong_bao hỏng');
+    s.notifier.notifyCall.throwsOnce(failure);
+    await expect(s.run(s.leTan())).rejects.toBe(failure);
+  });
+
+  it('từ chối (không đổi trạng thái): không thông báo', async () => {
+    const s = setup({ locked: lockedRows('DaHuy') });
+    await s.run(s.leTan());
+    expect(s.notifier.events).toEqual([]);
   });
 
   it('kết quả từ chối KHÔNG ghi gì: mọi nhánh từ chối chỉ có câu khoá', async () => {

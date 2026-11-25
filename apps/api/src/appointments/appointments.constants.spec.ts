@@ -55,6 +55,9 @@ const EXPECTED_STATUS: Record<string, number> = {
   CHUOI_DOI_LICH_QUA_DAI: 409,
   VUOT_SO_LAN_TU_DOI: 409,
   DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET: 409,
+  // Hai mã của DUYỆT và TỪ CHỐI yêu cầu (reschedule B9, PLAN reschedule 5.13)
+  YEU_CAU_DOI_LICH_KHONG_TON_TAI: 404,
+  YEU_CAU_DA_XU_LY: 409,
 };
 const EXPECTED_FIELD_CODES = [
   'LY_DO_KHAM_KHONG_HOP_LE',
@@ -65,7 +68,7 @@ const EXPECTED_FIELD_CODES = [
 const allCodes = Object.values(BOOKING_ERROR_CODES);
 
 describe('BCS-01 bảng mã lỗi của 5.14', () => {
-  it('đủ 31 mã có HTTP (22 của booking cộng 9 của đổi lịch, reschedule B2) và 3 mã trường (tổng 34), khớp danh sách viết riêng, không mã nào thiếu hay thừa', () => {
+  it('đủ 33 mã có HTTP (22 của booking, 9 của đổi lịch ở reschedule B2 và 2 của yêu cầu ở reschedule B9) và 3 mã trường (tổng 36), khớp danh sách viết riêng, không mã nào thiếu hay thừa', () => {
     expect([...allCodes].sort()).toEqual(Object.keys(EXPECTED_STATUS).sort());
     expect(Object.keys(BOOKING_ERRORS).sort()).toEqual(
       Object.keys(EXPECTED_STATUS).sort(),
@@ -73,7 +76,7 @@ describe('BCS-01 bảng mã lỗi của 5.14', () => {
     expect(Object.values(BOOKING_FIELD_ERROR_CODES).sort()).toEqual(
       [...EXPECTED_FIELD_CODES].sort(),
     );
-    expect(allCodes.length + EXPECTED_FIELD_CODES.length).toBe(34);
+    expect(allCodes.length + EXPECTED_FIELD_CODES.length).toBe(36);
   });
 
   it('không mã nào trùng nhau (kể cả giữa nhóm có HTTP và nhóm mã trường)', () => {
@@ -151,12 +154,13 @@ describe('BCS-03 bookingException', () => {
 });
 
 describe('BCS-04 mã sự kiện thông báo (5.12)', () => {
-  it('đúng bốn mã của 5.12, dạng PascalCase, khác nhau, ≤ 100 ký tự (thong_bao.loai_su_kien là varchar(100))', () => {
+  it('đúng năm mã (bốn của 5.12 và LichHenDaTiepDon của notification B6), dạng PascalCase, khác nhau, ≤ 100 ký tự (thong_bao.loai_su_kien là varchar(100))', () => {
     const events = Object.values(BOOKING_NOTIFICATION_EVENTS);
     expect([...events].sort()).toEqual(
       [
         'KhoaDatLichNoShow',
         'LichHenDaHuy',
+        'LichHenDaTiepDon',
         'LichHenDaXacNhan',
         'LichHenVangMat',
       ].sort(),

@@ -1,4 +1,4 @@
-import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
+import { BOOKING_MAIL_EVENTS } from './notifications.constants.js';
 import { runRounds } from '../testing/concurrency-harness.js';
 import {
   reportRounds,
@@ -51,7 +51,7 @@ describe('OBX-07 hai worker cùng lúc (hai bản API): mỗi thư gửi đúng 
         await db.query('DELETE FROM email_thong_bao');
         await db.query('DELETE FROM thong_bao');
         for (const taiKhoanId of [w.patientId, w.secondPatientId])
-          for (const loai of Object.values(BOOKING_NOTIFICATION_EVENTS))
+          for (const loai of Object.values(BOOKING_MAIL_EVENTS))
             await insertQueuedEmail(db, {
               taiKhoanId,
               lichHenId: lich.lichHenId,

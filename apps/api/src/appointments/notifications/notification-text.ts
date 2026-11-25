@@ -1,10 +1,10 @@
 import { toSingleLine } from '../../mail/mail-safety.js';
 import { BOOKING_NOTIFICATION_EVENTS } from '../appointments.constants.js';
 import type { AppointmentEvent } from '../ports/appointment-notifier.port.js';
-import { formatVnd, isZeroMoney } from './mail-format.js';
+import { formatVnDateTime, formatVnd, isZeroMoney } from './mail-format.js';
 import type { NotificationContext } from './notification-context.query.js';
 
-// Chữ của `thong_bao.noi_dung` cho bốn sự kiện của booking (task B15; PLAN booking 5.12; TRACKING 3.37 B15-F: phương án P đã duyệt). Hàm THUẦN, không đọc DB.
+// Chữ của `thong_bao.noi_dung` cho năm sự kiện của booking (bốn của task B15, tiếp đón của notification B6; PLAN booking 5.12; TRACKING 3.37 B15-F: phương án P đã duyệt). Hàm THUẦN, không đọc DB.
 //
 // `noi_dung` là bản ghi bất biến của sự kiện: thư (worker, giai đoạn sau) dựng bảng dữ liệu từ DB lúc gửi nhưng IN NGUYÊN `noi_dung` ở ô lưu ý của thư huỷ, vì biến thể huỷ (`reason`) và số "hoàn dự kiến"
 // chỉ có ở sự kiện lúc đó, không suy ngược được từ `lich_hen` (`ly_do_huy` là chữ tự do). Chữ biến thể và câu hoàn là `[đề xuất]` (Figma `676:2` chỉ vẽ MỘT biến thể).
@@ -34,6 +34,12 @@ export type NotificationTextInput =
       context: NotificationContext;
       soLan: number;
       nguong: number;
+    }
+  | {
+      /** notification B6 (Q7): gửi Bác sĩ phụ trách; `tiepDonLuc` là lúc tiếp đón (mốc của lần ghi thông báo) */
+      loai: typeof BOOKING_NOTIFICATION_EVENTS.CHECKED_IN;
+      context: NotificationContext;
+      tiepDonLuc: Date;
     };
 
 // Ba biến thể theo `reason` (PLAN Q30: LeTanHuy và QtvOverride CÙNG biến thể "Phòng khám điều chỉnh")
@@ -75,6 +81,10 @@ export function buildNotificationText(input: NotificationTextInput): string {
       break;
     case BOOKING_NOTIFICATION_EVENTS.NO_SHOW:
       text = `Bạn đã vắng mặt tại lịch hẹn ${ma} (lần thứ ${String(input.soLan)}). Từ ${String(input.nguong)} lần vắng mặt, tài khoản sẽ bị hạn chế đặt lịch online.`;
+      break;
+    case BOOKING_NOTIFICATION_EVENTS.CHECKED_IN:
+      // [đề xuất] (PLAN notification 5.8): người đọc là Bác sĩ nên có tên người được khám (bệnh nhân sắp vào phòng); KHÔNG SĐT, email, lý do khám. Giờ là giờ TIẾP ĐÓN theo giờ Việt Nam ("HH:mm")
+      text = `Bệnh nhân ${toSingleLine(ctx.nguoiDuocKham)} đã được tiếp đón cho lịch hẹn ${ma} lúc ${formatVnDateTime(input.tiepDonLuc).slice(0, 5)}.`;
       break;
     case BOOKING_NOTIFICATION_EVENTS.NO_SHOW_LOCK:
       text = `Tài khoản của bạn đã bị hạn chế đặt lịch online do vắng mặt ${String(input.soLan)} lần (ngưỡng ${String(input.nguong)} lần). Đây không phải khóa đăng nhập tài khoản.`;

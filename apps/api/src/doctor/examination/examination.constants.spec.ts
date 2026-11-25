@@ -91,8 +91,8 @@ describe('mã lỗi của phần khám bệnh (PLAN 5.14)', () => {
 });
 
 describe('sự kiện thông báo (PLAN 5.12; notification B4: EMT-03, EMT-13)', () => {
-  it('loại sự kiện hoàn thành ca khám khác cả bốn loại của booking; từ notification B4 THUỘC MAIL_EVENTS và bản chữ `EXAM_MAIL_EVENTS` của booking khớp hằng của doctor-exam', () => {
-    expect(Object.values(BOOKING_NOTIFICATION_EVENTS)).toHaveLength(4);
+  it('loại sự kiện hoàn thành ca khám khác cả năm loại của booking (thêm tiếp đón ở notification B6); từ notification B4 THUỘC MAIL_EVENTS và bản chữ `EXAM_MAIL_EVENTS` của booking khớp hằng của doctor-exam', () => {
+    expect(Object.values(BOOKING_NOTIFICATION_EVENTS)).toHaveLength(5);
     expect(Object.values(BOOKING_NOTIFICATION_EVENTS)).not.toContain(
       EXAM_NOTIFICATION_EVENTS.COMPLETED,
     );

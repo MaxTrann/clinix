@@ -426,11 +426,11 @@ describe('OBX-06 chỉ thư của booking: hàng của nguồn khác trong cùng
   it('thông báo không gắn lịch và loại lạ gắn lịch: nguyên vẹn; thư của booking vẫn gửi', async () => {
     const w = await world();
     const lich = await w.booked('DaXacNhan', 0);
-    // admin C4: `KetQuaYeuCauThayDoiChiNhanh` nay CÓ thư, nên ví dụ "nguồn khác" là loại chỉ có trong ứng dụng của doctor (nghỉ phép)
+    // admin C4: `KetQuaYeuCauThayDoiChiNhanh` nay CÓ thư, nên ví dụ "nguồn khác" là loại chỉ có trong ứng dụng của doctor (nghỉ phép gửi Quản trị viên; ba loại gửi Bác sĩ có thư từ notification B5)
     await insertQueuedEmail(db, {
       taiKhoanId: w.patientId,
       lichHenId: null,
-      loai: 'NghiPhepDaDuyet',
+      loai: 'NghiPhepChoDuyet',
     });
     await insertQueuedEmail(db, {
       taiKhoanId: w.patientId,

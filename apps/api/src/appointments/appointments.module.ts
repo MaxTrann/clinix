@@ -70,6 +70,11 @@ import { AdminOverrideController } from './status/admin-override.controller.js';
 import { AdminOverrideService } from './status/admin-override.service.js';
 import { ReceptionStatusController } from './status/reception-status.controller.js';
 import { ReceptionStatusService } from './status/reception-status.service.js';
+import { AdminRescheduleRequestsController } from './reschedule/admin-reschedule-requests.controller.js';
+import { ReceptionRescheduleRequestsController } from './reschedule/reception-reschedule-requests.controller.js';
+import { RescheduleRequestListService } from './reschedule/reschedule-request-list.service.js';
+import { RescheduleRequestApproveService } from './reschedule/reschedule-request-approve.service.js';
+import { RescheduleRequestRejectService } from './reschedule/reschedule-request-reject.service.js';
 
 // Module `booking` (PLAN booking 5.1, 5.10; TRACKING 3.3 P1-B, 3.6 P2-B, P2-D). P1 dựng vỏ; P2 thêm TÁM cổng sang module khác, mỗi cổng gắn bản `Noop` mặc định
 // (`ports/ports.providers.ts`). Mọi thứ khác P1 làm ra (ma trận trạng thái, hằng và mã lỗi, `withBookingTransaction`, `lock-order`) là hàm hoặc hằng thuần mà nơi
@@ -116,6 +121,11 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 //   reschedule B7 (đã làm; TRACKING reschedule 1.11) `ReceptionRescheduleController` (`reschedule/`; `GET …/reschedule-preview` và `POST …/reschedule` của Lễ tân đổi hộ, `@Roles('LeTan')` trên từng route),
 //       `ReceptionReschedulePreviewService` (CHỈ ĐỌC, một lần `runReadOnly`) và `ReceptionRescheduleService` (gọi `AppointmentRescheduleService` của B4 với `actor` `DoiHo`, ghi Audit `DoiLichHo` trong `afterWrite`, không SQL,
 //       không giao dịch). Không `imports` (`AuditModule` và `RbacModule` đã nhập), không `exports`, không cổng mới.
+//   reschedule B8 (đã làm; TRACKING reschedule 1.12) `ReceptionRescheduleRequestsController` + `AdminRescheduleRequestsController` + `RescheduleRequestListService` (`reschedule/`; `GET …/reschedule-requests` và `/:yeuCauId` của Lễ tân
+//       và Quản trị viên, CHỈ ĐỌC, một lần `runReadOnly`; B9 thêm hai route `approve` và `reject` vào cùng hai controller). Không `imports`, không `exports`: `RbacModule` (phạm vi) và `RescheduleReader` đã có.
+//   reschedule B9 (đã làm; TRACKING reschedule 1.13) `RescheduleRequestApproveService` (gọi `AppointmentRescheduleService` của B4 với `actor` `DuyetYeuCau`, `UPDATE` yêu cầu và ghi Audit trong `afterWrite`, không SQL,
+//       không giao dịch riêng) và `RescheduleRequestRejectService` (giao dịch RIÊNG chỉ khoá tầng 6c, Audit và thông báo cho tài khoản đặt); hai route `approve` và `reject` nằm ở HAI controller của B8. Không `imports`
+//       (`AuditModule` và `RbacModule` đã nhập), không `exports`, không cổng mới.
 // `exports: [AppointmentTransitionService, AppointmentQueries, AppointmentCancellationService]`: CẢ BA là bề mặt DUY NHẤT module khác gọi vào (TRACKING 3.23, 3.24.1): `AppointmentTransitionService` cho `confirmPaid` và
 // `complete` (B11), `AppointmentQueries` cho truy vấn lịch bị ảnh hưởng (B11), `AppointmentCancellationService` cho `cancel` (B10: `doctor` duyệt nghỉ phép gọi `cancel` với `HeThong`).
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
@@ -188,6 +198,8 @@ const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
     ReceptionRescheduleController,
     ReceptionStatusController,
     AdminOverrideController,
+    ReceptionRescheduleRequestsController,
+    AdminRescheduleRequestsController,
   ],
   providers: [
     ...PORT_PROVIDERS_STILL_NOOP,
@@ -205,6 +217,7 @@ const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
     CreateAppointmentService,
     RescheduleReader,
     AppointmentRescheduleService,
+    RescheduleRequestListService,
     DoctorAppointmentsService,
     DoctorAppointmentsRepository,
     PatientAppointmentsService,
@@ -238,6 +251,8 @@ const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
     ReschedulePreviewService,
     ReceptionRescheduleService,
     ReceptionReschedulePreviewService,
+    RescheduleRequestApproveService,
+    RescheduleRequestRejectService,
   ],
   exports: [
     AppointmentTransitionService,
