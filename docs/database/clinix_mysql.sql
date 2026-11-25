@@ -68,6 +68,9 @@
 -- nhat_ky_hanh_dong.hanh_dong thêm DoiLichHo Ở CUỐI (Q6; 27 giá trị). Không thêm bảng hay khối Enum mới: bảng yeu_cau_doi_lich_ngoai_chinh_sach đã có trong file này, chỉ nay mới có
 -- migration (migration DoiLich1793966400000 tạo bảng này cùng các thay đổi trên). Quy tắc service 2 (đổi lịch chỉ khi lịch cũ ở DaXacNhan) đã được xác nhận (Q7 (a)).
 -- Chuyển đổi từ DB cũ: mục "reschedule P1" ở cuối clinix_quy_tac_nghiep_vu.md.
+-- 25/11/2026 (scope #10 "Thông báo", task notification P2, issue #657): thong_bao thêm chỉ mục thong_bao_index_tai_khoan_thoi_diem (tai_khoan_id, thoi_diem_tao, thong_bao_id)
+-- cho danh sách "Tất cả" của Trung tâm thông báo (ORDER BY thoi_diem_tao DESC, thong_bao_id DESC): số đo X1 M1 cho thấy thong_bao_index_25 phải filesort khi không lọc trang_thai_doc.
+-- Không đổi bảng, cột, enum, constraint. Chuyển đổi từ DB cũ: mục "notification P2" ở cuối clinix_quy_tac_nghiep_vu.md.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -712,6 +715,8 @@ CREATE UNIQUE INDEX `thong_bao_index_yeu_cau_chi_nhanh` ON `thong_bao` (`yeu_cau
 CREATE UNIQUE INDEX `thong_bao_index_lich_hen` ON `thong_bao` (`lich_hen_id`, `tai_khoan_id`, `loai_su_kien`);
 
 CREATE UNIQUE INDEX `thong_bao_index_yeu_cau_doi_lich` ON `thong_bao` (`yeu_cau_doi_lich_ngoai_chinh_sach_id`, `tai_khoan_id`, `loai_su_kien`);
+
+CREATE INDEX `thong_bao_index_tai_khoan_thoi_diem` ON `thong_bao` (`tai_khoan_id`, `thoi_diem_tao`, `thong_bao_id`);
 
 CREATE INDEX `email_thong_bao_index_trang_thai` ON `email_thong_bao` (`trang_thai`, `lan_thu_cuoi_luc`);
 

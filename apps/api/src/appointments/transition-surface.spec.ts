@@ -42,6 +42,8 @@ describe('AR-07 phương thức công khai của AppointmentTransitionService (�
         'checkIn',
         'markNoShow',
         'restoreConfirmed',
+        // reschedule B1: phương thức mới, tự được phủ vì danh sách đọc từ nguồn lớp
+        'markReplaced',
       ]),
     );
     for (const name of [
@@ -56,6 +58,16 @@ describe('AR-07 phương thức công khai của AppointmentTransitionService (�
   it('các tên được phép đều là phương thức công khai thật', () => {
     for (const name of ALLOWED_OUTSIDE_METHODS) expect(methods).toContain(name);
   });
+
+  // reschedule B1 (AR-07): `markReplaced` chỉ do `AppointmentRescheduleService` (B4, trong appointments/) gọi; module khác gọi thẳng sẽ chuyển lịch sang DaDoiLich mà BỎ QUA việc chèn lịch mới và giữ khung giờ
+  it('markReplaced KHÔNG nằm trong danh sách được gọi từ ngoài appointments/ (danh sách được phép vẫn đúng ba tên)', () => {
+    expect(ALLOWED_OUTSIDE_METHODS).not.toContain('markReplaced');
+    expect(ALLOWED_OUTSIDE_METHODS).toEqual([
+      'confirmPaid',
+      'complete',
+      'checkIn',
+    ]);
+  });
 });
 
 describe('AR-07 ngoài appointments/ chỉ gọi confirmPaid, complete và checkIn (payment B6)', () => {
@@ -66,7 +78,14 @@ describe('AR-07 ngoài appointments/ chỉ gọi confirmPaid, complete và check
 
   // B14 (OVR-16): `restoreConfirmed` là PHẦN GHI của override (audit cùng giao dịch ở AdminOverrideService), nên module khác gọi thẳng cũng bị bắt; phương thức được đọc từ nguồn lớp nên tự được phủ, ca này chứng minh
   // payment B6 (QTT-10): `checkIn` thành được phép (thu tiền mặt tại quầy), nên rời khỏi danh sách đột biến; `cancel` vẫn bị bắt
-  it.each(['expire', 'cancel', 'markNoShow', 'restoreConfirmed'])(
+  // reschedule B1: thêm `markReplaced` vào các phương thức bị bắt khi module lạ gọi
+  it.each([
+    'expire',
+    'cancel',
+    'markNoShow',
+    'restoreConfirmed',
+    'markReplaced',
+  ])(
     'đột biến: file của module lạ gọi .%s() của AppointmentTransitionService bị bắt (kể cả phương thức B10, B12, B14 sắp thêm)',
     (method) => {
       const source = `import { AppointmentTransitionService } from '../appointments/state/appointment-transition.service.js';
@@ -81,6 +100,7 @@ class X { constructor(private readonly t: AppointmentTransitionService) {} run()
             'checkIn',
             'markNoShow',
             'restoreConfirmed',
+            'markReplaced',
           ]),
         ],
       );

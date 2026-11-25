@@ -43,6 +43,8 @@ describe('HDK-05 tên bảng của LOCK_ORDER có thật trong MySQL', () => {
         // payment P2: hai bảng mới của hạng 7a và 7c (migration P1)
         'yeu_cau_rut_tien',
         'lan_doi_soat_nap_vi',
+        // reschedule B1: bảng của hạng 6c (migration reschedule P1)
+        'yeu_cau_doi_lich_ngoai_chinh_sach',
       ].filter((table) => !existing.has(table)),
     ).toEqual([]);
   });

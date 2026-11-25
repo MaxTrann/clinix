@@ -20,6 +20,7 @@ import {
 import { PAYMENT_PORT, type PaymentPort } from '../ports/payment.port.js';
 import { BookabilityReader } from '../slots/bookability.reader.js';
 import { evaluateBookability } from '../slots/bookability.rules.js';
+import { claimSlot, freeLapsedHold } from '../slots/claim-slot.js';
 import { holdDeadline, SlotHoldService } from '../slots/slot-hold.service.js';
 import { lockVisitProfile } from '../visit-profile.query.js';
 import {
@@ -203,14 +204,14 @@ export class CreateAppointmentService {
 
     // Hết hạn lười (5.5): khung giờ `DangGiuCho` đã quá hạn được coi là trống, nhưng lịch cũ phải `DaHuy` và khung giờ `ConTrong` TRONG CÙNG giao dịch, TRƯỚC `INSERT`.
     // Chỉ `Expired` và `NoHolder` mở đường; `NotLapsed` và `HolderChanged` không ghi gì nên từ chối ngay.
-    if (verdict.lapsedHold !== null) {
-      const expired = await this.slotHolds.expireLapsedHold(em, slot, { now });
-      if (expired.kind !== 'Expired' && expired.kind !== 'NoHolder')
-        return {
-          kind: 'Rejected',
-          failure: { kind: 'Rule', code: BOOKING_ERROR_CODES.SLOT_HELD },
-        };
-    }
+    if (
+      verdict.lapsedHold !== null &&
+      (await freeLapsedHold(this.slotHolds, em, slot, now)) === 'StillHeld'
+    )
+      return {
+        kind: 'Rejected',
+        failure: { kind: 'Rule', code: BOOKING_ERROR_CODES.SLOT_HELD },
+      };
 
     // Giá, cọc và snapshot hoàn đọc trong cùng giao dịch (cọc 0 không đọc `moc_hoan_tien`)
     const price = await this.pricing.readPricing(em, {
@@ -263,12 +264,9 @@ export class CreateAppointmentService {
       );
 
     // Giữ chỗ bằng `SlotHoldService` (nơi DUY NHẤT ghi `khung_gio`). Không `Done` dưới khoá là bất biến vỡ: ném để hoàn tác cả `INSERT`, không commit lịch mồ côi.
-    if ((await this.slotHolds.hold(em, slot, { den: han })).kind !== 'Done')
-      throw new Error('hold không ghi được dưới khoá sau khi INSERT lich_hen');
+    // `hold`; cọc 0đ thì thêm `markBooked` (`DangGiuCho` → `DaDat`, `giu_cho_den` NULL, INV-03); lịch đã ở `DaXacNhan` từ `INSERT`
+    await claimSlot(this.slotHolds, em, slot, { den: han, book: zeroDeposit });
     if (zeroDeposit) {
-      // Cọc 0đ: khung giờ `DangGiuCho` → `DaDat`, `giu_cho_den` NULL (INV-03); lịch đã ở `DaXacNhan` từ `INSERT`
-      if ((await this.slotHolds.markBooked(em, slot)).kind !== 'Done')
-        throw new Error('markBooked không ghi được dưới khoá');
       // Hai cổng nhận `em`: chạy TRONG giao dịch (lỗi ở đây hoàn tác cả lịch và khung giờ, DL-27). Bản `Noop` hiện tại không ghi gì; bản thật là B17 (payment) và B15 (thông báo).
       await this.payment.recordZeroPayment(em, {
         lichHenId,

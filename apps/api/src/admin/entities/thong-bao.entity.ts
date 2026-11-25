@@ -15,6 +15,12 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
   ['yeuCauDoiLichNgoaiChinhSachId', 'taiKhoanId', 'loaiSuKien'],
   { unique: true },
 )
+// notification P2: danh sách "Tất cả" của Trung tâm thông báo (sắp theo thời điểm tạo giảm dần, không lọc trạng thái đọc; số đo X1 M1)
+@Index('thong_bao_index_tai_khoan_thoi_diem', [
+  'taiKhoanId',
+  'thoiDiemTao',
+  'thongBaoId',
+])
 export class ThongBao {
   @PrimaryGeneratedColumn({ type: 'bigint', name: 'thong_bao_id' })
   thongBaoId!: string;

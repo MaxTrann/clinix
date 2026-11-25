@@ -87,6 +87,11 @@ describe('AR-01 chỉ appointments/ ghi lich_hen và khung_gio (H7)', () => {
   it.each([
     ['UPDATE lich_hen', "db.query('UPDATE lich_hen SET trang_thai = 1')"],
     ['UPDATE lich_hen', 'await q(`update `lich_hen` set a = 1`)'],
+    // reschedule B1 (AR-01): câu của `markReplaced` ở module lạ cũng bị bắt; chỉ appointments/ được chuyển lịch sang DaDoiLich
+    [
+      'UPDATE lich_hen',
+      "x(\"UPDATE lich_hen SET trang_thai = 'DaDoiLich' WHERE lich_hen_id = ? AND trang_thai = 'DaXacNhan'\")",
+    ],
     ['UPDATE khung_gio', "x('UPDATE   khung_gio SET trang_thai = ?')"],
     ['UPDATE khung_gio', 'x("UPDATE IGNORE khung_gio SET a = 1")'],
     ['INSERT INTO lich_hen', "x('INSERT INTO lich_hen (a) VALUES (1)')"],
@@ -197,6 +202,17 @@ describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots
         line.startsWith('appointments/state/lapsed-hold.ts: UPDATE lich_hen'),
       ),
     ).toBe(true);
+    // reschedule B1: `markReplaced` (lịch cũ thành DaDoiLich) là nơi ghi `lich_hen.trang_thai` của đổi lịch và nằm ở state/; `claim-slot.ts` KHÔNG có câu ghi nào (mọi ghi khung giờ đi qua SlotHoldService)
+    expect(
+      exposed.some((line) =>
+        line.startsWith('appointments/state/mark-replaced.ts: UPDATE lich_hen'),
+      ),
+    ).toBe(true);
+    expect(
+      exposed.filter((line) =>
+        /^appointments\/(?:reschedule\/|slots\/claim-slot\.ts)/.test(line),
+      ),
+    ).toEqual([]);
     // B8 (TRACKING 3.21 câu (b)): `INSERT INTO lich_hen` thật đã nằm ở create/ (nơi DUY NHẤT; ngoại lệ `INTERNAL_WRITE_RULES` có sẵn từ P1), và KHÔNG có `UPDATE lich_hen` nào ngoài state/
     expect(
       exposed.some((line) =>
@@ -343,6 +359,22 @@ describe('AR-06 và CG-10: trong appointments/, UPDATE khung_gio chỉ ở slots
       'UPDATE benh_nhan',
       'appointments/slots/x.ts',
       'q(`update `benh_nhan` set a = 1`)',
+    ],
+    // reschedule B1 (AR-06): đổi lịch (appointments/reschedule/) KHÔNG tự ghi: chuyển trạng thái đi qua `markReplaced` (state/), chèn lịch mới qua `insertLichHen` (create/), khung giờ qua `SlotHoldService` (slots/)
+    [
+      'UPDATE lich_hen',
+      'appointments/reschedule/x.ts',
+      'q("UPDATE lich_hen SET trang_thai = \'DaDoiLich\' WHERE lich_hen_id = ?")',
+    ],
+    [
+      'INSERT INTO lich_hen',
+      'appointments/reschedule/x.ts',
+      "q('INSERT INTO lich_hen (lich_hen_truoc_id) VALUES (?)')",
+    ],
+    [
+      'UPDATE khung_gio',
+      'appointments/reschedule/x.ts',
+      'q("UPDATE khung_gio SET trang_thai = \'DaDat\' WHERE khung_gio_id = ?")',
     ],
   ])('đột biến: mẫu "%s" sai chỗ (%s) bị bắt', (rule, path, source) => {
     const found = findInternalWriteViolations([file(path, source)]);

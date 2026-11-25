@@ -12,6 +12,7 @@ import { MocThoiGianLichHen1793793600000 } from './migrations/1793793600000-moc-
 import { NghiTheoCaNhieuNgay1793880000000 } from './migrations/1793880000000-nghi-theo-ca-nhieu-ngay.js';
 import { DoiLich1793966400000 } from './migrations/1793966400000-doi-lich.js';
 import { TaoBangNhacLichHen1794052800000 } from './migrations/1794052800000-tao-bang-nhac-lich-hen.js';
+import { ChiMucThongBaoTaiKhoan1794139200000 } from './migrations/1794139200000-chi-muc-thong-bao-tai-khoan.js';
 import { TaoBangMocHoanTien1793534400000 } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -125,6 +126,7 @@ const MOC_NAME = MocThoiGianLichHen1793793600000.name;
 const NTC_NAME = NghiTheoCaNhieuNgay1793880000000.name;
 const DOI_LICH_NAME = DoiLich1793966400000.name;
 const NHAC_LICH_HEN_NAME = TaoBangNhacLichHen1794052800000.name;
+const CHI_MUC_THONG_BAO_NAME = ChiMucThongBaoTaiKhoan1794139200000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -696,8 +698,13 @@ describe('vòng đời migration', () => {
     const later = await revertAfter(MOC_NAME);
     // UX7 (đổi): trước là `expect(later).toEqual([])` vì B19 là migration cuối; nay migration nghỉ theo ca nhiều ngày đứng sau và được hoàn tác trước.
     // reschedule P1 (đổi): thêm migration đổi lịch đứng sau nữa, cũng được hoàn tác trước (down của nó không chặn vì DB chưa có dữ liệu đổi lịch).
-    // notification P1 (đổi): migration bảng nhắc lịch hẹn đứng sau cùng, cũng được hoàn tác trước (down của nó không chặn).
-    expect(later).toEqual([NTC_NAME, DOI_LICH_NAME, NHAC_LICH_HEN_NAME]);
+    // notification P1, P2 (đổi): migration bảng nhắc lịch hẹn và chỉ mục thông báo đứng sau cùng, cũng được hoàn tác trước (down của chúng không chặn).
+    expect(later).toEqual([
+      NTC_NAME,
+      DOI_LICH_NAME,
+      NHAC_LICH_HEN_NAME,
+      CHI_MUC_THONG_BAO_NAME,
+    ]);
     const MOC_COLUMNS = [
       'thoi_diem_xac_nhan',
       'thoi_diem_tiep_don',
@@ -1045,15 +1052,15 @@ describe('vòng đời migration', () => {
   // doi-lich-schema.int-spec.ts; phần chữ DDL ở migration-source.spec.ts; SHOW CREATE TABLE so với file SQL chính thức ở schema-parity.int-spec.ts.
   describe('reschedule P1: bảng yêu cầu, bộ đếm, cột thông báo, DoiLichHo', () => {
     const REQUEST_TABLE = 'yeu_cau_doi_lich_ngoai_chinh_sach';
-    // Bỏ `AUTO_INCREMENT=n` (đổi mỗi khi chèn dòng) để chỉ so cấu trúc
+    // Bỏ `AUTO_INCREMENT=n` (đổi mỗi khi chèn dòng) để chỉ so cấu trúc. notification P2 (đổi): bỏ cả dòng chỉ mục `thong_bao_index_tai_khoan_thoi_diem` vì migration P2 đứng SAU,
+    // bị hoàn tác trước khi chụp trạng thái và lên lại sau đó; vòng đời của chính chỉ mục này kiểm ở MTB-10.
     const showCreate = async (table: string): Promise<string> => {
       const rows = (await dataSource.query(
         `SHOW CREATE TABLE \`${table}\``,
       )) as Record<string, string>[];
-      return (rows[0]?.['Create Table'] ?? '').replace(
-        / AUTO_INCREMENT=\d+/,
-        '',
-      );
+      return (rows[0]?.['Create Table'] ?? '')
+        .replace(/ AUTO_INCREMENT=\d+/, '')
+        .replace(/\n {2}KEY `thong_bao_index_tai_khoan_thoi_diem` [^\n]*/, '');
     };
     const tableExists = async (table: string): Promise<boolean> =>
       (await listTables(dataSource)).includes(table);
@@ -1367,7 +1374,8 @@ describe('vòng đời migration', () => {
 
     it('MTB-02: up, down, up: down xoá bảng (kể cả còn dòng, không chặn), schema trở về trước; up lại ra bảng RỖNG cùng cấu trúc', async () => {
       await runPendingMigrations(dataSource);
-      expect(await revertAfter(NHAC_LICH_HEN_NAME)).toEqual([]);
+      // notification P2 (đổi): migration chỉ mục thông báo đứng sau, được hoàn tác trước rồi lên lại
+      const later = await revertAfter(NHAC_LICH_HEN_NAME);
       const upState = await showCreate();
       const otherTables = (await listTables(dataSource)).filter(
         (table) => table !== TABLE,
@@ -1385,6 +1393,7 @@ describe('vòng đời migration', () => {
 
       expect(await runPendingMigrations(dataSource)).toEqual([
         NHAC_LICH_HEN_NAME,
+        ...later,
       ]);
       expect(await showCreate()).toBe(upState);
       const [{ total }] = (await dataSource.query(
@@ -1411,10 +1420,12 @@ describe('vòng đời migration', () => {
       const before = await checksums();
       expect(Object.values(before).every((sum) => sum !== '0')).toBe(true);
 
+      const later = await revertAfter(NHAC_LICH_HEN_NAME);
       expect(await revertLastMigration(dataSource)).toBe(NHAC_LICH_HEN_NAME);
       expect(await checksums()).toEqual(before);
       expect(await runPendingMigrations(dataSource)).toEqual([
         NHAC_LICH_HEN_NAME,
+        ...later,
       ]);
       expect(await checksums()).toEqual(before);
 
@@ -1425,6 +1436,75 @@ describe('vòng đời migration', () => {
           "DELETE FROM lich_hen WHERE ma_lich_hen = 'CLX-20261125-MTB09'",
         );
       });
+    });
+  });
+
+  // notification P2 (#657): MTB-10 phần vòng đời: down chỉ xoá chỉ mục, không đổi dòng nào; up lại ra đúng cấu trúc cũ.
+  describe('notification P2: chỉ mục thong_bao_index_tai_khoan_thoi_diem', () => {
+    const INDEX = 'thong_bao_index_tai_khoan_thoi_diem';
+    // Bỏ `AUTO_INCREMENT=n` (test chèn một dòng) để chỉ so cấu trúc
+    const showThongBao = async (): Promise<string> =>
+      (
+        (
+          (await dataSource.query('SHOW CREATE TABLE `thong_bao`')) as Record<
+            string,
+            string
+          >[]
+        )[0]?.['Create Table'] ?? ''
+      ).replace(/ AUTO_INCREMENT=\d+/, '');
+    const indexColumns = async (): Promise<string[]> =>
+      (
+        (await dataSource.query(
+          "SELECT COLUMN_NAME AS name FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'thong_bao' AND INDEX_NAME = ? ORDER BY SEQ_IN_INDEX",
+          [INDEX],
+        )) as { name: string }[]
+      ).map((row) => row.name);
+    const checksum = async (): Promise<string> =>
+      String(
+        (
+          (await dataSource.query('CHECKSUM TABLE `thong_bao`')) as {
+            Checksum: string | number;
+          }[]
+        )[0]?.Checksum,
+      );
+
+    it('MTB-10: up, down, up trên DB có thông báo: down chỉ xoá chỉ mục (thong_bao_index_25 còn nguyên), dữ liệu không đổi; up lại giống hệt', async () => {
+      await runPendingMigrations(dataSource);
+      expect(await revertAfter(CHI_MUC_THONG_BAO_NAME)).toEqual([]);
+      expect(await indexColumns()).toEqual([
+        'tai_khoan_id',
+        'thoi_diem_tao',
+        'thong_bao_id',
+      ]);
+      const upState = await showThongBao();
+      const queryRunner = dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+        await queryRunner.query(
+          "INSERT INTO thong_bao (tai_khoan_id, noi_dung, loai_su_kien, thoi_diem_tao) VALUES (900001, 'MTB10', 'MTB10', '2026-11-25 08:00:00')",
+        );
+      } finally {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+        await queryRunner.release();
+      }
+      const before = await checksum();
+
+      expect(await revertLastMigration(dataSource)).toBe(
+        CHI_MUC_THONG_BAO_NAME,
+      );
+      expect(await indexColumns()).toEqual([]);
+      expect(await showThongBao()).toContain('KEY `thong_bao_index_25`');
+      expect(await checksum()).toBe(before);
+
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        CHI_MUC_THONG_BAO_NAME,
+      ]);
+      expect(await showThongBao()).toBe(upState);
+      expect(await checksum()).toBe(before);
+      await dataSource.query(
+        "DELETE FROM thong_bao WHERE loai_su_kien = 'MTB10'",
+      );
     });
   });
 
