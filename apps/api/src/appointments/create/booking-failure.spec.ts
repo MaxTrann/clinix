@@ -136,8 +136,8 @@ describe('bookingFailureException: nhánh luật', () => {
 
   it('BCK-01 mọi mã luật đều nằm trong BOOKING_ERRORS: B7 không thêm mã nào (BCS-01)', () => {
     for (const code of RULE_CODES) expect(code in BOOKING_ERRORS).toBe(true);
-    // 22 mã có HTTP (cộng 3 mã trường là 25 của BCS-01): B7 không thêm mã nào
-    expect(Object.keys(BOOKING_ERRORS)).toHaveLength(22);
+    // 31 mã có HTTP (cộng 3 mã trường là 34 của BCS-01): 22 mã của booking, B7 không thêm mã nào; thêm 9 mã của đổi lịch (reschedule B2, KDL-xx)
+    expect(Object.keys(BOOKING_ERRORS)).toHaveLength(31);
   });
 
   it('BCK-01 phán quyết của luật thật đi qua failureOfVerdict rồi bookingFailureException ra đúng mã và chiTiet', () => {

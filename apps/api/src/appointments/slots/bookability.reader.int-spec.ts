@@ -709,3 +709,41 @@ describe('BKR-10 chế độ locked đọc trạng thái khung giờ DƯỚI kho
     expect(result).toEqual({ kind: 'SlotNotFound' });
   });
 });
+
+// reschedule B2 — KDL-21 phần I (PLAN reschedule 7.1): `thayThe` là tham số TUỲ CHỌN của reader. `checks` và `create` không truyền nên `facts` của hai nơi này giữ NGUYÊN hình dạng cũ (không có
+// khoá `thayThe`) và lịch đang hoạt động của hồ sơ vẫn tính; đổi lịch truyền `thayThe` nên lịch cũ không tính ở bước 8 và 9.
+describe('KDL-21 thayThe tuỳ chọn của BookabilityReader (checks và create không đổi hành vi)', () => {
+  it.each<BookabilityMode>(['none', 'locked'])(
+    'chế độ %s: không truyền ⇒ facts không có khoá thayThe và lịch cũ tính vào số lịch; null ⇒ như vắng; truyền ⇒ chuyển nguyên và lịch đó không tính',
+    async (mode) => {
+      const w = await world();
+      const appointment = await w.appt('DaXacNhan', 0);
+      const tight = { soLichHenToiDa: 1 };
+
+      const without = await w.read(mode, w.input(1, tight));
+      expect('thayThe' in factsOf(without)).toBe(false);
+      expect(verdictOf(without)).toBe(CODES.OVER_MAX_APPOINTMENTS);
+
+      const asNull = await w.read(
+        mode,
+        w.input(1, { ...tight, thayThe: null }),
+      );
+      expect(factsOf(asNull).thayThe).toBeNull();
+      expect(verdictOf(asNull)).toBe(CODES.OVER_MAX_APPOINTMENTS);
+
+      const replacing = await w.read(
+        mode,
+        w.input(1, {
+          ...tight,
+          thayThe: { maLichHen: appointment.maLichHen },
+        }),
+      );
+      expect(factsOf(replacing).thayThe).toEqual({
+        maLichHen: appointment.maLichHen,
+      });
+      // reader vẫn trả đủ danh sách (lịch cũ có trong đó); chính LUẬT mới loại nó
+      expect(factsOf(replacing).activeAppointments).toHaveLength(1);
+      expect(verdictOf(replacing)).toBe('ok');
+    },
+  );
+});

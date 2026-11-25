@@ -34,6 +34,17 @@ export const BOOKING_ERROR_CODES = {
   OUTSIDE_CHECK_IN_WINDOW: 'NGOAI_KHUNG_GIO_TIEP_DON',
   CHECK_IN_WINDOW_NOT_OVER: 'CHUA_QUA_GIO_HEN',
   SYSTEM_BUSY: 'HE_THONG_DANG_BAN', // [đề xuất] mã thứ 25, duyệt 09/11/2026: hết lượt thử lại 1213/1205 (booking-transaction.ts), thay cho 500
+  // Chín mã của ĐỔI LỊCH (reschedule B2; PLAN reschedule 5.13). [đề xuất] chữ và mã, Q13 duyệt ở PR. Hai mã của yêu cầu đổi lịch (`YEU_CAU_DOI_LICH_KHONG_TON_TAI`,
+  // `YEU_CAU_DA_XU_LY`) thuộc B5, B8, B9 nên chưa khai ở đây.
+  NOT_RESCHEDULABLE: 'LICH_HEN_KHONG_CHO_DOI',
+  RESCHEDULE_TOO_LATE: 'LICH_HEN_DA_QUA_GIO',
+  SAME_AS_CURRENT_SLOT: 'KHUNG_GIO_TRUNG_LICH_CU',
+  OTHER_DOCTOR_SLOT: 'KHUNG_GIO_KHAC_BAC_SI',
+  SERVICE_CHANGED: 'LICH_HEN_KHAC_DICH_VU_HIEN_TAI',
+  BRANCH_CHANGED: 'LICH_HEN_KHAC_CHI_NHANH_HIEN_TAI',
+  RESCHEDULE_CHAIN_TOO_LONG: 'CHUOI_DOI_LICH_QUA_DAI',
+  OVER_SELF_RESCHEDULE_LIMIT: 'VUOT_SO_LAN_TU_DOI',
+  RESCHEDULE_REQUEST_PENDING: 'DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET',
 } as const;
 
 export type BookingErrorCode =
@@ -149,6 +160,49 @@ export const BOOKING_ERRORS: Record<BookingErrorCode, BookingErrorSpec> = {
     status: 503,
     thongBao:
       'Hệ thống đang xử lý nhiều yêu cầu cùng lúc. Vui lòng thử lại sau ít giây.',
+  },
+  LICH_HEN_KHONG_CHO_DOI: {
+    status: 409,
+    thongBao:
+      'Lịch hẹn này hiện không thể đổi. Chỉ lịch đã xác nhận mới đổi được.',
+  },
+  LICH_HEN_DA_QUA_GIO: {
+    status: 409,
+    thongBao: 'Đã quá giờ hẹn nên không thể đổi lịch.',
+  },
+  KHUNG_GIO_TRUNG_LICH_CU: {
+    status: 409,
+    thongBao:
+      'Bạn đang chọn đúng khung giờ hiện tại. Vui lòng chọn khung giờ khác.',
+  },
+  KHUNG_GIO_KHAC_BAC_SI: {
+    status: 409,
+    thongBao:
+      'Chỉ đổi được sang khung giờ của cùng bác sĩ. Muốn đổi bác sĩ, vui lòng huỷ và đặt lại.',
+  },
+  LICH_HEN_KHAC_DICH_VU_HIEN_TAI: {
+    status: 409,
+    thongBao:
+      'Bác sĩ đã thay đổi dịch vụ so với lúc đặt. Vui lòng huỷ và đặt lịch mới.',
+  },
+  LICH_HEN_KHAC_CHI_NHANH_HIEN_TAI: {
+    status: 409,
+    thongBao:
+      'Bác sĩ đã thay đổi chi nhánh so với lúc đặt. Vui lòng huỷ và đặt lịch mới.',
+  },
+  CHUOI_DOI_LICH_QUA_DAI: {
+    status: 409,
+    thongBao:
+      'Lịch hẹn này đã đổi quá nhiều lần. Vui lòng huỷ và đặt lịch mới.',
+  },
+  VUOT_SO_LAN_TU_DOI: {
+    status: 409,
+    thongBao:
+      'Bạn đã dùng hết số lần tự đổi. Hãy nhập lý do để gửi yêu cầu cho lễ tân.',
+  },
+  DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET: {
+    status: 409,
+    thongBao: 'Lịch hẹn này đã có yêu cầu đổi lịch đang chờ duyệt.',
   },
 };
 

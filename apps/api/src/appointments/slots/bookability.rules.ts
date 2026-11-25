@@ -63,6 +63,11 @@ export interface BookabilityFacts {
   soLichHenToiDa: number;
   /** Lịch đang hoạt động của hồ sơ đi khám chồng giờ khung giờ này (`findOverlappingAppointments`) */
   overlaps: readonly OverlappingAppointment[];
+  /**
+   * Lịch ĐANG ĐỔI (reschedule B2, Q7 (e)): lúc kiểm, lịch cũ vẫn `DaXacNhan` nên KHÔNG được tính vào số lịch đang hoạt động (bước 8) và chồng giờ (bước 9), nếu không đổi sang
+   * khung giờ lân cận bị từ chối oan. TUỲ CHỌN: vắng hoặc `null` là hành vi cũ của `checks` và `create` (hai nơi này không truyền).
+   */
+  thayThe?: { maLichHen: string } | null;
 }
 
 export type BookabilityVerdict =
@@ -103,6 +108,7 @@ const reject = (
  *  6. nghỉ phép; 7. vùng bị loại bởi thay đổi chi nhánh đã duyệt; 8. số lịch đang hoạt động; 9. trùng, chồng lấn.
  * Lịch CHỦ đã hết hạn của chính khung giờ này (hết hạn lười) KHÔNG tính ở bước 8 và 9, nếu không người vừa để hết hạn rồi đặt lại đúng khung giờ đó bị từ chối oan (TRACKING 3.14 câu (i));
  * lịch `ChoThanhToan` hết hạn của khung giờ KHÁC vẫn tính (Q4: còn có thể được xác nhận trễ).
+ * Đổi lịch (reschedule B2): lịch ĐANG ĐỔI (`facts.thayThe`) cũng không tính ở hai bước đó, còn lịch khác của cùng hồ sơ thì vẫn tính.
  */
 export function evaluateBookability(
   facts: BookabilityFacts,
@@ -161,7 +167,9 @@ export function evaluateBookability(
 
   // 8, 9. Hồ sơ đi khám (Q12, Q10); loại lịch chủ hết hạn của chính khung giờ này
   const ownHolder = lapsedHold?.maLichHen ?? null;
-  const counted = (maLichHen: string) => maLichHen !== ownHolder;
+  const replaced = facts.thayThe?.maLichHen ?? null;
+  const counted = (maLichHen: string) =>
+    maLichHen !== ownHolder && maLichHen !== replaced;
   const activeCount = facts.activeAppointments.filter((a) =>
     counted(a.maLichHen),
   ).length;

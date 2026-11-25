@@ -499,3 +499,185 @@ describe('BKA-11 tính thuần (H8)', () => {
     expect(early).toEqual({ ok: true, lapsedHold: null });
   });
 });
+
+// reschedule B2 — KDL-10, KDL-11, KDL-21 (phần U; PLAN reschedule 7.1): `facts.thayThe` loại lịch ĐANG ĐỔI khỏi số lịch đang hoạt động (bước 8) và chồng giờ (bước 9) của CHÍNH luật
+// đặt lịch, còn mọi lịch KHÁC của cùng hồ sơ vẫn tính. Mỗi ca đều có cặp "có `thayThe`" và "không có `thayThe`" (hành vi cũ của `checks` và `create`).
+describe('KDL-10 thayThe: số lịch đang hoạt động (Q7 (e), L13)', () => {
+  const active = (...codes: string[]) =>
+    codes.map((maLichHen) => ({ maLichHen }));
+  const replacing = (maLichHen: string) => ({ thayThe: { maLichHen } });
+
+  it('có thayThe: đủ tối đa nhưng một trong số đó là lịch đang đổi ⇒ đạt (biên: toiDa − 1 lịch khác)', () => {
+    const facts = bookabilityFacts({
+      soLichHenToiDa: 3,
+      activeAppointments: active('OLD', 'A', 'B'),
+      ...replacing('OLD'),
+    });
+    expect(evaluateBookability(facts)).toEqual({ ok: true, lapsedHold: null });
+  });
+
+  it('có thayThe: toiDa lịch KHÁC vẫn bị chặn kèm chiTiet.toiDa, dù lịch đang đổi có hay không có trong danh sách', () => {
+    const blocked = {
+      ok: false,
+      code: CODES.OVER_MAX_APPOINTMENTS,
+      chiTiet: { toiDa: 3 },
+    };
+    expect(
+      evaluateBookability(
+        bookabilityFacts({
+          activeAppointments: active('OLD', 'A', 'B', 'C'),
+          ...replacing('OLD'),
+        }),
+      ),
+    ).toEqual(blocked);
+    expect(
+      evaluateBookability(
+        bookabilityFacts({
+          activeAppointments: active('A', 'B', 'C'),
+          ...replacing('OLD'),
+        }),
+      ),
+    ).toEqual(blocked);
+  });
+
+  it('thayThe chỉ loại ĐÚNG lịch có mã đó: mã khác trong danh sách vẫn tính', () => {
+    expect(
+      verdictOf(
+        bookabilityFacts({
+          activeAppointments: active('A', 'B', 'C'),
+          ...replacing('KHAC'),
+        }),
+      ),
+    ).toBe(CODES.OVER_MAX_APPOINTMENTS);
+  });
+
+  it('không thayThe (vắng hoặc null): cùng danh sách bị chặn như hành vi cũ', () => {
+    const list = active('OLD', 'A', 'B');
+    expect(verdictOf(bookabilityFacts({ activeAppointments: list }))).toBe(
+      CODES.OVER_MAX_APPOINTMENTS,
+    );
+    expect(
+      verdictOf(bookabilityFacts({ activeAppointments: list, thayThe: null })),
+    ).toBe(CODES.OVER_MAX_APPOINTMENTS);
+  });
+
+  it('thayThe và lịch chủ hết hạn của chính khung giờ cùng được loại, độc lập nhau', () => {
+    const facts = bookabilityFacts({
+      slot: {
+        khungGioId: '10',
+        ngayGio: FACTS_SLOT_START,
+        trangThai: 'DangGiuCho',
+        giuChoDen: secondsFrom(FACTS_NOW, -60),
+      },
+      slotHolder: { lichHenId: '77', maLichHen: 'HOLDER' },
+      soLichHenToiDa: 2,
+      activeAppointments: active('OLD', 'HOLDER', 'A'),
+      ...replacing('OLD'),
+    });
+    // còn lại đúng một lịch tính (A) < 2
+    expect(verdictOf(facts)).toBe('ok');
+    expect(
+      verdictOf({
+        ...facts,
+        activeAppointments: active('OLD', 'HOLDER', 'A', 'B'),
+      }),
+    ).toBe(CODES.OVER_MAX_APPOINTMENTS);
+  });
+});
+
+describe('KDL-11 thayThe: chồng giờ (Q7 (e))', () => {
+  const overlap = (
+    maLichHen: string,
+    thoiGian = '2026-11-10T01:00:00.000Z',
+  ) => ({ maLichHen, thoiGian });
+  const replacing = (maLichHen: string) => ({ thayThe: { maLichHen } });
+
+  it('có thayThe: chỉ chồng chính lịch đang đổi (dịch 15 phút trong dịch vụ 30 phút) ⇒ đạt', () => {
+    expect(
+      verdictOf(
+        bookabilityFacts({ overlaps: [overlap('OLD')], ...replacing('OLD') }),
+      ),
+    ).toBe('ok');
+  });
+
+  it('có thayThe: chồng một lịch KHÁC của cùng hồ sơ vẫn bị chặn, dù có kèm lịch đang đổi (thứ tự nào cũng báo lịch khác)', () => {
+    const expected = {
+      ok: false,
+      code: CODES.OVERLAPPING_APPOINTMENT,
+      chiTiet: { maLichHen: 'KHAC', thoiGian: '2026-11-10T02:00:00.000Z' },
+    };
+    const other = overlap('KHAC', '2026-11-10T02:00:00.000Z');
+    expect(
+      evaluateBookability(
+        bookabilityFacts({ overlaps: [other], ...replacing('OLD') }),
+      ),
+    ).toEqual(expected);
+    expect(
+      evaluateBookability(
+        bookabilityFacts({
+          overlaps: [overlap('OLD'), other],
+          ...replacing('OLD'),
+        }),
+      ),
+    ).toEqual(expected);
+    expect(
+      evaluateBookability(
+        bookabilityFacts({
+          overlaps: [other, overlap('OLD')],
+          ...replacing('OLD'),
+        }),
+      ),
+    ).toEqual(expected);
+  });
+
+  it('không thayThe (vắng hoặc null): chồng chính lịch cũ bị chặn như hành vi cũ', () => {
+    expect(verdictOf(bookabilityFacts({ overlaps: [overlap('OLD')] }))).toBe(
+      CODES.OVERLAPPING_APPOINTMENT,
+    );
+    expect(
+      verdictOf(
+        bookabilityFacts({ overlaps: [overlap('OLD')], thayThe: null }),
+      ),
+    ).toBe(CODES.OVERLAPPING_APPOINTMENT);
+  });
+});
+
+describe('KDL-21 checks và create không đổi hành vi: thayThe vắng, null và mã không khớp cho cùng kết luận', () => {
+  const active = (...codes: string[]) =>
+    codes.map((maLichHen) => ({ maLichHen }));
+  const overlap = { maLichHen: 'A', thoiGian: '2026-11-10T01:00:00.000Z' };
+
+  const variants: [string, BookabilityFacts][] = [
+    ['đạt', bookabilityFacts()],
+    [
+      'quá số lịch',
+      bookabilityFacts({ activeAppointments: active('A', 'B', 'C') }),
+    ],
+    ['chồng giờ', bookabilityFacts({ overlaps: [overlap] })],
+    ['bị khoá no-show', bookabilityFacts({ noShowLocked: true })],
+    [
+      'khung giờ đã đặt',
+      bookabilityFacts({
+        slot: {
+          khungGioId: '10',
+          ngayGio: FACTS_SLOT_START,
+          trangThai: 'DaDat',
+          giuChoDen: null,
+        },
+      }),
+    ],
+  ];
+
+  it.each(variants)(
+    '%s: bỏ khoá thayThe, thayThe null, hay thayThe trỏ lịch không có trong danh sách đều ra ĐÚNG kết quả của facts gốc',
+    (_name, facts) => {
+      const original = evaluateBookability(facts);
+      expect(evaluateBookability({ ...facts, thayThe: null })).toEqual(
+        original,
+      );
+      expect(
+        evaluateBookability({ ...facts, thayThe: { maLichHen: 'KHONG-CO' } }),
+      ).toEqual(original);
+    },
+  );
+});
