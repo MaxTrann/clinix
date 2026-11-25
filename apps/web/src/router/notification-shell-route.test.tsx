@@ -45,7 +45,30 @@ const unreadCalls = () =>
 beforeEach(() => {
   resetAuthForTest();
   api = createFakeAuthApi();
-  vi.stubGlobal('fetch', vi.fn(api.fetch));
+  // notification F2: trang thật gọi `GET /notifications`; trả trang rỗng (fake auth chỉ biết `unread-count`, đường dẫn lạ không token là 401 ⇒ bị đăng xuất)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).split('?')[0] === '/api/notifications') {
+        api.requests.push({
+          path: '/notifications',
+          method: 'GET',
+          headers: new Headers(init?.headers),
+        });
+        return new Response(
+          JSON.stringify({
+            items: [],
+            total: 0,
+            page: 1,
+            pageSize: 20,
+            soChuaDoc: api.unreadCount,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      return api.fetch(input, init);
+    }),
+  );
   Object.defineProperty(navigator, 'locks', {
     configurable: true,
     value: undefined,
