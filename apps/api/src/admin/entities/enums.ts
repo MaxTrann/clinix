@@ -88,6 +88,10 @@ export const TRANG_THAI_EMAIL_THONG_BAO = [
 export type TrangThaiEmailThongBao =
   (typeof TRANG_THAI_EMAIL_THONG_BAO)[number];
 
+// `nhac_lich_hen.trang_thai` (notification P1). Không có `BoQua` như email_thong_bao: nhắc lịch hết lần thử thì giữ ThatBai.
+export const TRANG_THAI_NHAC_LICH_HEN = ['ChoGui', 'DaGui', 'ThatBai'] as const;
+export type TrangThaiNhacLichHen = (typeof TRANG_THAI_NHAC_LICH_HEN)[number];
+
 // Bản sao ĐỦ ENUM `nhat_ky_hanh_dong.hanh_dong` của DB (audit-enum-parity so tập hợp ba nguồn); `DoiLichHo` thêm ở reschedule P1,
 // luật kiểm của nó ở `audit/` là việc của reschedule P2.
 export const HANH_DONG_NHAY_CAM = [
