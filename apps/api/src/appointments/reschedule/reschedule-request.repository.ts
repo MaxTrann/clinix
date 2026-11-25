@@ -2,7 +2,18 @@ import { Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import type { TrangThaiYeuCauDoiLich } from '../../admin/entities/enums.js';
 import { toSecond } from '../../common/time/time.js';
+import type { ListOrder } from '../lists/list-query.sql.js';
 import { parseVnDateTime } from '../slots/slot-lock.js';
+import {
+  buildCountSql,
+  buildDetailSql,
+  buildPageSql,
+} from './reschedule-request-list.sql.js';
+import type {
+  RescheduleRequestDetailRow,
+  RescheduleRequestFilter,
+  RescheduleRequestItemRow,
+} from './reschedule-request-list.types.js';
 import type { LatestRescheduleRequest } from './reschedule-request.types.js';
 
 // SQL của bảng `yeu_cau_doi_lich_ngoai_chinh_sach` cho việc TẠO yêu cầu và đọc yêu cầu mới nhất của một lịch (reschedule B5; PLAN reschedule 5.7). Nhận `em` của người gọi, KHÔNG mở giao dịch, không log
@@ -68,5 +79,45 @@ export class RescheduleRequestRepository {
       ghiChuXuLy: row.ghiChuXuLy,
       thoiDiemTao: parseVnDateTime(row.thoiDiemTao),
     };
+  }
+
+  // ───────────────────────── Đọc cho nhân sự (reschedule B8; PLAN reschedule 5.7) ─────────────────────────
+  // CHỈ ĐỌC (SELECT), không khoá, không log. Câu SQL do `reschedule-request-list.sql.ts` dựng (hàm thuần, kiểm riêng); người gọi truyền `em` của MỘT lần `runReadOnly` nên đếm, trang và chi tiết cùng
+  // ảnh chụp. Bộ lọc phạm vi nằm TRONG SQL (H10). B9 (duyệt, từ chối) đọc yêu cầu bằng `findDetail` này, không viết câu thứ hai.
+
+  /** Số yêu cầu khớp bộ lọc (tổng các nhánh theo trạng thái). `SUM` của MySQL là DECIMAL nên ra chuỗi. */
+  async countByStates(
+    em: EntityManager,
+    filter: RescheduleRequestFilter,
+  ): Promise<number> {
+    const { sql, params } = buildCountSql(filter);
+    const rows = await em.query<{ total: string | number }[]>(sql, params);
+    return Number(rows[0]?.total ?? 0);
+  }
+
+  /** Một trang theo `thoi_diem_tao` (chiều do người gọi chọn). `limit` và `offset` đã kiểm (`PageQueryDto`) và `offset < total` (service). */
+  async findPage(
+    em: EntityManager,
+    filter: RescheduleRequestFilter,
+    order: ListOrder,
+    limit: number,
+    offset: number,
+  ): Promise<RescheduleRequestItemRow[]> {
+    const { sql, params } = buildPageSql(filter, order, limit, offset);
+    return em.query<RescheduleRequestItemRow[]>(sql, params);
+  }
+
+  /**
+   * Chi tiết MỘT yêu cầu theo khoá chính, hoặc `null`. `chiNhanhId` là kết quả của `BranchAccessPolicy.branchFilter` (`undefined` = không lọc chi nhánh): yêu cầu ngoài phạm vi và yêu cầu không
+   * tồn tại cùng ra `null`, không có nhánh nào chạy sau khi thấy hàng của chi nhánh khác. `yeuCauId` đã qua `parseRescheduleRequestId`. Hàng có thêm `lichHenId`, `khungGioMongMuonId` cho B9 (không ra JSON).
+   */
+  async findDetail(
+    em: EntityManager,
+    chiNhanhId: string | undefined,
+    yeuCauId: string,
+  ): Promise<RescheduleRequestDetailRow | null> {
+    const { sql, params } = buildDetailSql(chiNhanhId, yeuCauId);
+    const rows = await em.query<RescheduleRequestDetailRow[]>(sql, params);
+    return rows[0] ?? null;
   }
 }
