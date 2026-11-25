@@ -275,3 +275,66 @@ describe('ô lý do bắt buộc 5 đến 500 (WDH-04, WDH-33)', () => {
     expect(field()).not.toHaveAttribute('maxlength');
   });
 });
+
+// reschedule F3, mã ca WDO-07 [đề xuất]: cùng thành phần dùng chung với `reason.unit = 'utf16'` (Lễ tân đổi hộ, 1 đến 255 đơn vị UTF-16, đúng máy chủ B7). F4 (xử lý yêu cầu) dùng lại cùng tham số.
+describe('ô lý do theo đơn vị UTF-16 (WDO-07)', () => {
+  const STAFF = {
+    label: RESCHEDULE_TEXT.reasonLabel,
+    hint: RESCHEDULE_TEXT.reasonHint,
+    min: 1,
+    max: 255,
+    unit: 'utf16' as const,
+  };
+  const staffRange = RESCHEDULE_TEXT.reasonRange(1, 255);
+
+  it('WDO-07 127 biểu tượng và một chữ (255 đơn vị) ⇒ gửi được với chữ đúng như đã gõ (không NFC)', () => {
+    const { onSubmit } = setup({ reason: STAFF });
+    type(`${EMOJI.repeat(127)}a`);
+    submit();
+    expect(onSubmit).toHaveBeenCalledWith(`${EMOJI.repeat(127)}a`);
+  });
+
+  it('WDO-07 128 biểu tượng (256 đơn vị) ⇒ báo lỗi NGAY, bộ đếm 256/255, KHÔNG gọi `onSubmit`; luật điểm mã mặc định thì cho qua (đối chứng)', () => {
+    const { onSubmit, unmount } = setup({ reason: STAFF });
+    type(EMOJI.repeat(128));
+    expect(screen.getByRole('alert')).toHaveTextContent(staffRange);
+    expect(
+      screen.getByText(RESCHEDULE_TEXT.reasonCount(256, 255)),
+    ).toBeInTheDocument();
+    submit();
+    expect(onSubmit).not.toHaveBeenCalled();
+    unmount();
+
+    const other = setup({
+      reason: { ...STAFF, unit: undefined, min: 1, max: 255 },
+    });
+    type(EMOJI.repeat(128));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(
+      screen.getByText(RESCHEDULE_TEXT.reasonCount(128, 255)),
+    ).toBeInTheDocument();
+    submit();
+    expect(other.onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('WDO-07 chỉ U+00A0 ⇒ chưa đủ 1 (bị cắt); Tab giữa chữ hợp lệ (máy chủ không cấm)', () => {
+    const { onSubmit } = setup({ reason: STAFF });
+    type(`${NBSP}${NBSP}`);
+    submit();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(staffRange);
+    type('Bận	đột xuất');
+    submit();
+    expect(onSubmit).toHaveBeenCalledWith('Bận	đột xuất');
+  });
+
+  it('WDO-07 chữ "é" dạng tổ hợp: 127 lần qua, 128 lần bị chặn (không chuẩn hoá NFC khi đếm)', () => {
+    const { onSubmit } = setup({ reason: STAFF });
+    type(`e${ACUTE}`.repeat(128));
+    submit();
+    expect(onSubmit).not.toHaveBeenCalled();
+    type(`e${ACUTE}`.repeat(127));
+    submit();
+    expect(onSubmit).toHaveBeenCalledWith(`e${ACUTE}`.repeat(127));
+  });
+});

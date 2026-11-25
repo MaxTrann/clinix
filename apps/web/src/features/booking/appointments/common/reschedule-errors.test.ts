@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError, NetworkError } from '../../../../../shared/api/errors';
+import { ApiError, NetworkError } from '../../../../shared/api/errors';
 import {
   RESCHEDULE_ERROR_CODES,
   RESCHEDULE_NOT_ALLOWED_MESSAGE,

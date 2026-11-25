@@ -9,8 +9,8 @@ import {
   type DetailErrorKind,
 } from '../../common/error-kinds';
 import { LIST_TEXT } from '../list-messages';
-import { useOneShotNotice } from '../reschedule/reschedule-notice-state';
-import { RESCHEDULE_TEXT } from '../reschedule/reschedule-text';
+import { useOneShotNotice } from '../../common/reschedule-notice-state';
+import { RESCHEDULE_TEXT } from '../../common/reschedule-text';
 import { CancelSection } from './cancel-section';
 import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
 import { StatusTimeline } from '../../common/status-timeline';

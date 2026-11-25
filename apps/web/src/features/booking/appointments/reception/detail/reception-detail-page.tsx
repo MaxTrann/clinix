@@ -10,6 +10,7 @@ import {
 import { DetailFailure } from '../../common/detail-failure';
 import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
 import { readListSearch } from '../../common/list-search';
+import { useOneShotNotice } from '../../common/reschedule-notice-state';
 import { ActionNotice } from './action-notice';
 import { CancelDialog } from './cancel-dialog';
 import { DETAIL_TEXT } from './detail-messages';
@@ -21,6 +22,9 @@ import {
 } from './detail-sections';
 import { NoShowDialog } from './no-show-dialog';
 import { ReceptionActions } from './reception-actions';
+import { ReceptionRescheduleDoneNotice } from './reception-reschedule-done-notice';
+import { ReceptionRescheduleAction } from './reception-reschedule-action';
+import { showsRescheduleAction } from './reception-reschedule-visibility';
 import { useReceptionActions } from './use-reception-actions';
 import { useReceptionDetail } from './use-reception-detail';
 
@@ -28,8 +32,12 @@ import { useReceptionDetail } from './use-reception-detail';
 // và Quản trị viên (UI-12): `Quay lại danh sách` (kèm `search` của danh sách để khôi phục bộ lọc, KHÔNG có `q`), h1 `Chi tiết lịch hẹn`, thẻ đầu (mã, chip, chuyên khoa, bốn ô), rồi lưới hai cột: bên trái
 // `Thông tin bệnh nhân` và `Thông tin lịch hẹn`; bên phải `Chi phí & Thanh toán` và thẻ `Thao tác` (Tiếp đón, Vắng mặt, Hủy lịch theo `chuyenDuoc[]`; `Thu tiền & tiếp đón` vô hiệu). Nội dung từ MỘT nguồn là
 // chi tiết. Hộp huỷ và hộp vắng mặt là modal DUY NHẤT của trang (mỗi hộp một `useModalDialog`). Mã lịch hiện ngay (dưới h1) khi chi tiết chưa về; khi đã về, mã nằm ở thẻ đầu.
+// Thông báo một lần mà trang này nhận (reschedule F3): đổi lịch hộ xong, đang ở chi tiết lịch MỚI. Hằng cấp module: danh sách không dựng lại mỗi lần vẽ.
+const ACCEPTED_NOTICES = ['DaDoi'] as const;
+
 export function ReceptionDetailPage({ maLichHen }: { maLichHen: string }) {
   const location = useLocation();
+  const doneNotice = useOneShotNotice(ACCEPTED_NOTICES);
   // h1 nhận tiêu điểm bằng mã khi nút đã mở hộp biến mất (409, 404...): chỗ trả tiêu điểm cuối cùng của trang
   const headingRef = useRef<HTMLHeadingElement>(null);
   const { view, reload } = useReceptionDetail(maLichHen);
@@ -78,6 +86,7 @@ export function ReceptionDetailPage({ maLichHen }: { maLichHen: string }) {
       )}
       {ready !== null && (
         <div className="mt-5 flex flex-col gap-4">
+          {doneNotice === 'DaDoi' && <ReceptionRescheduleDoneNotice />}
           {/* Kết quả hay lỗi của thao tác sau khi hộp đã đóng (và của `Tiếp đón`, không có hộp); hộp mở thì lỗi hiện trong hộp */}
           {dialog === null && (
             <ActionNotice
@@ -102,6 +111,14 @@ export function ReceptionDetailPage({ maLichHen }: { maLichHen: string }) {
                   handlers={actions.handlers}
                   busy={actions.busy}
                   sending={actions.sendingCheckIn}
+                  reschedule={
+                    showsRescheduleAction(ready.data) ? (
+                      <ReceptionRescheduleAction
+                        detail={ready.data}
+                        busy={actions.busy}
+                      />
+                    ) : null
+                  }
                   onCollect={(trigger) => {
                     collectTriggerRef.current = trigger;
                     setCollecting(true);

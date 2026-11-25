@@ -2,8 +2,8 @@ import { useId } from 'react';
 import { Link } from 'react-router';
 import { patientAppointmentReschedulePath } from '../../../../../shared/routes/booking-paths';
 import type { PatientAppointmentDetail } from '../api/patient-appointment-types';
-import { RESCHEDULE_NOT_ALLOWED_MESSAGE } from '../reschedule/reschedule-errors';
-import { RESCHEDULE_TEXT } from '../reschedule/reschedule-text';
+import { RESCHEDULE_NOT_ALLOWED_MESSAGE } from '../../common/reschedule-errors';
+import { RESCHEDULE_TEXT } from '../../common/reschedule-text';
 import { useReschedulePreview } from '../reschedule/use-reschedule-preview';
 import { isStillAlive } from './reschedule-alive';
 

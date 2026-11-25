@@ -19,6 +19,7 @@ import {
   RECEPTION_CODE,
   renderReceptionPage,
 } from '../../../testing/reception-harness';
+import { RECEPTION_RESCHEDULE_TEXT } from '../reschedule/reception-reschedule-text';
 import { DETAIL_TEXT } from './detail-messages';
 
 // booking F12b: TRANG chi tiết lịch hẹn của Lễ tân (F8, F9 làm NGĂN kéo: file này thay `reception-drawer.test.tsx`; Đại đổi thành trang 14/11/2026, TRACKING 3.42 câu (h)). Mã LTC là [đề xuất] (PLAN booking mục 7.34)
@@ -33,16 +34,19 @@ const DETAIL_PATH = `/reception/appointments/${CODE}`;
 const group = (page: HTMLElement) =>
   within(page).queryByRole('group', { name: DETAIL_TEXT.sections.actions });
 
-// Nhãn các nút trong nhóm `Thao tác` theo thứ tự, bỏ chữ ẩn "(chưa được triển khai)" và chữ phụ của nút `Thu tiền`
+// Nhãn các nút TRẠNG THÁI trong nhóm `Thao tác` theo thứ tự, bỏ chữ ẩn "(chưa được triển khai)" và chữ phụ của nút `Thu tiền`. reschedule F3: nút "Đổi lịch hộ" (liên kết, hay nút vô hiệu khi `choPhepDoiLich = false`)
+// KHÔNG phải thao tác trạng thái của `chuyenDuoc[]` nên không tính ở đây (nó có ca riêng WDO-01 ở `reception-reschedule-action.test.tsx`); nhóm chỉ có liên kết đó thì không có nút nào.
 const actionLabels = (page: HTMLElement) => {
   const box = group(page);
-  const buttons = box ? within(box).getAllByRole('button') : [];
-  return buttons.map((button) =>
-    (button.textContent ?? '').replace(
-      ` ${DETAIL_TEXT.notImplementedHidden}`,
-      '',
-    ),
-  );
+  const buttons = box ? within(box).queryAllByRole('button') : [];
+  return buttons
+    .map((button) =>
+      (button.textContent ?? '').replace(
+        ` ${DETAIL_TEXT.notImplementedHidden}`,
+        '',
+      ),
+    )
+    .filter((label) => label !== RECEPTION_RESCHEDULE_TEXT.changeButton);
 };
 
 describe('mở trang và tải chi tiết', () => {
@@ -128,6 +132,7 @@ describe('mở trang và tải chi tiết', () => {
     expect(page).toHaveTextContent('08:00');
     expect(page).toHaveTextContent('18/10/2026');
     expect(page).toHaveTextContent('Đã xác nhận');
+    // reschedule F3: "Đổi lịch hộ" từng nằm trong danh sách "KHÔNG có" của F8 (chưa làm); nay là nút có thật ở thẻ `Thao tác` (WDO-01), không còn là chữ vắng mặt
 
     for (const absent of [
       'Email',
@@ -136,7 +141,6 @@ describe('mở trang và tải chi tiết', () => {
       'Tại quầy',
       'Đã thanh toán',
       'Đã đặt cọc',
-      'Đổi lịch hộ',
     ]) {
       expect(within(page).queryByText(new RegExp(absent))).toBeNull();
     }

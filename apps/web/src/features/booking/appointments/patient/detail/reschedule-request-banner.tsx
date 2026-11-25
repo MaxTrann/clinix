@@ -4,7 +4,7 @@ import {
   formatVietnamWeekdayDate,
 } from '../../common/appointment-format';
 import type { PatientAppointmentDetail } from '../api/patient-appointment-types';
-import { RESCHEDULE_TEXT } from '../reschedule/reschedule-text';
+import { RESCHEDULE_TEXT } from '../../common/reschedule-text';
 import { isStillAlive } from './reschedule-alive';
 
 const TONE = {

@@ -29,7 +29,7 @@ import {
   becomePendingRequest,
 } from '../../../testing/reschedule-confirm-helpers';
 import { DETAIL_TEXT } from '../detail/detail-messages';
-import { RESCHEDULE_TEXT } from './reschedule-text';
+import { RESCHEDULE_TEXT } from '../../common/reschedule-text';
 
 // reschedule F1, mã ca WDH-23 [đề xuất] (PLAN reschedule 7.11): hai route mới đi qua ứng dụng thật (`createAppRoutes`) với API giả. Route nằm trong mảng `PATIENT_APPOINTMENT_ROUTES`
 // (không chạm `router/`). Đúng vai, sai vai, khách, nút ở chi tiết dẫn tới trang chọn, chọn ô tới màn xác nhận, tải lại. Dữ liệu giả.

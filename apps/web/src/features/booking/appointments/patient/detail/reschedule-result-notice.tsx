@@ -1,4 +1,4 @@
-import { RESCHEDULE_TEXT } from '../reschedule/reschedule-text';
+import { RESCHEDULE_TEXT } from '../../common/reschedule-text';
 
 // Thông báo MỘT LẦN sau khi gửi đổi lịch (reschedule F2; WDH-05, WDH-41): đã đổi (đang ở chi tiết lịch MỚI) hay đã gửi yêu cầu (đang ở chi tiết lịch CŨ, banner thường trực nằm ngay dưới). Dữ liệu đến từ
 // `location.state` đã qua bộ đọc danh sách trắng của `reschedule-notice-state.ts`; chữ cố định, không có chữ của máy chủ.
