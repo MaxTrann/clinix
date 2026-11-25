@@ -357,7 +357,8 @@ describe('khung Lễ tân', () => {
     expect(lookup).toHaveAttribute('href', RECEPTION_PATHS.lookup);
     // "Tra cứu bệnh nhân" (F2), "Thông tin cá nhân" (F4), "Lịch làm việc bác sĩ" (doctor F5) và "Quản lý lịch hẹn" (booking F8) có trang; năm mục còn lại vô hiệu (KG-04).
     // Đổi có duyệt ở patient F4, doctor F5, booking F8; notification F1 mở thêm "Thông báo" (5 liên kết, 4 nút vô hiệu).
-    expect(within(menu).getAllByRole('link')).toHaveLength(5);
+    // reschedule F4 (WXD-01, Đại và phiên kiểm duyệt 25/11/2026) mở thêm "Yêu cầu đổi lịch": 6 liên kết, 3 nút vô hiệu.
+    expect(within(menu).getAllByRole('link')).toHaveLength(6);
     const appointments = within(menu).getByRole('link', {
       name: 'Quản lý lịch hẹn',
     });
@@ -369,7 +370,7 @@ describe('khung Lễ tân', () => {
     expect(profile).toHaveAttribute('href', RECEPTION_PATHS.profile);
     expect(profile).not.toHaveAttribute('aria-current');
     const disabled = within(menu).getAllByRole('button');
-    expect(disabled).toHaveLength(4);
+    expect(disabled).toHaveLength(3);
     for (const button of disabled) expect(button).toBeDisabled();
     // Figma `483:2`: cuối thanh bên chỉ có nút Đăng xuất
     expect(screen.queryByRole('link', { name: 'Về trang chủ' })).toBeNull();
@@ -560,6 +561,8 @@ describe('khung Lễ tân', () => {
       'Tra cứu bệnh nhân',
       // Đổi có duyệt ở doctor F5: "Lịch làm việc bác sĩ" có trang, đứng giữa hai mục trên theo thứ tự menu Figma
       'Lịch làm việc bác sĩ',
+      // Đổi ở reschedule F4: "Yêu cầu đổi lịch" có trang, đứng sau "Lịch làm việc bác sĩ" và trước "Thông báo" theo thứ tự menu Figma
+      'Yêu cầu đổi lịch',
       // Đổi ở notification F1: "Thông báo" là liên kết theo thứ tự menu; chuông (liên kết chỉ có biểu tượng, tên truy cập ở `aria-label`) đứng trước nút Đăng xuất của thanh trên
       'Thông báo',
       'Thông tin cá nhân',
