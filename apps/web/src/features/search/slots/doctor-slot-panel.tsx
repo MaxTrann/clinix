@@ -1,5 +1,5 @@
 import type { RemoteState } from '../../../shared/hooks/use-remote';
-import type { DoctorSlotsById } from '../api/slot-types';
+import type { DoctorSlotsById, PublicSlot } from '../api/slot-types';
 import { DoctorSlotGrid } from './doctor-slot-grid';
 import { dateLabel } from './slot-dates';
 import {
@@ -23,6 +23,8 @@ interface DoctorSlotPanelProps {
   retry: () => void;
   slotDate: Pick<SlotDate, 'date' | 'today' | 'resetToToday'>;
   variant: SlotPanelVariant;
+  // reschedule F1, TUỲ CHỌN: chuyển xuống lưới để ô `ConTrong` thành nút chọn (xem `SlotCell`); vắng ⇒ liên kết như trước
+  onSelect?: (slot: PublicSlot) => void;
 }
 
 const BUTTON =
@@ -78,6 +80,7 @@ export function DoctorSlotPanel({
   retry,
   slotDate,
   variant,
+  onSelect,
 }: DoctorSlotPanelProps) {
   const listing = variant === 'listing';
   const day = slots.status === 'ready' ? slots.data.get(bacSiId) : undefined;
@@ -103,7 +106,7 @@ export function DoctorSlotPanel({
         {/* Bộ đọc đã bảo đảm có đủ phần tử cho mọi id đã hỏi; thiếu thì coi như lỗi tải */}
         {slots.status === 'ready' &&
           (day ? (
-            <DoctorSlotGrid day={day} />
+            <DoctorSlotGrid day={day} onSelect={onSelect} />
           ) : (
             <SlotsError
               error={null}

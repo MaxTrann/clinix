@@ -17,6 +17,7 @@ import { DetailCostCard } from './detail-cost';
 import { DetailInfoCard, RecordCard } from './detail-info';
 import { DETAIL_TEXT } from './detail-messages';
 import { DetailSummary } from './detail-summary';
+import { RescheduleSection } from './reschedule-section';
 import { useAppointmentDetail } from './use-appointment-detail';
 import { useCancelBox } from './use-cancel-box';
 
@@ -112,6 +113,7 @@ function AppointmentDetail({ maLichHen }: { maLichHen: string }) {
                       notes={buildStepNotes(view.detail.moc)}
                     />
                     {rating}
+                    <RescheduleSection detail={view.detail} />
                     <CancelSection
                       detail={view.detail}
                       box={box}

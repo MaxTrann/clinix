@@ -65,8 +65,25 @@ export interface RefundSummary {
   trangThai: RefundStatus;
 }
 
-// Chi tiết = mười hai khoá của dòng danh sách + `lyDoKham`, `thanhToan`, `hoanTien` (`null` tới khi `payment`, `wallet` có), `thoiGianMayChu`, `moc` (đủ mười bảy khoá).
-// `choPhepHuy` là kết quả của CHÍNH ma trận trạng thái của backend: nút huỷ theo nó, web không có ma trận thứ hai.
+// Yêu cầu đổi lịch ngoài chính sách MỚI NHẤT của lịch (reschedule PLAN 5.8; hợp đồng giả cho tới khi B5 có mã). Ba trạng thái; `ghiChuXuLy` là ghi chú của người duyệt, `null` khi chưa xử lý.
+// Banner của trạng thái này là việc của reschedule F2; F1 chỉ dùng `ChoDuyet` để vô hiệu nút "Đổi lịch".
+export const RESCHEDULE_REQUEST_STATES = [
+  'ChoDuyet',
+  'DaDuyet',
+  'TuChoi',
+] as const;
+export type RescheduleRequestState = (typeof RESCHEDULE_REQUEST_STATES)[number];
+export interface RescheduleRequestSummary {
+  trangThai: RescheduleRequestState;
+  // ISO 8601 UTC, hiển thị theo giờ Việt Nam
+  thoiGianMongMuon: string;
+  ghiChuXuLy: string | null;
+  thoiDiemTao: string;
+}
+
+// Chi tiết = mười hai khoá của dòng danh sách + `lyDoKham`, `thanhToan`, `hoanTien` (`null` tới khi `payment`, `wallet` có), `thoiGianMayChu`, `moc`, `choPhepDoiLich`,
+// `yeuCauDoiLich` (đủ mười chín khoá; hai khoá cuối là của reschedule B5).
+// `choPhepHuy` và `choPhepDoiLich` là kết quả của CHÍNH ma trận trạng thái và bộ luật của backend: nút theo chúng, web không có ma trận thứ hai.
 export interface PatientAppointmentDetail extends PatientAppointment {
   lyDoKham: string | null;
   thanhToan: PaymentSummary | null;
@@ -75,6 +92,8 @@ export interface PatientAppointmentDetail extends PatientAppointment {
   thoiGianMayChu: string;
   // Mốc từng bước (booking B19): giờ dưới từng bước của thanh trạng thái; lịch cũ ba `null`
   moc: StatusMilestones;
+  choPhepDoiLich: boolean;
+  yeuCauDoiLich: RescheduleRequestSummary | null;
 }
 
 // Số hoàn: kiểu chuyển lên `common/refund-types.ts` ở F9 (hộp huỷ của Lễ tân dùng chung); xuất lại ở đây để các import cũ vẫn chạy
