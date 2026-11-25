@@ -1,3 +1,4 @@
+import type { EntityManager } from 'typeorm';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import type { BookingErrorCode } from '../appointments.constants.js';
 import type {
@@ -89,3 +90,71 @@ export type ReschedulabilityVerdict =
       lapsedHold: LapsedHoldRef | null;
     }
   | { ok: false; failure: RescheduleFailure };
+
+// ───────────────────────── Hợp đồng của `AppointmentRescheduleService` (reschedule B4; PLAN reschedule 5.5) ─────────────────────────
+// B6 (Bệnh nhân), B7 (Lễ tân đổi hộ) và B9 (duyệt yêu cầu) dùng NGUYÊN các kiểu dưới đây. `actor` là `RescheduleActor` của B2 (phạm vi chi nhánh; id người thao tác chỉ B7 và B9 cần cho Audit nên nằm
+// trong closure `afterWrite` của họ).
+
+/** Việc đã ghi, đưa cho `afterWrite` để B7 và B9 ghi Audit hay cập nhật yêu cầu bằng đúng thông tin của lần đổi này. Mọi id là chuỗi (BIGINT). */
+export interface RescheduleWritten {
+  lichHenCuId: string;
+  lichHenMoiId: string;
+  maLichHenCu: string;
+  maLichHenMoi: string;
+  khungGioCuId: string;
+  khungGioMoiId: string;
+  chiNhanhId: string;
+  thoiGianCu: Date;
+  thoiGianMoi: Date;
+}
+
+/**
+ * Điểm cắm của B7 (Audit `DoiLichHo`) và B9 (`UPDATE` yêu cầu `DaDuyet`, Audit `XuLyDoiLichNgoaiChinhSach`): chạy TRONG giao dịch của lần đổi, SAU `markReplaced` và TRƯỚC thông báo, bằng `em` của giao dịch
+ * (tầng 7 của thứ tự khoá: ghi nhật ký sau mọi hàng đã khoá). Ném ⇒ hoàn tác TRỌN (lịch mới, khung giờ, thông báo). Thân giao dịch có thể chạy LẠI (1213, 1205) nên hàm này không được giữ trạng thái giữa các lần.
+ */
+export type RescheduleAfterWrite = (
+  em: EntityManager,
+  written: RescheduleWritten,
+) => Promise<void>;
+
+/**
+ * Đầu vào của `AppointmentRescheduleService.reschedule`. `TuDoi` không có điểm cắm (không ghi Audit, PLAN 5.11); `DoiHo` và `DuyetYeuCau` BẮT BUỘC có `afterWrite` (quên là lỗi biên dịch). `lyDo` của đổi hộ
+ * (1 đến 255 ký tự, đã chuẩn hoá ở DTO của B7) đi vào thông báo cho Bệnh nhân (Q9); `ghiChu` của duyệt (đã chuẩn hoá ở DTO của B9) đi nguyên văn tới Bệnh nhân (Q10). Nhánh gửi YÊU CẦU khi hết lần tự đổi KHÔNG ở đây:
+ * `OverQuota` trả về và B6 chuyển sang B5.
+ */
+export type RescheduleInput = {
+  maLichHen: string;
+  khungGioMoiId: string;
+} & (
+  | { actor: Extract<RescheduleActor, { via: 'TuDoi' }> }
+  | {
+      actor: Extract<RescheduleActor, { via: 'DoiHo' }>;
+      lyDo: string;
+      afterWrite: RescheduleAfterWrite;
+    }
+  | {
+      actor: Extract<RescheduleActor, { via: 'DuyetYeuCau' }>;
+      yeuCauId: string;
+      ghiChu: string;
+      afterWrite: RescheduleAfterWrite;
+    }
+);
+
+/**
+ * Từ chối CÓ KIỂU của dịch vụ: các kiểu của bộ luật (`RescheduleFailure`, ánh xạ sang lỗi API ở `rescheduleFailureException`) cộng hai kiểu riêng của DUYỆT. Hai kiểu sau CHƯA có mã HTTP ở
+ * `appointments.constants.ts` (`YEU_CAU_DOI_LICH_KHONG_TON_TAI` 404, `YEU_CAU_DA_XU_LY` 409, PLAN 5.13): B9 thêm mã và ánh xạ.
+ */
+export type RescheduleRejection =
+  RescheduleFailure | { kind: 'RequestNotFound' } | { kind: 'RequestHandled' };
+
+export type RescheduleOutcome =
+  | {
+      kind: 'Rescheduled';
+      maLichHenCu: string;
+      maLichHenMoi: string;
+      thoiGianMoi: Date;
+    }
+  /** `TuDoi` đã dùng hết lần tự đổi (`so_lan_tu_doi_lich >= toiDa`): KHÔNG khoá, KHÔNG ghi gì. B6 có lý do thì gọi B5 tạo yêu cầu, thiếu thì 409 `VUOT_SO_LAN_TU_DOI` kèm `soLanDaDoi` và `toiDa`. */
+  | { kind: 'OverQuota'; soLanDaDoi: number; toiDa: number }
+  /** Từ chối TRƯỚC lần ghi đầu tiên (giao dịch commit rỗng hay chưa mở), hoặc lỗi đã lường trước SAU lần ghi (giao dịch đã hoàn tác trọn, đổi sang kiểu này khi đã đóng) */
+  | { kind: 'Rejected'; failure: RescheduleRejection };
