@@ -802,3 +802,17 @@ ALTER TABLE `nhat_ky_hanh_dong` MODIFY `hanh_dong` ENUM ('DoiQuyen', 'OverrideLi
 ```
 
 Kiểm tra sau chuyển đổi: `SHOW CREATE TABLE lich_hen` có cột `so_lan_tu_doi_lich` ngay sau `lich_hen_truoc_id` và CHECK `chk_lich_hen_so_lan_tu_doi`, mọi lịch cũ có giá trị 0; `SHOW CREATE TABLE thong_bao` có cột mới ngay sau `lich_hen_id`, UNIQUE `thong_bao_index_yeu_cau_doi_lich` và một khóa ngoại mới (`thong_bao_ibfk_4`); `SHOW COLUMNS FROM nhat_ky_hanh_dong LIKE 'hanh_dong'` có 27 giá trị, `DoiLichHo` cuối cùng; chèn `so_lan_tu_doi_lich = -1` bị từ chối (lỗi 3819). Hoàn tác (`down`) bỏ khóa ngoại, chỉ mục và cột của `thong_bao`, CHECK và cột của `lich_hen`, đưa ENUM về 26 giá trị và xoá bảng yêu cầu; migration CHẶN (không đổi gì, báo SỐ dòng, không lộ id, tên hay lý do) khi còn lịch hẹn có `so_lan_tu_doi_lich` khác 0, thông báo gắn yêu cầu đổi lịch, dòng nhật ký `DoiLichHo` hoặc yêu cầu đổi lịch ngoài chính sách, để không xoá hay làm mất dữ liệu im lặng.
+
+## notification P2 — Chỉ mục danh sách thông báo theo tài khoản (25/11/2026, scope #10 "Thông báo"; ĐỔI SCHEMA: chỉ thêm chỉ mục)
+
+Một migration (`ChiMucThongBaoTaiKhoan1794139200000`, issue #657) thêm chỉ mục `thong_bao_index_tai_khoan_thoi_diem (tai_khoan_id, thoi_diem_tao, thong_bao_id)` cho danh sách "Tất cả" của Trung tâm thông báo (use case 2.4.59; câu `WHERE tai_khoan_id = ? ORDER BY thoi_diem_tao DESC, thong_bao_id DESC LIMIT ? OFFSET ?`).
+
+- **Lý do (số đo X1 M1, 25/11/2026).** Với một tài khoản 20.000 thông báo, câu không lọc `trang_thai_doc` chỉ dùng được tiền tố `tai_khoan_id` của `thong_bao_index_25 (tai_khoan_id, trang_thai_doc, thoi_diem_tao)` nên phải `Using filesort`; hai bộ lọc "Chưa đọc", "Đã đọc" vẫn dùng `thong_bao_index_25` và không filesort. Tiêu chí đặt trước của M1 coi filesort ở "Tất cả" là không đạt, nên chỉ mục này được thêm trước khi có API danh sách (notification B2).
+- **Không đổi gì khác.** Không đổi bảng, cột, enum, CHECK, UNIQUE hay khóa ngoại; `thong_bao_index_25` giữ nguyên (vẫn phục vụ đếm chưa đọc và hai bộ lọc). Không thêm chỉ mục `lich_hen (trang_thai, thoi_gian)`: số đo X1 M3 đạt nên phần (a) của task P2 không làm, nợ kỹ thuật dòng 90 giữ nguyên.
+- **Chuyển đổi.** DB mới tạo từ `clinix_mysql.sql` đã đủ. DB đang ở bản trước chạy một câu (chỉ thêm, không đổi dữ liệu):
+
+```sql notification_p2_chi_muc_thong_bao
+CREATE INDEX `thong_bao_index_tai_khoan_thoi_diem` ON `thong_bao` (`tai_khoan_id`, `thoi_diem_tao`, `thong_bao_id`);
+```
+
+Kiểm tra sau chuyển đổi: `SHOW CREATE TABLE thong_bao` có `KEY thong_bao_index_tai_khoan_thoi_diem (tai_khoan_id, thoi_diem_tao, thong_bao_id)`; `EXPLAIN` câu danh sách "Tất cả" của một tài khoản dùng chỉ mục này và không còn `Using filesort`. Hoàn tác (`down`) chỉ xoá chỉ mục, không chặn (không mất dữ liệu).
