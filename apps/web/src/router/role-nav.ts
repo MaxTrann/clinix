@@ -23,6 +23,11 @@ import {
   PATIENT_APPOINTMENTS_PATH,
   RECEPTION_APPOINTMENTS_PATH,
 } from '../shared/routes/booking-paths';
+import {
+  DOCTOR_NOTIFICATIONS_PATH,
+  PATIENT_NOTIFICATIONS_PATH,
+  RECEPTION_NOTIFICATIONS_PATH,
+} from '../shared/routes/notification-paths';
 import { PATIENT_WALLET_PATH } from '../shared/routes/wallet-paths';
 import type { RoleNavItem } from '../shared/ui/role-shell';
 
@@ -49,7 +54,13 @@ export const PATIENT_NAV: { items: RoleNavItem[]; footerItems: RoleNavItem[] } =
       { label: 'Ví của tôi', icon: Wallet, to: PATIENT_WALLET_PATH },
       { label: 'Danh sách chờ', icon: ListOrdered },
       { label: 'Tin nhắn', icon: MessageCircle },
-      { label: 'Thông báo', icon: Bell },
+      // notification F1: trang Thông báo, có số chưa đọc (TECH_DEBT 62)
+      {
+        label: 'Thông báo',
+        icon: Bell,
+        to: PATIENT_NOTIFICATIONS_PATH,
+        badge: 'notifications',
+      },
       { label: 'Hồ sơ người khám', icon: Users, to: PATIENT_PATHS.profile },
     ],
     // `to: '/'` chỉ sáng ở đúng `/` (NavLink coi gốc là khớp đúng), không cần `end`
@@ -76,19 +87,30 @@ export const RECEPTION_NAV: { items: RoleNavItem[] } = {
     { label: 'Yêu cầu đổi lịch', icon: RefreshCw },
     { label: 'Danh sách chờ', icon: ListOrdered },
     { label: 'Tin nhắn', icon: MessageCircle },
-    { label: 'Thông báo', icon: Bell },
+    // notification F1: trang Thông báo, có số chưa đọc (TECH_DEBT 62)
+    {
+      label: 'Thông báo',
+      icon: Bell,
+      to: RECEPTION_NOTIFICATIONS_PATH,
+      badge: 'notifications',
+    },
     { label: 'Thông tin cá nhân', icon: User, to: RECEPTION_PATHS.profile },
   ],
 };
 
-// doctor F1 (Figma `466:2`). "Lịch hẹn" do `booking` F11 đặt `to` (doctor F10 gắn route); "Tổng quan", "Tin nhắn", "Thông báo", "Thông tin cá nhân" chưa có trang (nút vô hiệu).
+// doctor F1 (Figma `466:2`). "Lịch hẹn" do `booking` F11 đặt `to` (doctor F10 gắn route); "Thông báo" do notification F1; "Tổng quan", "Tin nhắn", "Thông tin cá nhân" chưa có trang (nút vô hiệu).
 export const DOCTOR_NAV: { items: RoleNavItem[] } = {
   items: [
     { label: 'Tổng quan', icon: LayoutDashboard },
     { label: 'Lịch hẹn', icon: Calendar, to: DOCTOR_APPOINTMENTS_PATH },
     { label: 'Lịch làm việc', icon: ClipboardList, to: DOCTOR_PATHS.schedule },
     { label: 'Tin nhắn', icon: MessageCircle },
-    { label: 'Thông báo', icon: Bell },
+    {
+      label: 'Thông báo',
+      icon: Bell,
+      to: DOCTOR_NOTIFICATIONS_PATH,
+      badge: 'notifications',
+    },
     { label: 'Thông tin cá nhân', icon: User },
   ],
 };
