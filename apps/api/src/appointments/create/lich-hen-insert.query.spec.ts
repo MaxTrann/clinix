@@ -49,14 +49,15 @@ const dupError = (message: string) =>
   } as never);
 
 describe('insertLichHen: tham số của câu INSERT (DL-21, DL-25)', () => {
-  it('đúng 16 cột và 16 dấu hỏi (MOC-18: thêm thoi_diem_xac_nhan, booking B19), chỉ INSERT một bảng lich_hen', async () => {
+  // reschedule B1 (HDL-08): 16 thành 18 cột (thêm `lich_hen_truoc_id`, `so_lan_tu_doi_lich` Ở CUỐI nên vị trí 16 tham số cũ không đổi)
+  it('đúng 18 cột và 18 dấu hỏi (MOC-18: thêm thoi_diem_xac_nhan, booking B19; reschedule B1: thêm lich_hen_truoc_id và so_lan_tu_doi_lich), chỉ INSERT một bảng lich_hen', async () => {
     const { query, em } = build({ insertId: 1 });
 
     await insertLichHen(em, ROW);
 
     const sql = query.mock.calls[0]?.[0] ?? '';
     expect(sql).toMatch(/^INSERT INTO lich_hen\b/);
-    expect(sql.match(/\?/g)).toHaveLength(16);
+    expect(sql.match(/\?/g)).toHaveLength(18);
     const columns = /\(([^)]*)\)\s*VALUES/s.exec(sql)?.[1] ?? '';
     expect(columns.split(',').map((c) => c.trim())).toStrictEqual([
       'ma_lich_hen',
@@ -75,6 +76,8 @@ describe('insertLichHen: tham số của câu INSERT (DL-21, DL-25)', () => {
       'ly_do_kham',
       'thoi_diem_tao',
       'thoi_diem_xac_nhan',
+      'lich_hen_truoc_id',
+      'so_lan_tu_doi_lich',
     ]);
   });
 
@@ -102,6 +105,9 @@ describe('insertLichHen: tham số của câu INSERT (DL-21, DL-25)', () => {
       TAO,
       // Lịch ChoThanhToan chưa được xác nhận: thoi_diem_xac_nhan NULL (MOC-06)
       null,
+      // `create` không truyền hai trường đổi lịch: NULL và 0, đúng giá trị mặc định của cột (HDL-08, HDL-15)
+      null,
+      0,
     ]);
   });
 
@@ -111,7 +117,7 @@ describe('insertLichHen: tham số của câu INSERT (DL-21, DL-25)', () => {
     await insertLichHen(em, { ...ROW, trangThai: 'ChoThanhToan' });
 
     const params = query.mock.calls[0]?.[1] ?? [];
-    expect(params).toHaveLength(16);
+    expect(params).toHaveLength(18);
     expect(params[15]).toBeNull();
     expect(params[14]).toBe(TAO);
   });
@@ -128,7 +134,7 @@ describe('insertLichHen: tham số của câu INSERT (DL-21, DL-25)', () => {
     });
 
     const params = query.mock.calls[0]?.[1] ?? [];
-    expect(params).toHaveLength(16);
+    expect(params).toHaveLength(18);
     expect(params[11]).toBe('DaXacNhan');
     expect(params[14]).toBe(TAO);
     expect(params[15]).toBe(TAO);
@@ -224,9 +230,10 @@ describe('insertLichHen: kết quả có kiểu', () => {
     });
   });
 
+  // reschedule B1: khoá `lich_hen_truoc_id` từng là ví dụ "khoá khác" ở đây; nay nó có kết quả riêng (HDL-08), nên ví dụ chuyển sang một khoá của bảng khác
   it('TAO-02 1062 trên khoá khác ⇒ ném nguyên (không nuốt, không đoán)', async () => {
     const error = dupError(
-      "Duplicate entry '1' for key 'lich_hen.lich_hen_truoc_id'",
+      "Duplicate entry '1' for key 'thong_bao.thong_bao_index_lich_hen'",
     );
     const { em } = build(error);
 
@@ -243,5 +250,75 @@ describe('insertLichHen: kết quả có kiểu', () => {
     await expect(insertLichHen(em, ROW)).rejects.toBe(fk);
     const plain = new Error('mất kết nối');
     await expect(insertLichHen(build(plain).em, ROW)).rejects.toBe(plain);
+  });
+});
+
+// reschedule B1 — HDL-08 (phần hàm chèn; PLAN reschedule 5.5 bước 5, 7.9): lịch mới của đổi lịch nối chuỗi bằng `lich_hen_truoc_id` và mang `so_lan_tu_doi_lich`; 1062 trên khoá `lich_hen_truoc_id` là
+// kết quả có kiểu `DuplicateChain` (đổi lịch hai lần cùng lúc), KHÔNG 500. Phần "không tự trỏ chính nó" là của dịch vụ (B4, quy tắc DB 27). Hành vi thật trên MySQL: lich-hen-insert.int-spec.ts.
+describe('insertLichHen: nối chuỗi đổi lịch (HDL-08)', () => {
+  it('hai tham số đổi lịch ở CUỐI danh sách (vị trí 17 và 18), id là CHUỖI nguyên văn, bộ đếm là số', async () => {
+    const { query, em } = build({ insertId: 1 });
+
+    await insertLichHen(em, {
+      ...ROW,
+      trangThai: 'DaXacNhan',
+      hanThanhToan: null,
+      lichHenTruocId: '9223372036854775806',
+      soLanTuDoiLich: 2,
+    });
+
+    const params = query.mock.calls[0]?.[1] ?? [];
+    expect(params).toHaveLength(18);
+    expect(params[16]).toBe('9223372036854775806');
+    expect(params[17]).toBe(2);
+    // thoi_diem_xac_nhan vẫn bằng thoi_diem_tao khi DaXacNhan (không thêm tham số: lịch mới của đổi lịch được xác nhận ngay, Q7 (d))
+    expect(params[14]).toBe(TAO);
+    expect(params[15]).toBe(TAO);
+  });
+
+  it.each([
+    ['vắng cả hai (create)', {}],
+    ['lichHenTruocId null tường minh', { lichHenTruocId: null }],
+  ])(
+    '%s ⇒ lich_hen_truoc_id NULL và so_lan_tu_doi_lich 0',
+    async (_name, extra) => {
+      const { query, em } = build({ insertId: 1 });
+
+      await insertLichHen(em, { ...ROW, ...extra });
+
+      const params = query.mock.calls[0]?.[1] ?? [];
+      expect(params[16]).toBeNull();
+      expect(params[17]).toBe(0);
+    },
+  );
+
+  it('soLanTuDoiLich 0 tường minh được giữ (không bị coi là vắng)', async () => {
+    const { query, em } = build({ insertId: 1 });
+
+    await insertLichHen(em, { ...ROW, lichHenTruocId: '5', soLanTuDoiLich: 0 });
+
+    expect(query.mock.calls[0]?.[1]?.[17]).toBe(0);
+  });
+
+  it('1062 trên lich_hen.lich_hen_truoc_id ⇒ DuplicateChain (không ném, không 500)', async () => {
+    const { em } = build(
+      dupError("Duplicate entry '5' for key 'lich_hen.lich_hen_truoc_id'"),
+    );
+
+    expect(
+      await insertLichHen(em, { ...ROW, lichHenTruocId: '5' }),
+    ).toStrictEqual({ kind: 'DuplicateChain' });
+  });
+
+  it('DuplicateChain không bị nhầm với DuplicateCode hay DuplicateSlot (ba khoá ba kết quả)', async () => {
+    const keys = [
+      ['lich_hen.ma_lich_hen', 'DuplicateCode'],
+      ['lich_hen.khung_gio_dang_giu', 'DuplicateSlot'],
+      ['lich_hen.lich_hen_truoc_id', 'DuplicateChain'],
+    ] as const;
+    for (const [key, kind] of keys) {
+      const { em } = build(dupError(`Duplicate entry '1' for key '${key}'`));
+      expect(await insertLichHen(em, ROW), key).toStrictEqual({ kind });
+    }
   });
 });

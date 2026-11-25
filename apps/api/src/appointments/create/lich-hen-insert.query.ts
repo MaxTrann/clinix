@@ -5,6 +5,10 @@ import type { RefundTierSnapshot } from './refund-policy.js';
 // NƠI DUY NHẤT chèn `lich_hen` (task B8; PLAN booking 5.4 bước 5, 5.11; TRACKING 3.21 B8-E; luật AR-06: `INSERT INTO lich_hen` chỉ ở `appointments/create/`, đã có trong `INTERNAL_WRITE_RULES`).
 // Hàm nhận `em` của NGƯỜI GỌI và KHÔNG mở giao dịch; KHÔNG ném `AppException`. Lỗi 1062 đã lường trước thành KẾT QUẢ CÓ KIỂU, phân biệt theo TÊN KHOÁ (X1 M2): sau 1062 giao dịch vẫn dùng được
 // (đã đo), nên người gọi sinh lại mã rồi chèn tiếp trong CÙNG giao dịch. Lỗi khác (kể cả khoá ngoại) đi nguyên ra ngoài để hoàn tác.
+//
+// ĐỔI LỊCH (reschedule B1; PLAN reschedule 5.5 bước 5): đường đổi lịch cũng chèn lịch mới qua ĐÚNG hàm này, kèm hai trường TUỲ CHỌN `lichHenTruocId` (lịch cũ bị thay) và `soLanTuDoiLich`. `create` không truyền
+// nên hai cột ghi `NULL` và `0`, đúng giá trị mặc định của cột (UNIQUE của MySQL cho nhiều `NULL`, nên với `create` `DuplicateChain` không bao giờ xảy ra). 1062 trên khoá `lich_hen_truoc_id` nghĩa là lịch cũ
+// đã có lịch mới (hai tab đổi cùng một lịch): kết quả `DuplicateChain`, người gọi hoàn tác và trả "không đổi được", KHÔNG 500 (HDL-08). "Không tự trỏ chính nó" kiểm ở dịch vụ (quy tắc DB 27, B4).
 
 /** Một hàng `lich_hen` mới. Mọi trường là GIÁ TRỊ ĐÃ CHỐT của người gọi: bác sĩ, chi nhánh, dịch vụ, giờ lấy từ khung giờ và bác sĩ (DL-25), không từ client. */
 export interface LichHenInsertRow {
@@ -34,6 +38,10 @@ export interface LichHenInsertRow {
    * `thoi_diem_xac_nhan` (booking B19): lịch vừa được tạo cũng là lúc được xác nhận, không cần tham số thứ hai.
    */
   thoiDiemTao: Date;
+  /** Chỉ đổi lịch: id lịch CŨ bị lịch này thay (`lich_hen_truoc_id`). Vắng hay `null` ⇒ `NULL` (lịch không do đổi lịch tạo) */
+  lichHenTruocId?: string | null;
+  /** Chỉ đổi lịch: số lần Bệnh nhân đã TỰ đổi tính tới lịch này (lịch cũ + 1 khi tự đổi; bằng lịch cũ khi Lễ tân đổi hộ hay duyệt yêu cầu). Vắng ⇒ 0 */
+  soLanTuDoiLich?: number;
 }
 
 export type InsertLichHenOutcome =
@@ -41,12 +49,16 @@ export type InsertLichHenOutcome =
   /** 1062 trên `lich_hen.ma_lich_hen`: người gọi sinh mã khác */
   | { kind: 'DuplicateCode' }
   /** 1062 trên `lich_hen.khung_gio_dang_giu`: có lịch đang hoạt động giữ khung giờ này (lưới an toàn cuối của H1) */
-  | { kind: 'DuplicateSlot' };
+  | { kind: 'DuplicateSlot' }
+  /** 1062 trên `lich_hen.lich_hen_truoc_id`: lịch cũ đã có lịch mới (đổi lịch hai lần cùng lúc). Chỉ xảy ra khi người gọi truyền `lichHenTruocId` */
+  | { kind: 'DuplicateChain' };
 
+// Hai cột đổi lịch đứng CUỐI danh sách (tham số thứ 17 và 18) nên vị trí của 16 tham số cũ không đổi
 const INSERT_SQL = `INSERT INTO lich_hen
   (ma_lich_hen, khung_gio_id, benh_nhan_id, ho_so_nguoi_than_id, bac_si_id, chi_nhanh_id, dich_vu_kham_id, thoi_gian,
-   gia_snapshot, tien_coc_snapshot, chinh_sach_hoan_snapshot, trang_thai, han_thanh_toan, ly_do_kham, thoi_diem_tao, thoi_diem_xac_nhan)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+   gia_snapshot, tien_coc_snapshot, chinh_sach_hoan_snapshot, trang_thai, han_thanh_toan, ly_do_kham, thoi_diem_tao, thoi_diem_xac_nhan,
+   lich_hen_truoc_id, so_lan_tu_doi_lich)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 export async function insertLichHen(
   em: EntityManager,
@@ -73,6 +85,8 @@ export async function insertLichHen(
       row.thoiDiemTao,
       // Cọc 0đ: tạo là xác nhận (cùng một mốc); có cọc: NULL tới khi `confirmPaid` ghi giờ thanh toán
       row.trangThai === 'DaXacNhan' ? row.thoiDiemTao : null,
+      row.lichHenTruocId ?? null,
+      row.soLanTuDoiLich ?? 0,
     ]);
     return { kind: 'Inserted', lichHenId: String(result.insertId) };
   } catch (error) {
@@ -81,6 +95,8 @@ export async function insertLichHen(
         return { kind: 'DuplicateCode' };
       case 'khung_gio_dang_giu':
         return { kind: 'DuplicateSlot' };
+      case 'lich_hen_truoc_id':
+        return { kind: 'DuplicateChain' };
       default:
         throw error;
     }

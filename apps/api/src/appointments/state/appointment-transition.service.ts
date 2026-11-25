@@ -43,6 +43,11 @@ import {
 import { cancelLapsedHold } from './lapsed-hold.js';
 import { readLichHenKeys } from './lich-hen-keys.query.js';
 import {
+  markReplacedWithin,
+  type MarkReplacedInput,
+  type MarkReplacedOutcome,
+} from './mark-replaced.js';
+import {
   markNoShowWithin,
   type MarkNoShowInput,
   type MarkNoShowOutcome,
@@ -86,6 +91,11 @@ export type {
   RestoreConfirmedInput,
   RestoreConfirmedOutcome,
 } from './restore-confirmed.js';
+// Kiểu của phương thức của reschedule B1 (lịch cũ thành `DaDoiLich`; chỉ `AppointmentRescheduleService` của B4 gọi)
+export type {
+  MarkReplacedInput,
+  MarkReplacedOutcome,
+} from './mark-replaced.js';
 export type { OnChanged } from './on-changed.js';
 export type { StatusConfig } from './status-config.js';
 
@@ -235,6 +245,18 @@ export class AppointmentTransitionService {
     input: RestoreConfirmedInput,
   ): Promise<RestoreConfirmedOutcome> {
     return restoreConfirmedWithin(em, input);
+  }
+
+  /**
+   * Thay lịch cũ khi ĐỔI LỊCH (họ B, PLAN reschedule 5.3, 5.5 bước 7; reschedule B1): `DaXacNhan` thành `DaDoiLich`, đúng ô `DoiLich` của ma trận, CHỈ đổi `trang_thai` (mọi mốc B19 giữ nguyên). Nhận `em`,
+   * KHÔNG mở giao dịch, KHÔNG ném `AppException`; không đụng khung giờ (người gọi tự `release` khung giờ cũ và `claimSlot` khung giờ mới bằng `SlotHoldService`). Người gọi đã khoá `lich_hen` (tầng 6) và đã chèn
+   * lịch mới nối `lich_hen_truoc_id`; `InvalidState` ⇒ người gọi hoàn tác trọn. Chỉ `AppointmentRescheduleService` gọi: AR-07 cấm gọi từ ngoài `appointments/`. Chi tiết: chú thích đầu `mark-replaced.ts`.
+   */
+  markReplaced(
+    em: EntityManager,
+    input: MarkReplacedInput,
+  ): Promise<MarkReplacedOutcome> {
+    return markReplacedWithin(em, input);
   }
 
   /**

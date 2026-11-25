@@ -13,6 +13,8 @@
 //         (lich_hen_id) hoặc ma_lich_hen
 //   6b    ho_so_kham,      FOR UPDATE theo khoá chính         CHỈ doctor (phần khám bệnh: ghi hồ sơ khám, ẩn đánh giá), SAU `lich_hen` và TRƯỚC tầng 7;
 //         danh_gia_bac_si  hoặc `lich_hen_id` (UNIQUE)        booking KHÔNG xin khoá nào trên hai bảng này (doctor-exam P2; PLAN doctor-exam 5.3)
+//   6c    yeu_cau_doi_lich_ngoai_chinh_sach  FOR UPDATE theo khoá chính   CHỈ đổi lịch (reschedule B1; PLAN reschedule 5.4): duyệt và từ chối yêu cầu, SAU `lich_hen` và TRƯỚC tầng 7. Tạo yêu cầu KHÔNG khoá hàng này
+//         (chưa có hàng): nó khoá `khung_gio` mong muốn TRƯỚC `lich_hen` rồi mới `INSERT` (khoá S ngầm của khoá ngoại, X1 M2)
 //   7a    giao_dich_thanh_toan,  FOR UPDATE theo khoá chính        payment, wallet: tuần tự hoá MỌI việc trên MỘT giao dịch hay MỘT yêu cầu ĐÃ CÓ
 //         yeu_cau_rut_tien       (IPN trùng, hai lần thử hoàn, duyệt đua từ chối); SAU `lich_hen` (payment khoá `lich_hen` TRƯỚC ví)
 //   7b    vi_noi_bo              FOR UPDATE theo benh_nhan_id        wallet, payment: tuần tự hoá số dư, TRƯỚC mọi INSERT vào bảng con của ví (tránh nâng S lên X)
@@ -42,7 +44,7 @@
 // Lưu ý: `ACTIVE_APPOINTMENT_STATES` (3 trạng thái) khác tập của cột sinh `khung_gio_dang_giu` (5 trạng thái) CÓ CHỦ ĐÍCH (5.2): đừng "sửa cho khớp".
 
 export type LockTierId =
-  '1' | '2' | '3' | '4' | '4b' | '5' | '6' | '6b' | '7a' | '7b' | '7c';
+  '1' | '2' | '3' | '4' | '4b' | '5' | '6' | '6b' | '6c' | '7a' | '7b' | '7c';
 
 /** Một HẠNG khoá: các bảng cùng hạng không có thứ tự bắt buộc với nhau; hạng nhỏ khoá trước. Tầng 7 gồm ba hạng 7a, 7b, 7c liền nhau (đúng chữ của bảng 5.3). */
 export interface LockRank {
@@ -60,6 +62,8 @@ export const LOCK_ORDER: readonly LockRank[] = [
   { tang: '6', bang: ['lich_hen'] },
   // Hai bảng con của `lich_hen` (khoá ngoại): hàng con khoá SAU hàng cha, TRƯỚC thông báo và nhật ký ở tầng 7. Cùng một hạng: không luồng nào xin cả hai.
   { tang: '6b', bang: ['ho_so_kham', 'danh_gia_bac_si'] },
+  // Yêu cầu đổi lịch ngoài chính sách (reschedule B1): hàng con của `lich_hen` (khoá ngoại `lich_hen_id`), khoá SAU `lich_hen`, TRƯỚC tầng 7 (PLAN reschedule 5.4)
+  { tang: '6c', bang: ['yeu_cau_doi_lich_ngoai_chinh_sach'] },
   // Hai bảng 7a cùng hạng: không luồng nào khoá cả hai cùng lúc (một luồng làm việc trên một giao dịch HOẶC một yêu cầu rút).
   { tang: '7a', bang: ['giao_dich_thanh_toan', 'yeu_cau_rut_tien'] },
   { tang: '7b', bang: ['vi_noi_bo'] },

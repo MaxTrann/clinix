@@ -14,6 +14,7 @@ import {
 // Task P1 — MT-01…MT-03 và phần ma trận của MT-04 (PLAN booking 7.5; TRACKING 3.3 P1-D, bảng 22 ô ở 3.4). Danh sách 22 ô viết RIÊNG ở đây theo chữ
 // của 5.2, Q21, Q24 (không đọc lại từ bảng của mã), cộng các tính chất độc lập lấy từ chữ Q24. Số phút cửa sổ (30, 15) chỉ là ĐẦU VÀO của test,
 // không phải quyết định (PLAN không đặt số, Q22).
+// reschedule B1 — HDL-02 (PLAN reschedule 5.3, 7.9): thêm actor `DoiLich` và ô thứ 23 `DoiLich, DaXacNhan, DaDoiLich` (343 = 7 × 7 × 7 ô, 23 được phép); danh sách viết riêng ở đây, không đọc lại từ mã.
 type Cell = readonly [TransitionActor, TrangThaiLichHen, TrangThaiLichHen];
 
 const EXPECTED_ALLOWED: readonly Cell[] = [
@@ -39,6 +40,8 @@ const EXPECTED_ALLOWED: readonly Cell[] = [
   ['HeThong', 'DaXacNhan', 'VangMat'],
   ['ThanhToan', 'ChoThanhToan', 'DaXacNhan'],
   ['ThanhToan', 'DaXacNhan', 'DaTiepDon'],
+  // reschedule B1 (HDL-02): ô DUY NHẤT tới DaDoiLich, chỉ do `markReplaced`
+  ['DoiLich', 'DaXacNhan', 'DaDoiLich'],
 ];
 
 const key = (cell: Cell) => cell.join('>');
@@ -66,11 +69,11 @@ const ALL_CELLS: Cell[] = TRANSITION_ACTORS.flatMap((actor) =>
   ),
 );
 
-describe('MT-01 bảng 6 vai trò × 7 nguồn × 7 đích', () => {
-  it('có đúng 294 ô và đúng 22 ô được phép (danh sách viết riêng), 272 ô còn lại bị từ chối', () => {
-    expect(ALL_CELLS).toHaveLength(294);
-    expect(EXPECTED_ALLOWED).toHaveLength(22);
-    expect(allowedKeys.size).toBe(22);
+describe('MT-01 bảng 7 vai trò × 7 nguồn × 7 đích', () => {
+  it('có đúng 343 ô và đúng 23 ô được phép (danh sách viết riêng), 320 ô còn lại bị từ chối', () => {
+    expect(ALL_CELLS).toHaveLength(343);
+    expect(EXPECTED_ALLOWED).toHaveLength(23);
+    expect(allowedKeys.size).toBe(23);
   });
 
   it.each(ALL_CELLS.map((cell) => [key(cell), cell] as const))(
@@ -122,11 +125,12 @@ describe('MT-01 bảng 6 vai trò × 7 nguồn × 7 đích', () => {
     }
   });
 
-  it('tính chất độc lập lấy từ chữ Q24 và 5.2: không ai rời HoanThanh, DaHuy, DaDoiLich; không ai tới DaDoiLich hay ChoThanhToan; chỉ BacSi tới HoanThanh; không ô nào trỏ về chính nó', () => {
+  it('tính chất độc lập lấy từ chữ Q24 và 5.2: không ai rời HoanThanh, DaHuy, DaDoiLich; không ai tới ChoThanhToan; chỉ DoiLich tới DaDoiLich; chỉ BacSi tới HoanThanh; không ô nào trỏ về chính nó', () => {
     for (const [actor, from, to] of EXPECTED_ALLOWED) {
       expect(['HoanThanh', 'DaHuy', 'DaDoiLich']).not.toContain(from);
-      expect(['DaDoiLich', 'ChoThanhToan']).not.toContain(to);
+      expect(to).not.toBe('ChoThanhToan');
       expect(from).not.toBe(to);
+      if (to === 'DaDoiLich') expect(actor).toBe('DoiLich');
       if (to === 'HoanThanh') expect(actor).toBe('BacSi');
     }
     // Từ `ChoThanhToan` Quản trị viên chỉ tới `DaHuy` (Q24); từ `VangMat` về `DaXacNhan` được (CNTT A3)
@@ -364,5 +368,72 @@ describe('MT-03 chọn HoanThanh (A1/2a–2b, Q21)', () => {
         expect(canTransition({ actor: 'BacSi', from, to }).ok).toBe(false);
       }
     expect(allowedTargets('BacSi', 'DaTiepDon')).toEqual(['HoanThanh']);
+  });
+});
+
+// reschedule B1 — HDL-02 (PLAN reschedule 5.3, 7.9): actor `DoiLich` có đúng MỘT ô; `DaDoiLich` không bao giờ nằm trong `chuyenDuoc[]` của Lễ tân hay Quản trị viên (Q24 vẫn cấm override tới `DaDoiLich`).
+// `chuyenDuoc[]` của hai vai trò đó là `allowedTargets` (reception-appointments.service.ts, admin-appointments.service.ts), nên khẳng định ở đây phủ cả hai.
+describe('HDL-02 actor DoiLich và chuyenDuoc[] không bao giờ chứa DaDoiLich', () => {
+  it('DoiLich chỉ có ô DaXacNhan → DaDoiLich, không điều kiện thời gian hay tiền (không cần ngữ cảnh, ngữ cảnh xa cũng vậy)', () => {
+    const doiLich = EXPECTED_ALLOWED.filter(([actor]) => actor === 'DoiLich');
+    expect(doiLich).toEqual([['DoiLich', 'DaXacNhan', 'DaDoiLich']]);
+    const input = {
+      actor: 'DoiLich',
+      from: 'DaXacNhan',
+      to: 'DaDoiLich',
+    } as const;
+    expect(canTransition(input)).toEqual({ ok: true });
+    expect(
+      canTransition({ ...input, ctx: ctxAt(at(-86_400), '999999.00') }),
+    ).toEqual({
+      ok: true,
+    });
+    expect(allowedTargets('DoiLich', 'DaXacNhan')).toEqual(['DaDoiLich']);
+  });
+
+  it('DoiLich từ mọi nguồn khác DaXacNhan, hay tới mọi đích khác DaDoiLich, đều bị từ chối (KhongHopLe; riêng đích HoanThanh là ChiBacSiHoanThanh)', () => {
+    for (const from of TRANG_THAI_LICH_HEN)
+      for (const to of TRANG_THAI_LICH_HEN) {
+        if (from === 'DaXacNhan' && to === 'DaDoiLich') continue;
+        expect(
+          canTransition({ actor: 'DoiLich', from, to }),
+          `${from} → ${to}`,
+        ).toEqual({
+          ok: false,
+          reason: to === 'HoanThanh' ? 'ChiBacSiHoanThanh' : 'KhongHopLe',
+        });
+      }
+  });
+
+  it('mọi vai trò KHÁC DoiLich, từ mọi nguồn, tới DaDoiLich đều bị KhongHopLe (không có API đổi trạng thái tay; Q24 cấm cả override)', () => {
+    for (const actor of TRANSITION_ACTORS) {
+      if (actor === 'DoiLich') continue;
+      for (const from of TRANG_THAI_LICH_HEN)
+        expect(
+          canTransition({
+            actor,
+            from,
+            to: 'DaDoiLich',
+            ctx: satisfying('DaDoiLich'),
+          }),
+          `${actor} từ ${from}`,
+        ).toEqual({ ok: false, reason: 'KhongHopLe' });
+    }
+  });
+
+  it('allowedTargets của Lễ tân và Quản trị viên (nguồn của chuyenDuoc[]) không bao giờ chứa DaDoiLich, ở mọi nguồn và mọi ngữ cảnh', () => {
+    const contexts: (TransitionContext | undefined)[] = [
+      undefined,
+      ctxAt(at(0)),
+      ctxAt(at(15 * 60 + 1)),
+      ctxAt(at(-3600), '200000.00'),
+    ];
+    for (const actor of ['LeTan', 'QuanTriVien'] as const)
+      for (const from of TRANG_THAI_LICH_HEN)
+        for (const ctx of contexts)
+          expect(
+            allowedTargets(actor, from, ctx),
+            `${actor} từ ${from}`,
+          ).not.toContain('DaDoiLich');
   });
 });

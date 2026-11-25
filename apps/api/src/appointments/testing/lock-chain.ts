@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { findLockOrderViolation } from '../locking/lock-order.js';
 import { firstTableOf, isLockingStatement } from './query-spy.js';
+import type { StatementCall } from './statement-recorder.js';
 
 // Khẳng định chung về CHUỖI CÂU SQL THẬT của thao tác chuyển trạng thái (TRX-08 của B9, CFP-06 và CMP-03 của B11): dùng chung để ba nơi không chép lại cùng một đoạn kiểm (jscpd).
 // Đối số là các câu thân giao dịch do `recordTransaction` hay `statement-recorder` ghi lại, theo thứ tự chạy.
@@ -11,6 +12,28 @@ export function lockedTablesOf(body: readonly string[]): string[] {
     .filter(isLockingStatement)
     .map(firstTableOf)
     .filter((table): table is string => table !== undefined);
+}
+
+/**
+ * Như `lockedTablesOf` nhưng KHÔNG tính câu khoá GIỐNG HỆT (cùng SQL, cùng tham số) một câu khoá đã chạy trước đó: đó là xin lại hàng ĐÃ GIỮ, InnoDB không xin khoá mới nên không thêm cạnh nào vào đồ thị chờ
+ * (reschedule B1, HDL-16). Cần cho đổi lịch: `BookabilityReader.read(…, 'locked')` (B2) luôn xin lại `bac_si FOR SHARE` và `khung_gio FOR UPDATE` của khung giờ đích SAU khi `reschedule-locks.ts` đã giữ chuỗi
+ * tầng 2 đến 6, nên `findLockOrderViolation` (chỉ nhìn tên bảng) báo nhầm "tầng 4 sau tầng 6". Phải so CẢ tham số: hai khung giờ khác nhau có cùng chữ SQL, xin hàng THỨ HAI không phải xin lại. Câu khoá khác nhau
+ * ở bất kỳ tham số nào vẫn được tính, nên chuỗi thật sự ngược thứ tự vẫn bị `findLockOrderViolation` bắt. CHỈ dùng cho MỘT lượt chạy của thân (chạy lại sau 1213 lặp lại cả chuỗi và sẽ bị coi là xin lại).
+ */
+export function lockedTablesOfDistinct(
+  calls: readonly StatementCall[],
+): string[] {
+  const held = new Set<string>();
+  const tables: string[] = [];
+  for (const call of calls) {
+    if (!isLockingStatement(call.sql)) continue;
+    const key = `${call.sql}\u0000${JSON.stringify(call.params ?? [])}`;
+    if (held.has(key)) continue;
+    held.add(key);
+    const table = firstTableOf(call.sql);
+    if (table !== undefined) tables.push(table);
+  }
+  return tables;
 }
 
 /**

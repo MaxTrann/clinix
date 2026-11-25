@@ -9,7 +9,8 @@ import {
 describe('LOK-01 bảng tầng khoá của 5.3', () => {
   // doctor-exam P2: thêm hạng 6b giữa 6 và 7 nên danh sách liệt kê đổi (tầng 7 lùi từ vị trí 7 sang 8); hành vi các hạng cũ không đổi.
   // payment P2: tầng 7 tách thành 7a, 7b, 7c (PLAN payment 5.3); số hạng và vị trí không đổi, chỉ nhãn.
-  it('tầng 1, 2, 3, 4, 4b, 5, 6, 6b, 7a, 7b, 7c đúng thứ tự và đúng bảng', () => {
+  // reschedule B1: thêm hạng 6c (yêu cầu đổi lịch) giữa 6b và 7a (PLAN reschedule 5.4); các hạng cũ không đổi, `slice(8)` bắt đầu bằng 6c.
+  it('tầng 1, 2, 3, 4, 4b, 5, 6, 6b, 6c, 7a, 7b, 7c đúng thứ tự và đúng bảng', () => {
     expect(LOCK_ORDER.map((rank) => rank.tang)).toEqual([
       '1',
       '2',
@@ -19,6 +20,7 @@ describe('LOK-01 bảng tầng khoá của 5.3', () => {
       '5',
       '6',
       '6b',
+      '6c',
       '7a',
       '7b',
       '7c',
@@ -34,6 +36,7 @@ describe('LOK-01 bảng tầng khoá của 5.3', () => {
       ['ho_so_kham', 'danh_gia_bac_si'],
     ]);
     expect(LOCK_ORDER.slice(8).map((rank) => rank.bang)).toEqual([
+      ['yeu_cau_doi_lich_ngoai_chinh_sach'],
       ['giao_dich_thanh_toan', 'yeu_cau_rut_tien'],
       ['vi_noi_bo'],
       [
@@ -143,10 +146,12 @@ describe('LOK-04 quy tắc 7: khoá lich_hen', () => {
 // doctor-exam P2 (#392) — HDK-05: tầng 6b (`ho_so_kham`, `danh_gia_bac_si`) nằm giữa `lich_hen` (6) và tầng 7 (PLAN doctor-exam 5.3, E5).
 // Phạm vi ở đây: bảng thứ tự và `findLockOrderViolation`. Chuỗi khoá bằng câu SQL THẬT của HSK, DGB, KDD kiểm ở B2, B6, B8 (`testing/lock-chain.ts`).
 describe('HDK-05 tầng 6b của doctor (hồ sơ khám, đánh giá)', () => {
-  it('6b đứng ngay sau lich_hen và ngay trước tầng 7 đầu tiên (7a); hai bảng cùng một hạng', () => {
+  // reschedule B1: hạng 6c (yêu cầu đổi lịch) nay nằm giữa 6b và 7a, nên 7a không còn ngay sau 6b; 6b vẫn đứng ngay sau lich_hen và vẫn TRƯỚC toàn bộ tầng 7
+  it('6b đứng ngay sau lich_hen và trước tầng 7 đầu tiên (7a, sau 6c của đổi lịch); hai bảng cùng một hạng', () => {
     const tiers = LOCK_ORDER.map((rank) => rank.tang);
     expect(tiers.indexOf('6b')).toBe(tiers.indexOf('6') + 1);
-    expect(tiers.indexOf('7a')).toBe(tiers.indexOf('6b') + 1);
+    expect(tiers.indexOf('7a')).toBe(tiers.indexOf('6b') + 2);
+    expect(tiers[tiers.indexOf('6b') + 1]).toBe('6c');
     expect(LOCK_ORDER[tiers.indexOf('6b')]?.bang).toEqual([
       'ho_so_kham',
       'danh_gia_bac_si',
@@ -236,6 +241,92 @@ describe('HDK-05 tầng 6b của doctor (hồ sơ khám, đánh giá)', () => {
       'vi phạm đầu tiên, cách vài bước (bảng ngoài thứ tự bị bỏ qua)',
       ['lich_hen', 'ho_so_kham', 'chi_nhanh', 'khung_gio'],
       { index: 3, truoc: 'ho_so_kham', sau: 'khung_gio' },
+    ],
+  ])('%s', (_name, steps, expected) => {
+    expect(findLockOrderViolation(steps)).toEqual(expected);
+  });
+});
+
+// reschedule B1 — HDL-13 (phần bảng thứ tự): tầng 6c (`yeu_cau_doi_lich_ngoai_chinh_sach`) nằm giữa `lich_hen` (6, 6b) và tầng 7 (PLAN reschedule 5.4). Chuỗi câu THẬT của `reschedule-locks.ts` kiểm ở
+// `reschedule/reschedule-locks.spec.ts` và `.int-spec.ts`.
+describe('HDL-13 tầng 6c của đổi lịch (yêu cầu đổi lịch ngoài chính sách)', () => {
+  it('6c đứng ngay sau 6b và ngay trước tầng 7 đầu tiên (7a); chỉ một bảng', () => {
+    const tiers = LOCK_ORDER.map((rank) => rank.tang);
+    expect(tiers.indexOf('6c')).toBe(tiers.indexOf('6b') + 1);
+    expect(tiers.indexOf('7a')).toBe(tiers.indexOf('6c') + 1);
+    expect(LOCK_ORDER[tiers.indexOf('6c')]?.bang).toEqual([
+      'yeu_cau_doi_lich_ngoai_chinh_sach',
+    ]);
+  });
+
+  it.each([
+    [
+      'duyệt: chuỗi đổi lịch đầy đủ rồi yêu cầu rồi thông báo và nhật ký',
+      [
+        'benh_nhan',
+        'ho_so_nguoi_than',
+        'bac_si',
+        'khung_gio',
+        'khung_gio',
+        'lich_hen',
+        'yeu_cau_doi_lich_ngoai_chinh_sach',
+        'thong_bao',
+        'nhat_ky_hanh_dong',
+      ],
+    ],
+    [
+      'từ chối: chỉ khoá yêu cầu rồi ghi nhật ký',
+      ['yeu_cau_doi_lich_ngoai_chinh_sach', 'nhat_ky_hanh_dong'],
+    ],
+    [
+      'tạo yêu cầu: khung giờ mong muốn TRƯỚC lich_hen (không khoá hàng yêu cầu: chưa có)',
+      ['benh_nhan', 'ho_so_nguoi_than', 'bac_si', 'khung_gio', 'lich_hen'],
+    ],
+    [
+      'yêu cầu rồi tầng 7 khác (thanh toán, ví)',
+      [
+        'lich_hen',
+        'yeu_cau_doi_lich_ngoai_chinh_sach',
+        'giao_dich_thanh_toan',
+        'vi_noi_bo',
+      ],
+    ],
+  ])('%s ⇒ null', (_name, steps) => {
+    expect(findLockOrderViolation(steps)).toBeNull();
+  });
+
+  it.each([
+    [
+      'yêu cầu trước lich_hen (hàng con khoá trước hàng cha)',
+      ['yeu_cau_doi_lich_ngoai_chinh_sach', 'lich_hen'],
+      { index: 1, truoc: 'yeu_cau_doi_lich_ngoai_chinh_sach', sau: 'lich_hen' },
+    ],
+    [
+      'yêu cầu trước khung_gio',
+      ['yeu_cau_doi_lich_ngoai_chinh_sach', 'khung_gio'],
+      {
+        index: 1,
+        truoc: 'yeu_cau_doi_lich_ngoai_chinh_sach',
+        sau: 'khung_gio',
+      },
+    ],
+    [
+      'thông báo trước khi khoá yêu cầu',
+      ['thong_bao', 'yeu_cau_doi_lich_ngoai_chinh_sach'],
+      {
+        index: 1,
+        truoc: 'thong_bao',
+        sau: 'yeu_cau_doi_lich_ngoai_chinh_sach',
+      },
+    ],
+    [
+      'giao_dich_thanh_toan trước khi khoá yêu cầu',
+      ['giao_dich_thanh_toan', 'yeu_cau_doi_lich_ngoai_chinh_sach'],
+      {
+        index: 1,
+        truoc: 'giao_dich_thanh_toan',
+        sau: 'yeu_cau_doi_lich_ngoai_chinh_sach',
+      },
     ],
   ])('%s', (_name, steps, expected) => {
     expect(findLockOrderViolation(steps)).toEqual(expected);

@@ -2,6 +2,10 @@ import type { DataSource, EntityManager } from 'typeorm';
 import type { BacSi } from '../../admin/entities/bac-si.entity.js';
 import { KhungGio } from '../../admin/entities/khung-gio.entity.js';
 import type { LichHen } from '../../admin/entities/lich-hen.entity.js';
+import {
+  lockRequestCreation,
+  lockRescheduleChain,
+} from '../reschedule/reschedule-locks.js';
 import type { RescheduleLocated } from '../reschedule/reschedule.reader.js';
 import {
   nextAppointmentCode,
@@ -56,35 +60,32 @@ export async function buildRescheduleChain(
 }
 
 /**
- * Giữ chuỗi khoá của đổi lịch THEO THỨ TỰ PLAN reschedule 5.4 (tầng 2 `benh_nhan`, 3 `ho_so_nguoi_than`, 4 `bac_si`, 5 hai `khung_gio` THEO ID TĂNG DẦN, 6 `lich_hen`) để test `locked`
- * của `RescheduleReader` đứng đúng điều kiện đầu vào. CHỈ DÙNG TRONG TEST: bản thật là `reschedule-locks.ts` của reschedule B1; khi B1 có mã thì thay hàm này.
- * Id so bằng BigInt (so chuỗi thì "9" lớn hơn "10").
+ * Giữ chuỗi khoá của đổi lịch THEO THỨ TỰ PLAN reschedule 5.4 để test `locked` của `RescheduleReader` đứng đúng điều kiện đầu vào. Từ reschedule B1 hàm này GỌI HÀM THẬT
+ * (`lockRescheduleChain`, `reschedule-locks.ts`) thay cho bản chép tay của B2; chữ ký giữ nguyên nên các nơi gọi không đổi. Hai ca của B2 vẫn phải chạy ở chế độ `locked` dù dịch vụ thật sẽ từ chối
+ * TRƯỚC mọi khoá: khung giờ đích TRÙNG khung giờ cũ (KDL-05; chỉ có MỘT khung giờ để khoá) và khung giờ đích KHÔNG TỒN TẠI (KDL-06; hàm thật dừng ở `khung_gio`, ca chỉ đọc tiếp).
  */
 export async function holdRescheduleChain(
   em: EntityManager,
   located: RescheduleLocated,
   khungGioMoiId: string,
 ): Promise<void> {
-  await em.query('SELECT 1 FROM benh_nhan WHERE tai_khoan_id = ? FOR UPDATE', [
-    located.benhNhanId,
-  ]);
-  if (located.hoSoNguoiThanId !== null)
-    await em.query(
-      'SELECT 1 FROM ho_so_nguoi_than WHERE ho_so_nguoi_than_id = ? FOR UPDATE',
-      [located.hoSoNguoiThanId],
-    );
-  await em.query('SELECT 1 FROM bac_si WHERE tai_khoan_id = ? FOR SHARE', [
-    located.bacSiId,
-  ]);
-  const slotIds = [located.khungGioCuId, khungGioMoiId].sort((a, b) =>
-    BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0,
-  );
-  for (const slotId of slotIds)
-    await em.query(
-      'SELECT 1 FROM khung_gio WHERE khung_gio_id = ? FOR UPDATE',
-      [slotId],
-    );
-  await em.query('SELECT 1 FROM lich_hen WHERE lich_hen_id = ? FOR UPDATE', [
-    located.lichHenId,
-  ]);
+  const target = {
+    benhNhanId: located.benhNhanId,
+    hoSoNguoiThanId: located.hoSoNguoiThanId,
+    bacSiId: located.bacSiId,
+    lichHenId: located.lichHenId,
+  };
+  const locks =
+    khungGioMoiId === located.khungGioCuId
+      ? await lockRequestCreation(em, {
+          ...target,
+          khungGioMongMuonId: khungGioMoiId,
+        })
+      : await lockRescheduleChain(em, {
+          ...target,
+          khungGioCuId: located.khungGioCuId,
+          khungGioMoiId,
+        });
+  if (locks.kind === 'Missing' && locks.table !== 'khung_gio')
+    throw new Error(`thiếu hàng ${locks.table} khi giữ chuỗi khoá`);
 }
