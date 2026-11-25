@@ -33,6 +33,15 @@ type ExamRecordFacts = Partial<
     string | null
   >
 >;
+// Một bên của lần đổi lịch hộ (reschedule P2; PLAN reschedule 5.11): mã công khai của lịch (`CLX-yyyyMMdd-XXXXX`, không phải id) và giờ hẹn ISO-8601 có múi giờ.
+type RescheduleSnapshot = { ma_lich_hen: string; thoi_gian: string };
+// Xử lý yêu cầu đổi lịch ngoài chính sách: yêu cầu luôn đi từ `ChoDuyet` sang MỘT trong hai kết quả; ghi chú của người xử lý 1–255 ký tự (Q7 g).
+type RequestHandling<After extends 'DaDuyet' | 'TuChoi'> = {
+  truoc: { trang_thai: 'ChoDuyet' };
+  sau: { trang_thai: After };
+  ghi_chu: string;
+  ma_lich_hen_cu: string;
+};
 
 interface ChangeMap {
   TaoTaiKhoanNhanSu: {
@@ -128,6 +137,18 @@ interface ChangeMap {
   // Quản trị viên duyệt hoặc từ chối yêu cầu rút tiền (B12): `targetId` là `yeu_cau_rut_tien_id`, `branchId` null. `ly_do` là `ghiChu` tuỳ chọn của Quản trị viên (L11).
   DuyetRutTien: WithdrawalDecision<'DaDuyet'>;
   TuChoiRutTien: WithdrawalDecision<'TuChoi'>;
+  // ----- reschedule P2 (PLAN reschedule 5.11; Q6, Q9): danh sách trắng mã lịch, giờ hẹn, lý do hay ghi chú của nhân sự; KHÔNG tên, SĐT, email của Bệnh nhân.
+  // Lễ tân đổi hộ (B7): `targetId` là id lịch CŨ, `branchId` là chi nhánh của LỊCH (luôn có). `ly_do` 1–255 (`AUDIT_RESCHEDULE_LIMITS`).
+  DoiLichHo: {
+    truoc: RescheduleSnapshot;
+    sau: RescheduleSnapshot;
+    ly_do: string;
+  };
+  // Lễ tân hoặc Quản trị viên xử lý yêu cầu đổi lịch ngoài chính sách (B9): `targetId` là id yêu cầu, `branchId` là chi nhánh của lịch gốc.
+  // `ma_lich_hen_moi` BẮT BUỘC khi duyệt và KHÔNG có khi từ chối (union dưới đây buộc điều đó ngay khi viết mã; khung giờ thật suy ra từ lịch mới).
+  XuLyDoiLichNgoaiChinhSach:
+    | (RequestHandling<'DaDuyet'> & { ma_lich_hen_moi: string })
+    | (RequestHandling<'TuChoi'> & { ma_lich_hen_moi?: never });
 }
 
 export type AuditAction = keyof ChangeMap;
@@ -158,6 +179,8 @@ interface TargetMap {
   XuLyNapViChuaCong: 'giao_dich_thanh_toan';
   DuyetRutTien: 'yeu_cau_rut_tien';
   TuChoiRutTien: 'yeu_cau_rut_tien';
+  DoiLichHo: 'lich_hen';
+  XuLyDoiLichNgoaiChinhSach: 'yeu_cau_doi_lich_ngoai_chinh_sach';
 }
 type TargetFor<A extends AuditAction> = TargetMap[A];
 
