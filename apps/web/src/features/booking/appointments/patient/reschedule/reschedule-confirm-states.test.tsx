@@ -25,7 +25,7 @@ import {
   RESCHEDULE_ERROR_CODES,
   RESCHEDULE_NOT_ALLOWED_MESSAGE,
   rescheduleMessageForCode,
-} from './reschedule-errors';
+} from '../../common/reschedule-errors';
 
 // reschedule F2, mã ca WDH-36 [đề xuất] và WDH-07 (F2): các trạng thái của màn xác nhận KHÔNG cho gửi (preview nói không đổi được, khung giờ không hợp lệ, hợp đồng gãy) và lỗi khi tải preview. Chọn câu theo `maLoi`,
 // KHÔNG theo mã HTTP hay `thongBao`. Hôm nay giả là 25/11/2026. Dữ liệu giả.

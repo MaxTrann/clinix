@@ -2,7 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { makeDetail } from '../../../testing/fake-appointment-detail-api';
 import type { RescheduleRequestSummary } from '../api/patient-appointment-types';
-import { RESCHEDULE_TEXT } from '../reschedule/reschedule-text';
+import { RESCHEDULE_TEXT } from '../../common/reschedule-text';
 import { RescheduleRequestBanner } from './reschedule-request-banner';
 
 // reschedule F2, mã ca WDH-40 [đề xuất] và WDH-09 (PLAN reschedule 7.11): banner `yeuCauDoiLich` ở chi tiết lịch. Ba trạng thái, ghi chú là VĂN BẢN THUẦN, giờ theo giờ Việt Nam, ẩn khi lịch đã kết thúc. Dữ liệu giả.

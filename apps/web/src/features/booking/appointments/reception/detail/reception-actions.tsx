@@ -1,5 +1,5 @@
 import { UserCheck } from 'lucide-react';
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { isPositiveAmount } from '../../common/appointment-format';
 import type {
   ReceptionAppointmentDetail,
@@ -105,8 +105,12 @@ export function ReceptionActions(props: {
   sending?: { target: ReceptionTarget; label: string } | null;
   // Mở hộp "Thu tiền & tiếp đón" của `payment` (payment F4), nhận nút đã bấm để hộp trả tiêu điểm về
   onCollect?: (trigger: HTMLButtonElement) => void;
+  // Nút "Đổi lịch hộ" (reschedule F3, WDO-01): trang dựng và truyền vào (nó là một LIÊN KẾT nên cần Router, còn thẻ này vẫn dựng được không có Router). Có nút này thì thẻ `Thao tác` hiện kể cả khi không có
+  // thao tác trạng thái nào; `null` hay vắng ⇒ hành vi cũ.
+  reschedule?: ReactNode;
 }) {
   const { detail } = props;
+  const reschedule = props.reschedule ?? null;
   const headingId = useId();
   const handlers = props.handlers ?? {};
   const busy = props.busy ?? false;
@@ -120,7 +124,7 @@ export function ReceptionActions(props: {
   const checkIn = targets.includes('DaTiepDon');
   const others = targets.filter((target) => target !== 'DaTiepDon');
 
-  if (!showCollect && targets.length === 0) return null;
+  if (!showCollect && targets.length === 0 && reschedule === null) return null;
   return (
     <section
       aria-labelledby={headingId}
@@ -150,6 +154,7 @@ export function ReceptionActions(props: {
             }
           />
         )}
+        {reschedule}
         {others.length > 0 && (
           <div
             className={`grid gap-2 ${others.length > 1 ? 'grid-cols-2' : ''}`}

@@ -109,3 +109,24 @@ export const doctorAppointmentDetailPath = (maLichHen: string) =>
     ':maLichHen',
     encodeURIComponent(maLichHen),
   );
+
+// Lễ tân đổi lịch hộ bệnh nhân (reschedule F3, WDO-15; tên đường dẫn là [đề xuất]; MỘT khối liền ở cuối file để các task sau thêm khối của mình mà không xung đột). Hai route nằm DƯỚI chi tiết lịch của Lễ tân nên
+// cùng mảng `RECEPTION_APPOINTMENT_ROUTES` (không chạm `router/`), đúng nếp của Bệnh nhân: `doi-lich` là trang chọn khung giờ mới, `doi-lich/xac-nhan` là màn xác nhận. Màn xác nhận nhận khung giờ qua query
+// `khungGioId` (cùng tên khoá với luồng đặt lịch, `BOOKING_SLOT_PARAM`): id là BIGINT dạng chuỗi, không lưu ở trình duyệt, tải lại trang vẫn chạy. Mã lịch và id đều qua `encodeURIComponent`.
+export const RECEPTION_APPOINTMENT_RESCHEDULE_SEGMENT = `${RECEPTION_APPOINTMENT_DETAIL_SEGMENT}/doi-lich`;
+export const RECEPTION_APPOINTMENT_RESCHEDULE_ROUTE = `/le-tan/${RECEPTION_APPOINTMENT_RESCHEDULE_SEGMENT}`;
+export const RECEPTION_APPOINTMENT_RESCHEDULE_CONFIRM_SEGMENT = `${RECEPTION_APPOINTMENT_RESCHEDULE_SEGMENT}/xac-nhan`;
+export const RECEPTION_APPOINTMENT_RESCHEDULE_CONFIRM_ROUTE = `/le-tan/${RECEPTION_APPOINTMENT_RESCHEDULE_CONFIRM_SEGMENT}`;
+export const receptionAppointmentReschedulePath = (maLichHen: string) =>
+  RECEPTION_APPOINTMENT_RESCHEDULE_ROUTE.replace(
+    ':maLichHen',
+    encodeURIComponent(maLichHen),
+  );
+export const receptionAppointmentRescheduleConfirmPath = (
+  maLichHen: string,
+  khungGioId: string,
+) =>
+  `${RECEPTION_APPOINTMENT_RESCHEDULE_CONFIRM_ROUTE.replace(
+    ':maLichHen',
+    encodeURIComponent(maLichHen),
+  )}?${BOOKING_SLOT_PARAM}=${encodeURIComponent(khungGioId)}`;

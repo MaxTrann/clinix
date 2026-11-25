@@ -72,6 +72,9 @@ export function makeReceptionDetail(
     hanThanhToan: null,
     chuyenDuoc: ['DaHuy'],
     conPhaiThu: '300000.00',
+    // reschedule F3: hai cờ đổi lịch của B5; lịch mẫu `DaXacNhan` đổi hộ được, chưa có yêu cầu chờ
+    choPhepDoiLich: true,
+    coYeuCauChoDuyet: false,
     ...overrides,
   };
 }

@@ -11,7 +11,7 @@ import { makeDetail } from '../../../testing/fake-appointment-detail-api';
 import { makePreview } from '../../../testing/fake-reschedule-api';
 import { renderReschedule } from '../../../testing/reschedule-harness';
 import type { PatientAppointmentDetail } from '../api/patient-appointment-types';
-import { RESCHEDULE_TEXT } from '../reschedule/reschedule-text';
+import { RESCHEDULE_TEXT } from '../../common/reschedule-text';
 import { CANCEL_TEXT, DETAIL_TEXT } from './detail-messages';
 
 // reschedule F1, mã ca WDH-01 và WDH-24 [đề xuất] (PLAN reschedule 7.11): nút "Đổi lịch" ở chi tiết lịch hẹn của Bệnh nhân. Hiện theo CỜ của máy chủ (`choPhepDoiLich`, `yeuCauDoiLich`); nhãn "Gửi yêu cầu đổi lịch"
