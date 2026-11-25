@@ -1,5 +1,6 @@
 import { isISO8601 } from 'class-validator';
 import { TRANG_THAI_LICH_HEN } from '../admin/entities/enums.js';
+import { APPOINTMENT_CODE_PATTERN } from '../appointments/appointment-code.js';
 import { TRANG_THAI_TAI_KHOAN } from '../auth/entities/enums.js';
 import type { AuditEntry } from './audit-entry.js';
 import { AuditError } from './audit-error.js';
@@ -33,6 +34,9 @@ export const AUDIT_PAYMENT_LIMITS = {
   requiredReasonMin: 10,
   reasonMax: 255,
 } as const;
+// Giới hạn của hai hành động reschedule P2, đơn vị UTF-16 (`String.length`) `[đề xuất]`: `ly_do` của Lễ tân đổi hộ (Q9) và `ghi_chu` của người xử lý yêu cầu (Q7 g) đều 1–255 ký tự
+// (cận dưới tính sau trim, cận trên nguyên chuỗi, vừa `ghi_chu_xu_ly varchar(255)`). Xuất ra để DTO của B7 và B9 viết ca "trần của DTO ≤ trần của audit".
+export const AUDIT_RESCHEDULE_LIMITS = { textMin: 1, textMax: 255 } as const;
 // `decimal(12,2)` dương: 1 đến 10 chữ số phần nguyên (không số 0 đứng đầu) và ĐÚNG hai chữ số lẻ (dạng mà `pricing/money.ts` trả ra).
 const MONEY_PATTERN = /^(0|[1-9]\d{0,9})\.\d{2}$/;
 // Bốn trường hồ sơ khám được ghi vào SuaGhiChuKham; khoá khác (kể cả tên, SĐT, email) bị từ chối.
@@ -232,6 +236,49 @@ function withdrawalDecision(
     requireValid(
       String(changes.ly_do).length <= AUDIT_PAYMENT_LIMITS.reasonMax,
     );
+  }
+}
+
+// Văn bản của nhân sự (lý do đổi hộ, ghi chú xử lý): chuỗi 1–255, cận dưới sau trim, cận trên nguyên chuỗi như AnDanhGia.
+function staffText(value: unknown): void {
+  requireValid(
+    typeof value === 'string' &&
+      value.trim().length >= AUDIT_RESCHEDULE_LIMITS.textMin &&
+      value.length <= AUDIT_RESCHEDULE_LIMITS.textMax,
+  );
+}
+// Mã công khai của lịch hẹn đúng mẫu `CLX-yyyyMMdd-XXXXX`: nhờ mẫu này trường không thể chứa tên hay SĐT.
+function appointmentCode(value: unknown): asserts value is string {
+  requireValid(
+    typeof value === 'string' && APPOINTMENT_CODE_PATTERN.test(value),
+  );
+}
+function rescheduleSnapshot(value: unknown): Record<string, unknown> {
+  fields(value, ['ma_lich_hen', 'thoi_gian']);
+  appointmentCode(value.ma_lich_hen);
+  timestamp(value.thoi_gian);
+  return value;
+}
+// Yêu cầu đi từ `ChoDuyet` sang `DaDuyet` hoặc `TuChoi`; đọc trạng thái sau TRƯỚC để chọn tập khoá: `ma_lich_hen_moi` có khi và chỉ khi duyệt.
+function requestHandling(changes: unknown): void {
+  object(changes);
+  const { before, after } = snapshots(changes, 'trang_thai');
+  requireValid(
+    before === 'ChoDuyet' && (after === 'DaDuyet' || after === 'TuChoi'),
+  );
+  const approved = after === 'DaDuyet';
+  fields(changes, [
+    'truoc',
+    'sau',
+    'ghi_chu',
+    'ma_lich_hen_cu',
+    ...(approved ? ['ma_lich_hen_moi'] : []),
+  ]);
+  staffText(changes.ghi_chu);
+  appointmentCode(changes.ma_lich_hen_cu);
+  if (approved) {
+    appointmentCode(changes.ma_lich_hen_moi);
+    requireValid(changes.ma_lich_hen_moi !== changes.ma_lich_hen_cu);
   }
 }
 
@@ -461,6 +508,30 @@ function validateChanges(entry: Record<string, unknown>): void {
       break;
     case 'TuChoiRutTien':
       withdrawalDecision(entry, 'TuChoi');
+      break;
+    case 'DoiLichHo': {
+      // Hành động chỉ ghi khi thành công (2.4.70: thất bại thì không có bản ghi và hành động gốc bị hoàn tác).
+      requireValid(
+        entry.targetType === 'lich_hen' && entry.result === 'ThanhCong',
+      );
+      // Chi nhánh của LỊCH (không phải của Lễ tân): luôn có, để Quản trị viên phạm vi Chi nhánh lọc nhật ký.
+      id(branch);
+      fields(changes, ['truoc', 'sau', 'ly_do']);
+      const before = rescheduleSnapshot(changes.truoc);
+      const after = rescheduleSnapshot(changes.sau);
+      // Lịch mới luôn là lịch KHÁC lịch cũ; không so giờ vì hai khung giờ của hai lịch làm việc có thể trùng giờ.
+      requireValid(before.ma_lich_hen !== after.ma_lich_hen);
+      staffText(changes.ly_do);
+      break;
+    }
+    case 'XuLyDoiLichNgoaiChinhSach':
+      requireValid(
+        entry.targetType === 'yeu_cau_doi_lich_ngoai_chinh_sach' &&
+          entry.result === 'ThanhCong',
+      );
+      // Chi nhánh của lịch gốc của yêu cầu: luôn có.
+      id(branch);
+      requestHandling(changes);
       break;
     default:
       throw new AuditError('AUDIT_ACTION_UNSUPPORTED');

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 // notification F1, WTB-16 (PLAN 5.10): `features/patient`, `features/doctor`, `features/admin` KHÔNG import `features/notification` ngoài `index.ts` (số chưa đọc đi qua prop,
-// router thăm dò rồi truyền xuống); `features/notification` không import feature nào khác (chỉ `shared/` và thư viện). Đọc mã bằng `import.meta.glob`, bỏ file test;
+// router thăm dò rồi truyền xuống); `features/notification` chỉ import `auth` (vai trò người xem) và `doctor` (đường dẫn nghỉ phép, Duyệt yêu cầu cho nút liên kết)
+// và CHỈ qua `index.ts` (notification F2, nếp `wallet` → `payment`), ngoài ra chỉ `shared/` và thư viện. Đọc mã bằng `import.meta.glob`, bỏ file test;
 // `testing/` vẫn được quét. Nếp `features/wallet/architecture.test.ts`.
 const NOTIFICATION = import.meta.glob(
   ['./**/*.{ts,tsx}', '!./**/*.test.{ts,tsx}'],
@@ -48,11 +49,16 @@ function consumerAllowed(
   );
 }
 
-/** Luật của `notification`: không import feature nào khác. */
+const NOTIFICATION_MAY_IMPORT: readonly string[] = ['auth', 'doctor'];
+
+/** Luật của `notification`: feature khác chỉ khi có trong `NOTIFICATION_MAY_IMPORT` và chỉ qua `index.ts`. */
 function notificationAllowed(
   target: { feature: string; rest: string[] } | null,
 ): boolean {
-  return target === null || target.feature === 'notification';
+  if (target === null || target.feature === 'notification') return true;
+  return (
+    NOTIFICATION_MAY_IMPORT.includes(target.feature) && target.rest.length === 0
+  );
 }
 
 function violations(
@@ -68,7 +74,7 @@ function violations(
 }
 
 describe('notification F1 — ranh giới import (WTB-16)', () => {
-  it('WTB-16 patient, doctor, admin không đi sâu vào features/notification; notification không import feature khác', () => {
+  it('WTB-16 patient, doctor, admin không đi sâu vào features/notification; notification chỉ import auth, doctor qua index.ts', () => {
     expect(Object.keys(NOTIFICATION).length).toBeGreaterThan(4);
     for (const [name, sources] of Object.entries(CONSUMERS)) {
       expect(Object.keys(sources).length, name).toBeGreaterThan(5);
@@ -92,7 +98,38 @@ describe('notification F1 — ranh giới import (WTB-16)', () => {
     expect(fromNotification('../api/notification-api')).toBe(true);
     expect(fromNotification('../../../shared/api/client')).toBe(true);
     expect(fromNotification('react')).toBe(true);
-    expect(fromNotification('../../auth')).toBe(false);
+    expect(fromNotification('../../auth')).toBe(true);
+    expect(fromNotification('../../doctor')).toBe(true);
+    expect(fromNotification('../../doctor/shell/doctor-paths')).toBe(false);
+    expect(fromNotification('../../booking')).toBe(false);
     expect(fromNotification('../../patient/shell/role-layout')).toBe(false);
+  });
+});
+
+describe('notification F2 — quét mã nguồn (WTB-12, WTB-17)', () => {
+  // Bỏ `testing/` (API giả thay `fetch` có chủ ý)
+  const product = Object.entries(NOTIFICATION).filter(
+    ([file]) => !file.startsWith('./testing/'),
+  );
+
+  it('WTB-12 không gọi `fetch` ngoài lớp client, không `dangerouslySetInnerHTML`, không viết cứng đường dẫn trang theo vai trò', () => {
+    expect(product.length).toBeGreaterThan(8);
+    for (const [file, source] of product) {
+      // `fetch(` gọi thẳng (không tính tên hàm như `getNotifications`); chỉ bắt CÁCH DÙNG, không bắt chữ trong comment
+      expect(source, file).not.toMatch(/(?<![\w.])fetch\s*\(/);
+      expect(source, file).not.toMatch(
+        /dangerouslySetInnerHTML\s*=|\.innerHTML\b/,
+      );
+      expect(source, file).not.toMatch(
+        /['`]\/(benh-nhan|le-tan|bac-si-portal|admin)\//,
+      );
+    }
+  });
+
+  it('WTB-17 không giữ thông báo ở kho trình duyệt (`localStorage`, `sessionStorage`, `indexedDB`, cookie)', () => {
+    for (const [file, source] of product)
+      expect(source, file).not.toMatch(
+        /localStorage|sessionStorage|indexedDB|document\.cookie/,
+      );
   });
 });
