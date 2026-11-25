@@ -55,6 +55,9 @@ import { AppointmentQueries } from './queries/appointment-queries.js';
 import { AppointmentRescheduleService } from './reschedule/appointment-reschedule.service.js';
 import { PatientRescheduleController } from './reschedule/patient-reschedule.controller.js';
 import { PatientRescheduleService } from './reschedule/patient-reschedule.service.js';
+import { ReceptionReschedulePreviewService } from './reschedule/reception-reschedule-preview.service.js';
+import { ReceptionRescheduleController } from './reschedule/reception-reschedule.controller.js';
+import { ReceptionRescheduleService } from './reschedule/reception-reschedule.service.js';
 import { RescheduleDetailReader } from './reschedule/reschedule-detail.reader.js';
 import { ReschedulePreviewService } from './reschedule/reschedule-preview.service.js';
 import { RescheduleRequestRepository } from './reschedule/reschedule-request.repository.js';
@@ -110,6 +113,9 @@ import { ReceptionStatusService } from './status/reception-status.service.js';
 //       và không `exports` mới: mọi người gọi cùng module. B4 cũng đăng ký `RescheduleReader`: khi gộp chỉ giữ MỘT dòng.
 //   reschedule B6 (đã làm; TRACKING reschedule 1.10) `PatientRescheduleController` (`reschedule/`; `GET …/reschedule-preview` và `POST …/reschedule` của Bệnh nhân, `@Roles('BenhNhan')` trên từng route), `ReschedulePreviewService`
 //       (CHỈ ĐỌC, một lần `runReadOnly`) và `PatientRescheduleService` (ghép `AppointmentRescheduleService` của B4 với `RescheduleRequestService` của B5, không SQL, không giao dịch). Không `imports`, không `exports`, không cổng mới.
+//   reschedule B7 (đã làm; TRACKING reschedule 1.11) `ReceptionRescheduleController` (`reschedule/`; `GET …/reschedule-preview` và `POST …/reschedule` của Lễ tân đổi hộ, `@Roles('LeTan')` trên từng route),
+//       `ReceptionReschedulePreviewService` (CHỈ ĐỌC, một lần `runReadOnly`) và `ReceptionRescheduleService` (gọi `AppointmentRescheduleService` của B4 với `actor` `DoiHo`, ghi Audit `DoiLichHo` trong `afterWrite`, không SQL,
+//       không giao dịch). Không `imports` (`AuditModule` và `RbacModule` đã nhập), không `exports`, không cổng mới.
 // `exports: [AppointmentTransitionService, AppointmentQueries, AppointmentCancellationService]`: CẢ BA là bề mặt DUY NHẤT module khác gọi vào (TRACKING 3.23, 3.24.1): `AppointmentTransitionService` cho `confirmPaid` và
 // `complete` (B11), `AppointmentQueries` cho truy vấn lịch bị ảnh hưởng (B11), `AppointmentCancellationService` cho `cancel` (B10: `doctor` duyệt nghỉ phép gọi `cancel` với `HeThong`).
 // Không `exports` cổng nào: chỉ service trong module tiêm chúng (`@Inject(PAYMENT_PORT)`…); module khác chỉ `import` file interface để viết bản thật.
@@ -179,6 +185,7 @@ const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
     DoctorAppointmentsController,
     PatientCancelController,
     PatientRescheduleController,
+    ReceptionRescheduleController,
     ReceptionStatusController,
     AdminOverrideController,
   ],
@@ -229,6 +236,8 @@ const PORT_PROVIDERS_STILL_NOOP = BOOKING_PORT_PROVIDERS.filter(
     RescheduleDetailReader,
     PatientRescheduleService,
     ReschedulePreviewService,
+    ReceptionRescheduleService,
+    ReceptionReschedulePreviewService,
   ],
   exports: [
     AppointmentTransitionService,

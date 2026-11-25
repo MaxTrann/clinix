@@ -35,3 +35,11 @@ export const BRANCH_CHANGE_MAIL_EVENTS = {
   CANCELLED: 'HuyThayDoiChiNhanh',
   RESCHEDULED: 'DoiHieuLucThayDoiChiNhanh',
 } as const;
+
+/**
+ * Loại thông báo CÓ thư của phần khám bệnh (notification B4; PLAN notification 5.7, Q6; Figma `678:2`): thư "Lịch khám đã hoàn thành" gửi tài khoản đặt. Viết bằng CHỮ ở đây để booking không import
+ * `doctor/` lúc chạy (chiều phụ thuộc: doctor gọi booking, không ngược lại); `exam-mail.templates.spec.ts` kiểm chữ khớp `EXAM_NOTIFICATION_EVENTS` của `doctor/examination/examination.constants.ts`.
+ */
+export const EXAM_MAIL_EVENTS = {
+  COMPLETED: 'LichHenHoanThanh',
+} as const;

@@ -54,7 +54,7 @@ async function cancelledLich(w: Awaited<ReturnType<typeof world>>) {
   return lich;
 }
 
-describe('OBX-01 chọn lô: ChoGui hoặc ThatBai chưa hết lượt và đã quá nhịp, chỉ các loại có thư (`MAIL_EVENTS`, 17 loại; ca này dùng bốn loại của booking), theo khoá chính', () => {
+describe('OBX-01 chọn lô: ChoGui hoặc ThatBai chưa hết lượt và đã quá nhịp, chỉ các loại có thư (`MAIL_EVENTS`, 18 loại; ca này dùng bốn loại của booking), theo khoá chính', () => {
   it('bảy dòng đủ trạng thái: chỉ dòng ChoGui mới, ThatBai quá nhịp và ChoGui đã nhận việc quá nhịp được chọn, theo thứ tự id', async () => {
     const w = await world();
     const lich = await w.booked('DaXacNhan', 0);
