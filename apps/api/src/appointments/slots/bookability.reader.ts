@@ -46,6 +46,11 @@ export interface BookabilityInput {
   soLichHenToiDa: number;
   /** `toSecond(nowVN())`: MỘT mốc cho cả luồng */
   now: Date;
+  /**
+   * Lịch đang đổi (reschedule B2): chuyển nguyên vào `facts.thayThe` để luật không tính nó. TUỲ CHỌN: `checks` và `create` không truyền nên `facts` của hai nơi này
+   * giữ NGUYÊN hình dạng cũ (không có khoá `thayThe`).
+   */
+  thayThe?: { maLichHen: string } | null;
 }
 
 export type BookabilityRead =
@@ -235,6 +240,7 @@ export class BookabilityReader {
         activeAppointments,
         soLichHenToiDa: input.soLichHenToiDa,
         overlaps,
+        ...(input.thayThe === undefined ? {} : { thayThe: input.thayThe }),
       },
     };
   }
