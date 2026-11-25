@@ -159,6 +159,21 @@ export function maskThongBaoDoiLich(statements: readonly string[]): string[] {
     );
 }
 
+const THONG_BAO_CHI_MUC_TAI_KHOAN =
+  /^CREATE INDEX `thong_bao_index_tai_khoan_thoi_diem` ON `thong_bao` /;
+
+/**
+ * Che phần notification P2 (chỉ mục `thong_bao_index_tai_khoan_thoi_diem`) khỏi các câu CHÍNH THỨC của bảng vận hành. Migration vận hành (P3) tạo `thong_bao` trước khi chỉ mục này có;
+ * migration notification P2 thêm sau. Bỏ đúng MỘT câu CREATE INDEX đó, không đụng chỉ mục hay bảng khác. Trạng thái cuối được so bằng SHOW CREATE TABLE (schema-parity.int-spec.ts).
+ */
+export function maskThongBaoChiMucTaiKhoan(
+  statements: readonly string[],
+): string[] {
+  return statements.filter(
+    (statement) => !THONG_BAO_CHI_MUC_TAI_KHOAN.test(statement),
+  );
+}
+
 const NGHI_PHEP_NEW_COMMENT_TAIL =
   'TheoCa: bắt buộc có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày, một ca).';
 const NGHI_PHEP_OLD_COMMENT_TAIL = 'TheoCa: bắt buộc có ca, chỉ nghỉ 1 ngày.';

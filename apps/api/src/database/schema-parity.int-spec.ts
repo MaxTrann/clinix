@@ -10,6 +10,7 @@ import {
   maskLichHenDoiLich,
   maskLichHenMoc,
   maskNghiTheoCaNhieuNgay,
+  maskThongBaoChiMucTaiKhoan,
   maskThongBaoDoiLich,
   maskThongBaoLichHen,
   normalizeStatement,
@@ -201,6 +202,11 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     ]) {
       expect(nhacLich, part).toContain(part);
     }
+
+    // MTB-10 (notification P2): chỉ mục danh sách thông báo theo tài khoản có mặt thật, đúng ba cột theo thứ tự
+    expect(thongBao).toContain(
+      'KEY `thong_bao_index_tai_khoan_thoi_diem` (`tai_khoan_id`,`thoi_diem_tao`,`thong_bao_id`)',
+    );
   });
 
   it('mọi câu lệnh trong migration thuộc đúng 5 bảng auth', () => {
@@ -250,11 +256,13 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     expect(official.length).toBeGreaterThan(0);
     // Hai enum của nhat_ky_hanh_dong được mở rộng ở migration P4 và cột thong_bao.lich_hen_id (cùng chỉ mục, khóa ngoại)
     // được thêm ở migration booking P7 (đều sau migration này); trạng thái cuối được so bằng SHOW CREATE TABLE ở test
-    // phía trên, MG-08 và TBLH-01. Cột thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id (cùng chỉ mục, khóa ngoại) được thêm ở migration reschedule P1: được che, xem MDL-04, MDL-08.
+    // phía trên, MG-08 và TBLH-01. Cột thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id (cùng chỉ mục, khóa ngoại) được thêm ở migration reschedule P1: được che, xem MDL-04, MDL-08. Chỉ mục thong_bao_index_tai_khoan_thoi_diem thêm ở notification P2: cũng được che (MTB-10).
     expect(
       TAO_BANG_VAN_HANH_SQL.map(normalizeStatement).map(maskAuditEnums),
     ).toEqual(
-      maskThongBaoDoiLich(maskThongBaoLichHen(official)).map(maskAuditEnums),
+      maskThongBaoChiMucTaiKhoan(
+        maskThongBaoDoiLich(maskThongBaoLichHen(official)),
+      ).map(maskAuditEnums),
     );
   });
 
