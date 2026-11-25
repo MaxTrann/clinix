@@ -9,6 +9,8 @@ import {
   type DetailErrorKind,
 } from '../../common/error-kinds';
 import { LIST_TEXT } from '../list-messages';
+import { useOneShotNotice } from '../reschedule/reschedule-notice-state';
+import { RESCHEDULE_TEXT } from '../reschedule/reschedule-text';
 import { CancelSection } from './cancel-section';
 import { DetailColumns, DetailPageFrame } from '../../common/detail-frame';
 import { StatusTimeline } from '../../common/status-timeline';
@@ -17,6 +19,8 @@ import { DetailCostCard } from './detail-cost';
 import { DetailInfoCard, RecordCard } from './detail-info';
 import { DETAIL_TEXT } from './detail-messages';
 import { DetailSummary } from './detail-summary';
+import { RescheduleRequestBanner } from './reschedule-request-banner';
+import { RescheduleResultNotice } from './reschedule-result-notice';
 import { RescheduleSection } from './reschedule-section';
 import { useAppointmentDetail } from './use-appointment-detail';
 import { useCancelBox } from './use-cancel-box';
@@ -46,6 +50,8 @@ function LoadFailure({
     return (
       <Notice>
         <p>{DETAIL_TEXT.notFound}</p>
+        {/* reschedule F2 (WDH-42): lịch cũ sau khi đổi là 404 cùng thân với mọi lý do khác, nên dòng gợi ý là MỘT chữ cố định cho mọi 404 (không lộ lịch có tồn tại hay không) */}
+        <p>{RESCHEDULE_TEXT.replacedHint}</p>
         <Link
           to={PATIENT_APPOINTMENTS_PATH}
           className="mt-2 block font-medium underline"
@@ -69,6 +75,8 @@ function AppointmentDetail({ maLichHen }: { maLichHen: string }) {
   });
   // Đóng hộp huỷ mà nút `Hủy lịch hẹn` không còn: tiêu điểm về tiêu đề trang (xem `CancelSection`)
   const headingRef = useRef<HTMLHeadingElement>(null);
+  // Thông báo MỘT lần sau khi đổi lịch hay gửi yêu cầu (reschedule F2, WDH-41): đọc từ `location.state` ở lần gắn đầu rồi xoá, nên tải lại không hiện lại
+  const notice = useOneShotNotice(['DaDoi', 'DaGuiYeuCau']);
 
   return (
     <DetailPageFrame
@@ -90,6 +98,10 @@ function AppointmentDetail({ maLichHen }: { maLichHen: string }) {
       {view.kind === 'ready' && (
         <div aria-busy={view.refreshing} className="mt-5 flex flex-col gap-4">
           <DetailSummary detail={view.detail} />
+          {(notice === 'DaDoi' || notice === 'DaGuiYeuCau') && (
+            <RescheduleResultNotice kind={notice} />
+          )}
+          <RescheduleRequestBanner detail={view.detail} />
           {/* doctor-exam F6 (Q20, Q21): CHỈ khi `HoanThanh` module `doctor` gọi `exam-records` và đưa hai thẻ vào đúng hai cột (hồ sơ ở trái, đánh giá ở phải: Figma `422:2`); trạng thái khác `record` và `rating` là `null` nên giữ thẻ chữ tĩnh cũ */}
           <PatientExamSections
             maLichHen={view.detail.maLichHen}

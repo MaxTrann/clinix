@@ -32,3 +32,28 @@ export interface ReschedulePreview {
   // ISO 8601 UTC; F1 chưa dùng
   thoiGianMayChu: string;
 }
+
+// ---- Gửi đổi lịch (reschedule F2; hợp đồng `POST /patient/appointments/:maLichHen/reschedule` của B6, PLAN reschedule 5.8) ----
+
+// Thân gửi: `khungGioId` luôn có (chuỗi id); `lyDoYeuCau` CHỈ khi hết lần tự đổi (đã chuẩn hoá, 5 đến 500 điểm mã), vắng ở `TuDoi`.
+export interface RescheduleSubmitInput {
+  khungGioId: string;
+  lyDoYeuCau?: string;
+}
+
+// 201 khi đã đổi ngay. Chỉ mã lịch, không id nội bộ. `trangThai` của lịch mới do máy chủ trả (B6: luôn `DaXacNhan`), web không dùng để quyết gì.
+export interface RescheduleDone {
+  ketQua: 'DaDoi';
+  lichHenMoi: { maLichHen: string; thoiGian: string; trangThai: string };
+  lichHenCu: { maLichHen: string };
+  thoiGianMayChu: string;
+}
+
+// 201 khi đã gửi yêu cầu (đã hết lần tự đổi). KHÔNG có `yeuCauId`: bộ đọc không bao giờ chép khoá lạ.
+export interface RescheduleRequestSent {
+  ketQua: 'DaGuiYeuCau';
+  yeuCau: { trangThai: 'ChoDuyet'; thoiGianMongMuon: string };
+  thoiGianMayChu: string;
+}
+
+export type RescheduleResult = RescheduleDone | RescheduleRequestSent;

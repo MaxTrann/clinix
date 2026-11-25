@@ -270,11 +270,18 @@ describe('chọn ô (WDH-03)', () => {
     expect(url()).toBe(`${CONFIRM_BASE}?khungGioId=${big}`);
   });
 
-  it('WDH-03 chọn ô KHÔNG gọi API ghi và không gọi lại preview (chỉ điều hướng)', async () => {
+  it('WDH-03 chọn ô KHÔNG gọi API ghi: trang chọn chỉ điều hướng; lời gọi preview thứ hai là của MÀN XÁC NHẬN (reschedule F2, chỉ đọc, có `khungGioId`)', async () => {
     const { api } = renderReschedule();
     fireEvent.click(await freeCell('08:00, còn trống'));
     await screen.findByRole('heading', { name: RESCHEDULE_TEXT.confirmTitle });
+    await screen.findByRole('heading', {
+      level: 2,
+      name: RESCHEDULE_TEXT.newTitle,
+    });
     expect(api.detail.writes()).toEqual([]);
-    expect(api.previewCalls).toHaveLength(1);
+    expect(api.submitCalls).toEqual([]);
+    expect(api.previewCalls).toHaveLength(2);
+    expect(api.previewCalls[0].khungGioId).toBeNull();
+    expect(api.previewCalls[1].khungGioId).toMatch(/^1\d{2}1$/);
   });
 });

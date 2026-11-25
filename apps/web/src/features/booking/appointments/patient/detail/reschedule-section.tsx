@@ -5,6 +5,7 @@ import type { PatientAppointmentDetail } from '../api/patient-appointment-types'
 import { RESCHEDULE_NOT_ALLOWED_MESSAGE } from '../reschedule/reschedule-errors';
 import { RESCHEDULE_TEXT } from '../reschedule/reschedule-text';
 import { useReschedulePreview } from '../reschedule/use-reschedule-preview';
+import { isStillAlive } from './reschedule-alive';
 
 const BUTTON = 'min-h-11 w-full rounded-xl px-5 text-sm font-medium';
 
@@ -43,9 +44,8 @@ function DisabledReschedule({ reason }: { reason: string }) {
   );
 }
 
-// Hai trạng thái "còn sống" mà một lịch có thể chưa đổi được (chờ thanh toán, đã quá giờ hẹn, chuỗi quá dài…): hiện nút vô hiệu kèm lý do chung. Trạng thái kết thúc (đã tiếp đón, hoàn thành, đã huỷ,
-// vắng mặt, đã đổi lịch, mã lạ) thì ẩn nút như nút Hủy (Đại chọn 25/11/2026, câu E). Quy tắc theo trạng thái này chỉ để chọn ẩn hay vô hiệu; QUYỀN đổi vẫn theo cờ của máy chủ.
-const STILL_ALIVE: readonly string[] = ['ChoThanhToan', 'DaXacNhan'];
+// Lịch còn "sống" (`isStillAlive`: chờ thanh toán, đã xác nhận) mà chưa đổi được (chờ thanh toán, đã quá giờ hẹn, chuỗi quá dài…): hiện nút vô hiệu kèm lý do chung. Trạng thái kết thúc thì ẩn nút như nút Hủy
+// (Đại chọn 25/11/2026, câu E); quy tắc này dùng chung với banner yêu cầu đổi lịch (reschedule F2).
 
 // Khu đổi lịch ở cột thao tác của chi tiết (reschedule F1, WDH-01). Thứ tự: yêu cầu đang chờ duyệt ⇒ vô hiệu nếu lịch còn sống (thắng cả cờ `choPhepDoiLich`: một lịch chỉ có một yêu cầu chờ;
 // lịch đã kết thúc mà còn yêu cầu tồn thì không hiện nút, banner yêu cầu là việc của F2); `choPhepDoiLich` ⇒ liên kết (và MỚI gọi xem trước); còn lại theo trạng thái như trên.
@@ -55,7 +55,7 @@ export function RescheduleSection({
 }: {
   detail: PatientAppointmentDetail;
 }) {
-  const alive = STILL_ALIVE.includes(detail.trangThai);
+  const alive = isStillAlive(detail.trangThai);
   if (detail.yeuCauDoiLich?.trangThai === 'ChoDuyet') {
     return alive ? (
       <DisabledReschedule reason={RESCHEDULE_TEXT.pendingReason} />
