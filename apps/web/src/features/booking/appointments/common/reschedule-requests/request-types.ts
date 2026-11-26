@@ -69,4 +69,9 @@ export interface RequestQuery {
 export interface RescheduleRequestsApi {
   list: (query: RequestQuery, signal?: AbortSignal) => Promise<RequestPage>;
   get: (yeuCauId: string, signal?: AbortSignal) => Promise<RequestDetail>;
+  // Id bác sĩ của lịch gốc, để vẽ lưới khung giờ THAY THẾ khi duyệt (Pha B2; chi tiết B8 không có id này). VẮNG ⇒ hộp Duyệt không có nút "Chọn khung giờ khác" (Quản trị viên ở F5 chưa có nguồn).
+  resolveDoctorId?: (
+    detail: RequestDetail,
+    signal?: AbortSignal,
+  ) => Promise<string>;
 }

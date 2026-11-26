@@ -21,6 +21,17 @@ export const HANDLE_TEXT = {
   approveIntro:
     'Hệ thống sẽ đổi lịch hẹn sang khung giờ mà bệnh nhân mong muốn.',
   approveSlotLabel: 'Khung giờ mong muốn',
+  // Khung giờ thay thế (Pha B2; 2.4.31 A2 5c)
+  approveReplacementIntro:
+    'Hệ thống sẽ đổi lịch hẹn sang khung giờ bạn đã chọn thay cho khung giờ mong muốn.',
+  replacementSlotLabel: 'Khung giờ mới',
+  pickAnother: 'Chọn khung giờ khác',
+  pickLoading: 'Đang tải khung giờ…',
+  pickFailed: 'Không tải được khung giờ khác. Vui lòng thử lại.',
+  useDesired: 'Dùng lại khung giờ mong muốn',
+  panelTitle: 'Chọn khung giờ khác',
+  panelIntro: 'Chọn một khung giờ còn trống của bác sĩ.',
+  backToApprove: 'Quay lại hộp duyệt',
   rejectIntro: 'Lịch hẹn giữ nguyên khung giờ hiện tại.',
   approveConfirm: 'Xác nhận duyệt',
   approving: 'Đang duyệt…',

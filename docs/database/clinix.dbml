@@ -20,6 +20,8 @@
 // không thêm bảng hay khối Enum mới. Chuyển đổi từ DB cũ: mục "reschedule P1" ở cuối clinix_quy_tac_nghiep_vu.md.
 // 25/11/2026 (scope #10 "Thông báo", task notification P2): thong_bao thêm index (tai_khoan_id, thoi_diem_tao, thong_bao_id) tên thong_bao_index_tai_khoan_thoi_diem cho danh sách
 // "Tất cả" của Trung tâm thông báo (số đo X1 M1). Không đổi bảng, cột, enum. Chuyển đổi từ DB cũ: mục "notification P2" ở cuối clinix_quy_tac_nghiep_vu.md.
+// 26/11/2026 (scope #10 "Thông báo", task notification D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa Note nào của Table: Note của bảng
+// nhac_lich_hen (ON DUPLICATE KEY UPDATE, hai chỗ "chưa chốt") và của thong_bao.loai_su_kien đã lỗi thời, thay bằng quy tắc 41 và mục "notification D1" ở clinix_quy_tac_nghiep_vu.md.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17

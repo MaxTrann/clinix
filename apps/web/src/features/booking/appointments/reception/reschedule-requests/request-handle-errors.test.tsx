@@ -25,7 +25,7 @@ import { COMMON_LIST_TEXT } from '../../common/list-text';
 import { HANDLE_TEXT } from '../../common/reschedule-requests/request-handle-text';
 import { REQUEST_TEXT } from '../../common/reschedule-requests/request-text';
 
-// reschedule F4 Pha B1: lỗi khi Duyệt hay Từ chối (WXD-08 theo PLAN reschedule 7.11 và `[đề xuất]` WXD-91…99): từ chối có kiểu của B9 ⇒ 409 và yêu cầu VẪN `ChoDuyet` (GIỮ hộp và chữ), đã xử lý, không có, lịch không còn
+// reschedule F4 Pha B1: lỗi khi Duyệt hay Từ chối (WXD-06, 08 theo PLAN reschedule 7.11): từ chối có kiểu của B9 ⇒ 409 và yêu cầu VẪN `ChoDuyet` (GIỮ hộp và chữ), đã xử lý, không có, lịch không còn
 // duyệt được, khung giờ vừa bị chiếm, 500, 503, 400 ở ghi chú, 401, 403, mã lạ, và "chưa rõ" (mạng, 200 sai hình dạng: máy chủ CÓ THỂ đã ghi, KHÔNG tự gửi lại). Đua dựng bằng `onHandle` (đổi kho TRƯỚC khi POST được
 // xử lý). Câu chọn theo `maLoi`, không theo `thongBao` hay mã HTTP. Dữ liệu giả.
 afterEach(cleanUpRequestsPage);
@@ -135,7 +135,7 @@ describe('từ chối có kiểu (409, yêu cầu VẪN ChoDuyet): giữ hộp',
     ['DangGiuCho', 'KHUNG_GIO_DANG_GIU', 'đang được giữ chỗ cho người khác'],
     ['HetHan', 'KHUNG_GIO_DA_QUA', 'đã qua'],
   ] as const)(
-    'WXD-08 khung giờ mong muốn vừa thành `%s` (409 `%s`): hộp VẪN MỞ kèm câu "không còn trống, bạn có thể từ chối", GIỮ chữ ghi chú, nút xác nhận bật lại; chi tiết tải lại ra trạng thái khung giờ mới; yêu cầu còn chờ',
+    'WXD-08 khung giờ mong muốn vừa thành `%s` (409 `%s`): hộp VẪN MỞ kèm câu gợi ý chọn khung giờ khác hoặc từ chối, nút "Chọn khung giờ khác" dùng được, GIỮ chữ ghi chú, nút xác nhận bật lại; chi tiết tải lại ra trạng thái khung giờ mới; yêu cầu còn chờ',
     async (state, _code, phrase) => {
       const { api } = await openPending(
         {},
@@ -156,12 +156,16 @@ describe('từ chối có kiểu (409, yêu cầu VẪN ChoDuyet): giữ hộp',
       );
       submitDialog('approve', NOTE);
       await waitFor(() =>
-        expect(dialogAlert('approve')).toHaveTextContent(HANDLE_TEXT.slotGone),
+        expect(dialogAlert('approve')).toHaveTextContent(
+          HANDLE_TEXT.slotGonePick,
+        ),
       );
-      // chưa có nút "Chọn khung giờ khác" (B2) nên câu KHÔNG hứa việc đó
-      expect(dialogAlert('approve')).not.toHaveTextContent(
-        'chọn khung giờ khác',
-      );
+      // có nút "Chọn khung giờ khác" (B2) nên câu gợi ý đúng việc làm được
+      expect(
+        within(dialogOf('approve')).getByRole('button', {
+          name: HANDLE_TEXT.pickAnother,
+        }),
+      ).toBeEnabled();
       expect(noteBox('approve').value).toBe(NOTE);
       expect(confirmButton('approve')).toBeEnabled();
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -198,7 +202,9 @@ describe('từ chối có kiểu (409, yêu cầu VẪN ChoDuyet): giữ hộp',
     );
     submitDialog('approve', NOTE);
     await waitFor(() =>
-      expect(dialogAlert('approve')).toHaveTextContent(HANDLE_TEXT.slotGone),
+      expect(dialogAlert('approve')).toHaveTextContent(
+        HANDLE_TEXT.slotGonePick,
+      ),
     );
     fireEvent.click(
       within(dialogOf('approve')).getByRole('button', {

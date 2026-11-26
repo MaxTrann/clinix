@@ -71,6 +71,10 @@
 -- 25/11/2026 (scope #10 "Thông báo", task notification P2, issue #657): thong_bao thêm chỉ mục thong_bao_index_tai_khoan_thoi_diem (tai_khoan_id, thoi_diem_tao, thong_bao_id)
 -- cho danh sách "Tất cả" của Trung tâm thông báo (ORDER BY thoi_diem_tao DESC, thong_bao_id DESC): số đo X1 M1 cho thấy thong_bao_index_25 phải filesort khi không lọc trang_thai_doc.
 -- Không đổi bảng, cột, enum, constraint. Chuyển đổi từ DB cũ: mục "notification P2" ở cuối clinix_quy_tac_nghiep_vu.md.
+-- 26/11/2026 (scope #10 "Thông báo", task notification D1, issue #668): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE
+-- hay ALTER TABLE nào (migration chép nguyên văn). COMMENT của bảng nhac_lich_hen ("INSERT ... ON DUPLICATE KEY UPDATE; ROW_COUNT 1 = vừa tạo" và hai chỗ "Chưa chốt") và của
+-- thong_bao.loai_su_kien đã lỗi thời: bản đúng là quy tắc 41 (INSERT thường + bắt 1062, số đo M4; 3 lần gồm lần đầu, cách 5 phút, trễ tối đa 10 phút) và mục "notification D1"
+-- ở clinix_quy_tac_nghiep_vu.md (danh mục mã ở notification/catalog/, 21 loại có thư). Truy vấn mẫu nhắc lịch ở cuối file cập nhật hai tham số đã chốt.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -1261,8 +1265,9 @@ ALTER TABLE `thong_tin_phong_kham` ADD CONSTRAINT `chk_phong_kham_mot_dong` CHEC
 
 -- ============================================================================
 -- TRUY VẤN MẪU (comment): mốc nhắc lịch ĐẾN HẠN (mỗi mốc của mỗi lịch hẹn DaXacNhan, chưa tới giờ hẹn, chưa có dòng hoặc đang chờ thử lại)
--- Tham số: :bay_gio (service truyền NOW()); :cua_so_tre_phut = lịch hẹn đạt mốc trễ tối đa bao lâu vẫn còn gửi [cần điền];
---   :so_lan_thu_toi_da, :khoang_cach_thu_lai_phut = số lần thử và khoảng cách thử lại [theo 2.4.69: 3 lần, 5 phút; cách đếm lần gửi đầu chưa chốt].
+-- Tham số: :bay_gio (service truyền NOW()); :cua_so_tre_phut = lịch hẹn đạt mốc trễ tối đa bao lâu vẫn còn gửi (đã chốt 10 phút, notification Q2);
+--   :so_lan_thu_toi_da, :khoang_cach_thu_lai_phut = số lần thử và khoảng cách thử lại (đã chốt 3 lần GỒM lần đầu, cách 5 phút, notification Q3).
+-- Mã thật (notification B3) tách thành một câu cho mỗi mốc theo khoảng hẹp trên thoi_gian và tạo dòng bằng INSERT thường + bắt 1062 (quy tắc 41); câu dưới chỉ để minh hoạ.
 -- Mốc đã DaGui không bao giờ xuất hiện lại. Dòng ChoGui = đã tạo nhưng chưa có worker nhận (vd. worker chết); luôn được nhặt lại, việc nhận vẫn qua UPDATE có điều kiện.
 -- ============================================================================
 -- SELECT lh.lich_hen_id, m.so_gio_truoc, IFNULL(n.so_lan_thu, 0) AS so_lan_thu

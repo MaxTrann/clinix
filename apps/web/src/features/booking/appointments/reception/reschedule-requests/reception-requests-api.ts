@@ -8,6 +8,7 @@ import type {
   RequestQuery,
   RescheduleRequestsApi,
 } from '../../common/reschedule-requests/request-types';
+import { getReceptionReschedulePreview } from '../reschedule/reception-reschedule-api';
 
 // Gọi và kiểm hình dạng hai route ĐỌC của Lễ tân (reschedule F4; B8): `GET /reception/reschedule-requests` và `GET /reception/reschedule-requests/:yeuCauId`. Route của Lễ tân nên GẮN access token (mặc định của
 // `request()`); chi nhánh do backend đọc từ `le_tan` ở DB mỗi lần gọi, nên KHÔNG có tham số nào từ client là phạm vi dữ liệu (gửi `chiNhanhId` là khoá lạ ⇒ 400). Bộ đọc NGHIÊM ở `common/reschedule-requests`.
@@ -42,4 +43,8 @@ export const receptionRequestsApi: RescheduleRequestsApi = {
         signal,
       }),
     ),
+  // Chi tiết B8 không có id bác sĩ: hỏi preview đổi hộ của B7 (chỉ đọc, không khoá) qua bộ đọc NGHIÊM của F3, CHỈ lấy `lichCu.bacSiId` (Pha B2; kế hoạch 1.16 mục 2.7). Gọi khi người dùng bấm, không gọi trước.
+  resolveDoctorId: async (detail, signal) =>
+    (await getReceptionReschedulePreview(detail.maLichHen, null, signal)).lichCu
+      .bacSiId,
 };
