@@ -25,6 +25,8 @@
 // 26/11/2026 (scope #9 "Đổi lịch hẹn", task reschedule D1, issue #651): chỉ sửa chữ ở dòng chú thích; quy tắc 27 đã có mã, xem mục "reschedule D1" ở clinix_quy_tac_nghiep_vu.md.
 // 27/11/2026 (scope #11 "Nhắn tin", task chat P1): tin_nhan thêm ma_gui, tep_ten_goc, tep_loai, tep_dung_luong, UNIQUE (nguoi_gui_id, ma_gui) và hai CHECK
 // (chk_tin_nhan_tep, chk_tin_nhan_noi_dung, ghi ở Note vì DBML không khai CHECK); khớp clinix_mysql.sql và migration TaoBangChat1794225600000.
+// 26/11/2026 (scope #11 "Nhắn tin", task chat P2 phần (b)): tin_nhan thêm index (nguoi_gui_id, thoi_diem_gui) tên tin_nhan_index_nguoi_gui_thoi_diem cho câu đếm giới hạn
+// tốc độ gửi (số đo X1 M4). Không đổi bảng, cột, enum. Chuyển đổi từ DB cũ: mục "chat P2" ở cuối clinix_quy_tac_nghiep_vu.md.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17
@@ -970,6 +972,7 @@ Table tin_nhan {
   indexes {
     (hoi_thoai_id, tin_nhan_id)
     (nguoi_gui_id, ma_gui) [unique, name: 'tin_nhan_index_nguoi_gui_ma_gui']
+    (nguoi_gui_id, thoi_diem_gui) [name: 'tin_nhan_index_nguoi_gui_thoi_diem']
   }
 
   Note: 'CHECK chk_tin_nhan_tep: bốn cột tệp cùng trống hoặc cùng có, tep_dung_luong từ 1 đến 10485760 byte. CHECK chk_tin_nhan_noi_dung: noi_dung rỗng chỉ khi có tệp (DBML không khai được CHECK, xem clinix_mysql.sql).'

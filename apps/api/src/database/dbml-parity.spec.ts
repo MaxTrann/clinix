@@ -143,36 +143,60 @@ describe('clinix.dbml khớp clinix_mysql.sql ở các phần reschedule P1 ch�
   });
 });
 
+/** Bộ cột của chỉ mục có `name: '<tên>'` trong khối indexes của Table (dòng dạng `(a, b) [name: '...']`). Dùng chung cho notification P2 và chat P2. */
+// String.raw giữ nguyên dấu `\` để regex khớp dấu ngoặc thật (template literal thường bỏ `\(` thành `(`)
+function dbmlNamedIndex(source: string, table: string, name: string): string[] {
+  return dbmlBlock(source, `Table ${table}`).flatMap(
+    (line) =>
+      new RegExp(String.raw`^ {4}\(([^)]*)\) \[name: '${name}'\]$`).exec(
+        line,
+      )?.[1] ?? [],
+  );
+}
+
+/** Bộ cột (bỏ dấu `) của câu `CREATE INDEX <tên> ON <bảng> (...)` trong clinix_mysql.sql. */
+function sqlIndexColumns(table: string, name: string): string[] {
+  return officialStatementsFor([table])
+    .map(normalizeStatement)
+    .flatMap(
+      (sql) =>
+        new RegExp(
+          String.raw`^CREATE INDEX ${'`'}${name}${'`'} ON ${'`'}${table}${'`'} \(([^)]*)\)$`,
+        )
+          .exec(sql)?.[1]
+          ?.replaceAll('`', '') ?? [],
+    );
+}
+
+/** Bản dbml đã bỏ dòng chỉ mục `name` (ca âm). */
+function dbmlWithout(name: string): string {
+  return dbml
+    .split('\n')
+    .filter((line) => !line.includes(`[name: '${name}']`))
+    .join('\n');
+}
+
 // notification P2 (#657) — MTB-10: chỉ mục thường thong_bao_index_tai_khoan_thoi_diem có ở dbml với đúng tên và đúng bộ cột như câu CREATE INDEX của SQL.
+// chat P2 (đổi): ba hàm đọc chỉ mục chuyển ra ngoài describe để khối chat P2 dùng lại; nội dung kiểm không đổi.
 describe('clinix.dbml khớp clinix_mysql.sql ở chỉ mục notification P2', () => {
   const NAME = 'thong_bao_index_tai_khoan_thoi_diem';
-  /** Bộ cột của chỉ mục có `name: '<tên>'` trong khối indexes của Table (dòng dạng `(a, b) [name: '...']`). */
-  // String.raw giữ nguyên dấu `\` để regex khớp dấu ngoặc thật (template literal thường bỏ `\(` thành `(`)
-  const dbmlNamedIndex = (source: string, table: string, name: string) =>
-    dbmlBlock(source, `Table ${table}`).flatMap(
-      (line) =>
-        new RegExp(String.raw`^ {4}\(([^)]*)\) \[name: '${name}'\]$`).exec(
-          line,
-        )?.[1] ?? [],
-    );
 
   it('MTB-10: cùng tên và cùng ba cột theo thứ tự ở dbml và SQL; ca âm: bỏ dòng khỏi dbml thì không còn thấy', () => {
-    const fromSql = officialStatementsFor(['thong_bao'])
-      .map(normalizeStatement)
-      .flatMap(
-        (sql) =>
-          new RegExp(
-            String.raw`^CREATE INDEX ${'`'}${NAME}${'`'} ON ${'`'}thong_bao${'`'} \(([^)]*)\)$`,
-          )
-            .exec(sql)?.[1]
-            ?.replaceAll('`', '') ?? [],
-      );
+    const fromSql = sqlIndexColumns('thong_bao', NAME);
     expect(fromSql).toEqual(['tai_khoan_id, thoi_diem_tao, thong_bao_id']);
     expect(dbmlNamedIndex(dbml, 'thong_bao', NAME)).toEqual(fromSql);
-    const without = dbml
-      .split('\n')
-      .filter((line) => !line.includes(`[name: '${NAME}']`))
-      .join('\n');
-    expect(dbmlNamedIndex(without, 'thong_bao', NAME)).toEqual([]);
+    expect(dbmlNamedIndex(dbmlWithout(NAME), 'thong_bao', NAME)).toEqual([]);
+  });
+});
+
+// chat P2 (#707) — MCH-12: chỉ mục thường tin_nhan_index_nguoi_gui_thoi_diem có ở dbml với đúng tên và đúng bộ cột như câu CREATE INDEX của SQL.
+describe('clinix.dbml khớp clinix_mysql.sql ở chỉ mục chat P2', () => {
+  const NAME = 'tin_nhan_index_nguoi_gui_thoi_diem';
+
+  it('MCH-12: cùng tên và cùng hai cột theo thứ tự ở dbml và SQL; ca âm: bỏ dòng khỏi dbml thì không còn thấy', () => {
+    const fromSql = sqlIndexColumns('tin_nhan', NAME);
+    expect(fromSql).toEqual(['nguoi_gui_id, thoi_diem_gui']);
+    expect(dbmlNamedIndex(dbml, 'tin_nhan', NAME)).toEqual(fromSql);
+    expect(dbmlNamedIndex(dbmlWithout(NAME), 'tin_nhan', NAME)).toEqual([]);
   });
 });

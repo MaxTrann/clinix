@@ -2,6 +2,7 @@ import { DoiLich1793966400000 } from './1793966400000-doi-lich.js';
 import { TaoBangNhacLichHen1794052800000 } from './1794052800000-tao-bang-nhac-lich-hen.js';
 import { ChiMucThongBaoTaiKhoan1794139200000 } from './1794139200000-chi-muc-thong-bao-tai-khoan.js';
 import { TaoBangChat1794225600000 } from './1794225600000-tao-bang-chat.js';
+import { ChiMucTinNhanNguoiGui1794312000000 } from './1794312000000-chi-muc-tin-nhan-nguoi-gui.js';
 import { MocThoiGianLichHen1793793600000 } from './1793793600000-moc-thoi-gian-lich-hen.js';
 import { NghiTheoCaNhieuNgay1793880000000 } from './1793880000000-nghi-theo-ca-nhieu-ngay.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -36,4 +37,5 @@ export const MIGRATIONS = [
   TaoBangNhacLichHen1794052800000,
   ChiMucThongBaoTaiKhoan1794139200000,
   TaoBangChat1794225600000,
+  ChiMucTinNhanNguoiGui1794312000000,
 ];
