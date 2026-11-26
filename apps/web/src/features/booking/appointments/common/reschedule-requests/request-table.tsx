@@ -60,6 +60,7 @@ function RequestRowView(props: {
 }
 
 // Bảng yêu cầu: thứ tự DO MÁY CHỦ (tab Chờ duyệt cũ nhất trước, tab Đã xử lý mới nhất trước), web KHÔNG sắp lại. Màn hẹp cuộn ngang trong vùng có tên và nhận Tab.
+// Vùng cuộn phải `relative`: chữ ẩn `sr-only` là `position: absolute`, thiếu nó thì chữ ẩn thoát khỏi vùng và làm cả TRANG tràn ngang ở 375 px (reschedule X3, lỗi L-01).
 export function RequestTable(props: {
   rows: readonly RequestRow[];
   detailPath: (yeuCauId: string) => string;
@@ -71,7 +72,7 @@ export function RequestTable(props: {
       role="region"
       aria-label={REQUEST_TEXT.resultsRegion}
       tabIndex={0}
-      className="overflow-x-auto rounded-xl border border-gray-200 bg-white"
+      className="relative overflow-x-auto rounded-xl border border-gray-200 bg-white"
     >
       <table className="w-full min-w-[52rem] text-left text-sm">
         <caption className="sr-only">{REQUEST_TEXT.tableCaption}</caption>
