@@ -6,7 +6,9 @@ export { BOOKING_WIZARD_ROUTES } from './wizard/wizard-routes';
 export { PATIENT_APPOINTMENT_ROUTES } from './appointments/patient/patient-appointment-routes';
 // F8: route "Quản lý lịch hẹn" của Lễ tân, ghép vào khối `LeTan` ở `router/role-routes.tsx` cạnh `RECEPTION_ROUTES`.
 export { RECEPTION_APPOINTMENT_ROUTES } from './appointments/reception/reception-appointment-routes';
-// F10: route "Lịch hẹn" của Quản trị viên (danh sách và trang chi tiết, đã bọc `AdminScopeGuard`), ghép vào khối `QuanTriVien` ở `router/role-routes.tsx` cạnh `ADMIN_APPROVALS_ROUTES`.
+// F10: route "Lịch hẹn" của Quản trị viên (danh sách và trang chi tiết, đã bọc `AdminScopeGuard`), ghép vào khối `QuanTriVien` ở `router/role-routes.tsx` cạnh route "Duyệt yêu cầu" của doctor (`createAdminApprovalsRoutes`).
 export { ADMIN_APPOINTMENT_ROUTES } from './appointments/admin/admin-appointment-routes';
 // F11: route "Lịch hẹn" của Bác sĩ (danh sách và trang chi tiết), ghép vào khối `BacSi` ở `router/role-routes.tsx` cạnh `DOCTOR_ROUTES`. Chỉ xuất mảng route, không xuất trang (route đã `lazy`; Đại duyệt 14/11/2026).
 export { DOCTOR_APPOINTMENT_ROUTES } from './appointments/doctor/doctor-appointment-routes';
+// reschedule F5: route con "Yêu cầu đổi lịch" của trang "Duyệt yêu cầu"; `router/role-routes.tsx` truyền vào `createAdminApprovalsRoutes` của doctor (doctor không được import booking, WHT-10).
+export { ADMIN_RESCHEDULE_REQUEST_ROUTES } from './appointments/admin/reschedule-requests/admin-request-routes';
