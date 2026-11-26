@@ -143,3 +143,58 @@ describe('chat B3 — kiến trúc (HCH-04)', () => {
     expect(ruleUsers).toEqual([join('core', 'send-message.service.ts')]);
   });
 });
+
+// chat P3 — HCH-05 (PLAN chat 7.11): chỉ `chat/attachments/` đọc ghi đĩa; khoá tệp không lấy từ dữ liệu người dùng (đột biến 21).
+// Đối chứng âm trên nguồn giả trước khi quét mã thật.
+const ATTACHMENTS_DIR = `attachments${sep}`;
+const USES_FS =
+  /from\s+['"](?:node:)?fs(?:\/promises)?['"]|require\(\s*['"](?:node:)?fs/;
+// Chữ ký hàm sinh khoá: đúng hai tham số `kind` và `now`, không có chỗ nhận tên tệp hay dữ liệu khác
+const KEY_SIGNATURE =
+  /export function newChatFileKey\(\s*kind: ChatFileKind,\s*now: Date = nowVN\(\),?\s*\): string/;
+const USER_FILE_DATA = /originalname|tenGoc|tep_ten_goc|fileName|filename/i;
+
+describe('chat P3 — kiến trúc (HCH-05)', () => {
+  it('HCH-05: chỉ chat/attachments/ nhập node:fs; đối chứng âm: nguồn giả nhập fs thì bị bắt', () => {
+    expect(USES_FS.test("import { readFile } from 'node:fs/promises';")).toBe(
+      true,
+    );
+    expect(USES_FS.test("import { createReadStream } from 'fs';")).toBe(true);
+    expect(USES_FS.test("import { join } from 'node:path';")).toBe(false);
+    const users = sources
+      .filter(({ code }) => USES_FS.test(code))
+      .map((s) => s.file);
+    expect(users).toContain(
+      join('attachments', 'local-disk-chat-file-store.ts'),
+    );
+    expect(users.filter((file) => !file.startsWith(ATTACHMENTS_DIR))).toEqual(
+      [],
+    );
+  });
+
+  it('HCH-05: khoá tệp chỉ sinh từ loại tệp và thời điểm, không từ tên tệp người dùng; đối chứng âm bị bắt', () => {
+    expect(
+      KEY_SIGNATURE.test(
+        'export function newChatFileKey(kind: ChatFileKind, name: string): string',
+      ),
+    ).toBe(false);
+    expect(USER_FILE_DATA.test('return `${y}/${m}/${file.originalname}`')).toBe(
+      true,
+    );
+    const keySource = sources.find(
+      ({ file }) => file === join('attachments', 'chat-file-key.ts'),
+    );
+    expect(keySource).toBeDefined();
+    expect(KEY_SIGNATURE.test(keySource!.code)).toBe(true);
+    expect(USER_FILE_DATA.test(keySource!.code)).toBe(false);
+    // Kho ghi không nhận khoá từ người gọi: `write(kind, data)`
+    const storeSource = sources.find(
+      ({ file }) =>
+        file === join('attachments', 'local-disk-chat-file-store.ts'),
+    );
+    expect(storeSource!.code).toMatch(
+      /async write\(kind: ChatFileKind, data: Buffer\)[\s\S]*?const key = newChatFileKey\(kind\);/,
+    );
+    expect(USER_FILE_DATA.test(storeSource!.code)).toBe(false);
+  });
+});

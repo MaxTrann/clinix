@@ -3,8 +3,13 @@ import {
   type MiddlewareConsumer,
   type NestModule,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { EnvironmentVariables } from '../config/env.validation.js';
 import { noStore } from '../notification/center/notification-center.module.js';
 import { RbacModule } from '../rbac/rbac.module.js';
+import { CHAT_FILE_STORE } from './attachments/chat-file-store.js';
+import { resolveChatFilesDir } from './attachments/chat-files-dir.js';
+import { LocalDiskChatFileStore } from './attachments/local-disk-chat-file-store.js';
 import { ConversationOpenRepository } from './core/conversation-open.repository.js';
 import { MessageRepository } from './core/message.repository.js';
 import {
@@ -27,6 +32,7 @@ import { ChatSendService } from './rest/chat-send.service.js';
 
 // Module "Nhắn tin" (scope #11). chat B1: lõi gửi; chat B2: API đọc (danh sách, chi tiết, tin, đánh dấu đọc, số đếm); chat B3: API gửi bằng JSON, đầu khung trước tin đầu, chi nhánh mặc định. Hai cổng gắn bản `Noop`: KHI CÓ BẢN THẬT
 // (B6 thông báo, B5 socket) sửa đúng dòng của cổng đó. REST gửi (B3) và socket (B5) nhập `SendMessageService` qua `exports`.
+// chat P3: kho tệp đính kèm trên đĩa (`CHAT_FILES_DIR`), kiểm ghi được lúc khởi động; B4 dùng qua `CHAT_FILE_STORE`.
 // `RbacModule` cho `ReceptionScopeService` (chi nhánh của Lễ tân đọc ở mỗi yêu cầu).
 @Module({
   imports: [RbacModule],
@@ -43,6 +49,17 @@ import { ChatSendService } from './rest/chat-send.service.js';
     ChatSendService,
     { provide: CHAT_NOTIFIER, useClass: NoopChatNotifier },
     { provide: CHAT_REALTIME, useClass: NoopChatRealtime },
+    {
+      provide: CHAT_FILE_STORE,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<EnvironmentVariables, true>) =>
+        new LocalDiskChatFileStore(
+          resolveChatFilesDir(
+            config.get('NODE_ENV', { infer: true }),
+            config.get('CHAT_FILES_DIR', { infer: true }),
+          ),
+        ),
+    },
   ],
   exports: [SendMessageService],
 })

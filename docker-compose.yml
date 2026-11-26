@@ -26,11 +26,15 @@ services:
       context: ./apps/api
       target: dev
     env_file: .env
+    # `environment` đè `env_file`: tệp đính kèm của chat luôn nằm trên volume `chat-files` (chat P3), kể cả khi .env để trống biến này
+    environment:
+      CHAT_FILES_DIR: /data/chat
     ports:
       - "${API_PORT:-3000}:3000"
     volumes:
       - ./apps/api:/app
       - /app/node_modules
+      - chat-files:/data/chat
     depends_on:
       db:
         condition: service_healthy
@@ -72,3 +76,5 @@ services:
 
 volumes:
   db-data:
+  # Tệp đính kèm của chat (chat P3; ADR 0005). Sao lưu và khôi phục CÙNG db-data: tin nhắn trỏ tới tệp bằng khoá
+  chat-files:

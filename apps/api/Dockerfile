@@ -23,6 +23,9 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
+# Thư mục tệp đính kèm của chat (chat P3; ADR 0005), thuộc người dùng `node`: volume trống gắn vào đây lần đầu nhận quyền này
+RUN mkdir -p /data/chat && chown node:node /data/chat
+ENV CHAT_FILES_DIR=/data/chat
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
