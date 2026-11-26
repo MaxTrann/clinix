@@ -77,6 +77,8 @@ const PAYMENT_TABLES = [
 const DOI_LICH_TABLES = ['yeu_cau_doi_lich_ngoai_chinh_sach'];
 // notification P1: bảng nhắc lịch hẹn (có trong file SQL từ trước, nay mới có migration)
 const NHAC_LICH_HEN_TABLES = ['nhac_lich_hen'];
+// chat P1: ba bảng nhắn tin (có trong file SQL từ trước, nay mới có migration; tin_nhan dùng bản DDL đã sửa ở P1)
+const CHAT_TABLES = ['hoi_thoai', 'tai_khoan_hoi_thoai', 'tin_nhan'];
 const MIGRATED_TABLES = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
@@ -89,6 +91,7 @@ const MIGRATED_TABLES = [
   ...PAYMENT_TABLES,
   ...DOI_LICH_TABLES,
   ...NHAC_LICH_HEN_TABLES,
+  ...CHAT_TABLES,
 ];
 let migrated: DataSource;
 let reference: DataSource;
@@ -206,6 +209,26 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     // MTB-10 (notification P2): chỉ mục danh sách thông báo theo tài khoản có mặt thật, đúng ba cột theo thứ tự
     expect(thongBao).toContain(
       'KEY `thong_bao_index_tai_khoan_thoi_diem` (`tai_khoan_id`,`thoi_diem_tao`,`thong_bao_id`)',
+    );
+
+    // MCH-03 (chat P1): ba bảng chat có mặt thật và mang đủ cột mới, chỉ mục, khóa ngoại và CHECK, để phép so ở trên không rỗng
+    const tinNhan = await showCreateTable(migrated, 'tin_nhan');
+    for (const part of [
+      '`ma_gui` char(36)',
+      '`tep_dung_luong` int',
+      'UNIQUE KEY `tin_nhan_index_nguoi_gui_ma_gui` (`nguoi_gui_id`,`ma_gui`)',
+      'KEY `tin_nhan_index_28` (`hoi_thoai_id`,`tin_nhan_id`)',
+      'CONSTRAINT `chk_tin_nhan_tep` CHECK',
+      'CONSTRAINT `chk_tin_nhan_noi_dung` CHECK',
+      'REFERENCES `tai_khoan`',
+    ]) {
+      expect(tinNhan, part).toContain(part);
+    }
+    expect(await showCreateTable(migrated, 'hoi_thoai')).toContain(
+      'CONSTRAINT `chk_hoi_thoai_chi_nhanh` CHECK',
+    );
+    expect(await showCreateTable(migrated, 'tai_khoan_hoi_thoai')).toContain(
+      'REFERENCES `tin_nhan`',
     );
   });
 
