@@ -32,6 +32,7 @@ import { DoctorProfileModule } from './admin/doctors/doctor-profile.module.js';
 import { BranchChangeRequestModule } from './admin/branch-change-requests/branch-change-request.module.js';
 import { NotificationCenterModule } from './notification/center/notification-center.module.js';
 import { ReminderModule } from './notification/reminders/reminder.module.js';
+import { ChatModule } from './chat/chat.module.js';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { ReminderModule } from './notification/reminders/reminder.module.js';
     NotificationsModule,
     NotificationCenterModule,
     ReminderModule,
+    ChatModule,
     AuthModule,
     RbacModule,
     // Task P4: chưa có nơi nào dùng MailService (A2/A5/A11 và admin sẽ import MailModule); đưa vào đây để cấu hình SMTP sai
