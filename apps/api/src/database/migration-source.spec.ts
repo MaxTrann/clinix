@@ -50,8 +50,13 @@ import {
   TAO_BANG_CHAT_SQL,
   TaoBangChat1794225600000,
 } from './migrations/1794225600000-tao-bang-chat.js';
+import {
+  CHI_MUC_TIN_NHAN_NGUOI_GUI_SQL,
+  ChiMucTinNhanNguoiGui1794312000000,
+} from './migrations/1794312000000-chi-muc-tin-nhan-nguoi-gui.js';
 import { getMetadataArgsStorage } from 'typeorm';
 import { ThongBao } from '../admin/entities/thong-bao.entity.js';
+import { TinNhan } from '../chat/entities/tin-nhan.entity.js';
 import {
   normalizeStatement,
   officialStatementsFor,
@@ -63,6 +68,7 @@ import {
   maskThongBaoChiMucTaiKhoan,
   maskThongBaoDoiLich,
   maskThongBaoLichHen,
+  maskTinNhanChiMucNguoiGui,
 } from './testing/official-schema.js';
 
 const CATALOG_TABLES = [
@@ -957,7 +963,10 @@ describe('migration reschedule P1 (bảng yêu cầu, bộ đếm, cột thông 
 // ở chat-schema.int-spec.ts, vòng đời up/down (MCH-02) ở migrations.int-spec.ts.
 describe('migration chat P1 (hoi_thoai, tai_khoan_hoi_thoai, tin_nhan) khớp schema SQL chính thức', () => {
   const CHAT = ['hoi_thoai', 'tai_khoan_hoi_thoai', 'tin_nhan'];
-  const official = officialStatementsFor(CHAT).map(normalizeStatement);
+  // chat P2 (đổi): chỉ mục tin_nhan_index_nguoi_gui_thoi_diem do migration chat P2 thêm sau nên được che khỏi phần so với migration P1 (MCH-12)
+  const official = maskTinNhanChiMucNguoiGui(
+    officialStatementsFor(CHAT).map(normalizeStatement),
+  );
 
   it('MCH-01: 19 câu DDL trùng từng câu, cùng thứ tự, với clinix_mysql.sql; ca âm: đổi một số trong CHECK thì không còn trùng', () => {
     expect(official).toHaveLength(19);
@@ -994,13 +1003,64 @@ describe('migration chat P1 (hoi_thoai, tai_khoan_hoi_thoai, tin_nhan) khớp sc
       expect(CHAT).toContain(targetTable(statement));
   });
 
+  // chat P2 (đổi): bỏ điều kiện "đứng cuối sổ" (đúng tại thời điểm P1) vì migration chat P2 đứng sau; giữ "ngay sau notification P2"
   it('MCH-11: mốc chat P1 đứng ngay sau notification P2 (1794139200000) và lớn hơn mọi mốc trước', () => {
     const index = MIGRATIONS.indexOf(TaoBangChat1794225600000);
-    expect(index).toBe(MIGRATIONS.length - 1);
+    expect(index).toBeGreaterThan(0);
     expect(MIGRATIONS[index - 1]).toBe(ChiMucThongBaoTaiKhoan1794139200000);
     for (const earlier of MIGRATIONS.slice(0, index))
       expect(Number(/(\d{13})$/.exec(earlier.name)?.[1])).toBeLessThan(
         1794225600000,
+      );
+  });
+});
+
+// chat P2 (#707): MCH-12 phần chữ DDL, mặt nạ, entity và thứ tự mốc. SHOW CREATE TABLE ở schema-parity.int-spec.ts, EXPLAIN ở tin-nhan-chi-muc.int-spec.ts,
+// vòng đời up/down ở migrations.int-spec.ts, dbml ở dbml-parity.spec.ts.
+describe('migration chat P2 (chỉ mục tin_nhan theo người gửi và thời điểm) khớp schema SQL chính thức', () => {
+  const isNewIndex = (sql: string): boolean =>
+    sql.startsWith('CREATE INDEX `tin_nhan_index_nguoi_gui_thoi_diem` ');
+  const tinNhan = officialStatementsFor(['tin_nhan']).map(normalizeStatement);
+
+  it('MCH-12: câu CREATE INDEX trùng nguyên văn câu duy nhất trong clinix_mysql.sql; hai cột đúng thứ tự', () => {
+    expect(tinNhan.filter(isNewIndex)).toEqual([
+      CHI_MUC_TIN_NHAN_NGUOI_GUI_SQL,
+    ]);
+    expect(CHI_MUC_TIN_NHAN_NGUOI_GUI_SQL).toMatch(
+      /\(`nguoi_gui_id`, `thoi_diem_gui`\)$/,
+    );
+    expect(targetTable(CHI_MUC_TIN_NHAN_NGUOI_GUI_SQL)).toBe('tin_nhan');
+  });
+
+  it('MCH-12: mặt nạ bỏ đúng một câu đó, giữ nguyên các câu khác của tin_nhan (kể cả UNIQUE theo người gửi); ca âm: chỉ mục cùng tên ở bảng khác không bị che', () => {
+    const masked = maskTinNhanChiMucNguoiGui(tinNhan);
+    expect(masked).toEqual(tinNhan.filter((sql) => !isNewIndex(sql)));
+    expect(masked).toHaveLength(tinNhan.length - 1);
+    expect(
+      masked.some((sql) => sql.includes('`tin_nhan_index_nguoi_gui_ma_gui`')),
+    ).toBe(true);
+    const other =
+      'CREATE INDEX `tin_nhan_index_nguoi_gui_thoi_diem` ON `khac` (`a`)';
+    expect(maskTinNhanChiMucNguoiGui([other])).toEqual([other]);
+  });
+
+  it('MCH-12: entity TinNhan khai chỉ mục cùng tên, cùng hai cột theo thứ tự, không UNIQUE', () => {
+    const index = getMetadataArgsStorage().indices.find(
+      (item) =>
+        item.target === TinNhan &&
+        item.name === 'tin_nhan_index_nguoi_gui_thoi_diem',
+    );
+    expect(index?.columns).toEqual(['nguoiGuiId', 'thoiDiemGui']);
+    expect(index?.unique).toBeFalsy();
+  });
+
+  it('MCH-12: migration chat P2 đứng cuối sổ, ngay sau chat P1, mốc lớn hơn', () => {
+    const index = MIGRATIONS.indexOf(ChiMucTinNhanNguoiGui1794312000000);
+    expect(index).toBe(MIGRATIONS.length - 1);
+    expect(MIGRATIONS[index - 1]).toBe(TaoBangChat1794225600000);
+    for (const earlier of MIGRATIONS.slice(0, index))
+      expect(Number(/(\d{13})$/.exec(earlier.name)?.[1])).toBeLessThan(
+        1794312000000,
       );
   });
 });

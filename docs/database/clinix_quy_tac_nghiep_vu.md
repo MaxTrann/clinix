@@ -845,3 +845,17 @@ Không có `ALTER`. Quy tắc service của reschedule B1 đến B9 (chi tiết:
 - **Thông báo** `LichHenDaDoiLich`, `YeuCauDoiLichDangCho`, `YeuCauDoiLichDaDuyet`, `YeuCauDoiLichBiTuChoi`: cùng giao dịch, có thư.
 - **Nhật ký** `DoiLichHo` và `XuLyDoiLichNgoaiChinhSach` cùng giao dịch, luật kiểm ở `audit/` (reschedule P2); câu "chưa có `case` cho `DoiLichHo`" ở mục "reschedule P1" là tình trạng lúc P1.
 - **Sau commit:** `onSlotReleased(khung giờ cũ)` khi giờ cũ còn ở tương lai.
+
+## chat P2 — Chỉ mục tin nhắn theo người gửi và thời điểm (26/11/2026, scope #11 "Nhắn tin"; ĐỔI SCHEMA: chỉ thêm chỉ mục)
+
+Một migration (`ChiMucTinNhanNguoiGui1794312000000`, issue #707) thêm chỉ mục `tin_nhan_index_nguoi_gui_thoi_diem (nguoi_gui_id, thoi_diem_gui)` cho câu đếm giới hạn tốc độ gửi tin (tối đa 20 tin trong 60 giây gần nhất theo người gửi; câu `SELECT COUNT(*) FROM (SELECT 1 FROM tin_nhan WHERE nguoi_gui_id = ? AND thoi_diem_gui > ? LIMIT 20) t`, PLAN chat 5.5).
+
+- **Lý do (số đo X1 M4, 26/11/2026).** Khi chỉ có UNIQUE `tin_nhan_index_nguoi_gui_ma_gui (nguoi_gui_id, ma_gui)`, câu đếm chỉ dùng được tiền tố `nguoi_gui_id` rồi phải đọc từng tin của người gửi để lọc `thoi_diem_gui` (mã gửi là UUID nên không dừng sớm): p95 18,2 ms ở người gửi 20.000 tin, vượt ngưỡng đặt trước 10 ms. Chỉ mục này được thêm trước khi có lõi gửi tin (chat B1).
+- **Không đổi gì khác.** Không đổi bảng, cột, enum, CHECK, UNIQUE hay khóa ngoại; khóa ngoại `nguoi_gui_id` vẫn dùng `tin_nhan_index_nguoi_gui_ma_gui`. Phần (a) của task P2 (cột `hoi_thoai.tin_nhan_cuoi_id` cho danh sách hội thoại) **không làm** vì số đo X1 M1, M2 đạt.
+- **Chuyển đổi.** DB mới tạo từ `clinix_mysql.sql` đã đủ. DB đang ở bản trước chạy một câu (chỉ thêm, không đổi dữ liệu):
+
+```sql chat_p2_chi_muc_tin_nhan
+CREATE INDEX `tin_nhan_index_nguoi_gui_thoi_diem` ON `tin_nhan` (`nguoi_gui_id`, `thoi_diem_gui`);
+```
+
+Kiểm tra sau chuyển đổi: `SHOW CREATE TABLE tin_nhan` có `KEY tin_nhan_index_nguoi_gui_thoi_diem (nguoi_gui_id, thoi_diem_gui)`; `EXPLAIN` câu đếm giới hạn tốc độ dùng chỉ mục này (`range`, `Using index`). Hoàn tác (`down`) chỉ xoá chỉ mục, không chặn (không mất dữ liệu).

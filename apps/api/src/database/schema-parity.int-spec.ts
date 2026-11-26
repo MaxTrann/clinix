@@ -224,6 +224,10 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     ]) {
       expect(tinNhan, part).toContain(part);
     }
+    // MCH-12 (chat P2): chỉ mục đếm giới hạn tốc độ theo người gửi có mặt thật, đúng hai cột theo thứ tự
+    expect(tinNhan).toContain(
+      'KEY `tin_nhan_index_nguoi_gui_thoi_diem` (`nguoi_gui_id`,`thoi_diem_gui`)',
+    );
     expect(await showCreateTable(migrated, 'hoi_thoai')).toContain(
       'CONSTRAINT `chk_hoi_thoai_chi_nhanh` CHECK',
     );

@@ -81,6 +81,9 @@
 -- (metadata tệp đính kèm), UNIQUE tin_nhan_index_nguoi_gui_ma_gui (nguoi_gui_id, ma_gui) và hai CHECK chk_tin_nhan_tep (bốn cột tệp cùng trống hay cùng có, 1 byte đến 10 MB),
 -- chk_tin_nhan_noi_dung (nội dung rỗng chỉ khi có tệp); thêm COMMENT cho noi_dung, tep_dinh_kem. hoi_thoai, tai_khoan_hoi_thoai không đổi. Ba bảng chat lần đầu có migration
 -- (TaoBangChat1794225600000) chép nguyên văn DDL dưới đây. DB cũ chưa có ba bảng: chạy migration; không có dữ liệu cần chuyển.
+-- 26/11/2026 (scope #11 "Nhắn tin", task chat P2 phần (b), issue #707): tin_nhan thêm chỉ mục tin_nhan_index_nguoi_gui_thoi_diem (nguoi_gui_id, thoi_diem_gui) cho câu đếm
+-- giới hạn tốc độ gửi (20 tin trong 60 giây theo người gửi): số đo X1 M4 cho thấy UNIQUE (nguoi_gui_id, ma_gui) buộc đọc từng tin của người gửi. Không đổi bảng, cột, enum,
+-- constraint; phần (a) (hoi_thoai.tin_nhan_cuoi_id) không làm vì X1 M1, M2 đạt. Chuyển đổi từ DB cũ: mục "chat P2" ở cuối clinix_quy_tac_nghiep_vu.md.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -753,6 +756,8 @@ CREATE INDEX `tai_khoan_hoi_thoai_index_27` ON `tai_khoan_hoi_thoai` (`hoi_thoai
 CREATE INDEX `tin_nhan_index_28` ON `tin_nhan` (`hoi_thoai_id`, `tin_nhan_id`);
 
 CREATE UNIQUE INDEX `tin_nhan_index_nguoi_gui_ma_gui` ON `tin_nhan` (`nguoi_gui_id`, `ma_gui`);
+
+CREATE INDEX `tin_nhan_index_nguoi_gui_thoi_diem` ON `tin_nhan` (`nguoi_gui_id`, `thoi_diem_gui`);
 
 CREATE INDEX `nhat_ky_hanh_dong_index_29` ON `nhat_ky_hanh_dong` (`loai_doi_tuong`, `ma_doi_tuong`, `thoi_diem`);
 
