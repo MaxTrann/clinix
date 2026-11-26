@@ -28,6 +28,8 @@ interface HandleDialogProps {
   onSubmit: (note: string) => void;
   onDismiss: () => void;
   onReload: () => void;
+  // Câu giải thích thay cho câu mặc định (B2: đã chọn khung giờ thay thế thì không còn nói "khung giờ mong muốn")
+  intro?: string;
   // Dòng giờ của hộp Duyệt (nhãn và giờ Việt Nam đã định dạng); B2 đổi thành "Khung giờ mới" khi đã chọn khung giờ thay thế
   slot?: { label: string; value: string };
   // Chỗ cắm thêm (B2: nút "Chọn khung giờ khác"), đứng giữa dòng giờ và ô ghi chú
@@ -68,6 +70,7 @@ export function HandleDialog({
   onSubmit,
   onDismiss,
   onReload,
+  intro,
   slot,
   extra,
 }: HandleDialogProps) {
@@ -123,7 +126,7 @@ export function HandleDialog({
       onDismiss={onDismiss}
       onReload={onReload}
     >
-      <p className="pt-2 text-sm text-gray-600">{text.intro}</p>
+      <p className="pt-2 text-sm text-gray-600">{intro ?? text.intro}</p>
       {slot !== undefined && (
         <p className="pt-2 text-sm text-gray-900">
           <span className="text-gray-600">{slot.label}: </span>

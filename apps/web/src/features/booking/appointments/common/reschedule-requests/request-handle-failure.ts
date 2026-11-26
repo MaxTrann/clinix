@@ -1,4 +1,12 @@
-import { GENERIC_ERROR_MESSAGE } from '../../../../../shared/api/error-message';
+import {
+  errorMessageFor,
+  GENERIC_ERROR_MESSAGE,
+} from '../../../../../shared/api/error-message';
+import {
+  ApiError,
+  NetworkError,
+  TimeoutError,
+} from '../../../../../shared/api/errors';
 import {
   BOOKING_ERROR_CODES,
   knownBookingErrorByCode,
@@ -125,6 +133,25 @@ function buildRules(canPickAnother: boolean): ReadonlyMap<string, FailureRule> {
 // Hai bảng dựng MỘT lần (chỉ khác câu "khung giờ không còn trống")
 const RULES_WITH_PICK = buildRules(true);
 const RULES_WITHOUT_PICK = buildRules(false);
+
+// Mã 401 của lời hỏi id bác sĩ (cùng ba mã phiên của route ghi)
+const SESSION_CODES: ReadonlySet<string> = new Set([
+  BOOKING_ERROR_CODES.UNAUTHENTICATED,
+  CODES.badToken,
+  CODES.sessionRevoked,
+]);
+
+// Câu CẠNH NÚT "Chọn khung giờ khác" khi không lấy được id bác sĩ (preview đổi hộ, chỉ đọc; Pha B2). Hết phiên, mạng và quá giờ có câu riêng; mọi lỗi khác (kể cả 404 cùng thân, 200 sai hình dạng) một câu chung,
+// không lộ lịch có tồn tại hay không và không in chữ của máy chủ.
+export function describeLookupFailure(error: unknown): string {
+  if (error instanceof ApiError && SESSION_CODES.has(error.maLoi)) {
+    return COMMON_LIST_TEXT.sessionExpired;
+  }
+  if (error instanceof NetworkError || error instanceof TimeoutError) {
+    return errorMessageFor(error);
+  }
+  return HANDLE_TEXT.pickFailed;
+}
 
 // `canPickAnother`: hộp Duyệt có nút "Chọn khung giờ khác" (B2) hay chưa; quyết định câu của ba mã khung giờ
 export function describeHandleFailure(

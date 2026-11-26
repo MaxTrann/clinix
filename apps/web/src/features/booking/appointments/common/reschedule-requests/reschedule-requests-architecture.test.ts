@@ -88,6 +88,10 @@ describe('reschedule F4 — kiến trúc web của trang yêu cầu đổi lịc
         './handle-dialog.tsx',
         './request-actions.tsx',
         './request-detail-page.tsx',
+        // Pha B2
+        './use-replacement-slot.ts',
+        './replacement-slot-controls.tsx',
+        './replacement-slot-panel.tsx',
         '../../reception/reschedule-requests/reception-requests-handle-api.ts',
         '../../reception/reschedule-requests/reception-requests-api.ts',
         '../../reception/reschedule-requests/reception-requests-pages.tsx',

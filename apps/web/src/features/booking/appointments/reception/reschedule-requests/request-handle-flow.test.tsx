@@ -31,7 +31,7 @@ import {
   tabButton,
 } from '../../../testing/reschedule-requests-harness';
 
-// reschedule F4 Pha B1: hộp Duyệt và hộp Từ chối của trang chi tiết yêu cầu đổi lịch (WXD-05, 06, 08, 09 theo PLAN reschedule 7.11 và `[đề xuất]` WXD-86…90), với API giả GHI khớp hợp đồng B9 (B9 chưa merge). Lỗi 4xx, 5xx và
+// reschedule F4 Pha B1: hộp Duyệt và hộp Từ chối của trang chi tiết yêu cầu đổi lịch (WXD-05, 06, 07, 09, 10 theo PLAN reschedule 7.11), với API giả GHI khớp hợp đồng B9. Lỗi 4xx, 5xx và
 // "chưa rõ" ở `request-handle-errors.test.tsx`. Trang THẬT của Lễ tân đi qua `request()` thật nên thân POST đã gửi được khẳng định trực tiếp. Dữ liệu giả.
 afterEach(cleanUpRequestsPage);
 
@@ -242,7 +242,7 @@ describe('hộp Từ chối', () => {
 });
 
 describe('hộp Duyệt', () => {
-  it('WXD-07 mở hộp: dòng giải thích, giờ MONG MUỐN theo giờ Việt Nam, ô ghi chú bắt buộc kèm dòng nhắc; chưa có nút "Chọn khung giờ khác" (B2)', async () => {
+  it('WXD-07 mở hộp: dòng giải thích, giờ MONG MUỐN theo giờ Việt Nam, ô ghi chú bắt buộc kèm dòng nhắc; có nút "Chọn khung giờ khác", CHƯA có "Dùng lại khung giờ mong muốn"', async () => {
     await openPending({ thoiGianMongMuon: '2026-11-27T03:30:00.000Z' });
     fireEvent.click(approveButton());
     const dialog = dialogOf('approve');
@@ -255,7 +255,10 @@ describe('hộp Duyệt', () => {
       HANDLE_TEXT.noteHint,
     );
     expect(
-      within(dialog).queryByRole('button', { name: /Chọn khung giờ khác/ }),
+      within(dialog).getByRole('button', { name: HANDLE_TEXT.pickAnother }),
+    ).toBeEnabled();
+    expect(
+      within(dialog).queryByRole('button', { name: HANDLE_TEXT.useDesired }),
     ).toBeNull();
   });
 
