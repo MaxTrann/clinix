@@ -5,11 +5,13 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { createMemoryRouter } from 'react-router';
+import type { ReactElement } from 'react';
+import { createMemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { resetAuthForTest, restoreSession } from '../../../auth/auth-session';
-import type { AdminMe } from '../../../admin';
+import { AdminScopeGuard, type AdminMe } from '../../../admin';
 import { createAppRoutes } from '../../../../router/routes';
+import { ADMIN_RESCHEDULE_REQUESTS_PATH } from '../../../../shared/routes/booking-paths';
 import { createFakeAuthApi } from '../../../../test/fake-auth-api';
 import type {
   AdminLeaveItem,
@@ -19,8 +21,11 @@ import type { ReceptionDoctor } from '../../api/reception-api';
 import { jsonResponse } from '../../testing/fetch-routing';
 import {
   ADMIN_APPROVALS_PATH,
+  ADMIN_APPROVALS_SEGMENT,
   ADMIN_LEAVE_APPROVALS_PATH,
+  ADMIN_LEAVE_APPROVALS_SEGMENT,
 } from './approvals-paths';
+import { createAdminApprovalsRoutes } from './approvals-routes';
 
 // Dự án không dùng `@testing-library/user-event`: bộ giả nhỏ dưới đây đủ cho các thao tác của F8 (bấm, gõ nối thêm, xoá, phím Esc).
 const userEvent = {
@@ -41,7 +46,7 @@ const userEvent = {
   }),
 };
 
-// doctor F8: WA-07 (thẻ, lọc, phân trang, rỗng), WA-08 (chi tiết), WA-09 (hộp Từ chối), WA-13 (tab đổi lịch vô hiệu), WA-15 (hộp thoại: tên truy cập, focus, Esc).
+// doctor F8: WA-07 (thẻ, lọc, phân trang, rỗng), WA-08 (chi tiết), WA-09 (hộp Từ chối), WA-13 (tab đổi lịch là liên kết; reschedule F5), WA-15 (hộp thoại: tên truy cập, focus, Esc).
 // Bổ sung: lỗi 409/mạng khi Từ chối, Admin Chi nhánh, lỗi tải.
 // doctor F9: WA-10 (hộp Xác nhận duyệt), WA-11 (kết quả duyệt), WA-12 (Xử lý lại), WA-15 (hộp Duyệt). WA-16 (F8 không có nút Duyệt) hết hiệu lực khi F9 thêm nút.
 const Q3 = { chiNhanhId: '1', ten: 'CLINIX Chi nhánh Quận 3' };
@@ -209,6 +214,15 @@ beforeEach(() => {
       return Promise.resolve(detailResponse());
     if (url.pathname.endsWith('/admin/leave-requests'))
       return Promise.resolve(listResponse());
+    // reschedule F5: bấm tab "Yêu cầu đổi lịch" dựng trang của booking (router thật) nên trả danh sách rỗng đúng hình dạng
+    if (url.pathname.endsWith('/admin/reschedule-requests'))
+      return Promise.resolve(
+        jsonResponse({ items: [], total: 0, page: 1, pageSize: 20 }),
+      );
+    if (/\/public\/(doctors|branches)$/.test(url.pathname))
+      return Promise.resolve(
+        jsonResponse({ items: [], total: 0, page: 1, pageSize: 100 }),
+      );
     return api.fetch(input, init);
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -432,18 +446,75 @@ describe('trang Duyệt yêu cầu - nghỉ phép (F8)', () => {
     ).toBe(true);
   });
 
-  it('WA-13 tab "Yêu cầu đổi lịch" vô hiệu: bấm không đổi trang và không gọi API khác', async () => {
+  it('WXD-14 WA-13 (reschedule F5) tab "Yêu cầu đổi lịch" là liên kết: bấm mở trang đổi lịch trong khung host và tab đó sáng; bấm tab nghỉ phép thì quay lại', async () => {
     const router = await renderPage();
     await screen.findByRole('table');
-    const tab = screen.getByRole('button', { name: /Yêu cầu đổi lịch/ });
-    expect(tab).toHaveAttribute('aria-disabled', 'true');
-    const before = fetchMock.mock.calls.length;
-    fireEvent.click(tab);
-    expect(router.state.location.pathname).toBe(ADMIN_LEAVE_APPROVALS_PATH);
-    expect(fetchMock.mock.calls.length).toBe(before);
+    const tabs = screen.getByRole('navigation', { name: 'Loại yêu cầu' });
+    const rescheduleTab = within(tabs).getByRole('link', {
+      name: 'Yêu cầu đổi lịch',
+    });
+    const leaveTab = within(tabs).getByRole('link', {
+      name: 'Yêu cầu nghỉ phép',
+    });
+    expect(rescheduleTab).toHaveAttribute(
+      'href',
+      ADMIN_RESCHEDULE_REQUESTS_PATH,
+    );
+    expect(rescheduleTab).not.toHaveAttribute('aria-disabled');
+    expect(rescheduleTab).not.toHaveAttribute('aria-current');
+    expect(leaveTab).toHaveAttribute('aria-current', 'page');
+
+    fireEvent.click(rescheduleTab);
     expect(
-      screen.getByRole('link', { name: 'Yêu cầu nghỉ phép' }),
-    ).toHaveAttribute('aria-current', 'page');
+      await screen.findByText('Không có yêu cầu nào đang chờ duyệt.'),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe(ADMIN_RESCHEDULE_REQUESTS_PATH);
+    expect(rescheduleTab).toHaveAttribute('aria-current', 'page');
+    expect(leaveTab).not.toHaveAttribute('aria-current');
+
+    fireEvent.click(leaveTab);
+    expect(await screen.findByRole('table')).toBeVisible();
+    expect(router.state.location.pathname).toBe(ADMIN_LEAVE_APPROVALS_PATH);
+    expect(leaveTab).toHaveAttribute('aria-current', 'page');
+    expect(rescheduleTab).not.toHaveAttribute('aria-current');
+  });
+
+  it('WXD-136 `nav` "Loại yêu cầu" có đúng hai liên kết, không nút nào', async () => {
+    await renderPage();
+    await screen.findByRole('table');
+    const tabs = screen.getByRole('navigation', { name: 'Loại yêu cầu' });
+    expect(
+      within(tabs)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Yêu cầu nghỉ phép', 'Yêu cầu đổi lịch']);
+    expect(within(tabs).queryByRole('button')).toBeNull();
+  });
+});
+
+// reschedule F5: trang host "Duyệt yêu cầu" nhận route con của module khác qua tham số (doctor không import booking, WHT-10)
+describe('route "Duyệt yêu cầu" nhận route con từ ngoài', () => {
+  const hostOf = (routes: RouteObject[]) => routes[0].children![0];
+  const childrenOf = (routes: RouteObject[]) =>
+    hostOf(routes).children!.map((route) =>
+      route.index ? 'index' : route.path,
+    );
+
+  it('WXD-137 không truyền gì thì trang host có đúng hai route con (mặc định và nghỉ phép); route truyền vào nối SAU, vẫn dưới `AdminScopeGuard policy="Any"`', () => {
+    expect(childrenOf(createAdminApprovalsRoutes())).toEqual([
+      'index',
+      ADMIN_LEAVE_APPROVALS_SEGMENT,
+    ]);
+    const routes = createAdminApprovalsRoutes([{ path: 'them' }]);
+    expect(childrenOf(routes)).toEqual([
+      'index',
+      ADMIN_LEAVE_APPROVALS_SEGMENT,
+      'them',
+    ]);
+    expect(hostOf(routes).path).toBe(ADMIN_APPROVALS_SEGMENT);
+    const guard = routes[0].element as ReactElement<{ policy: string }>;
+    expect(guard.type).toBe(AdminScopeGuard);
+    expect(guard.props.policy).toBe('Any');
   });
 });
 

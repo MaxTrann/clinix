@@ -143,3 +143,16 @@ export const receptionRescheduleRequestDetailPath = (yeuCauId: string) =>
     ':yeuCauId',
     encodeURIComponent(yeuCauId),
   );
+
+// "Yêu cầu đổi lịch" của Quản trị viên (reschedule F5; tên đường dẫn là [đề xuất]). Là route CON của trang "Duyệt yêu cầu" (`/admin/duyet-yeu-cau`, trang host của module doctor): `*_SEGMENT` là mẫu
+// tương đối với trang host (`ADMIN_RESCHEDULE_REQUEST_ROUTES`), `*_PATH` và `*_ROUTE` là đường dẫn đầy đủ. File này không import gì nên đoạn `duyet-yeu-cau` viết chữ; ca WXD-101 khoá nó khớp
+// `ADMIN_APPROVALS_PATH` của doctor. Doctor dùng `ADMIN_RESCHEDULE_REQUESTS_PATH` cho tab (không được import booking, WHT-10). Chi tiết một yêu cầu là TRANG con dưới đoạn này, id BIGINT dạng chuỗi.
+export const ADMIN_RESCHEDULE_REQUESTS_SEGMENT = 'doi-lich';
+export const ADMIN_RESCHEDULE_REQUEST_ID_SEGMENT = ':yeuCauId';
+export const ADMIN_RESCHEDULE_REQUESTS_PATH = `/admin/duyet-yeu-cau/${ADMIN_RESCHEDULE_REQUESTS_SEGMENT}`;
+export const ADMIN_RESCHEDULE_REQUEST_DETAIL_ROUTE = `${ADMIN_RESCHEDULE_REQUESTS_PATH}/${ADMIN_RESCHEDULE_REQUEST_ID_SEGMENT}`;
+export const adminRescheduleRequestDetailPath = (yeuCauId: string) =>
+  ADMIN_RESCHEDULE_REQUEST_DETAIL_ROUTE.replace(
+    ADMIN_RESCHEDULE_REQUEST_ID_SEGMENT,
+    encodeURIComponent(yeuCauId),
+  );

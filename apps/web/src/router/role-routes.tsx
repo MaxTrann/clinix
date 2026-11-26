@@ -2,7 +2,7 @@ import { Navigate, type RouteObject } from 'react-router';
 import { ADMIN_ROUTES } from '../features/admin/admin-routes';
 import { RequireAuth, ROLE_HOME_PATHS, type VaiTro } from '../features/auth';
 import {
-  ADMIN_APPROVALS_ROUTES,
+  createAdminApprovalsRoutes,
   ADMIN_REVIEWS_ROUTES,
   ADMIN_SCHEDULE_ROUTES,
   DOCTOR_PATHS,
@@ -19,6 +19,7 @@ import {
 } from '../features/patient';
 import {
   ADMIN_APPOINTMENT_ROUTES,
+  ADMIN_RESCHEDULE_REQUEST_ROUTES,
   DOCTOR_APPOINTMENT_ROUTES,
   PATIENT_APPOINTMENT_ROUTES,
   RECEPTION_APPOINTMENT_ROUTES,
@@ -122,7 +123,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
       ...ADMIN_ROUTES,
       ...ADMIN_PROFILE_ROUTES,
       ...ADMIN_SCHEDULE_ROUTES,
-      ...ADMIN_APPROVALS_ROUTES,
+      // reschedule F5: route con của booking truyền vào trang host của doctor
+      ...createAdminApprovalsRoutes(ADMIN_RESCHEDULE_REQUEST_ROUTES),
       // doctor-exam F7: Kiểm duyệt đánh giá của Quản trị viên (đã bọc AdminScopeGuard)
       ...ADMIN_REVIEWS_ROUTES,
       // booking F10: Lịch hẹn của Quản trị viên (đã bọc AdminScopeGuard)
