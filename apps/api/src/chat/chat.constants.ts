@@ -2,7 +2,10 @@ import {
   AppException,
   type FieldError,
 } from '../common/errors/app.exception.js';
-import { COMMON_ERROR_CODES } from '../common/errors/error-codes.js';
+import {
+  COMMON_ERROR_CODES,
+  defaultsForStatus,
+} from '../common/errors/error-codes.js';
 
 // Hằng của scope "Nhắn tin" (chat B1; PLAN chat 5.5, 5.14, Q17, T6). Mã lỗi là hợp đồng với web (web chọn câu theo `maLoi`), không đổi khi đã dùng.
 
@@ -43,10 +46,10 @@ const FAILURE_HTTP: Record<
   Exclude<ChatSendFailure['kind'], 'Invalid'>,
   { status: number; maLoi: string; thongBao: string }
 > = {
+  // Câu MẶC ĐỊNH của 404 (như pipe id sai dạng và route lạ): mọi 404 của chat cùng một thân, không lộ "id sai dạng" khác "của người khác" (T3; chat B2 QCH-07)
   NotFound: {
     status: 404,
-    maLoi: COMMON_ERROR_CODES.NOT_FOUND,
-    thongBao: 'Không tìm thấy.',
+    ...defaultsForStatus(404),
   },
   Forbidden: {
     status: 403,
