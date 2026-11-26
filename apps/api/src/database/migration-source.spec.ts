@@ -46,6 +46,10 @@ import {
   CHI_MUC_THONG_BAO_TAI_KHOAN_SQL,
   ChiMucThongBaoTaiKhoan1794139200000,
 } from './migrations/1794139200000-chi-muc-thong-bao-tai-khoan.js';
+import {
+  TAO_BANG_CHAT_SQL,
+  TaoBangChat1794225600000,
+} from './migrations/1794225600000-tao-bang-chat.js';
 import { getMetadataArgsStorage } from 'typeorm';
 import { ThongBao } from '../admin/entities/thong-bao.entity.js';
 import {
@@ -949,6 +953,58 @@ describe('migration reschedule P1 (bảng yêu cầu, bộ đếm, cột thông 
   });
 });
 
+// chat P1 (#706): MCH-01 phần chữ DDL (không cần DB) và MCH-11 (thứ tự mốc). SHOW CREATE TABLE (MCH-03) ở schema-parity.int-spec.ts, ràng buộc thật (MCH-05 đến MCH-09)
+// ở chat-schema.int-spec.ts, vòng đời up/down (MCH-02) ở migrations.int-spec.ts.
+describe('migration chat P1 (hoi_thoai, tai_khoan_hoi_thoai, tin_nhan) khớp schema SQL chính thức', () => {
+  const CHAT = ['hoi_thoai', 'tai_khoan_hoi_thoai', 'tin_nhan'];
+  const official = officialStatementsFor(CHAT).map(normalizeStatement);
+
+  it('MCH-01: 19 câu DDL trùng từng câu, cùng thứ tự, với clinix_mysql.sql; ca âm: đổi một số trong CHECK thì không còn trùng', () => {
+    expect(official).toHaveLength(19);
+    expect(TAO_BANG_CHAT_SQL.map(normalizeStatement)).toEqual(official);
+    const changed = TAO_BANG_CHAT_SQL.map((sql) =>
+      sql.replace('10485760', '10485761'),
+    );
+    expect(changed.map(normalizeStatement)).not.toEqual(official);
+  });
+
+  it('MCH-01: thứ tự ba bảng, bốn chỉ mục (một UNIQUE), hai COMMENT, bảy khóa ngoại, ba CHECK; mọi câu chỉ tác động ba bảng chat', () => {
+    const kinds = TAO_BANG_CHAT_SQL.map((sql) =>
+      sql.startsWith('CREATE TABLE')
+        ? 'bang'
+        : /^CREATE (UNIQUE )?INDEX/.test(sql)
+          ? 'chi-muc'
+          : sql.includes(' COMMENT = ')
+            ? 'comment'
+            : sql.includes('ADD FOREIGN KEY')
+              ? 'khoa-ngoai'
+              : 'check',
+    );
+    expect(kinds).toEqual([
+      ...Array<string>(3).fill('bang'),
+      ...Array<string>(4).fill('chi-muc'),
+      ...Array<string>(2).fill('comment'),
+      ...Array<string>(7).fill('khoa-ngoai'),
+      ...Array<string>(3).fill('check'),
+    ]);
+    expect(TAO_BANG_CHAT_SQL).toContain(
+      'CREATE UNIQUE INDEX `tin_nhan_index_nguoi_gui_ma_gui` ON `tin_nhan` (`nguoi_gui_id`, `ma_gui`)',
+    );
+    for (const statement of TAO_BANG_CHAT_SQL)
+      expect(CHAT).toContain(targetTable(statement));
+  });
+
+  it('MCH-11: mốc chat P1 đứng ngay sau notification P2 (1794139200000) và lớn hơn mọi mốc trước', () => {
+    const index = MIGRATIONS.indexOf(TaoBangChat1794225600000);
+    expect(index).toBe(MIGRATIONS.length - 1);
+    expect(MIGRATIONS[index - 1]).toBe(ChiMucThongBaoTaiKhoan1794139200000);
+    for (const earlier of MIGRATIONS.slice(0, index))
+      expect(Number(/(\d{13})$/.exec(earlier.name)?.[1])).toBeLessThan(
+        1794225600000,
+      );
+  });
+});
+
 // notification P1 (#656): MTB-01 phần chữ DDL (không cần DB) và MTB-11 (thứ tự mốc). SHOW CREATE TABLE ở schema-parity.int-spec.ts,
 // ràng buộc thật ở nhac-lich-hen.int-spec.ts, vòng đời up/down ở migrations.int-spec.ts.
 describe('migration notification P1 (nhac_lich_hen) khớp schema SQL chính thức', () => {
@@ -1046,8 +1102,10 @@ describe('migration notification P2 (chỉ mục thong_bao theo tài khoản) kh
     expect(index?.unique).toBeFalsy();
   });
 
-  it('MTB-10: migration P2 đứng cuối sổ, ngay sau notification P1, mốc lớn hơn', () => {
-    expect(MIGRATIONS.at(-1)).toBe(ChiMucThongBaoTaiKhoan1794139200000);
-    expect(MIGRATIONS.at(-2)).toBe(TaoBangNhacLichHen1794052800000);
+  // chat P1 thêm migration sau P2 nên bỏ điều kiện "đứng cuối sổ" (đúng tại thời điểm P2); giữ "ngay sau notification P1"
+  it('MTB-10: migration P2 đứng ngay sau notification P1, mốc lớn hơn', () => {
+    const index = MIGRATIONS.indexOf(ChiMucThongBaoTaiKhoan1794139200000);
+    expect(index).toBeGreaterThan(0);
+    expect(MIGRATIONS[index - 1]).toBe(TaoBangNhacLichHen1794052800000);
   });
 });
