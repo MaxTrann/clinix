@@ -36,6 +36,7 @@ Nhật ký tiến độ riêng của scope #9 (mã nằm trong `apps/api/src/app
 | 26/11/2026 | **reschedule F4b (issue #649, Epic #633): Pha B2 "Chọn khung giờ khác" trong hộp Duyệt yêu cầu đổi lịch của Lễ tân (frontend; PR cuối của issue #649)** (Đại `MaxTrann` với Claude Code, Claude Sonnet 5.5; nhánh `feat/reschedule-f4b-chon-khung-gio-khac` từ `origin/main` `5598e8a` (F3 #698 và F4a #699 đã trên `main`; `main` sau đó có X2 #700, không đụng `apps/web`, nhánh chưa gộp); kế hoạch 1.16 mục 2.7 và 2.8; phiên kiểm độc lập giao theo ủy quyền của Đại; Đại chốt bằng hộp câu hỏi 26/11/2026: bảng chọn có nút "Quay lại hộp duyệt", hai nút của trang khoá khi bảng mở; PR chưa mở). **Mới (6 file, đều trong `apps/web/src/features/booking/`):** `appointments/common/reschedule-requests/{use-replacement-slot.ts, replacement-slot-controls.tsx, replacement-slot-panel.tsx, use-replacement-slot.test.tsx}`, `appointments/reception/reschedule-requests/replacement-slot.test.tsx`, `testing/replacement-slot-helpers.ts`. **Sửa (10 file):** `common/reschedule-requests/{use-handle-request.ts (nhận `findDoctor`, mở bảng chọn, gửi `khungGioId`), request-detail-page.tsx, handle-dialog.tsx (+`intro`), request-types.ts (+`resolveDoctorId?`), request-handle-text.ts, request-handle-failure.ts (+`describeLookupFailure`), reschedule-requests-architecture.test.ts (+ba file)}`, `reception/reschedule-requests/{reception-requests-api.ts (+`resolveDoctorId` qua bộ đọc preview của F3), request-handle-errors.test.tsx, request-handle-flow.test.tsx}`. KHÔNG đụng backend, `features/search`, `features/doctor` hay file của F3. **Ca cũ đã sửa NGUYÊN VĂN (5 ca của F4a, đổi hành vi có chủ đích vì nay trang Lễ tân có nút):** ở `request-handle-errors.test.tsx`: ba ca `it.each` "khung giờ mong muốn vừa thành …" trước mong `HANDLE_TEXT.slotGone` và khẳng định lời báo `not.toHaveTextContent('chọn khung giờ khác')`, nay mong `HANDLE_TEXT.slotGonePick` và nút "Chọn khung giờ khác" dùng được (tên đổi cụm "không còn trống, bạn có thể từ chối" thành "gợi ý chọn khung giờ khác hoặc từ chối"); ca "sau khi khung giờ bị chiếm, đóng hộp Duyệt rồi TỪ CHỐI được" chỉ đổi kỳ vọng `slotGone` thành `slotGonePick`; ở `request-handle-flow.test.tsx` ca WXD-07 "mở hộp" trước khẳng định `queryByRole('button', { name: /Chọn khung giờ khác/ })` là `null` (tên "chưa có nút (B2)"), nay khẳng định có nút "Chọn khung giờ khác" dùng được và CHƯA có "Dùng lại khung giờ mong muốn". Hai chú thích đầu hai file này ghi dải mã không dùng (WXD-86…99) được sửa lại. | WXD-07 (PLAN, phần khung giờ thay thế) và `[đề xuất]` WXD-86, 87, 89…99 (47 ca mới ở 2 file: 31 luồng, 16 hook và câu lỗi; 0 ca không mã) | **Pass** (số thật ở máy; web thuần, không DB): `tsc -p tsconfig.app.json --noEmit` 0 lỗi; ESLint 0 vấn đề và `prettier --check --end-of-line crlf` xanh trên 16 file; 47 ca MỚI 0 đỏ; BWZ-08, WHT-10, `reviews-hygiene`, UIB-08 xanh; **đột biến `MUT-F4b`: 21 ca (20 đơn và 1 kép), 20 bắt, 1 sống TƯƠNG ĐƯƠNG** (M4 "mở hộp không bỏ lựa chọn": đóng hộp đã bỏ lựa chọn nên hai lớp cùng cần; ca kép M34 bỏ cả hai bắt bằng WXD-98); đối chứng đầu và cuối 173/173; SHA-256 khớp 21/21, 0 file `*.mut`; sau sửa FG-05 chạy lại M10 (ca duy nhất đích là bảng chọn) bắt, đối chứng 173/173; **cả bộ web 485 file (483 của `main` và 2 mới), 8.697 ca, 0 đỏ**: `features/booking` 149 file, 2.732 ca (175 s), `src/styles` 3 file, 38 ca, `src/router` 13 file, 129 ca chạy LẠI trên mã sau sửa; `admin`+`auth` 99 file 2.167 ca (110 s), `doctor`+`search` 118 file 1.867 ca (164 s), nhóm còn lại 116 file 1.893 ca (169 s) chạy TRƯỚC khi bỏ token `outline-none` (token không nằm trong đường nhập của chúng); **`npm run build`: exit 0, 29 giây** (cảnh báo `INEFFECTIVE_DYNAMIC_IMPORT` của payment đã có sẵn), đã xoá `dist`; RAM trước mỗi lượt 4,76 đến 5,32 GB | (1) **FG-05 đỏ ở lượt cả bộ web lần đầu:** tiêu đề bảng chọn đặt `outline-none` (chép nếp h1 của `DetailPageFrame`, mà h1 đó là NGOẠI LỆ có tên của bộ quét focus); sửa bằng cách BỎ token (dùng vòng focus chung theo ADR 0004), KHÔNG thêm ngoại lệ (việc của Đại); sau sửa chạy lại styles, router, booking và build. (2) **Lệch danh sách file phiên kiểm nêu** ("chỉ thêm file hàng B và sửa tối thiểu trang chi tiết cùng danh sách POST"): vì Pha B1 gộp một `HandleDialog` và một hook, B2 phải sửa thêm hook, hộp, kiểu, chữ, câu lỗi và API của Lễ tân (đã báo). (3) Sự cố công cụ ngoài repo: bộ chạy đột biến lần đầu thiếu hằng `REAL_FAIL_BAD` nên dừng ở ca M1; `finally` đã khôi phục file (SHA khớp, `git status` không đổi), thêm hằng rồi chạy trọn 21 ca; không ảnh hưởng kết quả. (4) Quản trị viên (F5) chưa có nguồn `bacSi.id` nên KHÔNG có nút (mục 7; nháp nợ 318). (5) Chữ hiển thị mới là `[đề xuất]` (Q13); bố cục không đo được ở happy-dom (X3). (6) AI log hàng 202, `AI-BUG-112` và nợ 318: ĐÃ ghi vào `AI_USAGE_LOG.md` và `docs/TECH_DEBT.md` ngày 26/11/2026 sau khi Đại đồng ý (nháp ở 4.16). (7) `[ĐỒNG BỘ TL]` 2.4.31 A2 5c: việc của Đại. |
 | 26/11/2026 | **reschedule F5 (issue #650, Epic #633): Quản trị viên xử lý yêu cầu đổi lịch ngoài chính sách ở trang "Duyệt yêu cầu" (frontend)** (Đại `MaxTrann` với Claude Code, Claude Sonnet 5.5; nhánh `feat/reschedule-f5-tab-admin-yeu-cau`, worktree `clinix-app-de-p3`, nền `5598e8a`): tab "Yêu cầu đổi lịch" thành liên kết thật tới route con `/admin/duyet-yeu-cau/doi-lich` (`[ĐỤNG doctor]`: `createAdminApprovalsRoutes(extraChildren)`, router truyền route của booking; WHT-10 giữ nguyên), trang danh sách và chi tiết dùng lại thành phần của F4 với API `admin/reschedule-requests`, bộ chọn chi nhánh cho Toàn hệ thống (Chi nhánh không gửi `chiNhanhId`); kế hoạch ở 1.18, quyết định ở 3.17 | `WXD-11…14` (gồm ca `WA-13` đổi kỳ vọng), `[đề xuất]` `WXD-101…137` | **Pass:** 61 ca mới ở 7 file và 39 ca của `approvals.test.tsx`; cả bộ web 490 file, 8.713 ca, 0 đỏ; `tsc`, ESLint, Prettier sạch; `npm run build` exit 0; đột biến 16 ca và 1 đo tham khảo: 17/17 bắt (chi tiết 1.18 mục 10) | (1) PLAN 5.12 "doctor chỉ thêm một dòng" xung đột WHT-10: Đại chọn phương án β; (2) lỗi thật do WXD-112 bắt (gọi thừa yêu cầu khi đổi chi nhánh ở trang 2) đã sửa; (3) Quản trị viên chưa có "Chọn khung giờ khác" (không có `bacSi.id`); (4) chi nhánh đã chọn mất khi tải lại; (5) PR chưa mở; `AI_USAGE_LOG.md` (hàng 201, `AI-BUG-110`) và `docs/TECH_DEBT.md` (315 đến 317) đã ghi sau khi Đại đồng ý (4.15) |
 | 26/11/2026 | **reschedule D1 (issue #651, Epic #633): đồng bộ tài liệu repo sau khi có mã đổi lịch** (Đại `MaxTrann` với Claude Code, Claude Sonnet 5.5; nhánh `docs/reschedule-d1-dong-bo-tai-lieu`, từ `origin/main` `08965d2`; chỉ tài liệu, không đụng `apps/**`). PLAN reschedule (trạng thái, cây file 5.1, chữ thiết kế lệch ở mục 5, 6, 7; tick bốn ô mục 10), booking PLAN và TRACKING, `docs/TRACKING.md`, ba file `docs/database/*` (chữ chú thích và mục "reschedule D1"), doctor PLAN và TRACKING, notification TRACKING (số nợ), `docs/TECH_DEBT.md` (mới 266, 267, 269, 326, 327; sửa dòng cũ; bốn dòng notification 315 đến 318 thành 319 đến 322), `AI_USAGE_LOG.md` (hàng 204, `AI-BUG-116`). Các khối "cho D1" đã xử lý ở đâu: bảng cuối mục 7 | — | Đã chạy: script đọc-đối-chiếu sáu phép ngoài repo (ô chưa tick đều ghi "Chờ …", không còn thẻ chờ chưa giải ở PLAN, số nợ không trùng, tham chiếu mục 4.xx đúng, không thêm liên kết chết, CRLF giữ nguyên, `git diff --check`); không chạy test ở máy; CI `[cần điền]` | (1) Nợ 260 (B4) và chữ "chưa xác nhận" của quy tắc DB 2 (P1) đã xử lý từ trước. (2) Thư không có liên kết nên câu ở PLAN L9 sai (`AI-BUG-116`). (3) Còn lại: X3 (KTD, 18 đột biến lô, seed), D2 (file Word) và các việc mã ở bảng cuối mục 7. PR chưa mở |
+| 26/11/2026 | **reschedule X3 (issue #653, Epic #633): kiểm tay trình duyệt ba vai trò, đột biến lô, đọc CI, dữ liệu demo, tổng kết scope** (Đại `MaxTrann` với Claude Code, Claude Sonnet 5.5; nhánh `docs/reschedule-x3-tong-ket-kiem-tay`; chỉ tài liệu, không sửa `apps/**`, không thêm test; chi tiết ở 1.19, tổng kết scope ở mục 8) | KTD-01…KTD-12 | **Pass.** KTD 12/12 Đạt (9 ca trên `1349818`; KTD-08, 09, 10 Không đạt ở lượt đầu vì lỗi L-01, Đạt trên `fc46583` sau PR #742). Đột biến PLAN 5.14: 18/18 có ít nhất một ca bắt (14 giữ bằng chứng cũ trên file không đổi; #10, #11, #16, #17 chạy lại). CI `main` `1cc0099` (run 45792648615) xanh: đơn vị api 8.574 ca, tích hợp 3.608 ca, e2e 1.620 ca, web 8.761 ca; jscpd 2,57% dòng | (1) **L-01**: bảng yêu cầu đổi lịch làm cả trang tràn ngang ở 375 px; Đại quyết sửa ở PR riêng (#742). (2) Quan sát Q-01 đến Q-05, không sửa (1.19 mục E). (3) Đột biến #11 sống ở lớp đơn vị (khoảng trống của spec, ca tích hợp XDL-08 bắt). (4) D2 chưa xong nên ô tài liệu ở PLAN mục 10 chưa tick |
 
 ### 1.1 Kế hoạch P1 (24/11/2026, giai đoạn 2: kế hoạch ĐÃ ĐƯỢC ĐẠI DUYỆT cùng ngày (trả lời trực tiếp E1 đến E9, ghi ở mục 3.3; kết quả thực hiện ở dòng P1 của mục 1; nội dung bên dưới là kế hoạch GỐC, một số chỗ đã khác khi làm: xem cột cuối của dòng P1); Claude Code, Claude Sonnet 5.5; nhánh `feat/reschedule-p1-so-lan-doi-lich`, worktree `clinix-app-de-x1`)
 
@@ -3185,7 +3186,94 @@ Ca có thể sống sót và phân loại trước: M1 (có thể chỉ WXD-101 
 - **Chưa kiểm được:** chưa chạy trên trình duyệt thật (bố cục ô chọn chi nhánh, hai tab và bảng ở màn hẹp, vòng focus: X3 `KTD-09`, `KTD-10`); chưa chạy `jscpd`, gitleaks (CI đo); không backend, không MySQL.
 
 
-## 2. Kết quả test theo use case (mã ở PLAN.md mục 7; **mọi nhóm đã chạy trừ KTD-01…KTD-12 (X3); nhiều nhóm có nhiều hàng theo từng task, hàng sau thay trạng thái ở hàng trước; câu này sửa ở reschedule D1, 26/11/2026**)
+### 1.19 reschedule X3: kiểm tay, đột biến lô, CI, dữ liệu demo (26/11/2026; issue #653; Claude Code, Claude Sonnet 5.5; kế hoạch lập ngoài repo, phiên kiểm độc lập duyệt theo ủy quyền của Đại; Đại trả lời trực tiếp các câu H1 đến H6, cách xử lý L-01 và đột biến 10 biến thể thứ hai)
+
+**A. Cách kiểm và tiêu chí đặt TRƯỚC (không đổi sau khi thấy kết quả)**
+
+Một ca **Đạt** khi đủ T1 đến T5: T1 chữ và trạng thái màn đúng mong đợi; T2 số request ghi đúng, kèm mã trả về; T3 đọc DB bằng `SELECT` trước và sau, đúng mong đợi; T4 ở cả hai cỡ `scrollWidth <= clientWidth`, nút thao tác trong khung ngang; T5 console không có lỗi JavaScript, chỉ chấp nhận dòng "Failed to load resource" của mã 4xx chủ ý hay lúc cắt mạng. Hai cỡ: 1280 x 800 DPR 1,25 và 375 x 800 DPR 1 (mỗi ca đo bố cục ở cả hai, thao tác ghi chạy một lần ở một cỡ).
+
+Môi trường: compose riêng dựng từ `git archive`, `.env` tự sinh, DB riêng (không dùng DB `clinix`), không cấu hình SMTP (log API có dòng "Chưa cấu hình SMTP"), không cổng thanh toán; đã gỡ sau mỗi đợt. Trình duyệt điều khiển bằng Playwright. Ảnh, nhật ký request và kết quả SQL ở thư mục bằng chứng ngoài repo `KTD_Reschedule_X3_2026-11-26`.
+
+**B. Kết quả 12 ca**
+
+| Ca | Nội dung (vai; cỡ ghi) | Request ghi | Kết quả |
+|---|---|---|---|
+| KTD-01 | Bệnh nhân tự đổi, cọc 0đ (125%) | 1 → 201 | **Đạt** (T5: một dòng 404 `favicon.ico` ngoài câu phụ của T5, Q-01; phiên kiểm quyết Đạt theo câu chính "không có lỗi JavaScript") |
+| KTD-02 | Bệnh nhân tự đổi, cọc 100.000đ đã trả ví; ba bảng tiền và số dư ví không đổi (375) | 1 → 201 | **Đạt** |
+| KTD-03 | Hết lần tự đổi, gửi yêu cầu; lý do bắt buộc 5 đến 500 (375, chỉ bàn phím) | rỗng 0; 4 ký tự 0; 1 → 201 | **Đạt** |
+| KTD-04 | Banner chờ duyệt, rồi bị từ chối kèm ghi chú (Bệnh nhân) | 0 | **Đạt** |
+| KTD-05 | Tranh chấp khung giờ, hai trình duyệt | bên thắng 1 → 201; bên thua 409 rồi 201 | **Đạt** |
+| KTD-06 | Lễ tân đổi hộ, lý do bắt buộc, bộ đếm không tăng, nhật ký `DoiLichHo` (375) | rỗng 0; 1 → 201 | **Đạt** |
+| KTD-07 | Lễ tân duyệt: khung mong muốn đã có người, chọn khung giờ khác (125%) | 409 rồi 200 | **Đạt** |
+| KTD-08 | Lễ tân từ chối, ghi chú bắt buộc (125%) | rỗng 0; 1 → 200 | Lượt 1 **Không đạt (T4, L-01)**; lượt 2 **Đạt** |
+| KTD-09 | Quản trị viên Toàn hệ thống: "Tất cả", lọc chi nhánh, duyệt (125%) | 1 → 200 | Lượt 1 **Không đạt (T4, L-01)**; lượt 2 **Đạt** |
+| KTD-10 | Quản trị viên Chi nhánh: chỉ chi nhánh mình, URL yêu cầu chi nhánh khác ra "Không tìm thấy yêu cầu." | 0 (GET 404) | Lượt 1 **Không đạt (T4, L-01)**; lượt 2 **Đạt** |
+| KTD-11 | Bàn phím và focus: hộp Duyệt, Từ chối, bảng chọn khung giờ khác, màn xác nhận | theo ca gốc | **Đạt** (viền focus đo 1,6 px, TECH_DEBT 302; kèm Q-03) |
+| KTD-12 | Tải lại giữ lựa chọn, mất mạng khi gửi, bấm đúp | mất mạng: 0 tới máy chủ; bấm đúp: đúng 1 → 201 | **Đạt** |
+
+**Tổng: 12/12 Đạt.** Lượt 1 (mã `1349818`, `apps/` trùng `36ec306`): 9 Đạt, 3 Không đạt. Lượt 2 (mã `fc46583`): chạy lại đúng KTD-08, 09, 10 trên DB mới, cả ba Đạt. 9 ca Đạt ở lượt 1 **không** chạy lại sau bản sửa (bản sửa chỉ thêm một lớp CSS ở bảng yêu cầu).
+
+**C. L-01: bảng yêu cầu đổi lịch làm cả trang tràn ngang ở 375 px**
+
+- Bước: Lễ tân mở trang "Yêu cầu đổi lịch" (hoặc Quản trị viên mở tab "Yêu cầu đổi lịch") ở 375 px, tab có ít nhất một dòng. Mong đợi: trang không tràn ngang, chỉ vùng bảng tự cuộn. Thực tế: `scrollWidth` 745 đến 746 (Lễ tân) và 814 đến 815 (Quản trị viên) trong khung 375; cuộn ngang được tới một màn trắng.
+- Nguyên nhân: vùng cuộn của `request-table.tsx` không được định vị nên các chữ ẩn `sr-only` (`position: absolute`) thoát khỏi vùng.
+- Sửa (PR #742, `fc46583`): thêm lớp `relative` cho vùng cuộn, ca `WXD-138`.
+- Đo lại (lượt 2): trang 375/375 ở Lễ tân hai tab và ở Quản trị viên Chi nhánh (tab Chờ duyệt); Quản trị viên Toàn hệ thống ("Tất cả", lọc chi nhánh, "Đã xử lý") đọc 360/360 rồi 375/375 (chênh bằng một thanh cuộn dọc **[suy luận]**); ở mọi lần đọc `scrollWidth` bằng `clientWidth` và trang không cuộn ngang được; vùng bảng tự cuộn tới liên kết "Chi tiết", không có thanh cuộn dọc, `Tab` vào vùng có viền focus; ở 125% không tràn.
+- Bốn bảng danh sách lịch hẹn ở TECH_DEBT 165 có kiểu vùng cuộn tương tự: X3 và PR #742 **không** đo lại, không sửa.
+
+**D. Đột biến lô 18 (PLAN 5.14)**
+
+Bằng chứng cũ đo trên mã nhánh trước squash; đã đối chiếu `git diff <nhánh> origin/main -- <file>` trùng cho mọi file bị đột biến và file test bắt, trừ #10 và #17 (chạy lại). #11 và #16 chạy lại vì bản đã chạy yếu hơn chữ PLAN.
+
+| # | Đột biến | Ca bắt | Nguồn |
+|---|---|---|---|
+| 1 | không loại lịch cũ khỏi đếm và chồng giờ | KDL-10, KDL-11; DLH-39 | B2, B4 |
+| 2 | khoá "cũ rồi mới" | HDL-13, HDL-14; DLH-34; TDL-03, TDL-19 | B1, B4, X2 |
+| 3 | so id khung giờ bằng chuỗi | HDL-13; TDL-19 (TDL-03 sống: tương đương về kết quả đua) | B1, X2 |
+| 4 | không kiểm lại trạng thái dưới khoá | DLH-07, DLH-08, DLH-26; TDL-04 | B4, X2 |
+| 5 | không +1 khi tự đổi | DLH-01, DLH-03, DLH-25 | B4 |
+| 6 | +1 khi đổi hộ, duyệt | DLH-25 | B4 |
+| 7 | quên `markReplaced` hoặc nhả khung giờ | DLH-01, INV-4, 5, 7, 9 | B4 |
+| 8 | sao chép sai bản chụp | DLH-27, INV-8 | B4 |
+| 9 | `onSlotReleased` trong giao dịch, gọi hai lần | DLH-13, DLH-35 | B4 |
+| 10 | bỏ `findBlocking`, hoặc gọi với khung giờ NGUỒN | cả hai biến thể: KDL-17 đỏ 4/4, HDL-05 đỏ | **X3** |
+| 11 | từ chối vẫn giữ chỗ (khung mong muốn thành `DangGiuCho`) | XDL-08 tích hợp đỏ 2; XDL-08 đơn vị **sống** | **X3** |
+| 12 | duyệt thất bại vẫn `DaDuyet` | XDL-07, XDL-44 | B9 |
+| 13 | ghi chú rỗng được nhận | XDL-09 | B9 |
+| 14 | tạo yêu cầu thứ hai khi đã `ChoDuyet` | XDL-02, TDL-16 | B5, X2 |
+| 15 | bỏ phạm vi chi nhánh | XDL-03, XDL-32, QDL-02; HDL-36 | B8, B9 |
+| 16 | tạo `giao_dich_thanh_toan` khi đổi | HDL-03, DLH-02 đỏ 3 (INV-10: số hàng 2 → 3, 2 → 4) | **X3** |
+| 17 | bỏ trần chuỗi | KDL-16 đỏ 5/5; HDL-09 đỏ 2 | **X3** |
+| 18 | thông báo yêu cầu gắn `lich_hen_id` | NDL-01, NDL-03 | B3 |
+
+**18/18 có ít nhất một ca bắt.** Lượt chạy lại của X3: 27 lượt vitest (9 đối chứng đầu xanh, 9 đột biến, 9 đối chứng cuối xanh) trên DB tạm riêng; sửa tạm năm file rồi khôi phục, SHA-256 khớp, `git status` sạch. File thứ năm (`slots/bookability.reader.ts`, biến thể bỏ `findBlocking`) Đại cho chạy riêng. **Giới hạn:** #11 ở lớp đơn vị là khoảng trống của spec (chỉ khẳng định câu khoá, không khẳng định vắng câu `UPDATE khung_gio`), không phải đột biến tương đương; X3 không thêm test. DB tạm của đột biến đã xoá sau khi Đại cho phép (26/11/2026).
+
+**E. Quan sát (không sửa mã, không tính Không đạt)**
+
+- **Q-01** (web chung): `GET /favicon.ico` 404, console báo lỗi tải tài nguyên; có ở Vite dev và bản nginx.
+- **Q-02**: sau 409 ở màn đổi lịch, lưới tải lại và ngày chọn về "Hôm nay", hiện "Bác sĩ không có lịch làm việc ngày này" ngay dưới câu báo khung giờ đã có người đặt.
+- **Q-03** (`DateStrip` của `search`, chủ Trung): ở 375 px thẻ ngày được `Tab` tới có lúc chỉ thấy khoảng 28 px.
+- **Q-04, Q-05**: thông báo duyệt, từ chối, đổi hộ ra hai dấu chấm khi ghi chú hay lý do kết thúc bằng dấu chấm.
+- Đã biết từ trước: trang chi tiết yêu cầu của Quản trị viên có hai `h1`, bảng không có cột Chi nhánh (F5); nút "Đổi lịch hộ" cao 41 px, nút cùng thẻ cao 36 px; viền focus 1,6 px (TECH_DEBT 302).
+- Ghi nợ: Q-02, Q-04, Q-05 → TECH_DEBT 330; Q-03 → 331 (chủ Trung); phạm vi quét của `secrets` (mục F) → 329. Q-01 chỉ ghi ở đây.
+
+**F. CI (đọc, không chạy ở máy)**
+
+Run 45792648615, push `main` `1cc0099` (chứa `fc46583`): mọi job chạy đều xanh (`pr-title` chỉ chạy ở PR). `duplication`: 2,57% dòng (7.426/289.388), 2,9% token, 636 clone, ngưỡng 3%. `secrets`: "no leaks found" nhưng **chỉ quét 1 commit** (23,02 KB, `--log-opts=-1`); run của PR quét dải commit của PR. Không chạy `jscpd` hay gitleaks ở máy.
+
+**G. Dữ liệu demo**
+
+Script `Seed_Demo_Reschedule_2026-11-26.ps1` (ngoài repo, không thêm lệnh `seed:*`): gọi API thật bằng tài khoản Bệnh nhân demo, mật khẩu qua biến môi trường; không có `-XacNhan` thì chỉ đăng nhập và đọc. Dựng lịch cọc 0đ, lịch cọc đã trả ví (chạy sau `seed:payment-demo`), lịch hết lần tự đổi kèm một yêu cầu `ChoDuyet` ở chi nhánh chọn bằng `-ChiNhanhId` (mặc định 1). Chạy thử trên DB mới seed (mã `294a476`): ba kịch bản dựng đúng, Lễ tân và hai Quản trị viên của seed thấy yêu cầu, chạy lại không thêm hàng nào. Chưa thử trên DB demo đã có dữ liệu. Cấu hình demo: 2 lần tự đổi, `check_in_sau_phut` 15 (Đại trả lời 26/11/2026; giá trị mẫu của `seed:config-dev`).
+
+**H. Lỗi của chính phiên (đã sửa hoặc đã đo lại)**
+
+Kế hoạch chọn khung giờ mong muốn của KTD-03 chồng giờ lịch khác của cùng Bệnh nhân (đổi trước khi chạy); `.env` tự sinh đặt sai `API_PORT` làm `/health` hỏng; lần bật compose đầu (`nest --watch` cộng Vite) làm RAM trống còn 1,42 GB (dừng, đổi sang bật theo bậc); điều kiện chờ của bộ đo khớp sớm ở một số lượt (đo lại); một lượt đo bàn phím chọn nhầm ngày (thứ tự `Tab` vẫn đúng); script seed lượt đầu dựng vào chi nhánh không có Lễ tân của seed (sửa trước khi giao).
+
+**I. Giờ (đồng hồ máy, không phải giờ làm của người)**
+
+Kế hoạch 12:22 đến 12:50; KTD lượt 1 13:22 đến 13:47; đột biến 13:54 đến 13:59 và 15:41 đến 15:42; seed demo 15:16 đến 15:31; chạy lại ba ca 16:33 đến 16:42; viết tài liệu sau đó. Khoảng giữa gồm chờ duyệt, chờ lượt máy, chờ RAM và chờ PR sửa L-01. Giờ làm của người `[cần điền]`; PLAN ước 5 giờ `[đề xuất]`.
+
+## 2. Kết quả test theo use case (mã ở PLAN.md mục 7; **mọi nhóm đã chạy (KTD-01…KTD-12 ở reschedule X3, 26/11/2026); nhiều nhóm có nhiều hàng theo từng task, hàng sau thay trạng thái ở hàng trước; câu này sửa ở reschedule D1 và X3, 26/11/2026**)
 
 | Nhóm | Mã | Số ca | Task | Trạng thái |
 |---|---|---|---|---|
@@ -3219,12 +3307,12 @@ Ca có thể sống sót và phân loại trước: M1 (có thể chỉ WXD-101 
 | Giao diện Lễ tân đổi hộ | WDO-01…WDO-06 (cộng WDO-07…WDO-15 `[đề xuất]` ở reschedule F3) | 15 (6 theo PLAN, thêm WDO-07…15 `[đề xuất]`) | F3 | **Pass 25/11/2026 ở reschedule F3:** 305 ca mới ở 15 file (WDO-01 17; WDO-02 35; WDO-03 46; WDO-04 và WDO-06 12; WDO-05 36 (kể cả một ca hạ chốt của WDO-06); WDO-07 16; WDO-08, WDO-09 61; WDO-10 3; WDO-11 7; WDO-12 15; WDO-13 34; WDO-14 10; WDO-15 13), mỗi test ghi mã trong tên; WEB-FULL 463 file 8.131 ca 0 đỏ; đột biến web 21 ca: 20 bắt, 1 sống sót (bố cục, giới hạn); chi tiết ở dòng reschedule F3, mục 1 và 1.15 H |
 | Giao diện xử lý yêu cầu | WXD-01…WXD-14 (cộng WXD-21…WXD-88 `[đề xuất]` ở reschedule F4 và WXD-101…WXD-137 `[đề xuất]` ở reschedule F5) | 14 (cộng 65 `[đề xuất]` ở F4 và 37 ở F5) | F4, F5 | **Một phần, Pass 25/11/2026 ở reschedule F4:** WXD-02…WXD-10 và WXD-01 (qua PL-09 và WXD-79), cộng 65 mã `[đề xuất]` (WXD-21…66, 68…85, 88): 519 ca ở 20 file, 0 đỏ (chi tiết ở dòng F4, mục 1, và 1.16 mục 9); phần "Chọn khung giờ khác" của duyệt (B2) chưa chạy; **reschedule F5, Pass 26/11/2026:** WXD-11…14 và 37 mã `[đề xuất]` WXD-101…137: 61 ca mới ở 7 file, cùng 2 ca mới và ca WA-13 đã đổi ở `approvals.test.tsx`, 0 đỏ (dòng F5 ở mục 1 và 1.18 mục 10) |
 | Giao diện xử lý yêu cầu (reschedule F4b, Pha B2) | WXD-07 (phần khung giờ thay thế) và `[đề xuất]` WXD-86, 87, 89…99 | 13 `[đề xuất]` | F4 | **Pass 26/11/2026 ở reschedule F4b:** 47 ca ở 2 file, 0 đỏ (chi tiết ở dòng F4b, mục 1); năm ca của Pha B1 cập nhật; phần Quản trị viên (F5) và WXD-11…14 không thuộc F4b |
-| Kiểm tay | KTD-01…KTD-12 | 12 | X3 | chưa chạy |
-| **Tổng** | | **175** | | **42 đã chạy** (MDL-01…MDL-10 Pass ở reschedule P1; KDL-01…KDL-23 Pass ở reschedule B2; NDL-01, 02, 03, 06, 07, 09, 10, 11 và BDL-04 Pass ở reschedule B3) |
+| Kiểm tay | KTD-01…KTD-12 | 12 | X3 | **Pass 26/11/2026 (reschedule X3): 12/12 Đạt** (9 ca trên `1349818`; KTD-08, 09, 10 Không đạt ở lượt đầu vì L-01, chạy lại Đạt trên `fc46583`; chi tiết ở 1.19) |
+| **Tổng** | | **175** | | **Mọi mã đã chạy (reschedule X3, 26/11/2026):** 172 mã ở bảng và đoạn KTD của PLAN mục 7: 157 có trong tên ca (CI `main` `1cc0099` xanh), DLH-17, HDL-06, WXD-01 phủ gián tiếp, KTD 12/12 Đạt; INV-7…INV-10 chạy ở B1. Ô "Số ca" giữ số ghi trước đó, X3 không cộng lại (chi tiết ở mục 8) |
 
-Đột biến bắt buộc (PLAN 5.14): 18, chưa chạy (không tính 15 đột biến RIÊNG của reschedule P1 đã chạy 24/11/2026: 31 bắt, 1 sống; 41 đột biến RIÊNG của reschedule B2 đã chạy 25/11/2026: 41 bắt, 0 sống sót; và 17 đột biến RIÊNG của reschedule B3 đã chạy 25/11/2026: 17 bắt, 0 sống sót; xem ba dòng P1, B2 và B3 ở mục 1). Bất biến mới INV-7 đến INV-10: chưa viết.
+Đột biến bắt buộc (PLAN 5.14): 18, **18/18 có ít nhất một ca bắt (reschedule X3, 26/11/2026; bảng ở 1.19 mục D)** (không tính 15 đột biến RIÊNG của reschedule P1 đã chạy 24/11/2026: 31 bắt, 1 sống; 41 đột biến RIÊNG của reschedule B2 đã chạy 25/11/2026: 41 bắt, 0 sống sót; và 17 đột biến RIÊNG của reschedule B3 đã chạy 25/11/2026: 17 bắt, 0 sống sót; xem ba dòng P1, B2 và B3 ở mục 1). Bất biến mới INV-7 đến INV-10: đã viết và chạy ở reschedule B1.
 
-**Ghi chú reschedule D1 (26/11/2026):** dòng **Tổng** và đoạn "Đột biến bắt buộc" ngay trên là của các task trước, X3 tổng kết; câu "Bất biến mới INV-7 đến INV-10: chưa viết" đã lỗi thời (B1 đã viết và chạy). HDL-08 và HDL-10 từng ghi "Một phần" ở hàng của B1 đã đủ phần B4 (reschedule B4).
+**Ghi chú reschedule D1 (26/11/2026):** dòng **Tổng** và đoạn "Đột biến bắt buộc" ngay trên là của các task trước, X3 tổng kết; câu "Bất biến mới INV-7 đến INV-10: chưa viết" đã lỗi thời (B1 đã viết và chạy). HDL-08 và HDL-10 từng ghi "Một phần" ở hàng của B1 đã đủ phần B4 (reschedule B4). **reschedule X3 (26/11/2026):** đã ghi kết quả thật vào dòng **Tổng** và đoạn đột biến, sửa câu INV.
 
 **Số đo của reschedule X1 (24 và 25/11/2026) không chạy ca nào ở bảng này; chúng đổi nội dung kỳ vọng của các ca sau (chi tiết ở mục 6 và 7):** TDL-03 (hoán vị X↔Y: chỉ có "cả hai `KHUNG_GIO_DA_DAT`" vì khung giờ đích của mỗi bên đang `DaDat` bởi lịch của bên kia; "một thắng" và "cả hai thành công" không thể xảy ra, suy luận chưa đo; khẳng định 0 lần 1213); TDL-18 (đảo thứ tự: 100/100 vòng ra 1213; đúng thứ tự 5.4 ra 0 lần); TDL-04 (đổi × huỷ: khi gặp nhau chắc chắn 1213 nội bộ, nạn nhân luôn là bên đổi lịch, huỷ thắng); TDL-10 (đổi × áp dụng thay đổi chi nhánh: CÓ chu trình với job áp dụng B11, không với duyệt B10 và dời hiệu lực B22; nạn nhân luôn là `applyOne`); TDL-17 (1213 nội bộ ở TDL-04 và TDL-10 nằm trong mức chấp nhận); KDL-16 và HDL-09 (trần 19 lịch có đệm 2 lịch trước `CHAIN_TOO_DEEP` ở 22 lịch; `RefundRepository.leafOf` trả sai im lặng từ 21 lịch).
 
@@ -3618,6 +3706,8 @@ Nháp dòng nợ kỹ thuật (số **275** do phiên kiểm cấp cố định 
 
 Nội dung đúng như hai file đó, không chép lại. Bốn dòng nợ của notification đổi số 315 đến 318 thành 319 đến 322 (chữ giữ nguyên).
 
+### 4.18 reschedule X3 (hàng AI log 205, dòng nợ 329 đến 331: số do phiên kiểm cấp; **ĐÃ ghi** vào `AI_USAGE_LOG.md` (hàng 205, đặt sau hàng 204) và `docs/TECH_DEBT.md` (329, 330, 331) ngày 26/11/2026 sau khi Đại xem nháp và chọn bằng hộp câu hỏi "Ghi hàng 205", ba dòng nợ, "Sửa cả và tick ô 4" (chữ PLAN) và "Xoá" (DB tạm `clinix_reschedule_x3_test`, đã `DROP` đúng một DB); `AI-BUG-118` không dùng; cột PR và commit còn `[cần điền]` vì PR chưa mở)
+
 ## 5. Phối hợp với module khác
 
 | Với | Điểm | Cần gì | Trạng thái |
@@ -3844,3 +3934,19 @@ Nội dung đúng như hai file đó, không chép lại. Bốn dòng nợ của
 | F4 | PLAN 5.1, 5.12, 7.11 | 2.4.31: D2; TECH_DEBT 309 đến 311; hạn chế còn lại: X3 |
 | F4b | PLAN 5.12 | 2.4.31: D2; bố cục: X3; TECH_DEBT 318 |
 | F5 | PLAN 5.1, 5.9, 5.12, 6.2, 6.3; doctor PLAN và TRACKING | TECH_DEBT 315 đến 317; hai `h1`, cột chi nhánh: X3; 2.4.31: D2 |
+- **reschedule X3 (26/11/2026), quan sát cho chủ file (1.19 mục E):** web chung: thiếu `favicon.ico` (Q-01); `booking`: Q-02, Q-04, Q-05; `search`: `DateStrip` ở 375 px (Q-03, chủ Trung); bốn bảng danh sách lịch hẹn của TECH_DEBT 165 chưa đo lại sau bản sửa L-01.
+
+## 8. Tổng kết scope đổi lịch (reschedule X3, 26/11/2026)
+
+| Mục | Số thật |
+|---|---|
+| Task (PLAN 6.2) | 20: P1, P2, X1, B1 đến B9, F1 đến F5, D1, X2, X3. 19 task trước X3 đã vào `main`; X3 là PR này; D2 (Word, ngoài repo) chưa xong |
+| PR đã vào `main` trước X3 | 21: 19 PR mã và đo (#671, #672, #673, #674, #678, #679, #682, #684, #686, #688, #691, #692, #693, #696, #698, #699, #700, #702, #703; F4 có hai PR), D1 (#726), sửa L-01 (#742) |
+| Test cả repo ở CI `main` `1cc0099` (run 45792648615), mọi ca xanh | đơn vị api 8.574 ca (436 file); tích hợp 3.608 ca (291 file); e2e 1.620 ca (112 file); web 8.761 ca (493 file) |
+| Trong đó file test do commit của scope THÊM MỚI | 153 file, 3.429 ca ở run trên: đơn vị api 46 file 1.334 ca; tích hợp 36 file 555 ca; e2e 7 file 129 ca; web 64 file 1.411 ca. Đếm theo file nên gồm cả ca task khác thêm vào các file đó sau này (nếu có); 41 file test có sẵn được scope sửa **không** tính |
+| Mã test case PLAN mục 7 | 172 mã trong bảng và đoạn KTD: 157 có trong tên ca của file test; 3 phủ gián tiếp (DLH-17 qua BDL-01 đến 03, HDL-06 cùng DLH-13, WXD-01 qua PL-09 và WXD-79); 12 mã KTD kiểm tay đều Đạt |
+| Kiểm tay | KTD-01 đến KTD-12: 12/12 Đạt (ba ca sau bản sửa L-01) |
+| Đột biến bắt buộc (PLAN 5.14) | 18/18 có ca bắt (bảng ở 1.19 mục D) |
+| Đo thật | X1: M1 đến M8 ở mục 6 (M3 không đạt, M7b chưa chạy); X2: 38 ca, 1.900 vòng đua, 503 = 0 và 1205 = 0 |
+| Giờ | PLAN ước 103 giờ `[đề xuất]` (không tính D2). Giờ làm thật của người `[cần điền]`; một số task chỉ có mốc đồng hồ máy ở 1.x (không cộng được) |
+| Còn lại | D2 (sửa 2.4 và file Word); `waitlist` còn `Noop` (scope #11); nợ kỹ thuật mở của scope ở `docs/TECH_DEBT.md` (X3 thêm 329 đến 331) |
