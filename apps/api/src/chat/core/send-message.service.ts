@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { HttpException, Inject, Injectable, Logger } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { withBookingTransaction } from '../../appointments/locking/booking-transaction.js';
 import { nowVN, toSecond } from '../../common/time/time.js';
@@ -85,6 +85,32 @@ interface Draft {
 // Id BIGINT dạng chuỗi số dương; sai dạng thì coi như không có (404, không 500), không chạm DB
 const ID = /^[1-9]\d{0,18}$/;
 const ACTIVE = 'DangHoatDong';
+
+/**
+ * Lỗi ngoài dự kiến của luồng gửi (chat B3, BCH-02; PLAN 5.11). Bộ lọc lỗi toàn cục ghi `stack` và `message` của mọi lỗi 5xx, mà vài lỗi MySQL CHÉP NGUYÊN giá trị
+ * vào `message` (ví dụ "Incorrect string value: '…' for column 'noi_dung'"). Nên lõi bọc lại: chỉ giữ tên luồng, tên lớp lỗi và mã của driver (`code`, `errno`,
+ * `sqlState`), KHÔNG giữ `message` hay `cause` gốc. Client vẫn nhận 500 `LOI_HE_THONG` chung.
+ */
+export class ChatInternalError extends Error {
+  readonly code?: string | number;
+  readonly errno?: string | number;
+  readonly sqlState?: string | number;
+
+  constructor(label: string, original: unknown) {
+    const className =
+      original instanceof Error ? original.constructor.name : typeof original;
+    super(`Lỗi ngoài dự kiến ở ${label} (${className})`);
+    this.name = 'ChatInternalError';
+    for (const key of ['code', 'errno', 'sqlState'] as const) {
+      const value: unknown =
+        typeof original === 'object' && original !== null
+          ? Reflect.get(original, key)
+          : undefined;
+      if (typeof value === 'string' || typeof value === 'number')
+        this[key] = value;
+    }
+  }
+}
 
 @Injectable()
 export class SendMessageService {
@@ -301,7 +327,9 @@ export class SendMessageService {
       return await withBookingTransaction(this.db, work, { label });
     } catch (error) {
       if (isDuplicateKeyError(error)) return { kind: 'SendIdUsed' };
-      throw error;
+      // 503 tranh khoá hết lượt (AppException) giữ nguyên mã cho client
+      if (error instanceof HttpException) throw error;
+      throw new ChatInternalError(label, error);
     }
   }
 
