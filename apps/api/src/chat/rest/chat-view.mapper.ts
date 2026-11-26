@@ -3,6 +3,7 @@ import {
   counterpartToCheck,
   type ChatActor,
 } from '../core/chat-access.policy.js';
+import type { ChucDanhBacSi } from '../../admin/entities/enums.js';
 import type { LoaiHoiThoai } from '../entities/enums.js';
 import type {
   HeaderRow,
@@ -80,6 +81,12 @@ const roleOf = (loaiTaiKhoan: string): ChatRole =>
     ? loaiTaiKhoan
     : 'BenhNhan';
 
+/** "{chức danh} {họ tên}" của bác sĩ; thiếu chức danh (dữ liệu hỏng) thì chỉ họ tên. */
+export const doctorLabel = (
+  chucDanh: ChucDanhBacSi | null,
+  hoTen: string,
+): string => (chucDanh === null ? hoTen : formatDoctorName(chucDanh, hoTen));
+
 export const receptionLabel = (tenChiNhanh: string | null): string =>
   `Lễ tân · ${tenChiNhanh ?? ''}`;
 
@@ -90,10 +97,7 @@ export function senderName(
   tenChiNhanh: string | null,
 ): string {
   const role = roleOf(message.loaiTaiKhoan);
-  if (role === 'BacSi')
-    return message.chucDanh === null
-      ? message.hoTen
-      : formatDoctorName(message.chucDanh, message.hoTen);
+  if (role === 'BacSi') return doctorLabel(message.chucDanh, message.hoTen);
   if (role === 'LeTan' && viewer.vaiTro === 'BenhNhan')
     return receptionLabel(tenChiNhanh);
   return message.hoTen;
@@ -149,13 +153,9 @@ export function partnerOf(viewer: ChatActor, header: HeaderRow): ChatPartner {
         vaiTro: 'LeTan',
         tenHienThi: receptionLabel(header.tenChiNhanh),
       };
-    const hoTen = header.bacSiHoTen ?? '';
     return {
       vaiTro: 'BacSi',
-      tenHienThi:
-        header.bacSiChucDanh === null
-          ? hoTen
-          : formatDoctorName(header.bacSiChucDanh, hoTen),
+      tenHienThi: doctorLabel(header.bacSiChucDanh, header.bacSiHoTen ?? ''),
     };
   }
   if (viewer.vaiTro === 'LeTan')
@@ -237,5 +237,53 @@ export function toDetail(
     banner: header.loai === 'BenhNhan_BacSi',
     coTheGui,
     lyDoKhongGui: coTheGui ? null : 'CHAT_NGUOI_NHAN_KHONG_HOAT_DONG',
+  };
+}
+
+/** Đầu khung TRƯỚC tin đầu (chat B3; `GET /chat/doctors/:id`, `GET /chat/branches/:id`): cùng khoá với `ConversationDetail`, `hoiThoaiId` là `null` khi chưa có hội thoại. */
+export interface StartHeader {
+  hoiThoaiId: string | null;
+  loai: LoaiHoiThoai;
+  doiTac: ChatPartner;
+  quanHe: Relationship | null;
+  banner: boolean;
+  coTheGui: boolean;
+  lyDoKhongGui: 'CHAT_NGUOI_NHAN_KHONG_HOAT_DONG' | null;
+}
+
+/** Bác sĩ ngưng hoạt động hay chờ kích hoạt ⇒ xem được, không gửi được (Q3; cùng luật lõi gửi, NBS-09). */
+export function toDoctorStart(
+  doctor: { hoTen: string; trangThai: string; chucDanh: ChucDanhBacSi | null },
+  hoiThoaiId: string | null,
+  daTungKham: boolean,
+): StartHeader {
+  const coTheGui = doctor.trangThai === ACTIVE;
+  return {
+    hoiThoaiId,
+    loai: 'BenhNhan_BacSi',
+    doiTac: {
+      vaiTro: 'BacSi',
+      tenHienThi: doctorLabel(doctor.chucDanh, doctor.hoTen),
+    },
+    quanHe: daTungKham ? 'DaTungKham' : 'ChuaTungKham',
+    banner: true,
+    coTheGui,
+    lyDoKhongGui: coTheGui ? null : 'CHAT_NGUOI_NHAN_KHONG_HOAT_DONG',
+  };
+}
+
+/** Hộp thư chung: Bệnh nhân luôn gửi được (chi nhánh không có trạng thái, 5.3); Bệnh nhân thấy "Lễ tân · {chi nhánh}" (Q18). */
+export function toBranchStart(
+  tenChiNhanh: string,
+  hoiThoaiId: string | null,
+): StartHeader {
+  return {
+    hoiThoaiId,
+    loai: 'BenhNhan_LeTan',
+    doiTac: { vaiTro: 'LeTan', tenHienThi: receptionLabel(tenChiNhanh) },
+    quanHe: null,
+    banner: false,
+    coTheGui: true,
+    lyDoKhongGui: null,
   };
 }

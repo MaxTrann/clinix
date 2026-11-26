@@ -10,10 +10,19 @@ export const VISITED_STATUSES = [
   'HoanThanh',
 ] as const;
 
+/** MỘT chỗ viết điều kiện trạng thái; hai câu bên dưới cùng nội suy hằng này (`l` là `lich_hen`). */
+const VISITED_STATUS_CONDITION =
+  "l.trang_thai IN ('DaXacNhan', 'DaTiepDon', 'HoanThanh')";
+
 /**
  * Đoạn SQL CỐ ĐỊNH, dùng bên trong câu đọc đầu hội thoại: `h` là `hoi_thoai`, `dm` là dòng thành viên bác sĩ của hội thoại đó.
  * Hộp thư chung không có `dm` nên kết quả là 0 (nơi đọc trả `quanHe: null` cho loại này).
  */
 export const HAS_VISITED_EXISTS = `EXISTS (SELECT 1 FROM lich_hen l
      WHERE l.benh_nhan_id = h.nguoi_tao_id AND l.bac_si_id = dm.tai_khoan_id
-       AND l.trang_thai IN ('DaXacNhan', 'DaTiepDon', 'HoanThanh'))`;
+       AND ${VISITED_STATUS_CONDITION})`;
+
+/** Cùng luật, cho cặp (Bệnh nhân, bác sĩ) KHI CHƯA có hội thoại (chat B3, đầu khung trước tin đầu). Tham số: Bệnh nhân, bác sĩ. */
+export const HAS_VISITED_SQL = `SELECT EXISTS (SELECT 1 FROM lich_hen l
+     WHERE l.benh_nhan_id = ? AND l.bac_si_id = ?
+       AND ${VISITED_STATUS_CONDITION}) AS daTungKham`;

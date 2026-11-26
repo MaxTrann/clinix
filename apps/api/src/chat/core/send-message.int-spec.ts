@@ -22,6 +22,7 @@ import type {
   SendOutcome,
   SendTarget,
 } from './send-message.service.js';
+import { ChatInternalError } from './send-message.service.js';
 
 // chat B1 — lõi gửi trên MySQL 8.4 THẬT (PLAN chat 7.4, 7.10). Đồng hồ giả chỉ giả `Date` (T0 = 2026-11-02 08:00:00 giờ Việt Nam); bộ hẹn giờ thật vẫn chạy.
 let db: DataSource;
@@ -392,6 +393,7 @@ describe('chat B1 — tìm-hoặc-tạo và gửi', () => {
     );
   });
 
+  // chat B3 (BCH-02): lỗi ra ngoài là `ChatInternalError`, KHÔNG mang câu của lỗi gốc (có thể chứa nội dung tin); ca chi tiết ở test/chat-send.e2e-spec.ts
   it('LOI-14: cổng thông báo ném ⇒ tin bị hoàn tác (luồng mở: cả hội thoại; hội thoại đã có: không thêm tin)', async () => {
     const service = buildSendService(db);
     const conversation = sent(
@@ -404,10 +406,10 @@ describe('chat B1 — tìm-hoặc-tạo và gửi', () => {
     });
     await expect(
       send(broken, w.patientA, { chiNhanhId: w.branchA }),
-    ).rejects.toThrow('ghi thông báo lỗi');
+    ).rejects.toThrow(ChatInternalError);
     await expect(
       send(broken, w.doctorA, { hoiThoaiId: conversation.tinNhan.hoiThoaiId }),
-    ).rejects.toThrow('ghi thông báo lỗi');
+    ).rejects.toThrow(ChatInternalError);
     expect(await allConversations()).toBe(1);
     expect(await allMessages()).toBe(1);
     expect(await count('SELECT COUNT(*) AS n FROM tai_khoan_hoi_thoai')).toBe(

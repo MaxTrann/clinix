@@ -107,3 +107,39 @@ describe('chat B1 — kiến trúc (HCH)', () => {
     expect([...written].sort()).toEqual(CHAT_TABLES);
   });
 });
+
+// chat B3 — HCH-04 (PLAN chat 7.11): cổng REST gửi tin đi qua ĐÚNG lõi gửi (`SendMessageService.send`), không chép luật nội dung hay mã gửi sang lớp REST.
+// B5 (gateway) thêm `realtime/` vào cùng luật này. Đối chứng âm trên nguồn giả trước khi quét mã thật.
+const CONTENT_RULES =
+  /chat-content\.rules|\b(?:checkSendInput|normalizeContent|contentError|normalizeSendId|codePointLength)\b/;
+const CALLS_CORE_SEND = /this\.core\.send\(/;
+const restSources = sources.filter(({ file }) => file.startsWith(`rest${sep}`));
+
+describe('chat B3 — kiến trúc (HCH-04)', () => {
+  it('HCH-04: REST gửi qua lõi gửi, không chép luật; đối chứng âm: nguồn giả gọi luật nội dung thì bị bắt', () => {
+    expect(
+      CONTENT_RULES.test(
+        "import { checkSendInput } from '../core/chat-content.rules.js';",
+      ),
+    ).toBe(true);
+    expect(CONTENT_RULES.test('const n = codePointLength(text);')).toBe(true);
+    expect(CALLS_CORE_SEND.test('return this.other.send(x)')).toBe(false);
+    expect(restSources.map((s) => s.file)).toContain(
+      join('rest', 'chat-send.service.ts'),
+    );
+    for (const { file, code } of restSources)
+      expect(CONTENT_RULES.test(code), file).toBe(false);
+    const callers = restSources
+      .filter(({ code }) => CALLS_CORE_SEND.test(code))
+      .map((s) => s.file);
+    expect(callers).toEqual([join('rest', 'chat-send.service.ts')]);
+    // Luật nội dung chỉ được gọi ở lõi gửi
+    const ruleUsers = sources
+      .filter(
+        ({ file, code }) =>
+          !file.endsWith('chat-content.rules.ts') && CONTENT_RULES.test(code),
+      )
+      .map((s) => s.file);
+    expect(ruleUsers).toEqual([join('core', 'send-message.service.ts')]);
+  });
+});

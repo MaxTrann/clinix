@@ -24,6 +24,9 @@ import { ReceptionScopeService } from '../../rbac/reception-scope.service.js';
 import { ChatActorResolver } from '../read/chat-actor.resolver.js';
 import { ConversationReadRepository } from '../read/conversation-read.repository.js';
 import { ConversationReadService } from '../read/conversation-read.service.js';
+import { StartConversationRepository } from '../read/start-conversation.repository.js';
+import { StartConversationService } from '../read/start-conversation.service.js';
+import { ChatSendService } from '../rest/chat-send.service.js';
 
 // Fixture của chat (B1 trở đi; PLAN chat 5.15: test tự động KHÔNG dùng seed demo). Dựng trên thế giới tài khoản của admin (hai chi nhánh, đủ vai trò).
 
@@ -130,6 +133,34 @@ export function buildReadService(db: DataSource): ConversationReadService {
       new ReceptionScopeService(new ReceptionScopeRepository(db)),
     ),
     new MessageRepository(),
+  );
+}
+
+const resolverOf = (db: DataSource) =>
+  new ChatActorResolver(
+    new ReceptionScopeService(new ReceptionScopeRepository(db)),
+  );
+
+/** Dựng service gửi qua REST (chat B3) trên lõi gửi `core` (mặc định lõi thật với hai cổng `Noop`). */
+export function buildChatSendService(
+  db: DataSource,
+  core: SendMessageService = buildSendService(db),
+): ChatSendService {
+  return new ChatSendService(
+    db,
+    core,
+    new ConversationReadRepository(),
+    resolverOf(db),
+  );
+}
+
+/** Dựng service đầu khung trước tin đầu và chi nhánh mặc định (chat B3). */
+export function buildStartService(db: DataSource): StartConversationService {
+  return new StartConversationService(
+    db,
+    new StartConversationRepository(),
+    new ConversationOpenRepository(),
+    resolverOf(db),
   );
 }
 
