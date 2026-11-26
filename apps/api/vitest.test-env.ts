@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { TEST_AUTH_ENV } from './src/auth/testing/auth-test-env.js';
@@ -40,5 +42,7 @@ export function applyTestEnv(): void {
     CLOUDINARY_API_KEY: '',
     CLOUDINARY_API_SECRET: '',
     CLOUDINARY_UPLOAD_PREFIX: '',
+    // Kho tệp chat (chat P3) của test nằm trong thư mục tạm của hệ điều hành, không ghi vào cây mã nguồn
+    CHAT_FILES_DIR: join(tmpdir(), 'clinix-chat-files-test'),
   });
 }

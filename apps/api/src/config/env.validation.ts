@@ -212,6 +212,14 @@ export class EnvironmentVariables {
   @Min(1)
   @Max(60)
   STAFF_ACTIVATION_RESEND_MAX_PER_HOUR: number = 5;
+
+  // --- Kho tệp đính kèm của chat (chat P3; PLAN chat 5.8, Q5). Thư mục gốc, đường dẫn TUYỆT ĐỐI; trong container là `/data/chat` (volume `chat-files`,
+  // hai file compose đặt sẵn). Development/test bỏ trống ⇒ `.chat-files` trong thư mục chạy API (đã có trong .gitignore). Staging/production bắt buộc.
+  // Luật bắt buộc và tuyệt đối nằm ở `chat/attachments/chat-files-dir.ts`, kiểm khi dựng kho lúc khởi động (cùng lúc kiểm ghi được).
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  CHAT_FILES_DIR?: string;
 }
 
 // Biến môi trường để trống (SMTP_HOST=) là "không đặt", không phải chuỗi rỗng

@@ -28,6 +28,8 @@ Thumbs.db
 # Docker volumes cục bộ
 .docker-data/
 mysql-data/
+# Tệp đính kèm của chat khi chạy API ngoài Docker (CHAT_FILES_DIR bỏ trống, chat P3)
+.chat-files/
 
 # Flutter (khi thêm apps/mobile)
 apps/mobile/.dart_tool/
