@@ -783,7 +783,7 @@ Theo `AGENTS.md` mục 5 và `CONTRIBUTING.md`: nhánh `feat/notification-…` d
 - [x] Bốn use case chạy đúng trên MySQL thật (ca tích hợp và e2e của B1 đến B6, F1 đến F3, X2 xanh; phần kiểm tay trình duyệt ở X3): 2.4.59 (danh sách, chi tiết, đánh dấu một và tất cả, số chưa đọc, thăm dò ở bốn vai trò, A1), 2.4.68 (danh mục khớp mã; thư hoàn thành, nghỉ phép; tiếp đón), 2.4.69 (mọi bước và A1, A2, A3), 2.4.75 (loại mới qua worker; không gửi trùng; không thư thật).
 - [ ] Mọi mã test case ở mục 7 đã chạy hoặc ghi rõ lý do hoãn ở TRACKING mục 2 (KTB kiểm tay có kết quả thật). **(26/11/2026: 119/131 Pass; còn KTB-01…KTB-12 ở X3.)**
 - [x] IVN-01…IVN-05 xanh sau mọi ca đồng thời; 0 lần 503; số 1213 và 1205 được ghi ở CTB-02 (X2, 25/11/2026: 0 và 0).
-- [ ] 24 đột biến ở 5.12 đều bị ít nhất một ca bắt. **(26/11/2026: 14 đã chạy, đều bị bắt; phần còn lại là đột biến lô của X3.)**
+- [x] 24 đột biến ở 5.12 đều bị ít nhất một ca bắt (26/11/2026: 14 ở các task B, F; đột biến 8 đến 17 ở X3; cả 24 bị bắt).
 - [x] M1 đến M7 có số đo thật và kết luận (P2 làm hay đóng); tiêu chí không đổi sau khi thấy số (X1, 25/11/2026; M1 không đạt ⇒ P2 phần (b) đã làm; M4 không đạt ⇒ quy tắc 41 sửa ở D1).
 - [ ] Không còn thẻ `[CHỜ …]` trong PLAN này (trừ `[CHỜ waitlist]`, `[CHỜ chat]` chừa chỗ), không còn `[cần điền]` chặn mã.
 - [ ] Danh mục khớp mã (DMS xanh); `MAIL_EVENTS` khớp danh mục; HDK-06 đã sửa; nháp đóng TECH_DEBT 62, 186, mục Doctor B10 (và 90 nếu P2 làm) gửi Đại; D2 (Word) do Đại báo xong. **(26/11/2026: mọi phần đã xong, TECH_DEBT 186 và mục Doctor B10 đóng ở B4, B5, dòng 62 đóng ở D1; dòng 90 giữ vì P2 không thêm chỉ mục `lich_hen`; CÒN D2 của Đại.)**
