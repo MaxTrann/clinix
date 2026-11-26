@@ -22,6 +22,9 @@
 // "Tất cả" của Trung tâm thông báo (số đo X1 M1). Không đổi bảng, cột, enum. Chuyển đổi từ DB cũ: mục "notification P2" ở cuối clinix_quy_tac_nghiep_vu.md.
 // 26/11/2026 (scope #10 "Thông báo", task notification D1): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa Note nào của Table: Note của bảng
 // nhac_lich_hen (ON DUPLICATE KEY UPDATE, hai chỗ "chưa chốt") và của thong_bao.loai_su_kien đã lỗi thời, thay bằng quy tắc 41 và mục "notification D1" ở clinix_quy_tac_nghiep_vu.md.
+// 26/11/2026 (scope #9 "Đổi lịch hẹn", task reschedule D1, issue #651): chỉ sửa chữ ở dòng chú thích; quy tắc 27 đã có mã, xem mục "reschedule D1" ở clinix_quy_tac_nghiep_vu.md.
+// 27/11/2026 (scope #11 "Nhắn tin", task chat P1): tin_nhan thêm ma_gui, tep_ten_goc, tep_loai, tep_dung_luong, UNIQUE (nguoi_gui_id, ma_gui) và hai CHECK
+// (chk_tin_nhan_tep, chk_tin_nhan_noi_dung, ghi ở Note vì DBML không khai CHECK); khớp clinix_mysql.sql và migration TaoBangChat1794225600000.
 // Sinh từ Class Diagram + các quyết định của nhóm ngày 16/10/2026
 // Dịch vụ tách 3 khái niệm: nhom_dich_vu (điều hướng) - chuyen_khoa (lĩnh vực bác sĩ) - dich_vu_kham (thứ đặt lịch, có giá/cọc/hoàn hủy)
 // DBMS mục tiêu: MySQL 8.0.17+ (utf8mb4); CHECK thật sự được thực thi từ 8.0.16, hàm JSON_SCHEMA_VALID trong chk_cau_hinh_nhac_lich cần 8.0.17
@@ -956,13 +959,20 @@ Table tin_nhan {
   tin_nhan_id bigint [pk, increment]
   hoi_thoai_id bigint [not null, ref: > hoi_thoai.hoi_thoai_id]
   nguoi_gui_id bigint [not null, ref: > tai_khoan.tai_khoan_id]
-  noi_dung text [not null]
-  tep_dinh_kem varchar(255)
+  ma_gui char(36) [note: 'Mã ý định gửi do client sinh (UUID); NULL cho tin nạp sẵn. Duy nhất theo người gửi']
+  noi_dung text [not null, note: 'Văn bản thuần; rỗng chỉ khi có tệp đính kèm']
+  tep_dinh_kem varchar(255) [note: 'Khoá lưu trữ của tệp trên volume riêng; NULL nếu không có tệp']
+  tep_ten_goc varchar(255)
+  tep_loai varchar(100) [note: 'Kiểu MIME do máy chủ xác định từ nội dung tệp']
+  tep_dung_luong int [note: 'Số byte đã lưu']
   thoi_diem_gui datetime [not null]
 
   indexes {
     (hoi_thoai_id, tin_nhan_id)
+    (nguoi_gui_id, ma_gui) [unique, name: 'tin_nhan_index_nguoi_gui_ma_gui']
   }
+
+  Note: 'CHECK chk_tin_nhan_tep: bốn cột tệp cùng trống hoặc cùng có, tep_dung_luong từ 1 đến 10485760 byte. CHECK chk_tin_nhan_noi_dung: noi_dung rỗng chỉ khi có tệp (DBML không khai được CHECK, xem clinix_mysql.sql).'
 }
 
 Table nhat_ky_hanh_dong {

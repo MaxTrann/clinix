@@ -9,6 +9,7 @@ import { DEV_ACCOUNTS } from './dev-account-data.js';
 import { DoctorDemoRepository } from './doctor-demo.repository.js';
 import { EXAM_DEMO_PATIENTS } from './exam-demo-data.js';
 import { ExamDemoRepository } from './exam-demo.repository.js';
+import { NotificationDemoRepository } from './notification-demo.repository.js';
 import { PaymentDemoRepository } from './payment-demo.repository.js';
 import { DEMO_DOCTORS } from './search-demo-data.js';
 import { SearchDemoRepository } from './search-demo.repository.js';
@@ -96,6 +97,11 @@ export async function runSeed(
     }
     if (config.command === 'payment-demo') {
       const demo = new PaymentDemoRepository(manager);
+      await demo.run();
+      return demo.counts;
+    }
+    if (config.command === 'notification-demo') {
+      const demo = new NotificationDemoRepository(manager);
       await demo.run();
       return demo.counts;
     }

@@ -1,7 +1,9 @@
 # Kế hoạch scope #9: `booking` đổi lịch hẹn (Đổi lịch hẹn của Bệnh nhân, Đổi lịch hẹn hộ bệnh nhân của Lễ tân, Xử lý yêu cầu đổi lịch ngoài chính sách của Lễ tân và Quản trị viên)
 
+> **Cập nhật (reschedule D1, 26/11/2026):** mã đã merge: P1, P2, B1 đến B9, F1 đến F5 (kể cả F4b), X1, X2 (19 PR từ #671 đến #703, Trung approve; kế hoạch ở PR #632). Còn D1 (tài liệu), X3 (kiểm tay, đột biến lô, seed) và D2 (file Word, Đại). Issue đã tạo: Epic #633, #634 đến #653. Đoạn dưới là trạng thái lúc lập kế hoạch.
+>
 > **Trạng thái: bản nháp 1, giai đoạn 1 (24/11/2026). Đại đã trả lời trực tiếp MƯỜI MỘT quyết định** (ba hộp câu hỏi trong phiên lập kế hoạch: Q1 đến Q7 và Q9 đến Q12; **Q6 và Q9 khác đề xuất**, còn lại theo đề xuất; ghi ở [`TRACKING.md`](TRACKING.md) mục 3.1). Còn mở: Q8, Q13 đến Q16 (mục 4.2), các `[cần điền]` ở 4.3 và việc ngoài repo ở 4.5. Chưa mở PR; **chưa tạo issue** (danh sách issue đề xuất ở mục 6.6; Đại tự chạy script tạo issue sau khi PR tài liệu merge và các `[CHỜ …]` có xác nhận).
-> **Người LÀM scope này: Đại (`MaxTrann`), module `booking`; Trung (`junUTE`) review.** Điểm chạm file của Trung gắn `[CHỜ Trung]` (Trung approve PR tài liệu coi là xác nhận, nếp payment P1): `audit/`, `admin/entities/` và `database/`, `features/search/slots/`, `features/doctor/admin/approvals/`.
+> **Người LÀM scope này: Đại (`MaxTrann`), module `booking`; Trung (`junUTE`) review.** Điểm chạm file của Trung từng gắn thẻ chờ Trung (approve PR coi là xác nhận, nếp payment P1; **đã xác nhận**: Trung approve #632, #671, #686, #679, #702): `audit/`, `admin/entities/` và `database/`, `features/search/slots/`, `features/doctor/admin/approvals/`.
 > Kế hoạch do AI (Claude Code, model Claude Sonnet 5.5) lập theo [`docs/FEATURE_PLANNING_PROMPT.md`](../../FEATURE_PLANNING_PROMPT.md) và prompt lập kế hoạch scope #9 do Đại dán vào phiên ngày 24/11/2026 → **ghi nhật ký AI cho lần lập kế hoạch này ở `AI_USAGE_LOG.md`: dòng `[đề xuất]` 182** (kiểm lại số lớn nhất trên `main` lúc ghi; lúc soạn: `origin/main` có đến dòng 180, dòng 181 do cửa sổ khác giữ; bản nháp dòng ở [`TRACKING.md`](TRACKING.md) mục 4). **Phiên này KHÔNG sửa `AI_USAGE_LOG.md` và `docs/TECH_DEBT.md`** (chỉ soạn nháp, Đại quyết ghi ở PR sau).
 > Đã kiểm mã thật trên `origin/main` ở **`412c0c2`** (23/11/2026, PR 630, booking B16b). Chỗ nào ghi **"chưa đo"** là suy ra từ mã hay tài liệu, **chưa chạy thử** trên MySQL thật; danh sách việc phải đo nằm ở mục 5.14 và gom vào task X1. Phiên này **không chạy** `npm`, test, build, Docker hay MySQL và **không sửa** file nào ngoài hai file mới `docs/features/reschedule/PLAN.md`, `TRACKING.md`.
 > Scope này là **#9** trong lộ trình 15 scope, sau `payment` và `wallet` (#7, đã có mã) và `doctor` phần khám bệnh (#8, đã có mã); sau nó là thông báo (Trung tâm thông báo, nhắc lịch), danh sách chờ (#11), báo cáo, chat, AI. **Mã nằm trong `apps/api/src/appointments/reschedule/`** (cùng `AppointmentsModule` vì H7: chỉ `appointments/` ghi `lich_hen.trang_thai` và `khung_gio.trang_thai`); scope commit là `booking`.
@@ -38,7 +40,7 @@
 
 ### 1.1 Bảng use case → luồng, điều kiện, ngoại lệ → thành phần mã sẽ chạm
 
-Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Phụ lục A. Tên tệp là nơi **sẽ** tạo hoặc sửa (`reschedule/` = `apps/api/src/appointments/reschedule/`); "đã có" = dùng lại, không sửa.
+Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Phụ lục A. Tên tệp là nơi **sẽ** tạo hoặc sửa (`reschedule/` = `apps/api/src/appointments/reschedule/`); "đã có" = dùng lại, không sửa. Tên tệp trong bảng là dự kiến lúc lập kế hoạch; cây file thật ở 5.1 (cập nhật reschedule D1).
 
 | UC | Luồng, điều kiện, ngoại lệ (nguyên văn rút gọn) | Thành phần mã | Task |
 |---|---|---|---|
@@ -59,7 +61,7 @@ Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Ph
 
 ### 1.2 Nơi đặt và ranh giới với module khác
 
-- Thư mục mã: `apps/api/src/appointments/reschedule/` (lõi, bộ luật, đọc, preview, controller Bệnh nhân và Lễ tân) và `reschedule/requests/` (yêu cầu ngoài chính sách: tạo, danh sách, chi tiết, duyệt, từ chối). Entity `YeuCauDoiLichNgoaiChinhSach` ở `apps/api/src/admin/entities/` (nếp "entity bảng nền dùng chung một chỗ", booking PLAN 5.1). Web: `apps/web/src/features/booking/appointments/reschedule/` (dùng chung) cộng chỗ cắm ở `patient/`, `reception/`, `admin/` của `features/booking/appointments/`.
+- Thư mục mã: `apps/api/src/appointments/reschedule/` (lõi, bộ luật, đọc, preview, controller Bệnh nhân và Lễ tân) ~~và `reschedule/requests/`~~ (thực tế một thư mục phẳng, gồm cả yêu cầu ngoài chính sách: tạo, danh sách, chi tiết, duyệt, từ chối). Entity `YeuCauDoiLichNgoaiChinhSach` ở `apps/api/src/admin/entities/` (nếp "entity bảng nền dùng chung một chỗ", booking PLAN 5.1). Web: ~~`apps/web/src/features/booking/appointments/reschedule/`~~ `apps/web/src/features/booking/appointments/common/` (dùng chung) cộng chỗ cắm ở `patient/`, `reception/`, `admin/` của `features/booking/appointments/`.
 - **Không tạo module Nest mới**: lớp mới khai trong `AppointmentsModule` (controller, provider), nhập thêm `SystemConfigModule`, `AuditModule` nếu chưa có.
 - Thư mục tài liệu: `docs/features/reschedule/` (theo prompt của Đại). Commit scope `booking`.
 
@@ -77,7 +79,7 @@ Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Ph
 | `SlotHoldService` | `hold`, `markBooked`, `release(from, den)`, `expireLapsedHold`, `holdForInvitation`, `releaseInvitationHold`; nơi DUY NHẤT ghi `khung_gio` | `slots/slot-hold.service.ts` |
 | Khoá | `lock-order.ts` (bảng `LOCK_ORDER`), `withBookingTransaction` (READ COMMITTED, thử lại 1213/1205 hai lần, chờ khoá 3 giây) | `locking/` |
 | `PaymentChain` | Đã có: `rootOf` đệ quy về lịch gốc, `MAX_CHAIN_DEPTH = 20`; `PaymentSummaryPort.amountPaid`, `remainingToCollect`, `amountRefundable` đã truy lịch gốc; wallet hoàn tìm lịch cuối chuỗi bằng đệ quy xuôi | `payment/ports/payment-chain.ts`, `wallet/refund/refund.queries.ts:151` |
-| Thông báo | `BookingNotifier` ghi `thong_bao` + `email_thong_bao` trong giao dịch; `EmailOutboxService` chỉ quét **bốn** loại của booking (HDK-06); UNIQUE `(lich_hen_id, tai_khoan_id, loai_su_kien)`; chưa có cột nối tới yêu cầu đổi lịch | `appointments/notifications/`, `clinix_mysql.sql:556-565, 699-701` |
+| Thông báo | `BookingNotifier` ghi `thong_bao` + `email_thong_bao` trong giao dịch; `EmailOutboxService` chỉ quét ~~**bốn** loại của booking~~ **13** loại của booking, payment và admin (HDK-06; sửa ở reschedule D1; sau scope này và scope thông báo là 21 loại); UNIQUE `(lich_hen_id, tai_khoan_id, loai_su_kien)`; chưa có cột nối tới yêu cầu đổi lịch | `appointments/notifications/`, `clinix_mysql.sql:556-565, 699-701` |
 | Route | `patient/appointments` (danh sách, chi tiết, `cancel-preview`, `cancel`), `reception/appointments` (danh sách, chi tiết, `status`), `admin/appointments` (danh sách, chi tiết, `override-status`), `doctor/appointments`, `booking/{eligibility,checks,appointments}`; **không có route đổi lịch** | `grep @Controller` ở `appointments/` |
 | Web | "Yêu cầu đổi lịch" ở menu Lễ tân là **mục vô hiệu** (không `to`); tab "Yêu cầu đổi lịch" ở "Duyệt yêu cầu" của Admin là **nút vô hiệu** (ca WA-13 của `doctor`); `SlotCell` là `Link` sang Bước 4 đặt lịch, `DoctorSlotGrid` chỉ hiển thị; chi tiết lịch Bệnh nhân có hộp huỷ (`cancel-box`), chi tiết Lễ tân có `reception-actions` | `router/role-nav.ts:76`, `features/doctor/admin/approvals/approvals-host-page.tsx`, `features/search/slots/slot-cell.tsx` |
 | Tên dễ nhầm | `admin/branch-change-requests/branch-change-reschedule.service.ts` là **dời hiệu lực** yêu cầu thay đổi chi nhánh (admin B22), **không liên quan** đổi lịch hẹn; không đặt tên mới là `RescheduleService` ở nơi dễ trùng | đã đọc đầu file |
@@ -108,11 +110,11 @@ Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Ph
 | `insertLichHen` (`create/lich-hen-insert.query.ts`, NƠI DUY NHẤT chèn `lich_hen`, luật AR-06), `duplicate-key.ts` | thêm hai trường tuỳ chọn `lichHenTruocId`, `soLanTuDoiLich` vào `LichHenInsertRow` (hai cột vào câu `INSERT`; `thoi_diem_xac_nhan` đã bằng `thoi_diem_tao` khi `trangThai = 'DaXacNhan'` nên **không thêm tham số**) và kết quả `DuplicateChain` cho 1062 trên khoá `lich_hen_truoc_id` | tham số tuỳ chọn, `create` không truyền ⇒ hành vi cũ; 1062 trên khoá này ⇒ kết quả có kiểu `NotReschedulable` (lịch cũ đã có lịch mới), không 500; đường đổi lịch vẫn chèn qua đúng hàm này nên AR-06 không đổi |
 | `GET /patient/appointments/:maLichHen` và chi tiết Lễ tân (B2, B3 booking) | thêm khoá `choPhepDoiLich` và `yeuCauDoiLich` (yêu cầu mới nhất của lịch) | hợp đồng 17 khoá của chi tiết Bệnh nhân (16 khoá cũ cộng `moc` của booking B19) đổi thành 19 (HDL-11); sửa ca B2 liên quan trong cùng PR `[ĐỤNG booking B2]` |
 | `EmailOutboxService` (B15) | thêm bốn loại sự kiện vào `MAIL_EVENTS` (13 loại hiện có: 4 booking, 5 payment, 4 thay đổi chi nhánh; sau B3 là 17) | ca HDK-06 ở `exam-notifier.int-spec.ts` (bỏ qua `LichHenHoanThanh`) vẫn đúng; chữ "chỉ quét bốn loại" sai ở `examination.constants.spec.ts` được sửa; bốn mã mới ở hằng riêng `RESCHEDULE_NOTIFICATION_EVENTS`, `BOOKING_NOTIFICATION_EVENTS` không đổi |
-| `AuditService` (`audit/`) | thêm luật cho `XuLyDoiLichNgoaiChinhSach` và `DoiLichHo` | `[ĐỤNG audit]` `[CHỜ Trung]`; ENUM đổi ở migration (P1), luật ở P2; test `audit-enum-parity` cập nhật |
+| `AuditService` (`audit/`) | thêm luật cho `XuLyDoiLichNgoaiChinhSach` và `DoiLichHo` | `[ĐỤNG audit]` (Trung approve #686); ENUM đổi ở migration (P1), luật ở P2; test `audit-enum-parity` cập nhật |
 | `PendingBranchChangesPort.findBlocking` | gọi cho khung giờ ĐÍCH dưới khoá, MỘT lần mỗi lượt | **đóng TECH_DEBT dòng 260** ở B4 (ca KDL-17); khung giờ NGUỒN trong vùng bị loại vẫn cho đổi đi |
-| `SlotCell` và `DoctorSlotGrid` (search K2) | thêm chế độ `onSelect` (nút thay vì liên kết) | `[ĐỤNG search]` `[CHỜ Trung]`; mặc định giữ liên kết, ca K2 cũ không đổi |
+| `SlotCell` và `DoctorSlotGrid` (search K2) | thêm chế độ `onSelect` (nút thay vì liên kết) | `[ĐỤNG search]` (Trung approve #679); mặc định giữ liên kết, ca K2 cũ không đổi |
 | Trang "Duyệt yêu cầu" của Admin và menu Lễ tân | bật tab và mục menu | `[ĐỤNG doctor]` (một dòng + sửa ca WA-13) và `[ĐỤNG router]` |
-| `docs/TECH_DEBT.md` dòng 147, 148, 260 | 260 đóng; 147 (waitlist `Noop`) nhắc thêm khung giờ do đổi lịch giải phóng | Đại ghi ở PR sau (phiên này chỉ soạn nháp) |
+| `docs/TECH_DEBT.md` dòng 147, 148, 260 | 260 đóng; 147 (waitlist `Noop`) nhắc thêm khung giờ do đổi lịch giải phóng | Đại ghi ở PR sau (phiên này chỉ soạn nháp); **đã làm**: 260 đóng ở reschedule B4, 147 sửa ở reschedule D1 |
 
 ### 3.3 Đối chiếu với thiết kế đã chốt: KHỚP, LỆCH hay MÂU THUẪN (**nêu rõ, đã hỏi ở 4.2**)
 
@@ -122,14 +124,14 @@ Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Ph
 | L2 | "Chuyển lịch hẹn" hay "tạo lịch hẹn mới" | 2.4.9 b9 và 2.4.31 b6: "chuyển lịch hẹn sang khung giờ mới" | HĐK của cả ba use case, quyết định Database Diagram 16/10, `lich_hen_truoc_id` UNIQUE, quy tắc DB 2, 3, 4: **tạo lịch mới liên kết lịch cũ**, lịch cũ `DaDoiLich` | **KHỚP với HĐK** (mã làm theo HĐK); b9 và b6 là chữ cũ. `[ĐỒNG BỘ TL]` sửa lời b9 và b6 |
 | L3 | Lý do của yêu cầu | 2.4.9 A2 8b: tạo yêu cầu "kèm khung giờ mong muốn" (không nói lý do); 2.4.31 b3 hiển thị "lý do" | Schema: `ly_do_yeu_cau text NOT NULL` ("Lý do bệnh nhân cần đổi lịch") | **Q7 (f)**: giao diện thêm ô lý do bắt buộc (5 đến 500 ký tự `[đề xuất]`). `[ĐỒNG BỘ TL]` thêm bước nhập lý do vào 2.4.9 A2 |
 | L4 | Bộ đếm "số lần tự đổi" | 2.4.9 b9: "tăng bộ đếm số lần tự đổi"; 2.4.30 HĐK: "không tính vào số lần tự đổi của bệnh nhân" | Không có cột đếm; `lich_hen_truoc_id` chỉ cho độ sâu chuỗi (mọi lần đổi, kể cả Lễ tân) | **Q1 (cột `lich_hen.so_lan_tu_doi_lich`)**. `[ĐỒNG BỘ TL]` DDL ba file |
-| L5 | Hạn đổi theo giờ | 2.4.9, 2.4.30: chỉ đòi `DaXacNhan` | Hai lỗ hổng: né no-show; hoàn cọc theo giờ hẹn mới | **Q3 (chặn theo giờ hẹn cũ, không thêm cấu hình)**; lỗ hổng hoàn cọc ghi nợ (nháp TECH_DEBT 266) |
+| L5 | Hạn đổi theo giờ | 2.4.9, 2.4.30: chỉ đòi `DaXacNhan` | Hai lỗ hổng: né no-show; hoàn cọc theo giờ hẹn mới | **Q3 (chặn theo giờ hẹn cũ, không thêm cấu hình)**; lỗ hổng hoàn cọc ghi nợ (TECH_DEBT 266, ghi ở reschedule D1) |
 | L6 | Số hành động nhạy cảm của Audit | 2.4.70 liệt kê 10 hành động, **không có đổi lịch hộ**; sơ đồ include ở 2.1_2.2 ghi "8 hành động" (thiếu hai hành động mà 2.4.70 có) | Đại chọn ghi Audit `DoiLichHo` | **Q6**. `[ĐỒNG BỘ TL]` thêm vào 2.4.70, 2.1_2.2, 1.2.1 (mục "Ghi nhật ký hành động nhạy cảm"), 1.3 (mục nhật ký); **phát hiện thêm:** hai bản đã lệch nhau từ trước (8 so với 10) và ENUM của DB còn nhiều hành động hơn nữa, báo Đại, không tự chọn |
 | L7 | Ghi chú xử lý đi đâu | 2.4.31 HĐK từ chối: "kèm ghi chú lý do"; không nói ra ngoài hay nội bộ | Chưa có quy định | **Q10 (gửi nguyên văn cho bệnh nhân)**; nhắc ở ô nhập của nhân sự |
 | L8 | Người duyệt chọn khung giờ thay thế | 2.4.31 A2 5c: "chọn khung giờ khác thay thế hoặc Từ chối" | Bảng yêu cầu chỉ có `khung_gio_mong_muon_id` (không ghi đè) | **Q7 (g)**: `khungGioId` tuỳ chọn khi duyệt; khung giờ thật nằm ở lịch mới và Audit; `khung_gio_mong_muon_id` giữ nguyên là ý muốn của bệnh nhân |
-| L9 | Mã lịch hẹn cũ chết | Q31 booking: Bệnh nhân không thấy `DaDoiLich` (404) | 2.4.9 không nói mã lịch mới | Mã **mới** (`ma_lich_hen` UNIQUE), thông báo và thư dùng mã mới; liên kết cũ trong thư xác nhận ban đầu ra 404 (rủi ro R7) |
+| L9 | Mã lịch hẹn cũ chết | Q31 booking: Bệnh nhân không thấy `DaDoiLich` (404) | 2.4.9 không nói mã lịch mới | Mã **mới** (`ma_lich_hen` UNIQUE), thông báo và thư dùng mã mới; ~~liên kết cũ trong thư xác nhận ban đầu ra 404~~ thư không có liên kết (chỉ ghi mã); liên kết ở thông báo trong ứng dụng của lịch cũ mở theo mã cũ ra 404 (rủi ro R7, TECH_DEBT 269; sửa ở reschedule D1, `AI-BUG-116`) |
 | L10 | "Hoàn tiền tự động … khi hủy hoặc đổi lịch hợp lệ" | 1.2.1 (chức năng Hoàn tiền tự động) | 2.4.9 HĐK: "không tạo giao dịch thanh toán mới (thanh toán và hoàn tiền truy về lịch hẹn gốc)"; payment Q11, E13 | **Mã không hoàn tiền khi đổi** (chỉ khi huỷ). Chữ "hoặc đổi lịch" của 1.2.1 mơ hồ: báo Đại, `[ĐỒNG BỘ TL]` nếu muốn bỏ |
 | L11 | Nhắc lịch khi đổi | 2.4.69 A2: "tính lại mốc theo khung giờ mới nếu đã đổi lịch" | Đổi lịch tạo lịch MỚI, lịch cũ `DaDoiLich` không còn là `DaXacNhan` | Lịch mới có mốc nhắc riêng, lịch cũ không nhắc: việc của module nhắc lịch (ghi ở 5.9); không đổi gì ở scope này |
-| L12 | Xác nhận quy tắc DB | Quy tắc 2: "chỉ cho đổi khi lịch cũ ở DaXacNhan **[đề xuất, chưa xác nhận]**"; quy tắc 27 "CHƯA có mã triển khai" | 2.4.9 A3 | Q7 (a) xác nhận; D1 bỏ chữ "chưa xác nhận" và cập nhật quy tắc 27 (`[ĐỒNG BỘ TL]` ở P1 vì cùng file) |
+| L12 | Xác nhận quy tắc DB | Quy tắc 2: "chỉ cho đổi khi lịch cũ ở DaXacNhan **[đề xuất, chưa xác nhận]**"; quy tắc 27 "CHƯA có mã triển khai" | 2.4.9 A3 | Q7 (a) xác nhận; D1 bỏ chữ "chưa xác nhận" và cập nhật quy tắc 27 (`[ĐỒNG BỘ TL]` ở P1 vì cùng file); **đã làm**: quy tắc 2 bỏ chữ ở P1, quy tắc 27 cập nhật ở D1 |
 | L13 | Biên cấu hình hạ thấp | `so_lich_hen_toi_da_moi_ho_so` hạ xuống dưới số lịch hồ sơ đang có | Q7 (e): đếm không tính lịch đang đổi | Hồ sơ có 3 lịch, tối đa hạ còn 2: đếm các lịch KHÁC = 2 ≥ 2 ⇒ `VUOT_SO_LICH_HEN_TOI_DA` chặn một lần đổi vốn không tăng số lịch. Rủi ro R9; `[đề xuất]` giữ đúng chữ Q7 (e), nếu Đại muốn thì bỏ kiểm số lịch ở đường đổi (một dòng) |
 | **KHỚP** | Bản chụp giá, cọc, chính sách hoàn sao chép nguyên; không giao dịch thanh toán mới; thanh toán truy lịch gốc | payment E13, Q11, Q22; `PaymentChain`; wallet `refund.queries` | | Không đổi gì ở payment và wallet |
 | **KHỚP** | `markReplaced` và chỗ đặt `DaDoiLich` | booking PLAN 5.10 B ("`markReplaced`, `DaXacNhan → DaDoiLich` cùng giao dịch tạo lịch mới") | | Đúng tên, B1 làm |
@@ -147,12 +149,12 @@ Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Ph
 
 - **R1 Deadlock hoán vị.** Hai lịch đổi chéo khung giờ của nhau (A: X→Y, B: Y→X) xin hai khoá `khung_gio` ngược chiều. Xử lý: luôn khoá hai khung giờ **theo `khung_gio_id` tăng dần**, rồi `lich_hen` theo khoá chính (TDL-03; X1 M1 đối chứng đảo thứ tự ⇒ 1213).
 - **R2 Khoá S ngầm của khoá ngoại.** `INSERT yeu_cau_doi_lich_ngoai_chinh_sach` xin S trên `khung_gio` (khung giờ mong muốn) và `lich_hen` sau khi đã giữ X trên `lich_hen`: ngược chiều bảng khoá (bài học B11, B12 booking). Xử lý: khoá khung giờ mong muốn TRƯỚC `lich_hen`, rồi mới `INSERT` (5.4); đo ở X1 M2; TDL-18.
-- **R3 Hoàn cọc theo giờ hẹn mới (kẽ hở có chủ ý).** Q3: không thêm số giờ tối thiểu nên lịch 1 giờ nữa (hoàn 0%) đổi sang ngày xa rồi huỷ (hoàn 100% theo giờ hẹn mới) vẫn được. Ghi nợ (nháp TECH_DEBT 266); nếu cần chặn: thêm cấu hình `so_gio_toi_thieu_doi_lich` `[SAU]`.
-- **R4 Chuỗi dài chạm `MAX_CHAIN_DEPTH = 20` của `PaymentChain`.** Lễ tân và duyệt không bị hạn mức nên chuỗi có thể dài; quá 20 thì mọi truy vấn tiền ném `CHAIN_TOO_DEEP` (500). Xử lý: đổi lịch từ chối trước khi chạm (`CHUOI_DOI_LICH_QUA_DAI`, 19 lịch), KDL-16, HDL-09.
+- **R3 Hoàn cọc theo giờ hẹn mới (kẽ hở có chủ ý).** Q3: không thêm số giờ tối thiểu nên lịch 1 giờ nữa (hoàn 0%) đổi sang ngày xa rồi huỷ (hoàn 100% theo giờ hẹn mới) vẫn được. Ghi nợ (TECH_DEBT 266); nếu cần chặn: thêm cấu hình `so_gio_toi_thieu_doi_lich` `[SAU]`.
+- **R4 Chuỗi dài chạm `MAX_CHAIN_DEPTH = 20` của `PaymentChain`.** Lễ tân và duyệt không bị hạn mức nên chuỗi có thể dài; quá 20 bước (chuỗi từ 22 lịch, đo ở X1 M4) thì mọi truy vấn tiền ném `CHAIN_TOO_DEEP` (500). Xử lý: đổi lịch từ chối trước khi chạm (`CHUOI_DOI_LICH_QUA_DAI`, 19 lịch), KDL-16, HDL-09.
 - **R5 Cấu hình chưa có.** Không có dòng `cau_hinh_he_thong` hoặc `so_lan_tu_doi_lich_toi_da` không đọc được ⇒ `HE_THONG_CHUA_CAU_HINH` cho cả đổi lịch (quy tắc 35); dữ liệu mẫu phải có dòng cấu hình.
-- **R6 Yêu cầu tồn.** Lịch gốc bị huỷ, Vắng mặt hay quá giờ trong lúc yêu cầu `ChoDuyet`: duyệt bị 409, chỉ từ chối được (Q7 (g)); danh sách vẫn hiện (cờ `coTheDuyet = false`). Nháp TECH_DEBT 267.
-- **R7 Mã cũ chết.** Thư xác nhận ban đầu chứa mã cũ; sau đổi, mở mã cũ ra 404 với Bệnh nhân. Thông báo đổi lịch ghi rõ mã mới.
-- **R8 Trùng mã (jscpd).** Khối "hết hạn lười, giữ chỗ, đặt khung giờ" lặp với `CreateAppointmentService`: tách hàm dùng chung `claimSlot` ở `slots/` (B1); phía web tái dùng bộ chọn khung giờ (F1).
+- **R6 Yêu cầu tồn.** Lịch gốc bị huỷ, Vắng mặt hay quá giờ trong lúc yêu cầu `ChoDuyet`: duyệt bị 409, chỉ từ chối được (Q7 (g)); danh sách vẫn hiện (cờ `coTheDuyet = false`). TECH_DEBT 267.
+- **R7 Mã cũ chết.** Thư xác nhận ban đầu chứa mã cũ; sau đổi, mở mã cũ ra 404 với Bệnh nhân. Thông báo đổi lịch ghi rõ mã mới. TECH_DEBT 269.
+- **R8 Trùng mã (jscpd).** Khối "hết hạn lười, giữ chỗ, đặt khung giờ" lặp với `CreateAppointmentService`: tách hàm dùng chung `claimSlot` ở `slots/` (B1; chỉ gồm hết hạn lười, giữ và đặt khung giờ: lỗi 1062 do `insertLichHen` trả kết quả có kiểu, vòng sinh lại mã ở người gọi); phía web tái dùng bộ chọn khung giờ (F1).
 - **R9 Cấu hình hạ thấp chặn đổi lịch** (L13).
 - **R10 `ly_do_yeu_cau` và ghi chú là văn bản người dùng nhập**: chỉ văn bản thuần, thoát HTML khi dựng thư, không `dangerouslySetInnerHTML` (BDL-04).
 - **R11 `WaitlistPort` còn `Noop`:** khung giờ cũ được giải phóng nhưng không mời ai; khi `waitlist` có mã phải chạy lại DLH-13, DLH-14 với bản thật (TECH_DEBT 147).
@@ -183,15 +185,15 @@ Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Ph
 | **Q5** | Thông báo cho yêu cầu gắn vào đâu? | **ĐÃ TRẢ LỜI (24/11/2026, Đại trả lời trực tiếp): theo đề xuất.** Thêm cột `thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id` (nullable, FK) và UNIQUE `thong_bao_index_yeu_cau_doi_lich (yeu_cau_doi_lich_ngoai_chinh_sach_id, tai_khoan_id, loai_su_kien)` theo nếp `thong_bao_index_yeu_cau_chi_nhanh`. Thông báo **của yêu cầu** để `lich_hen_id` = NULL (tránh trùng UNIQUE `thong_bao_index_lich_hen` khi một lịch có nhiều yêu cầu theo thời gian); thông báo `LichHenDaDoiLich` gắn `lich_hen_id` = lịch MỚI | 2.4.68; B15 |
 | **Q6★** | Đổi lịch hộ có ghi Audit không? | **ĐÃ TRẢ LỜI (24/11/2026, Đại trả lời trực tiếp): KHÁC đề xuất — thêm giá trị ENUM `DoiLichHo` vào `nhat_ky_hanh_dong.hanh_dong` và ghi Audit cho mọi lần Lễ tân đổi hộ.** Cần: migration `MODIFY` ENUM (giữ nguyên thứ tự cũ, thêm cuối), `admin/entities/enums.ts`, luật kiểm trong `audit/` (P2), `audit-enum-parity`, ba file `docs/database/*`; `[ĐỒNG BỘ TL]` thêm vào 2.4.70 (hiện 10 hành động), 2.1_2.2, 1.2.1, 1.3. Mô hình ghi: `ma_doi_tuong` = id lịch **cũ**, `chi_nhanh_id` = chi nhánh của lịch, `chi_tiet_thay_doi` = `{ truoc: { ma_lich_hen, thoi_gian }, sau: { ma_lich_hen, thoi_gian }, ly_do }` `[đề xuất]` | L6; 2.4.70 |
 | **Q7** | Gói đề xuất nhỏ (a) đến (j)? | **ĐÃ TRẢ LỜI (24/11/2026, Đại trả lời trực tiếp): đồng ý toàn bộ (a) đến (j).** (a) chỉ `DaXacNhan` đổi được, `ChoThanhToan` phải trả tiền hoặc huỷ; (b) cờ khoá no-show **không** chặn đổi lịch; (c) giữ nguyên bác sĩ, dịch vụ, chi nhánh: khung giờ mới phải của đúng bác sĩ cũ (qua ngày khác được), bác sĩ đã đổi dịch vụ chính hay chi nhánh so với lúc đặt ⇒ 409, phải huỷ và đặt lại; (d) lịch mới: mã mới, `thoi_diem_xac_nhan` = lúc đổi, sao chép giá, cọc, chính sách hoàn; lịch cũ giữ nguyên mọi mốc; (e) hồ sơ người thân đã ngừng ⇒ 409 như đặt lịch; số lịch tối đa và chồng giờ **không tính** lịch đang đổi; (f) yêu cầu: lý do bắt buộc (`ly_do_yeu_cau NOT NULL`; độ dài 5 đến 500 `[đề xuất]`), khung giờ mong muốn phải còn trống lúc gửi nhưng **không giữ chỗ**, không có thao tác rút yêu cầu; (g) người duyệt được chọn khung giờ thay thế (2.4.31 A2 5c), ghi chú bắt buộc khi duyệt lẫn từ chối (1 đến 255), lịch gốc không còn `DaXacNhan` thì duyệt 409 và chỉ từ chối được, không tự đóng yêu cầu tồn khi lịch bị huỷ (ghi nợ); (h) duyệt và từ chối ghi Audit `XuLyDoiLichNgoaiChinhSach` cùng giao dịch (luật kiểm ở `audit/`); (i) Quản trị viên **không** đổi hộ trực tiếp; (j) giao diện: nút "Đổi lịch" ở chi tiết lịch Bệnh nhân và Lễ tân, trang "Yêu cầu đổi lịch" của Lễ tân, tab "Yêu cầu đổi lịch" trong "Duyệt yêu cầu" của Admin | mục 1, 3.3 |
-| **Q8** | Giá trị `so_lan_tu_doi_lich_toi_da` và `check_in_sau_phut`; ai tạo dòng cấu hình đầu? | **`[CHỜ Đại]`** `[cần điền]`. Đề xuất: Đại nhập ở form cấu hình admin (đã có); **dữ liệu mẫu và test không dựa vào số cứng của mã** (mỗi ca truyền giá trị); seed demo `so_lan_tu_doi_lich_toi_da = 2` (2.4 ghi "2 [đề xuất]") và `check_in_sau_phut` do Đại điền. Mã không có số ngầm (quy tắc 35) | 2.4.42 A3; quy tắc 35 |
+| **Q8** | Giá trị `so_lan_tu_doi_lich_toi_da` và `check_in_sau_phut`; ai tạo dòng cấu hình đầu? | **`[CHỜ Đại]`** (giữ tới X3; Đại chọn 26/11/2026) `[cần điền]`. Đề xuất: Đại nhập ở form cấu hình admin (đã có); **dữ liệu mẫu và test không dựa vào số cứng của mã** (mỗi ca truyền giá trị); seed demo `so_lan_tu_doi_lich_toi_da = 2` (2.4 ghi "2 [đề xuất]") và `check_in_sau_phut` do Đại điền. Mã không có số ngầm (quy tắc 35) | 2.4.42 A3; quy tắc 35 |
 | **Q9** | Lễ tân đổi hộ có phải nhập lý do? | **ĐÃ TRẢ LỜI (24/11/2026, Đại trả lời trực tiếp): KHÁC đề xuất — bắt buộc lý do 1 đến 255 ký tự.** DTO `lyDo` bắt buộc cho `POST /reception/appointments/:maLichHen/reschedule`; vào Audit `DoiLichHo.ly_do`. **Hệ quả `[đề xuất]`, Đại sửa khi duyệt PR:** lý do cũng nằm trong thông báo và thư cho bệnh nhân (cùng tinh thần Q10) và ô nhập nhắc "Bệnh nhân sẽ đọc lý do này". `[ĐỒNG BỘ TL]` thêm bước nhập lý do vào 2.4.30 | 2.4.30; Q6, Q10 |
 | **Q10** | Ghi chú xử lý có gửi cho bệnh nhân không? | **ĐÃ TRẢ LỜI (24/11/2026, Đại trả lời trực tiếp): theo đề xuất — gửi nguyên văn** (cả duyệt lẫn từ chối) trong thông báo, thư và banner chi tiết lịch; ô nhập của nhân sự có dòng nhắc; thư thoát HTML, không chứa gì khác của nhân sự | L7; 2.4.31 HĐK |
 | **Q11** | Danh sách yêu cầu chỉ `ChoDuyet` hay thêm tab `Đã xử lý`? | **ĐÃ TRẢ LỜI (24/11/2026, Đại trả lời trực tiếp): theo đề xuất — hai tab Chờ duyệt (mặc định) và Đã xử lý (chỉ đọc).** Cùng một API, bộ lọc `trangThai` | 2.4.31 b1 |
 | **Q12** | `thoi_diem_tao` của lịch mới? | **ĐÃ TRẢ LỜI (24/11/2026, Đại trả lời trực tiếp): theo đề xuất — lúc đổi** (`now`, cùng hàm tạo lịch); `thoi_diem_xac_nhan` = `now`. Module báo cáo sau này loại lịch có `lich_hen_truoc_id` khi đếm "lượt đặt" (ghi ở TRACKING mục 7) | R13 |
-| **Q13** | Mã sự kiện thông báo, câu chữ thông báo và thư, mã lỗi tiếng Việt? | **`[CHỜ Đại]`** `[đề xuất]` ở 5.10 và 5.13; nhóm duyệt khi review PR của B3, B6 | Q13 booking nếp |
-| **Q14** | Thứ tự lát cắt, hạn mức giờ mỗi tuần và Iteration của Đại? | **`[CHỜ Đại]`** `[cần điền]` hạn mức; đề xuất ở 6.4: S1 → S2 → S3 → S4 → S5, tổng 103 giờ | 6.4 |
-| **Q15** | Có file Excel của Trung (hoặc bảng khác ngoài repo) cần đồng bộ cho use case đổi lịch không? | **`[CHỜ Đại]`** `[cần điền]`; phiên này không có file đó | `[ĐỒNG BỘ TL]` |
-| **Q16** | Trung xác nhận các điểm chạm file của Trung | **`[CHỜ Trung]`** (approve PR tài liệu coi là xác nhận): `audit/audit-validation.ts` và `audit-entry.ts` (P2), `admin/entities/*` + `database/` + migration + ba file `docs/database/*` (P1), `features/search/slots/slot-cell.tsx` và `doctor-slot-grid.tsx` (F1), `features/doctor/admin/approvals/approvals-host-page.tsx` + ca WA-13 (F5) | mục 6.3 |
+| **Q13** | Mã sự kiện thông báo, câu chữ thông báo và thư, mã lỗi tiếng Việt? | **ĐÃ TRẢ LỜI (26/11/2026, Đại trả lời trực tiếp): coi như đã duyệt qua review PR của B3 (#672) và B6 (#688)**; câu chữ ở 5.10 và 5.13 | Q13 booking nếp |
+| **Q14** | Thứ tự lát cắt, hạn mức giờ mỗi tuần và Iteration của Đại? | **ĐÃ TRẢ LỜI (26/11/2026, Đại trả lời trực tiếp): hết áp dụng vì mã đã xong**; đề xuất lúc lập kế hoạch ở 6.4: S1 → S2 → S3 → S4 → S5, tổng 103 giờ | 6.4 |
+| **Q15** | Có file Excel của Trung (hoặc bảng khác ngoài repo) cần đồng bộ cho use case đổi lịch không? | **ĐÃ TRẢ LỜI (26/11/2026, Đại trả lời trực tiếp): không có file Excel cần đồng bộ** | `[ĐỒNG BỘ TL]` |
+| **Q16** | Trung xác nhận các điểm chạm file của Trung | **ĐÃ XÁC NHẬN** (approve PR coi là xác nhận: Trung approve #632, #671, #686, #679, #702): `audit/audit-validation.ts` và `audit-entry.ts` (P2), `admin/entities/*` + `database/` + migration + ba file `docs/database/*` (P1), `features/search/slots/slot-cell.tsx` và `doctor-slot-grid.tsx` (F1), `features/doctor/admin/approvals/approvals-host-page.tsx` + ca WA-13 (F5) | mục 6.3 |
 
 ### 4.3 Mọi chỗ còn `[cần điền]` và `[đề xuất]` liên quan (và câu hỏi tương ứng)
 
@@ -208,7 +210,7 @@ Cột "Luồng" ghi số bước và mã luồng thay thế theo nguyên văn Ph
 | Lý do đổi hộ nằm trong thông báo cho bệnh nhân | 5.10 | `[đề xuất]` (hệ quả Q9, Q10) | Q9 |
 | Mức kiểm ĐẦY ĐỦ hay GỌN theo từng task; giờ ước; Iteration | 6.4 | `[đề xuất]` | Q14 |
 | `MAX_CHAIN_DEPTH - 1 = 19` làm trần chuỗi khi đổi (lấy từ hằng của `PaymentChain`, không số cứng) | 5.6 | `[đề xuất]` | — |
-| Có Excel nào cần đồng bộ | 4.5 | `[cần điền]` | Q15 |
+| Có Excel nào cần đồng bộ | 4.5 | ~~`[cần điền]`~~ không có (26/11/2026) | Q15 |
 
 ### 4.4 Figma
 
@@ -217,44 +219,51 @@ Figma chỉ là bản phác thảo: **không đồng bộ lại Figma**. Giao di
 ### 4.5 Việc của nhóm (ngoài repo; không sửa file Word hay Figma từ repo này)
 
 - **D2 `[ĐỒNG BỘ TL]` (Đại sửa file Word ở repo `TLCN_CLINIX`):** 2.4.9 b5 (bỏ giữ chỗ 15 phút trước màn xác nhận: Q2), b9 ("tạo lịch hẹn mới liên kết", L2), A2 (thêm bước nhập lý do yêu cầu: L3); 2.4.30 b5 và b8 (như trên) và thêm bước nhập lý do (Q9); 2.4.31 b6 ("tạo lịch hẹn mới", L2) và A2 5c (rõ "chọn khung giờ thay thế"); 2.4.70 và 2.1_2.2 (thêm "đổi lịch hộ bệnh nhân" vào hành động nhạy cảm; sửa con số 8 so với 10, L6); 1.2.1 (Ghi nhật ký; "Hoàn tiền tự động: hoặc đổi lịch hợp lệ", L10); 1.3.6 (quy trình đổi lịch: bỏ "giữ chỗ tạm thời", thêm Audit đổi hộ); sơ đồ class và sequence nếu có bộ đếm mới (`so_lan_tu_doi_lich`).
-- **Excel của Trung** (nếu có): Q15.
+- **Excel của Trung**: không có (Q15, Đại trả lời 26/11/2026).
 - Báo Trung trước khi merge P1 và P2 (đổi file của hai người).
 
 ## 5. Thiết kế kỹ thuật
 
 ### 5.1 Cấu trúc thư mục (tạo thư mục khi có file đầu tiên; test cạnh mã; `[đề xuất]`)
 
+Cập nhật reschedule D1 (26/11/2026) theo `git ls-files` ở `08965d2`; khác bản đề xuất lúc lập kế hoạch: không có thư mục `requests/`.
+
 ```
 apps/api/src/appointments/
-  reschedule/                                  # lõi và đường của Bệnh nhân, Lễ tân (B1 đến B7)
-    reschedule.types.ts                        # input/outcome có kiểu, actor, via
-    reschedulability.rules.ts                  # hàm thuần: trạng thái, hạn giờ, bác sĩ-dịch vụ-chi nhánh khớp, chuỗi, hạn mức
-    reschedule.reader.ts                       # đọc facts (thường hoặc dưới khoá), nối BookabilityReader (tham số thayThe)
-    reschedule-locks.ts                        # khoá theo thứ tự 5.4 (chuỗi 2, 3, 4, 5a, 5b, 6, 6c)
-    appointment-reschedule.service.ts          # giao dịch lõi: tự đổi, đổi hộ, duyệt (một thân giao dịch dùng chung)
-    reschedule-preview.service.ts              # GET preview, đọc không khoá
-    patient-reschedule.controller.ts / .dto.ts
-    reception-reschedule.controller.ts / .dto.ts
-    requests/                                  # yêu cầu ngoài chính sách (B5, B8, B9)
-      reschedule-request.repository.ts         # câu SQL thô: tạo, đọc, danh sách theo phạm vi, cập nhật xử lý
-      create-reschedule-request.service.ts
-      reschedule-request-list.service.ts       # danh sách và chi tiết, danh sách trắng khoá
-      reschedule-request-handle.service.ts     # duyệt (gọi lõi) và từ chối
-      reception-reschedule-requests.controller.ts / admin-reschedule-requests.controller.ts / *.dto.ts
-  slots/ (sửa)         bookability.rules.ts, bookability.reader.ts, thêm claim-slot.ts (dùng chung với create)
-  state/ (sửa)         appointment-state.matrix.ts (actor DoiLich), appointment-transition.service.ts (markReplaced), mark-replaced.ts
-  create/ (sửa)        lich-hen-insert.query.ts (hai cột), duplicate-key.ts (khoá lich_hen_truoc_id)
-  active-appointment.query.ts, overlapping-appointment.query.ts (tham số loại trừ)
-  notifications/ (sửa) booking-notifier.ts, booking-mail.templates.ts, notification-text.ts, email-outbox.query.ts, notifications.constants.ts
-  appointments.constants.ts (sửa: mã lỗi, BOOKING_NOTIFICATION_EVENTS), appointments.module.ts (controller, provider)
-  testing/ (sửa)       invariants.ts (INV-7 đến INV-10), fixtures đổi lịch
-apps/api/src/admin/entities/yeu-cau-doi-lich-ngoai-chinh-sach.entity.ts (MỚI), lich-hen.entity.ts, thong-bao.entity.ts, enums.ts (sửa)
-apps/api/src/audit/ (sửa)  audit-validation.ts, audit-entry.ts (hai hành động)
-apps/api/src/database/migrations/ (MỚI một migration), database/entities.ts, database/migrations/index.ts (sửa)
-apps/web/src/features/booking/appointments/reschedule/   # dùng chung: api, kiểu, hook, bộ chọn khung giờ, màn xác nhận, thông báo lỗi
-apps/web/src/features/booking/appointments/{patient,reception,admin}/   # chỗ cắm: nút, trang, tab
-apps/web/src/features/booking/index.ts                   # xuất PATIENT_RESCHEDULE_ROUTES, RECEPTION_RESCHEDULE_REQUEST_ROUTES, ADMIN_RESCHEDULE_REQUEST_ROUTES
-apps/web/src/shared/routes/booking-paths.ts              # hằng đường dẫn mới
+  reschedule/                      # phẳng, không thư mục con; test cạnh mã
+    reschedule.types.ts, reschedulability.rules.ts, reschedule.reader.ts, reschedule-locks.ts, reschedule-write.query.ts
+    appointment-reschedule.service.ts, reschedule-failure.ts, reschedule-reason.ts, reschedule-preview.service.ts
+    patient-reschedule.{controller,dto,mapper,service}.ts
+    reception-reschedule.{controller,dto,mapper,service}.ts, reception-reschedule-preview.service.ts
+    reschedule-detail.reader.ts, reschedule-request.{service,repository,types}.ts
+    reschedule-request-list.{types,sql,rules,mapper,dto,service}.ts
+    reception-reschedule-requests.controller.ts, admin-reschedule-requests.controller.ts
+    reschedule-request-{approve,reject}.service.ts, reschedule-request-handle.{dto,mapper,scope,types}.ts, reschedule-request-failure.ts
+  slots/ claim-slot.ts (mới, dùng chung với create); bookability.rules.ts, bookability.reader.ts (sửa)
+  state/ mark-replaced.ts (mới); appointment-state.matrix.ts, appointment-transition.service.ts (sửa)
+  create/lich-hen-insert.query.ts (sửa: hai cột đổi lịch; 1062 trên lich_hen_truoc_id ⇒ DuplicateChain)
+  locking/lock-order.ts (sửa: tầng 6c)
+  notifications/ reschedule-notify.ts, reschedule-text.ts, reschedule-mail.templates.ts (mới); các file chung (sửa)
+  appointments.constants.ts, appointments.module.ts (sửa)
+  testing/ invariants.ts (sửa: INV-7 đến INV-10), lock-chain.ts, sql-concatenation-scan.ts, reschedulability-facts.ts,
+    reschedule-world.ts, reschedule-service-world.ts, reschedule-notification-world.ts, reschedule-detail-world.ts,
+    reschedule-request-world.ts, reschedule-request-list-world.ts, reschedule-request-handle-world.ts,
+    patient-reschedule-{contract,world}.ts, reception-reschedule-{contract,world}.ts, reschedule-race-{checks,world}.ts
+apps/api/src/admin/entities/ yeu-cau-doi-lich-ngoai-chinh-sach.entity.ts (mới); lich-hen, thong-bao entity, enums.ts (sửa)
+apps/api/src/audit/ audit-validation.ts, audit-entry.ts (sửa), testing/reschedule-audit-entries.ts
+apps/api/src/database/ migrations/1793966400000-doi-lich.ts (mới); entities.ts, migrations/index.ts (sửa)
+apps/web/src/features/booking/appointments/
+  common/                          # reschedule-{confirm-form,errors,failure,notice-state,payload,reason-field,reason-rules,text,views}, current-appointment-card, use-reschedule-submit
+  common/reschedule-requests/      # yêu cầu đổi lịch dùng chung, không biết vai trò (F4, F4b)
+  patient/reschedule/, patient/detail/
+  reception/reschedule/, reception/detail/, reception/reschedule-requests/
+  admin/reschedule-requests/
+apps/web/src/features/booking/testing/          # API giả và trợ giúp test của đổi lịch
+apps/web/src/features/booking/index.ts          # xuất route cho router
+apps/web/src/shared/routes/booking-paths.ts
+apps/web/src/features/search/slots/{slot-cell,doctor-slot-grid,doctor-slot-panel,slot-picker}.tsx, search/index.ts
+apps/web/src/features/doctor/admin/approvals/   # createAdminApprovalsRoutes, tab
+apps/web/src/router/role-nav.ts, role-routes.tsx
 ```
 
 Controller chỉ nhận/trả, DTO + `class-validator`, import tương đối có đuôi `.js`; `controller → service → repository`; SQL thô cho câu cần khoá hoặc ghép nhiều bảng (nếp patient, search, booking).
@@ -315,7 +324,7 @@ Mọi luồng ghi của scope này đi trong `withBookingTransaction` (READ COMM
 
 Quy tắc áp dụng (chép nếp booking 5.3 và thêm đặc thù đổi lịch):
 1. **Đọc thường MỘT lần** theo `ma_lich_hen` (hoặc `yeu_cau_id`) để lấy `lich_hen_id`, `benh_nhan_id`, `ho_so_nguoi_than_id`, `bac_si_id`, `khung_gio_id` (cũ); cả năm giá trị **bất biến** sau khi chèn lịch. Khung giờ mới: đọc thường `khung_gio ⋈ lich_lam_viec` để biết `bac_si_id` (bất biến) và từ chối `KHUNG_GIO_KHAC_BAC_SI` TRƯỚC khi xin khoá nào; khung giờ trùng khung giờ cũ cũng từ chối trước khoá. Rồi khoá theo bảng trên, rồi **kiểm lại trạng thái, sở hữu, phạm vi, điều kiện dưới khoá**.
-2. Hai `khung_gio` luôn khoá **theo id tăng dần** bất kể đâu là cũ, đâu là mới (R1). Hai lần đổi chéo X↔Y cùng xin X trước rồi Y: không có chu trình; bên thứ hai thấy khung giờ đã `DaDat` ⇒ `KHUNG_GIO_DA_DAT` (TDL-03).
+2. Hai `khung_gio` luôn khoá **theo id tăng dần** bất kể đâu là cũ, đâu là mới (R1). Hai lần đổi chéo X↔Y cùng xin X trước rồi Y: không có chu trình; ~~bên thứ hai thấy khung giờ đã `DaDat` ⇒ `KHUNG_GIO_DA_DAT`~~ **cả hai** `KHUNG_GIO_DA_DAT`, không lịch nào mất, 0 lần 1213 (suy ra ở X1, đo ở X2: 56/56 vòng; TDL-03).
 3. Mọi `INSERT` có khoá ngoại (`lich_hen` mới trỏ `lich_hen_truoc_id`, `khung_gio_id`, `benh_nhan_id`; `yeu_cau` trỏ `khung_gio` và `lich_hen`; `thong_bao`) chỉ được chạy **SAU** khi mọi hàng cha đã khoá ở tầng trên (bài học B11, B12, R2): InnoDB xin S trên hàng cha, nên xin sau tầng 6 mà hàng cha ở tầng 5 là ngược chiều. Thông báo của yêu cầu để `lich_hen_id` NULL nên không xin S trên `lich_hen`.
 4. **Từ chối chỉ khoá 6c.** Từ chối không ghi `lich_hen`, `khung_gio` nên bỏ qua tầng 2 đến 6; `UPDATE` yêu cầu không đổi cột khoá ngoại nào ngoài `nguoi_xu_ly_id` (S trên `tai_khoan`, tầng 1: cùng loại rủi ro đã chấp nhận ở booking B12 R). Duyệt và từ chối cùng một yêu cầu tuần tự nhờ 6c (TDL-13).
 5. Tác dụng phụ **sau commit, đúng một lần**: `WaitlistPort.onSlotReleased(khungGioCuId)` chỉ khi giờ hẹn cũ `> now` và đổi đã `Rescheduled`; bọc `try/catch`, log chỉ id nội bộ và tên lớp lỗi; không hoàn tiền, không gọi `PaymentPort`.
@@ -323,38 +332,43 @@ Quy tắc áp dụng (chép nếp booking 5.3 và thêm đặc thù đổi lịc
 7. Kết quả **có kiểu** (không ném `AppException` trong thân): từ chối xảy ra TRƯỚC lần ghi đầu tiên ⇒ giao dịch commit rỗng; lỗi sau lần ghi đầu tiên ⇒ NÉM nội bộ để hoàn tác trọn rồi đổi sang lỗi API sau khi giao dịch đóng (nếp `CreateRollback`).
 8. Một mốc `now = toSecond(nowVN())` cho cả lượt và mọi lần chạy lại của thân; không `NOW()` trong SQL.
 
-**Phân tích từng cặp tương tranh (chưa đo; X1 M1 đến M6 đo, X2 chạy):**
+**Phân tích từng cặp tương tranh (~~chưa đo~~ đã đo ở X1 và X2, 24 và 25/11/2026; số ở TRACKING mục 6 và 1.17):**
 
 | Cặp | Phân tích | Kết luận dự kiến |
 |---|---|---|
-| đổi × đổi, hoán vị khung giờ | cùng khoá X trước Y | một thắng hoặc cả hai `KHUNG_GIO_DA_DAT`; 0 lần 1213 (đối chứng đảo thứ tự ⇒ 1213, M1) |
+| đổi × đổi, hoán vị khung giờ | cùng khoá X trước Y | ~~một thắng hoặc~~ cả hai `KHUNG_GIO_DA_DAT`; 0 lần 1213 (đối chứng đảo thứ tự ⇒ 1213, M1) |
 | đổi × đổi, cùng khung giờ mới (hai bệnh nhân) | khoá tầng 2 khác nhau, gặp nhau ở tầng 5 | một thắng; thua `KHUNG_GIO_DA_DAT` |
 | đổi × đổi, cùng một lịch (hai tab) | cùng `benh_nhan` X ⇒ tuần tự; bên sau thấy `DaDoiLich` (Bệnh nhân: 404 cùng thân) | một thắng, không chuỗi rẽ nhánh; 1062 của `lich_hen_truoc_id` không lộ ra |
 | đổi × `create` của cùng bệnh nhân | cùng `benh_nhan` X ⇒ tuần tự; chồng giờ được kiểm lại sau | không có hai lịch chồng giờ (TDL-11) |
-| đổi × huỷ, tiếp đón, xác nhận, hết hạn của cùng lịch | đường kia xin khung giờ rồi `lich_hen`, rồi S ngầm trên `benh_nhan` (B12 Q): ngược chiều tầng 2 của đổi lịch | **rủi ro ĐÃ biết và đã chấp nhận ở B12** (TECH_DEBT 113): có thể 1213, `withBookingTransaction` hoàn tác và chạy lại, kết quả cuối đúng, 503 chỉ khi ba lần liền; TDL-04 đếm và ghi số đo |
+| đổi × huỷ, tiếp đón, xác nhận, hết hạn của cùng lịch | đường kia xin khung giờ rồi `lich_hen`, rồi S ngầm trên `benh_nhan` (B12 Q): ngược chiều tầng 2 của đổi lịch | **rủi ro ĐÃ biết và đã chấp nhận ở B12** (TECH_DEBT 113): có thể 1213, `withBookingTransaction` hoàn tác và chạy lại, kết quả cuối đúng, 503 chỉ khi ba lần liền; TDL-04 đếm và ghi số đo. X2: nạn nhân 1213 phụ thuộc đường của đối tác (tiếp đón, thu tiền mặt, override sang `DaTiepDon`: đối tác; huỷ: bên đổi); TDL-04 26/100; TDL-05 0 lần thử lại |
 | đổi × `markNoShow` hoặc job Vắng mặt | cả hai khoá `benh_nhan` X trước (tầng 2 rồi 6) | tuần tự, không chu trình |
 | đổi × duyệt nghỉ phép | duyệt nghỉ xin `bac_si` X, đổi xin S ở tầng 4, kiểm nghỉ phép dưới khoá (H5) | hoặc đổi thấy nghỉ đã duyệt và từ chối, hoặc lịch mới bị `findAffectedByLeave` bắt và huỷ hoàn cọc đúng một lần (TDL-09) |
-| đổi × admin áp dụng/duyệt thay đổi chi nhánh | `PendingBranchChangesPort` đọc dưới khoá `bac_si` và `khung_gio` (H6); phía admin chưa kiểm khoá | `[chưa đo]` M6: đọc mã `admin/…/apply` rồi đo; TDL-10 |
+| đổi × admin áp dụng/duyệt thay đổi chi nhánh | `PendingBranchChangesPort` đọc dưới khoá `bac_si` và `khung_gio` (H6); phía admin chưa kiểm khoá | ~~`[chưa đo]`~~ X1 M6 và X2: đổi VÀO vùng bị loại bị chặn có kiểu; đổi RA NGOÀI vùng có chu trình với `applyOne` (nạn nhân luôn là `applyOne`); TDL-10; TECH_DEBT 268 |
 | duyệt × duyệt, duyệt × từ chối | 6c | một thắng (TDL-12, TDL-13) |
 | duyệt × huỷ lịch gốc, duyệt × đổi hộ | tầng 2 đến 6 như đổi × huỷ | một thắng; không lịch mới từ lịch đã huỷ (TDL-14, TDL-15) |
 | tạo yêu cầu × tạo yêu cầu cùng lịch | khoá `lich_hen` rồi kiểm "đã có `ChoDuyet`" dưới khoá | đúng một yêu cầu (TDL-16) |
 | gỡ ca (`doctor`) × đổi/tạo yêu cầu | `DELETE khung_gio` bị khoá ngoại chặn khi có lịch hay yêu cầu tham chiếu (D7) | `CA_DANG_CO_LICH_HEN` phía doctor, không deadlock vì thứ tự `khung_gio` trước `lich_hen` |
 
+**Lưới thứ hai (đo ở X2):** khoá `benh_nhan` (tầng 2) cần cho cặp đổi × `create` của CÙNG Bệnh nhân (chồng giờ), không cần cho ba cặp còn lại (TDL-01, TDL-02, TDL-22 vẫn xanh khi bỏ nó nhờ khoá `khung_gio` và `lich_hen`); UNIQUE `khung_gio_dang_giu` cũng là lưới; hai lần duyệt cùng yêu cầu đã được tuần tự bởi `benh_nhan` và `lich_hen` nên bỏ `FOR UPDATE` ở 6c chỉ làm TDL-13 đỏ.
+
 ### 5.5 Lõi đổi lịch: một thân giao dịch cho ba đường (task B1 đến B4)
 
+Bản thật ở `reschedule.types.ts` (reschedule B2, B4); cập nhật ở reschedule D1, khác bản đề xuất (không có `RequestCreated`, `NeedsRequestReason`):
+
 ```ts
-// reschedule.types.ts [đề xuất]; giống nếp cancel.types.ts: actor và via là MỘT union gắn với nhau
+type RescheduleActor =
+  | { via: 'TuDoi'; accountId: string }
+  | { via: 'DoiHo'; chiNhanhId: string }
+  | { via: 'DuyetYeuCau'; chiNhanhId: string | null }; // null: Quản trị viên Toàn hệ thống
 type RescheduleInput = { maLichHen: string; khungGioMoiId: string } & (
-  | { via: 'TuDoi'; actor: { kind: 'BenhNhan'; accountId: string }; lyDoYeuCau: string | null }
-  | { via: 'DoiHo'; actor: { kind: 'LeTan'; accountId: string; chiNhanhId: string }; lyDo: string }
-  | { via: 'DuyetYeuCau'; actor: { kind: 'LeTan'; accountId: string; chiNhanhId: string } | { kind: 'QuanTriVien'; accountId: string; scope: AdminScope };
-      yeuCauId: string; ghiChu: string }
+  | { actor: Extract<RescheduleActor, { via: 'TuDoi' }> }
+  | { actor: Extract<RescheduleActor, { via: 'DoiHo' }>; lyDo: string; afterWrite: RescheduleAfterWrite }
+  | { actor: Extract<RescheduleActor, { via: 'DuyetYeuCau' }>; yeuCauId: string; ghiChu: string; afterWrite: RescheduleAfterWrite }
 );
 type RescheduleOutcome =
   | { kind: 'Rescheduled'; maLichHenCu: string; maLichHenMoi: string; thoiGianMoi: Date }
-  | { kind: 'RequestCreated'; yeuCauId: string }                       // TuDoi, vượt hạn mức, có lyDoYeuCau
-  | { kind: 'NeedsRequestReason'; soLanDaDoi: number; toiDa: number }  // TuDoi, vượt hạn mức, thiếu lyDoYeuCau: không ghi gì
-  | { kind: 'Rejected'; failure: RescheduleFailure };                  // mã ở 5.13; từ chối trước lần ghi đầu tiên
+  | { kind: 'OverQuota'; soLanDaDoi: number; toiDa: number } // TuDoi hết lần: trả TRƯỚC mọi khoá, không ghi gì
+  | { kind: 'Rejected'; failure: RescheduleRejection }; // mã ở 5.13
 ```
 
 Luồng (một giao dịch; `now = toSecond(nowVN())` MỘT lần; cấu hình ngoài giao dịch):
@@ -362,11 +376,11 @@ Luồng (một giao dịch; `now = toSecond(nowVN())` MỘT lần; cấu hình n
 1. Giao dịch: khoá theo 5.4 (`benh_nhan` → `ho_so_nguoi_than` → `bac_si` → hai `khung_gio` tăng dần → `lich_hen` cũ → với duyệt: yêu cầu).
 2. Kiểm LẠI dưới khoá: phạm vi và sở hữu (404), trạng thái `DaXacNhan` (`LICH_HEN_KHONG_CHO_DOI`), hạn giờ theo `via` (Q3; `LICH_HEN_DA_QUA_GIO`), hồ sơ người thân còn hiệu lực, bác sĩ vẫn giữ dịch vụ và chi nhánh của lịch (`LICH_HEN_KHAC_DICH_VU_HIEN_TAI`, `LICH_HEN_KHAC_CHI_NHANH_HIEN_TAI`), độ dài chuỗi (`CHUOI_DOI_LICH_QUA_DAI`); duyệt: yêu cầu còn `ChoDuyet` (`YEU_CAU_DA_XU_LY`).
 3. `BookabilityReader.read(em, {…, noShowLocked: false, thayThe: { maLichHen: cũ }}, 'locked')` rồi `evaluateBookability(facts)` (9 bước giữ nguyên thứ tự: khung giờ `DaDat`/`DangGiuCho`/`HetHan`, quá giờ, bác sĩ khả dụng, ca đúng chi nhánh, giờ nhận khám, nghỉ phép, **vùng bị loại bởi thay đổi chi nhánh** (đóng TECH_DEBT 260: `findBlocking` với `ca` của khung giờ ĐÍCH, dưới khoá; khung giờ NGUỒN không kiểm), số lịch, chồng giờ; hai bước cuối **không tính** lịch cũ). Lỗi đầu tiên ⇒ `Rejected`.
-4. `TuDoi`: nếu `so_lan_tu_doi_lich >= toiDa`: có `lyDoYeuCau` ⇒ **nhánh yêu cầu** (5.7: kiểm "đã có `ChoDuyet`", chèn yêu cầu, thông báo `YeuCauDoiLichDangCho`, KHÔNG ghi khung giờ nào, trả `RequestCreated`); thiếu ⇒ `NeedsRequestReason` (không ghi gì).
-5. Nhánh đổi: hết hạn lười nếu khung giờ mới `DangGiuCho` đã quá hạn (dùng chung `claimSlot` với `create`); `INSERT lich_hen` mới qua `insertLichHen`: mã mới (sinh lại tối đa 5 lần như `create`), `khung_gio_id` mới, `lich_hen_truoc_id` = cũ (**service kiểm "không tự trỏ chính nó" trước**, quy tắc 27), cùng `benh_nhan_id`, `ho_so_nguoi_than_id`, `bac_si_id`, `chi_nhanh_id`, `dich_vu_kham_id` với lịch cũ, `thoi_gian` = giờ khung giờ mới, ba bản chụp **sao chép nguyên** từ lịch cũ (không tính lại giá: bác sĩ đổi phụ phí về sau không ảnh hưởng), `trang_thai` `DaXacNhan`, `han_thanh_toan` NULL, `ly_do_kham` sao chép, `thoi_diem_tao` = `now` (Q12), `thoi_diem_xac_nhan` = `now` (Q7 (d)), `so_lan_tu_doi_lich` = cũ + 1 (`TuDoi`) hoặc cũ (`DoiHo`, `DuyetYeuCau`). 1062 trên `ma_lich_hen` ⇒ sinh lại; trên `khung_gio_dang_giu` ⇒ hoàn tác `KHUNG_GIO_DA_DAT`; trên `lich_hen_truoc_id` ⇒ hoàn tác `LICH_HEN_KHONG_CHO_DOI` (đã có lịch mới).
+4. `TuDoi` hết lần tự đổi: ~~chuyển nhánh yêu cầu ngay trong thân này (`RequestCreated`, `NeedsRequestReason`)~~ B4 trả `OverQuota` ở lần đọc thường (bước 0), TRƯỚC mọi khoá và không ghi gì; B6 gọi `RescheduleRequestService.create` (B5, giao dịch RIÊNG, kiểm lại dưới khoá) khi có lý do, thiếu thì 409 `VUOT_SO_LAN_TU_DOI` (5.7).
+5. Nhánh đổi: hết hạn lười nếu khung giờ mới `DangGiuCho` đã quá hạn (dùng chung `claimSlot` với `create`); `INSERT lich_hen` mới qua `insertLichHen`: mã mới (sinh lại tối đa 5 lần như `create`), `khung_gio_id` mới, `lich_hen_truoc_id` = cũ (~~service kiểm "không tự trỏ chính nó" trước~~ không có câu kiểm riêng: đúng vì chỉ `INSERT` hàng mới trỏ lịch cũ, quy tắc 27), cùng `benh_nhan_id`, `ho_so_nguoi_than_id`, `bac_si_id`, `chi_nhanh_id`, `dich_vu_kham_id` với lịch cũ, `thoi_gian` = giờ khung giờ mới, ba bản chụp **sao chép nguyên** từ lịch cũ (không tính lại giá: bác sĩ đổi phụ phí về sau không ảnh hưởng), `trang_thai` `DaXacNhan`, `han_thanh_toan` NULL, `ly_do_kham` sao chép, `thoi_diem_tao` = `now` (Q12), `thoi_diem_xac_nhan` = `now` (Q7 (d)), `so_lan_tu_doi_lich` = cũ + 1 (`TuDoi`) hoặc cũ (`DoiHo`, `DuyetYeuCau`). 1062 trên `ma_lich_hen` ⇒ sinh lại; trên `khung_gio_dang_giu` ⇒ hoàn tác `KHUNG_GIO_DA_DAT`; trên `lich_hen_truoc_id` ⇒ hoàn tác `LICH_HEN_KHONG_CHO_DOI` (đã có lịch mới). (Mã thật: `insertLichHen` trả `DuplicateSlot`, `DuplicateChain`, `DuplicateCode`; vòng sinh lại mã ở người gọi; `claimSlot` chỉ thay khối hết hạn lười, giữ và đặt khung giờ.)
 6. `SlotHoldService.hold` + `markBooked` khung giờ mới (`ConTrong` → `DaDat`), `release(from: 'DaDat', den: null)` khung giờ cũ; mỗi lần không `Done` ⇒ ném để hoàn tác trọn (dữ liệu lệch).
 7. `AppointmentTransitionService.markReplaced` lịch cũ → `DaDoiLich`.
-8. `DuyetYeuCau`: `UPDATE` yêu cầu `DaDuyet` + `ghi_chu_xu_ly` + `nguoi_xu_ly_id` + `thoi_diem_xu_ly` (CHECK DB bắt cặp này); Audit `XuLyDoiLichNgoaiChinhSach`. `DoiHo`: Audit `DoiLichHo`.
+8. (mã thật: điểm cắm `afterWrite` của B7 và B9, SAU `markReplaced` và TRƯỚC thông báo, cùng giao dịch) `DuyetYeuCau`: `UPDATE` yêu cầu `DaDuyet` + `ghi_chu_xu_ly` + `nguoi_xu_ly_id` + `thoi_diem_xu_ly` (CHECK DB bắt cặp này); Audit `XuLyDoiLichNgoaiChinhSach`. `DoiHo`: Audit `DoiLichHo`.
 9. `AppointmentNotifier.notify(em, …)`: `LichHenDaDoiLich` (tự đổi, đổi hộ; `lich_hen_id` = lịch MỚI) hoặc `YeuCauDoiLichDaDuyet` (duyệt; gắn yêu cầu). Mọi lỗi từ bước 5 đến 9 ⇒ ném, hoàn tác cả lịch mới lẫn khung giờ.
 10. Commit; sau commit: `WaitlistPort.onSlotReleased(khungGioCuId)` (5.4 quy tắc 5). Trả `Rescheduled`.
 
@@ -383,38 +397,40 @@ thayThe: { maLichHen: string } | null;
 ```
 
 **Thứ tự lỗi** (dừng ở lỗi đầu tiên; mọi đường dùng chung):
-`400` DTO → `401/403` vai trò → `409 HE_THONG_CHUA_CAU_HINH` → `404` lịch (không có, của người khác, ngoài phạm vi, `DaDoiLich` với Bệnh nhân; cùng một thân) → `409 LICH_HEN_KHONG_CHO_DOI` (kèm `chiTiet.trangThai`) → `409 LICH_HEN_DA_QUA_GIO` → `409 HO_SO_NGUOI_THAN_DA_NGUNG` → `404 KHUNG_GIO_KHONG_TON_TAI` → `409 KHUNG_GIO_TRUNG_LICH_CU` → `409 KHUNG_GIO_KHAC_BAC_SI` → `409 LICH_HEN_KHAC_DICH_VU_HIEN_TAI` → `409 LICH_HEN_KHAC_CHI_NHANH_HIEN_TAI` → `409 CHUOI_DOI_LICH_QUA_DAI` → chín bước của `evaluateBookability` (bước 1 khoá no-show **không áp dụng**, Q7 (b)) → riêng `TuDoi`: `VUOT_SO_LAN_TU_DOI` hoặc nhánh yêu cầu → `409 DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET` (nhánh yêu cầu).
+`400` DTO → `401/403` vai trò → `409 HE_THONG_CHUA_CAU_HINH` → `404` lịch (không có, của người khác, ngoài phạm vi, `DaDoiLich` với Bệnh nhân; cùng một thân) → `409 LICH_HEN_KHONG_CHO_DOI` (kèm `chiTiet.trangThai`) → `409 LICH_HEN_DA_QUA_GIO` → `409 HO_SO_NGUOI_THAN_DA_NGUNG` → `404 KHUNG_GIO_KHONG_TON_TAI` → `409 KHUNG_GIO_TRUNG_LICH_CU` → `409 KHUNG_GIO_KHAC_BAC_SI` → `409 LICH_HEN_KHAC_DICH_VU_HIEN_TAI` → `409 LICH_HEN_KHAC_CHI_NHANH_HIEN_TAI` → `409 CHUOI_DOI_LICH_QUA_DAI` → chín bước của `evaluateBookability` (bước 1 khoá no-show **không áp dụng**, Q7 (b)) → riêng `TuDoi`: `VUOT_SO_LAN_TU_DOI` hoặc nhánh yêu cầu → `409 DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET` (nhánh yêu cầu). Mã thật (B4, B6): `TuDoi` hết lần tự đổi và lý do trắng thì 409 `VUOT_SO_LAN_TU_DOI` đứng TRƯỚC lỗi khung giờ (lệch nhẹ thứ tự trên).
 
 Hạn giờ (Q3), nửa mở theo H8: `TuDoi`: lịch cũ `thoi_gian > now`; `DoiHo`, `DuyetYeuCau`: `thoi_gian + check_in_sau_phut phút > now` (`check_in_sau_phut` đọc từ cấu hình; không có ⇒ `HE_THONG_CHUA_CAU_HINH`). Không tách thời gian bằng chuỗi: so `Date`.
 
 Đổi hộ khi đang có yêu cầu `ChoDuyet` của chính lịch đó được phép (Lễ tân có thể đang thực hiện hộ); yêu cầu thành "tồn" (R6) và Lễ tân từ chối kèm ghi chú.
 
-Chuỗi: `PaymentChain` (đọc, có sẵn) cho độ sâu; từ chối khi độ sâu hiện tại `>= MAX_CHAIN_DEPTH - 1` (lấy hằng, không số cứng).
+Chuỗi: ~~`PaymentChain` (đọc, có sẵn) cho độ sâu~~ reader đếm bằng một câu `WITH RECURSIVE` riêng (`PaymentChain` chỉ có `rootOf`; chỉ nhập hằng `MAX_CHAIN_DEPTH`); từ chối khi **số lịch của chuỗi, kể cả lịch cũ,** `>= MAX_CHAIN_DEPTH - 1` (19) ⇒ `CHUOI_DOI_LICH_QUA_DAI` (KDL-16, quy tắc DB 64; TECH_DEBT 274).
 
 ### 5.7 Yêu cầu ngoài chính sách (task B5, B8, B9)
 
-**Tạo (nhánh của `TuDoi` vượt hạn mức):** sau bước 3 ở 5.5, chuỗi khoá 2, 3, 4, 5 (CHỈ khung giờ mong muốn), 6; kiểm `SELECT 1 FROM yeu_cau_doi_lich_ngoai_chinh_sach WHERE lich_hen_id = ? AND trang_thai = 'ChoDuyet'` (dưới khoá `lich_hen`, Q4) ⇒ 409 `DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET`; `INSERT` (`lich_hen_id`, `khung_gio_mong_muon_id`, `ly_do_yeu_cau` chuẩn hoá 5 đến 500, `trang_thai` `ChoDuyet`, `thoi_diem_tao` = `now`); `notify` `YeuCauDoiLichDangCho`. Khung giờ mong muốn **không** đổi trạng thái (Q7 (f)): người khác đặt được ngay sau đó, nên lúc duyệt có thể gặp 409 (A2 của 2.4.31).
+**Tạo (nhánh của `TuDoi` vượt hạn mức):** ~~sau bước 3 ở 5.5~~ giao dịch RIÊNG của B5 (`RescheduleRequestService.create`), kiểm lại dưới khoá; chuỗi khoá 2, 3, 4, 5 (CHỈ khung giờ mong muốn), 6; kiểm `SELECT 1 FROM yeu_cau_doi_lich_ngoai_chinh_sach WHERE lich_hen_id = ? AND trang_thai = 'ChoDuyet'` (dưới khoá `lich_hen`, Q4) ⇒ 409 `DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET`; `INSERT` (`lich_hen_id`, `khung_gio_mong_muon_id`, `ly_do_yeu_cau` chuẩn hoá 5 đến 500, `trang_thai` `ChoDuyet`, `thoi_diem_tao` = `now`); `notify` `YeuCauDoiLichDangCho`. Khung giờ mong muốn **không** đổi trạng thái (Q7 (f)): người khác đặt được ngay sau đó, nên lúc duyệt có thể gặp 409 (A2 của 2.4.31).
 
-**Danh sách và chi tiết** (`GET …/reschedule-requests`): lọc `trangThai` (mặc định `ChoDuyet`; tab "Đã xử lý" = `DaDuyet,TuChoi`), `bacSiId`, `q` (mã lịch hẹn, chuẩn hoá chữ hoa như `AppointmentCodePipe`), `chiNhanhId` (chỉ Quản trị viên Toàn hệ thống); phân trang offset `common/paging`; sắp `thoi_diem_tao` tăng cho `ChoDuyet` (cũ nhất trước), giảm cho đã xử lý. Phạm vi: `lich_hen.chi_nhanh_id` bằng chi nhánh Lễ tân (`ReceptionScopeService`) hoặc `BranchAccessPolicy` cho Quản trị viên; ngoài phạm vi ⇒ không xuất hiện ở danh sách và 404 cùng thân ở chi tiết. **Danh sách trắng khoá** (không SĐT, email, `ly_do_kham`, giá, id lịch): `yeuCauId`, `trangThai`, `thoiDiemTao`, `maLichHen`, `nguoiKham { hoTen, laNguoiThan }`, `bacSi { hoTen }`, `chiNhanh { id, ten }`, `thoiGianCu`, `thoiGianMongMuon`, `soLanDaTuDoi`; chi tiết thêm `soLanToiDa`, `lyDoYeuCau`, `trangThaiLichGoc`, `coTheDuyet`, `lyDoKhongDuyet`, `khungGioMongMuon { khungGioId, trangThai }` (cho nhân sự biết còn trống không), `ghiChuXuLy`, `thoiDiemXuLy`, `nguoiXuLy { hoTen }`. `coTheDuyet` tính từ trạng thái lịch gốc, hạn giờ của nhân sự và trạng thái yêu cầu (đọc thường, kết quả thông tin; quyết định thật ở lúc duyệt).
+**Danh sách và chi tiết** (`GET …/reschedule-requests`): lọc `trangThai` (mặc định `ChoDuyet`; tab "Đã xử lý" = `DaDuyet,TuChoi`), `bacSiId`, `q` (mã lịch hẹn, chuẩn hoá chữ hoa như `AppointmentCodePipe`), `chiNhanhId` (chỉ Quản trị viên Toàn hệ thống); phân trang offset `common/paging`; sắp `thoi_diem_tao` tăng cho `ChoDuyet` (cũ nhất trước), giảm cho đã xử lý. Phạm vi: `lich_hen.chi_nhanh_id` bằng chi nhánh Lễ tân (`ReceptionScopeService`) hoặc `BranchAccessPolicy` cho Quản trị viên; ngoài phạm vi ⇒ không xuất hiện ở danh sách và 404 cùng thân ở chi tiết. **Danh sách trắng khoá** (không SĐT, email, `ly_do_kham`, giá, id lịch): `yeuCauId`, `trangThai`, `thoiDiemTao`, `maLichHen`, `nguoiKham { hoTen, laNguoiThan }`, `bacSi { hoTen }`, `chiNhanh { id, ten }`, `thoiGianCu`, `thoiGianMongMuon`, `soLanDaTuDoi`; chi tiết thêm `soLanToiDa`, `lyDoYeuCau`, `trangThaiLichGoc`, `coTheDuyet`, `lyDoKhongDuyet`, `khungGioMongMuon { khungGioId, trangThai }` (cho nhân sự biết còn trống không), `ghiChuXuLy`, `thoiDiemXuLy`, `nguoiXuLy { hoTen }`. `coTheDuyet` tính từ trạng thái lịch gốc, hạn giờ của nhân sự và trạng thái yêu cầu (đọc thường, kết quả thông tin; quyết định thật ở lúc duyệt). Mã thật (B8): chi tiết có `khungGioMongMuon.khungGioId`; `soLanToiDa` là `null` khi chưa có cấu hình; `lyDoKhongDuyet` là `maLoi`; `q` là mã đầy đủ, sai dạng ⇒ 400 `MA_LICH_HEN_KHONG_HOP_LE`; Lễ tân gửi `chiNhanhId` ⇒ 400; sắp tăng dần chỉ khi tập trạng thái đúng bằng `{ChoDuyet}`, mọi tập khác sắp giảm dần.
 
 **Duyệt** (`POST …/:yeuCauId/approve` `{ ghiChu, khungGioId? }`): đọc thường yêu cầu và lịch gốc; kiểm phạm vi; chạy lõi 5.5 với `via: 'DuyetYeuCau'`, khung giờ đích = `khungGioId` (thay thế) hoặc `khung_gio_mong_muon_id`. Từ chối có kiểu (tranh chấp, quá giờ, lịch gốc không còn `DaXacNhan`, vùng bị loại…) ⇒ 409 **và yêu cầu vẫn `ChoDuyet`**, không audit, không thông báo (2.4.31 A2). **Từ chối** (`POST …/:yeuCauId/reject` `{ ghiChu }`): khoá 6c (5.4 quy tắc 4), kiểm `ChoDuyet`, `UPDATE` `TuChoi`, Audit, `notify` `YeuCauDoiLichBiTuChoi`; **không** giữ chỗ, không đụng khung giờ (2.4.31 b7). Ghi chú: `trim`, 1 đến 255 ký tự, văn bản thuần (Q10: đi nguyên văn tới bệnh nhân).
 
-**Yêu cầu tồn** (R6): lịch gốc huỷ, tiếp đón, Vắng mặt hay đã đổi hộ ⇒ `coTheDuyet = false`, duyệt 409, từ chối được. Không có trạng thái "Hết hạn" trong ENUM, không job dọn (nháp TECH_DEBT 267).
+**Yêu cầu tồn** (R6): lịch gốc huỷ, tiếp đón, Vắng mặt hay đã đổi hộ ⇒ `coTheDuyet = false`, duyệt 409, từ chối được. Không có trạng thái "Hết hạn" trong ENUM, không job dọn (TECH_DEBT 267).
 
 ### 5.8 Endpoint (tên `[đề xuất]`, Q13; tiền tố `/api` qua proxy; `Cache-Control: no-store`; id BIGINT là chuỗi)
 
 | Vai | Route | Thân / tham số | Thành công | Lỗi |
 |---|---|---|---|---|
-| Bệnh nhân | `GET /patient/appointments/:maLichHen/reschedule-preview?khungGioId=` | `khungGioId` tuỳ chọn | 200 `{ choPhepDoi, lyDoKhongDoi?, loai: 'TuDoi' \| 'GuiYeuCau', soLanDaDoi, soLanToiDa, coYeuCauChoDuyet, lichCu: { thoiGian }, lichMoi: { khungGioId, thoiGian, hopLe, lyDoKhongHopLe? } \| null, thoiGianMayChu }` (đọc không khoá; không có `khungGioId` thì chỉ trả điều kiện đổi để hiện nút) | 404, 403, 409 `HE_THONG_CHUA_CAU_HINH` |
+| Bệnh nhân | `GET /patient/appointments/:maLichHen/reschedule-preview?khungGioId=` | `khungGioId` tuỳ chọn | 200 `{ choPhepDoi, lyDoKhongDoi?, loai: 'TuDoi' \| 'GuiYeuCau', soLanDaDoi, soLanToiDa, coYeuCauChoDuyet, lichCu: { thoiGian, bacSiId }, lichMoi: { khungGioId, thoiGian, hopLe, lyDoKhongHopLe? } \| null, thoiGianMayChu }` (đọc không khoá; không có `khungGioId` thì chỉ trả điều kiện đổi để hiện nút) | 404, 403, 409 `HE_THONG_CHUA_CAU_HINH`; 404 `KHUNG_GIO_KHONG_TON_TAI` khi `khungGioId` không có |
 | Bệnh nhân | `POST /patient/appointments/:maLichHen/reschedule` | `{ khungGioId, lyDoYeuCau? }` | 201 `{ ketQua: 'DaDoi', lichHenMoi: { maLichHen, thoiGian, trangThai }, lichHenCu: { maLichHen }, thoiGianMayChu }` hoặc 201 `{ ketQua: 'DaGuiYeuCau', yeuCau: { trangThai: 'ChoDuyet', thoiGianMongMuon }, thoiGianMayChu }` | 400, 403, 404, 409 (mã 5.13) |
-| Lễ tân | `GET /reception/appointments/:maLichHen/reschedule-preview?khungGioId=` | như trên (không có `loai`, `soLan*`) | 200 | 404 cùng thân ngoài chi nhánh |
-| Lễ tân | `POST /reception/appointments/:maLichHen/reschedule` | `{ khungGioId, lyDo }` (Q9) | 201 `{ ketQua: 'DaDoi', lichHenMoi, lichHenCu }` | như trên |
+| Lễ tân | `GET /reception/appointments/:maLichHen/reschedule-preview?khungGioId=` | như trên (không có `loai`, `soLan*`; `lichCu` cũng có `bacSiId`) | 200 | 404 cùng thân ngoài chi nhánh; lịch `DaDoiLich` ⇒ 200 `choPhepDoi: false` |
+| Lễ tân | `POST /reception/appointments/:maLichHen/reschedule` | `{ khungGioId, lyDo }` (Q9) | 201 `{ ketQua: 'DaDoi', lichHenMoi, lichHenCu, thoiGianMayChu }` | như trên; lịch `DaDoiLich` ⇒ 409 `LICH_HEN_KHONG_CHO_DOI` |
 | Lễ tân | `GET /reception/reschedule-requests`, `GET /reception/reschedule-requests/:yeuCauId` | 5.7 | 200 | 404 ngoài chi nhánh |
-| Lễ tân | `POST /reception/reschedule-requests/:yeuCauId/approve`, `…/reject` | 5.7 | 200 `{ yeuCau: { trangThai }, lichHenMoi? }` | 400 ghi chú, 404, 409 |
+| Lễ tân | `POST /reception/reschedule-requests/:yeuCauId/approve`, `…/reject` | 5.7 | 200 `{ yeuCau: { trangThai }, lichHenMoi?, thoiGianMayChu }` (`lichHenMoi` chỉ khi duyệt) | 400 ghi chú, 404, 409 |
 | Quản trị viên | `GET /admin/reschedule-requests`, `…/:yeuCauId`, `POST …/approve`, `…/reject` | như Lễ tân, thêm `chiNhanhId` cho Toàn hệ thống | như trên | 404 ngoài phạm vi |
 | Bệnh nhân | `GET /patient/appointments/:maLichHen` (đã có) | thêm khoá `choPhepDoiLich` và `yeuCauDoiLich` | `yeuCauDoiLich: { trangThai, thoiGianMongMuon, ghiChuXuLy, thoiDiemTao } \| null` (yêu cầu **mới nhất** của lịch); 17 → 19 khoá | |
-| Lễ tân | `GET /reception/appointments/:maLichHen` (đã có) | thêm `choPhepDoiLich` và `coYeuCauChoDuyet` | | |
-| (đã có) | `GET /public/doctor-slots?bacSiId=&ngay=` | lưới khung giờ cho bộ chọn | | |
+| Lễ tân | `GET /reception/appointments/:maLichHen` (đã có) | thêm `choPhepDoiLich` và `coYeuCauChoDuyet` (17 → 19 khoá; web đọc 18) | | |
+| (đã có) | `GET /public/doctor-slots?bacSiIds=&ngay=` | lưới khung giờ cho bộ chọn | | |
+
+Hợp đồng thật đầy đủ (khoá, mã lỗi): TRACKING mục 7, khối B6, B7, B8, B9. `lyDoKhongDoi` là chuỗi `maLoi` và VẮNG khi được đổi; `lichMoi.lyDoKhongHopLe` vắng khi hợp lệ.
 
 Quyền: `@Roles` ghi TRÊN TỪNG route (AR-02, QB-07); Quản trị viên `@RequireAdminScope('Any')`; Quản trị viên **không** có route đổi hộ; Bệnh nhân không có route yêu cầu của nhân sự; vai khác ⇒ 403. Phạm vi và sở hữu kiểm ở lần đọc thường **và** lại dưới khoá (5.4 quy tắc 1).
 
@@ -425,12 +441,12 @@ Quyền: `@Roles` ghi TRÊN TỪNG route (AR-02, QB-07); Quản trị viên `@Re
 | `payment` | `PaymentSummaryPort.amountPaid`, `remainingToCollect`, `amountRefundable` (đã truy lịch gốc qua `PaymentChain`) | **Không có mã mới**; ca HDL-03 chạy với lớp thật trên chuỗi 2 và 3 lịch; thu tiền mặt ở lịch mới ghi `lich_hen_id` = lịch gốc (ca TTQ-13 trong PLAN payment; chạy lại với đổi lịch thật ở HDL-03) | `PaymentPort.recordZeroPayment` **không** gọi khi đổi (lịch cọc 0đ đã có giao dịch 0đ ở lịch gốc) |
 | `wallet` | `RefundPort`, `refund.queries` (đệ quy xuôi tới lịch cuối) | không đổi; HDL-04: huỷ lịch **mới** hoàn đúng theo `chinh_sach_hoan_snapshot` và giờ hẹn mới, trên khoản thanh toán của lịch gốc, không hoàn hai lần | kẽ hở R3 |
 | `waitlist` | `WaitlistPort.onSlotReleased(khungGioCuId)` | gọi sau commit; `Noop` hiện tại không mời ai (chạy đủ, cảnh báo log một lần); khi #11 có mã: chạy lại DLH-13, DLH-14, đóng TECH_DEBT 147 phần này | đổi lịch **không phụ thuộc** waitlist |
-| `notification` (Trung tâm thông báo, nhắc lịch) | `AppointmentNotifier`, `thong_bao`, `email_thong_bao` | bốn sự kiện mới (5.10); nhắc lịch (`nhac_lich_hen`) tính mốc cho lịch **mới** và bỏ qua lịch `DaDoiLich` (2.4.69 A2): việc của module sau | |
+| `notification` (Trung tâm thông báo, nhắc lịch) | `AppointmentNotifier`, `thong_bao`, `email_thong_bao` | bốn sự kiện mới (5.10); nhắc lịch (`nhac_lich_hen`) tính mốc cho lịch **mới** và bỏ qua lịch `DaDoiLich` (2.4.69 A2): ~~việc của module sau~~ **đã làm** ở scope thông báo (`reminder.query.ts` chỉ `DaXacNhan`; danh mục có bốn mã) | |
 | `audit` | `AuditService` | hai hành động (5.11); luật kiểm ở P2 | `[ĐỤNG audit]` |
 | `admin` | `SystemConfigService`, `BranchAccessPolicy`, `PendingBranchChangesPort`, entity | đọc cấu hình; phạm vi Quản trị viên; cổng vùng bị loại; entity mới | `[ĐỤNG admin]` |
 | `scheduling` | `BranchHoursReader`, `checkSlotWithinBranchHours`, `LeaveReader` (qua `DoctorLeavePort`) | dùng nguyên, không sửa | |
-| `search` | `GET /public/doctor-slots`, `SlotCell`, `DoctorSlotGrid` | web thêm chế độ chọn | `[ĐỤNG search]` |
-| `doctor` | trang "Duyệt yêu cầu" (tab đổi lịch), `D7` gỡ ca | bật tab (F5); không đổi gì ở gỡ ca | `[ĐỤNG doctor]` |
+| `search` | `GET /public/doctor-slots`, `SlotCell`, `DoctorSlotGrid` | web thêm chế độ chọn (`onSelect`) và `SlotPicker` | `[ĐỤNG search]` |
+| `doctor` | trang "Duyệt yêu cầu" (tab đổi lịch), `D7` gỡ ca | bật tab (F5: `createAdminApprovalsRoutes(...)`, `router/` truyền route của booking); không đổi gì ở gỡ ca | `[ĐỤNG doctor]` |
 | báo cáo (sau) | `lich_hen.lich_hen_truoc_id`, `thoi_diem_tao` | loại lịch có `lich_hen_truoc_id` khi đếm "lượt đặt" (Q12) | TRACKING mục 7 |
 
 ### 5.10 Thông báo và email (Q5, Q9, Q10, Q13; ghi **trong** giao dịch bằng `em`; mức tối thiểu như booking B15)
@@ -442,7 +458,7 @@ Quyền: `@Roles` ghi TRÊN TỪNG route (AR-02, QB-07); Quản trị viên `@Re
 | `YeuCauDoiLichDaDuyet` | duyệt | tài khoản đặt | NULL | yêu cầu | "Yêu cầu đổi lịch hẹn {mã cũ} đã được duyệt. Lịch mới {mã mới}: {giờ mới}. Ghi chú: {ghiChu}." (Q10) |
 | `YeuCauDoiLichBiTuChoi` | từ chối | tài khoản đặt | NULL | yêu cầu | "Yêu cầu đổi lịch hẹn {mã} bị từ chối. Lịch hẹn giữ nguyên {giờ cũ}. Ghi chú: {ghiChu}." (Q10) |
 
-- Mỗi `thong_bao` kèm MỘT `email_thong_bao` `ChoGui` (nếp B15); worker `EmailOutboxJob` quét **17** loại (13 loại hiện có thêm bốn loại: `MAIL_EVENTS` ở `email-outbox.query.ts`); bốn mã mới ở hằng riêng `RESCHEDULE_NOTIFICATION_EVENTS`; sửa chữ ca HDK-06 ở `examination.constants.spec.ts`. Thư dựng trên `renderMailShell`, mọi dữ liệu qua `toSingleLine` rồi `escapeHtml`; ghi chú và lý do cắt theo hàm có sẵn để `noi_dung` ≤ 500 (ghi chú 255 + câu mẫu vừa với dữ liệu thường; trường hợp xấu nhất của đổi hộ thì phần lý do bị cắt, phần cố định giữ nguyên).
+- Mỗi `thong_bao` kèm MỘT `email_thong_bao` `ChoGui` (nếp B15); worker `EmailOutboxJob` quét **17** loại ở B3, nay 21 sau notification B4, B5 (13 loại có sẵn thêm bốn loại: `MAIL_EVENTS` ở `email-outbox.query.ts`); bốn mã mới ở hằng riêng `RESCHEDULE_NOTIFICATION_EVENTS`; sửa chữ ca HDK-06 ở `examination.constants.spec.ts`. Thư dựng trên `renderMailShell`, mọi dữ liệu qua `toSingleLine` rồi `escapeHtml`; ghi chú và lý do cắt theo hàm có sẵn để `noi_dung` ≤ 500 (ghi chú 255 + câu mẫu vừa với dữ liệu thường; trường hợp xấu nhất của đổi hộ thì phần lý do bị cắt, phần cố định giữ nguyên).
 - Chống ghi trùng: UNIQUE `(lich_hen_id, tai_khoan_id, loai_su_kien)` cho `LichHenDaDoiLich`; UNIQUE mới `(yeu_cau_…_id, tai_khoan_id, loai_su_kien)` cho ba loại còn lại (Q5): chạy lại là "đã có", không dòng email thứ hai; một lịch có hai yêu cầu theo thời gian vẫn có đủ thông báo.
 - `AppointmentEvent` thêm trường tuỳ chọn `doiLich?: { maLichHenCu, thoiGianCu, thoiGianMoi, via, lyDo? }` và `yeuCau?: { yeuCauId, ghiChu?, maLichHenMoi?, thoiGianMongMuon }`; chữ ký `notify(em, event)` không đổi, bản `Fake` và `Noop` không vỡ (BPO).
 - Lỗi gửi thư **không** hoàn tác đổi lịch (H12). Hết hạn, từ chối do 4xx, kiểm tra thất bại: **không** thông báo.
@@ -454,14 +470,14 @@ Quyền: `@Roles` ghi TRÊN TỪNG route (AR-02, QB-07); Quản trị viên `@Re
 | `DoiLichHo` (Q6) | `lich_hen`, id lịch **cũ** | chi nhánh của lịch | `{ truoc: { ma_lich_hen, thoi_gian }, sau: { ma_lich_hen, thoi_gian }, ly_do }` (`ly_do` 1 đến 255) |
 | `XuLyDoiLichNgoaiChinhSach` (đã có trong ENUM) | `yeu_cau_doi_lich_ngoai_chinh_sach`, id yêu cầu | chi nhánh của lịch | `{ truoc: { trang_thai: 'ChoDuyet' }, sau: { trang_thai: 'DaDuyet' \| 'TuChoi' }, ghi_chu, ma_lich_hen_cu, ma_lich_hen_moi? }` (`ma_lich_hen_moi` chỉ khi duyệt; khung giờ thật suy ra từ lịch mới) |
 
-Không ghi nhật ký khi: Bệnh nhân tự đổi, tạo yêu cầu, đọc, từ chối do 4xx (2.4.70 chỉ liệt kê hành động nhạy cảm; NDL-05). Lỗi ghi nhật ký ⇒ hoàn tác cả hành động gốc (2.4.70 A1; NDL-04, XDL-14, DLO-08). Mô hình này cần Trung xác nhận (Q16).
+Không ghi nhật ký khi: Bệnh nhân tự đổi, tạo yêu cầu, đọc, từ chối do 4xx (2.4.70 chỉ liệt kê hành động nhạy cảm; NDL-05). Lỗi ghi nhật ký ⇒ hoàn tác cả hành động gốc (2.4.70 A1; NDL-04, XDL-14, DLO-08). Mô hình này ~~cần Trung xác nhận~~ đã xác nhận (Q16). Mã thật (P2): các `ma_lich_hen*` là mã công khai `CLX-yyyyMMdd-XXXXX` (không phải id), mã cũ và mới phải khác nhau; `thoi_gian` là ISO-8601 có múi giờ; `result` chỉ `ThanhCong`; trần văn bản ở `AUDIT_RESCHEDULE_LIMITS`; `XuLyDoiLichNgoaiChinhSach` đúng bốn khoá, thêm `ma_lich_hen_moi` chỉ khi duyệt.
 
 ### 5.12 Frontend (bám component hiện có; trạng thái chưa có frame theo nếp patient Q22; mức kiểm GỌN)
 
-- **Bệnh nhân** (F1, F2): ở chi tiết "Lịch hẹn của tôi" thêm nút "Đổi lịch" (khi `choPhepDoiLich`), nhãn "Gửi yêu cầu đổi lịch" khi hết lần tự đổi, vô hiệu kèm lý do khi đã có yêu cầu chờ hoặc lịch không đổi được; route `PATIENT_APPOINTMENT_DETAIL_ROUTE/doi-lich` (`[đề xuất]`): thẻ "Lịch hiện tại", dải ngày và **lưới khung giờ của đúng bác sĩ** (tái dùng `useDoctorSlots`, `DateStrip`, `DoctorSlotGrid`; ô của khung giờ cũ vô hiệu; ô `ConTrong` thành nút chọn qua prop `onSelect` mới, mặc định vẫn là liên kết) → màn xác nhận "cũ → mới" (giờ Việt Nam; hiện "Bạn còn n lần tự đổi" hoặc "Yêu cầu sẽ chuyển cho Lễ tân duyệt; lịch giữ nguyên tới khi có kết quả" kèm ô lý do 5 đến 500 ký tự) → kết quả: đã đổi ⇒ sang chi tiết lịch MỚI với thông báo; đã gửi yêu cầu ⇒ về chi tiết lịch cũ với banner "Đang chờ duyệt" (và sau đó "Bị từ chối: {ghi chú}"). Đủ loading, rỗng, lỗi, mất mạng, timeout; nút gửi khoá khi đang gửi (bấm đúp không gửi hai lần); `KHUNG_GIO_DA_DAT` quay lại lưới và tải lại.
-- **Lễ tân đổi hộ** (F3): nút "Đổi lịch hộ" ở `reception-actions` (khi `choPhepDoiLich`), dùng chung bộ chọn và màn xác nhận của F1, F2 (thêm ô lý do bắt buộc 1 đến 255, dòng nhắc "Bệnh nhân sẽ đọc lý do này").
-- **Lễ tân xử lý yêu cầu** (F4): mục menu "Yêu cầu đổi lịch" có `to` (`[ĐỤNG router]`: `role-nav.ts`, `role-routes.tsx`); trang hai tab Chờ duyệt / Đã xử lý; bảng (mã lịch, người khám, bác sĩ, giờ cũ → giờ mong muốn, số lần đã tự đổi, ngày gửi), phân trang; chi tiết (khung hoặc trang con) với lý do, trạng thái khung giờ mong muốn, nút "Duyệt" và "Từ chối" mở hộp ghi chú bắt buộc (giữ lựa chọn khi lỗi; dòng nhắc "Bệnh nhân sẽ đọc ghi chú này"); "Duyệt" cho "Chọn khung giờ khác" (bộ chọn dùng chung); 409 tranh chấp giữ nguyên hộp và gợi ý chọn khung giờ khác hoặc từ chối.
-- **Quản trị viên** (F5): tab "Yêu cầu đổi lịch" trong `ApprovalsHostPage` thành liên kết thật tới route con `ADMIN_RESCHEDULE_REQUESTS_PATH` (`[đề xuất]` `/admin/duyet-yeu-cau/doi-lich`), nội dung là thành phần của F4 với API `admin/…`; booking xuất `ADMIN_RESCHEDULE_REQUEST_ROUTES` từ `features/booking/index.ts` và `doctor` chỉ thêm một dòng (nếp D8); sửa ca WA-13 (tab đổi lịch hết vô hiệu).
+- **Bệnh nhân** (F1, F2): ở chi tiết "Lịch hẹn của tôi" thêm nút "Đổi lịch" (khi `choPhepDoiLich`), nhãn "Gửi yêu cầu đổi lịch" khi hết lần tự đổi, vô hiệu kèm lý do khi đã có yêu cầu chờ hoặc lịch không đổi được (mã thật F1: nhãn theo `loai` của preview, nút vô hiệu theo trạng thái); route `PATIENT_APPOINTMENT_DETAIL_ROUTE/doi-lich` (`[đề xuất]`): thẻ "Lịch hiện tại", dải ngày và **lưới khung giờ của đúng bác sĩ** (tái dùng `useDoctorSlots`, `DateStrip`, `DoctorSlotGrid`; ô của khung giờ cũ vô hiệu; ô `ConTrong` thành nút chọn qua prop `onSelect` mới, mặc định vẫn là liên kết) → màn xác nhận "cũ → mới" (giờ Việt Nam; hiện "Bạn còn n lần tự đổi" hoặc "Yêu cầu sẽ chuyển cho Lễ tân duyệt; lịch giữ nguyên tới khi có kết quả" kèm ô lý do 5 đến 500 ký tự) → kết quả: đã đổi ⇒ sang chi tiết lịch MỚI với thông báo; đã gửi yêu cầu ⇒ về chi tiết lịch cũ với banner "Đang chờ duyệt" (và sau đó "Bị từ chối: {ghi chú}"). Đủ loading, rỗng, lỗi, mất mạng, timeout; nút gửi khoá khi đang gửi (bấm đúp không gửi hai lần); `KHUNG_GIO_DA_DAT` quay lại lưới và tải lại (web không có cache: trang đích gắn lại là GET lại; `VUOT_SO_LAN_TU_DOI` lúc gửi: ở lại màn xác nhận và mở ô lý do).
+- **Lễ tân đổi hộ** (F3): nút "Đổi lịch hộ" ở `reception-actions` (khi `choPhepDoiLich`), dùng chung bộ chọn và màn xác nhận của F1, F2 (thêm ô lý do bắt buộc 1 đến 255, dòng nhắc "Bệnh nhân sẽ đọc lý do này"). Mã thật (F3): hai route con `…/doi-lich` và `…/doi-lich/xac-nhan`, không phải hộp; phần dùng chung ở `appointments/common/`.
+- **Lễ tân xử lý yêu cầu** (F4): mục menu "Yêu cầu đổi lịch" có `to` (`[ĐỤNG router]`: `role-nav.ts`, `role-routes.tsx`); trang hai tab Chờ duyệt / Đã xử lý; bảng (mã lịch, người khám, bác sĩ, giờ cũ → giờ mong muốn, số lần đã tự đổi, ngày gửi), phân trang; chi tiết (~~khung hoặc~~ trang con `…/yeu-cau-doi-lich/:yeuCauId`) với lý do, trạng thái khung giờ mong muốn, nút "Duyệt" và "Từ chối" mở hộp ghi chú bắt buộc (giữ lựa chọn khi lỗi; dòng nhắc "Bệnh nhân sẽ đọc ghi chú này"); "Duyệt" cho "Chọn khung giờ khác" (bộ chọn dùng chung); 409 tranh chấp giữ nguyên hộp và gợi ý chọn khung giờ khác hoặc từ chối. Mã thật: một `HandleDialog` cho cả duyệt và từ chối; F4b: nút "Chọn khung giờ khác", "Dùng lại khung giờ mong muốn", "Quay lại hộp duyệt" (chữ `[đề xuất]`), bảng chọn nằm trên trang chi tiết (không phải modal chồng) và gọi thêm một lần preview đổi hộ để lấy id bác sĩ.
+- **Quản trị viên** (F5): tab "Yêu cầu đổi lịch" trong `ApprovalsHostPage` thành liên kết thật tới route con `ADMIN_RESCHEDULE_REQUESTS_PATH` (`[đề xuất]` `/admin/duyet-yeu-cau/doi-lich`), nội dung là thành phần của F4 với API `admin/…`; booking xuất `ADMIN_RESCHEDULE_REQUEST_ROUTES` từ `features/booking/index.ts` ~~và `doctor` chỉ thêm một dòng (nếp D8)~~; `doctor` có `createAdminApprovalsRoutes(extraChildren)`, `router/role-routes.tsx` truyền route của booking (WHT-10 cấm `doctor` nhập `booking`); chi nhánh của Toàn hệ thống giữ ở state của layout (không ở URL); Quản trị viên chưa có "Chọn khung giờ khác" (TECH_DEBT 315); sửa ca WA-13 (tab đổi lịch hết vô hiệu).
 - **Kiến trúc web:** một lớp API client (`shared/api/client.ts`), đường dẫn ở `shared/routes/booking-paths.ts`, mã lỗi → câu theo `maLoi` (5.13), không `dangerouslySetInnerHTML`, không `fetch` ngoài lớp client (ca kiến trúc như BWZ-08).
 
 ### 5.13 Mã lỗi → thông báo (`maLoi` ổn định; chữ `[đề xuất]`, Q13; frontend chọn theo `maLoi`, không theo câu chữ)
@@ -473,10 +489,10 @@ Không ghi nhật ký khi: Bệnh nhân tự đổi, tạo yêu cầu, đọc, t
 | `KHUNG_GIO_TRUNG_LICH_CU` | 409 | khung giờ mới là khung giờ cũ | "Bạn đang chọn đúng khung giờ hiện tại. Vui lòng chọn khung giờ khác." |
 | `KHUNG_GIO_KHAC_BAC_SI` | 409 | khung giờ thuộc bác sĩ khác | "Chỉ đổi được sang khung giờ của cùng bác sĩ. Muốn đổi bác sĩ, vui lòng huỷ và đặt lại." |
 | `LICH_HEN_KHAC_DICH_VU_HIEN_TAI`, `LICH_HEN_KHAC_CHI_NHANH_HIEN_TAI` | 409 | bác sĩ đã đổi dịch vụ chính hay chi nhánh | "Bác sĩ đã thay đổi dịch vụ (hoặc chi nhánh) so với lúc đặt. Vui lòng huỷ và đặt lịch mới." |
-| `VUOT_SO_LAN_TU_DOI` | 409 (`chiTiet: { soLanDaDoi, toiDa }`) | hết lần tự đổi, thiếu lý do | "Bạn đã dùng hết số lần tự đổi. Hãy nhập lý do để gửi yêu cầu cho lễ tân." |
+| `VUOT_SO_LAN_TU_DOI` | 409 (`chiTiet: { soLanDaDoi, toiDa }`) | hết lần tự đổi, thiếu lý do (web không dùng `chiTiet`) | "Bạn đã dùng hết số lần tự đổi. Hãy nhập lý do để gửi yêu cầu cho lễ tân." |
 | `DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET` | 409 | đã có yêu cầu chờ | "Lịch hẹn này đã có yêu cầu đổi lịch đang chờ duyệt." |
 | `CHUOI_DOI_LICH_QUA_DAI` | 409 | chuỗi quá dài (R4) | "Lịch hẹn này đã đổi quá nhiều lần. Vui lòng huỷ và đặt lịch mới." |
-| `YEU_CAU_DOI_LICH_KHONG_TON_TAI` | 404 | yêu cầu không có hoặc ngoài phạm vi | "Không tìm thấy yêu cầu." (cùng thân) |
+| `YEU_CAU_DOI_LICH_KHONG_TON_TAI` | 404 | yêu cầu không có hoặc ngoài phạm vi (chỉ POST duyệt, từ chối; GET danh sách, chi tiết dùng `KHONG_TIM_THAY`) | ~~"Không tìm thấy yêu cầu."~~ "Không tìm thấy yêu cầu đổi lịch." (cùng thân) |
 | `YEU_CAU_DA_XU_LY` | 409 | duyệt hoặc từ chối yêu cầu đã xử lý | "Yêu cầu này đã được xử lý." |
 | Dùng lại của booking (không đổi mã) | 404, 409 | `KHUNG_GIO_KHONG_TON_TAI`, `KHUNG_GIO_DA_DAT`, `KHUNG_GIO_DANG_GIU`, `KHUNG_GIO_DA_QUA`, `BAC_SI_KHONG_KHA_DUNG`, `CHI_NHANH_NGHI`, `CHI_NHANH_CHUA_KHAI_BAO`, `CA_KHONG_TON_TAI`, `NGOAI_GIO_HOAT_DONG`, `BAC_SI_NGHI_PHEP`, `KHUNG_GIO_NGOAI_LICH_MOI`, `LICH_HEN_TRUNG_THOI_GIAN`, `VUOT_SO_LICH_HEN_TOI_DA`, `HO_SO_NGUOI_THAN_DA_NGUNG`, `HE_THONG_CHUA_CAU_HINH`, `HE_THONG_DANG_BAN` (503) | câu hiện có ở `booking-errors.ts` (web) |
 | `DU_LIEU_KHONG_HOP_LE` | 400 | DTO: khoá lạ, thiếu `khungGioId`, ghi chú rỗng hoặc dài, lý do ngoài độ dài | câu theo trường |
@@ -484,7 +500,7 @@ Không ghi nhật ký khi: Bệnh nhân tự đổi, tạo yêu cầu, đọc, t
 ### 5.14 Kiểm thử, việc phải **đo thật** trước khi viết mã, dữ liệu mẫu
 
 - **Mức kiểm ĐẦY ĐỦ** cho P1, B1, B4, B5, B9 (khoá, giao dịch, đồng thời): đột biến (mỗi ca một lượt vitest một file nối tiếp, xin "RẢNH" của phiên kiểm trước khi chạy: đột biến là lane NẶNG), `test:int` và `test:e2e` trên MySQL thật, ca đồng thời chạy một mình, EXPLAIN cho câu SQL mới. **Mức GỌN** cho task web (đột biến web bốn loại) và các task backend chỉ đọc (B8): jscpd và gitleaks do CI đo, báo cáo ghi "CI đo".
-- **Đột biến bắt buộc** (mỗi dòng một đột biến, phải bị bắt bởi ít nhất một ca): (1) bỏ loại lịch cũ khỏi đếm hoặc chồng giờ (KDL-10, KDL-11); (2) khoá hai khung giờ theo thứ tự "cũ rồi mới" thay vì id tăng dần (TDL-03); (3) so id khung giờ bằng chuỗi (TDL-03 với id 9 và 10); (4) không kiểm lại trạng thái dưới khoá (TDL-04); (5) không `+1` bộ đếm khi tự đổi (DLH-01, DLH-05); (6) `+1` khi đổi hộ hoặc duyệt (DLO-01, XDL-06); (7) quên `markReplaced` hoặc quên `release` khung giờ cũ (DLH-01, INV); (8) sao chép thiếu một bản chụp, hoặc tính lại giá (DLH-01, INV-8); (9) gọi `onSlotReleased` trong giao dịch hoặc hai lần (DLH-13, HDL-06); (10) bỏ `findBlocking` hoặc gọi với khung giờ NGUỒN (KDL-17, HDL-05); (11) từ chối vẫn giữ chỗ (XDL-08); (12) duyệt thất bại vẫn đổi yêu cầu sang `DaDuyet` (XDL-07); (13) ghi chú rỗng được chấp nhận (XDL-09); (14) tạo yêu cầu thứ hai khi đã có `ChoDuyet` (XDL-02, TDL-16); (15) bỏ phạm vi chi nhánh ở danh sách hoặc chi tiết (XDL-03, QDL-02); (16) tạo `giao_dich_thanh_toan` khi đổi (HDL-03, INV-10); (17) bỏ kiểm trần chuỗi (KDL-16); (18) thông báo gắn `lich_hen_id` của yêu cầu (NDL-03).
+- **Đột biến bắt buộc** (mỗi dòng một đột biến, phải bị bắt bởi ít nhất một ca): (1) bỏ loại lịch cũ khỏi đếm hoặc chồng giờ (KDL-10, KDL-11); (2) khoá hai khung giờ theo thứ tự "cũ rồi mới" thay vì id tăng dần (TDL-03); (3) so id khung giờ bằng chuỗi (~~TDL-03 với id 9 và 10~~ X2: chỉ TDL-19 bắt, TDL-03 sống); (4) không kiểm lại trạng thái dưới khoá (TDL-04); (5) không `+1` bộ đếm khi tự đổi (DLH-01, DLH-05); (6) `+1` khi đổi hộ hoặc duyệt (DLO-01, XDL-06); (7) quên `markReplaced` hoặc quên `release` khung giờ cũ (DLH-01, INV); (8) sao chép thiếu một bản chụp, hoặc tính lại giá (DLH-01, INV-8); (9) gọi `onSlotReleased` trong giao dịch hoặc hai lần (DLH-13, HDL-06); (10) bỏ `findBlocking` hoặc gọi với khung giờ NGUỒN (KDL-17, HDL-05); (11) từ chối vẫn giữ chỗ (XDL-08); (12) duyệt thất bại vẫn đổi yêu cầu sang `DaDuyet` (XDL-07); (13) ghi chú rỗng được chấp nhận (XDL-09); (14) tạo yêu cầu thứ hai khi đã có `ChoDuyet` (XDL-02, TDL-16); (15) bỏ phạm vi chi nhánh ở danh sách hoặc chi tiết (XDL-03, QDL-02); (16) tạo `giao_dich_thanh_toan` khi đổi (HDL-03, INV-10); (17) bỏ kiểm trần chuỗi (KDL-16); (18) thông báo gắn `lich_hen_id` của yêu cầu (NDL-03).
 - **Việc phải đo thật ở task X1** (tiêu chí PASS/FAIL đặt TRƯỚC khi chạy, ghi ở TRACKING mục 6; nếp "Quy ước đo thật"; spec đo tạm rồi xoá; Docker và MySQL có thể tắt lúc đầu phiên, bật bằng `docker desktop start` rồi `docker compose up -d db`):
 
 | Mã đo | Câu hỏi | Tiêu chí đạt (đặt trước) |
@@ -509,7 +525,7 @@ Không ghi nhật ký khi: Bệnh nhân tự đổi, tạo yêu cầu, đọc, t
 Nền đã có: booking lõi (ma trận, create, cancel, B15 thông báo, bốn cổng thật + waitlist Noop) · payment và wallet (PaymentChain, hoàn cọc) · admin (cấu hình, rbac, audit)
            search K1 và K2 (lưới khung giờ) · doctor (nghỉ phép, gỡ ca, trang Duyệt yêu cầu) · PendingBranchChangesPort thật (B16b)
 
-S1 Nền (không thấy được gì trên giao diện):  P1 ─┬─ P2 (audit; [CHỜ Trung])
+S1 Nền (không thấy được gì trên giao diện):  P1 ─┬─ P2 (audit)
                                                    ├─ X1 (đo M1 đến M7) ─ B1 (nền ghi: markReplaced, ma trận, chèn nối chuỗi, khoá)
                                                    ├─ B2 (bộ luật và reader, tham số thayThe)
                                                    └─ B3 (thông báo, thư, bốn sự kiện)
@@ -527,39 +543,41 @@ Lát cắt giao được: **S2** là MVP (Bệnh nhân tự đổi lịch và g�
 
 | ID | Việc (file chính) | Phụ thuộc | Truy vết | Test case | Thẻ | Giờ | Mức |
 |---|---|---|---|---|---|---|---|
-| **P1** | Migration (kể cả TẠO bảng `yeu_cau_doi_lich_ngoai_chinh_sach`, chưa có migration; sửa 24/11/2026), entity, DDL ba file: `lich_hen.so_lan_tu_doi_lich` + CHECK, `thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id` + FK + UNIQUE, ENUM `DoiLichHo`; entity `YeuCauDoiLichNgoaiChinhSach`; `enums.ts`; đăng ký `entities.ts`, `migrations/index.ts`; `clinix.dbml`, `clinix_mysql.sql`, `clinix_quy_tac_nghiep_vu.md` | — | Q1, Q5, Q6; L4 | MDL-01…MDL-10 | `[ĐỒNG BỘ TL]` `[ĐỤNG admin]` `[ĐỤNG database]` `[CHỜ Trung]` | 10 (đã nâng từ 5, Đại chấp nhận 24/11/2026) | ĐẦY ĐỦ |
-| **P2** | Luật kiểm Audit cho `XuLyDoiLichNgoaiChinhSach` và `DoiLichHo`: `audit-validation.ts`, `audit-entry.ts` (kiểu `chi_tiet`, ánh xạ đối tượng), test cạnh mã; sửa `audit-enum-parity` nếu cần | P1 | 2.4.70; 2.4.31 HĐK; Q6, Q9 | NDL-04 (phần luật), NDL-08 | `[ĐỤNG audit]` `[CHỜ Trung]` | 3,5 | GỌN |
+| **P1** | Migration (kể cả TẠO bảng `yeu_cau_doi_lich_ngoai_chinh_sach`, chưa có migration; sửa 24/11/2026), entity, DDL ba file: `lich_hen.so_lan_tu_doi_lich` + CHECK, `thong_bao.yeu_cau_doi_lich_ngoai_chinh_sach_id` + FK + UNIQUE, ENUM `DoiLichHo`; entity `YeuCauDoiLichNgoaiChinhSach`; `enums.ts`; đăng ký `entities.ts`, `migrations/index.ts`; `clinix.dbml`, `clinix_mysql.sql`, `clinix_quy_tac_nghiep_vu.md` | — | Q1, Q5, Q6; L4 | MDL-01…MDL-10 | `[ĐỒNG BỘ TL]` `[ĐỤNG admin]` `[ĐỤNG database]` (Trung approve #671) | 10 (đã nâng từ 5, Đại chấp nhận 24/11/2026) | ĐẦY ĐỦ |
+| **P2** | Luật kiểm Audit cho `XuLyDoiLichNgoaiChinhSach` và `DoiLichHo`: `audit-validation.ts`, `audit-entry.ts` (kiểu `chi_tiet`, ánh xạ đối tượng), test cạnh mã; sửa `audit-enum-parity` nếu cần | P1 | 2.4.70; 2.4.31 HĐK; Q6, Q9 | NDL-04 (phần luật), NDL-08 | `[ĐỤNG audit]` (Trung approve #686) | 3,5 | GỌN |
 | **X1** | Đo thật M1 đến M7 (5.14); tiêu chí đặt trước; spec đo tạm rồi xoá; ghi TRACKING mục 6 | P1 | R1, R2, R4 | — (số đo) | `[TIỀN ĐỀ]` | 4,5 | ĐẦY ĐỦ |
 | **B1** | Nền ghi đổi lịch: actor `DoiLich` và `markReplaced`; `insertLichHen` thêm `lichHenTruocId`, `soLanTuDoiLich`, kết quả `DuplicateChain`; `claim-slot.ts` dùng chung với `create` (R8); `reschedule-locks.ts`; INV-7 đến INV-10; cập nhật AR-01, AR-06, AR-07 và ca ma trận | P1, X1 | 2.4.9 HĐK; quy tắc DB 2, 3, 27 | HDL-01, HDL-02, HDL-08, HDL-10, INV-7…INV-10 | `[ĐỤNG booking]` | 5 | ĐẦY ĐỦ |
-| **B2** | Bộ luật `reschedulability.rules.ts`, `reschedule.reader.ts`; thêm `thayThe` vào `BookabilityFacts`, `BookabilityReader`, `findActiveAppointments`, `findOverlappingAppointments`; mã lỗi mới ở `appointments.constants.ts` | P1 | 2.4.9 b2, A1, A3; 2.4.30 A2; TECH_DEBT 260 (phần kiểm) | KDL-01…KDL-19 | | 5,5 | ĐẦY ĐỦ (reader dưới khoá) |
+| **B2** | Bộ luật `reschedulability.rules.ts`, `reschedule.reader.ts`; thêm `thayThe` vào `BookabilityFacts`, `BookabilityReader`~~, `findActiveAppointments`, `findOverlappingAppointments`~~ (hai hàm truy vấn không đổi: luật loại lịch đang đổi); mã lỗi mới ở `appointments.constants.ts` | P1 | 2.4.9 b2, A1, A3; 2.4.30 A2; TECH_DEBT 260 (phần kiểm) | KDL-01…KDL-19 | | 5,5 | ĐẦY ĐỦ (reader dưới khoá) |
 | **B3** | Bốn sự kiện thông báo, mẫu thư, hàng chờ email 17 loại (thêm bốn loại vào 13 loại hiện có), trường `doiLich` và `yeuCau` của `AppointmentEvent`, ghi `thong_bao.yeu_cau_…_id` | P1 | 2.4.68, 2.4.75; Q5, Q9, Q10 | NDL-01…NDL-03, NDL-06, NDL-07, BDL-04 | `[ĐỤNG booking]` | 5 | ĐẦY ĐỦ |
-| **B4** | `AppointmentRescheduleService` (tự đổi, đổi hộ, duyệt dùng một thân giao dịch), gọi `findBlocking` cho khung giờ đích (**đóng TECH_DEBT 260**), `onSlotReleased` sau commit, `PaymentChain` làm trần chuỗi | B1, B2, B3, X1 | 2.4.9 b5 đến b9; 2.4.30 b5 đến b8; 2.4.31 b5, b6; 2.4.61 | DLH-01…DLH-03, DLH-06…DLH-08, DLH-12…DLH-14, DLH-16, DLH-18, DLH-19, DLH-21, HDL-03…HDL-07, HDL-09 | | 6,5 | ĐẦY ĐỦ |
+| **B4** | `AppointmentRescheduleService` (tự đổi, đổi hộ, duyệt dùng một thân giao dịch), gọi `findBlocking` cho khung giờ đích (**đóng TECH_DEBT 260**), `onSlotReleased` sau commit~~, `PaymentChain` làm trần chuỗi~~ (trần chuỗi đã ở B2) | B1, B2, B3, X1 | 2.4.9 b5 đến b9; 2.4.30 b5 đến b8; 2.4.31 b5, b6; 2.4.61 | DLH-01…DLH-03, DLH-06…DLH-08, DLH-12…DLH-14, DLH-16, DLH-18, DLH-19, DLH-21, HDL-03…HDL-07, HDL-09 | | 6,5 | ĐẦY ĐỦ |
 | **B5** | Tạo yêu cầu ngoài chính sách (nhánh vượt hạn mức), repository, khoá "một `ChoDuyet` mỗi lịch", `yeuCauDoiLich` và `choPhepDoiLich` ở chi tiết lịch Bệnh nhân và `choPhepDoiLich`, `coYeuCauChoDuyet` ở chi tiết Lễ tân | B1, B2, B3 | 2.4.9 A2, HĐK vượt hạn; Q4, Q7 (f) | DLH-04, DLH-05, DLH-15, XDL-01, XDL-02, TDL-16 (smoke) | `[ĐỤNG booking]` | 5 | ĐẦY ĐỦ |
 | **B6** | Route Bệnh nhân: `GET reschedule-preview`, `POST reschedule`, DTO, `@Roles('BenhNhan')`, mã lỗi | B4, B5 | 2.4.9 (mọi bước) | DLH-09…DLH-11, DLH-17, DLH-22, DLH-23, QDL-01, QDL-04, QDL-05, QDL-06 | | 5,5 | ĐẦY ĐỦ |
 | **B7** | Route Lễ tân đổi hộ: preview, `POST` với `lyDo`, `ReceptionScopeService`, Audit `DoiLichHo`, thông báo | B4, B3, P2 | 2.4.30; Q6, Q9 | DLO-01…DLO-10, QDL-02, QDL-03 | | 4,5 | ĐẦY ĐỦ |
 | **B8** | Danh sách và chi tiết yêu cầu cho Lễ tân và Quản trị viên: phạm vi, lọc, phân trang, danh sách trắng, `coTheDuyet` | B5 | 2.4.31 b1 đến b3; Q11 | XDL-03…XDL-05, XDL-13 (phần đọc), XDL-15, QDL-02 | `[ĐỤNG admin]` (dùng `BranchAccessPolicy`) | 5 | GỌN + EXPLAIN M3 |
 | **B9** | Duyệt (gọi lõi, `khungGioId` thay thế) và từ chối: ghi chú, Audit, thông báo, 409 giữ `ChoDuyet` | B4, B5, B3, P2 | 2.4.31 b4 đến b7, A1, A2; Q7 (g), Q10 | XDL-06…XDL-12, XDL-14, NDL-04, NDL-05 | | 6 | ĐẦY ĐỦ |
-| **F1** | Web Bệnh nhân (1/2): kiểu, API client, hook, bộ chọn khung giờ dùng chung (`onSelect` ở `SlotCell` và `DoctorSlotGrid`), route `…/doi-lich`, nút ở chi tiết | B6 (`[SOẠN TRƯỚC]` bằng API giả theo 5.8) | 2.4.9 b1, b3, b4 | WDH-01…WDH-03, WDH-07, WDH-08, WDH-10 | `[ĐỤNG search]` `[CHỜ Trung]` `[ĐỤNG router]` `[ĐỤNG shared]` | 5 | GỌN |
+| **F1** | Web Bệnh nhân (1/2): kiểu, API client, hook, bộ chọn khung giờ dùng chung (`onSelect` ở `SlotCell` và `DoctorSlotGrid`), route `…/doi-lich`, nút ở chi tiết | B6 (`[SOẠN TRƯỚC]` bằng API giả theo 5.8) | 2.4.9 b1, b3, b4 | WDH-01…WDH-03, WDH-07, WDH-08, WDH-10 | `[ĐỤNG search]` (Trung approve #679) `[ĐỤNG router]` `[ĐỤNG shared]` | 5 | GỌN |
 | **F2** | Web Bệnh nhân (2/2): màn xác nhận cũ → mới, ô lý do, kết quả, banner `yeuCauDoiLich` | F1 | 2.4.9 b6, b7, A1, A2, HĐK | WDH-04…WDH-06, WDH-09 | | 5 | GỌN |
-| **F3** | Web Lễ tân đổi hộ: nút, hộp chọn (bộ chọn dùng chung), ô lý do bắt buộc | B7, F1 | 2.4.30 b1 đến b8 | WDO-01…WDO-06 | | 4,5 | GỌN |
+| **F3** | Web Lễ tân đổi hộ: nút, ~~hộp chọn~~ route con chọn khung giờ (bộ chọn dùng chung), ô lý do bắt buộc | B7, F1 | 2.4.30 b1 đến b8 | WDO-01…WDO-06 | | 4,5 | GỌN |
 | **F4** | Web Lễ tân: mục menu "Yêu cầu đổi lịch" có `to`, trang hai tab, chi tiết, hộp duyệt và từ chối, chọn khung giờ thay thế | B8, B9 (`[SOẠN TRƯỚC]`), F1 | 2.4.31 b1 đến b7, A1, A2; Q10, Q11 | WXD-01…WXD-10 | `[ĐỤNG router]` | 6,5 | GỌN |
-| **F5** | Web Quản trị viên: tab "Yêu cầu đổi lịch" trong "Duyệt yêu cầu" (một dòng ở `doctor` + sửa ca WA-13), route con, tái dùng thành phần F4 | F4 | 2.4.31 (Quản trị viên) | WXD-11…WXD-14 | `[ĐỤNG doctor]` `[CHỜ Trung]` | 3,5 | GỌN |
+| **F5** | Web Quản trị viên: tab "Yêu cầu đổi lịch" trong "Duyệt yêu cầu" (~~một dòng ở `doctor`~~ `createAdminApprovalsRoutes` + sửa ca WA-13), route con, tái dùng thành phần F4 | F4 | 2.4.31 (Quản trị viên) | WXD-11…WXD-14 | `[ĐỤNG doctor]` (Trung approve #702) | 3,5 | GỌN |
 | **D1** | Tài liệu của repo: booking PLAN (mục "Không làm", hàng `DaDoiLich` ở 5.2, hàng `markReplaced` ở 5.10, bảng cổng), booking TRACKING, một dòng `docs/TRACKING.md`; đóng nháp TECH_DEBT 260 (Đại ghi); tick PLAN này | mọi B và F | `[ĐỒNG BỘ TL]` | — | `[ĐỒNG BỘ TL]` | 2 | — |
 | **X2** | Đồng thời và bất biến trên MySQL thật: bộ TDL-01…TDL-18, mỗi ca đồng thời chạy một mình, INV và IVT sau mỗi ca, đếm 1213/1205/503 | B6, B7, B9 | R1, R2 | TDL-01…TDL-18 | | 5,5 | ĐẦY ĐỦ |
-| **X3** | Kiểm tay trình duyệt ba vai trò (KTD-01…KTD-12), đột biến lô (18 đột biến, 5.14), jscpd và gitleaks (CI đo), tổng kết TRACKING, seed demo | mọi task | mục 10 | KTD-01…KTD-12 | `[CHỜ Đại]` (seed, DB `clinix`) | 5 | ĐẦY ĐỦ |
+| **X3** | Kiểm tay trình duyệt ba vai trò (KTD-01…KTD-12), đột biến lô (18 đột biến, 5.14), jscpd và gitleaks (CI đo), tổng kết TRACKING, seed demo | mọi task | mục 10 | KTD-01…KTD-12 | `[CHỜ Đại]` (seed, DB `clinix`; giữ tới X3) | 5 | ĐẦY ĐỦ |
 
 **Tổng 103 giờ** (không tính D2 của Đại ngoài repo).
+
+**Trạng thái (reschedule D1, 26/11/2026; ngày merge theo giờ Việt Nam):** P1 #671 (24/11); B3 #672, B2 #673, X1 #674, B1 #678, F1 #679, B4 #682, B5 #684, P2 #686, B6 #688, B7 #691, B8 #692, F2 #693, B9 #696, F3 #698 (25/11); F4 #699, X2 #700, F5 #702, F4b #703 (26/11). D1 đang làm (#651); X3 (#653) chưa làm. File thật của từng task: 5.1 và TRACKING mục 1, 7. DLH-20 không task nào ở bảng này nhận: B6 phủ ở preview.
 
 ### 6.3 File của module khác và file dùng chung bị chạm, cách tránh xung đột
 
 | File | Của | Task | Cách |
 |---|---|---|---|
 | `docs/database/clinix.dbml`, `clinix_mysql.sql`, `clinix_quy_tac_nghiep_vu.md` | chung | P1 | `git pull` trước, báo Trung, một PR nhỏ; ba file khớp nhau |
-| `apps/api/src/admin/entities/{lich-hen,thong-bao}.entity.ts`, `enums.ts`, entity mới | Trung (admin) | P1 | `[CHỜ Trung]`; tiền lệ B19 |
+| `apps/api/src/admin/entities/{lich-hen,thong-bao}.entity.ts`, `enums.ts`, entity mới | Trung (admin) | P1 | (Trung approve #671); tiền lệ B19 |
 | `apps/api/src/database/entities.ts`, `migrations/index.ts`, migration mới | chung | P1 | báo Trung; mốc thời gian migration lớn hơn mọi migration trên `main` lúc merge (kiểm lại) |
-| `apps/api/src/audit/audit-validation.ts`, `audit-entry.ts` + test | Trung (audit) | P2 | `[CHỜ Trung]` |
-| `apps/web/src/features/search/slots/{slot-cell,doctor-slot-grid}.tsx` | Trung (search) | F1 | thêm prop tuỳ chọn, mặc định giữ liên kết; ca K2 không đổi |
-| `apps/web/src/features/doctor/admin/approvals/approvals-host-page.tsx`, `approvals-routes.tsx`, test WA-13 | Trung (doctor) | F5 | một dòng theo nếp D8; sửa ca WA-13 |
+| `apps/api/src/audit/audit-validation.ts`, `audit-entry.ts` + test | Trung (audit) | P2 | (Trung approve #686) |
+| `apps/web/src/features/search/slots/{slot-cell,doctor-slot-grid,doctor-slot-panel,slot-picker}.tsx`, `search/index.ts` | Trung (search) | F1 | thêm prop tuỳ chọn, mặc định giữ liên kết; ca K2 không đổi |
+| `apps/web/src/features/doctor/admin/approvals/approvals-host-page.tsx`, `approvals-routes.tsx`, test WA-13 | Trung (doctor) | F5 | ~~một dòng theo nếp D8~~ `createAdminApprovalsRoutes(extraChildren)`, `router/` truyền route của booking; sửa ca WA-13 |
 | `apps/web/src/router/role-nav.ts`, `role-routes.tsx` | chung | F1, F4 | `[ĐỤNG router]`, nếp patient Q21 |
 | `apps/web/src/shared/routes/booking-paths.ts` | chung | F1, F4 | chỉ thêm hằng |
 | `docs/TECH_DEBT.md`, `AI_USAGE_LOG.md` | Đại | D1 | **phiên lập kế hoạch này không sửa**; nháp ở TRACKING mục 4 |
@@ -598,7 +616,7 @@ Lát cắt giao được: **S2** là MVP (Bệnh nhân tự đổi lịch và g�
 
 Mỗi task một issue; nhãn `module:booking` cộng `backend`, `frontend` hay `docs` (task web: `frontend`); milestone `reschedule` `[đề xuất]` (Đại tạo); giao `MaxTrann` (P1, P2, F1, F5 gắn thêm người review `junUTE`); Epic `[reschedule] Đổi lịch hẹn (scope #9)` gom mọi task; Iteration theo 6.4. Tiêu đề issue dạng `[reschedule] <mã> · <tên> (<backend|frontend>)`, tiêu đề PR ≤ 100 ký tự và `Closes #<issue>` ở thân PR (Epic dùng `Refs`). Khuôn thân issue theo issue booking #249 (đọc bằng `gh issue view 249`): `## Mô tả`, `## Truy vết`, `## Phụ thuộc`, `## Lưu ý` (thẻ `[CHỜ …]` trong PLAN), `## Test case liên quan` (kèm "Danh sách đầy đủ ở `docs/features/reschedule/PLAN.md` mục 7"), `## Đóng khi` (bốn ô: PR được người còn lại review và squash merge và tiêu đề PR theo Conventional Commits; test case đã chạy và ghi vào `docs/features/reschedule/TRACKING.md`; tài liệu đồng bộ đã cập nhật trong cùng PR; đã ghi `AI_USAGE_LOG.md`, không `Co-Authored-By` của AI), nguồn `docs/features/reschedule/PLAN.md` task `<mã>`.
 
-Nhãn `blocked` (gỡ khi điều kiện có): **P1, P2, F1, F5**: `[CHỜ Trung]`; **X3**: `[CHỜ Đại]` (seed, DB `clinix`); mọi câu Q1 đến Q7, Q9 đến Q12 đã được Đại trả lời trực tiếp 24/11/2026; **Q8, Q13 đến Q16 còn mở** (không chặn viết mã: Q8 chỉ cần khi chạy demo; Q13 duyệt ở PR).
+Nhãn `blocked` (gỡ khi điều kiện có): **P1, P2, F1, F5**: đã gỡ điều kiện (Trung approve #671, #686, #679, #702); **X3**: `[CHỜ Đại]` (seed, DB `clinix`; giữ tới X3); mọi câu Q1 đến Q7, Q9 đến Q12 đã được Đại trả lời trực tiếp 24/11/2026; ~~Q8, Q13 đến Q16 còn mở~~ **chỉ còn Q8** (cần khi chạy demo; Q13 đến Q16 đã trả lời hay xác nhận 26/11/2026).
 
 | ID | Tiêu đề issue | Tiêu đề PR (`feat(<scope>): …`) | Iter. | "Đóng khi" (ngoài bốn ô chuẩn) |
 |---|---|---|---|---|
@@ -623,11 +641,11 @@ Nhãn `blocked` (gỡ khi điều kiện có): **P1, P2, F1, F5**: `[CHỜ Trung
 | X2 | `[reschedule] X2 · Đồng thời và bất biến của đổi lịch trên MySQL thật (backend)` | `test(booking): thêm bộ ca đồng thời và bất biến cho đổi lịch (reschedule X2)` | 10 | TDL-01…TDL-18 Pass một mình; 0 lần 503; INV và IVT xanh |
 | X3 | `[reschedule] X3 · Kiểm tay ba vai trò, đột biến lô, tổng kết scope đổi lịch (docs)` | `docs(booking): tổng kết kiểm tay và đột biến của scope đổi lịch (reschedule X3)` | 10 | KTD-01…KTD-12 Pass; 18 đột biến bị bắt; CI xanh; mục 10 đạt |
 
-**Nhãn Epic:** `[reschedule] Đổi lịch hẹn (scope #9)` (Epic gom 20 issue; không đóng khi chưa đạt mục 10).
+**Nhãn Epic:** `[reschedule] Đổi lịch hẹn (scope #9)` (Epic gom 20 issue; không đóng khi chưa đạt mục 10). Đã tạo: Epic #633, task #634 đến #653.
 
 ## 7. Test case dự kiến
 
-Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.int-spec.ts`), **E** e2e qua `AppModule` (`test:e2e`), **C** đồng thời (một mình), **W** giao diện (Vitest và happy-dom), **B** trình duyệt (kiểm tay). Mỗi test ghi mã ở tên ca (`it('DLH-01: …')`). Mọi ca đều có ca âm và ca biên; endpoint mới có ca đúng và sai vai trò, đúng và sai chi nhánh. Ca đồng thời chạy MỘT mình, sau mỗi ca chạy INV-1…INV-10 và IVT-01…IVT-07. Dữ liệu dựng bằng fixture (`appointments/testing/`), mỗi ca tự truyền cấu hình (không số cứng của mã). **Trạng thái: chưa chạy ca nào** (kế hoạch giai đoạn 1; mục "Kết quả test" ở TRACKING mục 2).
+Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.int-spec.ts`), **E** e2e qua `AppModule` (`test:e2e`), **C** đồng thời (một mình), **W** giao diện (Vitest và happy-dom), **B** trình duyệt (kiểm tay). Mỗi test ghi mã ở tên ca (`it('DLH-01: …')`). Mọi ca đều có ca âm và ca biên; endpoint mới có ca đúng và sai vai trò, đúng và sai chi nhánh. Ca đồng thời chạy MỘT mình, sau mỗi ca chạy INV-1…INV-10 và IVT-01…IVT-07. Dữ liệu dựng bằng fixture (`appointments/testing/`), mỗi ca tự truyền cấu hình (không số cứng của mã). ~~**Trạng thái: chưa chạy ca nào** (kế hoạch giai đoạn 1)~~ **Trạng thái (reschedule D1, 26/11/2026): mọi mã ở các bảng dưới đã chạy, trừ KTD-01…KTD-12 (X3)** (mục "Kết quả test" ở TRACKING mục 2; DLH-17 phủ qua BDL-01…BDL-03, HDL-06 cùng DLH-13, WXD-01 qua PL-09 và WXD-79). Mã `[đề xuất]` thêm khi làm: KDL-20…23, DLH-24…46 và 48…62, DLO-11…20, XDL-21…50, TDL-19…22, QDL-07…14, NDL-09…23 và 26…30, HDL-12…36, BDL-06…12, WDH-11…47, WDO-07…15, WXD-21…66, 68…99 và 101…137.
 
 ### 7.1 Bộ luật "đổi được không" và bộ đọc (KDL) — B2
 
@@ -645,9 +663,9 @@ Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.i
 | KDL-10 | U, I | hồ sơ có đúng `toiDa` lịch đang hoạt động, một trong đó là lịch đang đổi; rồi `toiDa − 1` | biên: đếm không tính lịch cũ ⇒ `ok`; hồ sơ có `toiDa` lịch **khác** ⇒ `VUOT_SO_LICH_HEN_TOI_DA` | Q7 (e); L13 |
 | KDL-11 | U, I | chồng giờ: khung giờ mới chồng chính lịch cũ (dịch 15 phút trong dịch vụ 30 phút); chồng lịch khác của cùng hồ sơ; chồng lịch của hồ sơ khác cùng tài khoản | cho; `LICH_HEN_TRUNG_THOI_GIAN`; cho (tính theo hồ sơ, so `<=>`) | Q7 (e) |
 | KDL-12 | U | mỗi trong các mã còn lại của `evaluateBookability`: `KHUNG_GIO_DA_DAT`, `KHUNG_GIO_DANG_GIU`, `KHUNG_GIO_DA_QUA` (và `HetHan`), `BAC_SI_KHONG_KHA_DUNG`, `CHI_NHANH_NGHI`, `CHI_NHANH_CHUA_KHAI_BAO`, `CA_KHONG_TON_TAI`, `NGOAI_GIO_HOAT_DONG`, `BAC_SI_NGHI_PHEP`, `KHUNG_GIO_NGOAI_LICH_MOI` | đúng mã, đúng thứ tự (dừng ở lỗi đầu tiên) | 2.4.9 A1; 2.4.61 A1, A2 |
-| KDL-13 | I | khung giờ mới `DangGiuCho` đã quá hạn (lịch giữ `ChoThanhToan` của người khác quá hạn) | coi là trống, hết hạn lười đúng một lần trong cùng giao dịch, lịch người kia `DaHuy` | booking 5.5 |
+| KDL-13 | I | khung giờ mới `DangGiuCho` đã quá hạn (lịch giữ `ChoThanhToan` của người khác quá hạn) | coi là trống, hết hạn lười đúng một lần trong cùng giao dịch, lịch người kia `DaHuy` | booking 5.5 (B2 chứng minh phần đọc; phần ghi hết hạn lười thuộc B1, B4) |
 | KDL-14 | I | lịch của hồ sơ người thân đã ngừng (`trang_thai_hieu_luc = false`) | `HO_SO_NGUOI_THAN_DA_NGUNG` | Q7 (e) |
-| KDL-15 | I | chưa có dòng cấu hình; có dòng nhưng `so_lan_tu_doi_lich_toi_da = 0` | `HE_THONG_CHUA_CAU_HINH` (409, không dùng số ngầm); `toiDa = 0` ⇒ mọi lần `TuDoi` là nhánh yêu cầu | quy tắc 35 |
+| KDL-15 | I | chưa có dòng cấu hình; có dòng nhưng `so_lan_tu_doi_lich_toi_da = 0` | `HE_THONG_CHUA_CAU_HINH` (409, không dùng số ngầm); `toiDa = 0` (hợp lệ) ⇒ mọi lần `TuDoi` là nhánh yêu cầu | quy tắc 35 |
 | KDL-16 | I | chuỗi có `MAX_CHAIN_DEPTH − 1` lịch rồi đổi tiếp (Lễ tân); `− 2` thì đổi được | `CHUOI_DOI_LICH_QUA_DAI`, không 500, không ghi gì | R4 |
 | KDL-17 | I | `PendingBranchChangesPort`: khung giờ **đích** trong vùng bị loại (một yêu cầu đã duyệt chưa áp dụng); khung giờ **nguồn** trong vùng bị loại, đích ngoài vùng | đích bị loại ⇒ `KHUNG_GIO_NGOAI_LICH_MOI`; nguồn bị loại, đích ngoài ⇒ đổi được; spy: `findBlocking` gọi đúng một lần với `ca` của khung giờ đích | TECH_DEBT 260; admin Q6, Q48; PBC-10 |
 | KDL-18 | I | cùng dữ liệu qua chế độ `none` (preview) và `locked` (POST) | cùng kết luận (tham số hoá mọi mã ở KDL-02…KDL-17) | nếp `checks` |
@@ -687,7 +705,7 @@ Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.i
 |---|---|---|---|---|
 | DLO-01 | I, E | Lễ tân đúng chi nhánh đổi hộ lịch `DaXacNhan` có `lyDo`; lặp 5 lần liên tiếp trên một chuỗi (dưới trần chuỗi) | 201; lịch mới như DLH-01 nhưng `so_lan_tu_doi_lich` **giữ nguyên**; không bị chặn bởi `toiDa` | 2.4.30 HĐK |
 | DLO-02 | I | Audit | một dòng `DoiLichHo` cùng giao dịch: `ma_doi_tuong` = lịch cũ, `chi_nhanh_id` = chi nhánh lịch, `{ truoc, sau, ly_do }` đúng tập khoá, không tên, SĐT, email | Q6, Q9; 2.4.70 |
-| DLO-03 | E | Lễ tân chi nhánh khác; Quản trị viên (hai phạm vi); Bệnh nhân; Bác sĩ | 404 cùng thân; 403 (không có route cho Quản trị viên) | A1; Q7 (i) |
+| DLO-03 | E | Lễ tân chi nhánh khác; Quản trị viên (hai phạm vi); Bệnh nhân; Bác sĩ | 404 cùng thân; 403 (không có route cho Quản trị viên); lịch `DaDoiLich` của chi nhánh ⇒ 409 `LICH_HEN_KHONG_CHO_DOI`, không 404 (TRACKING 3.10) | A1; Q7 (i) |
 | DLO-04 | U, I | lịch quá giờ hẹn nhưng trong `check_in_sau_phut`; quá cửa sổ | đổi được; `LICH_HEN_DA_QUA_GIO` | Q3 |
 | DLO-05 | I, C | khung giờ bị tranh chấp | 409 `KHUNG_GIO_DA_DAT`, giữ nguyên, không audit, không thông báo | A1 |
 | DLO-06 | I | thông báo | `LichHenDaDoiLich` ghi "Lễ tân đã đổi hộ" và lý do (≤ 500); email `ChoGui` | Q9 `[đề xuất]` |
@@ -712,7 +730,7 @@ Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.i
 | XDL-10 | I | duyệt hai lần; duyệt sau từ chối; từ chối sau duyệt | 409 `YEU_CAU_DA_XU_LY`; không ghi thêm | TĐK |
 | XDL-11 | I | lịch gốc không còn `DaXacNhan` (đã huỷ, đã tiếp đón, Vắng mặt, đã đổi hộ) | duyệt 409 `LICH_HEN_KHONG_CHO_DOI`; từ chối vẫn được; `coTheDuyet = false` | Q7 (g); R6 |
 | XDL-12 | U, I | lịch gốc quá `thoi_gian + check_in_sau_phut` | duyệt 409 `LICH_HEN_DA_QUA_GIO`; từ chối được | Q3 |
-| XDL-13 | E | quyền: Bệnh nhân, Bác sĩ ⇒ 403; Lễ tân chi nhánh khác ⇒ 404; Quản trị viên Chi nhánh ngoài phạm vi ⇒ 404; Quản trị viên Toàn hệ thống mọi chi nhánh; Lễ tân bị khoá ⇒ 403 | đúng mã | TĐK; admin Q40 |
+| XDL-13 | E | quyền: Bệnh nhân, Bác sĩ ⇒ 403; Lễ tân chi nhánh khác ⇒ 404; Quản trị viên Chi nhánh ngoài phạm vi ⇒ 404; Quản trị viên Toàn hệ thống mọi chi nhánh; Lễ tân bị khoá ⇒ ~~403~~ 401 `PHIEN_HET_HIEU_LUC` ở HTTP (403 chỉ ở tầng dịch vụ) | đúng mã | TĐK; admin Q40 |
 | XDL-14 | I | lỗi ghi Audit (giả lập) khi duyệt và khi từ chối | hoàn tác trọn (yêu cầu vẫn `ChoDuyet`, lịch không đổi) | 2.4.70 A1; 2.4.31 "Thất bại" |
 | XDL-15 | E | rò dữ liệu ở danh sách và chi tiết | danh sách trắng; `no-store`; không `lich_hen_id` ở API Bệnh nhân; id yêu cầu chỉ ở API nhân sự | H10 |
 | XDL-16 | I | chi tiết lịch của Bệnh nhân sau từ chối và duyệt | `yeuCauDoiLich` mới nhất: `TuChoi` kèm `ghiChuXuLy`; sau duyệt lịch cũ 404, lịch mới hiện (đường theo mã trong thông báo) | Q10 |
@@ -723,14 +741,14 @@ Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.i
 |---|---|---|---|
 | TDL-01 | C | hai Bệnh nhân đổi hai lịch KHÁC vào CÙNG khung giờ trống | đúng một thắng; bên thua `KHUNG_GIO_DA_DAT`; INV |
 | TDL-02 | C | hai tab cùng đổi MỘT lịch sang hai khung giờ khác nhau | đúng một thắng; bên thua 404 hoặc 409 có kiểu; không chuỗi rẽ nhánh; 1062 của `lich_hen_truoc_id` không lộ ra |
-| TDL-03 | C | hoán vị: A (khung giờ X→Y) và B (Y→X), id 9 và 10 để bắt lỗi so chuỗi | 0 lần 1213; cả hai thành công hoặc cả hai `KHUNG_GIO_DA_DAT`, không lịch nào mất; INV |
-| TDL-04 | C | đổi × huỷ cùng một lịch (100 vòng) | đúng một thắng; huỷ thắng ⇒ đổi nhận 409 hoặc 404, khung giờ mới không bị giữ; đổi thắng ⇒ huỷ nhận `NotFound`; hoàn cọc đúng một lần; **ghi số 1213 nội bộ** (rủi ro B12 Q chấp nhận); 0 lần 503 |
+| TDL-03 | C | hoán vị: A (khung giờ X→Y) và B (Y→X), id 9 và 10 để bắt lỗi so chuỗi | 0 lần 1213; ~~cả hai thành công hoặc~~ cả hai `KHUNG_GIO_DA_DAT`, không lịch nào mất; INV (X2: 56/56 vòng) |
+| TDL-04 | C | đổi × huỷ cùng một lịch (100 vòng) | đúng một thắng; huỷ thắng ⇒ đổi nhận 409 hoặc 404, khung giờ mới không bị giữ; đổi thắng ⇒ huỷ nhận `NotFound`; hoàn cọc đúng một lần; **ghi số 1213 nội bộ** (rủi ro B12 Q chấp nhận); 0 lần 503 (X2: 26/100 vòng có 1213 nội bộ, nạn nhân là bên đổi) |
 | TDL-05 | C | đổi × hết hạn giữ chỗ của khung giờ mới | hết hạn lười đúng một lần; không hai lịch giữ một khung giờ |
 | TDL-06 | C | đổi × `markNoShow` hoặc job Vắng mặt cùng lịch | một thắng; không lịch vừa `DaDoiLich` vừa `VangMat` |
-| TDL-07 | C | đổi × tiếp đón (Lễ tân, payment tiền mặt) cùng lịch | một thắng; INV |
-| TDL-08 | C | đổi × Quản trị viên override cùng lịch | một thắng |
-| TDL-09 | C | đổi × duyệt nghỉ phép của bác sĩ (khung giờ mới trong kỳ nghỉ) | đúng một nhánh; nếu đổi thắng, lịch mới bị `findAffectedByLeave` huỷ và hoàn cọc đúng một lần |
-| TDL-10 | C | đổi × áp dụng hoặc duyệt thay đổi chi nhánh (khung giờ mới trong vùng bị loại) | đúng một nhánh; kết quả theo M6 |
+| TDL-07 | C | đổi × tiếp đón (Lễ tân, payment tiền mặt) cùng lịch | một thắng; INV (X2: nạn nhân 1213 là đường tiếp đón hay thu tiền) |
+| TDL-08 | C | đổi × Quản trị viên override cùng lịch | một thắng (X2: nạn nhân phụ thuộc đích của override) |
+| TDL-09 | C | đổi × ~~duyệt~~ GỬI RỒI DUYỆT nghỉ phép của bác sĩ (khung giờ mới trong kỳ nghỉ) | đúng một nhánh; nếu đổi thắng, lịch mới bị `findAffectedByLeave` huỷ và hoàn cọc đúng một lần |
+| TDL-10 | C | đổi × áp dụng hoặc duyệt thay đổi chi nhánh (khung giờ mới trong vùng bị loại) | đúng một nhánh; X2: đổi VÀO vùng bị loại bị chặn có kiểu; đổi RA NGOÀI vùng có chu trình với `applyOne` (nạn nhân luôn là `applyOne`) |
 | TDL-11 | C | đổi × `create` của cùng bệnh nhân vào giờ chồng khung giờ mới | không hai lịch chồng giờ |
 | TDL-12 | C | hai nhân sự duyệt cùng một yêu cầu | đúng một thắng; một yêu cầu `DaDuyet`; đúng một lịch mới |
 | TDL-13 | C | duyệt × từ chối cùng yêu cầu | một thắng; không vừa lịch mới vừa `TuChoi` |
@@ -738,7 +756,11 @@ Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.i
 | TDL-15 | C | duyệt × Lễ tân đổi hộ cùng lịch gốc | một thắng; bên thua 409 có kiểu |
 | TDL-16 | C | mười yêu cầu cùng lúc cho MỘT lịch | đúng một `ChoDuyet`; chín `DA_CO_YEU_CAU_DOI_LICH_CHO_DUYET` |
 | TDL-17 | C | 100 vòng hỗn hợp (đổi, huỷ, create, duyệt, từ chối, hết hạn) trên cùng tập lịch | INV-1…INV-10 và IVT-01…IVT-07 xanh; 0 lần 503; 1213/1205 chỉ ở mức chấp nhận B12 Q |
-| TDL-18 | C | đối chứng R2: đảo cố ý thứ tự (xin `lich_hen` trước `khung_gio` rồi chèn yêu cầu) | có 1213 (chứng minh hợp đồng khoá cần); đúng thứ tự ⇒ 0 |
+| TDL-18 | C | đối chứng R2: đảo cố ý thứ tự (xin `lich_hen` trước `khung_gio` rồi chèn yêu cầu) | có 1213 (chứng minh hợp đồng khoá cần); đúng thứ tự ⇒ 0 (X2: 100/100 vòng khi đảo, nạn nhân là bên đúng thứ tự) |
+| TDL-19 `[đề xuất]` | C | thứ tự khoá hai khung giờ theo SỐ, không theo chuỗi (X2) | kết quả ở TRACKING 1.17 mục J |
+| TDL-20 `[đề xuất]` | C | duyệt thay đổi chi nhánh × đổi lịch (X2) | kết quả ở TRACKING 1.17 mục J |
+| TDL-21 `[đề xuất]` | C | thu tiền mặt thật × đổi lịch (X2) | kết quả ở TRACKING 1.17 mục J |
+| TDL-22 `[đề xuất]` | C | đổi lịch × `create` vào khung giờ đích (X2) | kết quả ở TRACKING 1.17 mục J |
 
 ### 7.6 Quyền và phạm vi (QDL)
 
@@ -819,9 +841,11 @@ Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.i
 | WDH-08 | F1 | bàn phím và trình đọc màn hình | nhãn ô theo giờ và trạng thái; focus quản lý ở hộp và khi quay lại |
 | WDH-09 | F2 | banner yêu cầu | `ChoDuyet`, `TuChoi` kèm ghi chú; chi tiết lịch đã đổi (404) có trang thân thiện |
 | WDH-10 | F1 | kiến trúc | không `fetch` ngoài lớp client; đường dẫn từ `booking-paths`; không `dangerouslySetInnerHTML` |
-| WDO-01…WDO-06 | F3 | nút theo `choPhepDoiLich`; hộp chọn; ô lý do bắt buộc 1 đến 255 và dòng nhắc; lỗi 409; 404 ngoài chi nhánh; nút khoá khi gửi | đúng |
+| WDO-01…WDO-06 | F3 | nút theo `choPhepDoiLich`; ~~hộp chọn~~ route con chọn khung giờ; ô lý do bắt buộc 1 đến 255 và dòng nhắc; lỗi 409; 404 ngoài chi nhánh; nút khoá khi gửi | đúng |
 | WXD-01…WXD-10 | F4 | menu có `to`; hai tab; bảng và phân trang; chi tiết; hộp duyệt và từ chối; ghi chú bắt buộc (giữ lựa chọn); chọn khung giờ thay thế; 409 giữ hộp; rỗng, lỗi, mất mạng; URL giữ tab | đúng |
 | WXD-11…WXD-14 | F5 | tab Admin hết vô hiệu và là liên kết; route con; nội dung dùng chung với Lễ tân; ca WA-13 cập nhật | đúng |
+
+Mã `[đề xuất]` thêm khi làm: TRACKING mục 1 và 2. F4 gán: WXD-01 menu, 02 hai tab, 03 bảng và phân trang, 04 rỗng, lỗi, mất mạng, 05 chi tiết, 06 hộp và ghi chú, 07 duyệt, 08 lỗi ghi và 409 giữ hộp, 09 bấm đúp và quay về, 10 URL và kiến trúc.
 
 ### 7.12 Kiểm tay trình duyệt (KTD) — X3 (ba vai trò; 125 phần trăm và 375 px; không dùng DB `clinix` khi chưa được Đại đồng ý)
 
@@ -837,14 +861,14 @@ Theo `AGENTS.md` mục 5 và `CONTRIBUTING.md`: nhánh `feat/booking-…` do ng�
 
 ## 10. Điều kiện hoàn thành scope
 
-- [ ] Hai nhánh của 2.4.9 (tự đổi; vượt hạn mức gửi yêu cầu), 2.4.30 và 2.4.31 (duyệt, từ chối, tranh chấp, ghi chú bắt buộc) chạy đúng trên MySQL thật; mọi luồng thay thế A1, A2, A3 của ba use case có ca.
-- [ ] Mọi mã test case ở mục 7 đã chạy hoặc ghi rõ lý do hoãn ở TRACKING mục 2 (KTD kiểm tay có kết quả thật).
-- [ ] INV-1…INV-10 và IVT-01…IVT-07 xanh sau mọi ca đồng thời; 0 lần 503; số 1213 nội bộ ở TDL-04 và TDL-17 được ghi.
-- [ ] 18 đột biến ở 5.14 đều bị ít nhất một ca bắt.
-- [ ] Không còn thẻ `[CHỜ …]` trong PLAN này (trừ ghi chú `[CHỜ waitlist]` chạy lại), không còn `[cần điền]` chặn mã.
-- [ ] Ba file `docs/database/*` khớp migration; booking PLAN, booking TRACKING, `docs/TRACKING.md` và TECH_DEBT (dòng 260 đóng, 266 trở đi) đã đồng bộ ở D1; D2 (Word) do Đại báo xong.
-- [ ] TECH_DEBT dòng 260 đã đóng bằng ca KDL-17 và HDL-05; dòng 147 nhắc khung giờ giải phóng do đổi lịch.
-- [ ] CI xanh (bảy check), jscpd ≤ 3% (CI đo), 0 lỗi lint.
+- [x] Hai nhánh của 2.4.9 (tự đổi; vượt hạn mức gửi yêu cầu), 2.4.30 và 2.4.31 (duyệt, từ chối, tranh chấp, ghi chú bắt buộc) chạy đúng trên MySQL thật; mọi luồng thay thế A1, A2, A3 của ba use case có ca. (**Đạt**: 2.4.9 A1 DLH-06, DLH-07; A2 DLH-04, DLH-05; A3 DLH-08, KDL-02; 2.4.30 A1 DLO-05; A2 `reception-reschedule-preview.service.spec.ts` và DLO-15; 2.4.31 A1 XDL-09; A2 XDL-07; CI `main` `08965d2` run 45748827955: tích hợp và e2e xanh)
+- [ ] Mọi mã test case ở mục 7 đã chạy hoặc ghi rõ lý do hoãn ở TRACKING mục 2 (KTD kiểm tay có kết quả thật). **Chờ X3** (KTD-01…KTD-12 chưa chạy; mọi mã khác ở mục 7 đã chạy, xem đầu mục 7).
+- [x] INV-1…INV-10 và IVT-01…IVT-07 xanh sau mọi ca đồng thời; 0 lần 503; số 1213 nội bộ ở TDL-04 và TDL-17 được ghi. (**Đạt**: X2, 38 ca, 1.900 vòng đua, INV và IVT sau mỗi vòng, 503 = 0, 1205 = 0; số 1213 nội bộ: TDL-04 26/100, TDL-17 12/100; TRACKING 1.17 mục J)
+- [ ] 18 đột biến ở 5.14 đều bị ít nhất một ca bắt. **Chờ X3** (đột biến lô chưa chạy).
+- [ ] Không còn thẻ `[CHỜ …]` trong PLAN này (trừ ghi chú `[CHỜ waitlist]` chạy lại), không còn `[cần điền]` chặn mã. **Chờ X3** (còn câu Q8 và việc seed, DB `clinix` chờ Đại; không `[cần điền]` nào chặn mã).
+- [ ] Ba file `docs/database/*` khớp migration; booking PLAN, booking TRACKING, `docs/TRACKING.md` và TECH_DEBT (dòng 260 đóng, 266 trở đi) đã đồng bộ ở D1; D2 (Word) do Đại báo xong. **Chờ D2** (phần tài liệu trong repo đã đồng bộ ở reschedule D1; Đại trả lời 26/11/2026: D2 chưa xong).
+- [x] TECH_DEBT dòng 260 đã đóng bằng ca KDL-17 và HDL-05; dòng 147 nhắc khung giờ giải phóng do đổi lịch. (**Đạt**: dòng 260 đóng ở reschedule B4, ca KDL-17 và HDL-05; dòng 147 sửa ở reschedule D1)
+- [x] CI xanh (bảy check), jscpd ≤ 3% (CI đo), 0 lỗi lint. (**Đạt**: CI `main` `08965d2` run 45748827955, mọi job đã chạy đều xanh, riêng `pr-title` chỉ chạy ở PR (xanh ở #702, #703); jscpd 2,55% dòng)
 
 ## Phụ lục A. Nguyên văn 2.4.9, 2.4.30, 2.4.31 (sao chép bằng script từ `2.4_Dac_Ta_Use_Case_CLINIX.docx`, không diễn giải)
 

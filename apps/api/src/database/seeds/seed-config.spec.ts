@@ -86,6 +86,7 @@ describe('C5 SD-03/04 — validation và lỗi CLI trước khi kết nối', ()
     'doctor-demo',
     'exam-demo',
     'payment-demo',
+    'notification-demo',
   ])(
     'SD-03 chặn production %s ngay cả khi chưa có cấu hình DB',
     async (command) => {

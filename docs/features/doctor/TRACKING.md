@@ -182,6 +182,7 @@ Việc chưa làm; cập nhật cột "Trạng thái" khi hai bên đã thống 
 | doctor-exam (Đại làm, mã trong `doctor/examination/`) | Phần khám bệnh của `doctor` có kế hoạch riêng ở `docs/features/doctor-exam/` (PLAN 6.7: file của Trung bị chạm là `doctor.module.ts` (import `ExaminationModule`), `architecture.spec.ts` PD-19, `features/doctor/index.ts` (một `export *`), hai file `audit/`, `admin-sidebar.tsx` (một `to`); B9 sẽ chạm một file `search/`); P1 đến B8, B10, F1 đến F8 đã vào `main` (#418 đến #543); B9, D1, D2, X2, X3 còn lại | doctor-exam PLAN 6.7, TRACKING 5 | Chưa báo Trung riêng về D2 (Đại báo trước khi mở PR) |
 | `wallet`, `waitlist` | Không gọi trực tiếp (qua `cancel` của booking) | 5.8 | Không cần |
 | Nhóm (Figma, 2.4) | Sửa Figma theo L20–L30 và mục 4.5 (form "Theo ca", ô "+", nút Gỡ ca, hộp xác nhận duyệt, dòng "Từ chối", tương phản, dữ liệu mâu thuẫn); sửa 2.4 (repo `TLCN_CLINIX`) theo D2 | D2, D3 | Chưa |
+| `booking` (Đại) | reschedule F5 (26/11/2026): `ADMIN_APPROVALS_ROUTES` đổi thành hàm `createAdminApprovalsRoutes(...)` nhận route con của `booking` (`router/role-routes.tsx` truyền vào); tab "Yêu cầu đổi lịch" là liên kết; ca WA-13 đổi kỳ vọng (`WXD-14`) | reschedule F5, D1 | Đã đồng bộ (26/11/2026) |
 
 ## 6. Số đo thật (PLAN.md mục 5.15; làm ở task X1 trước B2 (M9) và B3 (M1, M2, M3, M6, M7))
 

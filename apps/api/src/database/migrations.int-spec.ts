@@ -13,6 +13,7 @@ import { NghiTheoCaNhieuNgay1793880000000 } from './migrations/1793880000000-ngh
 import { DoiLich1793966400000 } from './migrations/1793966400000-doi-lich.js';
 import { TaoBangNhacLichHen1794052800000 } from './migrations/1794052800000-tao-bang-nhac-lich-hen.js';
 import { ChiMucThongBaoTaiKhoan1794139200000 } from './migrations/1794139200000-chi-muc-thong-bao-tai-khoan.js';
+import { TaoBangChat1794225600000 } from './migrations/1794225600000-tao-bang-chat.js';
 import { TaoBangMocHoanTien1793534400000 } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -127,6 +128,7 @@ const NTC_NAME = NghiTheoCaNhieuNgay1793880000000.name;
 const DOI_LICH_NAME = DoiLich1793966400000.name;
 const NHAC_LICH_HEN_NAME = TaoBangNhacLichHen1794052800000.name;
 const CHI_MUC_THONG_BAO_NAME = ChiMucThongBaoTaiKhoan1794139200000.name;
+const CHAT_NAME = TaoBangChat1794225600000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -698,12 +700,14 @@ describe('vòng đời migration', () => {
     const later = await revertAfter(MOC_NAME);
     // UX7 (đổi): trước là `expect(later).toEqual([])` vì B19 là migration cuối; nay migration nghỉ theo ca nhiều ngày đứng sau và được hoàn tác trước.
     // reschedule P1 (đổi): thêm migration đổi lịch đứng sau nữa, cũng được hoàn tác trước (down của nó không chặn vì DB chưa có dữ liệu đổi lịch).
-    // notification P1, P2 (đổi): migration bảng nhắc lịch hẹn và chỉ mục thông báo đứng sau cùng, cũng được hoàn tác trước (down của chúng không chặn).
+    // notification P1, P2 (đổi): migration bảng nhắc lịch hẹn và chỉ mục thông báo đứng sau, cũng được hoàn tác trước (down của chúng không chặn).
+    // chat P1 (đổi): migration ba bảng chat đứng sau cùng, cũng được hoàn tác trước (down chỉ chặn khi tin_nhan còn dòng; ở đây rỗng).
     expect(later).toEqual([
       NTC_NAME,
       DOI_LICH_NAME,
       NHAC_LICH_HEN_NAME,
       CHI_MUC_THONG_BAO_NAME,
+      CHAT_NAME,
     ]);
     const MOC_COLUMNS = [
       'thoi_diem_xac_nhan',
@@ -1470,7 +1474,8 @@ describe('vòng đời migration', () => {
 
     it('MTB-10: up, down, up trên DB có thông báo: down chỉ xoá chỉ mục (thong_bao_index_25 còn nguyên), dữ liệu không đổi; up lại giống hệt', async () => {
       await runPendingMigrations(dataSource);
-      expect(await revertAfter(CHI_MUC_THONG_BAO_NAME)).toEqual([]);
+      // chat P1 (đổi): migration ba bảng chat đứng sau, được hoàn tác trước rồi lên lại
+      const later = await revertAfter(CHI_MUC_THONG_BAO_NAME);
       expect(await indexColumns()).toEqual([
         'tai_khoan_id',
         'thoi_diem_tao',
@@ -1499,6 +1504,7 @@ describe('vòng đời migration', () => {
 
       expect(await runPendingMigrations(dataSource)).toEqual([
         CHI_MUC_THONG_BAO_NAME,
+        ...later,
       ]);
       expect(await showThongBao()).toBe(upState);
       expect(await checksum()).toBe(before);
@@ -1508,6 +1514,72 @@ describe('vòng đời migration', () => {
     });
   });
 
+  // chat P1 (#706): MCH-02 (up, down, up; down TỪ CHỐI khi tin_nhan còn dòng). MCH-01 ở migration-source.spec.ts, MCH-03 ở schema-parity.int-spec.ts.
+  describe('chat P1: ba bảng hoi_thoai, tai_khoan_hoi_thoai, tin_nhan', () => {
+    const CHAT = ['hoi_thoai', 'tai_khoan_hoi_thoai', 'tin_nhan'];
+    const showChat = async (): Promise<string[]> => {
+      const result: string[] = [];
+      for (const table of CHAT)
+        result.push(
+          (
+            (await dataSource.query(
+              `SHOW CREATE TABLE \`${table}\``,
+            )) as Record<string, string>[]
+          )[0]?.['Create Table'] ?? '',
+        );
+      return result;
+    };
+
+    it('MCH-02: up, down, up khi ba bảng rỗng: down xoá đúng ba bảng, bảng khác còn nguyên; up lại giống hệt', async () => {
+      await runPendingMigrations(dataSource);
+      const later = await revertAfter(CHAT_NAME);
+      const upState = await showChat();
+      const otherTables = (await listTables(dataSource)).filter(
+        (table) => !CHAT.includes(table),
+      );
+
+      expect(await revertLastMigration(dataSource)).toBe(CHAT_NAME);
+      expect(await listTables(dataSource)).toEqual(otherTables);
+
+      expect(await runPendingMigrations(dataSource)).toEqual([
+        CHAT_NAME,
+        ...later,
+      ]);
+      expect(await showChat()).toEqual(upState);
+    });
+
+    it('MCH-02: down khi tin_nhan còn một dòng: TỪ CHỐI, ba bảng và dòng còn nguyên, migration vẫn được ghi là đã chạy', async () => {
+      await runPendingMigrations(dataSource);
+      const later = await revertAfter(CHAT_NAME);
+      const queryRunner = dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        // Dựng một tin mà không cần tài khoản, hội thoại thật
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+        await queryRunner.query(
+          "INSERT INTO tin_nhan (hoi_thoai_id, nguoi_gui_id, noi_dung, thoi_diem_gui) VALUES (900001, 900001, 'MCH02', '2026-11-27 08:00:00')",
+        );
+      } finally {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+        await queryRunner.release();
+      }
+
+      await expect(revertLastMigration(dataSource)).rejects.toThrow(
+        /tin_nhan còn dữ liệu/,
+      );
+      for (const table of CHAT)
+        expect(await listTables(dataSource)).toContain(table);
+      const [{ total }] = (await dataSource.query(
+        'SELECT COUNT(*) AS total FROM tin_nhan',
+      )) as [{ total: string | number }];
+      expect(Number(total)).toBe(1);
+
+      await dataSource.query("DELETE FROM tin_nhan WHERE noi_dung = 'MCH02'");
+      expect(await runPendingMigrations(dataSource)).toEqual(later);
+    });
+  });
+
+  // chat P1 (đổi): hạ rồi nâng lại cả 18 migration mất khoảng 23 giây khi chạy riêng, vượt 30 giây mặc định khi chạy cùng cả bộ (đo 27/11/2026): nới riêng ca này
   it('hoàn tác hết rồi hoàn tác tiếp: trả về null, không lỗi', async () => {
     for (let i = 0; i < MIGRATIONS.length; i++)
       await revertLastMigration(dataSource);
@@ -1515,5 +1587,5 @@ describe('vòng đời migration', () => {
     expect(await runPendingMigrations(dataSource)).toHaveLength(
       MIGRATIONS.length,
     );
-  });
+  }, 120_000);
 });

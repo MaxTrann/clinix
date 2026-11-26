@@ -75,6 +75,12 @@
 -- hay ALTER TABLE nào (migration chép nguyên văn). COMMENT của bảng nhac_lich_hen ("INSERT ... ON DUPLICATE KEY UPDATE; ROW_COUNT 1 = vừa tạo" và hai chỗ "Chưa chốt") và của
 -- thong_bao.loai_su_kien đã lỗi thời: bản đúng là quy tắc 41 (INSERT thường + bắt 1062, số đo M4; 3 lần gồm lần đầu, cách 5 phút, trễ tối đa 10 phút) và mục "notification D1"
 -- ở clinix_quy_tac_nghiep_vu.md (danh mục mã ở notification/catalog/, 21 loại có thư). Truy vấn mẫu nhắc lịch ở cuối file cập nhật hai tham số đã chốt.
+-- 26/11/2026 (scope #9 "Đổi lịch hẹn", task reschedule D1, issue #651): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE
+-- hay ALTER TABLE nào (migration chép nguyên văn). Quy tắc service 27 (lịch không tự trỏ chính nó) đã có mã: xem quy tắc 27 và mục "reschedule D1" ở clinix_quy_tac_nghiep_vu.md.
+-- 27/11/2026 (scope #11 "Nhắn tin", task chat P1, issue #706): tin_nhan thêm ma_gui (char(36), mã ý định gửi của client, chống gửi trùng), tep_ten_goc, tep_loai, tep_dung_luong
+-- (metadata tệp đính kèm), UNIQUE tin_nhan_index_nguoi_gui_ma_gui (nguoi_gui_id, ma_gui) và hai CHECK chk_tin_nhan_tep (bốn cột tệp cùng trống hay cùng có, 1 byte đến 10 MB),
+-- chk_tin_nhan_noi_dung (nội dung rỗng chỉ khi có tệp); thêm COMMENT cho noi_dung, tep_dinh_kem. hoi_thoai, tai_khoan_hoi_thoai không đổi. Ba bảng chat lần đầu có migration
+-- (TaoBangChat1794225600000) chép nguyên văn DDL dưới đây. DB cũ chưa có ba bảng: chạy migration; không có dữ liệu cần chuyển.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -97,6 +103,8 @@
 --   * Đánh giá: 1 đến 5 sao; ẩn đánh giá thì bắt buộc có lý do, không ẩn thì không có lý do  [chk_danh_gia_so_sao, chk_danh_gia_an]
 --   * Mỗi lịch hẹn có tối đa 1 đánh giá, 1 hồ sơ khám  [danh_gia_bac_si.lich_hen_id, ho_so_kham.lich_hen_id]
 --   * Hội thoại với Lễ tân phải có chi nhánh, hội thoại với Bác sĩ thì không  [chk_hoi_thoai_chi_nhanh]
+--   * Tin nhắn: bốn cột tệp cùng trống hoặc cùng có, dung lượng 1 byte đến 10 MB; nội dung rỗng chỉ khi có tệp  [chk_tin_nhan_tep, chk_tin_nhan_noi_dung]
+--   * Mỗi người gửi không trùng mã gửi (gửi lại cùng mã trả về đúng tin cũ; NULL không tính)  [tin_nhan_index_nguoi_gui_ma_gui]
 --   * Bảng cấu hình hệ thống và thông tin phòng khám chỉ có đúng 1 dòng (id = 1)  [chk_cau_hinh_mot_dong, chk_phong_kham_mot_dong]
 --   * Không trùng khung giờ trong 1 lịch làm việc; không trùng lịch làm việc (bác sĩ, ngày, ca)  [khung_gio, lich_lam_viec]
 --   * Không trùng mã giao dịch cổng thanh toán trong cùng phương thức (chống xử lý lặp)  [giao_dich_thanh_toan (phuong_thuc, ma_giao_dich_cong)]
@@ -131,7 +139,7 @@
 --   * Rút tiền: tạo yêu cầu tăng so_tien_dang_giu; duyệt ghi giao_dich_vi loại Rut và giảm cả so_du lẫn so_tien_dang_giu; từ chối chỉ giảm so_tien_dang_giu
 --   * Đổi chi nhánh công tác của bác sĩ (chỉ Quản trị viên Toàn hệ thống, sửa trực tiếp hồ sơ, không có yêu cầu riêng) chỉ khi bác sĩ không còn lịch hẹn đang hoạt động và không còn ca lich_lam_viec có ngay từ hôm nay trở đi ở chi nhánh hiện tại; ca và lịch hẹn đã qua giữ để truy vết; ghi nhật ký DoiChiNhanhBacSi
 --   * Mốc đã đọc của chat (tin_nhan_cuoi_da_doc_id) phải thuộc cùng hội thoại
---   * Lịch hẹn không tự trỏ chính nó (lich_hen_truoc_id khác lich_hen_id): KHÔNG có CHECK vì MySQL từ chối CHECK tham chiếu cột AUTO_INCREMENT (lỗi 3818); kiểm tra ở service khi triển khai API — hiện CHƯA có mã triển khai
+--   * Lịch hẹn không tự trỏ chính nó (lich_hen_truoc_id khác lich_hen_id): KHÔNG có CHECK vì MySQL từ chối CHECK tham chiếu cột AUTO_INCREMENT (lỗi 3818); kiểm tra ở service — đã có mã (reschedule B1, B4): chỉ ghi lúc INSERT lịch mới, không UPDATE cột này; ca HDL-08, INV-9 (xem quy tắc 27)
 --   * Liên kết KichHoatNhanSu: gửi lại thành công thì thu hồi liên kết cũ rồi đặt da_gui_luc cho liên kết mới (1 giao dịch); gửi thất bại thì chỉ thu hồi liên kết mới, liên kết cũ còn hạn vẫn hợp lệ; kích hoạt ghi da_dung_luc + mat_khau_bam + trang_thai = DangHoatDong trong 1 giao dịch. Thời hạn [đề xuất: 24 giờ]
 --   * Quản trị viên Chi nhánh xem Bệnh nhân qua lich_hen (benh_nhan_id + chi_nhanh_id), không có cột chi nhánh ở benh_nhan; không khoá/sửa Bệnh nhân (xem truy vấn mẫu cuối file)
 --   * Chi nhánh có đủ 7 dòng chi_nhanh_lich_hoat_dong; thứ chưa khai báo coi như KHÔNG nhận phân công/đặt lịch
@@ -624,8 +632,12 @@ CREATE TABLE `tin_nhan` (
   `tin_nhan_id` bigint PRIMARY KEY AUTO_INCREMENT,
   `hoi_thoai_id` bigint NOT NULL,
   `nguoi_gui_id` bigint NOT NULL,
-  `noi_dung` text NOT NULL,
-  `tep_dinh_kem` varchar(255),
+  `ma_gui` char(36) COMMENT 'Mã ý định gửi do client sinh (UUID); NULL cho tin nạp sẵn. Duy nhất theo người gửi',
+  `noi_dung` text NOT NULL COMMENT 'Văn bản thuần; rỗng chỉ khi có tệp đính kèm',
+  `tep_dinh_kem` varchar(255) COMMENT 'Khoá lưu trữ của tệp trên volume riêng; NULL nếu không có tệp',
+  `tep_ten_goc` varchar(255),
+  `tep_loai` varchar(100) COMMENT 'Kiểu MIME do máy chủ xác định từ nội dung tệp',
+  `tep_dung_luong` int COMMENT 'Số byte đã lưu',
   `thoi_diem_gui` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -739,6 +751,8 @@ CREATE INDEX `hoi_thoai_index_26` ON `hoi_thoai` (`chi_nhanh_id`, `loai`, `thoi_
 CREATE INDEX `tai_khoan_hoi_thoai_index_27` ON `tai_khoan_hoi_thoai` (`hoi_thoai_id`, `tai_khoan_id`);
 
 CREATE INDEX `tin_nhan_index_28` ON `tin_nhan` (`hoi_thoai_id`, `tin_nhan_id`);
+
+CREATE UNIQUE INDEX `tin_nhan_index_nguoi_gui_ma_gui` ON `tin_nhan` (`nguoi_gui_id`, `ma_gui`);
 
 CREATE INDEX `nhat_ky_hanh_dong_index_29` ON `nhat_ky_hanh_dong` (`loai_doi_tuong`, `ma_doi_tuong`, `thoi_diem`);
 
@@ -1034,6 +1048,14 @@ ALTER TABLE `danh_gia_bac_si` ADD CONSTRAINT `chk_danh_gia_an` CHECK (
 );
 ALTER TABLE `hoi_thoai` ADD CONSTRAINT `chk_hoi_thoai_chi_nhanh` CHECK (
     (`loai` = 'BenhNhan_LeTan' AND `chi_nhanh_id` IS NOT NULL) OR (`loai` = 'BenhNhan_BacSi' AND `chi_nhanh_id` IS NULL)
+);
+ALTER TABLE `tin_nhan` ADD CONSTRAINT `chk_tin_nhan_tep` CHECK (
+    (`tep_dinh_kem` IS NULL AND `tep_ten_goc` IS NULL AND `tep_loai` IS NULL AND `tep_dung_luong` IS NULL)
+ OR (`tep_dinh_kem` IS NOT NULL AND `tep_ten_goc` IS NOT NULL AND `tep_loai` IS NOT NULL
+     AND `tep_dung_luong` IS NOT NULL AND `tep_dung_luong` BETWEEN 1 AND 10485760)
+);
+ALTER TABLE `tin_nhan` ADD CONSTRAINT `chk_tin_nhan_noi_dung` CHECK (
+    `noi_dung` <> '' OR `tep_dinh_kem` IS NOT NULL
 );
 ALTER TABLE `chi_nhanh_lich_hoat_dong` ADD CONSTRAINT `chk_lich_hoat_dong_thu` CHECK (
     `thu_trong_tuan` BETWEEN 1 AND 7
