@@ -75,6 +75,8 @@
 -- hay ALTER TABLE nào (migration chép nguyên văn). COMMENT của bảng nhac_lich_hen ("INSERT ... ON DUPLICATE KEY UPDATE; ROW_COUNT 1 = vừa tạo" và hai chỗ "Chưa chốt") và của
 -- thong_bao.loai_su_kien đã lỗi thời: bản đúng là quy tắc 41 (INSERT thường + bắt 1062, số đo M4; 3 lần gồm lần đầu, cách 5 phút, trễ tối đa 10 phút) và mục "notification D1"
 -- ở clinix_quy_tac_nghiep_vu.md (danh mục mã ở notification/catalog/, 21 loại có thư). Truy vấn mẫu nhắc lịch ở cuối file cập nhật hai tham số đã chốt.
+-- 26/11/2026 (scope #9 "Đổi lịch hẹn", task reschedule D1, issue #651): chỉ sửa chữ ở dòng chú thích, không đổi bảng, cột, enum, constraint và KHÔNG sửa câu CREATE TABLE
+-- hay ALTER TABLE nào (migration chép nguyên văn). Quy tắc service 27 (lịch không tự trỏ chính nó) đã có mã: xem quy tắc 27 và mục "reschedule D1" ở clinix_quy_tac_nghiep_vu.md.
 -- Cần MySQL >= 8.0.17: CHECK thật sự được thực thi từ 8.0.16 (bản cũ chỉ phân tích cú pháp); hàm JSON_SCHEMA_VALID của chk_cau_hinh_nhac_lich cần 8.0.17. Đã nạp thử trên MySQL 8.4.
 -- ============================================================================
 -- QUY TẮC DO DATABASE BẢO VỆ (CHECK / UNIQUE / cột sinh)
@@ -131,7 +133,7 @@
 --   * Rút tiền: tạo yêu cầu tăng so_tien_dang_giu; duyệt ghi giao_dich_vi loại Rut và giảm cả so_du lẫn so_tien_dang_giu; từ chối chỉ giảm so_tien_dang_giu
 --   * Đổi chi nhánh công tác của bác sĩ (chỉ Quản trị viên Toàn hệ thống, sửa trực tiếp hồ sơ, không có yêu cầu riêng) chỉ khi bác sĩ không còn lịch hẹn đang hoạt động và không còn ca lich_lam_viec có ngay từ hôm nay trở đi ở chi nhánh hiện tại; ca và lịch hẹn đã qua giữ để truy vết; ghi nhật ký DoiChiNhanhBacSi
 --   * Mốc đã đọc của chat (tin_nhan_cuoi_da_doc_id) phải thuộc cùng hội thoại
---   * Lịch hẹn không tự trỏ chính nó (lich_hen_truoc_id khác lich_hen_id): KHÔNG có CHECK vì MySQL từ chối CHECK tham chiếu cột AUTO_INCREMENT (lỗi 3818); kiểm tra ở service khi triển khai API — hiện CHƯA có mã triển khai
+--   * Lịch hẹn không tự trỏ chính nó (lich_hen_truoc_id khác lich_hen_id): KHÔNG có CHECK vì MySQL từ chối CHECK tham chiếu cột AUTO_INCREMENT (lỗi 3818); kiểm tra ở service — đã có mã (reschedule B1, B4): chỉ ghi lúc INSERT lịch mới, không UPDATE cột này; ca HDL-08, INV-9 (xem quy tắc 27)
 --   * Liên kết KichHoatNhanSu: gửi lại thành công thì thu hồi liên kết cũ rồi đặt da_gui_luc cho liên kết mới (1 giao dịch); gửi thất bại thì chỉ thu hồi liên kết mới, liên kết cũ còn hạn vẫn hợp lệ; kích hoạt ghi da_dung_luc + mat_khau_bam + trang_thai = DangHoatDong trong 1 giao dịch. Thời hạn [đề xuất: 24 giờ]
 --   * Quản trị viên Chi nhánh xem Bệnh nhân qua lich_hen (benh_nhan_id + chi_nhanh_id), không có cột chi nhánh ở benh_nhan; không khoá/sửa Bệnh nhân (xem truy vấn mẫu cuối file)
 --   * Chi nhánh có đủ 7 dòng chi_nhanh_lich_hoat_dong; thứ chưa khai báo coi như KHÔNG nhận phân công/đặt lịch
