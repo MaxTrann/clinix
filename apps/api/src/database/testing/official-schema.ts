@@ -174,6 +174,21 @@ export function maskThongBaoChiMucTaiKhoan(
   );
 }
 
+const TIN_NHAN_CHI_MUC_NGUOI_GUI =
+  /^CREATE INDEX `tin_nhan_index_nguoi_gui_thoi_diem` ON `tin_nhan` /;
+
+/**
+ * Che phần chat P2 (chỉ mục `tin_nhan_index_nguoi_gui_thoi_diem`) khỏi các câu CHÍNH THỨC của ba bảng chat. Migration chat P1 tạo `tin_nhan` trước khi chỉ mục này có;
+ * migration chat P2 thêm sau. Bỏ đúng MỘT câu CREATE INDEX đó, không đụng chỉ mục hay bảng khác. Trạng thái cuối được so bằng SHOW CREATE TABLE (schema-parity.int-spec.ts).
+ */
+export function maskTinNhanChiMucNguoiGui(
+  statements: readonly string[],
+): string[] {
+  return statements.filter(
+    (statement) => !TIN_NHAN_CHI_MUC_NGUOI_GUI.test(statement),
+  );
+}
+
 const NGHI_PHEP_NEW_COMMENT_TAIL =
   'TheoCa: bắt buộc có ca, ngày bắt đầu <= ngày kết thúc (được nghỉ nhiều ngày, một ca).';
 const NGHI_PHEP_OLD_COMMENT_TAIL = 'TheoCa: bắt buộc có ca, chỉ nghỉ 1 ngày.';

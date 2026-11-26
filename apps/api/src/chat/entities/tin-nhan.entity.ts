@@ -15,6 +15,8 @@ import { Check, Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 @Index('tin_nhan_index_nguoi_gui_ma_gui', ['nguoiGuiId', 'maGui'], {
   unique: true,
 })
+// chat P2 (b): câu đếm giới hạn tốc độ 20 tin/phút theo người gửi (PLAN chat 5.5; số đo X1 M4)
+@Index('tin_nhan_index_nguoi_gui_thoi_diem', ['nguoiGuiId', 'thoiDiemGui'])
 export class TinNhan {
   @PrimaryGeneratedColumn({ name: 'tin_nhan_id', type: 'bigint' })
   tinNhanId!: string;
