@@ -144,7 +144,7 @@ Trả lời ngày **08/11/2026** (phiên kiểm độc lập bản nháp 1: **đ
 | Admin sở hữu migration các bảng nền; module khác không tạo lại | admin Q41 | `lich_lam_viec`, `khung_gio` dùng sẵn; `yeu_cau_nghi_phep` do module này (P1) |
 | Chặn đổi `thoi_luong`/dịch vụ chính khi còn khung giờ/ca tương lai; chặn đổi chi nhánh khi còn ca từ hôm nay (ca hôm nay tính là còn) | admin Q16, Q17, quy tắc 13 | Nền của bất biến I-1; `ShiftQueries` là cách đọc ca dùng chung |
 | Audit whitelist đóng, ghi cùng giao dịch, không PII | admin 5.10 (C2) | P4 mở rộng 4 hành động + 2 loại đối tượng |
-| Thông báo/email tối thiểu ở `apps/api/src/notification/` (chưa làm) | admin Q9 | `LeaveNotifier` tạm; email `[CHỜ notification]` |
+| Thông báo/email tối thiểu ở `apps/api/src/notification/` (**đã làm**: scope `notification`, 25/11/2026) | admin Q9; notification Q5 | `LeaveNotifier` giữ nguyên và ghi dòng thư cho ba loại gửi Bác sĩ (notification B5); chuông có từ notification F1 |
 | "Khung giờ còn trống" chủ sở hữu | search Q18 (03/11) ↔ prompt 08/11, booking Q7 | Theo 08/11; Trung xác nhận Q1 (08/11/2026); Trung sửa search ở D1 |
 | `booking` ghi `khung_gio.trang_thai` và `lich_hen.trang_thai`; `HetHan` không ghi, suy ra khi đọc | booking Q3, 5.10 D7 | `doctor` chỉ `INSERT`/`DELETE` có điều kiện khung giờ; reader suy `HetHan` |
 | Duyệt nghỉ phép hoàn 100%, không mời danh sách chờ; chính sách của nhóm | booking Q17 | Module này không tính tiền, không gọi `RefundPort`/`WaitlistPort` |
