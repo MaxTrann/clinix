@@ -1,0 +1,46 @@
+# Phần BỔ SUNG cho docker-compose.staging.yml trên máy chủ staging. CD chép file này cạnh docker-compose.yml, Docker Compose tự gộp.
+# Thêm HTTPS (Caddy), giờ Việt Nam cho MySQL, giữ IP thật của khách sau hai lớp proxy, giới hạn dung lượng log.
+# Cần Docker Compose 2.24.4 trở lên (thẻ !override). Hướng dẫn: docs/DEPLOY_STAGING.md.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+    logging: *logging
+
+  api:
+    logging: *logging
+
+  web:
+    # Người dùng chỉ vào qua Caddy; cổng 8080 chỉ nghe trong máy chủ để kiểm tra khi cần
+    ports: !override
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./00-realip.conf:/etc/nginx/conf.d/00-realip.conf:ro
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN:-clinix-staging.duckdns.org}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging: *logging
+
+volumes:
+  caddy-data:
+  caddy-config:
