@@ -38,7 +38,7 @@ Bắt đầu một tính năng mới: [`docs/FEATURE_PLANNING_PROMPT.md`](docs/F
 
 ## Kiểm tra chất lượng (chạy ở CI cho mọi PR)
 PR title (Conventional Commits) → gitleaks → lint/build/test + coverage → jscpd (trùng lặp ≤ 3%) → Trivy (CRITICAL/HIGH) → build image Docker.
-Sau khi merge `main`: build & đẩy image lên GHCR → deploy staging → health check.
+Sau khi merge `main`: build & đẩy image lên GHCR → deploy staging → health check. Dựng và vận hành môi trường staging: [`docs/DEPLOY_STAGING.md`](docs/DEPLOY_STAGING.md).
 
 ## Thành viên
 - Trần Lê Quốc Đại

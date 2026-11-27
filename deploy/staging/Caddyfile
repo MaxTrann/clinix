@@ -1,0 +1,5 @@
+# Caddy đứng ngoài cùng của staging: tự xin và gia hạn chứng chỉ HTTPS, tự chuyển http sang https.
+# Đổi tên miền: đặt STAGING_DOMAIN trong .env trên máy chủ (xem docs/DEPLOY_STAGING.md).
+{$STAGING_DOMAIN:clinix-staging.duckdns.org} {
+	reverse_proxy web:80
+}
