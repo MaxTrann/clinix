@@ -22,10 +22,14 @@ export class NotificationListQueryDto extends PageQueryDto {
   trangThaiDoc: TrangThaiDocFilter = 'tat-ca';
 }
 
-/** Liên kết trung tính theo vai trò: web tự dựng đường dẫn. Có mã lịch hẹn (không bao giờ có id nội bộ). */
+/**
+ * Liên kết trung tính theo vai trò: web tự dựng đường dẫn. Lịch hẹn mang mã lịch (không bao giờ id nội bộ).
+ * Hội thoại (chat B6) mang id hội thoại: chat dùng id công khai ở mọi route (PLAN chat 5.6), quyền xem do API chat kiểm lại.
+ */
 export type NotificationLink =
   | { kieu: 'LichHen'; maLichHen: string }
-  | { kieu: Exclude<NonNullable<KieuLienKet>, 'LichHen'> };
+  | { kieu: 'HoiThoai'; hoiThoaiId: string }
+  | { kieu: Exclude<NonNullable<KieuLienKet>, 'LichHen' | 'HoiThoai'> };
 
 /** Một thông báo: danh sách trắng tám khoá (TTB-01, HTB-01). Không có `taiKhoanId`, `lichHenId`, id yêu cầu hay trạng thái thư. */
 export interface NotificationItem {

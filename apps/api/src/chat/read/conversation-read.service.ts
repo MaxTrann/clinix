@@ -15,6 +15,7 @@ import { chatFailureException } from '../chat.constants.js';
 import { canSee, type ChatActor } from '../core/chat-access.policy.js';
 import { MessageRepository } from '../core/message.repository.js';
 import type { LoaiHoiThoai } from '../entities/enums.js';
+import { ChatMessageNotifier } from '../notifications/chat-message-notifier.js';
 import {
   toDetail,
   toListItem,
@@ -99,6 +100,9 @@ export class ConversationReadService {
     @Inject(ChatActorResolver) private readonly actors: ChatActorResolver,
     // Dùng lại câu "có dòng thành viên" của lõi gửi (B1), không viết lại
     @Inject(MessageRepository) private readonly members: MessageRepository,
+    // chat B6: đọc hết tin ⇒ thông báo tin mới của hội thoại thành đã đọc (ghi `thong_bao` chỉ ở `chat/notifications/`, HCH-03)
+    @Inject(ChatMessageNotifier)
+    private readonly notifications: ChatMessageNotifier,
   ) {}
 
   async list(
@@ -200,7 +204,9 @@ export class ConversationReadService {
 
   /**
    * Đánh dấu đã đọc tới `tinNhanId` (PLAN 5.4 quy tắc 5, 5.9): khoá hội thoại FOR SHARE, kiểm thấy được và tin THUỘC hội thoại (không thì 404, mốc không đổi; QCH-10),
-   * rồi upsert mốc chỉ tiến tới (id cũ hơn mốc ⇒ 200, mốc giữ nguyên; NBN-15). Lễ tân chưa có dòng thì có dòng mới. B6 thêm: hết tin chưa đọc ⇒ đánh dấu thông báo.
+   * rồi upsert mốc chỉ tiến tới (id cũ hơn mốc ⇒ 200, mốc giữ nguyên; NBN-15). Lễ tân chưa có dòng thì có dòng mới.
+   * chat B6 (PLAN 5.10, tầng 7c sau C3): sau mốc MỚI không còn tin chưa đọc ⇒ thông báo `TinNhanMoi:{id}` của người đọc thành đã đọc (TBC-03); còn ⇒ giữ (TBC-09).
+   * Khoá FOR SHARE trên hội thoại chặn tin mới chen vào giữa câu kiểm và câu đánh dấu (gửi cần FOR UPDATE).
    */
   async markRead(
     user: AuthenticatedUser,
@@ -227,6 +233,19 @@ export class ConversationReadService {
           hoiThoaiId,
           tinNhanId,
         );
+        if (
+          !(await this.repo.hasUnreadAfter(
+            em,
+            hoiThoaiId,
+            moc,
+            actor.taiKhoanId,
+          ))
+        )
+          await this.notifications.markConversationRead(
+            em,
+            actor.taiKhoanId,
+            hoiThoaiId,
+          );
         return { kind: 'Marked', moc };
       },
       { label: 'chat-read' },

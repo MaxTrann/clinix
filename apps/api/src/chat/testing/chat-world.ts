@@ -27,6 +27,8 @@ import { SendMessageService } from '../core/send-message.service.js';
 import type { AuthenticatedUser } from '../../auth/decorators/current-user.decorator.js';
 import { ReceptionScopeRepository } from '../../rbac/reception-scope.repository.js';
 import { ReceptionScopeService } from '../../rbac/reception-scope.service.js';
+import { ChatMessageNotifier } from '../notifications/chat-message-notifier.js';
+import { ChatNotificationRepository } from '../notifications/chat-notification.repository.js';
 import { ChatActorResolver } from '../read/chat-actor.resolver.js';
 import { ConversationReadRepository } from '../read/conversation-read.repository.js';
 import { ConversationReadService } from '../read/conversation-read.service.js';
@@ -130,7 +132,11 @@ export function buildSendService(
   );
 }
 
-/** Dựng service đọc (chat B2) như Nest dựng: phạm vi Lễ tân đọc DB thật qua `ReceptionScopeService`. */
+/** Cổng thông báo THẬT (chat B6) như Nest dựng. `buildSendService` vẫn mặc định `Noop`: test cần thông báo thật thì truyền `{ notifier: buildChatNotifier() }`. */
+export const buildChatNotifier = (): ChatMessageNotifier =>
+  new ChatMessageNotifier(new ChatNotificationRepository());
+
+/** Dựng service đọc (chat B2) như Nest dựng: phạm vi Lễ tân đọc DB thật qua `ReceptionScopeService`; chat B6: đánh dấu thông báo bằng cổng thật. */
 export function buildReadService(db: DataSource): ConversationReadService {
   return new ConversationReadService(
     db,
@@ -139,6 +145,7 @@ export function buildReadService(db: DataSource): ConversationReadService {
       new ReceptionScopeService(new ReceptionScopeRepository(db)),
     ),
     new MessageRepository(),
+    buildChatNotifier(),
   );
 }
 
