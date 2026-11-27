@@ -1,13 +1,14 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { type AuthUser, type VaiTro } from '../features/auth';
+import { LOGIN_PATH, type AuthUser, type VaiTro } from '../features/auth';
 import { resetAuthForTest } from '../features/auth/auth-session';
 import { setAuthState } from '../features/auth/auth-store';
 import {
   DOCTOR_CHAT_PATH,
   PATIENT_CHAT_PATH,
   RECEPTION_CHAT_PATH,
+  patientChatDoctorPath,
 } from '../shared/routes/chat-paths';
 import { createFakeAuthApi } from '../test/fake-auth-api';
 import { fakeSocketIo } from '../test/fake-socket-io';
@@ -171,5 +172,19 @@ describe('chat F2 — khung giữ kết nối nhắn tin', () => {
     renderAt(PATIENT_CHAT_PATH);
     await screen.findByRole('heading', { name: 'Không tìm thấy trang' });
     expect(fakeSocketIo.sockets).toHaveLength(0);
+  });
+});
+
+// chat F4 (MH7, WCH-13): khách mở liên kết "Nhắn tin" của tra cứu bác sĩ ⇒ trang đăng nhập, đường dẫn đang mở nằm ở `state.from` (`returnPathFor` đưa Bệnh nhân
+// về lại đúng trang này sau khi đăng nhập: `features/auth/return-to.test.ts` BRT-CH1).
+describe('chat F4 — khách bấm "Nhắn tin" với bác sĩ', () => {
+  it('WCH-13 CSR-09 chưa đăng nhập mở `/benh-nhan/tin-nhan?bacSi=12` ⇒ trang đăng nhập, `state.from` giữ nguyên đường dẫn', async () => {
+    setAuthState({ status: 'unauthenticated', user: null });
+    const router = renderAt(patientChatDoctorPath('12'));
+    await screen.findByRole('heading', { level: 1 });
+    expect(router.state.location.pathname).toBe(LOGIN_PATH);
+    expect(router.state.location.state).toEqual({
+      from: '/benh-nhan/tin-nhan?bacSi=12',
+    });
   });
 });

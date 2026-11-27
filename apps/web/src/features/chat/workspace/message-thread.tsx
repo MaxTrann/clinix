@@ -4,15 +4,14 @@ import { LoadingState } from '../../../shared/ui/loading-state';
 import type { ChatMessage, ChatRole } from '../api/chat-types';
 import {
   NO_ACCESS_MESSAGE,
-  RECIPIENT_INACTIVE_MESSAGE,
-  RECIPIENT_INACTIVE_PATIENT_HINT,
-  RELATIONSHIP_LABELS,
   dayDividerLabel,
   formatClock,
   isNotFound,
+  recipientInactiveReason,
   vnDayKey,
 } from './chat-format';
 import { MessageComposer } from './message-composer';
+import { OutgoingBubble, ThreadBanner, ThreadHeader } from './thread-parts';
 import { useMessageThread, type OutgoingMessage } from './use-message-thread';
 
 // Khung tin của MỘT hội thoại (chat F3; PLAN chat 5.13; WCH-08…WCH-11, WCH-15, BCH-04). Gắn `key={hoiThoaiId}` ở nơi dùng.
@@ -23,9 +22,6 @@ import { useMessageThread, type OutgoingMessage } from './use-message-thread';
 
 /** Cách đáy dưới ngưỡng này (px) coi như "đang ở cuối". */
 const BOTTOM_SLACK_PX = 48;
-
-const BANNER_TEXT =
-  'Chỉ tư vấn sơ bộ, không thay khám trực tiếp, không kê đơn.';
 
 interface MessageThreadProps {
   hoiThoaiId: string;
@@ -52,23 +48,9 @@ export function MessageThread({
   const thread = useMessageThread(hoiThoaiId, { onActivity, onRead });
   const { state } = thread;
 
-  const backButton = onBack && (
-    <button
-      type="button"
-      onClick={onBack}
-      className="min-h-11 shrink-0 rounded-xl border border-gray-300 px-3 text-sm font-medium"
-    >
-      Quay lại
-    </button>
-  );
-
   const detail = state.status === 'ready' ? state.data.detail : null;
   const blocked = !thread.canSend;
-  const reason = blocked
-    ? role === 'BenhNhan'
-      ? `${RECIPIENT_INACTIVE_MESSAGE} ${RECIPIENT_INACTIVE_PATIENT_HINT}`
-      : RECIPIENT_INACTIVE_MESSAGE
-    : null;
+  const reason = blocked ? recipientInactiveReason(role) : null;
 
   // MỘT tiêu đề cho mọi trạng thái (đang tải, lỗi, sẵn sàng): tiêu điểm đặt lúc mở vẫn giữ khi dữ liệu về, không bị vẽ lại thành phần tử khác
   return (
@@ -76,28 +58,12 @@ export function MessageThread({
       aria-labelledby="chat-thread-title"
       className="flex min-h-0 min-w-0 flex-col"
     >
-      <header className="flex min-w-0 flex-wrap items-center gap-2 border-b border-gray-200 p-3">
-        {backButton}
-        <h2
-          id="chat-thread-title"
-          ref={headingRef}
-          tabIndex={-1}
-          className="min-w-0 truncate text-base font-semibold text-gray-900"
-        >
-          {detail ? detail.doiTac.tenHienThi : 'Hội thoại'}
-          {detail?.doiTac.soDienThoai && (
-            <span className="font-normal text-gray-500">
-              {' '}
-              · {detail.doiTac.soDienThoai}
-            </span>
-          )}
-        </h2>
-        {detail?.quanHe && (
-          <span className="rounded-full bg-gray-100 px-2 text-xs text-gray-700">
-            {RELATIONSHIP_LABELS[detail.quanHe]}
-          </span>
-        )}
-      </header>
+      <ThreadHeader
+        partner={detail?.doiTac ?? null}
+        quanHe={detail?.quanHe ?? null}
+        headingRef={headingRef}
+        onBack={onBack}
+      />
       {state.status === 'loading' && (
         <div className="p-3">
           <LoadingState message="Đang tải tin nhắn…" />
@@ -116,11 +82,7 @@ export function MessageThread({
       )}
       {state.status === 'ready' && detail && (
         <>
-          {detail.banner && (
-            <p className="border-b border-warning-line bg-warning-soft px-3 py-2 text-sm text-warning">
-              {BANNER_TEXT}
-            </p>
-          )}
+          {detail.banner && <ThreadBanner />}
           <MessageList
             messages={state.data.messages}
             now={state.data.loadedAt}
@@ -276,28 +238,7 @@ function MessageList({
             );
           })}
           {outbox.map((item) => (
-            <li key={item.maGui} className="flex flex-col items-end">
-              <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-brand-soft px-3 py-2 text-sm text-gray-900 opacity-80">
-                {item.noiDung}
-              </p>
-              {item.status === 'sending' ? (
-                <p className="mt-1 text-xs text-gray-500">Đang gửi…</p>
-              ) : (
-                <p
-                  role="alert"
-                  className="mt-1 text-right text-xs text-danger-strong"
-                >
-                  {item.error}{' '}
-                  <button
-                    type="button"
-                    onClick={() => onResend(item)}
-                    className="font-semibold underline"
-                  >
-                    Gửi lại
-                  </button>
-                </p>
-              )}
-            </li>
+            <OutgoingBubble key={item.maGui} item={item} onResend={onResend} />
           ))}
         </ol>
       </div>

@@ -1,13 +1,8 @@
-import {
-  ArrowRight,
-  Briefcase,
-  MapPin,
-  MessageSquare,
-  Star,
-} from 'lucide-react';
+import { ArrowRight, Briefcase, MapPin, Star } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { DoctorItem } from '../api/search-types';
+import { DoctorMessageAction } from './doctor-message-action';
 import { doctorDisplayName, doctorInitials } from '../format/doctor-title';
 import { formatMoney, isNoDeposit } from '../format/money';
 import { doctorDetailPath } from '../search-paths';
@@ -138,16 +133,12 @@ export function DoctorCard({
           >
             Xem hồ sơ <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
-          {/* "Nhắn tin" chưa có chức năng nên vô hiệu */}
-          <button
-            type="button"
-            disabled
-            title="Chưa được triển khai"
-            className="inline-flex h-12 items-center gap-1.5 rounded-[0.625rem] border border-gray-200 px-4 text-sm font-medium text-gray-500"
-          >
-            <MessageSquare className="size-4" aria-hidden="true" />
-            Nhắn tin
-          </button>
+          {/* chat F4: Bệnh nhân và khách mở trang Tin nhắn; vai trò khác thấy nút vô hiệu kèm chú thích */}
+          <DoctorMessageAction
+            bacSiId={doctor.bacSiId}
+            label="Nhắn tin"
+            className="inline-flex h-12 items-center gap-1.5 rounded-[0.625rem] border border-gray-200 px-4 text-sm font-medium"
+          />
         </div>
       </div>
       <div className="min-w-0 border-t border-gray-100 bg-gray-50/60 p-5 md:border-t-0">

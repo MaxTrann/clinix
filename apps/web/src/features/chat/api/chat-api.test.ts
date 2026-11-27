@@ -7,6 +7,11 @@ import {
   getConversations,
   getMessages,
   markConversationRead,
+  getBranchOptions,
+  getBranchStart,
+  getDefaultBranch,
+  getDoctorStart,
+  sendFirstMessage,
   sendMessage,
 } from './chat-api';
 
@@ -223,6 +228,102 @@ describe('chat F3 — gửi tin (WCH-09)', () => {
       status: 400,
       maLoi: 'DU_LIEU_KHONG_HOP_LE',
       loi: [{ truong: 'noiDung', ma: 'NOI_DUNG_QUA_DAI' }],
+    });
+  });
+});
+
+describe('chat F4 — bắt đầu trò chuyện (WCH-12)', () => {
+  const HEAD = {
+    hoiThoaiId: null,
+    loai: 'BenhNhan_BacSi',
+    doiTac: { vaiTro: 'BacSi', tenHienThi: 'BS. Lê Minh' },
+    quanHe: 'ChuaTungKham',
+    banner: true,
+    coTheGui: true,
+    lyDoKhongGui: null,
+  };
+
+  it('WCH-12 CAP-03 đầu khung bác sĩ, chi nhánh: đúng route (id mã hoá), đọc đủ khoá; `hoiThoaiId` sai kiểu ⇒ UnexpectedResponseError', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, HEAD));
+    await expect(getDoctorStart('7/x')).resolves.toEqual(HEAD);
+    expect(lastCall().url).toBe('/api/chat/doctors/7%2Fx');
+    fetchMock.mockResolvedValueOnce(json(200, { ...HEAD, hoiThoaiId: '55' }));
+    await expect(getBranchStart('3')).resolves.toMatchObject({
+      hoiThoaiId: '55',
+    });
+    expect(lastCall().url).toBe('/api/chat/branches/3');
+    fetchMock.mockResolvedValueOnce(json(200, { ...HEAD, hoiThoaiId: 55 }));
+    await expect(getDoctorStart('7')).rejects.toBeInstanceOf(
+      UnexpectedResponseError,
+    );
+  });
+
+  it('WCH-12 CAP-04 chi nhánh mặc định và danh sách chi nhánh (công khai, `pageSize=100`, không gắn token); nguồn lạ ⇒ UnexpectedResponseError', async () => {
+    fetchMock.mockResolvedValueOnce(
+      json(200, { chiNhanhId: '2', nguon: 'LichHenSapToi' }),
+    );
+    await expect(getDefaultBranch()).resolves.toEqual({
+      chiNhanhId: '2',
+      nguon: 'LichHenSapToi',
+    });
+    expect(lastCall().url).toBe('/api/chat/default-branch');
+    fetchMock.mockResolvedValueOnce(
+      json(200, { chiNhanhId: null, nguon: 'Khac' }),
+    );
+    await expect(getDefaultBranch()).rejects.toBeInstanceOf(
+      UnexpectedResponseError,
+    );
+    fetchMock.mockResolvedValueOnce(
+      json(200, {
+        items: [
+          {
+            chiNhanhId: '1',
+            ten: 'Quận 1',
+            diaChi: 'a',
+            toaDoLat: null,
+            toaDoLng: null,
+          },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 100,
+      }),
+    );
+    await expect(getBranchOptions()).resolves.toEqual([
+      { chiNhanhId: '1', ten: 'Quận 1', diaChi: 'a' },
+    ]);
+    expect(lastCall().url).toBe('/api/public/branches?pageSize=100');
+    expect(
+      new Headers(lastCall().init.headers).get('Authorization'),
+    ).toBeNull();
+  });
+
+  it('WCH-12 CAP-05 tin đầu: POST JSON tới `/chat/doctors/:id/messages` hay `/chat/branches/:id/messages`', async () => {
+    const tinNhan = {
+      ...MESSAGE,
+      laCuaToi: true,
+      noiDung: 'Chào',
+      tep: null,
+      maGui: 'm',
+    };
+    // Mỗi lần một `Response` mới: thân chỉ đọc được một lần
+    fetchMock.mockImplementation(async () =>
+      json(201, { hoiThoaiId: '9', tinNhan }),
+    );
+    await sendFirstMessage(
+      { kind: 'doctor', bacSiId: '7' },
+      { noiDung: 'Chào', maGui: 'm' },
+    );
+    expect(lastCall().url).toBe('/api/chat/doctors/7/messages');
+    expect(lastCall().init.method).toBe('POST');
+    await sendFirstMessage(
+      { kind: 'branch', chiNhanhId: '3' },
+      { noiDung: 'Chào', maGui: 'm' },
+    );
+    expect(lastCall().url).toBe('/api/chat/branches/3/messages');
+    expect(JSON.parse(String(lastCall().init.body))).toEqual({
+      noiDung: 'Chào',
+      maGui: 'm',
     });
   });
 });

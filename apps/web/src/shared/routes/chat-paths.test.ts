@@ -6,6 +6,8 @@ import {
   PATIENT_CHAT_PATH,
   RECEPTION_CHAT_PATH,
   chatConversationPath,
+  patientChatBranchPath,
+  patientChatDoctorPath,
 } from './chat-paths';
 
 // chat F1 — đường dẫn trang Tin nhắn (PLAN chat 5.13), phần đường dẫn của WCH-02. Mã CP-01, CP-02 là [đề xuất] (nếp NP-01 của notification).
@@ -31,6 +33,16 @@ describe('chat F1 — đường dẫn trang Tin nhắn', () => {
     );
     expect(chatConversationPath(PATIENT_CHAT_PATH, 'a&b')).toBe(
       '/benh-nhan/tin-nhan?hoiThoai=a%26b',
+    );
+  });
+});
+
+describe('chat F4 — đường dẫn bắt đầu trò chuyện', () => {
+  it('WCH-13 CP-03 `?bacSi=` và `?chiNhanh=` dưới trang Tin nhắn của Bệnh nhân; giá trị được mã hoá', () => {
+    expect(patientChatDoctorPath('12')).toBe('/benh-nhan/tin-nhan?bacSi=12');
+    expect(patientChatBranchPath('3')).toBe('/benh-nhan/tin-nhan?chiNhanh=3');
+    expect(patientChatDoctorPath('a&b=1')).toBe(
+      '/benh-nhan/tin-nhan?bacSi=a%26b%3D1',
     );
   });
 });
