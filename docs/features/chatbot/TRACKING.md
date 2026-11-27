@@ -17,6 +17,7 @@ Nhật ký tiến độ riêng của scope #12 (mã sẽ nằm trong `apps/api/s
 |---|---|---|---|---|
 | 26/11/2026 | **Lập kế hoạch scope #12, giai đoạn 1** (Đại `MaxTrann`; nhánh `docs/chatbot-plan`, worktree `clinix-app-doctor-exam`, `origin/main` `1349818`). Đọc nguyên văn 2.4.7, 2.4.76, 2.4.77 và các use case chạm vào bằng `python-docx` (chỉ đọc), so từng dòng với bản `Drive_Hien_Tai`; đọc SOW 3.2.6 và 5.1.4, 1.2.1, 1.3.3, 2.1_2.2, bảng Phân loại M18, M19, mục tiêu đề tài, bản cam kết 23/11, mã Make `SupportWidget` của Figma; đối chiếu `docs/database/*`, ADR 0001, `docs/TECH_DEBT.md`, mã `apps/api/src/{search,scheduling,admin/system-config,pricing,common,config,auth}`, `apps/web/src/{router,shared,features}`, hạ tầng compose, Dockerfile, nginx; đọc trang tài liệu chính thức của Gemini, Groq, Ollama (qua công cụ đọc trang; **không gọi API**, không khoá). Đo RAM và GPU máy dev (chỉ đọc). **Hỏi Đại bằng bốn hộp câu hỏi** (16 câu, mục 3.1): 14 theo đề xuất; Q1, Q2 chọn khác (Groq → Gemini → câu dựng sẵn, bỏ Ollama). Tạo `PLAN.md` (mục 0 đến 10, Phụ lục A và B nguyên văn; 111 mã test case, 9 task, 37,5 giờ) và file này. **Không** chạy `npm`, test, build, Docker, MySQL; **không** đọc `.env`; **không** sửa file nào khác; git chỉ đọc và `git fetch`. | — (tài liệu; chưa có mã) | — | **Phát hiện khi đối chiếu (PLAN mục 2, 3.3, 3.4):** (1) `gemini-2.0-flash` tắt 01/06/2026, `llama-3.1-8b-instant` tắt 16/08/2026; (2) gói miễn phí Gemini dùng nội dung để cải thiện sản phẩm và dặn không gửi thông tin nhạy cảm; Google và Groq đều nói không dùng cho tư vấn y khoa và đòi người dùng API từ 18 tuổi; (3) chưa có mã AI, chưa có module bài viết (bảng `bai_viet` mới có DDL); (4) trọng số w1, w2 đã chỉnh được ở trang cấu hình nhưng chưa nơi nào đọc; (5) 2.4.7 A6 đòi `sessionStorage` trong khi booking đã chốt giữ lựa chọn qua URL và `state.from`; (6) 2.4.7 A3 và 2.4.76 A1 đòi hai phản hồi khác nhau khi mọi lớp lỗi; (7) bản `Drive_Hien_Tai` gộp 2.4.76, 2.4.77 vào 2.4.7; (8) file gốc có 76 use case (đề bài ghi 77). Tổng 37,5 giờ cao hơn mốc 25 đến 35 giờ phiên kiểm chuyển lời (lý do và cách cắt ở PLAN 6.4). Trong lúc viết, `main` thêm PR 726 (`36ec306`, đổi lịch D1): `git diff` chỉ đổi tài liệu và chú thích `docs/database/*`, không đổi mã hay bảng kế hoạch dựa vào. |
 | 26/11/2026 | **Phiên kiểm độc lập duyệt kỹ thuật T1 đến T11** (theo ủy quyền của Đại; không phải Đại trả lời trực tiếp), kèm điều kiện (PLAN 4.3). Cùng tin đó đề xuất ba phương án quyền riêng tư; một tin sau **chuyển lời** Đại muốn tinh giản. Cả hai việc thuộc quyết định sản phẩm nên đã hỏi Đại trực tiếp (Q5, Q9). Điều kiện riêng cho Ollama hết áp dụng sau Q1, Q2. | — | — | Phiên kiểm đề xuất che cả "họ tên nhận ra được": kế hoạch chỉ che tên theo mẫu tự giới thiệu và ghi giới hạn (PLAN 5.9). |
+| 27/11/2026 | **chatbot B1** (Đại `MaxTrann`; nhánh `feat/chatbot-b1-luat-an-toan`, `origin/main` `0f31bb3`, issue 733, Epic 731). Thêm `apps/api/src/chatbot/safety/` (`question-normalizer`, `phrase-matcher` dùng chung, `emergency.rules`, `out-of-scope.rules`, `account.rules`, `redact`, `canned-answers`) và `limit/` (`sliding-window-limiter`, `request-limiter`), kèm test cạnh mã. Chỉ hàm thuần và bộ nhớ: không gọi AI, DB, mạng, không đọc biến môi trường, không log, không import `providers/` hay `config/` (khoá bằng `safety.architecture.spec.ts`). Khớp từ khoá theo TỪNG TỪ (đúng dấu hoặc không dấu); khẩn cấp 15 nhóm 70 cụm, ngoài phạm vi 4 nhóm 18 cụm, tài khoản 3 nhóm 15 cụm (mục 3.4). Che định danh theo 5.9; sáu loại câu dựng sẵn; bộ giới hạn IP 5 mỗi phút, 50 mỗi ngày, 3 suất đồng thời, trần 10.000 IP, cửa sổ trượt, đồng hồ tiêm vào. Không chạm `chatbot.module.ts`, `config/`, `providers/`, `app.module.ts`, `.env.example` (việc của P1, B3). Kiểm: `tsc`, `oxlint`, `prettier --check`, `vitest` từng thư mục, `api-unit` cả bộ, đột biến 7, 8 cùng bốn đột biến tuỳ chọn. | ATY-01…ATY-08, RTU-01…RTU-05, GHT-01…GHT-05, GHT-07 (cộng 58 ca bổ sung mã `B1-nn`, mục 6.3). RTU-06, RTU-07, GHT-06 là e2e của B3, chưa chạy | **Pass**: 10 file, 465 ca (vitest `src/chatbot`, một worker, 1,9 giây); `api-unit` cả bộ 456 file, 9.157 ca, 0 đỏ (4 phút 4 giây); đột biến 7 và 8 bị bắt, bốn đột biến tuỳ chọn cũng bị bắt (mục 6.3) | (1) Ca ATY-06 phát hiện hai cụm ngoài phạm vi "liều bao nhiêu", "bao nhiêu liều" làm câu gõ không dấu "trị liệu bao nhiêu tiền" bị nhận nhầm là kê đơn ("liều" bỏ dấu trùng "liệu": trị liệu, tài liệu, dữ liệu): bỏ hai cụm, Đại xác nhận trực tiếp 27/11/2026 (ngoài phạm vi còn 18 cụm). (2) Lần chạy đầu một ca `B1-05` đỏ do chính test: regex "uống" khớp trong chữ "tình huống"; sửa bằng ranh giới từ Unicode, chữ câu dựng sẵn không đổi. (3) Ca nhập nhằng đã biết, giới hạn và chỗ B3 phải nối: mục 3.4. (4) `tsc` ở worktree này báo 10 lỗi có sẵn ở module `chat` (thiếu `socket.io`, `@nestjs/websockets` trong `node_modules` của worktree), không có lỗi nào trong `src/chatbot`; không chạy `npm ci` vì quy tắc "Không gọi mạng" của lượt máy. (5) Chưa chạy: 10 đột biến còn lại của PLAN 5.15 (1 đến 6, 9 đến 12) thuộc P1, B2, B3. |
 
 ## 2. Kết quả test theo use case (mã ở PLAN.md mục 7)
 
@@ -24,9 +25,9 @@ Nhật ký tiến độ riêng của scope #12 (mã sẽ nằm trong `apps/api/s
 |---|---|---|---|---|
 | Chuỗi dự phòng và hợp đồng nhà cung cấp (2.4.76) | HDA-01…HDA-15 | 15 | P1 | chưa chạy |
 | Cấu hình | CFG-01…CFG-04 | 4 | P1 | chưa chạy |
-| An toàn y tế | ATY-01…ATY-08 | 8 | B1 | chưa chạy |
-| Quyền riêng tư | RTU-01…RTU-07 | 7 | B1, B3 | chưa chạy |
-| Giới hạn tốc độ | GHT-01…GHT-07 | 7 | B1, B3 | chưa chạy |
+| An toàn y tế | ATY-01…ATY-08 | 8 | B1 | **Pass** (chatbot B1, 27/11/2026; mục 6.3) |
+| Quyền riêng tư | RTU-01…RTU-07 | 7 | B1, B3 | RTU-01…RTU-05 **Pass** (chatbot B1); RTU-06, RTU-07 chưa chạy (B3, e2e) |
+| Giới hạn tốc độ | GHT-01…GHT-07 | 7 | B1, B3 | GHT-01…GHT-05, GHT-07 **Pass** (chatbot B1); GHT-06 chưa chạy (B3, e2e) |
 | Ngữ cảnh | NGC-01…NGC-06 | 6 | B2 | chưa chạy |
 | Đối chiếu đầu ra | DCR-01…DCR-12 | 12 | B2 | chưa chạy |
 | Chèn lệnh | CPI-01…CPI-03 | 3 | B2, B3 | chưa chạy |
@@ -71,6 +72,47 @@ SOW 3.2.6 và 5.1.4: AI không chẩn đoán, không kê đơn, không tự đ�
 ### 3.3 Điểm kỹ thuật đã duyệt (PLAN 4.3, T1 đến T11)
 
 **Đã duyệt kỹ thuật (phiên kiểm độc lập, theo ủy quyền của Đại, 26/11/2026; Đại chưa trả lời trực tiếp):** T1 một lời gọi có cấu trúc, enum đóng, luật khẩn cấp trước AI; T2 đối chiếu tất định, đo dương tính giả, ngoại lệ có kiểm chứng; T3 không streaming, hạn chót lan truyền; T4 `fetch`, không SDK, fixture, ghi URL và ngày tra, `store: false` không bảo đảm gì ở gói miễn phí; T5 ngữ cảnh có cấu trúc, đệm có trần; T6 giới hạn trong bộ nhớ, trần toàn cục, dọn bản đồ, chờ kiểm proxy ở staging; T7 export một dịch vụ của search bằng PR nhỏ; T8 thư mục `chatbot`, thêm scope commitlint; T9 tái dùng `state.from`; T10 không thử lại 429 và 4xx; T11 CI không khoá AI, không tạo provider thật khi test.
+
+### 3.4 Chatbot B1: danh sách từ khoá, câu dựng sẵn, cách khớp và chỗ B3 phải nối (PLAN 5.8, 5.16)
+
+Nguồn duy nhất của danh sách là mã: `safety/emergency.rules.ts`, `out-of-scope.rules.ts`, `account.rules.ts`, `canned-answers.ts` (đầu mỗi file ghi trạng thái duyệt). Bản trích để đọc: `D:\du_lieu\TLCN_CLINIX\REPO MÃ NGUỒN\Chatbot_B1_Danh_Sach_Tu_Khoa_Cho_Duyet_2026-11-27.md`.
+
+| Việc | Quyết định | Ai duyệt, khi nào |
+|---|---|---|
+| Danh sách khẩn cấp: 15 nhóm, **70 cụm** (30 của PLAN 5.8, 36 bổ sung của phiên viết B1, **4 cụm bổ sung do Đại chốt 27/11/2026**: "ngừng thở", "ngưng thở" (nhóm `KC_KHO_THO`), "mất ý thức" (`KC_BAT_TINH`), "xuất huyết" (`KC_CHAY_MAU`)) | Duyệt | Đại, 27/11/2026: nhắn cho phiên kiểm ("đã đọc xong danh sách, tôi duyệt hết", "thêm 4 cụm đó đi"), rồi **xác nhận trực tiếp bằng hộp câu hỏi** trong cửa sổ B1 cùng ngày. **Trung chưa xem** (nên xem trước khi merge) |
+| Danh sách ngoài phạm vi: 4 nhóm, **18 cụm**. Bản Đại duyệt có 20 cụm; ca ATY-06 phát hiện "liều bao nhiêu", "bao nhiêu liều" nhận nhầm "trị liệu bao nhiêu tiền" gõ không dấu nên **bỏ hai cụm**. Ngoại lệ tên dịch vụ: "chẩn đoán hình ảnh" | Duyệt (bản 18 cụm) | Đại, xác nhận trực tiếp bằng hộp câu hỏi 27/11/2026 |
+| Danh sách tài khoản: 3 nhóm, **15 cụm** | Duyệt | như dòng đầu |
+| Cách khớp **theo từng từ** (đúng dấu hoặc dạng bỏ dấu của từ; câu gõ lẫn vẫn bắt), thay cho "cả câu không dấu mới so bản không dấu" của PLAN 5.8 | Đồng ý (kỹ thuật) | phiên kiểm độc lập (theo ủy quyền của Đại), 27/11/2026 |
+| "ngat mui" gõ không dấu bị nhận khẩn cấp; "tai nạn" đứng trần; "liều" đứng một mình bỏ, thay bằng cụm; ký tự điều khiển đổi thành dấu cách | Giữ như đề xuất | như dòng đầu |
+| Nhóm tự hại (`KC_TU_HAI`) dùng **chung một câu 115** theo Q6. Kết quả của `detectEmergency` mang mã nhóm để sau này B3 hay nhóm đổi sang câu riêng mà không đụng bộ khớp; câu riêng cần người có chuyên môn viết, không phải AI | Giữ một câu | như dòng đầu |
+| Chữ sáu loại câu dựng sẵn, gồm dòng "Lễ tân không trực cấp cứu. Đừng chờ tin nhắn trả lời; hãy gọi 115 hoặc đến cơ sở y tế gần nhất." | Duyệt nguyên văn | Đại, hộp câu hỏi 27/11/2026 |
+| Trần toàn cục theo nhà cung cấp | **Không làm ở B1**: P1 giữ (`providers/provider-quota.ts`, HDA-11). `SlidingWindowLimiter` chỉ là lớp trong của bộ đếm IP | phiên kiểm, 27/11/2026 |
+
+**Ca nhập nhằng đã biết (thà bắt thừa; mỗi ca có một ca test ghi lại hành vi):**
+
+| Câu | Kết quả | Ghi chú |
+|---|---|---|
+| "đau ngực nhẹ khi ho", "tôi không khó thở" | khẩn cấp | phủ định bị bỏ qua (ATY-03) |
+| "ngat mui nhe" (không dấu) | khẩn cấp (`KC_BAT_TINH`) | "ngat" là dạng bỏ dấu của "ngất"; câu có dấu "ngạt mũi nhẹ" thì không bị nhận (ATY-04) |
+| "cho minh tu tu xem" (không dấu) | khẩn cấp (`KC_TU_HAI`) | "tu tu" là dạng bỏ dấu của "tự tử"; "từ từ" có dấu thì không bị nhận |
+| "bảo hiểm tai nạn có được hưởng không" | khẩn cấp (`KC_TAI_NAN`) | cụm "tai nạn" đứng trần |
+| "đau muốn chết" | khẩn cấp (`KC_TU_HAI`) | |
+| "ngộ độc thực phẩm có khám không", "sưng môi do dị ứng" | khẩn cấp | |
+| "xuất huyết khi tới kỳ kinh" | khẩn cấp (`KC_CHAY_MAU`) | cụm do Đại chốt 27/11/2026, chấp nhận bắt cả câu hỏi về chu kỳ kinh |
+| "đơn thuốc cũ có mang theo không" | ngoài phạm vi (`NP_KE_DON`) | nhầm nhẹ: câu quy trình có "đơn thuốc" |
+| "vật lý trị liệu bao nhiêu tiền" (có dấu, không dấu), "chẩn đoán hình ảnh ở tầng mấy", "cho em hỏi một xíu" | **không** bị chặn | ATY-04, ATY-06 |
+
+**Giới hạn đã biết của B1 (không phải lỗi):**
+- Cụm là dãy từ **liền nhau**: "đau thắt ở ngực" không khớp; diễn đạt lạ, sai chính tả hay gõ kiểu Telex dở ("dau nguwc") có thể lọt (PLAN R6). Banner luôn có "Cấp cứu: gọi 115" và mô hình gắn `khanCap` là lưới thứ hai.
+- Bộ che không bắt được họ tên không theo mẫu tự giới thiệu, địa chỉ, bệnh sử (thông báo trước câu đầu, Q5). Tên theo mẫu: viết hoa chữ đầu thì che các từ viết hoa liền nhau, gõ chữ thường thì che tối đa 4 từ (thà che thừa). Ngày `dd/mm/yyyy` luôn bị che, nên câu "lịch ngày 27/11/2026 còn trống không" mất ngày (ngày không có năm như "5/3" giữ nguyên). Giá tiền ("2.000.000 đồng"), "30 phút", "115", giờ ("08:30") giữ nguyên.
+- Bộ giới hạn chỉ ở bộ nhớ một tiến trình (khởi động lại thì mất; nhiều tiến trình thì mỗi tiến trình một bộ đếm); khoá IPv6 theo `/64` chưa làm (đổi tiền tố là né được); khoá bị bỏ khi vượt trần 10.000 IP thì IP đó được đếm lại từ đầu. Nợ kỹ thuật: nháp dòng 341 ở báo cáo cuối của chatbot B1 (chưa ghi vào `docs/TECH_DEBT.md`; hỏi Đại trước). Kiểm giới hạn theo IP qua hai mạng khác nhau và `trust proxy` ở staging là việc của X2 (ghi "chờ X2"): staging đã chạy chuỗi Caddy rồi nginx, `deploy/staging/00-realip.conf` (PR 760) giữ IP khách để API đọc đúng.
+
+**Chỗ chatbot B3 phải nối:**
+- Thứ tự gọi theo 5.4: (2) `normalizeQuestion`, `normalizeHistory`; (3) `detectEmergency`, trúng thì trả `KhanCap` NGAY và **không** gọi `checkIp` (miễn giới hạn; GHT-06 và đột biến 2 là của B3); (4) `RequestLimiter.checkIp` (429 `TRO_LY_HOI_QUA_NHANH`, `Retry-After` = `retryAfterSeconds`); (5) `detectAccountQuestion`; (6) `detectOutOfScope`; (7) `RequestLimiter.withSlot` (`acquired: false` thì 503 `TRO_LY_DANG_BAN`); (8) `redactText`, `redactTurns`.
+- Tham số: `new RequestLimiter({ ipPerMinute, ipPerDay, maxConcurrent, maxTrackedIps })` nhận số từ `AI_IP_PER_MINUTE`, `AI_IP_PER_DAY`, `AI_MAX_CONCURRENT` (B1 không đọc biến môi trường; mặc định bằng PLAN: 5, 50, 3, 10.000).
+- Câu dựng sẵn: `getCannedAnswer(kind)` trả mảng chữ; B3 đổi thành đoạn `{ kieu: 'chu', chu }` (5.7) và ghép địa chỉ chi nhánh vào `KhanCap`; hai cờ `coTheGuiLai`, `tinhVaoLichSu` là mặc định theo loại, B3 đổi được.
+- `redactTurns` dùng trường `noiDung` (lược đồ API 5.12) còn lượt của cổng nhà cung cấp P1 là `AiTurn` `{ role, content }`: B3 ánh xạ.
+- Khi review B3: (a) câu tài khoản và ngoài phạm vi vẫn **tiêu hao hạn mức IP** vì bước 4 đứng trước bước 5 và 6, câu khẩn cấp thì không; (b) ngày `dd/mm/yyyy` trong câu hỏi bị bộ che thay bằng "[đã ẩn]" nên mô hình không thấy; (c) lượt lịch sử `TroLy` do client gửi lên giả được, chỉ là dữ liệu trích dẫn.
 
 ## 4. Ghi chú AI
 
@@ -138,6 +180,25 @@ SOW 3.2.6 và 5.1.4: AI không chẩn đoán, không kê đơn, không tự đ�
 
 N6, CB1, CB2 (cam kết đề xuất) và CB3 đến CB6 (báo cáo): chưa đo.
 
+### 6.3 Chatbot B1: kết quả test và đột biến mục tiêu (PLAN 5.15; chạy 27/11/2026)
+
+**Mã test case** (10 file spec, 465 ca, xanh): ATY-01…ATY-08 (`emergency.rules`, `out-of-scope.rules`, `account.rules`, `phrase-matcher`, `question-normalizer`), RTU-01…RTU-05 (`redact`), GHT-01…GHT-05 và GHT-07 (`sliding-window-limiter`, `request-limiter`); cả 19 mã Pass, 0 đỏ. Khi gộp với bảng mục 2: dòng **Tổng** cộng thêm 19 mã đã chạy (8 ATY, 5 RTU, 6 GHT) và câu "Đột biến mục tiêu" ghi "7 và 8 đã chạy, bị bắt" (hai chỗ này B1 không sửa vì dùng chung với P1).
+
+**Ca bổ sung của B1** (mã `B1-nn`, ngoài PLAN mục 7, không tính vào 111 mã): 58 ca. `B1-01`…`B1-07` là hợp đồng câu dựng sẵn (`canned-answers.spec.ts`); còn lại là ca cơ chế của bộ khớp (`phrase-matcher.spec.ts`), bất biến và an toàn đầu vào lạ của bộ che (`redact.spec.ts`: chuỗi rỗng, 100.000 ký tự, mẫu lặp dưới 2 giây, che hai lần bằng che một lần), giá trị mặc định và tham số sai của bộ giới hạn, ca nhập nhằng đã biết, và 18 ca của `safety.architecture.spec.ts` (đối chứng ÂM trên nguồn giả trước khi quét mã thật).
+
+Giao thức mỗi đột biến: sao lưu file mã ngoài repo kèm SHA-256; đối chứng TRƯỚC (một vitest một file, phải xanh); áp đột biến (đoạn thay phải xuất hiện đúng một lần); chạy lại đúng file spec đó; khôi phục trong `finally` rồi so SHA-256; đối chứng SAU (phải xanh); `git status --porcelain` chỉ còn `apps/api/src/chatbot/`. Một lệnh vitest một file, một worker.
+
+| Đột biến | Ca phải bắt | Kết quả | Ca đỏ / tổng | Đối chứng trước, sau | SHA-256 khôi phục |
+|---|---|---|---|---|---|
+| **7** bỏ che số điện thoại (xoá mẫu `PHONE` khỏi `REDACTION_PATTERNS`, `safety/redact.ts`) | RTU-02 | **bị bắt** | 15 / 77 (RTU-02 mười dạng số, RTU-03 CCCD gõ cách, RTU-04, RTU-05 và một ca bổ sung) | 0 đỏ, 0 đỏ | khớp |
+| **8** không che lịch sử (`redactTurns` giữ nguyên `noiDung`) | RTU-04 | **bị bắt** | 2 / 77 (cả hai ca của RTU-04) | 0 đỏ, 0 đỏ | khớp |
+| (i) tắt bỏ dấu khi khớp (`plain: exact`, `safety/phrase-matcher.ts`) | ATY-02 | bị bắt | 89 / 200 (`emergency.rules.spec.ts`) | 0 đỏ, 0 đỏ | khớp |
+| (ii) bỏ `finally` ở `withSlot` (`limit/request-limiter.ts`) | GHT-05 | bị bắt | 3 / 27 | 0 đỏ, 0 đỏ | khớp |
+| (iii) ngưỡng 500 điểm mã dùng `>=` (`safety/question-normalizer.ts`) | ATY-08 | bị bắt | 7 / 21 | 0 đỏ, 0 đỏ | khớp |
+| (iv) bỏ dọn mục quá hạn (`limit/sliding-window-limiter.ts`) | GHT-07 | bị bắt | 1 / 10 | 0 đỏ, 0 đỏ | khớp |
+
+Đột biến (i) đến (iv) là bốn đột biến **tuỳ chọn** do phiên viết B1 đề xuất cho phần an toàn y tế (không nằm trong 12 đột biến của PLAN 5.15). Mười đột biến còn lại của PLAN (1 đến 6, 9 đến 12) thuộc P1, B2, B3. Số liệu thô nằm ở thư mục tạm của phiên (không vào repo).
+
 ## 7. Cảnh báo và việc chờ (cập nhật khi có thay đổi)
 
 - **Chốt phạm vi 27/11:** phương án tối thiểu 37,5 giờ (cắt còn 34, PLAN 6.4); nếu cam kết chatbot thì đề xuất mốc riêng 14/12 để không làm metric P1 ngày 07/12 tụt dưới 90 phần trăm (PLAN 6.4).
@@ -145,4 +206,4 @@ N6, CB1, CB2 (cam kết đề xuất) và CB3 đến CB6 (báo cáo): chưa đo.
 - **Hạn mức miễn phí nhỏ** (PLAN 3.6 R2): thử trước buổi demo.
 - **`[ĐỒNG BỘ TL]` ngoài repo (Đại):** 2.4.7, 2.4.76, 2.4.77 (hai bản), 2.1_2.2, 1.2.1, 1.3.3, bảng Phân loại M18, M19 (PLAN 4.6); chưa sửa.
 - **Nhãn `module:chatbot` và milestone `chatbot` chưa có** trên GitHub.
-- Trước khi viết B1: Đại duyệt danh sách từ khoá khẩn cấp, ngoài phạm vi, tài khoản.
+- Danh sách từ khoá khẩn cấp, ngoài phạm vi, tài khoản: Đại đã duyệt 27/11/2026 (mục 3.4). **Trung chưa xem**: nên đọc mục 3.4 và ba file `*.rules.ts` trước khi duyệt PR chatbot B1.
