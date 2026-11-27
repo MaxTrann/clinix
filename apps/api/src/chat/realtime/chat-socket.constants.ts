@@ -28,3 +28,12 @@ export const CHAT_SOCKET_ERRORS = {
 } as const;
 export type ChatSocketError =
   (typeof CHAT_SOCKET_ERRORS)[keyof typeof CHAT_SOCKET_ERRORS];
+
+/** Tên sự kiện socket (chat B5; PLAN chat 5.7). Client gửi `chat:gui` (có ack); máy chủ đẩy `chat:tin-moi`. Không đuôi `_EVENTS` (DMS-13). */
+export const CHAT_SOCKET_MESSAGES = {
+  SEND: 'chat:gui',
+  NEW_MESSAGE: 'chat:tin-moi',
+} as const;
+
+/** Quét phiên của mọi kết nối mỗi 60 giây (PLAN chat 5.7 "Vòng đời"): đăng xuất hay bị khoá thì bị ngắt chậm nhất sau chừng đó (SOC-09). */
+export const CHAT_SOCKET_SWEEP_MS = 60_000;
