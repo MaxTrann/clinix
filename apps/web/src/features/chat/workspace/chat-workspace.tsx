@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { useMediaQuery } from '../../../shared/hooks/use-media-query';
 import { CHAT_QUERY } from '../../../shared/routes/chat-paths';
 import type { ChatRole, ConversationFilter } from '../api/chat-types';
+import { useChatConnectionStatus } from '../realtime/chat-connection';
 import { ConversationList } from './conversation-list';
 import { MessageThread } from './message-thread';
 import { useConversationList } from './use-conversation-list';
@@ -29,6 +30,7 @@ export function ChatWorkspace({ role }: { role: ChatRole }) {
   const returnFocus = useRef<HTMLButtonElement>(null);
   const [returnFocusId, setReturnFocusId] = useState<string | null>(null);
   const { refresh, markRowRead } = list;
+  const connection = useChatConnectionStatus();
 
   const select = (id: string) => {
     setReturnFocusId(id);
@@ -94,6 +96,12 @@ export function ChatWorkspace({ role }: { role: ChatRole }) {
       >
         Tin nhắn
       </h1>
+      {connection.everConnected && connection.status !== 'connected' && (
+        // Đã từng nối rồi mất (chat F2): tin vẫn đến bằng thăm dò 15 giây, gửi vẫn đi bằng REST
+        <p role="status" className="mb-2 text-sm text-gray-600">
+          Đang nối lại, tin mới có thể đến chậm.
+        </p>
+      )}
       <div
         className={`grid min-h-[32rem] min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white ${
           wide

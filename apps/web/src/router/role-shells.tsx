@@ -1,5 +1,5 @@
 import { AdminLayout } from '../features/admin/admin-layout';
-import { useChatUnreadCount } from '../features/chat';
+import { useChatConnection, useChatUnreadCount } from '../features/chat';
 import { DoctorLayout } from '../features/doctor';
 import { useUnreadCount } from '../features/notification';
 import { PatientLayout, ReceptionLayout } from '../features/patient';
@@ -26,7 +26,9 @@ function useShellNotifications(to: string): RoleShellNotifications {
 
 // chat F1 (PLAN chat 5.13): số hội thoại chưa đọc thăm dò MỘT lần cho khung đang mở rồi điền vào mục "Tin nhắn" (`badge: 'messages'`) của menu.
 // Điền vào mục (không thêm prop cho layout) nên `features/patient`, `features/doctor` không đổi và không import `features/chat`.
+// chat F2: cùng chỗ này giữ kết nối WebSocket của nhắn tin (chỉ ba khung có "Tin nhắn"; khung Quản trị viên không gọi), khung gỡ thì đóng.
 function useNavWithMessages(items: RoleNavItem[]): RoleNavItem[] {
+  useChatConnection();
   const count = useChatUnreadCount();
   return items.map((item) =>
     item.badge === 'messages' ? { ...item, count } : item,
