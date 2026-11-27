@@ -4,6 +4,7 @@ import {
   TimeoutError,
 } from '../../../shared/api/errors';
 import type {
+  ChatRole,
   ConversationKind,
   ConversationListItem,
   Relationship,
@@ -145,4 +146,11 @@ export function sendErrorMessage(error: unknown): string {
 /** `true` khi lỗi là 404 hội thoại (không thấy hoặc không phải thành viên: máy chủ cố ý không phân biệt, T3). */
 export function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.maLoi === 'KHONG_TIM_THAY';
+}
+
+/** Lý do khoá ô soạn khi người nhận ngưng hoạt động; chỉ Bệnh nhân có gợi ý nhắn lễ tân. */
+export function recipientInactiveReason(role: ChatRole): string {
+  return role === 'BenhNhan'
+    ? `${RECIPIENT_INACTIVE_MESSAGE} ${RECIPIENT_INACTIVE_PATIENT_HINT}`
+    : RECIPIENT_INACTIVE_MESSAGE;
 }

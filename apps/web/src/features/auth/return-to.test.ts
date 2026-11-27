@@ -236,3 +236,23 @@ describe('booking F3 — các hàm phụ của from', () => {
     ).toBeUndefined();
   });
 });
+
+describe('chat F4 — quay lại trang Tin nhắn sau khi đăng nhập (MH7, WCH-13)', () => {
+  it('WCH-13 BRT-CH1 Bệnh nhân quay lại `/benh-nhan/tin-nhan?bacSi=…`; vai khác, đường con hay đường giả dạng ⇒ trang chủ của vai', () => {
+    expect(
+      returnPathFor('BenhNhan', { from: '/benh-nhan/tin-nhan?bacSi=12' }),
+    ).toBe('/benh-nhan/tin-nhan?bacSi=12');
+    expect(
+      returnPathFor('BacSi', { from: '/benh-nhan/tin-nhan?bacSi=12' }),
+    ).toBe(ROLE_HOME_PATHS.BacSi);
+    for (const from of [
+      '/benh-nhan/tin-nhan/x',
+      '/benh-nhan/tin-nhanxyz',
+      '/benh-nhan/tin-nhan/../ho-so',
+      '//evil.com/benh-nhan/tin-nhan',
+    ])
+      expect(returnPathFor('BenhNhan', { from }), from).toBe(
+        ROLE_HOME_PATHS.BenhNhan,
+      );
+  });
+});

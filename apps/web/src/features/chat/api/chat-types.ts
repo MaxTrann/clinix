@@ -1,5 +1,5 @@
 // Kiểu dữ liệu của API nhắn tin (chat B2, B4; PLAN chat 5.6). Id BIGINT là chuỗi; thời điểm là ISO UTC (nơi hiển thị đổi sang giờ Việt Nam).
-// Gửi tin vào hội thoại đã có (chat B3) do F3 thêm; bắt đầu trò chuyện (bác sĩ, chi nhánh) do F4 thêm khi dùng.
+// Gửi tin vào hội thoại đã có (chat B3) do F3 thêm; bắt đầu trò chuyện (bác sĩ, chi nhánh), chi nhánh mặc định do F4 thêm.
 
 export const CHAT_ROLES = ['BenhNhan', 'BacSi', 'LeTan'] as const;
 export type ChatRole = (typeof CHAT_ROLES)[number];
@@ -94,4 +94,34 @@ export type MessageCursor = { truoc: string } | { sau: string } | null;
 export interface SendResult {
   hoiThoaiId: string;
   tinNhan: ChatMessage;
+}
+
+/** Đầu khung TRƯỚC tin đầu (`GET /chat/doctors/:id`, `GET /chat/branches/:id`; chat B3): cùng khoá với chi tiết hội thoại, `hoiThoaiId` = `null` khi chưa có. */
+export interface StartHeader {
+  hoiThoaiId: string | null;
+  loai: ConversationKind;
+  doiTac: ChatPartner;
+  quanHe: Relationship | null;
+  banner: boolean;
+  coTheGui: boolean;
+  lyDoKhongGui: 'CHAT_NGUOI_NHAN_KHONG_HOAT_DONG' | null;
+}
+
+export const DEFAULT_BRANCH_SOURCES = [
+  'LichHenSapToi',
+  'LichHenDaKham',
+] as const;
+export type DefaultBranchSource = (typeof DEFAULT_BRANCH_SOURCES)[number];
+
+/** Chi nhánh gợi ý để nhắn lễ tân (Q4, MH2); `null` ⇒ web dùng chi nhánh đang chọn ở trình duyệt (MH1). */
+export interface DefaultBranch {
+  chiNhanhId: string | null;
+  nguon: DefaultBranchSource | null;
+}
+
+/** Một dòng của bộ chọn chi nhánh (chỉ các khoá chat dùng từ `GET /public/branches`). */
+export interface BranchOption {
+  chiNhanhId: string;
+  ten: string;
+  diaChi: string;
 }
