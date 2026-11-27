@@ -198,12 +198,13 @@ describe('thẻ bác sĩ ngang theo Figma 260:162 (UIS-10)', () => {
     expect(card.queryByText(/^Cọc /)).toBeNull();
   });
 
-  it('UIS-10 hai nút NẰM NGANG trong cùng một hàng (khe 7,5), cao 45, bo 9,375; "Xem hồ sơ" trước, "Nhắn tin" vô hiệu sau', () => {
+  // chat F4 sửa tối thiểu: "Nhắn tin" của khách là liên kết tới trang Tin nhắn (trước đây là nút vô hiệu); kích thước, thứ tự giữ nguyên
+  it('UIS-10 hai nút NẰM NGANG trong cùng một hàng (khe 7,5), cao 45, bo 9,375; "Xem hồ sơ" trước, "Nhắn tin" sau', () => {
     const card = within(renderCard());
     const link = card.getByRole('link', { name: /Xem hồ sơ/ });
-    const message = card.getByRole('button', { name: 'Nhắn tin' });
+    const message = card.getByRole('link', { name: 'Nhắn tin' });
     expect(link).toHaveAttribute('href', '/bac-si/100');
-    expect(message).toBeDisabled();
+    expect(message).toHaveAttribute('href', '/benh-nhan/tin-nhan?bacSi=100');
     expect(link.parentElement).toBe(message.parentElement);
     expect(link.parentElement).toHaveClass('flex', 'gap-2', 'pt-4');
     expect(link.parentElement).not.toHaveClass('flex-col');
@@ -627,8 +628,8 @@ describe('trang Chi tiết bác sĩ theo Figma 653:2 (UIS-10)', () => {
     expect(choose).not.toHaveClass('bg-brand-strong');
     expect(choose).not.toHaveClass('text-white');
     expect(choose.querySelector('svg')).toHaveClass('size-4');
-    const message = screen.getByRole('button', { name: 'Nhắn tin với bác sĩ' });
-    expect(message).toBeDisabled();
+    const message = screen.getByRole('link', { name: 'Nhắn tin với bác sĩ' });
+    expect(message).toHaveAttribute('href', '/benh-nhan/tin-nhan?bacSi=100');
     expect(message).toHaveClass('h-12', 'rounded-[13.375px]', 'mt-2');
     expect(message.querySelector('svg')).toHaveClass('size-4');
   });

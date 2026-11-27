@@ -1,4 +1,10 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { createMemoryRouter, matchRoutes } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import {
@@ -17,13 +23,16 @@ import {
   HIDDEN_PATH_PREFIXES,
   STAFF_ACTIVATION_PATH_COPY,
 } from '../features/chatbot/widget/visibility';
+import { openAndAsk } from '../features/chatbot/testing/render-widget';
 import { STAFF_ACTIVATION_PATH } from '../features/staff-activation';
+import { fakeMatchMedia } from '../test/fake-match-media';
 import { PATIENT_APPOINTMENTS_PATH } from '../shared/routes/booking-paths';
+import { PATIENT_CHAT_PATH } from '../shared/routes/chat-paths';
 import { PATIENT_WALLET_PATH } from '../shared/routes/wallet-paths';
 import { createAppRoutes } from './routes';
 
 // Chatbot F1 `[ĐỤNG router]`. WTL-01 qua bảng route THẬT (`createAppRoutes()`): `RootLayout` gắn khung chat, nút hiện đúng nhóm và ẩn đúng nhóm.
-// Cộng với bộ khoá hợp đồng: các đường dẫn mà chatbot giữ riêng (bác sĩ, chuyên khoa, chi nhánh, "Tra cứu bác sĩ", "/kich-hoat") phải khớp route thật,
+// Cộng với bộ khoá hợp đồng: các đường dẫn mà chatbot dùng (bác sĩ, chuyên khoa, chi nhánh, "Tra cứu bác sĩ", "/kich-hoat", Tin nhắn) phải khớp route thật,
 // vì chatbot không import `features/search` hay `features/staff-activation` (PLAN chatbot 1.2) nên không có gì khác giữ chúng khớp nhau.
 const LAUNCHER = { name: 'Trợ lý AI' };
 
@@ -141,8 +150,13 @@ describe('khoá hợp đồng đường dẫn của chatbot với bảng route t
     expect(leafPath(DOCTOR_LOOKUP_PATH)).toBe('bac-si');
   });
 
-  it('WTL-05 "Lịch hẹn của tôi" và "Ví của tôi" khớp route của cổng Bệnh nhân, không phải 404', () => {
-    for (const path of [PATIENT_APPOINTMENTS_PATH, PATIENT_WALLET_PATH]) {
+  it('WTL-05 "Lịch hẹn của tôi", "Ví của tôi" và "Nhắn lễ tân" (`PATIENT_CHAT_PATH`) khớp route của cổng Bệnh nhân, không phải 404', () => {
+    expect(PATIENT_CHAT_PATH).toBe('/benh-nhan/tin-nhan');
+    for (const path of [
+      PATIENT_APPOINTMENTS_PATH,
+      PATIENT_WALLET_PATH,
+      PATIENT_CHAT_PATH,
+    ]) {
       const last = leafPath(path);
       expect(last).toBeDefined();
       expect(last).not.toBe('*');
@@ -170,5 +184,66 @@ describe('khoá hợp đồng đường dẫn của chatbot với bảng route t
       expect(last).toBeDefined();
       expect(last).not.toBe('*');
     }
+  });
+});
+
+// WTL-05 qua router thật: "Nhắn lễ tân" (mã `NhanTinLeTan`) là liên kết tới trang Tin nhắn của Bệnh nhân. Lớp API là bản THẬT (`httpChatbotApi`)
+// nói chuyện với `fetch` giả, nên ca này cũng chứng minh mã chạy thật gọi đúng đường dẫn mà không cần lớp giả.
+describe('"Nhắn lễ tân" qua router thật (WTL-05)', () => {
+  const REPLY = {
+    ketQua: 'KhanCap',
+    doan: [{ kieu: 'chu', chu: 'Hãy gọi 115.' }],
+    chuyenKhoaGoiY: [],
+    lienKet: ['GoiCapCuu', 'NhanTinLeTan'],
+    coTheGuiLai: false,
+    tinhVaoLichSu: true,
+  };
+
+  function stubApi() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) =>
+        Promise.resolve(
+          String(input) === '/api/chatbot/messages'
+            ? new Response(JSON.stringify(REPLY), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              })
+            : new Response('{}', { status: 500 }),
+        ),
+      ),
+    );
+  }
+
+  async function askAndFindLink(role: 'guest' | VaiTro) {
+    fakeMatchMedia(1024);
+    stubApi();
+    setAuth(role);
+    const router = renderAt('/');
+    openAndAsk('Đau ngực');
+    const link = await screen.findByRole('link', { name: 'Nhắn lễ tân' });
+    return { router, link };
+  }
+
+  it('WTL-05 khách bấm: `RequireAuth` đưa tới trang đăng nhập và ghi `from` là trang Tin nhắn', async () => {
+    const { router, link } = await askAndFindLink('guest');
+    expect(link).toHaveAttribute('href', PATIENT_CHAT_PATH);
+
+    fireEvent.click(link);
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(LOGIN_PATH),
+    );
+    expect(router.state.location.state).toEqual({ from: PATIENT_CHAT_PATH });
+  });
+
+  it('WTL-05 Bệnh nhân bấm: tới thẳng trang Tin nhắn của cổng Bệnh nhân', async () => {
+    const { router, link } = await askAndFindLink('BenhNhan');
+
+    fireEvent.click(link);
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(PATIENT_CHAT_PATH),
+    );
   });
 });

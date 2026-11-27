@@ -6,25 +6,21 @@ import { useAuth } from '../../auth';
 import { httpChatbotApi, type ChatbotApi } from '../api/chatbot-api';
 import { useConversation } from '../state/use-conversation';
 import { useSessionReset } from '../state/use-session-reset';
+import { ChatbotApiContext } from '../suggest/chatbot-api-context';
 import { NarrowFrame, WideFrame } from './chatbot-frames';
 import { ChatbotPanel } from './chatbot-panel';
 import { CHATBOT_TEXT } from './chatbot-text';
 import { isWidgetVisible } from './visibility';
-import { PATIENT_MESSAGES_PATH, WIDE_QUERY } from './widget-config';
+import { WIDE_QUERY } from './widget-config';
 
 export interface ChatbotWidgetProps {
   // Lớp gọi máy chủ. Mặc định là bản thật; CHỈ test truyền lớp giả (`testing/`)
   api?: ChatbotApi;
-  // `[CHỜ chat]`: đường dẫn trang Tin nhắn; `null` = chưa có, hiện đường dây nóng thay cho liên kết
-  messagesPath?: string | null;
 }
 
 // Khung chat Trợ lý AI (chatbot F1). Gắn MỘT lần ở `router/root-layout.tsx`, nên không bị gỡ khi đổi trang và giữ được lịch sử.
 // Lịch sử, bản nháp, việc đã bấm "Tôi hiểu" chỉ nằm ở state React của component này (PLAN 5.9): tải lại trang là mất.
-export function ChatbotWidget({
-  api = httpChatbotApi,
-  messagesPath = PATIENT_MESSAGES_PATH,
-}: ChatbotWidgetProps) {
+export function ChatbotWidget({ api = httpChatbotApi }: ChatbotWidgetProps) {
   const { status, user } = useAuth();
   const { pathname, key } = useLocation();
   const wide = useMediaQuery(WIDE_QUERY);
@@ -82,8 +78,6 @@ export function ChatbotWidget({
   const panel = (
     <ChatbotPanel
       conversation={conversation}
-      api={api}
-      messagesPath={messagesPath}
       consented={consented}
       draft={draft}
       focusRef={focusRef}
@@ -97,8 +91,9 @@ export function ChatbotWidget({
     />
   );
 
+  // `ChatbotApiContext`: thẻ gợi ý (chatbot F2) nằm sâu trong danh sách tin nên lấy cùng lớp API với khung (bản thật, hay lớp giả của test)
   return (
-    <>
+    <ChatbotApiContext.Provider value={api}>
       <button
         ref={launcherRef}
         type="button"
@@ -135,6 +130,6 @@ export function ChatbotWidget({
             {panel}
           </NarrowFrame>
         ))}
-    </>
+    </ChatbotApiContext.Provider>
   );
 }

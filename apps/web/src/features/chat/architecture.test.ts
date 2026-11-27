@@ -99,4 +99,15 @@ describe('chat F1 — ranh giới module', () => {
       );
     }
   });
+
+  it('chat F2: chỉ `features/chat/realtime/` import `socket.io-client` (một nơi mở socket, PLAN 5.13); không module nào khác của web import nó', () => {
+    const ALL = import.meta.glob(
+      ['../../**/*.{ts,tsx}', '!../../**/*.test.{ts,tsx}', '!../../test/**'],
+      { query: '?raw', import: 'default', eager: true },
+    ) as Record<string, string>;
+    const users = Object.entries(ALL)
+      .filter(([, source]) => /from\s*['"]socket\.io-client['"]/.test(source))
+      .map(([file]) => file);
+    expect(users).toEqual(['./realtime/chat-connection.ts']);
+  });
 });

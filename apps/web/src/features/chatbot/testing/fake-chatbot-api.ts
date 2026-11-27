@@ -1,7 +1,14 @@
 import { RequestAbortedError } from '../../../shared/api/errors';
 import type { ChatbotApi } from '../api/chatbot-api';
-import type { ChatbotReply, ChatbotRequest } from '../api/chatbot-types';
+import type {
+  ChatbotReply,
+  ChatbotRequest,
+  SpecialtyOption,
+  SuggestParams,
+  Suggestion,
+} from '../api/chatbot-types';
 import { traLoi } from './reply-fixtures';
+import { SPECIALTIES, suggestion } from './suggestion-fixtures';
 
 // CHỈ DÙNG TRONG TEST: lớp API giả thay cho `httpChatbotApi`. Không bao giờ được import từ mã chạy thật (`architecture.test.ts` khoá).
 export interface AskCall {
@@ -9,18 +16,34 @@ export interface AskCall {
   signal: AbortSignal;
 }
 
-export type FakeAnswer =
-  | ChatbotReply
-  | Error
-  | Promise<ChatbotReply>
-  | ((call: AskCall) => ChatbotReply | Error | Promise<ChatbotReply>);
+// Lời gọi gợi ý (chatbot F2): `params` đúng như thẻ gợi ý gửi (chi nhánh đã đọc LÚC GỌI)
+export interface SuggestCall {
+  params: SuggestParams;
+  signal: AbortSignal;
+}
+
+export interface SpecialtiesCall {
+  signal: AbortSignal;
+}
+
+// Một câu trả lời của lớp giả: giá trị, lỗi (để ném), lời hứa (để điều khiển thời điểm về), hay hàm tính từ lời gọi
+export type FakeResult<T, C> =
+  T | Error | Promise<T> | ((call: C) => T | Error | Promise<T>);
+
+export type FakeAnswer = FakeResult<ChatbotReply, AskCall>;
+export type FakeSuggestAnswer = FakeResult<Suggestion, SuggestCall>;
+export type FakeSpecialtiesAnswer = FakeResult<
+  SpecialtyOption[],
+  SpecialtiesCall
+>;
 
 export interface FakeChatbot {
   api: ChatbotApi;
   // Mọi lời gọi `ask`, theo thứ tự
   calls: AskCall[];
-  // Số lần hỏi đường dây nóng
-  hotlineCalls: number;
+  // Mọi lời gọi `suggest` và `listSpecialties`, theo thứ tự
+  suggestCalls: SuggestCall[];
+  specialtyCalls: SpecialtiesCall[];
 }
 
 export function deferred<T>() {
@@ -33,9 +56,12 @@ export function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function settle(answer: FakeAnswer, call: AskCall): Promise<ChatbotReply> {
-  return new Promise<ChatbotReply>((resolve, reject) => {
-    const value = typeof answer === 'function' ? answer(call) : answer;
+function settle<T, C>(answer: FakeResult<T, C>, call: C): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const value =
+      typeof answer === 'function'
+        ? (answer as (call: C) => T | Error | Promise<T>)(call)
+        : answer;
     if (value instanceof Error) reject(value);
     else resolve(value);
   });
@@ -55,39 +81,48 @@ function abortable<T>(signal: AbortSignal, promise: Promise<T>): Promise<T> {
   });
 }
 
-// `answers` được dùng lần lượt cho mỗi lời gọi `ask`; hết thì trả một câu trả lời mẫu.
-// `hotline`: chữ trả về, `null` (không có), hay `Error` (lỗi).
+// `answers`, `suggestAnswers`, `specialtyAnswers` được dùng lần lượt cho mỗi lời gọi tương ứng; hết thì trả một câu trả lời mẫu.
 // `ignoreAbort`: câu trả lời vẫn về dù tín hiệu đã bị huỷ, mô phỏng đua ở lớp client thật (phản hồi tới ngay trước khi huỷ).
 export function createFakeChatbotApi(
   options: {
     answers?: FakeAnswer[];
-    hotline?: string | null | Error;
+    suggestAnswers?: FakeSuggestAnswer[];
+    specialtyAnswers?: FakeSpecialtiesAnswer[];
     ignoreAbort?: boolean;
   } = {},
 ): FakeChatbot {
   const queue = [...(options.answers ?? [])];
+  const suggestQueue = [...(options.suggestAnswers ?? [])];
+  const specialtyQueue = [...(options.specialtyAnswers ?? [])];
   const calls: AskCall[] = [];
-  const fake: FakeChatbot = {
+  const suggestCalls: SuggestCall[] = [];
+  const specialtyCalls: SpecialtiesCall[] = [];
+  const guard = <T>(signal: AbortSignal, promise: Promise<T>) =>
+    options.ignoreAbort ? promise : abortable(signal, promise);
+  return {
     calls,
-    hotlineCalls: 0,
+    suggestCalls,
+    specialtyCalls,
     api: {
       ask(body, signal) {
         const call = { body, signal };
         calls.push(call);
         const next: FakeAnswer = queue.shift() ?? traLoi('Câu trả lời mẫu.');
-        const settled = settle(next, call);
-        return options.ignoreAbort ? settled : abortable(signal, settled);
+        return guard(signal, settle(next, call));
       },
-      clinicHotline(signal) {
-        fake.hotlineCalls += 1;
-        const hotline = options.hotline ?? null;
-        const result =
-          hotline instanceof Error
-            ? Promise.reject(hotline)
-            : Promise.resolve(hotline);
-        return abortable(signal, result);
+      suggest(params, signal) {
+        const call = { params, signal };
+        suggestCalls.push(call);
+        const next: FakeSuggestAnswer = suggestQueue.shift() ?? suggestion();
+        return guard(signal, settle(next, call));
+      },
+      listSpecialties(signal) {
+        const call = { signal };
+        specialtyCalls.push(call);
+        const next: FakeSpecialtiesAnswer =
+          specialtyQueue.shift() ?? SPECIALTIES;
+        return guard(signal, settle(next, call));
       },
     },
   };
-  return fake;
 }

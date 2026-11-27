@@ -34,15 +34,66 @@ export const CHATBOT_TEXT = {
   linkWallet: 'Ví của tôi',
   linkDoctors: 'Tra cứu bác sĩ và lịch khám',
   linkMessages: 'Nhắn lễ tân',
-  clinicCall: 'Gọi phòng khám',
   // Chữ lỗi theo PLAN 5.16
   errorInvalid: 'Câu hỏi cần từ 1 đến 500 ký tự.',
   errorTooFast: 'Bạn hỏi hơi nhanh. Đợi một chút rồi gửi lại.',
   errorBusy: 'Trợ lý đang bận. Thử lại sau ít giây.',
   // Chữ 3b của 2.4.7 (không dấu chấm cuối): dùng cho 500, mất mạng, quá giờ, phản hồi không dùng được
   errorUnavailable: 'Trợ lý AI hiện không phản hồi, vui lòng thử lại sau',
+  // Thẻ gợi ý đặt lịch (chatbot F2; Đại duyệt 27/11/2026). Chữ có ghi (P) ở TRACKING 3.9 là nguyên văn PLAN 5.14, 5.16; chữ còn lại là chữ mới đã duyệt.
+  suggest: {
+    title: 'Gợi ý đặt lịch khám',
+    specialtyGroup: 'Chuyên khoa gợi ý',
+    chooseSpecialty: 'Chọn chuyên khoa này',
+    specialtyChosen: 'Đã chọn',
+    otherSpecialty: 'Chọn chuyên khoa khác',
+    specialtySelectLabel: 'Chuyên khoa',
+    specialtySelectPlaceholder: 'Chọn chuyên khoa…',
+    specialtiesLoading: 'Đang tải danh sách chuyên khoa…',
+    specialtiesEmpty: 'Chưa có chuyên khoa nào để chọn.',
+    dayGroup: 'Ngày khám',
+    shiftGroup: 'Ca khám',
+    shifts: { CaSang: 'Sáng', CaChieu: 'Chiều', CaToi: 'Tối' },
+    loading: 'Đang tìm bác sĩ và giờ trống…',
+    loginHint: 'Đăng nhập để đặt lịch',
+    slotGroup: 'Giờ trống',
+    fullSchedule: 'Xem lịch đầy đủ',
+    // A5 (2.4.7 9b): chữ PLAN 5.16; câu thứ hai là chữ mới cho trường hợp chuyên khoa không có bác sĩ nào
+    emptyNoSlot:
+      'Hiện chưa có khung giờ trống phù hợp. Thử ngày hoặc ca khác, hoặc chọn chuyên khoa khác.',
+    emptyNoDoctor:
+      'Chuyên khoa này hiện chưa có bác sĩ phù hợp. Hãy chọn chuyên khoa khác hoặc tra cứu bác sĩ và lịch khám.',
+    // Chữ theo `maLoi` của PLAN 5.16
+    errorFilter: 'Bộ lọc không hợp lệ.',
+    errorNotFound: 'Không tìm thấy chuyên khoa.',
+    errorNotConfigured:
+      'Chưa gợi ý được lúc này. Bạn có thể tra cứu bác sĩ và lịch khám.',
+    retry: 'Thử lại',
+  },
 } as const;
 
 export function counterText(length: number, max: number): string {
   return `${length}/${max}`;
+}
+
+// Chữ có số liệu của thẻ gợi ý. `day` là nhãn ngày đã dựng ("Thứ 6 28/11").
+export function suggestSummaryEarliest(day: string, count: number): string {
+  return `Ngày sớm nhất còn giờ trống: ${day}. Có ${count} bác sĩ.`;
+}
+
+export function suggestSummaryPicked(day: string, count: number): string {
+  return `${day}: có ${count} bác sĩ còn giờ trống.`;
+}
+
+export function suggestPrice(amount: string): string {
+  return `Giá khám ${amount}`;
+}
+
+export function suggestRating(score: string, count: number): string {
+  return `${score} · ${count} đánh giá`;
+}
+
+// Phần chữ chỉ đọc cho trình đọc màn hình sau giờ "09:30": ngày và tên bác sĩ
+export function suggestSlotSuffix(dayMonth: string, doctor: string): string {
+  return ` ngày ${dayMonth}, ${doctor}`;
 }

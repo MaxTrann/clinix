@@ -1,6 +1,5 @@
 import { X } from 'lucide-react';
 import type { RefObject } from 'react';
-import type { ChatbotApi } from '../api/chatbot-api';
 import type { Conversation } from '../state/use-conversation';
 import { CHATBOT_TEXT } from './chatbot-text';
 import { Composer } from './composer';
@@ -11,8 +10,6 @@ import { Banner, ConsentNotice } from './notice-banner';
 // khối thông báo quyền riêng tư (tới khi bấm "Tôi hiểu"), ô nhập. Mọi state nằm ở `ChatbotWidget`, nên đổi giữa màn rộng và màn hẹp không mất gì.
 export function ChatbotPanel({
   conversation,
-  api,
-  messagesPath,
   consented,
   draft,
   focusRef,
@@ -24,8 +21,6 @@ export function ChatbotPanel({
   onClose,
 }: {
   conversation: Conversation;
-  api: ChatbotApi;
-  messagesPath: string | null;
   consented: boolean;
   draft: string;
   focusRef: RefObject<HTMLElement | null>;
@@ -54,8 +49,6 @@ export function ChatbotPanel({
       <Banner />
       <MessageList
         exchanges={conversation.exchanges}
-        api={api}
-        messagesPath={messagesPath}
         quickEnabled={consented && !conversation.busy}
         onQuick={onQuick}
         onRetry={() => void conversation.retry()}

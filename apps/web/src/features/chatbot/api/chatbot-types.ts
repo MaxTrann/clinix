@@ -58,3 +58,52 @@ export interface ChatbotRequest {
   lichSu?: HistoryTurn[];
   chiNhanhId?: string;
 }
+
+// Hợp đồng `GET /chatbot/suggestions` (chatbot B4; PLAN 5.11, 5.12; mã thật ở `apps/api/src/chatbot/suggest/suggestion.dto.ts`).
+// Mọi id là chuỗi; `batDau` là ISO 8601 UTC; `giaKham` là chuỗi tiền đã cộng phụ phí. Web chỉ nhận danh sách trắng dưới đây:
+// KHÔNG có học vị, số năm kinh nghiệm, điểm xếp hạng (những thứ đó chỉ dùng phía máy chủ để xếp hạng).
+export const SHIFT_CODES = ['CaSang', 'CaChieu', 'CaToi'] as const;
+export type SuggestShift = (typeof SHIFT_CODES)[number];
+
+export const EMPTY_REASONS = ['KhongCoKhungGio', 'KhongCoBacSi'] as const;
+export type EmptyReason = (typeof EMPTY_REASONS)[number];
+
+// `chiNhanhId` vắng nghĩa là "Toàn quốc" hay chưa chọn chi nhánh. `ngay` (YYYY-MM-DD, giờ Việt Nam) và `ca` vắng nghĩa là để máy chủ chọn ngày sớm nhất.
+export interface SuggestParams {
+  chuyenKhoaId: string;
+  chiNhanhId?: string;
+  ngay?: string;
+  ca?: SuggestShift;
+}
+
+export interface SuggestedSlot {
+  khungGioId: string;
+  batDau: string;
+  ca: SuggestShift;
+}
+
+export interface SuggestedDoctor {
+  bacSiId: string;
+  hoTen: string;
+  // Mã thô (`BS`, `BS_CKI`, `TS_BS`…); mã lạ vẫn được giữ và hiện nguyên mã
+  chucDanh: string;
+  chiNhanh: { chiNhanhId: string; ten: string; diaChi: string };
+  giaKham: string;
+  danhGia: { diemTrungBinh: string | null; soDanhGia: number };
+  khungGio: SuggestedSlot[];
+}
+
+export interface Suggestion {
+  chuyenKhoa: { chuyenKhoaId: string; ten: string };
+  // `null`: không có ngày nào có ô trống (hay chuyên khoa chưa có bác sĩ)
+  ngay: string | null;
+  bacSi: SuggestedDoctor[];
+  // Chỉ có khi `bacSi` rỗng
+  lyDoRong?: EmptyReason;
+}
+
+// Một dòng của danh sách chuyên khoa công khai (`GET /public/specialties`); chỉ giữ id và tên
+export interface SpecialtyOption {
+  chuyenKhoaId: string;
+  ten: string;
+}

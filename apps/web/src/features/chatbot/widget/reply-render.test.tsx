@@ -1,4 +1,5 @@
 import { act, screen, waitFor } from '@testing-library/react';
+import { PATIENT_CHAT_PATH } from '../../../shared/routes/chat-paths';
 import type { ChatbotReply } from '../api/chatbot-types';
 import {
   createFakeChatbotApi,
@@ -7,6 +8,7 @@ import {
 } from '../testing/fake-chatbot-api';
 import {
   chu,
+  duPhong,
   goiY,
   khanCap,
   khongCoChuyenKhoa,
@@ -29,11 +31,9 @@ afterEach(resetWidgetTest);
 
 async function showReply(
   r: ChatbotReply,
-  options: RenderWidgetOptions & { hotline?: string | null | Error } = {},
+  options: RenderWidgetOptions = {},
 ): Promise<FakeChatbot> {
-  const fake =
-    options.fake ??
-    createFakeChatbotApi({ answers: [r], hotline: options.hotline });
+  const fake = options.fake ?? createFakeChatbotApi({ answers: [r] });
   renderWidget({ ...options, fake });
   openAndAsk('Câu hỏi thử');
   await waitFor(() =>
@@ -153,33 +153,30 @@ describe('hiển thị phản hồi (WTL-03)', () => {
     expect(asked).toHaveClass('whitespace-pre-wrap');
   });
 
-  it('WTL-03 `GoiY` ở F1 chỉ hiện phần chữ (thẻ gợi ý là của F2): không nút chọn chuyên khoa, không thẻ bác sĩ', async () => {
+  it('WTL-03 `GoiY`: phần chữ vẫn có liên kết chuyên khoa; từ chatbot F2 có thêm thẻ gợi ý, nhưng chưa chọn thì chưa có bác sĩ, ô giờ hay dòng đăng nhập', async () => {
     await showReply(goiY());
 
-    expect(screen.getByRole('link', { name: 'Nội tổng quát' })).toHaveAttribute(
-      'href',
-      '/chuyen-khoa/3',
-    );
+    // Hai liên kết cùng đích: tên trong đoạn chữ và tên trong thẻ gợi ý (F2)
+    const links = screen.getAllByRole('link', { name: 'Nội tổng quát' });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', '/chuyen-khoa/3');
+    }
     expect(
-      screen.queryByRole('button', { name: /Chọn chuyên khoa/ }),
-    ).toBeNull();
-    // Chỉ còn các nút của khung: đóng, gửi, xoá
+      screen.getByRole('region', { name: 'Gợi ý đặt lịch khám' }),
+    ).toBeInTheDocument();
     expect(
-      screen
-        .getAllByRole('button')
-        .map(
-          (button) => button.getAttribute('aria-label') ?? button.textContent,
-        ),
-    ).toEqual(
-      expect.arrayContaining(['Đóng Trợ lý AI', 'Gửi', 'Xoá hội thoại']),
-    );
+      screen.getByRole('button', { name: 'Chọn chuyên khoa này' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Ngày khám' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^\d\d:\d\d/ })).toBeNull();
     expect(screen.queryByText(/Đăng nhập để đặt lịch/)).toBeNull();
   });
 });
 
 describe('khẩn cấp, tài khoản, ngoài phạm vi, kênh lễ tân (WTL-05)', () => {
   it('WTL-05 `KhanCap`: khối nổi bật, nút gọi `tel:115`, địa chỉ chi nhánh từ máy chủ kèm liên kết chi nhánh', async () => {
-    await showReply(khanCap(), { hotline: '1900 1234' });
+    await showReply(khanCap());
 
     const block = document.querySelector('[data-ket-qua="KhanCap"]')!;
     expect(block).toHaveClass('bg-danger-soft');
@@ -210,46 +207,28 @@ describe('khẩn cấp, tài khoản, ngoài phạm vi, kênh lễ tân (WTL-05)
     expect(screen.queryByRole('link', { name: 'Gọi 115' })).toBeNull();
   });
 
-  it('WTL-05 chưa có trang Tin nhắn: `NhanTinLeTan` hiện đường dây nóng của phòng khám, hỏi đúng MỘT lần', async () => {
-    const fake = await showReply(khanCap(), { hotline: '1900 1234' });
-
-    const call = await screen.findByRole('link', {
-      name: 'Gọi phòng khám: 1900 1234',
-    });
-    expect(call).toHaveAttribute('href', 'tel:19001234');
-    expect(fake.hotlineCalls).toBe(1);
-    expect(screen.queryByRole('link', { name: 'Nhắn lễ tân' })).toBeNull();
-  });
-
-  it('WTL-05 không có đường dây nóng (null) hay lỗi khi hỏi: không hiện gì, khung vẫn dùng được', async () => {
-    for (const hotline of [null, new Error('lỗi mạng')]) {
-      const fake = await showReply(khanCap(), { hotline });
-      await waitFor(() => expect(fake.hotlineCalls).toBe(1));
-      expect(screen.queryByText(/Gọi phòng khám/)).toBeNull();
-      expect(screen.getByRole('link', { name: 'Gọi 115' })).toBeInTheDocument();
+  it('WTL-05 `NhanTinLeTan` là liên kết "Nhắn lễ tân" tới đường dẫn gốc của trang Tin nhắn, không mang tham số bắt đầu trò chuyện', async () => {
+    expect(PATIENT_CHAT_PATH).toBe('/benh-nhan/tin-nhan');
+    for (const r of [khanCap(), duPhong(), khongKhopDuLieu()]) {
+      await showReply(r);
+      const link = screen.getByRole('link', { name: 'Nhắn lễ tân' });
+      expect(link).toHaveAttribute('href', PATIENT_CHAT_PATH);
+      expect(link.getAttribute('href')).not.toContain('?');
       resetWidgetTest();
     }
   });
 
-  it('WTL-05 đường dây nóng không phải số điện thoại thì hiện chữ, không tạo liên kết gọi', async () => {
-    await showReply(khanCap(), { hotline: 'Liên hệ lễ tân' });
-    expect(
-      await screen.findByText('Gọi phòng khám: Liên hệ lễ tân'),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Gọi phòng khám/ })).toBeNull();
-  });
+  it('WTL-05 hiện `NhanTinLeTan` không gọi mạng nào ngoài lớp API hỏi đáp (không còn đọc đường dây nóng)', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
 
-  it('WTL-05 khi trang Tin nhắn có (`messagesPath`): liên kết "Nhắn lễ tân" tới đó và KHÔNG hỏi đường dây nóng', async () => {
-    const fake = await showReply(khanCap(), {
-      hotline: '1900 1234',
-      messagesPath: '/benh-nhan/tin-nhan',
-    });
-    expect(screen.getByRole('link', { name: 'Nhắn lễ tân' })).toHaveAttribute(
-      'href',
-      '/benh-nhan/tin-nhan',
-    );
-    expect(fake.hotlineCalls).toBe(0);
+    await showReply(khanCap());
+
+    expect(
+      screen.getByRole('link', { name: 'Nhắn lễ tân' }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Gọi phòng khám/)).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('WTL-05 `TaiKhoan` (Q4): chỉ liên kết tới "Lịch hẹn của tôi" và "Ví của tôi"', async () => {
@@ -265,7 +244,7 @@ describe('khẩn cấp, tài khoản, ngoài phạm vi, kênh lễ tân (WTL-05)
 
   it('WTL-05 `NgoaiPhamVi`, `KhongKhopDuLieu`, `KhongCoChuyenKhoa`: liên kết "Tra cứu bác sĩ và lịch khám" tới /bac-si', async () => {
     for (const r of [ngoaiPhamVi(), khongKhopDuLieu(), khongCoChuyenKhoa()]) {
-      await showReply(r, { hotline: null });
+      await showReply(r);
       expect(
         screen.getByRole('link', { name: 'Tra cứu bác sĩ và lịch khám' }),
       ).toHaveAttribute('href', '/bac-si');
