@@ -1,6 +1,7 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { ADMIN_ROUTES } from '../features/admin/admin-routes';
 import { RequireAuth, ROLE_HOME_PATHS, type VaiTro } from '../features/auth';
+import { CHAT_ROUTES } from '../features/chat';
 import {
   createAdminApprovalsRoutes,
   ADMIN_REVIEWS_ROUTES,
@@ -65,6 +66,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
           ...PATIENT_WALLET_ROUTES,
           // notification F1: Thông báo
           ...NOTIFICATION_ROUTES,
+          // chat F1: Tin nhắn (trang tạm; khung nhắn tin là chat F3)
+          ...CHAT_ROUTES,
         ],
       },
     ],
@@ -87,6 +90,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
           ...DOCTOR_APPOINTMENT_ROUTES,
           // notification F1: Thông báo
           ...NOTIFICATION_ROUTES,
+          // chat F1: Tin nhắn (trang tạm; khung nhắn tin là chat F3)
+          ...CHAT_ROUTES,
         ],
       },
     ],
@@ -111,6 +116,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
           ...RECEPTION_SCHEDULE_ROUTES,
           // notification F1: Thông báo
           ...NOTIFICATION_ROUTES,
+          // chat F1: Tin nhắn (trang tạm; khung nhắn tin là chat F3)
+          ...CHAT_ROUTES,
         ],
       },
     ],

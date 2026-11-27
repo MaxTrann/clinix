@@ -62,6 +62,8 @@ function parseLink(raw: unknown): NotificationLink | null {
   const kieu = readOneOf(link.kieu, LINK_KINDS);
   if (kieu === 'LichHen')
     return { kieu, maLichHen: readString(link.maLichHen) };
+  if (kieu === 'HoiThoai')
+    return { kieu, hoiThoaiId: readString(link.hoiThoaiId) };
   return { kieu };
 }
 

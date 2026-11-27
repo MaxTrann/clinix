@@ -9,6 +9,8 @@ export const NOTIFICATION_GROUPS = [
   'NghiPhep',
   'Vi',
   'ChiNhanh',
+  // chat B6, F1: tin nhắn mới
+  'TinNhan',
 ] as const;
 export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number];
 
@@ -17,12 +19,15 @@ export const LINK_KINDS = [
   'Vi',
   'NghiPhep',
   'ThayDoiChiNhanh',
+  // chat B6, F1: mở hội thoại (id công khai của chat; quyền xem do API chat kiểm lại)
+  'HoiThoai',
 ] as const;
 export type LinkKind = (typeof LINK_KINDS)[number];
 
 export type NotificationLink =
   | { kieu: 'LichHen'; maLichHen: string }
-  | { kieu: Exclude<LinkKind, 'LichHen'> };
+  | { kieu: 'HoiThoai'; hoiThoaiId: string }
+  | { kieu: Exclude<LinkKind, 'LichHen' | 'HoiThoai'> };
 
 export interface NotificationItem {
   id: string;

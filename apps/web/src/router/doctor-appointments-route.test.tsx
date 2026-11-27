@@ -213,10 +213,10 @@ describe('route "Lịch hẹn" của Bác sĩ (F11)', () => {
       within(menu)
         .getAllByRole('link')
         .map((link) => link.textContent),
-      // Đổi ở notification F1: "Thông báo" có trang
-    ).toEqual(['Lịch hẹn', 'Lịch làm việc', 'Thông báo']);
+      // Đổi ở notification F1: "Thông báo" có trang. Đổi ở chat F1 (27/11/2026): "Tin nhắn" có trang (bốn liên kết, hai nút vô hiệu)
+    ).toEqual(['Lịch hẹn', 'Lịch làm việc', 'Tin nhắn', 'Thông báo']);
     const buttons = within(menu).getAllByRole('button');
-    expect(buttons).toHaveLength(3);
+    expect(buttons).toHaveLength(2);
     for (const button of buttons) expect(button).toBeDisabled();
   });
 });
