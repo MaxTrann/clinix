@@ -3,6 +3,7 @@ import {
   Building2,
   Calendar,
   CalendarOff,
+  MessageCircle,
   RefreshCw,
   Wallet,
   type LucideIcon,
@@ -16,5 +17,7 @@ export const GROUP_ICONS: Record<NotificationGroup | 'Khac', LucideIcon> = {
   NghiPhep: CalendarOff,
   Vi: Wallet,
   ChiNhanh: Building2,
+  // chat F1: cùng biểu tượng với mục "Tin nhắn" ở menu
+  TinNhan: MessageCircle,
   Khac: Bell,
 };

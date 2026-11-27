@@ -1,5 +1,10 @@
 import { setApiAuthHooks, type ApiAuthHooks } from './auth-hooks';
-import { DEFAULT_TIMEOUT_MS, LONG_TIMEOUT_MS, request } from './client';
+import {
+  DEFAULT_TIMEOUT_MS,
+  LONG_TIMEOUT_MS,
+  request,
+  requestBinary,
+} from './client';
 import {
   ApiError,
   NetworkError,
@@ -624,5 +629,77 @@ describe('điểm cắm setApiAuthHooks', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(await outcome).toBeInstanceOf(TimeoutError);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+// chat F1 — đường tải nhị phân (WCH-03, phần lớp client): cùng lỗi, hẹn giờ, làm mới phiên như `request`.
+describe('requestBinary (chat F1, WCH-03)', () => {
+  it('WCH-03 200 ⇒ giữ nguyên byte và hai header; xin `Accept: */*`, gắn token', async () => {
+    setApiAuthHooks(hooksStub({ getAccessToken: () => 'tok' }));
+    fetchMock.mockResolvedValue(
+      new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46]), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': 'attachment; filename="a.pdf"',
+        },
+      }),
+    );
+    const file = await requestBinary('/chat/messages/7/attachment');
+    expect(file.contentType).toBe('application/pdf');
+    expect(file.contentDisposition).toBe('attachment; filename="a.pdf"');
+    expect([...new Uint8Array(await file.blob.arrayBuffer())]).toEqual([
+      0x25, 0x50, 0x44, 0x46,
+    ]);
+    const { url, headers } = lastCall();
+    expect(url).toBe('/api/chat/messages/7/attachment');
+    expect(headers.get('Accept')).toBe('*/*');
+    expect(headers.get('Authorization')).toBe('Bearer tok');
+  });
+
+  it('WCH-03 lỗi JSON của API ⇒ ApiError đúng mã; lỗi không phải JSON ⇒ UnexpectedResponseError', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(404, { maLoi: 'KHONG_TIM_THAY', thongBao: 'x' }),
+    );
+    await expect(requestBinary('/x')).rejects.toMatchObject({
+      status: 404,
+      maLoi: 'KHONG_TIM_THAY',
+    });
+    fetchMock.mockResolvedValueOnce(htmlResponse(502));
+    await expect(requestBinary('/x')).rejects.toBeInstanceOf(
+      UnexpectedResponseError,
+    );
+  });
+
+  it('WCH-03 401 ⇒ nhờ hook phục hồi rồi gửi lại đúng một lần với token mới', async () => {
+    let token = 'cu';
+    const hooks = hooksStub({
+      getAccessToken: () => token,
+      recoverFromUnauthorized: vi.fn(async () => {
+        token = 'moi';
+        return true;
+      }),
+    });
+    setApiAuthHooks(hooks);
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(401, UNAUTHORIZED))
+      .mockResolvedValueOnce(new Response('x', { status: 200 }));
+    const file = await requestBinary('/x');
+    expect(await file.blob.text()).toBe('x');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(lastCall().headers.get('Authorization')).toBe('Bearer moi');
+    expect(hooks.recoverFromUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  it('WCH-03 quá giờ (15 giây) ⇒ TimeoutError; mất mạng ⇒ NetworkError', async () => {
+    vi.useFakeTimers();
+    fetchMock.mockImplementationOnce(hangUntilAborted);
+    const pending = requestBinary('/x');
+    const assertion = expect(pending).rejects.toBeInstanceOf(TimeoutError);
+    await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS);
+    await assertion;
+    vi.useRealTimers();
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await expect(requestBinary('/x')).rejects.toBeInstanceOf(NetworkError);
   });
 });

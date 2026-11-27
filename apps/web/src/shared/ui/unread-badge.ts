@@ -6,6 +6,11 @@ export function unreadBadgeText(unread: number): string | null {
   return unread > 99 ? '99+' : String(unread);
 }
 
+/** Tên truy cập của mục "Tin nhắn" có số (chat F1, PLAN chat 5.13): đếm theo hội thoại, không theo tin. */
+export function messagesUnreadLabel(unread: number): string {
+  return `Tin nhắn, ${Math.max(unread, 0)} hội thoại chưa đọc`;
+}
+
 /** Tên truy cập của chuông và của mục menu có số. */
 export function unreadLabel(unread: number): string {
   return `Thông báo, ${Math.max(unread, 0)} chưa đọc`;

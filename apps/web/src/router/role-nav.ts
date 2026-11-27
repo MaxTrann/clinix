@@ -29,6 +29,11 @@ import {
   PATIENT_NOTIFICATIONS_PATH,
   RECEPTION_NOTIFICATIONS_PATH,
 } from '../shared/routes/notification-paths';
+import {
+  DOCTOR_CHAT_PATH,
+  PATIENT_CHAT_PATH,
+  RECEPTION_CHAT_PATH,
+} from '../shared/routes/chat-paths';
 import { PATIENT_WALLET_PATH } from '../shared/routes/wallet-paths';
 import type { RoleNavItem } from '../shared/ui/role-shell';
 
@@ -54,7 +59,13 @@ export const PATIENT_NAV: { items: RoleNavItem[]; footerItems: RoleNavItem[] } =
       // payment F1: trang Ví của tôi (không `end`: trang kết quả nạp của F2 nằm dưới đường dẫn này vẫn sáng mục)
       { label: 'Ví của tôi', icon: Wallet, to: PATIENT_WALLET_PATH },
       { label: 'Danh sách chờ', icon: ListOrdered },
-      { label: 'Tin nhắn', icon: MessageCircle },
+      // chat F1: trang Tin nhắn, số HỘI THOẠI chưa đọc (`count` do router điền ở role-shells.tsx; không `end`: `?hoiThoai=` vẫn sáng mục)
+      {
+        label: 'Tin nhắn',
+        icon: MessageCircle,
+        to: PATIENT_CHAT_PATH,
+        badge: 'messages',
+      },
       // notification F1: trang Thông báo, có số chưa đọc (TECH_DEBT 62)
       {
         label: 'Thông báo',
@@ -92,7 +103,13 @@ export const RECEPTION_NAV: { items: RoleNavItem[] } = {
       to: RECEPTION_RESCHEDULE_REQUESTS_PATH,
     },
     { label: 'Danh sách chờ', icon: ListOrdered },
-    { label: 'Tin nhắn', icon: MessageCircle },
+    // chat F1: trang Tin nhắn (hộp thư chung của chi nhánh), số hội thoại chưa đọc
+    {
+      label: 'Tin nhắn',
+      icon: MessageCircle,
+      to: RECEPTION_CHAT_PATH,
+      badge: 'messages',
+    },
     // notification F1: trang Thông báo, có số chưa đọc (TECH_DEBT 62)
     {
       label: 'Thông báo',
@@ -104,13 +121,19 @@ export const RECEPTION_NAV: { items: RoleNavItem[] } = {
   ],
 };
 
-// doctor F1 (Figma `466:2`). "Lịch hẹn" do `booking` F11 đặt `to` (doctor F10 gắn route); "Thông báo" do notification F1; "Tổng quan", "Tin nhắn", "Thông tin cá nhân" chưa có trang (nút vô hiệu).
+// doctor F1 (Figma `466:2`). "Lịch hẹn" do `booking` F11 đặt `to` (doctor F10 gắn route); "Thông báo" do notification F1; "Tin nhắn" do chat F1; "Tổng quan", "Thông tin cá nhân" chưa có trang (nút vô hiệu).
 export const DOCTOR_NAV: { items: RoleNavItem[] } = {
   items: [
     { label: 'Tổng quan', icon: LayoutDashboard },
     { label: 'Lịch hẹn', icon: Calendar, to: DOCTOR_APPOINTMENTS_PATH },
     { label: 'Lịch làm việc', icon: ClipboardList, to: DOCTOR_PATHS.schedule },
-    { label: 'Tin nhắn', icon: MessageCircle },
+    // chat F1: trang Tin nhắn, số hội thoại chưa đọc
+    {
+      label: 'Tin nhắn',
+      icon: MessageCircle,
+      to: DOCTOR_CHAT_PATH,
+      badge: 'messages',
+    },
     {
       label: 'Thông báo',
       icon: Bell,

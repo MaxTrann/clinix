@@ -19,8 +19,10 @@ export interface RoleNavItem {
   to?: string;
   // Chỉ sáng khi đúng đường dẫn này, không sáng ở trang con
   end?: boolean;
-  // notification F1: mục hiện số chưa đọc của `RoleShellProps.notifications` (chỉ mục "Thông báo")
-  badge?: 'notifications';
+  // notification F1: mục hiện số chưa đọc của `RoleShellProps.notifications` (chỉ mục "Thông báo").
+  // chat F1: `messages` = mục "Tin nhắn" hiện `count` (số HỘI THOẠI chưa đọc); router điền `count` vào mục, nên layout của module không phải đổi.
+  badge?: 'notifications' | 'messages';
+  count?: number;
 }
 
 // notification F1 (PLAN 5.10, TECH_DEBT 62): số chưa đọc do router thăm dò rồi truyền xuống. Không truyền = khung cũ (không chuông, không số đếm).
