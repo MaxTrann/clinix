@@ -112,6 +112,9 @@ const ATTACHMENT_SQL = `SELECT hoi_thoai_id AS hoiThoaiId, tep_dinh_kem AS khoa,
 // Upsert chỉ tiến tới (X1 M7): cột trong COALESCE PHẢI có tiền tố bảng, không thì MySQL 8.4 báo 1052. Chưa có dòng (Lễ tân mở lần đầu) ⇒ chèn mới.
 const UPSERT_MARK_SQL = `INSERT INTO tai_khoan_hoi_thoai (tai_khoan_id, hoi_thoai_id, tin_nhan_cuoi_da_doc_id) VALUES (?, ?, ?) AS moi
   ON DUPLICATE KEY UPDATE tin_nhan_cuoi_da_doc_id = GREATEST(COALESCE(tai_khoan_hoi_thoai.tin_nhan_cuoi_da_doc_id, 0), moi.tin_nhan_cuoi_da_doc_id)`;
+// chat B6: còn tin chưa đọc SAU mốc (cùng công thức chưa đọc: tin của người khác). Theo `tin_nhan_index_28 (hoi_thoai_id, tin_nhan_id)`, dừng ở dòng đầu.
+const UNREAD_AFTER_SQL =
+  'SELECT 1 AS co FROM tin_nhan WHERE hoi_thoai_id = ? AND tin_nhan_id > ? AND nguoi_gui_id <> ? LIMIT 1';
 const READ_MARK_SQL =
   'SELECT tin_nhan_cuoi_da_doc_id AS mocDaDoc FROM tai_khoan_hoi_thoai WHERE tai_khoan_id = ? AND hoi_thoai_id = ?';
 
@@ -370,6 +373,21 @@ export class ConversationReadRepository {
     const rows = await em.query<unknown[]>(MESSAGE_IN_CONVERSATION_SQL, [
       tinNhanId,
       hoiThoaiId,
+    ]);
+    return rows.length > 0;
+  }
+
+  /** Còn tin của người khác sau mốc `moc` (chat B6: quyết định có đánh dấu thông báo đã đọc hay không). */
+  async hasUnreadAfter(
+    em: EntityManager,
+    hoiThoaiId: string,
+    moc: string,
+    taiKhoanId: string,
+  ): Promise<boolean> {
+    const rows = await em.query<unknown[]>(UNREAD_AFTER_SQL, [
+      hoiThoaiId,
+      moc,
+      taiKhoanId,
     ]);
     return rows.length > 0;
   }

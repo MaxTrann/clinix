@@ -13,6 +13,7 @@ import {
   openConversation,
   userOf,
   type ChatWorld,
+  buildChatNotifier,
 } from '../testing/chat-world.js';
 
 // chat B2 — EXPLAIN các câu đọc MỚI (PLAN chat 5.15 "EXPLAIN cho câu SQL mới"; tiêu chí X1 M1 đến M3, đặt TRƯỚC ở PLAN, không đổi):
@@ -52,6 +53,7 @@ function recordingReader(recorded: Recorded[]): ConversationReadService {
       new ReceptionScopeService(new ReceptionScopeRepository(db)),
     ),
     new MessageRepository(),
+    buildChatNotifier(),
   );
 }
 const explain = async ({ sql, params }: Recorded) =>
