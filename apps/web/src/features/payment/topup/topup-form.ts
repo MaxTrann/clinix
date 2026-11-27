@@ -20,6 +20,8 @@ export const QUICK_AMOUNTS = [
  */
 export const ALLOWED_REDIRECT_HOSTS: readonly string[] = [
   'sandbox.vnpayment.vn',
+  // Sandbox cấp cho mã đăng ký từ 11/2026: thư của VNPAY ghi URL thanh toán TEST ở host này
+  'sandbox.vnpaytest.vn',
   'pay.vnpay.vn',
 ];
 
