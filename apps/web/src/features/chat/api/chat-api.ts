@@ -14,6 +14,7 @@ import {
   type ConversationPage,
   type MessageCursor,
   type MessagePage,
+  type SendResult,
 } from './chat-types';
 
 // Gọi API nhắn tin phần đọc và tải tệp (chat B2, B4; PLAN chat 5.6) qua lớp client DUY NHẤT (`request`, `requestBinary`), gắn access token.
@@ -215,6 +216,27 @@ export async function markConversationRead(
     await request(markReadPath(id), { method: 'POST', json: { tinNhanId } }),
   );
   return readString(body.tinNhanCuoiDaDocId);
+}
+
+export function parseSendResult(raw: unknown): SendResult {
+  const body = readRecord(raw);
+  return {
+    hoiThoaiId: readString(body.hoiThoaiId),
+    tinNhan: parseMessage(body.tinNhan),
+  };
+}
+
+/**
+ * Gửi tin chữ vào hội thoại đã có (chat B3; PLAN 5.6). 201 khi ghi mới, 200 cùng thân khi `maGui` đã dùng cho đúng nội dung này (gửi lại an toàn),
+ * nên web gửi lại sau lỗi mạng bằng CÙNG `maGui` (A1, WCH-09). Không tự thử lại ở đây: lớp client không thử lại yêu cầu làm đổi dữ liệu.
+ */
+export async function sendMessage(
+  hoiThoaiId: string,
+  input: { noiDung: string; maGui: string },
+): Promise<SendResult> {
+  return parseSendResult(
+    await request(messagesPath(hoiThoaiId), { method: 'POST', json: input }),
+  );
 }
 
 /** Số hội thoại có tin chưa đọc (trần 100) cho mục "Tin nhắn" ở menu. */
