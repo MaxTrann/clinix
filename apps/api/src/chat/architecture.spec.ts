@@ -102,9 +102,14 @@ describe('chat B1 — kiến trúc (HCH)', () => {
       forbiddenWrites(file, code).map((table) => `${file}: ${table}`),
     );
     expect(all).toEqual([]);
-    // Mã thật có ghi đủ ba bảng chat (phép quét không rỗng)
+    // Mã thật có ghi đủ ba bảng chat (phép quét không rỗng); chat B6 thêm `thong_bao`, và CHỈ ở chat/notifications/
     const written = new Set(sources.flatMap(({ code }) => writtenTables(code)));
-    expect([...written].sort()).toEqual(CHAT_TABLES);
+    expect([...written].sort()).toEqual([...CHAT_TABLES, 'thong_bao'].sort());
+    expect(
+      sources
+        .filter(({ code }) => writtenTables(code).includes('thong_bao'))
+        .map((s) => s.file),
+    ).toEqual([join('notifications', 'chat-notification.repository.ts')]);
   });
 });
 
@@ -221,5 +226,31 @@ describe('chat P3 — kiến trúc (HCH-05)', () => {
       /async write\(kind: ChatFileKind, data: Buffer\)[\s\S]*?const key = newChatFileKey\(kind\);/,
     );
     expect(USER_FILE_DATA.test(storeSource!.code)).toBe(false);
+  });
+});
+
+// chat B6 — HCH-06 (PLAN chat 7.11): danh mục và Trung tâm thông báo không import `chat/` lúc chạy (chiều phụ thuộc một chiều: chat dùng thông báo,
+// thông báo không biết chat). Spec của thông báo được import hằng của chat để đối chiếu (DMS-01). Đối chứng âm trên nguồn giả trước khi quét mã thật.
+const NOTIFICATION_RUNTIME_DIRS = ['catalog', 'center'].map((dir) =>
+  fileURLToPath(new URL(`../notification/${dir}/`, import.meta.url)),
+);
+const IMPORTS_CHAT = /from\s+['"][^'"]*\/chat\//;
+
+describe('chat B6 — kiến trúc (HCH-06)', () => {
+  it('HCH-06: mã chạy của notification/catalog và notification/center không import chat/; đối chứng âm bị bắt', () => {
+    expect(
+      IMPORTS_CHAT.test("import { X } from '../../chat/chat.constants.js';"),
+    ).toBe(true);
+    expect(
+      IMPORTS_CHAT.test("import { Y } from './notification-catalog.js';"),
+    ).toBe(false);
+    const files = NOTIFICATION_RUNTIME_DIRS.flatMap((dir) =>
+      listSourceFiles(dir),
+    );
+    expect(files.length).toBeGreaterThan(3);
+    const offenders = files
+      .filter((file) => IMPORTS_CHAT.test(stripComments(readSource(file))))
+      .map((file) => relative(CHAT_DIR, file));
+    expect(offenders).toEqual([]);
   });
 });

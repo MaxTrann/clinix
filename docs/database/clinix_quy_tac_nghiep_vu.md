@@ -859,3 +859,15 @@ CREATE INDEX `tin_nhan_index_nguoi_gui_thoi_diem` ON `tin_nhan` (`nguoi_gui_id`,
 ```
 
 Kiểm tra sau chuyển đổi: `SHOW CREATE TABLE tin_nhan` có `KEY tin_nhan_index_nguoi_gui_thoi_diem (nguoi_gui_id, thoi_diem_gui)`; `EXPLAIN` câu đếm giới hạn tốc độ dùng chỉ mục này (`range`, `Using index`). Hoàn tác (`down`) chỉ xoá chỉ mục, không chặn (không mất dữ liệu).
+
+## chat B6 — Thông báo tin nhắn mới (27/11/2026, scope #11 "Nhắn tin"; KHÔNG đổi schema)
+
+Không có `ALTER`, không đổi bảng, cột, enum, CHECK, UNIQUE hay chỉ mục. Quy tắc service của task chat B6 (issue #716; chi tiết: `docs/features/chat/PLAN.md` mục 5.10, quyết định Q11):
+
+- **Mã sự kiện mới `TinNhanMoi`** (danh mục `notification-catalog.ts`, nhóm `TinNhan`, người nhận Bệnh nhân, Bác sĩ, Lễ tân). **Chỉ trong ứng dụng:** không có dòng `email_thong_bao` (worker thư không chọn), không có `nhat_ky_hanh_dong`. Số **21 loại có thư** ở mục "notification D1" không đổi.
+- **Dạng hậu tố thứ hai `:{hoiThoaiId}`.** Mã lưu là `thong_bao.loai_su_kien = 'TinNhanMoi:{hoiThoaiId}'` (id hội thoại BIGINT, dài nhất 30 ký tự, trong giới hạn 100). Đây là dạng hậu tố thứ hai, bên cạnh `:v{n}` của yêu cầu thay đổi chi nhánh (mục "admin D6"): phần gốc vẫn là phần trước dấu `:` đầu tiên (cùng cách tra danh mục và worker thư). Trung tâm thông báo tách id từ hậu tố để trả liên kết `{ kieu: 'HoiThoai', hoiThoaiId }`; hậu tố hỏng thì không có liên kết.
+- **Gộp theo hội thoại:** mỗi tài khoản có tối đa MỘT dòng chưa đọc `TinNhanMoi:{id}` cho mỗi hội thoại. Ghi trong giao dịch gửi tin, dưới khoá `hoi_thoai` (mọi lần gửi vào một hội thoại tuần tự), bằng một câu `INSERT … SELECT … WHERE NOT EXISTS (dòng chưa đọc cùng tài khoản, cùng mã)`; không có UNIQUE cho việc này (cột `lich_hen_id` và hai cột yêu cầu đều NULL nên ba UNIQUE của `thong_bao` không áp dụng). Đã đọc rồi (kể cả "đánh dấu tất cả" của Trung tâm thông báo) thì tin sau ghi dòng mới.
+- **Người nhận:** Bệnh nhân gửi ở hội thoại bác sĩ ⇒ Bác sĩ của hội thoại; ở hộp thư chung ⇒ mọi Lễ tân `DangHoatDong` của chi nhánh (đọc lúc gửi); Bác sĩ hay Lễ tân gửi ⇒ Bệnh nhân chủ hội thoại (đồng nghiệp Lễ tân không nhận). Người nhận không `DangHoatDong` thì không ghi.
+- **Đã đọc:** người dùng đánh dấu đọc hội thoại mà sau mốc mới KHÔNG còn tin của người khác ⇒ các dòng `TinNhanMoi:{id}` chưa đọc của CHÍNH người đó thành đã đọc (cùng giao dịch, sau khi cập nhật mốc `tai_khoan_hoi_thoai`). Đọc một phần thì giữ chưa đọc.
+- **Nội dung (`noi_dung`, ≤ 500):** chỉ họ tên Bệnh nhân, chức danh và họ tên Bác sĩ, hay tên chi nhánh. KHÔNG BAO GIỜ có nội dung tin, tên tệp, SĐT, email; Bệnh nhân không thấy tên Lễ tân.
+- **Thứ tự khoá:** dòng `thong_bao` là tầng 7c, sau `hoi_thoai`, `tin_nhan`, `tai_khoan_hoi_thoai` (PLAN chat 5.4); "đánh dấu tất cả" của Trung tâm thông báo không xin khoá bảng chat nên không tạo chu trình.

@@ -9,14 +9,18 @@
 /** Bốn loại tài khoản (giống `LOAI_TAI_KHOAN` của auth; spec so hai tập để không lệch). */
 export type VaiTro = 'BenhNhan' | 'BacSi' | 'LeTan' | 'QuanTriVien';
 
-export type NhomSuKien = 'LichHen' | 'DoiLich' | 'NghiPhep' | 'Vi' | 'ChiNhanh';
+export type NhomSuKien =
+  'LichHen' | 'DoiLich' | 'NghiPhep' | 'Vi' | 'ChiNhanh' | 'TinNhan';
 
-/** Kiểu liên kết trung tính: web tự đổi sang đường dẫn theo vai trò. `null` = không có liên kết. */
+/**
+ * Kiểu liên kết trung tính: web tự đổi sang đường dẫn theo vai trò. `null` = không có liên kết.
+ * `HoiThoai` (chat B6): id hội thoại nằm ở hậu tố `:{hoiThoaiId}` của `loai_su_kien` (dạng hậu tố thứ hai, bên cạnh `:v{n}`).
+ */
 export type KieuLienKet =
-  'LichHen' | 'Vi' | 'NghiPhep' | 'ThayDoiChiNhanh' | null;
+  'LichHen' | 'Vi' | 'NghiPhep' | 'ThayDoiChiNhanh' | 'HoiThoai' | null;
 
 export interface CatalogEntry {
-  /** Phần gốc của `loai_su_kien` (không kèm hậu tố `:v{n}`). */
+  /** Phần gốc của `loai_su_kien` (không kèm hậu tố `:v{n}` hay `:{hoiThoaiId}`). */
   ma: string;
   /** true nếu nơi ghi gắn thêm `:v{n}` (admin C4). */
   coPhienBan: boolean;
@@ -409,6 +413,19 @@ export const NOTIFICATION_CATALOG: readonly CatalogEntry[] = [
     nguon: 'admin BranchChangeNotifier (Toàn hệ thống)',
     trangThai: 'CoMa',
   },
+
+  // Tin nhắn (chat B6; Q11 của chat): gộp mỗi người tối đa một dòng chưa đọc mỗi hội thoại; mã lưu là `TinNhanMoi:{hoiThoaiId}`; chỉ trong ứng dụng
+  {
+    ma: 'TinNhanMoi',
+    coPhienBan: false,
+    nhom: 'TinNhan',
+    tieuDe: 'Tin nhắn mới',
+    nguoiNhan: ['BenhNhan', 'BacSi', 'LeTan'],
+    coThu: false,
+    lienKet: 'HoiThoai',
+    nguon: 'chat ChatMessageNotifier',
+    trangThai: 'CoMa',
+  },
 ];
 
 /**
@@ -425,10 +442,6 @@ export const CHO_MODULE: readonly { suKien: string; module: string }[] = [
     module: 'waitlist',
   },
   {
-    suKien: 'Tin nhắn mới (2.4.20, 2.4.21, 2.4.29)',
-    module: 'chat',
-  },
-  {
     suKien: 'Thanh toán cọc thất bại (L5, chỉ khi nhóm muốn)',
     module: 'payment',
   },
@@ -438,7 +451,7 @@ const CATALOG_BY_CODE = new Map(
   NOTIFICATION_CATALOG.map((entry) => [entry.ma, entry]),
 );
 
-/** Phần gốc của mã: bỏ hậu tố `:v{n}`. Cùng cách với `baseEventOf` của worker thư (DMS-06 so hai hàm). */
+/** Phần gốc của mã: bỏ hậu tố (`:v{n}`, hay `:{hoiThoaiId}` của chat). Cùng cách với `baseEventOf` của worker thư (DMS-06 so hai hàm). */
 export function baseCodeOf(loaiSuKien: string): string {
   return loaiSuKien.split(':', 1)[0] ?? loaiSuKien;
 }

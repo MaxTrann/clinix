@@ -9,6 +9,11 @@ import { baseEventOf } from '../../appointments/notifications/email-outbox.servi
 import { NOTIFICATION_MAX_LENGTH as BOOKING_MAX } from '../../appointments/notifications/notification-text.js';
 import { LOAI_TAI_KHOAN } from '../../auth/entities/enums.js';
 import {
+  CHAT_NOTIFICATION_EVENTS,
+  newMessageEventCode,
+} from '../../chat/chat.constants.js';
+import { CHAT_NOTIFICATION_MAX_LENGTH } from '../../chat/notifications/chat-notification-text.js';
+import {
   EXAM_NOTIFICATION_EVENTS,
   NOTIFICATION_MAX_LENGTH as EXAM_MAX,
 } from '../../doctor/examination/examination.constants.js';
@@ -43,7 +48,7 @@ import {
 // notification B1 — danh mục mã sự kiện: DMS-01…DMS-07, DMS-13 (đối chiếu với hằng của module ghi), HTB-07 (chiều phụ thuộc).
 // Hằng của module khác CHỈ được import ở file spec này, không ở mã chạy của danh mục.
 
-/** Tám tập hằng mã của các nơi ghi `thong_bao` (PLAN 5.3 kể bảy; reschedule B3 thêm tập thứ tám). */
+/** Chín tập hằng mã của các nơi ghi `thong_bao` (PLAN 5.3 kể bảy; reschedule B3 thêm tập thứ tám; chat B6 thêm tập thứ chín). */
 const SOURCE_EVENT_SETS = {
   BOOKING_NOTIFICATION_EVENTS,
   RESCHEDULE_NOTIFICATION_EVENTS,
@@ -53,9 +58,10 @@ const SOURCE_EVENT_SETS = {
   WITHDRAWAL_NOTIFICATION_EVENTS,
   REFUND_NOTIFICATION_EVENTS,
   BRANCH_CHANGE_EVENTS,
+  CHAT_NOTIFICATION_EVENTS,
 } as const;
 
-/** Hằng `*_EVENTS` khác đã biết: tập con hay hợp của tám tập trên, phục vụ worker thư, không phải nguồn mã mới. */
+/** Hằng `*_EVENTS` khác đã biết: tập con hay hợp của chín tập trên, phục vụ worker thư, không phải nguồn mã mới. */
 const KNOWN_DERIVED_SETS = [
   'MAIL_EVENTS',
   'PAYMENT_MAIL_EVENTS',
@@ -71,7 +77,7 @@ const sourceCodes: string[] = Object.values(SOURCE_EVENT_SETS).flatMap((set) =>
 const catalogCodes = NOTIFICATION_CATALOG.map((entry) => entry.ma);
 const API_SRC = fileURLToPath(new URL('../../', import.meta.url));
 
-describe('DMS-01 mọi mã của tám nơi ghi đều có trong danh mục', () => {
+describe('DMS-01 mọi mã của chín nơi ghi đều có trong danh mục', () => {
   it.each(Object.entries(SOURCE_EVENT_SETS))('%s', (_name, set) => {
     const missing = Object.values(set).filter(
       (code) => !catalogCodes.includes(code),
@@ -114,6 +120,17 @@ describe('DMS-03 mã duy nhất và đúng dạng', () => {
     }
   });
 
+  it('chat B6: mã có hậu tố id hội thoại (liên kết HoiThoai) ≤ 100 ký tự với id BIGINT dài nhất', () => {
+    const withConversation = NOTIFICATION_CATALOG.filter(
+      (e) => e.lienKet === 'HoiThoai',
+    );
+    expect(withConversation.map((e) => e.ma)).toEqual(['TinNhanMoi']);
+    // 9223372036854775807: BIGINT lớn nhất (19 chữ số)
+    expect(
+      newMessageEventCode('9223372036854775807').length,
+    ).toBeLessThanOrEqual(EVENT_CODE_MAX);
+  });
+
   it('cờ coPhienBan đúng bốn mã có phiên bản của admin C4', () => {
     const versioned = NOTIFICATION_CATALOG.filter((e) => e.coPhienBan)
       .map((e) => e.ma)
@@ -140,8 +157,22 @@ describe('DMS-04 tập "có thư" khớp MAIL_EVENTS của worker thư', () => {
 });
 
 describe('DMS-05 tiêu đề, nhóm, liên kết và người nhận hợp lệ', () => {
-  const GROUPS = ['LichHen', 'DoiLich', 'NghiPhep', 'Vi', 'ChiNhanh'];
-  const LINKS = ['LichHen', 'Vi', 'NghiPhep', 'ThayDoiChiNhanh', null];
+  const GROUPS = [
+    'LichHen',
+    'DoiLich',
+    'NghiPhep',
+    'Vi',
+    'ChiNhanh',
+    'TinNhan',
+  ];
+  const LINKS = [
+    'LichHen',
+    'Vi',
+    'NghiPhep',
+    'ThayDoiChiNhanh',
+    'HoiThoai',
+    null,
+  ];
 
   it.each(NOTIFICATION_CATALOG.map((e) => [e.ma, e] as const))(
     '%s',
@@ -160,6 +191,11 @@ describe('DMS-05 tiêu đề, nhóm, liên kết và người nhận hợp lệ'
 });
 
 describe('DMS-06 tra cứu theo mã đã lưu', () => {
+  it('chat B6: mã có hậu tố id hội thoại ra mục gốc TinNhanMoi', () => {
+    expect(findCatalogEntry(newMessageEventCode('42'))?.ma).toBe('TinNhanMoi');
+    expect(baseCodeOf('TinNhanMoi:42')).toBe('TinNhanMoi');
+  });
+
   it('mã có hậu tố phiên bản ra mục gốc', () => {
     expect(findCatalogEntry('ThayDoiChiNhanhAnhHuongLichHen:v3')?.ma).toBe(
       'ThayDoiChiNhanhAnhHuongLichHen',
@@ -194,13 +230,14 @@ describe('DMS-06 tra cứu theo mã đã lưu', () => {
   );
 });
 
-describe('DMS-07 năm hằng độ dài 500 của các module ghi bằng NOTIFICATION_CONTENT_MAX', () => {
+describe('DMS-07 sáu hằng độ dài 500 của các module ghi bằng NOTIFICATION_CONTENT_MAX', () => {
   it.each([
     ['booking notification-text', BOOKING_MAX],
     ['doctor-exam', EXAM_MAX],
     ['doctor LEAVE_NOTIFICATION_MAX_LENGTH', LEAVE_NOTIFICATION_MAX_LENGTH],
     ['wallet', WALLET_MAX],
     ['admin THONG_BAO_MAX_LENGTH', THONG_BAO_MAX_LENGTH],
+    ['chat CHAT_NOTIFICATION_MAX_LENGTH', CHAT_NOTIFICATION_MAX_LENGTH],
   ])('%s', (_name, max) => {
     // 500 = cột `thong_bao.noi_dung varchar(500)` của docs/database
     expect(max).toBe(NOTIFICATION_CONTENT_MAX);
@@ -233,9 +270,31 @@ describe('DMS-13 nhắc khai mã khi module mới thêm sự kiện', () => {
     expect(CHO_MODULE.map((item) => item.module)).toEqual([
       'waitlist',
       'waitlist',
-      'chat',
       'payment',
     ]);
+  });
+});
+
+describe('TBC-07 (chat B6) danh mục có TinNhanMoi, không thư; CHO_MODULE không còn chat', () => {
+  it('mục TinNhanMoi: nhóm TinNhan, ba vai trò nhận, coThu sai, liên kết HoiThoai, CoMa', () => {
+    expect(findCatalogEntry(CHAT_NOTIFICATION_EVENTS.NEW_MESSAGE)).toEqual({
+      ma: 'TinNhanMoi',
+      coPhienBan: false,
+      nhom: 'TinNhan',
+      tieuDe: 'Tin nhắn mới',
+      nguoiNhan: ['BenhNhan', 'BacSi', 'LeTan'],
+      coThu: false,
+      lienKet: 'HoiThoai',
+      nguon: 'chat ChatMessageNotifier',
+      trangThai: 'CoMa',
+    });
+    // Không có thư nên không nằm trong tập của worker (số 21 loại có thư không đổi, DMS-04)
+    expect(MAIL_EVENTS).not.toContain('TinNhanMoi');
+  });
+
+  it('CHO_MODULE không còn mục của chat (đối chứng: waitlist vẫn chờ)', () => {
+    expect(CHO_MODULE.filter((item) => item.module === 'chat')).toEqual([]);
+    expect(CHO_MODULE.some((item) => item.module === 'waitlist')).toBe(true);
   });
 });
 

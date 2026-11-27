@@ -16,6 +16,18 @@ export const CHAT_CONTENT_MAX_CODE_POINTS = 2000;
 export const CHAT_RATE_LIMIT_MESSAGES = 20;
 export const CHAT_RATE_LIMIT_WINDOW_SECONDS = 60;
 
+/**
+ * Mã sự kiện thông báo của chat (chat B6; PLAN chat 5.10, Q11). Lưu `loai_su_kien = 'TinNhanMoi:{hoiThoaiId}'`: hậu tố là id hội thoại để gộp mỗi người
+ * tối đa MỘT thông báo chưa đọc mỗi hội thoại, và để Trung tâm thông báo dựng liên kết `{ kieu: 'HoiThoai', hoiThoaiId }`. Chỉ trong ứng dụng, không thư.
+ */
+export const CHAT_NOTIFICATION_EVENTS = {
+  NEW_MESSAGE: 'TinNhanMoi',
+} as const;
+
+/** `loai_su_kien` của thông báo tin mới trong một hội thoại. */
+export const newMessageEventCode = (hoiThoaiId: string): string =>
+  `${CHAT_NOTIFICATION_EVENTS.NEW_MESSAGE}:${hoiThoaiId}`;
+
 /** Mã của trường trong `loi[{truong, ma}]` (PLAN 5.14). `MA_GUI_KHONG_HOP_LE` là `[đề xuất]` (PLAN chỉ ghi trường `maGui`). */
 export const CHAT_FIELD_ERRORS = {
   CONTENT_EMPTY: 'NOI_DUNG_TRONG',

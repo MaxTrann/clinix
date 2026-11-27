@@ -69,4 +69,32 @@ describe('buildLink', () => {
     expect(buildLink('YeuCauDoiLichDangCho', null)).toBeNull();
     expect(buildLink('MaLa', null)).toBeNull();
   });
+
+  it('TBC-08 (chat B6, phần U): TinNhanMoi:{id} ⇒ { kieu: HoiThoai, hoiThoaiId }; hậu tố thiếu, rỗng, không phải số, số 0 đầu, quá 19 chữ số ⇒ null', () => {
+    expect(buildLink('TinNhanMoi:42', null)).toEqual({
+      kieu: 'HoiThoai',
+      hoiThoaiId: '42',
+    });
+    expect(buildLink('TinNhanMoi:9223372036854775807', null)).toEqual({
+      kieu: 'HoiThoai',
+      hoiThoaiId: '9223372036854775807',
+    });
+    for (const loai of [
+      'TinNhanMoi',
+      'TinNhanMoi:',
+      'TinNhanMoi:abc',
+      'TinNhanMoi:0',
+      'TinNhanMoi:042',
+      'TinNhanMoi:-1',
+      'TinNhanMoi:1:2',
+      `TinNhanMoi:${'9'.repeat(20)}`,
+    ])
+      expect(buildLink(loai, null), loai).toBeNull();
+    expect(toNotificationItem(row({ loai: 'TinNhanMoi:7' }))).toMatchObject({
+      loai: 'TinNhanMoi',
+      nhom: 'TinNhan',
+      tieuDe: 'Tin nhắn mới',
+      lienKet: { kieu: 'HoiThoai', hoiThoaiId: '7' },
+    });
+  });
 });
