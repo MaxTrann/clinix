@@ -1,0 +1,19 @@
+{
+  "status": "completed",
+  "steps": [
+    {
+      "type": "thought",
+      "signature": "chu-ky-mau",
+      "summary": [{ "type": "text", "text": "Tóm tắt suy nghĩ mẫu." }]
+    },
+    {
+      "type": "model_output",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"loai\":\"hoiDap\",\"noiDung\":\"Phòng khám mở cửa lúc 8 giờ.\"}"
+        }
+      ]
+    }
+  ]
+}

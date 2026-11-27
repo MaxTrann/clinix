@@ -12,7 +12,7 @@ module.exports = {
       'always',
       [
         'auth', 'patient', 'search', 'doctor', 'booking', 'payment', 'wallet', 'waitlist',
-        'followup', 'notification', 'chat', 'admin', 'rbac', 'audit', 'import-export', 'report', 'ai',
+        'followup', 'notification', 'chat', 'chatbot', 'admin', 'rbac', 'audit', 'import-export', 'report', 'ai',
         'api', 'web', 'mobile', 'db', 'ci', 'docker', 'docs', 'deps', 'repo',
       ],
     ],

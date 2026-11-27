@@ -1,0 +1,14 @@
+{
+  "status": "incomplete",
+  "steps": [
+    {
+      "type": "model_output",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"loai\":\"hoiDap\",\"noiDung\":\"Phòng khám mở cử"
+        }
+      ]
+    }
+  ]
+}
