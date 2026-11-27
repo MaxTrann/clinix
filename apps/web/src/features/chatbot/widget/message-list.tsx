@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import type { ChatbotApi } from '../api/chatbot-api';
 import { canRetryOutcome, type Exchange } from '../state/exchange';
 import { CHATBOT_TEXT } from './chatbot-text';
 import { ReplyView } from './reply-view';
@@ -10,14 +9,10 @@ const BUTTON_CLASS =
 function ExchangeView({
   exchange,
   canRetry,
-  api,
-  messagesPath,
   onRetry,
 }: {
   exchange: Exchange;
   canRetry: boolean;
-  api: ChatbotApi;
-  messagesPath: string | null;
   onRetry: () => void;
 }) {
   const { outcome } = exchange;
@@ -33,11 +28,7 @@ function ExchangeView({
       )}
       {outcome.kind === 'reply' && (
         <div className="max-w-[92%] min-w-0">
-          <ReplyView
-            reply={outcome.reply}
-            api={api}
-            messagesPath={messagesPath}
-          />
+          <ReplyView reply={outcome.reply} />
         </div>
       )}
       {outcome.kind === 'error' && (
@@ -61,15 +52,11 @@ function ExchangeView({
 
 export function MessageList({
   exchanges,
-  api,
-  messagesPath,
   quickEnabled,
   onQuick,
   onRetry,
 }: {
   exchanges: readonly Exchange[];
-  api: ChatbotApi;
-  messagesPath: string | null;
   // Gợi ý nhanh bị khoá tới khi người dùng bấm "Tôi hiểu"
   quickEnabled: boolean;
   onQuick: (question: string) => void;
@@ -117,8 +104,6 @@ export function MessageList({
           canRetry={
             index === exchanges.length - 1 && canRetryOutcome(exchange.outcome)
           }
-          api={api}
-          messagesPath={messagesPath}
           onRetry={onRetry}
         />
       ))}

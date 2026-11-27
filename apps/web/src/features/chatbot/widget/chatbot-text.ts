@@ -34,7 +34,6 @@ export const CHATBOT_TEXT = {
   linkWallet: 'Ví của tôi',
   linkDoctors: 'Tra cứu bác sĩ và lịch khám',
   linkMessages: 'Nhắn lễ tân',
-  clinicCall: 'Gọi phòng khám',
   // Chữ lỗi theo PLAN 5.16
   errorInvalid: 'Câu hỏi cần từ 1 đến 500 ký tự.',
   errorTooFast: 'Bạn hỏi hơi nhanh. Đợi một chút rồi gửi lại.',

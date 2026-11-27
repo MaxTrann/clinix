@@ -19,8 +19,6 @@ export interface FakeChatbot {
   api: ChatbotApi;
   // Mọi lời gọi `ask`, theo thứ tự
   calls: AskCall[];
-  // Số lần hỏi đường dây nóng
-  hotlineCalls: number;
 }
 
 export function deferred<T>() {
@@ -56,20 +54,17 @@ function abortable<T>(signal: AbortSignal, promise: Promise<T>): Promise<T> {
 }
 
 // `answers` được dùng lần lượt cho mỗi lời gọi `ask`; hết thì trả một câu trả lời mẫu.
-// `hotline`: chữ trả về, `null` (không có), hay `Error` (lỗi).
 // `ignoreAbort`: câu trả lời vẫn về dù tín hiệu đã bị huỷ, mô phỏng đua ở lớp client thật (phản hồi tới ngay trước khi huỷ).
 export function createFakeChatbotApi(
   options: {
     answers?: FakeAnswer[];
-    hotline?: string | null | Error;
     ignoreAbort?: boolean;
   } = {},
 ): FakeChatbot {
   const queue = [...(options.answers ?? [])];
   const calls: AskCall[] = [];
-  const fake: FakeChatbot = {
+  return {
     calls,
-    hotlineCalls: 0,
     api: {
       ask(body, signal) {
         const call = { body, signal };
@@ -78,16 +73,6 @@ export function createFakeChatbotApi(
         const settled = settle(next, call);
         return options.ignoreAbort ? settled : abortable(signal, settled);
       },
-      clinicHotline(signal) {
-        fake.hotlineCalls += 1;
-        const hotline = options.hotline ?? null;
-        const result =
-          hotline instanceof Error
-            ? Promise.reject(hotline)
-            : Promise.resolve(hotline);
-        return abortable(signal, result);
-      },
     },
   };
-  return fake;
 }
