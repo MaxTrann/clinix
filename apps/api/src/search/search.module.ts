@@ -60,5 +60,7 @@ import { PublicSlotService } from './slots/public-slot.service.js';
     ExamPriceReader,
     DoctorRatingReader,
   ],
+  // chatbot B2 (T7): chỉ xuất `PublicDoctorService` để module `chatbot` lấy danh sách bác sĩ công khai (danh sách trắng như tra cứu); không xuất repository.
+  exports: [PublicDoctorService],
 })
 export class SearchModule {}
