@@ -11,6 +11,12 @@ import {
   ADMIN_WITHDRAWALS_PATH,
   PATIENT_WALLET_PATH,
 } from '../../../shared/routes/wallet-paths';
+import {
+  DOCTOR_CHAT_PATH,
+  PATIENT_CHAT_PATH,
+  RECEPTION_CHAT_PATH,
+  chatConversationPath,
+} from '../../../shared/routes/chat-paths';
 import type { NotificationLink } from '../api/notification-types';
 
 // Bảng (kiểu liên kết × vai trò) ⇒ đường dẫn của nút trong panel chi tiết (notification F2, PLAN 5.10; WTB-11). Đường dẫn lấy từ `shared/routes` và từ
@@ -42,6 +48,13 @@ const LINKS: LinkTable = {
   // Quản trị viên: "trang chi nhánh" của PLAN 5.10 chưa có hằng đường dẫn chung `[cần điền]` (notification F3 chốt cùng khung Admin)
   ThayDoiChiNhanh: {
     BenhNhan: () => PATIENT_APPOINTMENTS_PATH,
+  },
+  // chat F1 (TBC-08, PLAN chat 5.10): trang Tin nhắn của vai trò, mở đúng hội thoại (`?hoiThoai=`). Quản trị viên không có trang Tin nhắn ⇒ không nút
+  HoiThoai: {
+    BenhNhan: (link) =>
+      chatConversationPath(PATIENT_CHAT_PATH, link.hoiThoaiId),
+    LeTan: (link) => chatConversationPath(RECEPTION_CHAT_PATH, link.hoiThoaiId),
+    BacSi: (link) => chatConversationPath(DOCTOR_CHAT_PATH, link.hoiThoaiId),
   },
 };
 

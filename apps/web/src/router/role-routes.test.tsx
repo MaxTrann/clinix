@@ -104,8 +104,8 @@ describe('khung Bệnh nhân', () => {
     ).toHaveAttribute('href', PATIENT_PATHS.profile);
     // "Hồ sơ người khám" (patient F1), "Lịch hẹn của tôi" (booking F1), "Hồ sơ khám bệnh" (doctor-exam F5, WXH-01) và "Ví của tôi" (payment F1, WVI-03) có trang;
     // bốn mục còn lại vô hiệu (KG-04). Đổi có duyệt ở booking F1 và doctor-exam F5 (Đại, 16/11/2026); payment F1 đổi 3 ⇒ 4 liên kết, 5 ⇒ 4 nút vô hiệu;
-    // notification F1 đổi 4 ⇒ 5 liên kết ("Thông báo", WTB-05), 4 ⇒ 3 nút vô hiệu.
-    expect(within(menu).getAllByRole('link')).toHaveLength(5);
+    // notification F1 đổi 4 ⇒ 5 liên kết ("Thông báo", WTB-05), 4 ⇒ 3 nút vô hiệu; chat F1 (27/11/2026) đổi 5 ⇒ 6 liên kết ("Tin nhắn", WCH-01), 3 ⇒ 2 nút vô hiệu.
+    expect(within(menu).getAllByRole('link')).toHaveLength(6);
     expect(
       within(menu).getByRole('link', { name: 'Lịch hẹn của tôi' }),
     ).toHaveAttribute('href', PATIENT_APPOINTMENTS_PATH);
@@ -116,7 +116,7 @@ describe('khung Bệnh nhân', () => {
       within(menu).getByRole('link', { name: 'Ví của tôi' }),
     ).toHaveAttribute('href', PATIENT_WALLET_PATH);
     const disabledItems = within(menu).getAllByRole('button');
-    expect(disabledItems).toHaveLength(3);
+    expect(disabledItems).toHaveLength(2);
     for (const button of disabledItems) expect(button).toBeDisabled();
     expect(
       within(aside).getByRole('link', { name: 'Về trang chủ' }),
@@ -358,7 +358,8 @@ describe('khung Lễ tân', () => {
     // "Tra cứu bệnh nhân" (F2), "Thông tin cá nhân" (F4), "Lịch làm việc bác sĩ" (doctor F5) và "Quản lý lịch hẹn" (booking F8) có trang; năm mục còn lại vô hiệu (KG-04).
     // Đổi có duyệt ở patient F4, doctor F5, booking F8; notification F1 mở thêm "Thông báo" (5 liên kết, 4 nút vô hiệu).
     // reschedule F4 (WXD-01, Đại và phiên kiểm duyệt 25/11/2026) mở thêm "Yêu cầu đổi lịch": 6 liên kết, 3 nút vô hiệu.
-    expect(within(menu).getAllByRole('link')).toHaveLength(6);
+    // chat F1 (27/11/2026) (WCH-01) mở thêm "Tin nhắn": 7 liên kết, 2 nút vô hiệu.
+    expect(within(menu).getAllByRole('link')).toHaveLength(7);
     const appointments = within(menu).getByRole('link', {
       name: 'Quản lý lịch hẹn',
     });
@@ -370,7 +371,7 @@ describe('khung Lễ tân', () => {
     expect(profile).toHaveAttribute('href', RECEPTION_PATHS.profile);
     expect(profile).not.toHaveAttribute('aria-current');
     const disabled = within(menu).getAllByRole('button');
-    expect(disabled).toHaveLength(3);
+    expect(disabled).toHaveLength(2);
     for (const button of disabled) expect(button).toBeDisabled();
     // Figma `483:2`: cuối thanh bên chỉ có nút Đăng xuất
     expect(screen.queryByRole('link', { name: 'Về trang chủ' })).toBeNull();
@@ -563,6 +564,8 @@ describe('khung Lễ tân', () => {
       'Lịch làm việc bác sĩ',
       // Đổi ở reschedule F4: "Yêu cầu đổi lịch" có trang, đứng sau "Lịch làm việc bác sĩ" và trước "Thông báo" theo thứ tự menu Figma
       'Yêu cầu đổi lịch',
+      // Đổi ở chat F1 (27/11/2026): "Tin nhắn" có trang, đứng sau "Yêu cầu đổi lịch" ("Danh sách chờ" vô hiệu ở giữa không nhận focus) và trước "Thông báo"
+      'Tin nhắn',
       // Đổi ở notification F1: "Thông báo" là liên kết theo thứ tự menu; chuông (liên kết chỉ có biểu tượng, tên truy cập ở `aria-label`) đứng trước nút Đăng xuất của thanh trên
       'Thông báo',
       'Thông tin cá nhân',
