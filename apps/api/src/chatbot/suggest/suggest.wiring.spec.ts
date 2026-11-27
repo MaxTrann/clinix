@@ -32,7 +32,10 @@ describe('B4-W1 ChatbotModule nối đúng (chỉ THÊM, phần có sẵn của 
         SystemConfigModule,
       ]),
     );
-    expect(moduleMeta('controllers')).toEqual([SuggestionController]);
+    // chatbot B3 thêm AskController vào cùng module: ở đây chỉ khẳng định SuggestionController CÓ MẶT (đủ hai controller do ask.wiring.spec.ts kiểm)
+    expect(moduleMeta('controllers')).toEqual(
+      expect.arrayContaining([SuggestionController]),
+    );
   });
 
   it('thêm ba provider của B4 mà không bớt provider nào của P1; vẫn chỉ xuất FallbackChain và AI_CONFIG', () => {
