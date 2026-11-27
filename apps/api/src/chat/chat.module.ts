@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { EnvironmentVariables } from '../config/env.validation.js';
 import { noStore } from '../notification/center/notification-center.module.js';
+import { AuthModule } from '../auth/auth.module.js';
 import { UploadModule } from '../common/upload/upload.module.js';
 import { RbacModule } from '../rbac/rbac.module.js';
 import { ChatAttachmentInspector } from './attachments/chat-attachment.inspector.js';
@@ -29,6 +30,8 @@ import { ConversationReadRepository } from './read/conversation-read.repository.
 import { ConversationReadService } from './read/conversation-read.service.js';
 import { StartConversationRepository } from './read/start-conversation.repository.js';
 import { StartConversationService } from './read/start-conversation.service.js';
+import { ChatConnectionRegistry } from './realtime/chat-connection.registry.js';
+import { ChatGateway } from './realtime/chat.gateway.js';
 import { ChatAttachmentController } from './rest/chat-attachment.controller.js';
 import { ChatAttachmentService } from './rest/chat-attachment.service.js';
 import { ChatReadController } from './rest/chat-read.controller.js';
@@ -40,9 +43,10 @@ import { ChatUploadCapacityInterceptor } from './rest/chat-upload.interceptors.j
 // (B6 thông báo, B5 socket) sửa đúng dòng của cổng đó. REST gửi (B3) và socket (B5) nhập `SendMessageService` qua `exports`.
 // chat P3: kho tệp đính kèm trên đĩa (`CHAT_FILES_DIR`), kiểm ghi được lúc khởi động; B4 dùng qua `CHAT_FILE_STORE`.
 // chat B4: gửi kèm tệp ở ba route gửi, tải tệp, job dọn mồ côi; `UploadModule` cho `ImageProcessor`. Bộ đếm tải đồng thời là provider (một bộ đếm cho cả ba route).
+// chat P4: gateway WebSocket (chỉ bắt tay và vòng đời kết nối) và sổ kết nối; `AuthModule` cho `TokenService`, `SessionService` (chỉ dùng, không sửa auth).
 // `RbacModule` cho `ReceptionScopeService` (chi nhánh của Lễ tân đọc ở mỗi yêu cầu).
 @Module({
-  imports: [RbacModule, UploadModule],
+  imports: [AuthModule, RbacModule, UploadModule],
   controllers: [
     ChatReadController,
     ChatSendController,
@@ -62,6 +66,8 @@ import { ChatUploadCapacityInterceptor } from './rest/chat-upload.interceptors.j
     ChatAttachmentService,
     ChatFileCleanupService,
     ChatUploadCapacityInterceptor,
+    ChatConnectionRegistry,
+    ChatGateway,
     { provide: CHAT_NOTIFIER, useClass: NoopChatNotifier },
     { provide: CHAT_REALTIME, useClass: NoopChatRealtime },
     {

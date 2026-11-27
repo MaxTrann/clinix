@@ -10,6 +10,13 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
+      // WebSocket của chat (chat P4; PLAN chat 5.7): `ws: true` để Vite chuyển tiếp nâng cấp. Đặt TRƯỚC '/api/': khoá đầu tiên khớp được dùng.
+      '/api/socket.io/': {
+        target: apiProxyTarget,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        ws: true,
+        xfwd: true,
+      },
       // API không có tiền tố /api nên phải gỡ. Khoá có dấu / cuối để không khớp nhầm /apifoo.
       // Không bật changeOrigin; header Origin và Set-Cookie giữ nguyên (đo thật: TRACKING auth P6).
       '/api/': {
