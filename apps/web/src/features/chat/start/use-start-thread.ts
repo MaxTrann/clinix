@@ -39,12 +39,12 @@ export function useStartThread(
   const inFlight = useRef(false);
 
   const deliver = useCallback(
-    (maGui: string, noiDung: string) => {
+    (maGui: string, noiDung: string, tep: File | null) => {
       // Bấm đúp "Gửi lại" hay Enter lặp khi tin đầu đang bay: bỏ lần sau
       if (inFlight.current) return;
       inFlight.current = true;
-      setPending({ maGui, noiDung, status: 'sending', error: null });
-      sendFirstMessage(target, { noiDung, maGui })
+      setPending({ maGui, noiDung, tep, status: 'sending', error: null });
+      sendFirstMessage(target, { noiDung, maGui, tep })
         .then(({ hoiThoaiId }) => {
           if (active.current) onStarted(hoiThoaiId);
         })
@@ -56,6 +56,7 @@ export function useStartThread(
           setPending({
             maGui: code === 'CHAT_MA_GUI_DA_DUNG' ? newSendId() : maGui,
             noiDung,
+            tep,
             status: 'failed',
             error: sendErrorMessage(error),
           });
@@ -69,16 +70,16 @@ export function useStartThread(
 
   /** Chỉ MỘT tin đầu: đang có tin chờ (đang gửi hay lỗi) thì phải gửi lại tin đó trước. */
   const send = useCallback(
-    (noiDung: string) => {
+    (noiDung: string, tep: File | null = null) => {
       if (pending !== null) return;
-      deliver(newSendId(), noiDung);
+      deliver(newSendId(), noiDung, tep);
     },
     [deliver, pending],
   );
 
   const resend = useCallback(
     (item: OutgoingMessage) => {
-      if (item.status === 'failed') deliver(item.maGui, item.noiDung);
+      if (item.status === 'failed') deliver(item.maGui, item.noiDung, item.tep);
     },
     [deliver],
   );
