@@ -1,4 +1,5 @@
 import { BOOKING_PATH } from '../../shared/routes/booking-paths';
+import { PATIENT_CHAT_PATH } from '../../shared/routes/chat-paths';
 import { textFrom } from './route-state';
 import { homePathFor, type VaiTro } from './roles';
 
@@ -77,11 +78,21 @@ function isBookingPath(path: string): boolean {
   return pathname === BOOKING_PATH || pathname.startsWith(`${BOOKING_PATH}/`);
 }
 
-// Đích sau khi đăng nhập: `from` chỉ được dùng khi hợp lệ VÀ hợp vai (hiện chỉ Bệnh nhân vào `/dat-lich/...`); còn lại là
+// chat F4 (MH7): khách bấm "Nhắn tin" ở tra cứu bác sĩ ⇒ đăng nhập rồi quay lại ĐÚNG trang Tin nhắn của Bệnh nhân (`?bacSi=`). Chỉ khớp nguyên đường dẫn
+// (không nhận đường con), kiểm trên bản đã chuẩn hoá của `readReturnTo`.
+function isPatientChatPath(path: string): boolean {
+  return path.split(/[?#]/, 1)[0] === PATIENT_CHAT_PATH;
+}
+
+// Đích sau khi đăng nhập: `from` chỉ được dùng khi hợp lệ VÀ hợp vai (Bệnh nhân vào `/dat-lich/...` hay trang Tin nhắn của mình); còn lại là
 // trang chủ của vai, đúng hành vi cũ.
 export function returnPathFor(vaiTro: VaiTro, state: unknown): string {
   const from = readReturnTo(state);
-  if (from !== null && vaiTro === 'BenhNhan' && isBookingPath(from)) {
+  if (
+    from !== null &&
+    vaiTro === 'BenhNhan' &&
+    (isBookingPath(from) || isPatientChatPath(from))
+  ) {
     return from;
   }
   return homePathFor(vaiTro);

@@ -9,7 +9,9 @@ import type {
   ConversationListItem,
 } from '../api/chat-types';
 import {
+  FORBIDDEN_MESSAGE,
   KEYWORD_INVALID_MESSAGE,
+  isForbidden,
   KIND_LABELS,
   RELATIONSHIP_LABELS,
   listTimeLabel,
@@ -194,6 +196,13 @@ function ListBody({
       return (
         <p role="alert" className="my-2 text-sm text-danger-strong">
           {KEYWORD_INVALID_MESSAGE}
+        </p>
+      );
+    // chat F5: Lễ tân không còn phạm vi chi nhánh (hay sai vai trò) ⇒ câu không có quyền, không "Thử lại"
+    if (isForbidden(state.error))
+      return (
+        <p role="alert" className="my-2 text-sm text-danger-strong">
+          {FORBIDDEN_MESSAGE}
         </p>
       );
     return <ErrorState error={state.error} onRetry={onRetry} />;

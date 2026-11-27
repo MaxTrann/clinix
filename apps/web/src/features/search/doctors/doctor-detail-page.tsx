@@ -4,7 +4,6 @@ import {
   Clock,
   Info,
   MapPin,
-  MessageSquare,
   Phone,
   Stethoscope,
   Wallet,
@@ -13,6 +12,7 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '../../../shared/api/errors';
 import { ErrorState } from '../../../shared/ui/error-state';
+import { DoctorMessageAction } from './doctor-message-action';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { getClinicInfo, getDoctorDetail } from '../api/search-service';
 import type { DoctorDetail } from '../api/search-types';
@@ -232,15 +232,12 @@ function DoctorDetailContent({ doctor }: { doctor: DoctorDetail }) {
             <CalendarDays className="size-4" aria-hidden="true" />
             Chọn ngày khám
           </button>
-          <button
-            type="button"
-            disabled
-            title="Chưa được triển khai"
-            className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-[13.375px] border border-gray-200 text-sm font-medium text-gray-500"
-          >
-            <MessageSquare className="size-4" aria-hidden="true" />
-            Nhắn tin với bác sĩ
-          </button>
+          {/* chat F4: Bệnh nhân và khách mở trang Tin nhắn; vai trò khác thấy nút vô hiệu kèm chú thích */}
+          <DoctorMessageAction
+            bacSiId={doctor.bacSiId}
+            label="Nhắn tin với bác sĩ"
+            className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-[13.375px] border border-gray-200 text-sm font-medium"
+          />
         </section>
         <section className="rounded-[15px] border border-gray-200 bg-white p-5">
           <h2 className="flex items-center gap-2 text-xl font-semibold leading-normal text-gray-900">

@@ -6,11 +6,15 @@ import {
   getConversation,
   getMessages,
   markConversationRead,
-  sendMessage,
 } from '../api/chat-api';
 import type { ChatMessage, ConversationDetail } from '../api/chat-types';
+import {
+  sendChatMessage,
+  subscribeChatMessages,
+  useChatConnectionStatus,
+} from '../realtime/chat-connection';
 import { sendErrorMessage } from './chat-format';
-import { CHAT_REFRESH_MS } from './use-conversation-list';
+import { CHAT_LIVE_RESYNC_MS, CHAT_REFRESH_MS } from './use-conversation-list';
 
 // Một hội thoại đang mở (chat F3; PLAN chat 5.6, 5.9, 5.13; WCH-08, WCH-09, WCH-11). Component dùng hook này được gắn `key` theo id hội thoại,
 // nên đổi hội thoại là state mới hoàn toàn (không lẫn tin, nháp, mốc của hội thoại trước).
@@ -20,6 +24,9 @@ import { CHAT_REFRESH_MS } from './use-conversation-list';
 //     gửi trước tin mình (id nhỏ hơn) mà chưa kịp tải sẽ bị bỏ sót nếu mốc nhảy tới id tin của mình. Cùng lý do, F2 không lấy mốc từ tin được đẩy (đột biến 28).
 //  2. GỬI LẠI cùng `maGui` (A1; đột biến 29): lỗi mạng hay quá giờ thì máy chủ có thể đã ghi, gửi lại cùng mã được 200 cùng thân chứ không thành hai tin.
 //     Chỉ `CHAT_MA_GUI_DA_DUNG` (mã đã dùng cho nội dung KHÁC) mới cần mã mới. Bấm đúp: một mã đang bay thì lần bấm sau bị bỏ.
+//  F2: socket đang nối thì tin đến bằng đẩy (`chat:tin-moi`): chỉ HIỂN THỊ (gộp theo id), KHÔNG đụng `syncedUpTo`; vòng làm tươi đổi từ 15 giây sang
+//     60 giây và chạy ngay khi trạng thái nối đổi (nối lại ⇒ tải bù bằng `sau=<mốc>`, gộp, bỏ trùng, đúng thứ tự; WCH-05, WCH-06). Gửi đi qua
+//     `sendChatMessage` (socket khi nối, REST khi không; quá hạn ack thì REST cùng `maGui`).
 //  3. ĐÁNH DẤU ĐỌC (WCH-11): gọi với id lớn nhất đang hiện, chỉ khi tab hiện; MỘT lần cho mỗi giá trị, kể cả `StrictMode` chạy effect hai lần (ghi nhớ
 //     giá trị đã gửi trong ref TRƯỚC khi gọi API).
 
@@ -46,6 +53,8 @@ export function mergeMessages(
 export interface OutgoingMessage {
   maGui: string;
   noiDung: string;
+  /** chat F6: tệp đính kèm chờ gửi, chỉ trong bộ nhớ; gửi lỗi thì GIỮ để "Gửi lại" gửi đúng tệp đó (WCH-14). */
+  tep: File | null;
   status: 'sending' | 'failed';
   error: string | null;
 }
@@ -117,45 +126,80 @@ export function useMessageThread(
     setAttempt((n) => n + 1);
   }, []);
 
+  // Tin được đẩy của hội thoại này: chỉ gộp vào phần hiển thị (mốc bù GIỮ NGUYÊN, đột biến 28). Tin của chính mình (tab khác hay tab này) cũng gộp;
+  // bong bóng "Đang gửi…" cùng `maGui` thì gỡ luôn để không thấy hai lần trong lúc chờ ack
+  useEffect(
+    () =>
+      subscribeChatMessages(({ hoiThoaiId: target, tinNhan }) => {
+        if (target !== hoiThoaiId) return;
+        if (tinNhan.laCuaToi && tinNhan.maGui !== null)
+          setOutbox((prev) =>
+            prev.filter((item) => item.maGui !== tinNhan.maGui),
+          );
+        setState((prev) => {
+          if (prev.status !== 'ready') return prev;
+          if (prev.data.messages.some((message) => message.id === tinNhan.id))
+            return prev;
+          return {
+            status: 'ready',
+            data: {
+              ...prev.data,
+              messages: mergeMessages(prev.data.messages, [tinNhan]),
+              arrivals: tinNhan.laCuaToi
+                ? prev.data.arrivals
+                : [...prev.data.arrivals, tinNhan],
+              loadedAt: Date.now(),
+            },
+          };
+        });
+      }),
+    [hoiThoaiId],
+  );
+
+  const live = useChatConnectionStatus().status === 'connected';
+
   // Làm tươi: đọc các tin mới hơn mốc bù, gộp, bỏ trùng (tin mình vừa gửi đã có sẵn thì không hiện hai lần)
-  usePolling(async (signal) => {
-    if (state.status !== 'ready') return;
-    const fetched: ChatMessage[] = [];
-    for (let page = 0; page < MAX_CATCH_UP_PAGES; page += 1) {
-      const cursor = syncedUpTo.current;
-      const result = await getMessages(
-        hoiThoaiId,
-        {
-          cursor: cursor === null ? null : { sau: cursor },
-          limit: MESSAGE_PAGE_SIZE,
-        },
-        signal,
-      );
-      fetched.push(...result.items);
-      const last = result.items.at(-1);
-      if (last) syncedUpTo.current = last.id;
-      // Không con trỏ ⇒ máy chủ trả trang MỚI NHẤT, `coThem` lúc đó nói về tin CŨ hơn: không đọc tiếp
-      if (cursor === null || !result.coThem || !last) break;
-    }
-    if (fetched.length === 0) return;
-    setState((prev) => {
-      if (prev.status !== 'ready') return prev;
-      const known = new Set(prev.data.messages.map((message) => message.id));
-      const fresh = fetched.filter(
-        (message) => !known.has(message.id) && !message.laCuaToi,
-      );
-      return {
-        status: 'ready',
-        data: {
-          ...prev.data,
-          messages: mergeMessages(prev.data.messages, fetched),
-          arrivals: [...prev.data.arrivals, ...fresh],
-          loadedAt: Date.now(),
-        },
-      };
-    });
-    onActivity();
-  }, CHAT_REFRESH_MS);
+  usePolling(
+    async (signal) => {
+      if (state.status !== 'ready') return;
+      const fetched: ChatMessage[] = [];
+      for (let page = 0; page < MAX_CATCH_UP_PAGES; page += 1) {
+        const cursor = syncedUpTo.current;
+        const result = await getMessages(
+          hoiThoaiId,
+          {
+            cursor: cursor === null ? null : { sau: cursor },
+            limit: MESSAGE_PAGE_SIZE,
+          },
+          signal,
+        );
+        fetched.push(...result.items);
+        const last = result.items.at(-1);
+        if (last) syncedUpTo.current = last.id;
+        // Không con trỏ ⇒ máy chủ trả trang MỚI NHẤT, `coThem` lúc đó nói về tin CŨ hơn: không đọc tiếp
+        if (cursor === null || !result.coThem || !last) break;
+      }
+      if (fetched.length === 0) return;
+      setState((prev) => {
+        if (prev.status !== 'ready') return prev;
+        const known = new Set(prev.data.messages.map((message) => message.id));
+        const fresh = fetched.filter(
+          (message) => !known.has(message.id) && !message.laCuaToi,
+        );
+        return {
+          status: 'ready',
+          data: {
+            ...prev.data,
+            messages: mergeMessages(prev.data.messages, fetched),
+            arrivals: [...prev.data.arrivals, ...fresh],
+            loadedAt: Date.now(),
+          },
+        };
+      });
+      onActivity();
+    },
+    live ? CHAT_LIVE_RESYNC_MS : CHAT_REFRESH_MS,
+  );
 
   const loadOlder = useCallback(() => {
     if (state.status !== 'ready' || !state.data.hasOlder) return;
@@ -189,11 +233,11 @@ export function useMessageThread(
   }, [active, hoiThoaiId, older.status, state]);
 
   const deliver = useCallback(
-    (maGui: string, noiDung: string) => {
+    (maGui: string, noiDung: string, tep: File | null) => {
       // Bấm đúp "Gửi lại" hay Enter lặp: mã này đang bay thì không gửi lần hai
       if (inFlight.current.has(maGui)) return;
       inFlight.current.add(maGui);
-      sendMessage(hoiThoaiId, { noiDung, maGui })
+      sendChatMessage(hoiThoaiId, { noiDung, maGui, tep })
         .then(({ tinNhan }) => {
           if (!active.current) return;
           setState((prev) =>
@@ -222,6 +266,7 @@ export function useMessageThread(
                     // Mã đã dùng cho nội dung KHÁC: lần gửi lại phải có mã mới. Mọi lỗi khác giữ NGUYÊN mã (A1)
                     maGui: code === 'CHAT_MA_GUI_DA_DUNG' ? newSendId() : maGui,
                     noiDung,
+                    tep,
                     status: 'failed',
                     error: sendErrorMessage(error),
                   }
@@ -234,15 +279,15 @@ export function useMessageThread(
     [active, hoiThoaiId, onActivity],
   );
 
-  /** Gửi tin mới; nội dung đã được ô soạn kiểm (không rỗng, không quá dài). */
+  /** Gửi tin mới; nội dung đã được ô soạn kiểm (có chữ hoặc có tệp, không quá dài). */
   const send = useCallback(
-    (noiDung: string) => {
+    (noiDung: string, tep: File | null = null) => {
       const maGui = newSendId();
       setOutbox((prev) => [
         ...prev,
-        { maGui, noiDung, status: 'sending', error: null },
+        { maGui, noiDung, tep, status: 'sending', error: null },
       ]);
-      deliver(maGui, noiDung);
+      deliver(maGui, noiDung, tep);
     },
     [deliver],
   );
@@ -257,7 +302,7 @@ export function useMessageThread(
             : row,
         ),
       );
-      deliver(item.maGui, item.noiDung);
+      deliver(item.maGui, item.noiDung, item.tep);
     },
     [deliver],
   );

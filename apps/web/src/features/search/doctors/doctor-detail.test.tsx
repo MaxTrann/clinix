@@ -150,14 +150,15 @@ describe('Trang Chi tiết bác sĩ', () => {
     expect(detailUrls[0]).toMatch(/\/public\/doctors\/100$/);
   });
 
-  it('TBS-20 khối "Thông tin khám": không có "Đặt trước tối đa", "Nhắn tin" vô hiệu, có hotline', async () => {
+  // chat F4 sửa tối thiểu: khách thấy "Nhắn tin với bác sĩ" là LIÊN KẾT tới trang Tin nhắn của Bệnh nhân (trước đây là nút vô hiệu "Chưa được triển khai")
+  it('TBS-20 khối "Thông tin khám": không có "Đặt trước tối đa", "Nhắn tin" là liên kết tới trang Tin nhắn, có hotline', async () => {
     renderAt('/bac-si/100');
     // Chờ bằng text: truy vấn role theo tên chậm trên cây DOM lớn của cả khung công khai
     await screen.findByText('Thông tin khám', { selector: 'h2' });
     expect(screen.queryByText(/Đặt trước tối đa/)).not.toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Nhắn tin với bác sĩ' }),
-    ).toBeDisabled();
+      screen.getByRole('link', { name: 'Nhắn tin với bác sĩ' }),
+    ).toHaveAttribute('href', '/benh-nhan/tin-nhan?bacSi=100');
     // Hotline hiện ở khối "Hỗ trợ đặt lịch" (chân trang cũng có số này nên có thể hai chỗ)
     expect(await screen.findByText('Hỗ trợ đặt lịch')).toBeInTheDocument();
     expect(

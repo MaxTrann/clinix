@@ -1,15 +1,17 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { type AuthUser, type VaiTro } from '../features/auth';
+import { LOGIN_PATH, type AuthUser, type VaiTro } from '../features/auth';
 import { resetAuthForTest } from '../features/auth/auth-session';
 import { setAuthState } from '../features/auth/auth-store';
 import {
   DOCTOR_CHAT_PATH,
   PATIENT_CHAT_PATH,
   RECEPTION_CHAT_PATH,
+  patientChatDoctorPath,
 } from '../shared/routes/chat-paths';
 import { createFakeAuthApi } from '../test/fake-auth-api';
+import { fakeSocketIo } from '../test/fake-socket-io';
 import { createAppRoutes } from './routes';
 
 // chat F1 `[ĐỤNG router]`: mục "Tin nhắn", số hội thoại chưa đọc và route trang Tin nhắn của ba khung qua router thật (WCH-01, WCH-02; đúng/sai vai trò theo
@@ -143,5 +145,46 @@ describe('chat F1 — mục "Tin nhắn" và route của ba khung', () => {
       screen.queryByRole('heading', { level: 1, name: 'Tin nhắn' }),
     ).toBeNull();
     expect(chatUnreadCalls()).toHaveLength(0);
+  });
+});
+
+// chat F2 `[ĐỤNG router]`: khung giữ kết nối WebSocket của nhắn tin (WCH-04). Socket là bản giả của `test/fake-socket-io.ts`.
+describe('chat F2 — khung giữ kết nối nhắn tin', () => {
+  beforeEach(() => fakeSocketIo.reset());
+
+  it.each(SHELLS)(
+    'WCH-04 CSR-07 %s: khung mở ĐÚNG một socket (đổi trang trong khung không mở thêm); hết đăng nhập ⇒ khung gỡ và socket đóng',
+    async (vaiTro, path) => {
+      signedInAs(vaiTro);
+      const router = renderAt(path);
+      await screen.findByRole('heading', { level: 1, name: 'Tin nhắn' });
+      expect(fakeSocketIo.sockets).toHaveLength(1);
+      await act(() => router.navigate(`${path}?hoiThoai=5`));
+      expect(fakeSocketIo.sockets).toHaveLength(1);
+      const socket = fakeSocketIo.last();
+      act(() => setAuthState({ status: 'unauthenticated', user: null }));
+      await waitFor(() => expect(socket.closedByClient).toBe(true));
+    },
+  );
+
+  it('WCH-04 CSR-08 Quản trị viên không mở socket nhắn tin (khung Admin không giữ kết nối; trang Tin nhắn của vai khác là 404)', async () => {
+    signedInAs('QuanTriVien');
+    renderAt(PATIENT_CHAT_PATH);
+    await screen.findByRole('heading', { name: 'Không tìm thấy trang' });
+    expect(fakeSocketIo.sockets).toHaveLength(0);
+  });
+});
+
+// chat F4 (MH7, WCH-13): khách mở liên kết "Nhắn tin" của tra cứu bác sĩ ⇒ trang đăng nhập, đường dẫn đang mở nằm ở `state.from` (`returnPathFor` đưa Bệnh nhân
+// về lại đúng trang này sau khi đăng nhập: `features/auth/return-to.test.ts` BRT-CH1).
+describe('chat F4 — khách bấm "Nhắn tin" với bác sĩ', () => {
+  it('WCH-13 CSR-09 chưa đăng nhập mở `/benh-nhan/tin-nhan?bacSi=12` ⇒ trang đăng nhập, `state.from` giữ nguyên đường dẫn', async () => {
+    setAuthState({ status: 'unauthenticated', user: null });
+    const router = renderAt(patientChatDoctorPath('12'));
+    await screen.findByRole('heading', { level: 1 });
+    expect(router.state.location.pathname).toBe(LOGIN_PATH);
+    expect(router.state.location.state).toEqual({
+      from: '/benh-nhan/tin-nhan?bacSi=12',
+    });
   });
 });

@@ -74,6 +74,17 @@ export function installFakeChatApi() {
   const rows: Row[] = [];
   const details = new Map<string, Detail>();
   const threads = new Map<string, Message[]>();
+  // chat F4: đích bắt đầu trò chuyện. `starts` theo khoá `doctor:<id>` hay `branch:<id>` ⇒ đầu khung (không có `hoiThoaiId`: máy chủ tự điền theo `pairs`)
+  const starts = new Map<string, Record<string, unknown>>();
+  const pairs = new Map<string, string>();
+  const startState = {
+    defaultBranch: { chiNhanhId: null, nguon: null } as {
+      chiNhanhId: string | null;
+      nguon: string | null;
+    },
+    branchOptions: [] as { chiNhanhId: string; ten: string; diaChi: string }[],
+  };
+  let nextConversationId = 900;
   const overrides = new Map<string, FakeReply[]>();
   let release: ((reply: { body: unknown; status?: number }) => void) | null =
     null;
@@ -104,6 +115,50 @@ export function installFakeChatApi() {
   ): { body: unknown; status?: number } => {
     if (path === '/chat/unread-count')
       return { body: { soHoiThoaiChuaDoc: 0 } };
+    if (method === 'GET' && path === '/chat/default-branch')
+      return { body: startState.defaultBranch };
+    if (method === 'GET' && path === '/public/branches')
+      return {
+        body: {
+          items: startState.branchOptions.map((row) => ({
+            ...row,
+            toaDoLat: null,
+            toaDoLng: null,
+          })),
+          total: startState.branchOptions.length,
+          page: 1,
+          pageSize: Number(query.get('pageSize') ?? 20),
+        },
+      };
+    const start = /^\/chat\/(doctors|branches)\/([^/]+)(\/messages)?$/.exec(
+      path,
+    );
+    if (start) {
+      const key = `${start[1] === 'doctors' ? 'doctor' : 'branch'}:${start[2]}`;
+      const head = starts.get(key);
+      if (!head) return apiError(404, 'KHONG_TIM_THAY');
+      if (method === 'GET' && start[3] === undefined)
+        return { body: { ...head, hoiThoaiId: pairs.get(key) ?? null } };
+      if (method === 'POST' && start[3] === '/messages') {
+        // Tìm-hoặc-tạo rồi gửi như lõi: lần đầu tạo hội thoại, gửi lại cùng mã ⇒ 200 cùng thân
+        let id = pairs.get(key);
+        if (!id) {
+          id = String((nextConversationId += 1));
+          pairs.set(key, id);
+          rows.unshift(
+            conversation({
+              id,
+              loai: head.loai,
+              doiTac: head.doiTac,
+              quanHe: head.quanHe,
+            }),
+          );
+          details.set(id, detail({ ...head, id }));
+          threads.set(id, []);
+        }
+        return serve('POST', `/chat/conversations/${id}/messages`, query, body);
+      }
+    }
     if (method === 'GET' && path === '/chat/conversations') {
       const loc = query.get('loc') ?? 'tat-ca';
       const q = query.get('q');
@@ -162,7 +217,11 @@ export function installFakeChatApi() {
       return { body: { tinNhanCuoiDaDocId: tinNhanId } };
     }
     if (method === 'POST' && match[2] === '/messages') {
-      const { noiDung, maGui } = body as { noiDung: string; maGui: string };
+      const { noiDung, maGui, file } = body as {
+        noiDung: string;
+        maGui: string;
+        file?: File;
+      };
       const existing = thread.find((m) => m.maGui === maGui);
       if (existing)
         return { status: 200, body: { hoiThoaiId: id, tinNhan: existing } };
@@ -172,11 +231,26 @@ export function installFakeChatApi() {
         noiDung: noiDung.trim(),
         maGui,
         thoiDiemGui: new Date().toISOString(),
+        // chat F6: máy chủ đặt lại tên và loại theo nội dung (giả lập bằng `fileState` nếu test đặt); dung lượng là của tệp sau xử lý
+        tep: file
+          ? {
+              ten: fileState.serverName ?? file.name,
+              loai: fileState.serverType ?? file.type,
+              dungLuong: file.size,
+            }
+          : null,
       });
+      if (file) files.set(created.id, file);
       thread.push(created);
       return { status: 201, body: { hoiThoaiId: id, tinNhan: created } };
     }
     return apiError(404, 'KHONG_TIM_THAY');
+  };
+  // chat F6: byte của tệp theo id tin (tải xuống) và tên, loại mà "máy chủ" trả sau khi nhận tệp
+  const files = new Map<string, Blob>();
+  const fileState = {
+    serverName: null as string | null,
+    serverType: null as string | null,
   };
 
   const fetchMock = vi.fn(
@@ -184,11 +258,30 @@ export function installFakeChatApi() {
       const url = new URL(String(input), 'http://web.invalid');
       const method = init?.method ?? 'GET';
       const path = url.pathname.replace(/^\/api/, '');
+      // JSON (gửi chữ) hay `multipart` (chat F6: ba trường `file`, `noiDung`, `maGui`)
       const body =
         typeof init?.body === 'string'
           ? (JSON.parse(init.body) as unknown)
-          : null;
+          : init?.body instanceof FormData
+            ? {
+                noiDung: init.body.get('noiDung'),
+                maGui: init.body.get('maGui'),
+                file: init.body.get('file'),
+                multipart: true,
+              }
+            : null;
       requests.push({ method, path, query: url.searchParams, body });
+      const download = /^\/chat\/messages\/([^/]+)\/attachment$/.exec(path);
+      if (download && !overrides.get(`${method} ${path}`)?.length) {
+        const blob = files.get(download[1] ?? '');
+        if (blob)
+          return new Response(blob, {
+            status: 200,
+            headers: {
+              'Content-Type': blob.type || 'application/octet-stream',
+            },
+          });
+      }
       const reply =
         overrides.get(`${method} ${path}`)?.shift() ??
         serve(method, path, url.searchParams, body);
@@ -223,6 +316,29 @@ export function installFakeChatApi() {
     threads,
     details,
     seed,
+    startState,
+    files,
+    fileState,
+    /** Đầu khung trước tin đầu của bác sĩ `bacSiId` (`patch` ghi đè khoá mặc định của `detail`). */
+    seedDoctorStart(bacSiId: string, patch: Record<string, unknown> = {}) {
+      const { id: _id, ...head } = detail(patch);
+      void _id;
+      starts.set(`doctor:${bacSiId}`, head);
+    },
+    seedBranchStart(chiNhanhId: string, tenChiNhanh: string) {
+      starts.set(`branch:${chiNhanhId}`, {
+        loai: 'BenhNhan_LeTan',
+        doiTac: { vaiTro: 'LeTan', tenHienThi: `Lễ tân · ${tenChiNhanh}` },
+        quanHe: null,
+        banner: false,
+        coTheGui: true,
+        lyDoKhongGui: null,
+      });
+    },
+    /** Đã có hội thoại `hoiThoaiId` với đích này (đầu khung trả `hoiThoaiId` khác `null`). */
+    pairStart(key: string, hoiThoaiId: string) {
+      pairs.set(key, hoiThoaiId);
+    },
     /** Lần gọi kế tiếp tới `METHOD path` dùng phản hồi này (ví dụ `'POST /chat/conversations/1/messages'`). */
     replyNext(route: string, reply: FakeReply) {
       overrides.set(route, [...(overrides.get(route) ?? []), reply]);
