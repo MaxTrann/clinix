@@ -6,3 +6,5 @@ export {
   CHAT_UNREAD_POLL_MS,
   useChatUnreadCount,
 } from './unread/use-chat-unread-count';
+// chat F2: router giữ kết nối WebSocket cho khung Bệnh nhân, Bác sĩ, Lễ tân (một kết nối mỗi tab; khung gỡ khi đăng xuất là đóng)
+export { useChatConnection } from './realtime/chat-connection';

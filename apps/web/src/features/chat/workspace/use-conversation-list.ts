@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { RequestAbortedError } from '../../../shared/api/errors';
 import { usePolling } from '../../../shared/hooks/use-polling';
 import { getConversations } from '../api/chat-api';
+import {
+  subscribeChatMessages,
+  useChatConnectionStatus,
+} from '../realtime/chat-connection';
 import type {
   ConversationFilter,
   ConversationListItem,
@@ -9,11 +13,13 @@ import type {
 
 // Danh sách hội thoại của khung nhắn tin (chat F3; PLAN chat 5.6, 5.13; WCH-07). Lọc và tìm đều GỬI LÊN máy chủ (`loc`, `q`): web không lọc hay đếm ở client,
 // vì máy chủ mới biết phạm vi chi nhánh và quyền. "Xem thêm" theo con trỏ `truoc`. Làm tươi trang đầu mỗi 15 giây bằng vòng thăm dò dùng chung (tab ẩn tạm dừng,
-// mất mạng dừng); F2 sẽ dùng socket thay khi kết nối được.
+// mất mạng dừng); khi socket đang nối (chat F2) thì nhịp là 60 giây và tin được đẩy kích hoạt đọc lại trang đầu.
 //
 // Trạng thái gắn với KHOÁ yêu cầu (bộ lọc + từ khoá + lần thử), nếp `useRemote`: đổi bộ lọc là thấy "đang tải" ngay, phản hồi muộn của bộ lọc cũ bị bỏ.
 
 export const CHAT_REFRESH_MS = 15_000;
+/** Socket đang nối (chat F2): vẫn tải bù mỗi 60 giây vì đẩy chỉ là cố gắng hết sức, REST mới là nguồn đúng (PLAN 5.7). */
+export const CHAT_LIVE_RESYNC_MS = 60_000;
 export const CONVERSATION_PAGE_SIZE = 20;
 
 export interface ListData {
@@ -122,11 +128,27 @@ export function useConversationList(
     [key, query],
   );
 
-  usePolling(async (signal) => {
-    // Lần tải đầu do effect ở trên làm; vòng thăm dò chỉ làm tươi khi đã có danh sách
-    if (state.status !== 'ready') return;
-    await refresh(signal);
-  }, CHAT_REFRESH_MS);
+  const live = useChatConnectionStatus().status === 'connected';
+
+  // F2: có tin được đẩy (bất kỳ hội thoại nào) ⇒ đọc lại trang đầu để dòng đó lên đầu, xem trước và số chưa đọc đúng theo máy chủ
+  useEffect(
+    () =>
+      subscribeChatMessages(() => {
+        void refresh().catch(() => {
+          // Giữ danh sách cũ; lượt làm tươi sau thử lại
+        });
+      }),
+    [refresh],
+  );
+
+  usePolling(
+    async (signal) => {
+      // Lần tải đầu do effect ở trên làm; vòng thăm dò chỉ làm tươi khi đã có danh sách
+      if (state.status !== 'ready') return;
+      await refresh(signal);
+    },
+    live ? CHAT_LIVE_RESYNC_MS : CHAT_REFRESH_MS,
+  );
 
   const nextCursor = state.status === 'ready' ? state.data.next : null;
   const loadMore = useCallback(() => {
