@@ -4,6 +4,7 @@ import { PATIENT_CHAT_PATH } from '../../../shared/routes/chat-paths';
 import { PATIENT_WALLET_PATH } from '../../../shared/routes/wallet-paths';
 import type { ChatbotReply, Doan, LienKetMa } from '../api/chatbot-types';
 import { normalizeDoan } from '../state/doan-text';
+import { SuggestionCard } from '../suggest/suggestion-card';
 import { CHATBOT_TEXT } from './chatbot-text';
 import { DOCTOR_LOOKUP_PATH, entityPath } from './entity-paths';
 
@@ -80,6 +81,13 @@ function ReplyLinks({ reply }: { reply: ChatbotReply }) {
   );
 }
 
+// Thẻ gợi ý hiện ở `GoiY`, và ở `KhongKhopDuLieu` khi máy chủ giữ lại chuyên khoa đã lọc (chatbot B3, PLAN 5.4 bước 13: câu trả lời bị đối
+// chiếu loại nhưng chuyên khoa mô hình gợi ý vẫn hợp lệ). Mọi loại khác không có thẻ, dù máy chủ có gửi `chuyenKhoaGoiY` (ví dụ `KhanCap`).
+function hasSuggestionCard(reply: ChatbotReply): boolean {
+  if (reply.ketQua === 'GoiY') return true;
+  return reply.ketQua === 'KhongKhopDuLieu' && reply.chuyenKhoaGoiY.length > 0;
+}
+
 export function ReplyView({ reply }: { reply: ChatbotReply }) {
   const emergency = reply.ketQua === 'KhanCap';
   return (
@@ -98,6 +106,10 @@ export function ReplyView({ reply }: { reply: ChatbotReply }) {
           <DoanPart key={index} part={part} />
         ))}
       </p>
+      {/* Gợi ý đặt lịch (chatbot F2): thẻ chọn chuyên khoa, ngày, ca và ô giờ. A4 (`KhongCoChuyenKhoa`) chỉ có chữ và liên kết tra cứu */}
+      {hasSuggestionCard(reply) && (
+        <SuggestionCard suggestions={reply.chuyenKhoaGoiY} />
+      )}
       <ReplyLinks reply={reply} />
     </div>
   );

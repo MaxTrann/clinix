@@ -6,6 +6,7 @@ import { useAuth } from '../../auth';
 import { httpChatbotApi, type ChatbotApi } from '../api/chatbot-api';
 import { useConversation } from '../state/use-conversation';
 import { useSessionReset } from '../state/use-session-reset';
+import { ChatbotApiContext } from '../suggest/chatbot-api-context';
 import { NarrowFrame, WideFrame } from './chatbot-frames';
 import { ChatbotPanel } from './chatbot-panel';
 import { CHATBOT_TEXT } from './chatbot-text';
@@ -90,8 +91,9 @@ export function ChatbotWidget({ api = httpChatbotApi }: ChatbotWidgetProps) {
     />
   );
 
+  // `ChatbotApiContext`: thẻ gợi ý (chatbot F2) nằm sâu trong danh sách tin nên lấy cùng lớp API với khung (bản thật, hay lớp giả của test)
   return (
-    <>
+    <ChatbotApiContext.Provider value={api}>
       <button
         ref={launcherRef}
         type="button"
@@ -128,6 +130,6 @@ export function ChatbotWidget({ api = httpChatbotApi }: ChatbotWidgetProps) {
             {panel}
           </NarrowFrame>
         ))}
-    </>
+    </ChatbotApiContext.Provider>
   );
 }
