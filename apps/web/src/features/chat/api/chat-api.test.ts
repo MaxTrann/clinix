@@ -7,6 +7,7 @@ import {
   getConversations,
   getMessages,
   markConversationRead,
+  sendMessage,
 } from './chat-api';
 
 // chat F1 — WCH-03 (PLAN chat 7.13): API client đọc đúng hình dạng của chat B2, B4; hình dạng sai ⇒ UnexpectedResponseError; lỗi API giữ `maLoi`.
@@ -174,5 +175,54 @@ describe('chat F1 — API client (WCH-03)', () => {
     const error = await getConversation('7').catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ status: 404, maLoi: 'KHONG_TIM_THAY' });
+  });
+});
+
+describe('chat F3 — gửi tin (WCH-09)', () => {
+  it('WCH-09 CAP-01 gửi: POST JSON `{ noiDung, maGui }` tới hội thoại (id mã hoá), đọc `{ hoiThoaiId, tinNhan }`; thân sai ⇒ UnexpectedResponseError', async () => {
+    const mine = {
+      ...MESSAGE,
+      laCuaToi: true,
+      noiDung: 'Chào',
+      tep: null,
+      maGui: 'm-1',
+    };
+    fetchMock.mockResolvedValueOnce(
+      json(201, { hoiThoaiId: '5', tinNhan: mine }),
+    );
+    const sent = await sendMessage('5/x', { noiDung: 'Chào', maGui: 'm-1' });
+    const { url, init } = lastCall();
+    expect(url).toBe('/api/chat/conversations/5%2Fx/messages');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(String(init.body))).toEqual({
+      noiDung: 'Chào',
+      maGui: 'm-1',
+    });
+    expect(sent).toEqual({ hoiThoaiId: '5', tinNhan: mine });
+
+    fetchMock.mockResolvedValueOnce(
+      json(201, { hoiThoaiId: 5, tinNhan: mine }),
+    );
+    await expect(
+      sendMessage('5', { noiDung: 'Chào', maGui: 'm-1' }),
+    ).rejects.toBeInstanceOf(UnexpectedResponseError);
+  });
+
+  it('WCH-09 CAP-02 lỗi gửi giữ `maLoi` và `loi[]` (giao diện chọn câu theo mã, không theo `thongBao`)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      json(400, {
+        maLoi: 'DU_LIEU_KHONG_HOP_LE',
+        thongBao: 'x',
+        loi: [{ truong: 'noiDung', ma: 'NOI_DUNG_QUA_DAI' }],
+      }),
+    );
+    const error = await sendMessage('5', { noiDung: 'a', maGui: 'm' }).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toMatchObject({
+      status: 400,
+      maLoi: 'DU_LIEU_KHONG_HOP_LE',
+      loi: [{ truong: 'noiDung', ma: 'NOI_DUNG_QUA_DAI' }],
+    });
   });
 });

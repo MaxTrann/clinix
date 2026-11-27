@@ -148,6 +148,10 @@ export function createFakeAuthApi(
       if (path === '/chat/unread-count') {
         return json(200, { soHoiThoaiChuaDoc: api.chatUnreadCount });
       }
+      // chat F3: trang Tin nhắn tải danh sách hội thoại khi mở; trả danh sách rỗng, cùng lý do với hai đường dẫn ở trên
+      if (path === '/chat/conversations') {
+        return json(200, { items: [], truocTiepTheo: null });
+      }
       if (path === '/auth/logout') {
         api.revoked = true;
         api.cookie = null;

@@ -1,5 +1,5 @@
 // Kiểu dữ liệu của API nhắn tin (chat B2, B4; PLAN chat 5.6). Id BIGINT là chuỗi; thời điểm là ISO UTC (nơi hiển thị đổi sang giờ Việt Nam).
-// Phần gửi tin, bắt đầu trò chuyện (chat B3) do F3, F4 thêm khi dùng.
+// Gửi tin vào hội thoại đã có (chat B3) do F3 thêm; bắt đầu trò chuyện (bác sĩ, chi nhánh) do F4 thêm khi dùng.
 
 export const CHAT_ROLES = ['BenhNhan', 'BacSi', 'LeTan'] as const;
 export type ChatRole = (typeof CHAT_ROLES)[number];
@@ -89,3 +89,9 @@ export interface MessagePage {
 
 /** Một trong hai con trỏ (không dùng cùng lúc); không có = trang mới nhất. */
 export type MessageCursor = { truoc: string } | { sau: string } | null;
+
+/** Thân 201/200 của gửi tin (PLAN 5.6). */
+export interface SendResult {
+  hoiThoaiId: string;
+  tinNhan: ChatMessage;
+}

@@ -1,21 +1,13 @@
-import { useSearchParams } from 'react-router';
-import { CHAT_QUERY } from '../../../shared/routes/chat-paths';
+import { useAuth } from '../../auth';
+import { CHAT_ROLES } from '../api/chat-types';
+import { ChatWorkspace } from '../workspace/chat-workspace';
 
-// Trang Tin nhắn TẠM của ba khung (chat F1, PLAN chat 5.13): route và menu có trước, khung nhắn tin dùng chung (`ChatWorkspace`) là chat F3 rồi F4, F5.
-// Đọc sẵn `?hoiThoai=` để liên kết từ Trung tâm thông báo vào đúng trang ngay từ bây giờ; chưa gọi API.
+// Trang Tin nhắn của ba khung (chat F1 tạo route, chat F3 thay trang tạm bằng `ChatWorkspace`; PLAN chat 5.13). Cổng vai trò do `RequireAuth` của từng khối
+// ở `router/role-routes.tsx` lo; ở đây chỉ chọn cấu hình theo vai trò đang đăng nhập. F4 (Bệnh nhân bắt đầu trò chuyện) và F5 (hộp thư) mở rộng tiếp.
 export function ChatPage() {
-  const [params] = useSearchParams();
-  const hoiThoaiId = params.get(CHAT_QUERY.conversation);
-  return (
-    <section aria-labelledby="chat-page-title" className="p-6">
-      <h1 id="chat-page-title" className="text-xl font-semibold text-gray-900">
-        Tin nhắn
-      </h1>
-      <p className="mt-2 text-sm text-gray-600">
-        {hoiThoaiId
-          ? 'Khung trò chuyện đang được hoàn thiện. Hội thoại bạn chọn sẽ mở tại đây.'
-          : 'Khung trò chuyện đang được hoàn thiện.'}
-      </p>
-    </section>
-  );
+  const { user } = useAuth();
+  const role = CHAT_ROLES.find((item) => item === user?.vaiTro);
+  // Không xảy ra qua router (Quản trị viên không có route này); phòng hờ thì không gọi API chat nào
+  if (!role) return null;
+  return <ChatWorkspace role={role} />;
 }
