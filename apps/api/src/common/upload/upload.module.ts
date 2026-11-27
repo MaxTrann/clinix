@@ -41,6 +41,7 @@ import { UploadService } from './upload.service.js';
         ),
     },
   ],
-  exports: [UploadService, UploadRepository],
+  // ImageProcessor: chat B4 dùng lại để xử lý ảnh đính kèm (cùng policy ảnh: tĩnh, ≤ 25 megapixel, ra ≤ 2 MB, bỏ metadata)
+  exports: [UploadService, UploadRepository, ImageProcessor],
 })
 export class UploadModule {}

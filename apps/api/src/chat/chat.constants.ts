@@ -24,12 +24,45 @@ export const CHAT_FIELD_ERRORS = {
   SEND_ID_INVALID: 'MA_GUI_KHONG_HOP_LE',
 } as const;
 
-/** Mã lỗi riêng của chat (PLAN 5.14). */
+/** Mã lỗi riêng của chat (PLAN 5.14). Ba mã `CHAT_TEP_…`, `CHAT_TAI_TEP_…` của tệp đính kèm (chat B4). */
 export const CHAT_ERROR_CODES = {
   RECIPIENT_INACTIVE: 'CHAT_NGUOI_NHAN_KHONG_HOAT_DONG',
   SEND_ID_USED: 'CHAT_MA_GUI_DA_DUNG',
   TOO_FAST: 'CHAT_GUI_QUA_NHANH',
+  FILE_INVALID: 'CHAT_TEP_KHONG_HOP_LE',
+  FILE_TOO_LARGE: 'CHAT_TEP_QUA_LON',
+  UPLOAD_BUSY: 'CHAT_TAI_TEP_DANG_BAN',
 } as const;
+
+/** Tệp đính kèm (chat B4; PLAN 5.8, Q6): một tệp mỗi tin, tối đa 10 MB đầu vào (bằng CHECK `tep_dung_luong` của schema). */
+export const CHAT_FILE_MAX_BYTES = 10 * 1024 * 1024;
+/** Tối đa 4 lượt tải lên đồng thời trên một tiến trình API; quá thì 503 `CHAT_TAI_TEP_DANG_BAN`. */
+export const CHAT_UPLOAD_CONCURRENT = 4;
+/** Hạn giờ xử lý một lượt tải lên, tính từ lúc nhận xong `multipart`. */
+export const CHAT_UPLOAD_DEADLINE_MS = 45_000;
+/** Job dọn chỉ xoá tệp không dòng nào tham chiếu VÀ cũ hơn 24 giờ (tệp đang chờ giao dịch gửi chắc chắn mới hơn nhiều). */
+export const CHAT_ORPHAN_MIN_AGE_MS = 24 * 60 * 60 * 1000;
+/** Số khoá mỗi câu tra tham chiếu của job dọn. `[đề xuất]` */
+export const CHAT_ORPHAN_BATCH = 500;
+
+/** Lỗi tệp: thân lỗi KHÔNG lặp lại tên tệp (PLAN 5.11). */
+export function chatFileInvalid(): AppException {
+  return new AppException(400, CHAT_ERROR_CODES.FILE_INVALID, {
+    thongBao: 'Chỉ gửi được ảnh JPEG, PNG, WebP hoặc tệp PDF.',
+  });
+}
+
+export function chatFileTooLarge(): AppException {
+  return new AppException(413, CHAT_ERROR_CODES.FILE_TOO_LARGE, {
+    thongBao: 'Tệp tối đa 10 MB.',
+  });
+}
+
+export function chatUploadBusy(): AppException {
+  return new AppException(503, CHAT_ERROR_CODES.UPLOAD_BUSY, {
+    thongBao: 'Hệ thống đang bận nhận tệp. Thử lại sau ít phút.',
+  });
+}
 
 /** Lỗi CÓ KIỂU của lõi gửi: lõi không ném `AppException` trong giao dịch (nếp booking A8); nơi gọi (REST B3, socket B5) đổi sang lỗi API bằng `chatFailureException`. */
 export type ChatSendFailure =

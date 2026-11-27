@@ -45,11 +45,20 @@ describe('topup-form (payment F2)', () => {
         'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?a=1',
       ),
     ).toBe(true);
+    expect(
+      isAllowedRedirect(
+        'https://sandbox.vnpaytest.vn/paymentv2/vpcpay.html?a=1',
+      ),
+    ).toBe(true);
     for (const bad of [
       'http://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
       'https://evil.example/vpcpay.html',
       'https://sandbox.vnpayment.vn.evil.example/x',
       'https://evilsandbox.vnpayment.vn/x',
+      'http://sandbox.vnpaytest.vn/paymentv2/vpcpay.html',
+      'https://sandbox.vnpaytest.vn.evil.example/x',
+      'https://evilsandbox.vnpaytest.vn/x',
+      'https://vnpaytest.vn/x',
       'javascript:alert(1)',
       '/benh-nhan/vi-cua-toi',
       'không phải url',

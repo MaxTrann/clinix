@@ -1,10 +1,16 @@
 import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Logger } from '@nestjs/common';
 import type { DataSource } from 'typeorm';
 import {
   buildAccountWorld,
   type AccountWorld,
 } from '../../admin/accounts/testing/account-world.js';
+import { ImageProcessor } from '../../common/upload/image-processor.js';
+import { ChatAttachmentInspector } from '../attachments/chat-attachment.inspector.js';
+import type { ChatFileStore } from '../attachments/chat-file-store.js';
+import { LocalDiskChatFileStore } from '../attachments/local-disk-chat-file-store.js';
 import type { ChatActor } from '../core/chat-access.policy.js';
 import { ConversationOpenRepository } from '../core/conversation-open.repository.js';
 import { MessageRepository } from '../core/message.repository.js';
@@ -141,16 +147,25 @@ const resolverOf = (db: DataSource) =>
     new ReceptionScopeService(new ReceptionScopeRepository(db)),
   );
 
-/** Dựng service gửi qua REST (chat B3) trên lõi gửi `core` (mặc định lõi thật với hai cổng `Noop`). */
+/** Kho tệp của test (chat B4): thư mục tạm của hệ điều hành; test nào cần kho riêng thì truyền vào `buildChatSendService`. */
+export const testFileStore = (
+  dir: string = process.env.CHAT_FILES_DIR ??
+    join(tmpdir(), 'clinix-chat-files-test'),
+): LocalDiskChatFileStore => new LocalDiskChatFileStore(dir);
+
+/** Dựng service gửi qua REST (chat B3) trên lõi gửi `core` (mặc định lõi thật với hai cổng `Noop`); chat B4: kho tệp và bộ kiểm tệp thật (ImageProcessor thật). */
 export function buildChatSendService(
   db: DataSource,
   core: SendMessageService = buildSendService(db),
+  files: ChatFileStore = testFileStore(),
 ): ChatSendService {
   return new ChatSendService(
     db,
     core,
     new ConversationReadRepository(),
     resolverOf(db),
+    new ChatAttachmentInspector(new ImageProcessor()),
+    files,
   );
 }
 
