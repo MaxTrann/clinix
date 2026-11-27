@@ -19,6 +19,7 @@ Nhật ký tiến độ riêng của scope #12 (mã sẽ nằm trong `apps/api/s
 | 26/11/2026 | **Phiên kiểm độc lập duyệt kỹ thuật T1 đến T11** (theo ủy quyền của Đại; không phải Đại trả lời trực tiếp), kèm điều kiện (PLAN 4.3). Cùng tin đó đề xuất ba phương án quyền riêng tư; một tin sau **chuyển lời** Đại muốn tinh giản. Cả hai việc thuộc quyết định sản phẩm nên đã hỏi Đại trực tiếp (Q5, Q9). Điều kiện riêng cho Ollama hết áp dụng sau Q1, Q2. | — | — | Phiên kiểm đề xuất che cả "họ tên nhận ra được": kế hoạch chỉ che tên theo mẫu tự giới thiệu và ghi giới hạn (PLAN 5.9). |
 | 27/11/2026 | **chatbot P1 (issue #732): nền Trợ lý AI ở máy chủ** (Đại `MaxTrann`; nhánh `feat/chatbot-p1-nen-nha-cung-cap-ai`, `origin/main` `0f31bb3`). Đọc lại bằng công cụ đọc trang các trang hình dạng yêu cầu của Groq (structured-outputs, reasoning, errors) và Gemini (structured-output, interactions-api, interactions, api-errors) ngày 27/11/2026, **không gọi API**, không đọc `.env`. Tạo `apps/api/src/chatbot/` (phần P1 của PLAN 5.1): cổng `AiProvider`, `FetchHttpTransport` (`fetch`, `redirect: error`, thân lỗi không rời transport), `GroqProvider`, `GeminiProvider` (Interactions API, `store: false`), `FallbackChain` (hạn chót tổng 20 giây lan truyền, thử lại đúng một lần, cooldown 60 giây chỉ sau khi lớp hỏng, trần mỗi phút theo nhà cung cấp, đồng hồ và `AbortController` do chuỗi giữ), nhà máy `createAiProviders` (`NODE_ENV=test` không tạo provider), `ChatbotModule` (chưa có controller); khối biến `AI_…`, `GROQ_…`, `GEMINI_…` ở `config/env.validation.ts` (tất cả tuỳ chọn, để trống là mặc định); `.env.example` (chỉ tên biến, hai khoá để trống); từ `chatbot` ở `commitlint.config.cjs` và `AGENTS.md`; ADR 0007; fixture tự viết theo tài liệu. Đồ giả cho test: `FakeClock` (đồng hồ ảo), `FakeProvider`, `FakeHttpTransport`. Chạy `npm ci` ở `apps/api` (phiên kiểm cho phép; chỉ đổi `node_modules` vì worktree thiếu `socket.io` của chat P4). | HDA-01…HDA-15, CFG-01…CFG-04 | **Pass** (đơn vị): 13 file spec mới, 233 ca, 233 xanh, đủ 19 mã; cả bộ `api-unit` 459 file, 8.925 ca, 0 đỏ (một worker, 204 giây); `tsc` 0 lỗi ở file của P1; `oxlint --type-aware` 0; Prettier sạch; đột biến 3 đến 6 **cả bốn bị bắt** (mục 2). **`test:e2e` riêng của chatbot Pass**: `src/chatbot/chatbot.e2e-spec.ts`, 4 ca xanh (CFG-02, CFG-03, CFG-04 qua AppModule thật, nạp lại module sau khi đặt biến), 43 giây, một worker, DB tạm `clinix_chatbot_p1_test` (**chưa dọn**, chờ Đại cho phép); **không** chạy `test/app.e2e-spec.ts` cùng DB tạm vì nó khẳng định tên DB là `clinix_test`, và chưa chạy cả bộ `test:e2e` ở máy (CI chạy). | (1) Giờ ước **6,9 giờ, vượt 5 giờ của PLAN**: PLAN chưa tính ADR, fixture của hai nhà cung cấp, đồng hồ ảo cho HDA-08, HDA-09 và đột biến ở mức ĐB; không cắt phần an toàn. (2) Ba điều PLAN 3.4 chưa nêu nay đã tra và ghi ở ADR 0007 (Gemini `input` là mảng bước không có `role`; `store` mặc định `true`; chữ ở `steps` kiểu `model_output`); **không sửa chữ PLAN 3.4** (Đại chưa đồng ý). (3) **Chưa xác nhận bằng trang, chờ X1 M1 đo thật:** Groq dùng chung `reasoning_effort` và `include_reasoning` với `json_schema`; tên trường `usage` của Groq; header `Api-Revision` (đang gửi theo ví dụ của trang, duyệt D1); Gemini có "nghĩ" mặc định và token nghĩ có tính vào `max_output_tokens` không. (4) Điểm lệch có chủ ý so với 2.4.76 ở mục 3.4, `[ĐỒNG BỘ TL]`. (5) Ngoài bốn đột biến bắt buộc, đã chạy thêm **8 biến thể phụ, cả 8 bị bắt** (mục 2), gồm các ca "HDA-08 điều chỉnh phiên kiểm" (cooldown khi hết giờ) và ca kiểm `signal` bị huỷ; lần đầu một lệnh nối 11 biến thể bị bộ phân loại quyền từ chối (ngoài lượt được cấp), sau đó chạy từng lệnh một. (6) `tsc` toàn dự án còn 3 lỗi có sẵn ở `notification/` và `payment/` (không thuộc P1). |
 | 27/11/2026 | **chatbot B1** (Đại `MaxTrann`; nhánh `feat/chatbot-b1-luat-an-toan`, `origin/main` `0f31bb3`, issue 733, Epic 731). Thêm `apps/api/src/chatbot/safety/` (`question-normalizer`, `phrase-matcher` dùng chung, `emergency.rules`, `out-of-scope.rules`, `account.rules`, `redact`, `canned-answers`) và `limit/` (`sliding-window-limiter`, `request-limiter`), kèm test cạnh mã. Chỉ hàm thuần và bộ nhớ: không gọi AI, DB, mạng, không đọc biến môi trường, không log, không import `providers/` hay `config/` (khoá bằng `safety.architecture.spec.ts`). Khớp từ khoá theo TỪNG TỪ (đúng dấu hoặc không dấu); khẩn cấp 15 nhóm 70 cụm, ngoài phạm vi 4 nhóm 18 cụm, tài khoản 3 nhóm 15 cụm (mục 3.5). Che định danh theo 5.9; sáu loại câu dựng sẵn; bộ giới hạn IP 5 mỗi phút, 50 mỗi ngày, 3 suất đồng thời, trần 10.000 IP, cửa sổ trượt, đồng hồ tiêm vào. Không chạm `chatbot.module.ts`, `config/`, `providers/`, `app.module.ts`, `.env.example` (việc của P1, B3). Kiểm: `tsc`, `oxlint`, `prettier --check`, `vitest` từng thư mục, `api-unit` cả bộ, đột biến 7, 8 cùng bốn đột biến tuỳ chọn. | ATY-01…ATY-08, RTU-01…RTU-05, GHT-01…GHT-05, GHT-07 (cộng 58 ca bổ sung mã `B1-nn`, mục 6.3). RTU-06, RTU-07, GHT-06 là e2e của B3, chưa chạy | **Pass**: 10 file, 465 ca (vitest `src/chatbot`, một worker, 1,9 giây); `api-unit` cả bộ 456 file, 9.157 ca, 0 đỏ (4 phút 4 giây); đột biến 7 và 8 bị bắt, bốn đột biến tuỳ chọn cũng bị bắt (mục 6.3) | (1) Ca ATY-06 phát hiện hai cụm ngoài phạm vi "liều bao nhiêu", "bao nhiêu liều" làm câu gõ không dấu "trị liệu bao nhiêu tiền" bị nhận nhầm là kê đơn ("liều" bỏ dấu trùng "liệu": trị liệu, tài liệu, dữ liệu): bỏ hai cụm, Đại xác nhận trực tiếp 27/11/2026 (ngoài phạm vi còn 18 cụm). (2) Lần chạy đầu một ca `B1-05` đỏ do chính test: regex "uống" khớp trong chữ "tình huống"; sửa bằng ranh giới từ Unicode, chữ câu dựng sẵn không đổi. (3) Ca nhập nhằng đã biết, giới hạn và chỗ B3 phải nối: mục 3.5. (4) `tsc` ở worktree này báo 10 lỗi có sẵn ở module `chat` (thiếu `socket.io`, `@nestjs/websockets` trong `node_modules` của worktree), không có lỗi nào trong `src/chatbot`; không chạy `npm ci` vì quy tắc "Không gọi mạng" của lượt máy. (5) Chưa chạy: 10 đột biến còn lại của PLAN 5.15 (1 đến 6, 9 đến 12) thuộc P1, B2, B3. |
+| 27/11/2026 | **chatbot B2 (issue 734, Epic 731): ngữ cảnh công khai, lược đồ đầu ra, chỗ giữ, đối chiếu V2 đến V9, dựng đoạn, lọc chuyên khoa** (Đại `MaxTrann`; nhánh `feat/chatbot-b2-ngu-canh-doi-chieu`, `origin/main` `b108bd2` lúc bắt đầu; PR export `PublicDoctorService` #766 đã merge `fc112de` nhưng nhánh này CHƯA gộp: Đại gộp `origin/main` bằng script trước khi mở PR). Thêm `apps/api/src/chatbot/context/` (hằng, chỗ giữ, kiểu, chỉ mục, tệp chính sách, khớp từ khoá, truy vấn công khai đọc thẳng trong `runReadOnly`, bộ điều hợp `PublicDoctorService`, bộ dựng ngữ cảnh có đệm 60 giây và trần 6.000 ký tự) và `answer/` (lược đồ đầu ra, danh sách luật, luật đối chiếu V2 đến V9, ánh xạ chuyên khoa, bộ chữ cho chỗ giữ, đọc lại thực thể, dựng đoạn, cầu nối cho B3, `testing/b2-world.ts` cho int-spec), kèm test cạnh mã. Không chạm file nào ngoài hai thư mục; chưa nối vào `ChatbotModule` hay API (việc của B3). Mã chỉ đọc: không ghi DB, không khoá, không mạng, không biến môi trường, không log (khoá bằng `answer.architecture.spec.ts`). Đại duyệt 27/11/2026 bằng hộp câu hỏi: chữ chính sách P1 đến P7, danh sách V3 đến V8 đúng PLAN không ngoại lệ, không địa chỉ trụ sở, không từ khoá thì không phát bác sĩ, tạo DB tạm `clinix_chatbot_b2_test`. Phiên kiểm duyệt kỹ thuật theo ủy quyền (mục 3.6). | NGC-01…NGC-06, DCR-01…DCR-12, CPI-03, ANX-01…ANX-03 (cộng ca bổ sung mã `B2-nn`, mục 6.4). CPI-01, CPI-02, ANX-04 là e2e của B3, chưa chạy | **Pass**: đơn vị 13 file, 321 ca; int-spec 4 file, 33 ca trên MySQL thật; `api-unit` cả bộ 483 file, 9.714 ca, 0 đỏ (lần hai); đột biến 9, 10, 11 cả ba bị bắt; 8 biến thể phụ cả 8 bị bắt (mục 6.4) | (1) Lần chạy int-spec đầu có hai ca đỏ do chính test: regex `\b` bị công cụ đổi thành ký tự backspace ở `B2-72` (sửa test, mã không đổi), và hai lần tạo chuyên khoa cùng tên `Khoa thứ 1` vướng UNIQUE ở ANX-02 (sửa test). (2) Lần chạy `api-unit` đầu có MỘT ca đỏ: `src/appointments/notifications/no-real-mail.architecture.spec.ts` hết giờ 5 giây trong cả bộ (9,3 giây); chạy riêng 62 ms, 2/2 xanh; lần hai cả bộ 0 đỏ; không tái hiện, không do nội dung mã mới (ghi, không giấu). (3) Biến thể phụ (i) (115 không ranh giới) KHÔNG bị bắt ở lần đầu: "1150" vẫn bị chặn nhờ chữ số 0 còn sót, nhưng chuỗi toàn "115" lặp ("115115") lọt; đã thêm hai ca vào DCR-03 rồi bị bắt (không nới đột biến). (4) Kiểm bác sĩ ở `EntityResolver` có hai chỗ chồng nhau (vòng đọc và `valueOf`) nên xoá riêng một chỗ là đột biến tương đương; biến thể (iii) được đổi thành "bịa một bác sĩ khi không tìm thấy". (5) Lệch có chủ ý so với PLAN 5.6: không đưa "địa chỉ trụ sở" (danh sách chỗ giữ 5.7 không có `[[PK:diaChi]]`), mô hình dẫn tới `[[DC:id]]` của chi nhánh (Đại 27/11/2026). (6) `tsc` toàn dự án còn lỗi có sẵn ở `chat/`, `notification/`, `payment/` (ngoài B2): lọc theo `src/chatbot` là 0 lỗi. (7) Dài khoảng 2.250 dòng mã và 3.700 dòng test; giờ làm thực tế của task ghi ở báo cáo cuối phiên. |
 
 ## 2. Kết quả test theo use case (mã ở PLAN.md mục 7)
 
@@ -29,17 +30,17 @@ Nhật ký tiến độ riêng của scope #12 (mã sẽ nằm trong `apps/api/s
 | An toàn y tế | ATY-01…ATY-08 | 8 | B1 | **Pass** (chatbot B1, 27/11/2026; mục 6.3) |
 | Quyền riêng tư | RTU-01…RTU-07 | 7 | B1, B3 | RTU-01…RTU-05 **Pass** (chatbot B1); RTU-06, RTU-07 chưa chạy (B3, e2e) |
 | Giới hạn tốc độ | GHT-01…GHT-07 | 7 | B1, B3 | GHT-01…GHT-05, GHT-07 **Pass** (chatbot B1); GHT-06 chưa chạy (B3, e2e) |
-| Ngữ cảnh | NGC-01…NGC-06 | 6 | B2 | chưa chạy |
-| Đối chiếu đầu ra | DCR-01…DCR-12 | 12 | B2 | chưa chạy |
-| Chèn lệnh | CPI-01…CPI-03 | 3 | B2, B3 | chưa chạy |
-| Ánh xạ chuyên khoa (2.4.77) | ANX-01…ANX-04 | 4 | B2, B3 | chưa chạy |
+| Ngữ cảnh | NGC-01…NGC-06 | 6 | B2 | **Pass** (chatbot B2, 27/11/2026; mục 6.4) |
+| Đối chiếu đầu ra | DCR-01…DCR-12 | 12 | B2 | **Pass** (chatbot B2, 27/11/2026; mục 6.4) |
+| Chèn lệnh | CPI-01…CPI-03 | 3 | B2, B3 | CPI-03 **Pass** (chatbot B2); CPI-01, CPI-02 chưa chạy (B3, e2e) |
+| Ánh xạ chuyên khoa (2.4.77) | ANX-01…ANX-04 | 4 | B2, B3 | ANX-01…ANX-03 **Pass** (chatbot B2); ANX-04 chưa chạy (B3, e2e) |
 | Trò chuyện đầu cuối (2.4.7) | TLA-01…TLA-13 | 13 | B3 | chưa chạy |
 | API gợi ý | GOI-01…GOI-10 | 10 | B4 | chưa chạy |
 | Giao diện | WTL-01…WTL-14 | 14 | F1, F2 | chưa chạy |
 | Kiểm tay | KTL-01…KTL-08 | 8 | X2 | chưa chạy |
-| **Tổng** | | **111** | | **38 đã chạy (19 P1, 19 B1), 73 chưa** |
+| **Tổng** | | **111** | | **60 đã chạy (19 P1, 19 B1, 22 B2), 51 chưa** |
 
-Đột biến mục tiêu (PLAN 5.15): 12; **đã chạy 6, cả 6 bị bắt**: Đ3 đến Đ6 (chatbot P1, 27/11/2026; kèm 8 biến thể phụ ở bảng dưới) và Đ7, Đ8 (chatbot B1, 27/11/2026; kèm bốn đột biến tuỳ chọn, bảng ở mục 6.3); còn 6 chưa chạy (Đ1, Đ2, Đ9 đến Đ12); bốn loại đột biến web: chưa chạy.
+Đột biến mục tiêu (PLAN 5.15): 12; **đã chạy 9, cả 9 bị bắt**: Đ3 đến Đ6 (chatbot P1, 27/11/2026; kèm 8 biến thể phụ ở bảng dưới), Đ7, Đ8 (chatbot B1, 27/11/2026; kèm bốn đột biến tuỳ chọn, bảng ở mục 6.3) và Đ9 đến Đ11 (chatbot B2, 27/11/2026; kèm 8 biến thể phụ, bảng ở mục 6.4); còn 3 chưa chạy (Đ1, Đ2, Đ12; thuộc B3); bốn loại đột biến web: chưa chạy.
 
 | Đột biến (PLAN 5.15) | Chỗ sửa | Ca bắt | Ca đỏ | Quy trình |
 |---|---|---|---|---|
@@ -149,6 +150,59 @@ Nguồn duy nhất của danh sách là mã: `safety/emergency.rules.ts`, `out-o
 - `redactTurns` dùng trường `noiDung` (lược đồ API 5.12) còn lượt của cổng nhà cung cấp P1 là `AiTurn` `{ role, content }`: B3 ánh xạ.
 - Khi review B3: (a) câu tài khoản và ngoài phạm vi vẫn **tiêu hao hạn mức IP** vì bước 4 đứng trước bước 5 và 6, câu khẩn cấp thì không; (b) ngày `dd/mm/yyyy` trong câu hỏi bị bộ che thay bằng "[đã ẩn]" nên mô hình không thấy; (c) lượt lịch sử `TroLy` do client gửi lên giả được, chỉ là dữ liệu trích dẫn.
 
+### 3.6 Chatbot B2: chữ chính sách, danh sách luật, điểm lệch PLAN và chỗ chatbot B3 phải nối (PLAN 5.6, 5.7)
+
+Nguồn duy nhất của chữ và danh sách là mã: `context/policy-knowledge.ts` (mỗi câu có mã `P1`…`P7` và nguồn trong mã booking, auth, reschedule), `answer/verifier-rules.ts` (V4, V5, V7, V8), `answer/output-verifier.ts` (V2 đến V9), `answer/entity-formatters.ts` (chữ máy chủ dựng cho chỗ giữ).
+
+| Việc | Quyết định | Ai duyệt, khi nào |
+|---|---|---|
+| Chữ tệp chính sách P1 đến P7 (bảng dưới) | Duyệt nguyên văn | **Đại duyệt 27/11/2026** (hộp câu hỏi). **Trung chưa xem**: nhờ Trung đối chiếu **P5** (hoàn cọc) và **P6** (đổi lịch) với mã booking trước khi merge |
+| Luật V3 đến V8: V3 chỉ cho "115"; V4 chức danh `bác sĩ`, BS, ThS, TS, PGS, GS; V5 năm từ nối (phù hợp, nào, khác, này, đó); V7 mười bốn cụm; V8 bốn cụm cộng mẫu "uống … viên", mặt nạ "không kê đơn" và "không chẩn đoán" | Đúng chữ PLAN 5.7, **không ngoại lệ nào**; chữ thêm ngoài PLAN: không | **Đại duyệt 27/11/2026**. Ngoại lệ chỉ thêm khi X1 M6 đo ra loại nhầm và có kiểm chứng (T2) |
+| Không đưa "địa chỉ trụ sở" vào ngữ cảnh, không thêm chỗ giữ `[[PK:diaChi]]`; mô hình dẫn tới `[[DC:id]]` của chi nhánh | **Lệch có chủ ý so với PLAN 5.6** (phần nền có "địa chỉ trụ sở", danh sách chỗ giữ 5.7 không có chỗ giữ cho nó) | **Đại 27/11/2026** |
+| Không có từ khoá khớp thì không phát bác sĩ nào | Điều PLAN 5.6 không nêu | **Đại 27/11/2026** |
+| Tạo DB tạm `clinix_chatbot_b2_test` cho int-spec; DROP khi Đại bảo | Cho phép | **Đại 27/11/2026**; DB còn nguyên chờ lệnh DROP |
+| Giữ ba lần đọc (phần nền trong một `runReadOnly`; bác sĩ qua `PublicDoctorService` tự mở giao dịch; cấu hình qua `SystemConfigService`), bù bằng V2 cộng đọc lại thực thể (DCR-11) | Đồng ý (6.A của kế hoạch) | Phiên kiểm độc lập, theo ủy quyền của Đại, 27/11/2026 (không phải Đại trả lời trực tiếp) |
+| Dạng đoạn: `thucThe` chỉ cho tên (`BacSi`, `ChuyenKhoa`, `ChiNhanh`, `DichVu`), giá trị là `chu`; thứ tự cắt mô tả, bác sĩ, chi tiết dịch vụ cùng cờ `overBudget`; đệm bác sĩ tối đa 500; chép 7 nhãn chức danh từ `apps/web/src/features/search/format/doctor-title.ts` | Đồng ý | Phiên kiểm, 27/11/2026 (như dòng trên). **Nợ đồng bộ**: bảng nhãn ở `answer/entity-formatters.ts` là bản chép của web; dòng `docs/TECH_DEBT.md` chỉ ghi nếu Đại đồng ý |
+| `EntityResolver` khử trùng thực thể theo khoá và có trần 24 thực thể khác nhau mỗi câu trả lời (vượt thì V2); ca V8 cho từ có dấu "dữ liệu", "tài liệu", "trị liệu", "liệu trình" phải qua | Bổ sung kỹ thuật | Phiên kiểm, 27/11/2026 |
+| Quy ước ngắt đoạn: ngắt nằm TRONG `chu` bằng `\n`, web nối các phần tử `doan` và hiển thị bằng `pre-line`; B2 giữ nguyên `\n` của mô hình. `DichVu` vẫn trả `{ kieu: 'thucThe', doiTuong: 'DichVu', id, chu }` nhưng web chưa có trang dịch vụ theo id nên hiện chữ thường không liên kết | Chốt với cửa sổ F1 | Phiên kiểm, 27/11/2026 |
+
+**Chữ chính sách (đã duyệt nguyên văn; `[[CS:giuCho]]` hiện "N phút", `[[CS:doiLich]]` hiện "N lần" lấy từ `cau_hinh_he_thong`; chưa cấu hình thì bỏ hai câu P2 và P6):**
+
+| Mã | Câu | Nguồn đối chiếu trong mã (đã đọc 27/11/2026) |
+|---|---|---|
+| P1 | Đặt lịch khám trực tuyến cần tài khoản Bệnh nhân đã đăng nhập và đã xác minh email bằng mã OTP. | 2.4.1 (PLAN Phụ lục B); `auth/login/login.service.ts`: đúng mật khẩu mà `daXacMinhEmail` sai thì kết quả `unverified`, không tạo phiên; `RequireAuth` vai Bệnh nhân |
+| P2 | Khi chọn khung giờ còn trống ở dịch vụ có đặt cọc, lịch hẹn ở trạng thái chờ thanh toán và khung giờ được giữ cho bạn trong [[CS:giuCho]]. Quá hạn mà chưa thanh toán thì lịch tự hủy và khung giờ được trả lại. | `appointments/create/create-appointment.service.ts` (`zeroDeposit ? DaXacNhan : ChoThanhToan`); `appointments/slots/slot-hold.service.ts` `holdDeadline` (phút); `appointments/expiry/hold-expiry.job.ts` |
+| P3 | Dịch vụ không đặt cọc thì lịch được xác nhận ngay, không cần thanh toán trước. | `create-appointment.service.ts` (cọc 0đ `INSERT` thẳng `DaXacNhan`) |
+| P4 | Bệnh nhân hủy được lịch đang chờ thanh toán hoặc đã xác nhận; lịch đã tiếp đón thì không hủy được. | `appointments/state/appointment-state.matrix.ts` (`BenhNhan`: `ChoThanhToan` và `DaXacNhan` tới `DaHuy`; `DaTiepDon` không hủy được) |
+| P5 | Cọc đã thanh toán được hoàn theo mốc thời gian của dịch vụ tại lúc đặt lịch: hủy càng sát giờ hẹn thì tỷ lệ hoàn càng thấp, đã quá giờ hẹn thì không hoàn. | `appointments/cancel/refund-calculator.ts` `calculateRefund` (đọc `chinh_sach_hoan_snapshot` chụp lúc đặt; quá giờ hẹn thì 0%); `payment/policy/policy.rules.ts` (giờ giảm thì tỷ lệ không tăng). Chữ "hoàn về ví" không đưa vào vì chưa kiểm đích hoàn |
+| P6 | Lịch đã xác nhận có thể tự đổi sang khung giờ khác của cùng bác sĩ, cùng dịch vụ, cùng chi nhánh, trước giờ hẹn, tối đa [[CS:doiLich]]. Hết lượt tự đổi thì gửi yêu cầu kèm lý do để lễ tân hoặc quản trị viên xem xét. | `appointments/reschedule/reschedulability.rules.ts` (bước 3 `DaXacNhan`, bước 4 hạn đổi, bước 7 đến 10 `checkTargetSlot`, `checkQuota`); `patient-reschedule.service.ts` (hết lượt mà không có `lyDoYeuCau` thì 409 `VUOT_SO_LAN_TU_DOI`, có lý do thì `RescheduleRequestService.create`) |
+| P7 | Giờ nhận khám của từng chi nhánh nêu ở phần chi nhánh. Khung giờ còn trống do hệ thống tính theo thời điểm bạn xem nên Trợ lý không nêu giờ cụ thể; hãy chọn khung giờ ở trang đặt lịch. | PLAN 5.6 ("Khung giờ không bao giờ vào ngữ cảnh"); câu của sản phẩm |
+
+**Chữ máy chủ dựng cho chỗ giữ (`[đề xuất]`, Đại duyệt khi review; một nơi: `answer/entity-formatters.ts`):** tên bác sĩ như web ("ThS.BS. Nguyễn Minh Anh", "BS.CKII Trần Quốc Huy"); tiền "350.000 đồng" (có lẻ thì "350.000,50 đồng"); giá dịch vụ "từ 200.000 đồng"; thời lượng "30 phút"; giờ nhận khám "Thứ Hai đến Thứ Sáu: 07:30 đến 11:30 và 13:30 đến 17:00; Thứ Bảy: …; Chủ Nhật: nghỉ"; mốc hoàn "hủy trước giờ hẹn ít nhất 24 giờ hoàn 100%; hủy từ 2 đến dưới 24 giờ trước giờ hẹn hoàn 50%; hủy trong vòng dưới 2 giờ trước giờ hẹn hoàn 0%; đã quá giờ hẹn thì không hoàn" (cọc 0 thì "không áp dụng vì dịch vụ không đặt cọc"; có cọc chưa có mốc thì "không hoàn cọc").
+
+**Điều B2 làm khác chữ PLAN (không đổi quyết định, ghi để Trung review):** (1) chỉ mục chỗ giữ lập bằng cách đọc LẠI chữ ngữ cảnh cuối cùng (không ghi lúc phát), nên chỗ giữ của bác sĩ bị cắt vì trần cũng rời chỉ mục; chữ từ DB được làm sạch (`[[` thành `[`, dãy `<<<` thu về một ký tự, bỏ ký tự điều khiển và ký tự dùng riêng) để DB không giả được chỗ giữ lẫn hai dòng đánh dấu khối dữ liệu (CPI-03). (2) V4: "bác sĩ" viết đủ chỉ tính khi từ viết hoa đứng sau KHOẢNG TRẮNG, để "gặp bác sĩ. Tôi…" không bị chặn. (3) Chữ của mô hình được chuẩn hoá NFC và bỏ ký tự vô hình (U+200B…) trước khi chạy luật chữ; ký tự giữ chỗ nội bộ U+E000 có trong chữ mô hình là V2. (4) V9 ném `RangeError` khi mã chim mồi ngắn hơn 8 ký tự (cấu hình sai không được âm thầm tắt bảo vệ). (5) Bước cắt thứ ba của trần 6.000 ký tự (bỏ chi tiết dịch vụ) và cờ `overBudget` khi chính phần nền vượt (phiên kiểm duyệt). (6) `EntityResolver` khử trùng thực thể và có trần 24 thực thể khác nhau mỗi câu trả lời (phiên kiểm duyệt).
+
+**Ca nhập nhằng đã biết của V3 đến V8 (đúng luật PLAN, KHÔNG ngoại lệ; mỗi ca có một ca test ghi lại hành vi để không ai đổi lặng lẽ; X1 M6 phải đo tỉ lệ loại nhầm):**
+
+| Câu của mô hình | Kết quả | Ghi chú |
+|---|---|---|
+| "Bác sĩ chuyên khoa sẽ tư vấn", "Chuyên khoa của chúng tôi" | V5 chặn | từ nối chỉ có năm từ của PLAN |
+| "chuyên khoa nhi" khi tên thật là "Nhi khoa" | V5 chặn | tên khoa có "khoa" ở cuối |
+| "Nếu bạn bị trễ giờ hẹn" | V8 chặn | cụm "bạn bị" |
+| "Trợ lý không thể kê đơn" | V8 chặn | mặt nạ chỉ có "không kê đơn", "không chẩn đoán" |
+| "Thứ hai, …" (số thứ tự) | V7 chặn | trùng tên thứ trong tuần |
+| "Chi nhánh Quận 7", "tầng 2", "24/7", danh sách đánh số do mô hình tự viết | V3 chặn | địa chỉ đi qua `[[DC:id]]` (máy chủ dựng, không qua V3) nên "tầng 2" trong địa chỉ an toàn; lời nhắc B3 phải cấm danh sách đánh số |
+| "du lieu", "tri lieu" gõ KHÔNG DẤU | V8 chặn (từ "lieu" trùng dạng bỏ dấu của "liều") | từ có dấu "dữ liệu", "tài liệu", "trị liệu", "liệu trình" qua (bài học AI-BUG-128 của B1); lời nhắc B3 phải bắt mô hình viết tiếng Việt CÓ DẤU |
+| "Không tự ý uống thuốc", "giá hai trăm nghìn", "bảy giờ sáng" | qua | lỗ hổng R5 đã biết: V8 chỉ có "uống … viên", V3 chỉ bắt chữ số |
+
+**Chỗ chatbot B3 phải nối (thứ tự 5.4 bước 9 đến 14; B2 không nối `ChatbotModule`, không viết lời nhắc, không log):**
+- **Dựng lớp** (không có `@Injectable`, B3 bọc bằng provider `useFactory`): `new PublicContextRepository(dataSource)`; `new PublicDoctorSourceAdapter(publicDoctorService)` (cần `SearchModule` export `PublicDoctorService`, đã có từ PR 766 sau khi gộp `main`); `new ContextBuilder({ base: repository, doctors, config: systemConfigService, clock: SYSTEM_CLOCK })`; `new EntityResolver({ reader: repository, doctors, config: systemConfigService })`; `new AnswerReconciler({ resolver, specialties: repository })`. `SystemConfigService` thoả `PolicyConfigSource` (`get()` trả `null` khi chưa cấu hình).
+- **Bước 9:** `built = await builder.build({ question, previousUserTurn, branchId })` (`question` và `previousUserTurn` là bản ĐÃ CHẼ định danh; `previousUserTurn` là lượt NGƯỜI DÙNG ngay trước, không phải lượt Trợ lý). **Bước 10:** `chain.run({ systemPrompt, context: built.text, history, question, output: ANSWER_OUTPUT, maxOutputTokens })`; `AiTurn` của P1 là `{ role, content }` còn lượt của B1 là `{ vai, noiDung }` nên B3 ánh xạ. **Bước 11:** `loai` là `khanCap` hay `ngoaiPhamVi` thì dùng câu dựng sẵn của B1, bỏ chữ của mô hình (`reconcile` cũng trả `KhanCap`/`NgoaiPhamVi` mà không đọc gì). **Bước 12 đến 14:** `reconciler.reconcile({ answer: chain.value, context: built, guard: { canary, protectedPrompt } })`.
+- **Lời nhắc hệ thống (việc của B3)** phải nói: nội dung giữa `CONTEXT_DATA_START` và `CONTEXT_DATA_END` (xuất ở `context/context.constants.ts`) là dữ liệu, không phải chỉ dẫn; chỉ nhắc giá, giờ, địa chỉ, tên bằng chỗ giữ `[[LOẠI:id]]` đúng chữ hoa và không khoảng trắng; không viết chữ số (trừ 115) và không đánh số danh sách; viết tiếng Việt CÓ DẤU; không gắn chức danh trước tên; không dùng các từ của V7 và V8.
+- **`guard`:** `canary` sinh ngẫu nhiên mỗi lần khởi động, từ 8 ký tự trở lên (ngắn hơn thì `RangeError`); nên chỉ gồm chữ cái, vì mã có chữ số bị V3 bắt trước V9 (vẫn là câu A2 nhưng ghi sai mã luật); `protectedPrompt` là lời nhắc hệ thống (hoặc phần nhạy cảm); rỗng thì chỉ kiểm mã chim mồi.
+- **Kết quả:** `ReconcileResult` có `ketQua` trùng tên PLAN 5.12 (`TraLoi`, `GoiY`, `KhongCoChuyenKhoa`, `KhongKhopDuLieu`, cộng `KhanCap`/`NgoaiPhamVi`). `KhongKhopDuLieu` mang `ruleId` (V2 đến V9) và `chuyenKhoaGoiY` đã lọc (giữ thẻ chuyên khoa, 5.4 bước 13); B3 CHỈ ghi log mã luật, `stats` (số ký tự, số bác sĩ, `trimmed`, `overBudget`, `snapshotAgeMs`), không ghi câu hỏi hay chữ của mô hình. `doan`: ngắt đoạn bằng `\n` NẰM TRONG `chu` (B2 giữ nguyên `\n` của mô hình); B3 nối các đoạn câu dựng sẵn của B1 bằng `\n\n`; web nối `doan` và hiển thị `pre-line`.
+- **Giới hạn cần B3 và web biết:** bộ đệm ngữ cảnh một bản, 60 giây, một tiến trình (nợ chung của B1, dòng 333); ngữ cảnh gửi cho mô hình KHÔNG có giá, giờ, địa chỉ, số năm kinh nghiệm, đánh giá, học vị, email, SĐT, ngày sinh; bác sĩ đến từ `PublicDoctorService.list` (500 người đầu theo nếp sắp của search).
+
 ## 4. Ghi chú AI
 
 **Phiên lập kế hoạch KHÔNG sửa `AI_USAGE_LOG.md` và `docs/TECH_DEBT.md`** (Đại quyết ghi ở PR sau). Dưới đây là **bản nháp**; kiểm lại số lớn nhất trên `main` lúc ghi. Lúc soạn (`origin/main` `36ec306`) AI log có đến hàng 204, TECH_DEBT đến dòng 327, `AI-BUG` đến 116. Dải số đã cấp cho task này: **AI log hàng 206, nợ kỹ thuật 332 đến 334, `AI-BUG` 120 đến 121** (203 và 323 đến 325 của chat, 205 và 328 đến 331 đã dành cho việc khác).
@@ -179,7 +233,7 @@ Nguồn duy nhất của danh sách là mã: `safety/emergency.rules.ts`, `out-o
 |---|---|---|---|
 | Trung (chat) | P1: `app.module.ts`, `env.validation.ts`, `.env.example`, `commitlint.config.cjs`, `docs/adr/` | ai merge sau thì rebase; báo nhau | P1 đã sửa: `app.module.ts` (hai dòng), `env.validation.ts` (khối cuối class, hai hàm nhỏ, một dòng ở `crossFieldProblems`), `.env.example` (khối cuối), `commitlint.config.cjs` và `AGENTS.md` (một từ), ADR 0007; **báo Trung ở PR** |
 | Trung (review) | mọi PR của scope | review và approve | chờ |
-| Đại (search) | B2: export `PublicDoctorService` | PR nhỏ riêng, test search không đổi | chờ |
+| Đại (search) | B2: export `PublicDoctorService` | PR nhỏ riêng, test search không đổi | **PR 766 đã merge** 27/11/2026 (squash `fc112de`); Đại gộp `origin/main` vào nhánh B2 trước khi mở PR chatbot B2 |
 | Đại (router) | F1: `router/root-layout.tsx` | không đụng `role-nav`, `role-routes`, `role-shells` | chờ |
 | Chat | liên kết tới trang Tin nhắn | `[CHỜ chat]`; trước đó hiện đường dây nóng | chờ |
 | Payment | kiểm `trust proxy` ở staging ảnh hưởng IP gửi VNPAY | báo khi đổi | `[CHỜ staging]` |
@@ -234,6 +288,56 @@ Giao thức mỗi đột biến: sao lưu file mã ngoài repo kèm SHA-256; đ�
 
 Đột biến (i) đến (iv) là bốn đột biến **tuỳ chọn** do phiên viết B1 đề xuất cho phần an toàn y tế (không nằm trong 12 đột biến của PLAN 5.15). Mười đột biến còn lại của PLAN (1 đến 6, 9 đến 12) thuộc P1, B2, B3. Số liệu thô nằm ở thư mục tạm của phiên (không vào repo).
 
+### 6.4 Chatbot B2: kết quả test, đột biến và kích thước ngữ cảnh (chạy 27/11/2026)
+
+**Mã test case:** NGC-01…NGC-06, DCR-01…DCR-12, CPI-03, ANX-01…ANX-03 (22 mã, đủ, không mã nào thiếu ca; quét bằng script). Đơn vị: 13 file, **321 ca** (một worker). Tích hợp MySQL thật (DB tạm `clinix_chatbot_b2_test`, Đại cho phép tạo 27/11/2026, còn nguyên chờ lệnh DROP): 4 file, **33 ca**. `api-unit` cả bộ: 483 file, **9.714 ca, 0 đỏ** (lần hai, 211 giây; lần đầu có một ca hết giờ ở `no-real-mail.architecture.spec.ts`, xem mục 1). `tsc` lọc `src/chatbot`: 0 lỗi; `oxlint --type-aware`: 0; `prettier --check`: sạch (chỉ ghi file MỚI; không `--write` trên file có sẵn).
+
+| File | Ca | Mã test chính |
+|---|---|---|
+| `context/placeholder.spec.ts` | 9 | DCR-02 (dạng chỗ giữ), `B2-nn` |
+| `context/policy-knowledge.spec.ts` | 7 | NGC-06 (không chữ số, mỗi câu có nguồn), `B2-nn` |
+| `context/keyword-matcher.spec.ts` | 13 | NGC-03 |
+| `context/context-builder.spec.ts` | 29 | NGC-03, NGC-04, NGC-05, NGC-06, CPI-03 |
+| `context/doctor-source.spec.ts` | 5 | NGC-01 (danh sách trắng), phân trang 500 |
+| `answer/output.schema.spec.ts` | 9 | DCR-10 (V1) |
+| `answer/output-verifier.spec.ts` | 124 | DCR-02 đến DCR-09, DCR-12 (V2 đến V9) |
+| `answer/entity-formatters.spec.ts` | 29 | DCR-01 (chữ chỗ giữ) |
+| `answer/specialty-mapper.spec.ts` | 20 | ANX-01, ANX-02, ANX-03 |
+| `answer/answer-renderer.spec.ts` | 10 | DCR-01, DCR-12, xuống dòng giữ nguyên |
+| `answer/entity-resolver.spec.ts` | 18 | DCR-11, khử trùng, trần 24 thực thể |
+| `answer/answer-reconciler.spec.ts` | 11 | ANX-03 (A4), A2 giữ thẻ chuyên khoa |
+| `answer/answer.architecture.spec.ts` | 37 | ràng buộc 8 (không ghi DB, khoá, mạng, biến môi trường, log; đối chứng ÂM từng luật) |
+| `context/public-context.repository.int-spec.ts` (MySQL) | 10 | NGC-01, NGC-02, ANX-02, DCR-11, mọi câu trong MỘT giao dịch chỉ đọc |
+| `context/context-builder.int-spec.ts` (MySQL) | 5 | NGC-01, NGC-05, NGC-06, CPI-03 |
+| `answer/answer-renderer.int-spec.ts` (MySQL) | 14 | DCR-01, DCR-11 (tám kiểu thực thể mất hiệu lực), CPI-03 |
+| `answer/specialty-mapper.int-spec.ts` (MySQL) | 4 | ANX-02, ANX-03 |
+
+**Ba đột biến bắt buộc** (PLAN 5.15; giao thức: sao lưu file mã ngoài repo kèm SHA-256; đối chứng TRƯỚC xanh; đoạn thay xuất hiện đúng một lần; một vitest một file, một worker; khôi phục trong `finally` rồi so SHA-256; đối chứng SAU xanh; `git status` chỉ có `apps/api/src/chatbot/{context,answer}/`). Bộ chạy và kết quả thô (`result.json` từng đột biến) nằm ngoài repo, ở thư mục tạm của phiên.
+
+| Đột biến | Chỗ sửa | Ca bắt | Ca đỏ / tổng | Trước, sau |
+|---|---|---|---|---|
+| **9** cho chữ số lọt | `answer/output-verifier.ts`: V3 luôn coi là sạch | DCR-03 (chín câu chữ số, câu cạnh chỗ giữ) và thứ tự luật | 11 / 122 | 0 đỏ, 0 đỏ |
+| **10** không kiểm id chỗ giữ | `output-verifier.ts`: V2 bỏ `index.has(ref)` | DCR-02 (id ngoài ngữ cảnh, chuyên khoa không phát, GIA của chi nhánh, V2 đứng trước) và `B2-20` | 5 / 122 | 0 đỏ, 0 đỏ |
+| **11** giữ chuyên khoa đã ngừng | `answer/specialty-mapper.ts`: bỏ lọc theo kết quả đọc lại | ANX-02, ANX-03: bản đơn vị (nguồn giả) | 2 / 20 | 0 đỏ, 0 đỏ |
+| **11** (cùng đột biến, bản MySQL thật) | như trên | ANX-02, ANX-03 trên `specialty-mapper.int-spec.ts` | 2 / 4 | 0 đỏ, 0 đỏ |
+
+**Tám biến thể phụ** (phiên kiểm cấp lượt 27/11/2026; mỗi biến thể một lệnh, đúng giao thức; **cả 8 bị bắt**; (i) bị bắt SAU khi thêm ca):
+
+| Biến thể | Chỗ sửa | Ca bắt | Ca đỏ / tổng |
+|---|---|---|---|
+| (i) "115" không ranh giới | `output-verifier.ts`: mẫu bỏ `(?<!\p{Nd})` và `(?!\p{Nd})` | DCR-03 "115115", "115115115" (**lần đầu KHÔNG bị bắt**: 0 / 122; thêm hai ca rồi 2 / 124) | 2 / 124 |
+| (ii) đệm sống thêm 1 mili giây | `context-builder.ts`: `<` thành `<=` | NGC-05 (đúng 60 giây là hết hạn; bản cũ bị thay) | 2 / 29 |
+| (iii) bộ đọc lại bịa một bác sĩ khi không tìm thấy | `answer/entity-resolver.ts` | DCR-11 (đơn vị) và DCR-11 (MySQL: bác sĩ bị khoá, chỉ nhắc giá, gỡ dịch vụ) | 1 / 18 và 3 / 14 |
+| (iv) làm sạch chữ DB không đổi `[[` | `context-builder.ts`: bỏ `.replace(/\[{2,}/g, '[')` | CPI-03 (hai ca), `B2-69` | 3 / 29 |
+| (v) A2 bỏ thẻ chuyên khoa | `answer-reconciler.ts` | A2 giữ thẻ chuyên khoa (5.4 bước 13) | 1 / 11 |
+| (vi) bỏ trần 24 thực thể | `entity-resolver.ts` | `B2-55` | 1 / 18 |
+| (vii) cắt bác sĩ trước khi bỏ mô tả (sai thứ tự cắt) | `context-builder.ts` | NGC-04 (bỏ mô tả trước) | 1 / 29 |
+| (viii) mỗi lời gọi đồng thời một lần đọc | `context-builder.ts`: `??=` thành `=` | NGC-05 (một lần đọc cho mười lời gọi) | 1 / 29 |
+
+Còn lại của 12 đột biến PLAN 5.15: Đ1, Đ2, Đ12 (thuộc B3). Đã chạy 9 (Đ3 đến Đ11), cả 9 bị bắt.
+
+**Kích thước ngữ cảnh đo thật** (PLAN 5.6, M4: "chưa đo" nay có số ký tự; **số token chưa đo**, chờ X1 M4): dựng từ dữ liệu mẫu của seed (`catalog-data.ts`, `search-demo-data.ts`: 4 chi nhánh, 8 chuyên khoa có mô tả, 3 dịch vụ, 8 bác sĩ đang hoạt động) bằng nguồn giả (không DB, spec đo tạm đã xoá): câu không khớp gì **2.445 ký tự** (chỉ phần nền, 0 bác sĩ); câu nêu một bác sĩ, một chuyên khoa hay một dịch vụ **2.712 ký tự** (một bác sĩ kèm chi tiết dịch vụ của họ); không lần nào phải cắt, dưới trần 6.000. Trên MySQL thật (fixture cùng cỡ: 4 chi nhánh, 8 chuyên khoa, 8 bác sĩ) ca `B2-76` khẳng định dưới trần và không cắt. **Nguy cơ thật** là danh mục lớn: phần nền tăng theo số dịch vụ (khoảng 45 ký tự mỗi dịch vụ), nên khoảng 90 dịch vụ trở lên thì chính phần nền đã gần trần (cờ `overBudget` báo; không cắt phần nền, theo PLAN).
+
 ## 7. Cảnh báo và việc chờ (cập nhật khi có thay đổi)
 
 - **Chốt phạm vi 27/11:** phương án tối thiểu 37,5 giờ (cắt còn 34, PLAN 6.4); nếu cam kết chatbot thì đề xuất mốc riêng 14/12 để không làm metric P1 ngày 07/12 tụt dưới 90 phần trăm (PLAN 6.4).
@@ -248,3 +352,7 @@ Giao thức mỗi đột biến: sao lưu file mã ngoài repo kèm SHA-256; đ�
 - **chatbot X1 M1** phải đo thêm: Groq `reasoning_effort` cùng `json_schema`, tên trường `usage`, có và không `Api-Revision`, Gemini "nghĩ" mặc định và `max_output_tokens`. Hạn mức gói miễn phí vẫn `[cần điền]`.
 - **Lược đồ của chatbot B2 phải đúng luật `strict` của Groq:** mọi trường nằm trong `required` và mọi đối tượng có `additionalProperties: false`; Gemini bỏ qua `minLength`, `maxLength`.
 - **chatbot B1 (27/11/2026):** danh sách từ khoá khẩn cấp, ngoài phạm vi, tài khoản đã được Đại duyệt (mục 3.5), nên việc ở dòng "Trước khi viết B1" phía trên đã xong. **Trung chưa xem**: nên đọc mục 3.5 và ba file `*.rules.ts` trước khi duyệt PR chatbot B1.
+- **chatbot B2 (27/11/2026):** DB tạm `clinix_chatbot_b2_test` còn nguyên trong MySQL `clinix-app-db-1`, **cần Đại cho phép mới dọn** (`DROP DATABASE`), như `clinix_chatbot_p1_test`. Chưa chạy `test:e2e` (B2 chưa nối `ChatbotModule`, không có route); CI chạy cả bộ.
+- **chatbot B2: Trung chưa xem.** Nên đọc mục 3.6, `context/policy-knowledge.ts` (đối chiếu **P5** hoàn cọc và **P6** đổi lịch với mã booking), `answer/verifier-rules.ts`, `answer/output-verifier.ts` và `answer/entity-formatters.ts` trước khi duyệt PR chatbot B2.
+- **chatbot B2: việc cho X1 và B3.** X1 M6 phải đo tỉ lệ loại nhầm của V3 đến V8 (ca nhập nhằng ở mục 3.6) và M4 đo token của ngữ cảnh (mới có số ký tự); B3 nối theo "Chỗ chatbot B3 phải nối" ở mục 3.6 (thứ tự 5.4, `canary` và `protectedPrompt`, quy ước `\n` trong `chu`, lời nhắc bắt buộc nói về khối dữ liệu, chữ có dấu, không chữ số).
+- **chatbot B2: nợ đồng bộ.** Bảng nhãn chức danh ở `answer/entity-formatters.ts` là bản chép của `apps/web/src/features/search/format/doctor-title.ts` (API không import web); hai nơi phải đổi cùng nhau. **Đại đồng ý 27/11/2026** (hộp câu hỏi): đã ghi dòng nợ **342** (đối chiếu tất định có giới hạn, R5) và **343** (bảng nhãn chức danh) vào `docs/TECH_DEBT.md`, và `AI-BUG-129` (ba sai sót trong test, đã sửa trước khi giao) vào `AI_USAGE_LOG.md`; hàng AI log **215** Đại tự ghi (số 215 còn trống ở `origin/main` `7210008`; nháp ở thư mục tạm của phiên). Dòng 334 của nháp cũ ở mục 4.2 được thay bằng dòng 342.
