@@ -1,12 +1,11 @@
 import { Link } from 'react-router';
-import { useRemote } from '../../../shared/hooks/use-remote';
 import { PATIENT_APPOINTMENTS_PATH } from '../../../shared/routes/booking-paths';
+import { PATIENT_CHAT_PATH } from '../../../shared/routes/chat-paths';
 import { PATIENT_WALLET_PATH } from '../../../shared/routes/wallet-paths';
-import type { ChatbotApi } from '../api/chatbot-api';
 import type { ChatbotReply, Doan, LienKetMa } from '../api/chatbot-types';
 import { normalizeDoan } from '../state/doan-text';
 import { CHATBOT_TEXT } from './chatbot-text';
-import { DOCTOR_LOOKUP_PATH, entityPath, telHref } from './entity-paths';
+import { DOCTOR_LOOKUP_PATH, entityPath } from './entity-paths';
 
 // Cặp màu đã đo ở ADR 0004: `brand-strong` trên trắng 5,28:1, trên nền xám nhạt 4,8:1, trên `danger-soft` 4,83:1.
 const PILL_CLASS =
@@ -27,30 +26,7 @@ function DoanPart({ part }: { part: Doan }) {
   );
 }
 
-// Đường dây nóng chỉ được hỏi khi thật sự cần (chưa có trang Tin nhắn), không lưu lại giữa các lần
-function ClinicHotline({ api }: { api: ChatbotApi }) {
-  const { state } = useRemote((signal) => api.clinicHotline(signal), []);
-  if (state.status !== 'ready' || state.data === null) return null;
-  const label = `${CHATBOT_TEXT.clinicCall}: ${state.data}`;
-  const href = telHref(state.data);
-  if (href === null)
-    return <span className="text-sm font-medium">{label}</span>;
-  return (
-    <a href={href} className={PILL_CLASS}>
-      {label}
-    </a>
-  );
-}
-
-function LinkAction({
-  code,
-  api,
-  messagesPath,
-}: {
-  code: Exclude<LienKetMa, 'GoiCapCuu'>;
-  api: ChatbotApi;
-  messagesPath: string | null;
-}) {
+function LinkAction({ code }: { code: Exclude<LienKetMa, 'GoiCapCuu'> }) {
   switch (code) {
     case 'LichHenCuaToi':
       return (
@@ -71,26 +47,17 @@ function LinkAction({
         </Link>
       );
     case 'NhanTinLeTan':
-      // `[CHỜ chat]`: chưa có trang Tin nhắn thì hiện đường dây nóng của phòng khám thay cho liên kết
-      return messagesPath === null ? (
-        <ClinicHotline api={api} />
-      ) : (
-        <Link to={messagesPath} className={PILL_CLASS}>
+      // Trang Tin nhắn của Bệnh nhân (chat F1). Chỉ liên kết tới đường dẫn gốc, không mang tham số bắt đầu trò chuyện. Khách bấm thì
+      // `RequireAuth` đưa tới đăng nhập (như "Lịch hẹn của tôi"); sau đăng nhập chỉ đường dẫn `/dat-lich/**` được quay lại.
+      return (
+        <Link to={PATIENT_CHAT_PATH} className={PILL_CLASS}>
           {CHATBOT_TEXT.linkMessages}
         </Link>
       );
   }
 }
 
-function ReplyLinks({
-  reply,
-  api,
-  messagesPath,
-}: {
-  reply: ChatbotReply;
-  api: ChatbotApi;
-  messagesPath: string | null;
-}) {
+function ReplyLinks({ reply }: { reply: ChatbotReply }) {
   // `KhanCap` luôn có nút gọi 115, kể cả khi máy chủ quên gửi mã `GoiCapCuu`
   const showCall =
     reply.ketQua === 'KhanCap' || reply.lienKet.includes('GoiCapCuu');
@@ -107,26 +74,13 @@ function ReplyLinks({
         </a>
       )}
       {others.map((code) => (
-        <LinkAction
-          key={code}
-          code={code}
-          api={api}
-          messagesPath={messagesPath}
-        />
+        <LinkAction key={code} code={code} />
       ))}
     </div>
   );
 }
 
-export function ReplyView({
-  reply,
-  api,
-  messagesPath,
-}: {
-  reply: ChatbotReply;
-  api: ChatbotApi;
-  messagesPath: string | null;
-}) {
+export function ReplyView({ reply }: { reply: ChatbotReply }) {
   const emergency = reply.ketQua === 'KhanCap';
   return (
     <div
@@ -144,7 +98,7 @@ export function ReplyView({
           <DoanPart key={index} part={part} />
         ))}
       </p>
-      <ReplyLinks reply={reply} api={api} messagesPath={messagesPath} />
+      <ReplyLinks reply={reply} />
     </div>
   );
 }

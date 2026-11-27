@@ -39,7 +39,6 @@ export interface RenderWidgetOptions {
   path?: string;
   // Bề ngang cửa sổ giả: dưới 640 là màn hẹp
   width?: number;
-  messagesPath?: string | null;
 }
 
 export function renderWidget(options: RenderWidgetOptions = {}) {
@@ -47,15 +46,11 @@ export function renderWidget(options: RenderWidgetOptions = {}) {
   setTestAuth(options.role ?? 'guest');
   const fake = options.fake ?? createFakeChatbotApi();
   const api = fake.api;
-  const messagesPath = options.messagesPath;
 
   function Host() {
     return (
       <>
-        <ChatbotWidget
-          api={api}
-          {...(messagesPath === undefined ? {} : { messagesPath })}
-        />
+        <ChatbotWidget api={api} />
         <Outlet />
       </>
     );

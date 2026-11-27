@@ -24,10 +24,3 @@ export function entityPath(doiTuong: string, id: string): string | null {
   if (base === null || !ID_PATTERN.test(id)) return null;
   return `${base}/${id}`;
 }
-
-// Số điện thoại trong `href="tel:…"`: bỏ khoảng trắng, chấm, gạch, ngoặc; chỉ nhận chữ số (có thể có `+` đầu).
-// null = không phải số điện thoại: hiện chữ, không tạo liên kết gọi.
-export function telHref(phone: string): string | null {
-  const digits = phone.replace(/[\s.\-()]/g, '');
-  return /^\+?\d{4,15}$/.test(digits) ? `tel:${digits}` : null;
-}

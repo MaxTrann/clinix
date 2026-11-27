@@ -7,8 +7,6 @@ import { parseReply } from './parse-reply';
 export interface ChatbotApi {
   // Đúng MỘT lời gọi mỗi lần gửi. Quá giờ, mất mạng, huỷ: ném `TimeoutError`, `NetworkError`, `RequestAbortedError` của lớp client.
   ask(body: ChatbotRequest, signal: AbortSignal): Promise<ChatbotReply>;
-  // Đường dây nóng của phòng khám (chỉ gọi khi cần, không lưu lại); `null` = chưa có hoặc không đọc được
-  clinicHotline(signal: AbortSignal): Promise<string | null>;
 }
 
 export const httpChatbotApi: ChatbotApi = {
@@ -22,18 +20,5 @@ export const httpChatbotApi: ChatbotApi = {
       signal,
     });
     return parseReply(raw);
-  },
-
-  async clinicHotline(signal) {
-    // API công khai sẵn có; chỉ lấy `duongDayNong` (danh sách trắng ở máy chủ)
-    const info = await request<unknown>('public/clinic-info', {
-      skipAuthToken: true,
-      signal,
-    });
-    if (typeof info !== 'object' || info === null) return null;
-    const { duongDayNong } = info as Record<string, unknown>;
-    if (typeof duongDayNong !== 'string') return null;
-    const hotline = duongDayNong.trim();
-    return hotline === '' ? null : hotline;
   },
 };
