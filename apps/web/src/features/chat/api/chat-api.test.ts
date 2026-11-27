@@ -327,3 +327,31 @@ describe('chat F4 — bắt đầu trò chuyện (WCH-12)', () => {
     });
   });
 });
+
+describe('chat F6 — gửi tệp (WCH-14)', () => {
+  it('WCH-14 CAP-06 có tệp ⇒ `multipart` (`file`, `noiDung`, `maGui`), không đặt `Content-Type` JSON; không tệp ⇒ JSON như B3', async () => {
+    const tinNhan = { ...MESSAGE, laCuaToi: true, maGui: 'm' };
+    fetchMock.mockImplementation(async () =>
+      json(201, { hoiThoaiId: '5', tinNhan }),
+    );
+    const file = new File(['%PDF-'], 'kq.pdf', { type: 'application/pdf' });
+    await sendMessage('5', { noiDung: '', maGui: 'm', tep: file });
+    const { init } = lastCall();
+    expect(init.body).toBeInstanceOf(FormData);
+    const form = init.body as FormData;
+    expect(form.get('noiDung')).toBe('');
+    expect(form.get('maGui')).toBe('m');
+    expect((form.get('file') as File).name).toBe('kq.pdf');
+    expect(new Headers(init.headers).get('Content-Type')).toBeNull();
+    await sendFirstMessage(
+      { kind: 'doctor', bacSiId: '7' },
+      { noiDung: 'x', maGui: 'm', tep: file },
+    );
+    expect(lastCall().init.body).toBeInstanceOf(FormData);
+    await sendMessage('5', { noiDung: 'Chào', maGui: 'm' });
+    expect(JSON.parse(String(lastCall().init.body))).toEqual({
+      noiDung: 'Chào',
+      maGui: 'm',
+    });
+  });
+});

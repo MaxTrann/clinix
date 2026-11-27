@@ -12,6 +12,7 @@ import {
   recipientInactiveReason,
   vnDayKey,
 } from './chat-format';
+import { MessageAttachment } from '../attachments/message-attachment';
 import { MessageComposer } from './message-composer';
 import { OutgoingBubble, ThreadBanner, ThreadHeader } from './thread-parts';
 import { useMessageThread, type OutgoingMessage } from './use-message-thread';
@@ -291,11 +292,10 @@ function Bubble({ message }: { message: ChatMessage }) {
         }`}
       >
         {message.tep && (
-          // Chỉ hiện tên tệp; xem ảnh, tải PDF là chat F6
-          <p className="mb-1 break-all text-xs text-gray-600">
-            {message.tep.loai === 'application/pdf' ? '[Tệp PDF]' : '[Ảnh]'}{' '}
-            {message.tep.ten}
-          </p>
+          // chat F6: ảnh hiện trong khung, PDF có nút tải xuống (theo `tep.loai` của máy chủ)
+          <div className="mb-1">
+            <MessageAttachment tinNhanId={message.id} tep={message.tep} />
+          </div>
         )}
         {message.noiDung && (
           <p className="whitespace-pre-wrap break-words">{message.noiDung}</p>

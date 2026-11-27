@@ -53,6 +53,8 @@ export function mergeMessages(
 export interface OutgoingMessage {
   maGui: string;
   noiDung: string;
+  /** chat F6: tệp đính kèm chờ gửi, chỉ trong bộ nhớ; gửi lỗi thì GIỮ để "Gửi lại" gửi đúng tệp đó (WCH-14). */
+  tep: File | null;
   status: 'sending' | 'failed';
   error: string | null;
 }
@@ -231,11 +233,11 @@ export function useMessageThread(
   }, [active, hoiThoaiId, older.status, state]);
 
   const deliver = useCallback(
-    (maGui: string, noiDung: string) => {
+    (maGui: string, noiDung: string, tep: File | null) => {
       // Bấm đúp "Gửi lại" hay Enter lặp: mã này đang bay thì không gửi lần hai
       if (inFlight.current.has(maGui)) return;
       inFlight.current.add(maGui);
-      sendChatMessage(hoiThoaiId, { noiDung, maGui })
+      sendChatMessage(hoiThoaiId, { noiDung, maGui, tep })
         .then(({ tinNhan }) => {
           if (!active.current) return;
           setState((prev) =>
@@ -264,6 +266,7 @@ export function useMessageThread(
                     // Mã đã dùng cho nội dung KHÁC: lần gửi lại phải có mã mới. Mọi lỗi khác giữ NGUYÊN mã (A1)
                     maGui: code === 'CHAT_MA_GUI_DA_DUNG' ? newSendId() : maGui,
                     noiDung,
+                    tep,
                     status: 'failed',
                     error: sendErrorMessage(error),
                   }
@@ -276,15 +279,15 @@ export function useMessageThread(
     [active, hoiThoaiId, onActivity],
   );
 
-  /** Gửi tin mới; nội dung đã được ô soạn kiểm (không rỗng, không quá dài). */
+  /** Gửi tin mới; nội dung đã được ô soạn kiểm (có chữ hoặc có tệp, không quá dài). */
   const send = useCallback(
-    (noiDung: string) => {
+    (noiDung: string, tep: File | null = null) => {
       const maGui = newSendId();
       setOutbox((prev) => [
         ...prev,
-        { maGui, noiDung, status: 'sending', error: null },
+        { maGui, noiDung, tep, status: 'sending', error: null },
       ]);
-      deliver(maGui, noiDung);
+      deliver(maGui, noiDung, tep);
     },
     [deliver],
   );
@@ -299,7 +302,7 @@ export function useMessageThread(
             : row,
         ),
       );
-      deliver(item.maGui, item.noiDung);
+      deliver(item.maGui, item.noiDung, item.tep);
     },
     [deliver],
   );

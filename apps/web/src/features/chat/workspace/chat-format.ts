@@ -114,6 +114,12 @@ export const RECIPIENT_INACTIVE_MESSAGE =
 /** Gợi ý nhắn lễ tân chỉ đúng với Bệnh nhân (vai trò khác không tự mở hội thoại mới) `[đề xuất]`. */
 export const RECIPIENT_INACTIVE_PATIENT_HINT = 'Bạn có thể nhắn lễ tân.';
 export const KEYWORD_INVALID_MESSAGE = 'Từ khoá cần từ 2 đến 100 ký tự.';
+// chat F6: câu của tệp đính kèm (PLAN 5.14). Web chặn sớm loại và cỡ bằng chính hai câu đầu; máy chủ vẫn kiểm theo nội dung.
+export const FILE_TYPE_MESSAGE =
+  'Chỉ gửi được ảnh JPEG, PNG, WebP hoặc tệp PDF.';
+export const FILE_TOO_LARGE_MESSAGE = 'Tệp tối đa 10 MB.';
+export const FILE_BUSY_MESSAGE =
+  'Hệ thống đang bận nhận tệp. Thử lại sau ít phút.';
 /** 403 `KHONG_DU_QUYEN`: sai vai trò, hay Lễ tân không còn phạm vi chi nhánh (QCH-08; 2.4.29 A1). */
 export const FORBIDDEN_MESSAGE = 'Bạn không có quyền thực hiện thao tác này.';
 
@@ -124,6 +130,9 @@ const SEND_MESSAGES: Record<string, string> = {
   CHAT_MA_GUI_DA_DUNG: 'Chưa gửi được. Vui lòng gửi lại.',
   CHAT_GUI_QUA_NHANH: 'Bạn gửi quá nhanh. Đợi một chút rồi gửi lại.',
   HE_THONG_DANG_BAN: 'Hệ thống đang bận. Thử lại sau.',
+  CHAT_TEP_KHONG_HOP_LE: FILE_TYPE_MESSAGE,
+  CHAT_TEP_QUA_LON: FILE_TOO_LARGE_MESSAGE,
+  CHAT_TAI_TEP_DANG_BAN: FILE_BUSY_MESSAGE,
 };
 
 const FIELD_MESSAGES: Record<string, string> = {

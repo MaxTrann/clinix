@@ -7,6 +7,7 @@ import {
   parseMessage,
   parseSendResult,
   sendMessage,
+  type SendInput,
 } from '../api/chat-api';
 import type { ChatMessage, SendResult } from '../api/chat-types';
 
@@ -249,11 +250,17 @@ export function sendOverSocket(
  */
 export async function sendChatMessage(
   hoiThoaiId: string,
-  input: { noiDung: string; maGui: string },
+  input: SendInput,
 ): Promise<SendResult> {
-  if (snapshot.status !== 'connected') return sendMessage(hoiThoaiId, input);
+  // Tệp luôn đi HTTP `multipart` (Q22; socket không nhận tệp)
+  if (snapshot.status !== 'connected' || input.tep)
+    return sendMessage(hoiThoaiId, input);
   try {
-    return await sendOverSocket({ hoiThoaiId, ...input });
+    return await sendOverSocket({
+      hoiThoaiId,
+      noiDung: input.noiDung,
+      maGui: input.maGui,
+    });
   } catch (error) {
     const fallBack =
       error instanceof SocketUnavailableError ||

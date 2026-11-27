@@ -1,4 +1,9 @@
-import { request, requestBinary } from '../../../shared/api/client';
+import {
+  LONG_TIMEOUT_MS,
+  request,
+  requestBinary,
+  type RequestOptions,
+} from '../../../shared/api/client';
 import type { BinaryResponse } from '../../../shared/api/client';
 import { UnexpectedResponseError } from '../../../shared/api/errors';
 import {
@@ -234,12 +239,32 @@ export function parseSendResult(raw: unknown): SendResult {
  * Gửi tin chữ vào hội thoại đã có (chat B3; PLAN 5.6). 201 khi ghi mới, 200 cùng thân khi `maGui` đã dùng cho đúng nội dung này (gửi lại an toàn),
  * nên web gửi lại sau lỗi mạng bằng CÙNG `maGui` (A1, WCH-09). Không tự thử lại ở đây: lớp client không thử lại yêu cầu làm đổi dữ liệu.
  */
+/** Đầu vào của một lần gửi: chữ (được rỗng khi có tệp), mã gửi, và tệp đính kèm nếu có (chat F6; một tệp mỗi tin, Q6). */
+export interface SendInput {
+  noiDung: string;
+  maGui: string;
+  tep?: File | null;
+}
+
+/**
+ * Thân của yêu cầu gửi: JSON khi chỉ có chữ (B3); có tệp thì `multipart` với ba trường `file`, `noiDung`, `maGui` (B4, PLAN 5.8) và hạn giờ dài 45 giây
+ * (máy chủ xử lý ảnh). `FormData` gửi lại được sau khi lớp client làm mới token (không phải luồng chỉ đọc một lần).
+ */
+function sendOptions({ noiDung, maGui, tep }: SendInput): RequestOptions {
+  if (!tep) return { method: 'POST', json: { noiDung, maGui } };
+  const form = new FormData();
+  form.append('noiDung', noiDung);
+  form.append('maGui', maGui);
+  form.append('file', tep, tep.name);
+  return { method: 'POST', body: form, timeoutMs: LONG_TIMEOUT_MS };
+}
+
 export async function sendMessage(
   hoiThoaiId: string,
-  input: { noiDung: string; maGui: string },
+  input: SendInput,
 ): Promise<SendResult> {
   return parseSendResult(
-    await request(messagesPath(hoiThoaiId), { method: 'POST', json: input }),
+    await request(messagesPath(hoiThoaiId), sendOptions(input)),
   );
 }
 
@@ -346,13 +371,11 @@ export type StartTarget =
 /** Tin đầu: tìm-hoặc-tạo hội thoại rồi gửi (201; gửi lại cùng `maGui` ⇒ 200 cùng thân, không thành hai hội thoại hay hai tin). */
 export async function sendFirstMessage(
   target: StartTarget,
-  input: { noiDung: string; maGui: string },
+  input: SendInput,
 ): Promise<SendResult> {
   const base =
     target.kind === 'doctor'
       ? doctorStartPath(target.bacSiId)
       : branchStartPath(target.chiNhanhId);
-  return parseSendResult(
-    await request(`${base}/messages`, { method: 'POST', json: input }),
-  );
+  return parseSendResult(await request(`${base}/messages`, sendOptions(input)));
 }
