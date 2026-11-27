@@ -142,6 +142,31 @@ describe('chat B3 — kiến trúc (HCH-04)', () => {
       .map((s) => s.file);
     expect(ruleUsers).toEqual([join('core', 'send-message.service.ts')]);
   });
+
+  // chat B5: gateway gửi qua ĐÚNG đường gửi của REST (`ChatSendService.send` → lõi), không gọi thẳng lõi, không chép luật
+  const realtimeSources = sources.filter(({ file }) =>
+    file.startsWith(`realtime${sep}`),
+  );
+  const CALLS_REST_SEND = /this\.sender\.send\(/;
+  it('HCH-04 (chat B5): gateway gửi qua ChatSendService.send, không gọi lõi trực tiếp, không luật nội dung; đối chứng âm bị bắt', () => {
+    expect(CALLS_REST_SEND.test('await this.sender.send(user, t, n, m)')).toBe(
+      true,
+    );
+    expect(CALLS_REST_SEND.test('await this.core.send(x)')).toBe(false);
+    expect(realtimeSources.map((s) => s.file)).toContain(
+      join('realtime', 'chat.gateway.ts'),
+    );
+    for (const { file, code } of realtimeSources) {
+      expect(CONTENT_RULES.test(code), file).toBe(false);
+      expect(CALLS_CORE_SEND.test(code), file).toBe(false);
+      expect(/SendMessageService/.test(code), file).toBe(false);
+    }
+    expect(
+      realtimeSources
+        .filter(({ code }) => CALLS_REST_SEND.test(code))
+        .map((s) => s.file),
+    ).toEqual([join('realtime', 'chat.gateway.ts')]);
+  });
 });
 
 // chat P3 — HCH-05 (PLAN chat 7.11): chỉ `chat/attachments/` đọc ghi đĩa; khoá tệp không lấy từ dữ liệu người dùng (đột biến 21).

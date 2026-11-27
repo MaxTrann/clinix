@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Socket } from 'socket.io';
 
-// Sổ kết nối WebSocket theo tài khoản (chat P4; PLAN chat 5.7, T8). Ở BỘ NHỚ của một tiến trình API (đồ án chạy một tiến trình; nợ 324 khi B5 merge).
+// Sổ kết nối WebSocket theo tài khoản (chat P4; PLAN chat 5.7, T8). Ở BỘ NHỚ của một tiến trình API (đồ án chạy một tiến trình; TECH_DEBT 324).
 // P4 dùng để giới hạn 5 kết nối mỗi tài khoản; B5 dùng để tìm kết nối của người nhận khi đẩy tin.
 
 @Injectable()
@@ -30,6 +30,11 @@ export class ChatConnectionRegistry {
   /** Các kết nối đang mở của một tài khoản (bản sao, người gọi lặp an toàn khi kết nối đóng giữa chừng). */
   socketsOf(accountId: string): Socket[] {
     return [...(this.byAccount.get(accountId) ?? [])];
+  }
+
+  /** Mọi kết nối đang mở (bản sao; chat B5 quét phiên định kỳ). */
+  allSockets(): Socket[] {
+    return [...this.byAccount.values()].flatMap((sockets) => [...sockets]);
   }
 
   count(accountId: string): number {
