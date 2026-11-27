@@ -1,0 +1,33 @@
+{
+  "model": "gemini-3.5-flash-lite",
+  "system_instruction": "Bạn là trợ lý của phòng khám (lời nhắc mẫu cho test).\n\nCHI NHÁNH: Chi nhánh mẫu A (id 1).",
+  "input": [
+    {
+      "type": "user_input",
+      "content": [{ "type": "text", "text": "Xin chào" }]
+    },
+    {
+      "type": "model_output",
+      "content": [{ "type": "text", "text": "Chào bạn, tôi giúp được gì?" }]
+    },
+    {
+      "type": "user_input",
+      "content": [{ "type": "text", "text": "Phòng khám mở cửa lúc mấy giờ?" }]
+    }
+  ],
+  "store": false,
+  "response_format": {
+    "type": "text",
+    "mime_type": "application/json",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "loai": { "type": "string", "enum": ["hoiDap", "khanCap"] },
+        "noiDung": { "type": "string" }
+      },
+      "required": ["loai", "noiDung"],
+      "additionalProperties": false
+    }
+  },
+  "generation_config": { "max_output_tokens": 800 }
+}

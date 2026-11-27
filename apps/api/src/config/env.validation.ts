@@ -16,6 +16,15 @@ import {
   validateSync,
 } from 'class-validator';
 import { isSafeMailAddress } from '../mail/mail-safety.js';
+import {
+  AI_API_KEY_PATTERN,
+  AI_DEFAULTS,
+  AI_LAYER_TIMEOUT_RANGE,
+  AI_MODEL_PATTERN,
+  AI_TOTAL_TIMEOUT_MAX_MS,
+  MIN_ATTEMPT_MS,
+} from '../chatbot/chatbot.constants.js';
+import { chatbotProblems } from '../chatbot/config/chatbot-env-problems.js';
 
 // Biến môi trường mà API đọc. Biến của các task sau (JWT, SMTP…) được thêm khi task đó cần.
 export class EnvironmentVariables {
@@ -220,6 +229,114 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   CHAT_FILES_DIR?: string;
+
+  // --- Trợ lý AI (chatbot P1; PLAN chatbot 5.13). TẤT CẢ tuỳ chọn và để trống = mặc định, kể cả biến số (khác STAFF_ACTIVATION_*): staging tự triển khai
+  // từ main khi .env chưa có biến AI nào mà API vẫn phải khởi động. Giá trị sai thì API KHÔNG khởi động; thông báo chỉ nêu TÊN biến, không in giá trị.
+  // Tên GROQ_API_KEY, GEMINI_API_KEY khớp quy tắc của collectSecretValues (P5) nên giá trị bị che khỏi log. KHÔNG đặt tiền tố VITE_ cho biến khoá.
+  // Luật cần nhiều biến hay NODE_ENV (địa chỉ, trần mỗi phút so với mỗi ngày) nằm ở chatbot/config/chatbot-env-problems.ts.
+  @Transform(booleanDefaultTrue)
+  @IsBoolean()
+  AI_ENABLED: boolean = AI_DEFAULTS.enabled;
+
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  @Matches(AI_API_KEY_PATTERN, {
+    message:
+      'GROQ_API_KEY chỉ gồm ký tự ASCII in được, không khoảng trắng, tối đa 512 ký tự',
+  })
+  GROQ_API_KEY?: string;
+
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  @Matches(AI_API_KEY_PATTERN, {
+    message:
+      'GEMINI_API_KEY chỉ gồm ký tự ASCII in được, không khoảng trắng, tối đa 512 ký tự',
+  })
+  GEMINI_API_KEY?: string;
+
+  // Model đã ngừng (gemini-2.0-flash, llama-3.1-8b-instant) KHÔNG làm API dừng: chỉ có cảnh báo lúc khởi động (T4, ChatbotModule)
+  @Transform(stringOrDefault(AI_DEFAULTS.groqModel))
+  @IsString()
+  @Matches(AI_MODEL_PATTERN, {
+    message: 'GROQ_MODEL chỉ gồm chữ, số và . _ / : - (tối đa 100 ký tự)',
+  })
+  GROQ_MODEL: string = AI_DEFAULTS.groqModel;
+
+  @Transform(stringOrDefault(AI_DEFAULTS.geminiModel))
+  @IsString()
+  @Matches(AI_MODEL_PATTERN, {
+    message: 'GEMINI_MODEL chỉ gồm chữ, số và . _ / : - (tối đa 100 ký tự)',
+  })
+  GEMINI_MODEL: string = AI_DEFAULTS.geminiModel;
+
+  // Địa chỉ GỐC (chưa gồm /chat/completions hay /interactions). Hình dạng được kiểm ở chatbotProblems.
+  @Transform(stringOrDefault(AI_DEFAULTS.groqBaseUrl))
+  @IsString()
+  GROQ_BASE_URL: string = AI_DEFAULTS.groqBaseUrl;
+
+  @Transform(stringOrDefault(AI_DEFAULTS.geminiBaseUrl))
+  @IsString()
+  GEMINI_BASE_URL: string = AI_DEFAULTS.geminiBaseUrl;
+
+  // Thời gian chờ MỘT lần thử của từng lớp (mili giây)
+  @Transform(numberOrDefault(AI_DEFAULTS.groqTimeoutMs))
+  @IsInt()
+  @Min(AI_LAYER_TIMEOUT_RANGE.min)
+  @Max(AI_LAYER_TIMEOUT_RANGE.max)
+  AI_GROQ_TIMEOUT_MS: number = AI_DEFAULTS.groqTimeoutMs;
+
+  @Transform(numberOrDefault(AI_DEFAULTS.geminiTimeoutMs))
+  @IsInt()
+  @Min(AI_LAYER_TIMEOUT_RANGE.min)
+  @Max(AI_LAYER_TIMEOUT_RANGE.max)
+  AI_GEMINI_TIMEOUT_MS: number = AI_DEFAULTS.geminiTimeoutMs;
+
+  // Hạn chót tổng của cả chuỗi (Q8). Phải nhỏ hơn 45 giây của web (T3) và đủ cho ít nhất một lần thử (MIN_ATTEMPT_MS).
+  @Transform(numberOrDefault(AI_DEFAULTS.totalTimeoutMs))
+  @IsInt()
+  @Min(MIN_ATTEMPT_MS)
+  @Max(AI_TOTAL_TIMEOUT_MAX_MS)
+  AI_TOTAL_TIMEOUT_MS: number = AI_DEFAULTS.totalTimeoutMs;
+
+  @Transform(numberOrDefault(AI_DEFAULTS.cooldownSeconds))
+  @IsInt()
+  @Min(1)
+  @Max(3600)
+  AI_COOLDOWN_SECONDS: number = AI_DEFAULTS.cooldownSeconds;
+
+  // Q7: khai ở P1, dùng ở chatbot B1
+  @Transform(numberOrDefault(AI_DEFAULTS.ipPerMinute))
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  AI_IP_PER_MINUTE: number = AI_DEFAULTS.ipPerMinute;
+
+  @Transform(numberOrDefault(AI_DEFAULTS.ipPerDay))
+  @IsInt()
+  @Min(1)
+  @Max(10_000)
+  AI_IP_PER_DAY: number = AI_DEFAULTS.ipPerDay;
+
+  @Transform(numberOrDefault(AI_DEFAULTS.maxConcurrent))
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  AI_MAX_CONCURRENT: number = AI_DEFAULTS.maxConcurrent;
+
+  // Trần lời gọi mỗi phút của từng nhà cung cấp (PLAN 5.10); chỉnh theo hạn mức đo được ở X1 (M7)
+  @Transform(numberOrDefault(AI_DEFAULTS.groqPerMinute))
+  @IsInt()
+  @Min(1)
+  @Max(600)
+  AI_GROQ_PER_MINUTE: number = AI_DEFAULTS.groqPerMinute;
+
+  @Transform(numberOrDefault(AI_DEFAULTS.geminiPerMinute))
+  @IsInt()
+  @Min(1)
+  @Max(600)
+  AI_GEMINI_PER_MINUTE: number = AI_DEFAULTS.geminiPerMinute;
 }
 
 // Biến môi trường để trống (SMTP_HOST=) là "không đặt", không phải chuỗi rỗng
@@ -231,6 +348,36 @@ function emptyToUndefined({
   key: string;
 }): unknown {
   return obj[key] === '' ? undefined : obj[key];
+}
+
+// Biến số của khối AI_… : không đặt hay để trống là giá trị mặc định (số sai thì để nguyên `Number(raw)` cho @IsInt báo lỗi theo TÊN biến)
+function numberOrDefault(fallback: number) {
+  return ({ obj, key }: { obj: Record<string, unknown>; key: string }) => {
+    const raw = obj[key];
+    return raw === undefined || raw === '' ? fallback : Number(raw);
+  };
+}
+
+function stringOrDefault(fallback: string) {
+  return ({ obj, key }: { obj: Record<string, unknown>; key: string }) => {
+    const raw = obj[key];
+    return raw === undefined || raw === '' ? fallback : raw;
+  };
+}
+
+// AI_ENABLED: chỉ nhận đúng 'true'/'false' (gõ nhầm thì báo lỗi); lấy giá trị gốc vì chuyển kiểu ngầm biến 'false' thành true
+function booleanDefaultTrue({
+  obj,
+  key,
+}: {
+  obj: Record<string, unknown>;
+  key: string;
+}): unknown {
+  const raw = obj[key];
+  if (raw === undefined || raw === '') return AI_DEFAULTS.enabled;
+  if (raw === true || raw === 'true') return true;
+  if (raw === false || raw === 'false') return false;
+  return raw;
 }
 
 // Một origin chuẩn: http(s)://host[:port], không đường dẫn, không dấu / ở cuối
@@ -272,6 +419,7 @@ function crossFieldProblems(env: EnvironmentVariables): string[] {
   problems.push(...otpProblems(env));
   problems.push(...resetProblems(env));
   problems.push(...mailProblems(env));
+  problems.push(...chatbotProblems(env));
   return problems;
 }
 

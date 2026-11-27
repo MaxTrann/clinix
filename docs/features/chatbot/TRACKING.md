@@ -17,13 +17,14 @@ Nhật ký tiến độ riêng của scope #12 (mã sẽ nằm trong `apps/api/s
 |---|---|---|---|---|
 | 26/11/2026 | **Lập kế hoạch scope #12, giai đoạn 1** (Đại `MaxTrann`; nhánh `docs/chatbot-plan`, worktree `clinix-app-doctor-exam`, `origin/main` `1349818`). Đọc nguyên văn 2.4.7, 2.4.76, 2.4.77 và các use case chạm vào bằng `python-docx` (chỉ đọc), so từng dòng với bản `Drive_Hien_Tai`; đọc SOW 3.2.6 và 5.1.4, 1.2.1, 1.3.3, 2.1_2.2, bảng Phân loại M18, M19, mục tiêu đề tài, bản cam kết 23/11, mã Make `SupportWidget` của Figma; đối chiếu `docs/database/*`, ADR 0001, `docs/TECH_DEBT.md`, mã `apps/api/src/{search,scheduling,admin/system-config,pricing,common,config,auth}`, `apps/web/src/{router,shared,features}`, hạ tầng compose, Dockerfile, nginx; đọc trang tài liệu chính thức của Gemini, Groq, Ollama (qua công cụ đọc trang; **không gọi API**, không khoá). Đo RAM và GPU máy dev (chỉ đọc). **Hỏi Đại bằng bốn hộp câu hỏi** (16 câu, mục 3.1): 14 theo đề xuất; Q1, Q2 chọn khác (Groq → Gemini → câu dựng sẵn, bỏ Ollama). Tạo `PLAN.md` (mục 0 đến 10, Phụ lục A và B nguyên văn; 111 mã test case, 9 task, 37,5 giờ) và file này. **Không** chạy `npm`, test, build, Docker, MySQL; **không** đọc `.env`; **không** sửa file nào khác; git chỉ đọc và `git fetch`. | — (tài liệu; chưa có mã) | — | **Phát hiện khi đối chiếu (PLAN mục 2, 3.3, 3.4):** (1) `gemini-2.0-flash` tắt 01/06/2026, `llama-3.1-8b-instant` tắt 16/08/2026; (2) gói miễn phí Gemini dùng nội dung để cải thiện sản phẩm và dặn không gửi thông tin nhạy cảm; Google và Groq đều nói không dùng cho tư vấn y khoa và đòi người dùng API từ 18 tuổi; (3) chưa có mã AI, chưa có module bài viết (bảng `bai_viet` mới có DDL); (4) trọng số w1, w2 đã chỉnh được ở trang cấu hình nhưng chưa nơi nào đọc; (5) 2.4.7 A6 đòi `sessionStorage` trong khi booking đã chốt giữ lựa chọn qua URL và `state.from`; (6) 2.4.7 A3 và 2.4.76 A1 đòi hai phản hồi khác nhau khi mọi lớp lỗi; (7) bản `Drive_Hien_Tai` gộp 2.4.76, 2.4.77 vào 2.4.7; (8) file gốc có 76 use case (đề bài ghi 77). Tổng 37,5 giờ cao hơn mốc 25 đến 35 giờ phiên kiểm chuyển lời (lý do và cách cắt ở PLAN 6.4). Trong lúc viết, `main` thêm PR 726 (`36ec306`, đổi lịch D1): `git diff` chỉ đổi tài liệu và chú thích `docs/database/*`, không đổi mã hay bảng kế hoạch dựa vào. |
 | 26/11/2026 | **Phiên kiểm độc lập duyệt kỹ thuật T1 đến T11** (theo ủy quyền của Đại; không phải Đại trả lời trực tiếp), kèm điều kiện (PLAN 4.3). Cùng tin đó đề xuất ba phương án quyền riêng tư; một tin sau **chuyển lời** Đại muốn tinh giản. Cả hai việc thuộc quyết định sản phẩm nên đã hỏi Đại trực tiếp (Q5, Q9). Điều kiện riêng cho Ollama hết áp dụng sau Q1, Q2. | — | — | Phiên kiểm đề xuất che cả "họ tên nhận ra được": kế hoạch chỉ che tên theo mẫu tự giới thiệu và ghi giới hạn (PLAN 5.9). |
+| 27/11/2026 | **chatbot P1 (issue #732): nền Trợ lý AI ở máy chủ** (Đại `MaxTrann`; nhánh `feat/chatbot-p1-nen-nha-cung-cap-ai`, `origin/main` `0f31bb3`). Đọc lại bằng công cụ đọc trang các trang hình dạng yêu cầu của Groq (structured-outputs, reasoning, errors) và Gemini (structured-output, interactions-api, interactions, api-errors) ngày 27/11/2026, **không gọi API**, không đọc `.env`. Tạo `apps/api/src/chatbot/` (phần P1 của PLAN 5.1): cổng `AiProvider`, `FetchHttpTransport` (`fetch`, `redirect: error`, thân lỗi không rời transport), `GroqProvider`, `GeminiProvider` (Interactions API, `store: false`), `FallbackChain` (hạn chót tổng 20 giây lan truyền, thử lại đúng một lần, cooldown 60 giây chỉ sau khi lớp hỏng, trần mỗi phút theo nhà cung cấp, đồng hồ và `AbortController` do chuỗi giữ), nhà máy `createAiProviders` (`NODE_ENV=test` không tạo provider), `ChatbotModule` (chưa có controller); khối biến `AI_…`, `GROQ_…`, `GEMINI_…` ở `config/env.validation.ts` (tất cả tuỳ chọn, để trống là mặc định); `.env.example` (chỉ tên biến, hai khoá để trống); từ `chatbot` ở `commitlint.config.cjs` và `AGENTS.md`; ADR 0007; fixture tự viết theo tài liệu. Đồ giả cho test: `FakeClock` (đồng hồ ảo), `FakeProvider`, `FakeHttpTransport`. Chạy `npm ci` ở `apps/api` (phiên kiểm cho phép; chỉ đổi `node_modules` vì worktree thiếu `socket.io` của chat P4). | HDA-01…HDA-15, CFG-01…CFG-04 | **Pass** (đơn vị): 13 file spec mới, 233 ca, 233 xanh, đủ 19 mã; cả bộ `api-unit` 459 file, 8.925 ca, 0 đỏ (một worker, 204 giây); `tsc` 0 lỗi ở file của P1; `oxlint --type-aware` 0; Prettier sạch; đột biến 3 đến 6 **cả bốn bị bắt** (mục 2). **`test:e2e` riêng của chatbot Pass**: `src/chatbot/chatbot.e2e-spec.ts`, 4 ca xanh (CFG-02, CFG-03, CFG-04 qua AppModule thật, nạp lại module sau khi đặt biến), 43 giây, một worker, DB tạm `clinix_chatbot_p1_test` (**chưa dọn**, chờ Đại cho phép); **không** chạy `test/app.e2e-spec.ts` cùng DB tạm vì nó khẳng định tên DB là `clinix_test`, và chưa chạy cả bộ `test:e2e` ở máy (CI chạy). | (1) Giờ ước **6,9 giờ, vượt 5 giờ của PLAN**: PLAN chưa tính ADR, fixture của hai nhà cung cấp, đồng hồ ảo cho HDA-08, HDA-09 và đột biến ở mức ĐB; không cắt phần an toàn. (2) Ba điều PLAN 3.4 chưa nêu nay đã tra và ghi ở ADR 0007 (Gemini `input` là mảng bước không có `role`; `store` mặc định `true`; chữ ở `steps` kiểu `model_output`); **không sửa chữ PLAN 3.4** (Đại chưa đồng ý). (3) **Chưa xác nhận bằng trang, chờ X1 M1 đo thật:** Groq dùng chung `reasoning_effort` và `include_reasoning` với `json_schema`; tên trường `usage` của Groq; header `Api-Revision` (đang gửi theo ví dụ của trang, duyệt D1); Gemini có "nghĩ" mặc định và token nghĩ có tính vào `max_output_tokens` không. (4) Điểm lệch có chủ ý so với 2.4.76 ở mục 3.4, `[ĐỒNG BỘ TL]`. (5) Ngoài bốn đột biến bắt buộc, đã chạy thêm **8 biến thể phụ, cả 8 bị bắt** (mục 2), gồm các ca "HDA-08 điều chỉnh phiên kiểm" (cooldown khi hết giờ) và ca kiểm `signal` bị huỷ; lần đầu một lệnh nối 11 biến thể bị bộ phân loại quyền từ chối (ngoài lượt được cấp), sau đó chạy từng lệnh một. (6) `tsc` toàn dự án còn 3 lỗi có sẵn ở `notification/` và `payment/` (không thuộc P1). |
 
 ## 2. Kết quả test theo use case (mã ở PLAN.md mục 7)
 
 | Nhóm | Mã | Số ca | Task | Trạng thái |
 |---|---|---|---|---|
-| Chuỗi dự phòng và hợp đồng nhà cung cấp (2.4.76) | HDA-01…HDA-15 | 15 | P1 | chưa chạy |
-| Cấu hình | CFG-01…CFG-04 | 4 | P1 | chưa chạy |
+| Chuỗi dự phòng và hợp đồng nhà cung cấp (2.4.76) | HDA-01…HDA-15 | 15 | P1 | **Pass** (27/11/2026, đơn vị: đủ 15 mã có ca) |
+| Cấu hình | CFG-01…CFG-04 | 4 | P1 | **Pass** (27/11/2026, đơn vị: đủ 4 mã có ca; e2e qua AppModule thật: 4 ca xanh) |
 | An toàn y tế | ATY-01…ATY-08 | 8 | B1 | chưa chạy |
 | Quyền riêng tư | RTU-01…RTU-07 | 7 | B1, B3 | chưa chạy |
 | Giới hạn tốc độ | GHT-01…GHT-07 | 7 | B1, B3 | chưa chạy |
@@ -35,9 +36,33 @@ Nhật ký tiến độ riêng của scope #12 (mã sẽ nằm trong `apps/api/s
 | API gợi ý | GOI-01…GOI-10 | 10 | B4 | chưa chạy |
 | Giao diện | WTL-01…WTL-14 | 14 | F1, F2 | chưa chạy |
 | Kiểm tay | KTL-01…KTL-08 | 8 | X2 | chưa chạy |
-| **Tổng** | | **111** | | **0 đã chạy** |
+| **Tổng** | | **111** | | **19 đã chạy (P1), 92 chưa** |
 
-Đột biến mục tiêu (PLAN 5.15): 12, chưa chạy; bốn loại đột biến web: chưa chạy.
+Đột biến mục tiêu (PLAN 5.15): 12; **đã chạy 4 (Đ3 đến Đ6, chatbot P1, 27/11/2026), cả 4 bị bắt**; còn 8 chưa chạy; bốn loại đột biến web: chưa chạy.
+
+| Đột biến (PLAN 5.15) | Chỗ sửa | Ca bắt | Ca đỏ | Quy trình |
+|---|---|---|---|---|
+| Đ3 thử lại khi 429 | `fallback-chain.ts`: bỏ `rateLimited` khỏi tập không thử lại | HDA-05 (cũng HDA-07, HDA-15 mức chuỗi) | 3 trên 31 | sao lưu ngoài repo kèm SHA-256; đối chứng trước xanh; một vitest một file; khôi phục trong `finally` đúng SHA; đối chứng sau xanh |
+| Đ4 bỏ trần tổng | `fallback-chain.ts`: mỗi lần thử chờ đủ thời gian của lớp, không `min` với thời gian còn lại | HDA-08 (hai ca: biên 2000 ms, và 7 + 7 + 6 giây) | 2 trên 31 | như trên |
+| Đ5 cooldown sau thành công | `fallback-chain.ts`: đặt cooldown ở nhánh thành công | HDA-09 (4 ca), HDA-03, HDA-05, HDA-11 (2 ca) | 8 trên 31 | như trên |
+| Đ6 provider thật khi test | `provider-factory.ts`: bỏ nhánh `nodeEnv === 'test'` | CFG-03 (ca nhà máy và ca module Nest) | 1 trên 7 và 1 trên 5 | như trên |
+
+Ca Đ4 cơ bản (6 + 6 + 8 giây) **không** bắt được Đ4 (vì ba số đó trùng với thời gian còn lại); hai ca biến thể mới bắt.
+
+**Tám biến thể phụ** (ngoài PLAN; phiên kiểm cấp lượt 27/11/2026, mỗi biến thể một lệnh riêng; **cả 8 bị bắt**, khôi phục đúng SHA, đối chứng sau xanh):
+
+| Biến thể | Chỗ sửa | Ca bắt | Ca đỏ |
+|---|---|---|---|
+| `rejected` thử lại | `fallback-chain.ts`: 4xx cấu hình sai được thử lại | HDA-06 (400, 401, 404, 413), HDA-09 (cooldown cấu hình được) | 5 trên 31 |
+| Bỏ ngưỡng 2 giây | dừng khi `còn <= 0` thay vì `còn < 2000` | HDA-08 (còn 1999 ms; ca điều chỉnh phiên kiểm) | 2 trên 31 |
+| Ngưỡng lệch biên | `còn <= 2000` thì không thử | HDA-08 (ca biên đúng 2000 ms) | 1 trên 31 |
+| Hết giờ không đặt cooldown (điều chỉnh 1 của phiên kiểm) | bỏ cooldown ở nhánh hết giờ | HDA-08 điều chỉnh phiên kiểm | 1 trên 31 |
+| Hết hạn không `abort()` (điều chỉnh 2) | bỏ `controller.abort()` | HDA-02, HDA-08 (ca phớt lờ signal) | 2 trên 31 |
+| Không huỷ hẹn giờ khi xong (điều chỉnh 2) | bỏ `cancelTimer()` ở `finally` | HDA-01, HDA-02, HDA-10, HDA-08 (ca hẹn giờ riêng) | 4 trên 31 |
+| Groq khoá ở query | `?key=` ở URL | HDA-12 (3 ca) | 3 trên 29 |
+| Gemini khoá ở query | `?key=` ở URL | HDA-13 (3 ca) | 3 trên 34 |
+
+Còn soạn sẵn nhưng **chưa chạy** (không bắt buộc): hết suất mỗi phút vẫn đặt cooldown, hết lần thử không đặt cooldown, Gemini `store: true`.
 
 ## 3. Quyết định đã chốt
 
@@ -72,6 +97,16 @@ SOW 3.2.6 và 5.1.4: AI không chẩn đoán, không kê đơn, không tự đ�
 
 **Đã duyệt kỹ thuật (phiên kiểm độc lập, theo ủy quyền của Đại, 26/11/2026; Đại chưa trả lời trực tiếp):** T1 một lời gọi có cấu trúc, enum đóng, luật khẩn cấp trước AI; T2 đối chiếu tất định, đo dương tính giả, ngoại lệ có kiểm chứng; T3 không streaming, hạn chót lan truyền; T4 `fetch`, không SDK, fixture, ghi URL và ngày tra, `store: false` không bảo đảm gì ở gói miễn phí; T5 ngữ cảnh có cấu trúc, đệm có trần; T6 giới hạn trong bộ nhớ, trần toàn cục, dọn bản đồ, chờ kiểm proxy ở staging; T7 export một dịch vụ của search bằng PR nhỏ; T8 thư mục `chatbot`, thêm scope commitlint; T9 tái dùng `state.from`; T10 không thử lại 429 và 4xx; T11 CI không khoá AI, không tạo provider thật khi test.
 
+### 3.4 Điểm lệch có chủ ý so với 2.4.76 và điều đã ghi ở ADR 0007 (chatbot P1, 27/11/2026) `[ĐỒNG BỘ TL]`
+
+Việc sửa file Word do nhóm làm ở repo `TLCN_CLINIX` (PLAN 4.6); chưa làm.
+
+- **T10 (lệch có chủ ý):** 429 và 4xx cấu hình sai (khoá sai, model đã ngừng, yêu cầu sai) **không thử lại**, chuyển lớp và vào cooldown; timeout, lỗi mạng, 5xx, đầu ra sai lược đồ thử lại đúng một lần. Đặc tả 2.4.76 thử lại một lần cho mọi lỗi.
+- **Hai lớp thay vì ba** (Q1, Q2) và **trần tổng 20 giây** (Q8) thay vì ba lớp, hai lần, 6 đến 8 giây mỗi lần (khoảng 48 giây): có lần thử bị bỏ khi hết giờ, Đại đã chấp nhận.
+- **Cooldown 60 giây chỉ sau khi lớp hỏng**, không sau thành công; lớp đã hỏng ít nhất một lần vào cooldown dù thoát vì hết giờ hay hết suất (điều chỉnh của phiên kiểm, 27/11/2026).
+- **Trần mỗi phút theo nhà cung cấp** (HDA-11) nằm ở P1; chatbot B1 chỉ làm giới hạn theo IP và đồng thời, dùng lại, không làm trùng.
+- **Quyết định kỹ thuật D1 đến D6** (phiên kiểm duyệt kỹ thuật theo ủy quyền của Đại, 27/11/2026; không phải Đại trả lời trực tiếp): gửi `Api-Revision` như hằng số và X1 chốt có hay không; `AiRequest` mang `output.isValid` thay thư viện kiểm lược đồ; `AiRawAnswer` chỉ có `text`, chưa có `usage`; không sửa `vitest.test-env.ts`; danh sách model đã ngừng giữ hai model của PLAN 5.13.
+
 ## 4. Ghi chú AI
 
 **Phiên lập kế hoạch KHÔNG sửa `AI_USAGE_LOG.md` và `docs/TECH_DEBT.md`** (Đại quyết ghi ở PR sau). Dưới đây là **bản nháp**; kiểm lại số lớn nhất trên `main` lúc ghi. Lúc soạn (`origin/main` `36ec306`) AI log có đến hàng 204, TECH_DEBT đến dòng 327, `AI-BUG` đến 116. Dải số đã cấp cho task này: **AI log hàng 206, nợ kỹ thuật 332 đến 334, `AI-BUG` 120 đến 121** (203 và 323 đến 325 của chat, 205 và 328 đến 331 đã dành cho việc khác).
@@ -100,7 +135,7 @@ SOW 3.2.6 và 5.1.4: AI không chẩn đoán, không kê đơn, không tự đ�
 
 | Với | Điểm | Cần gì | Trạng thái |
 |---|---|---|---|
-| Trung (chat) | P1: `app.module.ts`, `env.validation.ts`, `.env.example`, `commitlint.config.cjs`, `docs/adr/` | ai merge sau thì rebase; báo nhau | chờ |
+| Trung (chat) | P1: `app.module.ts`, `env.validation.ts`, `.env.example`, `commitlint.config.cjs`, `docs/adr/` | ai merge sau thì rebase; báo nhau | P1 đã sửa: `app.module.ts` (hai dòng), `env.validation.ts` (khối cuối class, hai hàm nhỏ, một dòng ở `crossFieldProblems`), `.env.example` (khối cuối), `commitlint.config.cjs` và `AGENTS.md` (một từ), ADR 0007; **báo Trung ở PR** |
 | Trung (review) | mọi PR của scope | review và approve | chờ |
 | Đại (search) | B2: export `PublicDoctorService` | PR nhỏ riêng, test search không đổi | chờ |
 | Đại (router) | F1: `router/root-layout.tsx` | không đụng `role-nav`, `role-routes`, `role-shells` | chờ |
@@ -146,3 +181,8 @@ N6, CB1, CB2 (cam kết đề xuất) và CB3 đến CB6 (báo cáo): chưa đo.
 - **`[ĐỒNG BỘ TL]` ngoài repo (Đại):** 2.4.7, 2.4.76, 2.4.77 (hai bản), 2.1_2.2, 1.2.1, 1.3.3, bảng Phân loại M18, M19 (PLAN 4.6); chưa sửa.
 - **Nhãn `module:chatbot` và milestone `chatbot` chưa có** trên GitHub.
 - Trước khi viết B1: Đại duyệt danh sách từ khoá khẩn cấp, ngoài phạm vi, tài khoản.
+- **chatbot P1 (27/11/2026):** `test:e2e` riêng của chatbot đã chạy (4 ca xanh). DB tạm `clinix_chatbot_p1_test` còn nguyên trong MySQL `clinix-app-db-1`, **cần Đại cho phép mới dọn**. Cả bộ `test:e2e` chưa chạy ở máy (CI chạy).
+- **chatbot P1: vị trí file e2e.** `src/chatbot/chatbot.e2e-spec.ts` đặt **cạnh mã** để nằm trong phạm vi duyệt sẵn của task; nếp của dự án là đặt e2e ở `apps/api/test/`. `vitest.config.e2e.ts` có `include: ['**/*.e2e-spec.ts']` nên CI nhặt file này cùng các file ở `test/`. **Chuyển sang `test/` nếu Trung muốn.** Ca không khẳng định tên DB (CI dùng `clinix_test`, kiểm tay dùng DB tạm), đặt và khôi phục `process.env` đầy đủ trong `afterEach`.
+- **chatbot P1 (27/11/2026):** dòng nợ kỹ thuật 339 (cooldown, trần mỗi phút ở bộ nhớ một tiến trình; PLAN R8), hàng AI log 212 và `AI-BUG-126` đã ghi vào `docs/TECH_DEBT.md` và `AI_USAGE_LOG.md` theo ý Đại (phiên kiểm chuyển lại câu trả lời). Bộ đếm IP là nợ của chatbot B1, B1 tự ghi.
+- **chatbot X1 M1** phải đo thêm: Groq `reasoning_effort` cùng `json_schema`, tên trường `usage`, có và không `Api-Revision`, Gemini "nghĩ" mặc định và `max_output_tokens`. Hạn mức gói miễn phí vẫn `[cần điền]`.
+- **Lược đồ của chatbot B2 phải đúng luật `strict` của Groq:** mọi trường nằm trong `required` và mọi đối tượng có `additionalProperties: false`; Gemini bỏ qua `minLength`, `maxLength`.
