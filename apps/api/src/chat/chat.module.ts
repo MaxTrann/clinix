@@ -6,7 +6,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { EnvironmentVariables } from '../config/env.validation.js';
 import { noStore } from '../notification/center/notification-center.module.js';
+import { UploadModule } from '../common/upload/upload.module.js';
 import { RbacModule } from '../rbac/rbac.module.js';
+import { ChatAttachmentInspector } from './attachments/chat-attachment.inspector.js';
+import { ChatFileCleanupService } from './attachments/chat-file-cleanup.service.js';
 import { CHAT_FILE_STORE } from './attachments/chat-file-store.js';
 import { resolveChatFilesDir } from './attachments/chat-files-dir.js';
 import { LocalDiskChatFileStore } from './attachments/local-disk-chat-file-store.js';
@@ -26,17 +29,25 @@ import { ConversationReadRepository } from './read/conversation-read.repository.
 import { ConversationReadService } from './read/conversation-read.service.js';
 import { StartConversationRepository } from './read/start-conversation.repository.js';
 import { StartConversationService } from './read/start-conversation.service.js';
+import { ChatAttachmentController } from './rest/chat-attachment.controller.js';
+import { ChatAttachmentService } from './rest/chat-attachment.service.js';
 import { ChatReadController } from './rest/chat-read.controller.js';
 import { ChatSendController } from './rest/chat-send.controller.js';
 import { ChatSendService } from './rest/chat-send.service.js';
+import { ChatUploadCapacityInterceptor } from './rest/chat-upload.interceptors.js';
 
 // Module "Nhắn tin" (scope #11). chat B1: lõi gửi; chat B2: API đọc (danh sách, chi tiết, tin, đánh dấu đọc, số đếm); chat B3: API gửi bằng JSON, đầu khung trước tin đầu, chi nhánh mặc định. Hai cổng gắn bản `Noop`: KHI CÓ BẢN THẬT
 // (B6 thông báo, B5 socket) sửa đúng dòng của cổng đó. REST gửi (B3) và socket (B5) nhập `SendMessageService` qua `exports`.
 // chat P3: kho tệp đính kèm trên đĩa (`CHAT_FILES_DIR`), kiểm ghi được lúc khởi động; B4 dùng qua `CHAT_FILE_STORE`.
+// chat B4: gửi kèm tệp ở ba route gửi, tải tệp, job dọn mồ côi; `UploadModule` cho `ImageProcessor`. Bộ đếm tải đồng thời là provider (một bộ đếm cho cả ba route).
 // `RbacModule` cho `ReceptionScopeService` (chi nhánh của Lễ tân đọc ở mỗi yêu cầu).
 @Module({
-  imports: [RbacModule],
-  controllers: [ChatReadController, ChatSendController],
+  imports: [RbacModule, UploadModule],
+  controllers: [
+    ChatReadController,
+    ChatSendController,
+    ChatAttachmentController,
+  ],
   providers: [
     SendMessageService,
     ConversationOpenRepository,
@@ -47,6 +58,10 @@ import { ChatSendService } from './rest/chat-send.service.js';
     StartConversationRepository,
     StartConversationService,
     ChatSendService,
+    ChatAttachmentInspector,
+    ChatAttachmentService,
+    ChatFileCleanupService,
+    ChatUploadCapacityInterceptor,
     { provide: CHAT_NOTIFIER, useClass: NoopChatNotifier },
     { provide: CHAT_REALTIME, useClass: NoopChatRealtime },
     {
@@ -67,6 +82,12 @@ export class ChatModule implements NestModule {
   // Tin nhắn là dữ liệu cá nhân: `Cache-Control: no-store` cho MỌI phản hồi của chat, kể cả 401, 400, 404 (middleware chạy trước guard; BCH-05).
   // Dùng lại đúng hàm của Trung tâm thông báo, không viết lại.
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(noStore).forRoutes(ChatReadController, ChatSendController);
+    consumer
+      .apply(noStore)
+      .forRoutes(
+        ChatReadController,
+        ChatSendController,
+        ChatAttachmentController,
+      );
   }
 }

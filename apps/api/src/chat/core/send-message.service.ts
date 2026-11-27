@@ -19,7 +19,11 @@ import {
   ConversationOpenRepository,
   type OpenTarget,
 } from './conversation-open.repository.js';
-import { MessageRepository } from './message.repository.js';
+import {
+  MessageRepository,
+  type AttachedFile,
+  type StoredMessage,
+} from './message.repository.js';
 import {
   CHAT_NOTIFIER,
   type ChatMessageEvent,
@@ -35,6 +39,8 @@ import {
 // Thứ tự kiểm (5.5): (1) dữ liệu sai; (2) không thấy đích; (3) mã gửi đã dùng: đúng hội thoại và đúng nội dung thì THÀNH CÔNG, trả tin cũ (kể cả khi lúc này bên kia
 // bị khoá hay đã hết lượt), khác thì 409; (4) bên kia không hoạt động; (5) quá 20 tin trong 60 giây. Lỗi trả về CÓ KIỂU, không ném trong giao dịch (nếp booking A8).
 // Không ghi log nội dung tin (BCH-01): log chỉ có id và tên lớp lỗi.
+// chat B4: tin có thể kèm MỘT tệp đã xử lý và đã ghi kho (`tep`); tin có tệp được để trống chữ. Trước khi xử lý tệp, REST gọi `precheck` (quyền và mã gửi, không khoá)
+// để không tốn công xử lý, không ghi tệp cho yêu cầu chắc chắn bị từ chối hay gửi lại; kết luận cuối vẫn là `send` dưới khoá.
 
 /** Đích: hội thoại đã có, hoặc bác sĩ, chi nhánh (Bệnh nhân bắt đầu trò chuyện: tìm-hoặc-tạo). */
 export type SendTarget = { hoiThoaiId: string } | OpenTarget;
@@ -45,6 +51,8 @@ export interface SendInput {
   /** `unknown`: socket (B5) không qua DTO nên lõi tự kiểm kiểu. */
   noiDung: unknown;
   maGui: unknown;
+  /** Tệp đã ghi kho (chat B4). Không có ⇒ tin chữ. */
+  tep?: AttachedFile | null;
 }
 
 export interface SentMessage {
@@ -59,6 +67,12 @@ export interface SentMessage {
 export type SendOutcome =
   | { kind: 'Sent'; hoiThoaiMoi: boolean; tinNhan: SentMessage }
   /** Gửi lại cùng mã gửi, cùng hội thoại, cùng nội dung: không ghi thêm, không thông báo, không đẩy. */
+  | { kind: 'Duplicate'; tinNhan: SentMessage }
+  | ChatSendFailure;
+
+/** Kết quả kiểm trước của tin có tệp (chat B4): `Proceed` ⇒ được xử lý tệp rồi gọi `send`; `Duplicate` ⇒ trả tin cũ, không xử lý tệp. */
+export type PrecheckOutcome =
+  | { kind: 'Proceed' }
   | { kind: 'Duplicate'; tinNhan: SentMessage }
   | ChatSendFailure;
 
@@ -78,6 +92,7 @@ interface Draft {
   actor: ChatActor;
   noiDung: string;
   maGui: string;
+  tep: AttachedFile | null;
   /** MỘT mốc cho cả lượt, cắt về giây (DATETIME không có phần lẻ). */
   now: Date;
 }
@@ -112,6 +127,39 @@ export class ChatInternalError extends Error {
   }
 }
 
+/**
+ * Mã gửi đã dùng (quy tắc 3 của 5.5): cùng hội thoại, cùng nội dung chữ VÀ cùng "có tệp hay không" ⇒ gửi lại của cùng một ý định (trả tin cũ); khác ⇒ 409.
+ * Byte tệp không so được (ảnh đã mã hoá lại), nên tin có tệp chỉ so chữ và việc có tệp (quyết định của Trung khi làm chat B4, `[đề xuất]`).
+ */
+function sendIdVerdict(
+  used: StoredMessage,
+  hoiThoaiId: string | null,
+  attempt: {
+    actor: ChatActor;
+    noiDung: string;
+    maGui: string;
+    hasFile: boolean;
+  },
+): { kind: 'Duplicate'; tinNhan: SentMessage } | { kind: 'SendIdUsed' } {
+  if (
+    used.hoiThoaiId !== hoiThoaiId ||
+    used.noiDung !== attempt.noiDung ||
+    used.coTep !== attempt.hasFile
+  )
+    return { kind: 'SendIdUsed' };
+  return {
+    kind: 'Duplicate',
+    tinNhan: {
+      tinNhanId: used.tinNhanId,
+      hoiThoaiId: used.hoiThoaiId,
+      noiDung: used.noiDung,
+      thoiDiemGui: used.thoiDiemGui,
+      nguoiGuiId: attempt.actor.taiKhoanId,
+      maGui: attempt.maGui,
+    },
+  };
+}
+
 @Injectable()
 export class SendMessageService {
   private readonly logger = new Logger(SendMessageService.name);
@@ -125,12 +173,14 @@ export class SendMessageService {
   ) {}
 
   async send(input: SendInput): Promise<SendOutcome> {
-    const checked = checkSendInput(input.noiDung, input.maGui);
+    const tep = input.tep ?? null;
+    const checked = checkSendInput(input.noiDung, input.maGui, tep !== null);
     if (!checked.ok) return { kind: 'Invalid', loi: checked.loi };
     const draft: Draft = {
       actor: input.actor,
       noiDung: checked.noiDung,
       maGui: checked.maGui,
+      tep,
       now: toSecond(nowVN()),
     };
     const { target } = input;
@@ -155,6 +205,63 @@ export class SendMessageService {
     if (sent.kind === 'Existing')
       throw new Error('Luồng gửi không trả Existing');
     return this.finish(sent);
+  }
+
+  /**
+   * Kiểm trước của tin CÓ TỆP (chat B4; PLAN 5.8 "thứ tự"): dữ liệu, quyền thấy đích, mã gửi. Chỉ đọc, KHÔNG khoá, không ghi gì. Bên kia ngưng hoạt động và giới hạn
+   * tốc độ để luồng gửi dưới khoá quyết (tệp đã ghi thì bị xoá). Mã gửi đã dùng: cùng hội thoại, cùng chữ và tin cũ có tệp ⇒ `Duplicate` (trả tin cũ), khác ⇒ 409.
+   */
+  async precheck(input: Omit<SendInput, 'tep'>): Promise<PrecheckOutcome> {
+    const checked = checkSendInput(input.noiDung, input.maGui, true);
+    if (!checked.ok) return { kind: 'Invalid', loi: checked.loi };
+    const { actor, target } = input;
+    const em = this.db.manager;
+    let hoiThoaiId: string | null;
+    if ('hoiThoaiId' in target) {
+      if (!ID.test(target.hoiThoaiId)) return { kind: 'NotFound' };
+      const conversation = await this.messages.readConversation(
+        em,
+        target.hoiThoaiId,
+      );
+      if (conversation === null) return { kind: 'NotFound' };
+      const actorIsMember =
+        actor.vaiTro === 'LeTan'
+          ? false
+          : await this.messages.isMember(
+              em,
+              actor.taiKhoanId,
+              target.hoiThoaiId,
+            );
+      if (!canSee(actor, { ...conversation, actorIsMember }))
+        return { kind: 'NotFound' };
+      hoiThoaiId = target.hoiThoaiId;
+    } else {
+      if (!canOpen(actor)) return { kind: 'Forbidden' };
+      const targetId = 'bacSiId' in target ? target.bacSiId : target.chiNhanhId;
+      if (!ID.test(targetId)) return { kind: 'NotFound' };
+      const exists =
+        'bacSiId' in target
+          ? (await this.conversations.doctorStatus(em, target.bacSiId)) !== null
+          : await this.conversations.branchExists(em, target.chiNhanhId);
+      if (!exists) return { kind: 'NotFound' };
+      hoiThoaiId = await this.conversations.findExisting(
+        em,
+        actor.taiKhoanId,
+        target,
+      );
+    }
+    const used = await this.messages.findBySendId(
+      em,
+      actor.taiKhoanId,
+      checked.maGui,
+    );
+    if (used === null) return { kind: 'Proceed' };
+    return sendIdVerdict(used, hoiThoaiId, {
+      actor,
+      noiDung: checked.noiDung,
+      maGui: checked.maGui,
+      hasFile: true,
+    });
   }
 
   /**
@@ -230,14 +337,11 @@ export class SendMessageService {
       actor.taiKhoanId,
       draft.maGui,
     );
-    if (used !== null) {
-      if (used.hoiThoaiId !== hoiThoaiId || used.noiDung !== draft.noiDung)
-        return { kind: 'SendIdUsed' };
-      return {
-        kind: 'Duplicate',
-        tinNhan: { ...used, nguoiGuiId: actor.taiKhoanId, maGui: draft.maGui },
-      };
-    }
+    if (used !== null)
+      return sendIdVerdict(used, hoiThoaiId, {
+        ...draft,
+        hasFile: draft.tep !== null,
+      });
 
     const bacSiId = await this.messages.doctorOf(em, conversation);
     const counterpart = counterpartToCheck(
@@ -290,6 +394,7 @@ export class SendMessageService {
       maGui: draft.maGui,
       noiDung: draft.noiDung,
       thoiDiemGui: draft.now,
+      tep: draft.tep,
     });
     if (actor.vaiTro === 'LeTan')
       await this.messages.ensureMember(em, actor.taiKhoanId, where.hoiThoaiId);

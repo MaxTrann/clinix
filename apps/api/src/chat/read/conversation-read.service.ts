@@ -33,6 +33,14 @@ import {
 // API đọc của chat (chat B2; PLAN chat 5.3, 5.6, 5.9). Không thấy hội thoại ⇒ 404 `KHONG_TIM_THAY` CÙNG thân cho "không có", "của người khác", "id sai dạng" (T3).
 // Đọc thường (không giao dịch); riêng đánh dấu đã đọc là ghi, chạy trong `withBookingTransaction` (READ COMMITTED, thử lại 1213/1205; tầng khoá C1 rồi C3, PLAN 5.4).
 
+/** Tệp của một tin mà người xem được phép tải (chat B4). */
+export interface AttachmentInfo {
+  khoa: string;
+  ten: string;
+  loai: string;
+  dungLuong: number;
+}
+
 export type ListFilterValue = 'tat-ca' | 'chua-doc' | 'bac-si' | 'le-tan';
 
 export interface ListQuery {
@@ -225,6 +233,34 @@ export class ConversationReadService {
     );
     if (outcome.kind === 'NotFound') throw notFound();
     return { tinNhanCuoiDaDocId: outcome.moc };
+  }
+
+  /**
+   * Tệp của một tin để tải xuống (chat B4; PLAN 5.8): quyền như đọc tin (người xem phải THẤY hội thoại chứa tin, luật `canSee`). Tin không có, không thấy được,
+   * hay không có tệp ⇒ cùng một 404 (TEP-10, QCH-12). Đọc thường, không giao dịch.
+   */
+  async attachment(
+    user: AuthenticatedUser,
+    tinNhanId: string,
+  ): Promise<AttachmentInfo> {
+    const actor = await this.actors.resolve(user);
+    const em = this.db.manager;
+    const row = await this.repo.attachment(em, tinNhanId);
+    if (row === null) throw notFound();
+    await this.visibleHeader(em, actor, row.hoiThoaiId);
+    if (
+      row.khoa === null ||
+      row.ten === null ||
+      row.loai === null ||
+      row.dungLuong === null
+    )
+      throw notFound();
+    return {
+      khoa: row.khoa,
+      ten: row.ten,
+      loai: row.loai,
+      dungLuong: row.dungLuong,
+    };
   }
 
   /** Đầu hội thoại nếu người xem THẤY được (luật `canSee` của lõi, 5.3), không thì 404 cùng thân. */

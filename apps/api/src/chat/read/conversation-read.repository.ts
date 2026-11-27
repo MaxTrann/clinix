@@ -106,6 +106,9 @@ const SHARE_CONVERSATION_SQL = `SELECT hoi_thoai_id AS hoiThoaiId, loai, chi_nha
 // Quy tắc nghiệp vụ 14 (mục 2): mốc phải là tin CÙNG hội thoại; kiểm ở đây vì khoá ngoại chỉ bắt tin tồn tại (QCH-10)
 const MESSAGE_IN_CONVERSATION_SQL =
   'SELECT tin_nhan_id FROM tin_nhan WHERE tin_nhan_id = ? AND hoi_thoai_id = ?';
+// Tải tệp (chat B4): đọc theo khoá chính; quyền thấy hội thoại do service kiểm bằng `canSee` như khi đọc tin
+const ATTACHMENT_SQL = `SELECT hoi_thoai_id AS hoiThoaiId, tep_dinh_kem AS khoa, tep_ten_goc AS ten, tep_loai AS loai, tep_dung_luong AS dungLuong
+  FROM tin_nhan WHERE tin_nhan_id = ?`;
 // Upsert chỉ tiến tới (X1 M7): cột trong COALESCE PHẢI có tiền tố bảng, không thì MySQL 8.4 báo 1052. Chưa có dòng (Lễ tân mở lần đầu) ⇒ chèn mới.
 const UPSERT_MARK_SQL = `INSERT INTO tai_khoan_hoi_thoai (tai_khoan_id, hoi_thoai_id, tin_nhan_cuoi_da_doc_id) VALUES (?, ?, ?) AS moi
   ON DUPLICATE KEY UPDATE tin_nhan_cuoi_da_doc_id = GREATEST(COALESCE(tai_khoan_hoi_thoai.tin_nhan_cuoi_da_doc_id, 0), moi.tin_nhan_cuoi_da_doc_id)`;
@@ -159,6 +162,15 @@ export interface MessageRow {
   hoTen: string;
   loaiTaiKhoan: string;
   chucDanh: ChucDanhBacSi | null;
+}
+
+/** Tệp của một tin (chat B4); `khoa` trống ⇒ tin không có tệp. */
+export interface AttachmentRow {
+  hoiThoaiId: string;
+  khoa: string | null;
+  ten: string | null;
+  loai: string | null;
+  dungLuong: number | null;
 }
 
 export type MessageCursor =
@@ -329,6 +341,24 @@ export class ConversationReadRepository {
       loai: row.loai as LoaiHoiThoai,
       chiNhanhId: strOrNull(row.chiNhanhId),
       nguoiTaoId: str(row.nguoiTaoId),
+    };
+  }
+
+  async attachment(
+    em: EntityManager,
+    tinNhanId: string,
+  ): Promise<AttachmentRow | null> {
+    const rows = await em.query<Record<string, unknown>[]>(ATTACHMENT_SQL, [
+      tinNhanId,
+    ]);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      hoiThoaiId: str(row.hoiThoaiId),
+      khoa: strOrNull(row.khoa),
+      ten: strOrNull(row.ten),
+      loai: strOrNull(row.loai),
+      dungLuong: row.dungLuong === null ? null : Number(row.dungLuong),
     };
   }
 
