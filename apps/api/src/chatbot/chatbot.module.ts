@@ -1,6 +1,9 @@
 import { Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SystemConfigModule } from '../admin/system-config/system-config.module.js';
 import type { EnvironmentVariables } from '../config/env.validation.js';
+import { SchedulingModule } from '../scheduling/scheduling.module.js';
+import { SearchModule } from '../search/search.module.js';
 import { AI_CLOCK, AI_CONFIG, AI_PROVIDERS } from './chatbot.constants.js';
 import {
   findDeprecatedModels,
@@ -18,13 +21,23 @@ import {
 } from './providers/fallback-chain.js';
 import { FetchHttpTransport } from './providers/http-transport.js';
 import { createAiProviders } from './providers/provider-factory.js';
+import { DoctorDegreeRepository } from './suggest/doctor-degree.repository.js';
+import { SuggestionController } from './suggest/suggestion.controller.js';
+import { SuggestionRepository } from './suggest/suggestion.repository.js';
+import { SuggestionService } from './suggest/suggestion.service.js';
 
 type Env = ConfigService<EnvironmentVariables, true>;
 
 // Module "Trợ lý AI" (scope #12). chatbot P1: nền ở máy chủ, CHƯA có controller (API hỏi đáp là chatbot B3).
 // Export `FallbackChain` để B3 gọi. Không có khoá nào thì module vẫn dựng được và chuỗi trả `fallback` ngay (CFG-02).
 @Module({
+  // chatbot B4 (API gợi ý, chỉ đọc): `PublicDoctorService` (search), `AvailableSlotsReader` (scheduling), `SystemConfigService` (admin)
+  imports: [SearchModule, SchedulingModule, SystemConfigModule],
+  controllers: [SuggestionController],
   providers: [
+    SuggestionService,
+    SuggestionRepository,
+    DoctorDegreeRepository,
     {
       provide: AI_CONFIG,
       inject: [ConfigService],

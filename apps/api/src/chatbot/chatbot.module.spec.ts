@@ -1,6 +1,7 @@
-import { Logger } from '@nestjs/common';
+import { Global, Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 import { TEST_AUTH_ENV } from '../auth/testing/auth-test-env.js';
 import { fakeSecretValue } from '../common/testing/sample-secrets.js';
 import { validateEnv } from '../config/env.validation.js';
@@ -23,6 +24,15 @@ const KEYS = {
   GEMINI_API_KEY: fakeSecretValue('gemini'),
 };
 
+// chatbot B4: ChatbotModule nhập SearchModule, SchedulingModule, SystemConfigModule nên cần `DataSource` (app thật lấy từ DatabaseModule).
+// Module toàn cục giả này chỉ để dựng đồ thị: không ca nào ở đây chạm DB (`compile()` không chạy `onApplicationBootstrap`).
+@Global()
+@Module({
+  providers: [{ provide: DataSource, useValue: {} }],
+  exports: [DataSource],
+})
+class FakeDatabaseModule {}
+
 async function compile(extraEnv: Record<string, unknown>) {
   const env = validateEnv({ ...VALID, ...extraEnv }) as unknown as Record<
     string,
@@ -31,6 +41,7 @@ async function compile(extraEnv: Record<string, unknown>) {
   return Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+      FakeDatabaseModule,
       ChatbotModule,
     ],
   })
