@@ -19,3 +19,15 @@ export function chatConversationPath(base: string, hoiThoaiId: string): string {
   const query = new URLSearchParams({ [CHAT_QUERY.conversation]: hoiThoaiId });
   return `${base}?${query.toString()}`;
 }
+
+/** Bệnh nhân bắt đầu trò chuyện với bác sĩ (chat F4; nút "Nhắn tin" ở tra cứu bác sĩ). Khách mở liên kết này thì đi đăng nhập rồi quay lại (MH7). */
+export function patientChatDoctorPath(bacSiId: string): string {
+  const query = new URLSearchParams({ [CHAT_QUERY.doctor]: bacSiId });
+  return `${PATIENT_CHAT_PATH}?${query.toString()}`;
+}
+
+/** Bệnh nhân mở hộp thư lễ tân của một chi nhánh (chat F4). */
+export function patientChatBranchPath(chiNhanhId: string): string {
+  const query = new URLSearchParams({ [CHAT_QUERY.branch]: chiNhanhId });
+  return `${PATIENT_CHAT_PATH}?${query.toString()}`;
+}

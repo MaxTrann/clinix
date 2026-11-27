@@ -379,7 +379,11 @@ describe('Luồng chọn dịch vụ → bác sĩ', () => {
     expect(screen.getByText('Cọc 100.000đ')).toBeInTheDocument();
     expect(screen.getByText('Chưa có đánh giá')).toBeInTheDocument();
     expect(screen.getByText('MA')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Nhắn tin' })).toBeDisabled();
+    // chat F4: "Nhắn tin" của khách là liên kết tới trang Tin nhắn (trước đây là nút vô hiệu)
+    expect(screen.getByRole('link', { name: 'Nhắn tin' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^\/benh-nhan\/tin-nhan\?bacSi=/),
+    );
     expect(screen.queryByText('Buổi sáng')).not.toBeInTheDocument();
   });
 
