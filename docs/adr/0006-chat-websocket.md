@@ -48,6 +48,7 @@ Scope: chat P4, issue #709; consumer chat B5 (#715), F2 (#718)
 - **Sổ kết nối nằm trong bộ nhớ:** chỉ chạy đúng với **một tiến trình API**. Muốn nhiều tiến trình thì cần adapter dùng chung (ví dụ Redis) và sổ dùng chung. Nợ kỹ thuật ghi khi B5 merge (nháp 324 ở TRACKING chat).
 - **Hai cơ chế tức thời** cùng tồn tại: chuông thăm dò 30 giây, chat dùng WebSocket.
 - **Guard, pipe, bộ lọc lỗi toàn cục của HTTP** không bảo vệ sự kiện socket. Gateway tự xác thực và B5 tự kiểm DTO, tự đổi lỗi thành mã. P4 chưa có handler `@SubscribeMessage` nào nên **chưa kiểm** guard toàn cục (`APP_GUARD` `JwtAuthGuard`, đọc header HTTP) có chạy ở handler socket hay không. B5 phải kiểm điểm này và chứng minh bằng ca SOC, X1 M9 (R2).
+  - **Kết quả kiểm ở chat B5 (27/11/2026):** guard toàn cục **có** chạy ở handler `@SubscribeMessage` (Nest áp `APP_GUARD` cho gateway) và chặn sự kiện vì không có header `Authorization` (thử bỏ `@Public()` khỏi handler `chat:gui`: client không nhận được ack, ca SOC-05 hết giờ). Nên handler đặt `@Public()` và tự kiểm phiên của chính kết nối ở đầu handler (`ChatSocketSessions.check`: phiên còn hiệu lực, vai trò không đổi). Dữ liệu vào không qua ValidationPipe: gói được đọc bằng `parseSendPayload` (chặn trường lạ), luật nội dung do lõi gửi kiểm.
 - Kết nối giữ lâu qua nginx (3600 giây) chiếm một kết nối mở mỗi tab. Giới hạn 5 kết nối mỗi tài khoản chặn trường hợp mở quá nhiều.
 
 ## Xác minh

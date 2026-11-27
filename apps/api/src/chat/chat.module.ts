@@ -20,10 +20,7 @@ import {
   CHAT_NOTIFIER,
   NoopChatNotifier,
 } from './core/ports/chat-notifier.port.js';
-import {
-  CHAT_REALTIME,
-  NoopChatRealtime,
-} from './core/ports/chat-realtime.port.js';
+import { CHAT_REALTIME } from './core/ports/chat-realtime.port.js';
 import { SendMessageService } from './core/send-message.service.js';
 import { ChatActorResolver } from './read/chat-actor.resolver.js';
 import { ConversationReadRepository } from './read/conversation-read.repository.js';
@@ -32,6 +29,9 @@ import { StartConversationRepository } from './read/start-conversation.repositor
 import { StartConversationService } from './read/start-conversation.service.js';
 import { ChatConnectionRegistry } from './realtime/chat-connection.registry.js';
 import { ChatGateway } from './realtime/chat.gateway.js';
+import { ChatRecipientsRepository } from './realtime/chat-recipients.repository.js';
+import { ChatSocketSessions } from './realtime/chat-socket-sessions.js';
+import { SocketChatRealtime } from './realtime/socket-chat-realtime.js';
 import { ChatAttachmentController } from './rest/chat-attachment.controller.js';
 import { ChatAttachmentService } from './rest/chat-attachment.service.js';
 import { ChatReadController } from './rest/chat-read.controller.js';
@@ -39,11 +39,12 @@ import { ChatSendController } from './rest/chat-send.controller.js';
 import { ChatSendService } from './rest/chat-send.service.js';
 import { ChatUploadCapacityInterceptor } from './rest/chat-upload.interceptors.js';
 
-// Module "Nhắn tin" (scope #11). chat B1: lõi gửi; chat B2: API đọc (danh sách, chi tiết, tin, đánh dấu đọc, số đếm); chat B3: API gửi bằng JSON, đầu khung trước tin đầu, chi nhánh mặc định. Hai cổng gắn bản `Noop`: KHI CÓ BẢN THẬT
-// (B6 thông báo, B5 socket) sửa đúng dòng của cổng đó. REST gửi (B3) và socket (B5) nhập `SendMessageService` qua `exports`.
+// Module "Nhắn tin" (scope #11). chat B1: lõi gửi; chat B2: API đọc (danh sách, chi tiết, tin, đánh dấu đọc, số đếm); chat B3: API gửi bằng JSON, đầu khung trước tin đầu, chi nhánh mặc định. Cổng thông báo còn bản `Noop`: KHI CÓ BẢN THẬT
+// (B6) sửa đúng dòng của cổng đó. REST gửi (B3) và socket (B5) nhập `SendMessageService` qua `exports`.
 // chat P3: kho tệp đính kèm trên đĩa (`CHAT_FILES_DIR`), kiểm ghi được lúc khởi động; B4 dùng qua `CHAT_FILE_STORE`.
 // chat B4: gửi kèm tệp ở ba route gửi, tải tệp, job dọn mồ côi; `UploadModule` cho `ImageProcessor`. Bộ đếm tải đồng thời là provider (một bộ đếm cho cả ba route).
 // chat P4: gateway WebSocket (chỉ bắt tay và vòng đời kết nối) và sổ kết nối; `AuthModule` cho `TokenService`, `SessionService` (chỉ dùng, không sửa auth).
+// chat B5: cổng `CHAT_REALTIME` gắn bản thật `SocketChatRealtime` (đẩy `chat:tin-moi` sau commit); gateway nhận `chat:gui`; `ChatSocketSessions` kiểm phiên và quét mỗi 60 giây.
 // `RbacModule` cho `ReceptionScopeService` (chi nhánh của Lễ tân đọc ở mỗi yêu cầu).
 @Module({
   imports: [AuthModule, RbacModule, UploadModule],
@@ -68,8 +69,10 @@ import { ChatUploadCapacityInterceptor } from './rest/chat-upload.interceptors.j
     ChatUploadCapacityInterceptor,
     ChatConnectionRegistry,
     ChatGateway,
+    ChatSocketSessions,
+    ChatRecipientsRepository,
     { provide: CHAT_NOTIFIER, useClass: NoopChatNotifier },
-    { provide: CHAT_REALTIME, useClass: NoopChatRealtime },
+    { provide: CHAT_REALTIME, useClass: SocketChatRealtime },
     {
       provide: CHAT_FILE_STORE,
       inject: [ConfigService],
