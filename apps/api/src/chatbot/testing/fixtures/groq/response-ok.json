@@ -1,0 +1,10 @@
+{
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "{\"loai\":\"hoiDap\",\"noiDung\":\"Phòng khám mở cửa lúc 8 giờ.\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "model": "openai/gpt-oss-20b",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Bạn là trợ lý của phòng khám (lời nhắc mẫu cho test).\n\nCHI NHÁNH: Chi nhánh mẫu A (id 1)."
+    },
+    { "role": "user", "content": "Xin chào" },
+    { "role": "assistant", "content": "Chào bạn, tôi giúp được gì?" },
+    { "role": "user", "content": "Phòng khám mở cửa lúc mấy giờ?" }
+  ],
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "tra_loi_mau",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "loai": { "type": "string", "enum": ["hoiDap", "khanCap"] },
+          "noiDung": { "type": "string" }
+        },
+        "required": ["loai", "noiDung"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "reasoning_effort": "low",
+  "include_reasoning": false,
+  "max_completion_tokens": 800
+}
