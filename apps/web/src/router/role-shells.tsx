@@ -1,4 +1,5 @@
 import { AdminLayout } from '../features/admin/admin-layout';
+import { useChatUnreadCount } from '../features/chat';
 import { DoctorLayout } from '../features/doctor';
 import { useUnreadCount } from '../features/notification';
 import { PatientLayout, ReceptionLayout } from '../features/patient';
@@ -8,7 +9,10 @@ import {
   PATIENT_NOTIFICATIONS_PATH,
   RECEPTION_NOTIFICATIONS_PATH,
 } from '../shared/routes/notification-paths';
-import type { RoleShellNotifications } from '../shared/ui/role-shell';
+import type {
+  RoleNavItem,
+  RoleShellNotifications,
+} from '../shared/ui/role-shell';
 import { DOCTOR_NAV, PATIENT_NAV, RECEPTION_NAV } from './role-nav';
 
 // Ba khung vai trò đã nối menu (role-nav.ts) và chuông thông báo, dùng làm `element` ở role-routes.tsx (tách file vì luật fast refresh: file component chỉ export component).
@@ -20,10 +24,20 @@ function useShellNotifications(to: string): RoleShellNotifications {
   return { unread: unread ?? 0, announce, to };
 }
 
+// chat F1 (PLAN chat 5.13): số hội thoại chưa đọc thăm dò MỘT lần cho khung đang mở rồi điền vào mục "Tin nhắn" (`badge: 'messages'`) của menu.
+// Điền vào mục (không thêm prop cho layout) nên `features/patient`, `features/doctor` không đổi và không import `features/chat`.
+function useNavWithMessages(items: RoleNavItem[]): RoleNavItem[] {
+  const count = useChatUnreadCount();
+  return items.map((item) =>
+    item.badge === 'messages' ? { ...item, count } : item,
+  );
+}
+
 export function PatientShell() {
   return (
     <PatientLayout
       {...PATIENT_NAV}
+      items={useNavWithMessages(PATIENT_NAV.items)}
       notifications={useShellNotifications(PATIENT_NOTIFICATIONS_PATH)}
     />
   );
@@ -33,6 +47,7 @@ export function ReceptionShell() {
   return (
     <ReceptionLayout
       {...RECEPTION_NAV}
+      items={useNavWithMessages(RECEPTION_NAV.items)}
       notifications={useShellNotifications(RECEPTION_NOTIFICATIONS_PATH)}
     />
   );
@@ -51,6 +66,7 @@ export function DoctorShell() {
   return (
     <DoctorLayout
       {...DOCTOR_NAV}
+      items={useNavWithMessages(DOCTOR_NAV.items)}
       notifications={useShellNotifications(DOCTOR_NOTIFICATIONS_PATH)}
     />
   );

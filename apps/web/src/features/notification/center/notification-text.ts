@@ -48,6 +48,8 @@ export const GROUP_LABELS: Record<NotificationGroup | 'Khac', string> = {
   NghiPhep: 'Nghỉ phép',
   Vi: 'Ví',
   ChiNhanh: 'Chi nhánh',
+  // chat F1
+  TinNhan: 'Tin nhắn',
   Khac: 'Khác',
 };
 
@@ -57,6 +59,8 @@ export const LINK_LABELS = {
   Vi: 'Xem ví',
   NghiPhep: 'Xem nghỉ phép',
   ThayDoiChiNhanh: 'Xem trang liên quan',
+  // chat F1 `[đề xuất]`
+  HoiThoai: 'Mở hội thoại',
 } as const;
 
 export const LOAD_ERROR_TEXT = {

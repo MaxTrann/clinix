@@ -2,7 +2,11 @@ import { ChevronRight, LogOut, Stethoscope, User } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
 import type { RoleNavItem, RoleShellLogout } from './role-shell';
-import { unreadBadgeText, unreadLabel } from './unread-badge';
+import {
+  messagesUnreadLabel,
+  unreadBadgeText,
+  unreadLabel,
+} from './unread-badge';
 
 // Thân thanh bên của RoleShell (tách ở patient F11): dùng nguyên cho thanh bên màn rộng (trong `aside`) và cho ngăn kéo màn hẹp
 // (trong `role="dialog"`), nên lúc nào trang cũng chỉ có MỘT bản. Chỉ dùng trong `role-shell.tsx`.
@@ -14,13 +18,30 @@ const NOT_IMPLEMENTED_TITLE = 'Chưa được triển khai';
 const ITEM_BASE =
   'flex h-10 w-full items-center gap-3 rounded-[0.625rem] px-3 text-left text-sm';
 
+/** Số và tên truy cập của mục có `badge`; `null` khi không có số để hiện (0, hay khung không truyền số). */
+function itemBadge(
+  item: RoleNavItem,
+  unread: number | undefined,
+): { text: string; label: string } | null {
+  // notification F1: số chưa đọc trên mục "Thông báo" (ẩn khi 0 hay khi khung không có `notifications`)
+  if (item.badge === 'notifications' && unread !== undefined) {
+    const text = unreadBadgeText(unread);
+    return text === null ? null : { text, label: unreadLabel(unread) };
+  }
+  // chat F1: số hội thoại chưa đọc trên mục "Tin nhắn" (ẩn khi 0 hay khi router chưa điền `count`)
+  if (item.badge === 'messages' && item.count !== undefined) {
+    const text = unreadBadgeText(item.count);
+    return text === null
+      ? null
+      : { text, label: messagesUnreadLabel(item.count) };
+  }
+  return null;
+}
+
 function NavItemLink({ item, unread }: { item: RoleNavItem; unread?: number }) {
   const Icon = item.icon;
-  // notification F1: số chưa đọc trên mục "Thông báo" (ẩn khi 0 hay khi khung không có `notifications`)
-  const badge =
-    item.badge === 'notifications' && unread !== undefined
-      ? unreadBadgeText(unread)
-      : null;
+  const counted = itemBadge(item, unread);
+  const badge = counted?.text ?? null;
   if (!item.to) {
     // `disabled` như AdminSidebar: không vào được bằng Tab nên chữ ẩn đọc cho trình đọc màn hình
     return (
@@ -40,8 +61,8 @@ function NavItemLink({ item, unread }: { item: RoleNavItem; unread?: number }) {
     <NavLink
       to={item.to}
       end={item.end}
-      // Có số: tên của liên kết là "Thông báo, N chưa đọc" (như chuông); số hiển thị bên dưới ẩn với trình đọc màn hình
-      aria-label={badge !== null ? unreadLabel(unread ?? 0) : undefined}
+      // Có số: tên của liên kết là "Thông báo, N chưa đọc" (như chuông) hay "Tin nhắn, N hội thoại chưa đọc"; số hiển thị bên dưới ẩn với trình đọc màn hình
+      aria-label={counted?.label}
       className={({ isActive }) =>
         `${ITEM_BASE} ${
           // Figma `#0092b8` chữ trắng chỉ 3,62:1, dùng brand-strong 5,28:1 (ADR 0004)

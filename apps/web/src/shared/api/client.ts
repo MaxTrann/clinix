@@ -47,9 +47,14 @@ function buildUrl(path: string, query: RequestOptions['query']): string {
   return search ? `${url}?${search}` : url;
 }
 
-function buildInit(options: RequestOptions, token: string | null): RequestInit {
+function buildInit(
+  options: RequestOptions,
+  token: string | null,
+  binary = false,
+): RequestInit {
   const headers = new Headers(options.headers);
-  headers.set('Accept', 'application/json');
+  // Tải nhị phân (chat F1): nhận mọi kiểu; lỗi vẫn là thân JSON của API
+  headers.set('Accept', binary ? '*/*' : 'application/json');
   if (token !== null) headers.set('Authorization', `Bearer ${token}`);
 
   let body: BodyInit | undefined = options.body;
@@ -176,5 +181,92 @@ export async function request<T = unknown>(
     );
     if (!recovered) throw error;
     return send<T>(url, sendOptions, token());
+  }
+}
+
+// ---- Tải nhị phân (chat F1: tệp đính kèm) ----
+// Nhánh RIÊNG, không dựng lại `send`/`request` ở trên: đường đi (và số bước promise) của `request` giữ đúng như cũ, vì các test dùng đồng hồ giả
+// của module khác phụ thuộc vào nó. Cùng luật: hẹn giờ bao cả lúc đọc thân, huỷ, phân loại lỗi, 401 thì phục hồi phiên rồi gửi lại ĐÚNG một lần.
+
+/** Tệp tải về: byte và hai header để nơi gọi đặt tên, chọn cách hiện (ảnh hay PDF). */
+export interface BinaryResponse {
+  blob: Blob;
+  contentType: string | null;
+  contentDisposition: string | null;
+}
+
+async function sendBinary(
+  url: string,
+  options: RequestOptions,
+  token: string | null,
+): Promise<BinaryResponse> {
+  const { signal: callerSignal, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
+  if (callerSignal?.aborted) throw new RequestAbortedError();
+
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    abort();
+  }, timeoutMs);
+  callerSignal?.addEventListener('abort', abort);
+
+  let status: number;
+  let text: string;
+  try {
+    const response = await fetch(url, {
+      ...buildInit(options, token, true),
+      signal: controller.signal,
+    });
+    status = response.status;
+    if (response.ok)
+      return {
+        blob: await response.blob(),
+        contentType: response.headers.get('Content-Type'),
+        contentDisposition: response.headers.get('Content-Disposition'),
+      };
+    // Lỗi: đọc chữ để ra `ApiError` như mọi lời gọi khác
+    text = await response.text();
+  } catch {
+    if (timedOut) throw new TimeoutError();
+    if (callerSignal?.aborted) throw new RequestAbortedError();
+    throw new NetworkError();
+  } finally {
+    clearTimeout(timer);
+    callerSignal?.removeEventListener('abort', abort);
+  }
+  parseResponse(status, text);
+  // Thân lỗi là JSON nhưng không đúng khuôn lỗi (parseResponse đã ném ở mọi nhánh khác)
+  throw new UnexpectedResponseError(status);
+}
+
+/** Tải byte. Cùng hẹn giờ, huỷ, lỗi và làm mới phiên như `request`; chỉ khác là thân 2xx giữ nguyên dạng byte. */
+export async function requestBinary(
+  path: string,
+  options: Omit<RequestOptions, 'json' | 'body'> = {},
+): Promise<BinaryResponse> {
+  const url = buildUrl(path, options.query);
+  const token = () =>
+    options.skipAuthToken
+      ? null
+      : (getApiAuthHooks()?.getAccessToken() ?? null);
+  const sendOptions = withSessionSignal(options);
+  const sentToken = token();
+
+  try {
+    return await sendBinary(url, sendOptions, sentToken);
+  } catch (error) {
+    const hooks = getApiAuthHooks();
+    if (!(error instanceof ApiError) || error.status !== 401 || !hooks) {
+      throw error;
+    }
+    const recovered = await waitForRecovery(
+      () =>
+        hooks.recoverFromUnauthorized({ path, error, accessToken: sentToken }),
+      sendOptions.signal,
+    );
+    if (!recovered) throw error;
+    return sendBinary(url, sendOptions, token());
   }
 }

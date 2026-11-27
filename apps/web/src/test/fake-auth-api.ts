@@ -46,6 +46,8 @@ export function createFakeAuthApi(
     // notification F1: số trả cho `GET /notifications/unread-count`. Mọi khung vai trò thăm dò đường dẫn này khi gắn, nên bộ giả trả nó KHÔNG cần token
     // (như một trang đã có API giả riêng); nếu không, test chỉ đặt trạng thái đăng nhập sẽ nhận 401, làm mới phiên thất bại và bị đăng xuất giữa ca
     unreadCount: 0,
+    // chat F1: số trả cho `GET /chat/unread-count` (khung Bệnh nhân, Lễ tân, Bác sĩ thăm dò khi gắn); cùng lý do với `unreadCount` ở trên
+    chatUnreadCount: 0,
 
     issueToken() {
       const token = `tok-${++tokenCounter}`;
@@ -142,6 +144,9 @@ export function createFakeAuthApi(
       if (path === '/auth/refresh') return api.handleRefresh();
       if (path === '/notifications/unread-count') {
         return json(200, { soChuaDoc: api.unreadCount });
+      }
+      if (path === '/chat/unread-count') {
+        return json(200, { soHoiThoaiChuaDoc: api.chatUnreadCount });
       }
       if (path === '/auth/logout') {
         api.revoked = true;
