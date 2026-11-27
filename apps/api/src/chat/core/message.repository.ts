@@ -8,6 +8,9 @@ import { CHAT_RATE_LIMIT_MESSAGES } from '../chat.constants.js';
 /** Tầng C1: khoá hội thoại theo khoá chính TRƯỚC mọi thứ, nên tin của một hội thoại được cấp id và commit tuần tự (id = thứ tự hiện; LOI-17). */
 const LOCK_CONVERSATION_SQL = `SELECT hoi_thoai_id AS hoiThoaiId, loai, chi_nhanh_id AS chiNhanhId, nguoi_tao_id AS nguoiTaoId
   FROM hoi_thoai WHERE hoi_thoai_id = ? FOR UPDATE`;
+// Kiểm trước của tin có tệp (chat B4): cùng cột, KHÔNG khoá (chạy ngoài giao dịch, trước khi xử lý tệp); kết luận cuối vẫn do luồng gửi dưới khoá
+const READ_CONVERSATION_SQL = `SELECT hoi_thoai_id AS hoiThoaiId, loai, chi_nhanh_id AS chiNhanhId, nguoi_tao_id AS nguoiTaoId
+  FROM hoi_thoai WHERE hoi_thoai_id = ?`;
 const IS_MEMBER_SQL =
   'SELECT tai_khoan_id FROM tai_khoan_hoi_thoai WHERE tai_khoan_id = ? AND hoi_thoai_id = ?';
 // Hội thoại bác sĩ có đúng hai thành viên: Bệnh nhân chủ và một bác sĩ
@@ -18,13 +21,15 @@ const DOCTOR_MEMBER_SQL = `SELECT m.tai_khoan_id AS taiKhoanId
 const ACCOUNT_STATUS_SQL =
   'SELECT trang_thai AS trangThai FROM tai_khoan WHERE tai_khoan_id = ?';
 // UNIQUE (nguoi_gui_id, ma_gui)
-const FIND_BY_SEND_ID_SQL = `SELECT tin_nhan_id AS tinNhanId, hoi_thoai_id AS hoiThoaiId, noi_dung AS noiDung, thoi_diem_gui AS thoiDiemGui
+const FIND_BY_SEND_ID_SQL = `SELECT tin_nhan_id AS tinNhanId, hoi_thoai_id AS hoiThoaiId, noi_dung AS noiDung, thoi_diem_gui AS thoiDiemGui,
+       tep_dinh_kem IS NOT NULL AS coTep
   FROM tin_nhan WHERE nguoi_gui_id = ? AND ma_gui = ?`;
 // Đúng câu PLAN 5.5: đếm tối đa 20 tin trong cửa sổ, dùng chỉ mục tin_nhan_index_nguoi_gui_thoi_diem (chat P2; X1 M4 đo lại p95 1,5 ms)
 const COUNT_RECENT_SQL =
   'SELECT COUNT(*) AS n FROM (SELECT 1 FROM tin_nhan WHERE nguoi_gui_id = ? AND thoi_diem_gui > ? LIMIT ?) t';
+// Bốn cột tệp cùng trống hoặc cùng có (CHECK `chk_tin_nhan_tep`; chat B4)
 const INSERT_MESSAGE_SQL =
-  'INSERT INTO tin_nhan (hoi_thoai_id, nguoi_gui_id, ma_gui, noi_dung, thoi_diem_gui) VALUES (?, ?, ?, ?, ?)';
+  'INSERT INTO tin_nhan (hoi_thoai_id, nguoi_gui_id, ma_gui, noi_dung, tep_dinh_kem, tep_ten_goc, tep_loai, tep_dung_luong, thoi_diem_gui) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
 // Lễ tân trả lời lần đầu thì có dòng thành viên riêng (mốc NULL); đã có thì KHÔNG đổi gì, mốc đã đọc giữ nguyên (X1 M7)
 const ENSURE_MEMBER_SQL =
   'INSERT INTO tai_khoan_hoi_thoai (tai_khoan_id, hoi_thoai_id, tin_nhan_cuoi_da_doc_id) VALUES (?, ?, NULL) ON DUPLICATE KEY UPDATE tai_khoan_id = tai_khoan_id';
@@ -41,6 +46,20 @@ export interface StoredMessage {
   hoiThoaiId: string;
   noiDung: string;
   thoiDiemGui: Date;
+  /** Tin có tệp đính kèm (chat B4: so khi gửi lại cùng mã gửi). */
+  coTep: boolean;
+}
+
+/** Tệp đã xử lý và ĐÃ ghi kho (chat B4), ghi vào bốn cột `tep_*`. */
+export interface AttachedFile {
+  /** Khoá do kho sinh (`tep_dinh_kem`). */
+  khoa: string;
+  /** Tên hiển thị đã làm sạch (`tep_ten_goc`). */
+  tenGoc: string;
+  /** MIME máy chủ nhận ra từ nội dung (`tep_loai`). */
+  loai: string;
+  /** Số byte đã lưu (`tep_dung_luong`). */
+  dungLuong: number;
 }
 
 @Injectable()
@@ -50,6 +69,23 @@ export class MessageRepository {
     hoiThoaiId: string,
   ): Promise<LockedConversation | null> {
     const rows = await em.query<LockedConversation[]>(LOCK_CONVERSATION_SQL, [
+      hoiThoaiId,
+    ]);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      hoiThoaiId: String(row.hoiThoaiId),
+      loai: row.loai,
+      chiNhanhId: row.chiNhanhId === null ? null : String(row.chiNhanhId),
+      nguoiTaoId: String(row.nguoiTaoId),
+    };
+  }
+
+  async readConversation(
+    em: EntityManager,
+    hoiThoaiId: string,
+  ): Promise<LockedConversation | null> {
+    const rows = await em.query<LockedConversation[]>(READ_CONVERSATION_SQL, [
       hoiThoaiId,
     ]);
     const row = rows[0];
@@ -101,10 +137,9 @@ export class MessageRepository {
     nguoiGuiId: string,
     maGui: string,
   ): Promise<StoredMessage | null> {
-    const rows = await em.query<StoredMessage[]>(FIND_BY_SEND_ID_SQL, [
-      nguoiGuiId,
-      maGui,
-    ]);
+    const rows = await em.query<
+      (Omit<StoredMessage, 'coTep'> & { coTep: number | string })[]
+    >(FIND_BY_SEND_ID_SQL, [nguoiGuiId, maGui]);
     const row = rows[0];
     if (!row) return null;
     return {
@@ -112,6 +147,7 @@ export class MessageRepository {
       hoiThoaiId: String(row.hoiThoaiId),
       noiDung: row.noiDung,
       thoiDiemGui: row.thoiDiemGui,
+      coTep: Number(row.coTep) === 1,
     };
   }
 
@@ -137,8 +173,10 @@ export class MessageRepository {
       maGui: string;
       noiDung: string;
       thoiDiemGui: Date;
+      tep: AttachedFile | null;
     },
   ): Promise<string> {
+    const { tep } = message;
     const result = await em.query<{ insertId: number | string }>(
       INSERT_MESSAGE_SQL,
       [
@@ -146,6 +184,10 @@ export class MessageRepository {
         message.nguoiGuiId,
         message.maGui,
         message.noiDung,
+        tep?.khoa ?? null,
+        tep?.tenGoc ?? null,
+        tep?.loai ?? null,
+        tep?.dungLuong ?? null,
         message.thoiDiemGui,
       ],
     );

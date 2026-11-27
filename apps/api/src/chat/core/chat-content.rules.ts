@@ -22,7 +22,7 @@ export function codePointLength(text: string): number {
 }
 
 /**
- * Mã lỗi của nội dung ĐÃ chuẩn hoá, hoặc `null` nếu hợp lệ. `hasFile`: tin có tệp được phép không có chữ (B4); đợt này luôn `false`.
+ * Mã lỗi của nội dung ĐÃ chuẩn hoá, hoặc `null` nếu hợp lệ. `hasFile`: tin có tệp được phép không có chữ (chat B4, TEP-13).
  * Không đụng HTML: lưu nguyên văn, web hiển thị dạng chữ (PLAN 5.11).
  */
 export function contentError(
@@ -49,15 +49,26 @@ export type CheckedInput =
   | { ok: true; noiDung: string; maGui: string }
   | { ok: false; loi: FieldError[] };
 
-/** Kiểm cả hai trường một lượt (trả MỌI lỗi, không dừng ở lỗi đầu) như `ValidationPipe`. Nhận `unknown` vì socket (B5) không qua DTO. */
-export function checkSendInput(noiDung: unknown, maGui: unknown): CheckedInput {
+/**
+ * Kiểm cả hai trường một lượt (trả MỌI lỗi, không dừng ở lỗi đầu) như `ValidationPipe`. Nhận `unknown` vì socket (B5) không qua DTO.
+ * `hasFile` (chat B4): tin có tệp được để trống chữ, kể cả không gửi trường `noiDung` (multipart chỉ có tệp); tin không tệp vẫn bắt buộc có chữ (LOI-03).
+ */
+export function checkSendInput(
+  noiDung: unknown,
+  maGui: unknown,
+  hasFile = false,
+): CheckedInput {
   const loi: FieldError[] = [];
   const normalized =
-    typeof noiDung === 'string' ? normalizeContent(noiDung) : null;
+    typeof noiDung === 'string'
+      ? normalizeContent(noiDung)
+      : noiDung === undefined && hasFile
+        ? ''
+        : null;
   const contentCode =
     normalized === null
       ? CHAT_FIELD_ERRORS.CONTENT_EMPTY
-      : contentError(normalized);
+      : contentError(normalized, hasFile);
   if (contentCode !== null) loi.push({ truong: 'noiDung', ma: contentCode });
   const sendId = normalizeSendId(maGui);
   if (sendId === null)
