@@ -12,7 +12,8 @@ import { MessageThread } from './message-thread';
 import { useConversationList } from './use-conversation-list';
 
 // Khung nhắn tin DÙNG CHUNG cho Bệnh nhân, Bác sĩ, Lễ tân (chat F3; PLAN chat 5.13). Cấu hình theo vai trò chỉ ở chữ và bộ lọc; quyền, phạm vi chi nhánh, nội dung
-// đối tác đều do máy chủ quyết (web không lọc ở client). F4, F5 thêm phần riêng (bắt đầu trò chuyện, hộp thư), F2 thay làm tươi bằng socket, F6 thêm tệp.
+// đối tác đều do máy chủ quyết (web không lọc ở client). F4 thêm phần bắt đầu trò chuyện của Bệnh nhân, F2 socket, F6 tệp. Hộp thư Bác sĩ, Lễ tân (F5) là chính
+// khung này với cấu hình theo vai trò (ô tìm, nhãn trả lời, SĐT); Bác sĩ, Lễ tân không có nút tạo hội thoại (2.4.29 b1).
 // - Hội thoại đang mở nằm ở `?hoiThoai=` (liên kết từ Trung tâm thông báo mở thẳng; nút Lùi của trình duyệt về danh sách).
 // - Từ 1024 px: hai cột. Hẹp hơn: một màn, có "Quay lại" và Esc về danh sách (WCH-16). Hẹp/rộng do `useMediaQuery` (test kiểm được, nếp patient F11).
 // - Tiêu điểm: mở hội thoại ⇒ về tiêu đề khung tin; quay lại (màn hẹp) ⇒ về đúng dòng vừa mở (WCH-15).

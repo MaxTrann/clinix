@@ -91,7 +91,7 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
           ...DOCTOR_APPOINTMENT_ROUTES,
           // notification F1: Thông báo
           ...NOTIFICATION_ROUTES,
-          // chat F1: Tin nhắn (trang tạm; khung nhắn tin là chat F3)
+          // chat F1: Tin nhắn; chat F5: hộp thư của Bác sĩ (tìm theo họ tên, quan hệ khám; không tự tạo hội thoại)
           ...CHAT_ROUTES,
         ],
       },
@@ -117,7 +117,7 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
           ...RECEPTION_SCHEDULE_ROUTES,
           // notification F1: Thông báo
           ...NOTIFICATION_ROUTES,
-          // chat F1: Tin nhắn (trang tạm; khung nhắn tin là chat F3)
+          // chat F1: Tin nhắn; chat F5: hộp thư chung của chi nhánh (tìm theo họ tên, SĐT, email; nhãn trả lời)
           ...CHAT_ROUTES,
         ],
       },

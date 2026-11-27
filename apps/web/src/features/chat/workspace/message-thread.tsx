@@ -6,6 +6,8 @@ import {
   NO_ACCESS_MESSAGE,
   dayDividerLabel,
   formatClock,
+  FORBIDDEN_MESSAGE,
+  isForbidden,
   isNotFound,
   recipientInactiveReason,
   vnDayKey,
@@ -71,9 +73,10 @@ export function MessageThread({
       )}
       {state.status === 'error' && (
         <div className="p-3">
-          {isNotFound(state.error) ? (
+          {isNotFound(state.error) || isForbidden(state.error) ? (
+            // 404 (không thấy hay không phải thành viên) và 403 (Lễ tân hết phạm vi chi nhánh): từ chối, không "Thử lại" (2.4.29 A1)
             <p role="alert" className="my-2 text-sm text-danger-strong">
-              {NO_ACCESS_MESSAGE}
+              {isNotFound(state.error) ? NO_ACCESS_MESSAGE : FORBIDDEN_MESSAGE}
             </p>
           ) : (
             <ErrorState error={state.error} onRetry={thread.retry} />
