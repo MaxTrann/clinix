@@ -153,26 +153,23 @@ describe('hiển thị phản hồi (WTL-03)', () => {
     expect(asked).toHaveClass('whitespace-pre-wrap');
   });
 
-  it('WTL-03 `GoiY` ở F1 chỉ hiện phần chữ (thẻ gợi ý là của F2): không nút chọn chuyên khoa, không thẻ bác sĩ', async () => {
+  it('WTL-03 `GoiY`: phần chữ vẫn có liên kết chuyên khoa; từ chatbot F2 có thêm thẻ gợi ý, nhưng chưa chọn thì chưa có bác sĩ, ô giờ hay dòng đăng nhập', async () => {
     await showReply(goiY());
 
-    expect(screen.getByRole('link', { name: 'Nội tổng quát' })).toHaveAttribute(
-      'href',
-      '/chuyen-khoa/3',
-    );
+    // Hai liên kết cùng đích: tên trong đoạn chữ và tên trong thẻ gợi ý (F2)
+    const links = screen.getAllByRole('link', { name: 'Nội tổng quát' });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute('href', '/chuyen-khoa/3');
+    }
     expect(
-      screen.queryByRole('button', { name: /Chọn chuyên khoa/ }),
-    ).toBeNull();
-    // Chỉ còn các nút của khung: đóng, gửi, xoá
+      screen.getByRole('region', { name: 'Gợi ý đặt lịch khám' }),
+    ).toBeInTheDocument();
     expect(
-      screen
-        .getAllByRole('button')
-        .map(
-          (button) => button.getAttribute('aria-label') ?? button.textContent,
-        ),
-    ).toEqual(
-      expect.arrayContaining(['Đóng Trợ lý AI', 'Gửi', 'Xoá hội thoại']),
-    );
+      screen.getByRole('button', { name: 'Chọn chuyên khoa này' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Ngày khám' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^\d\d:\d\d/ })).toBeNull();
     expect(screen.queryByText(/Đăng nhập để đặt lịch/)).toBeNull();
   });
 });
