@@ -9,3 +9,5 @@ export { AdminScopeGuard } from './admin-scope-guard';
 export { useAdminScope } from './use-admin-scope';
 // dashboard F1: trang Tổng quan hiện trang "không đủ quyền" của khu Admin khi API trả 403
 export { AdminForbiddenPage } from './admin-forbidden-page';
+// article F1 (T22): biểu mẫu bài viết đưa focus vào ô lỗi đầu tiên bằng hook này, chỉ qua index này
+export { useFocusFirstInvalid } from './hooks/use-focus-first-invalid';

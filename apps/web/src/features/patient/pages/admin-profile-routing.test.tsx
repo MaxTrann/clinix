@@ -77,7 +77,7 @@ describe('mục menu và đường dẫn của Quản trị viên (KG-04, KG-06)
     ).toHaveAttribute('href', '/admin/thong-tin-phong-kham');
   });
 
-  it('AQ-03 KG-04 chỉ mục này đổi từ nút vô hiệu thành liên kết: mười lăm liên kết, mọi nút còn lại vô hiệu, "Thông báo" ngay trên là liên kết từ notification F3; nhãn và thứ tự nhóm "Tài khoản" không đổi', async () => {
+  it('AQ-03 KG-04 chỉ mục này đổi từ nút vô hiệu thành liên kết: mười sáu liên kết, mọi nút còn lại vô hiệu, "Thông báo" ngay trên là liên kết từ notification F3; nhãn và thứ tự nhóm "Tài khoản" không đổi', async () => {
     await renderAdminProfilePage();
     const menu = menuOf(await adminSidebar());
 
@@ -93,6 +93,7 @@ describe('mục menu và đường dẫn của Quản trị viên (KG-04, KG-06)
     // Đổi ở payment F7 (19/11/2026, chờ Đại duyệt ở PR): "Yêu cầu rút tiền" (nhóm Tài chính, chỉ Toàn hệ thống) có trang nên là liên kết, đứng sau "Loại dịch vụ khám" và trước "Kiểm duyệt đánh giá"
     // Đổi ở admin F7 (22/11/2026, chờ Đại duyệt ở PR): "Bác sĩ" (nhóm Quản lý) có trang hồ sơ bác sĩ nên là liên kết, đứng sau "Nhân sự & Tài khoản" và trước "Chuyên khoa"
     // Đổi ở notification F3 (25/11/2026, chờ Đại duyệt ở PR): "Thông báo" (nhóm Tài khoản) có trang nên là liên kết, đứng ngay trước "Thông tin cá nhân"
+    // Đổi ở article F1 (28/11/2026): "Bài viết" (nhóm Nội dung, chỉ Toàn hệ thống) có trang nên là liên kết, đứng sau "Yêu cầu rút tiền" và NGAY TRƯỚC "Kiểm duyệt đánh giá"
     expect(links).toEqual([
       'Tổng quan',
       'Lịch hẹn',
@@ -104,6 +105,7 @@ describe('mục menu và đường dẫn của Quản trị viên (KG-04, KG-06)
       'Thông tin phòng khám',
       'Loại dịch vụ khám',
       'Yêu cầu rút tiền',
+      'Bài viết',
       'Kiểm duyệt đánh giá',
       'Đặt cọc & Hoàn tiền',
       'Cài đặt hệ thống',
