@@ -71,3 +71,45 @@ export interface ArticlePatch {
   hashtag?: string[];
   trangThai?: ArticleStatus;
 }
+
+// ----- Công khai (article F2; PLAN 5.7 "Công khai (B2)"; đã đối chiếu với mã B2 thật ở `83bd275`) -----
+// Mọi khoá thời điểm là chuỗi ISO 8601 UTC; `thoiDiemXuatBan` là `null` khi dữ liệu lệch (bài đã xuất bản mà thiếu thời điểm, B2 ABP-12).
+// `anhDaiDien` luôn có khoá nhưng hiện `null` (ảnh là việc của F4). Không có tác giả, không có trạng thái (chỉ bài `DaXuatBan`).
+export interface PublicArticleItem {
+  baiVietId: string;
+  tieuDe: string;
+  moTaNgan: string | null;
+  anhDaiDien: string | null;
+  thoiDiemXuatBan: string | null;
+  // Chỉ thẻ đang hoạt động, sắp theo tên
+  hashtag: string[];
+}
+
+export interface PublicArticleDetail extends PublicArticleItem {
+  noiDung: string;
+}
+
+export interface PublicArticlePage {
+  items: PublicArticleItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// Thẻ phổ biến cho chip lọc ở trang danh sách (tối đa 20; `soBai` giảm dần rồi tên)
+export interface PublicArticleTag {
+  ten: string;
+  soBai: number;
+}
+
+// Máy chủ: mặc định 9, tối đa 30. Khối trang chủ lấy 4 bài mới nhất.
+export const PUBLIC_LIST_PAGE_SIZE = 9;
+export const HOME_HANDBOOK_SIZE = 4;
+
+// `q` và `the` chỉ có mặt khi có giá trị: `the` RỖNG bị máy chủ từ chối (400 `BO_LOC_KHONG_HOP_LE`), nên web bỏ khoá khi không chọn thẻ.
+export interface PublicArticleListQuery {
+  q?: string;
+  the?: string;
+  page: number;
+  pageSize?: number;
+}

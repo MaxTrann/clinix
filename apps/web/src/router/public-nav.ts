@@ -1,3 +1,4 @@
+import { ARTICLE_LIST_PATH } from '../features/article';
 import {
   BOOKING_PATH,
   DOCTOR_TEAM_PATH,
@@ -12,7 +13,7 @@ export const PUBLIC_NAV: PublicNavConfig = {
     { label: 'Dịch vụ khám', to: BOOKING_PATH, hasMenu: true },
     { label: 'Chuyên khoa', to: '/chuyen-khoa' },
     { label: 'Bác sĩ', to: DOCTOR_TEAM_PATH },
-    { label: 'Cẩm nang' },
+    { label: 'Cẩm nang', to: ARTICLE_LIST_PATH },
     { label: 'Liên hệ' },
   ],
   // Q19d: mở luồng chọn nhóm dịch vụ (TCBS b1) khi có trang
@@ -23,7 +24,7 @@ export const PUBLIC_NAV: PublicNavConfig = {
     { label: 'Chuyên khoa', to: '/chuyen-khoa' },
     { label: 'Chi nhánh', to: '/chi-nhanh' },
     { label: 'Đội ngũ bác sĩ', to: DOCTOR_TEAM_PATH },
-    { label: 'Cẩm nang sức khỏe' },
+    { label: 'Cẩm nang sức khỏe', to: ARTICLE_LIST_PATH },
     { label: 'Về chúng tôi' },
     { label: 'Câu hỏi thường gặp' },
   ],

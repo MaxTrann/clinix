@@ -3,6 +3,9 @@ import type {
   ArticleListItem,
   ArticleListPage,
   ArticleStatusCounts,
+  PublicArticleDetail,
+  PublicArticleItem,
+  PublicArticlePage,
 } from '../api/article-types';
 
 // Dữ liệu giả đúng hợp đồng PLAN article 5.7 (không phải của ai). Chỉ dùng trong test.
@@ -62,4 +65,65 @@ export function makeListPage(
     demTheoTrangThai: countByStatus(items),
     ...overrides,
   };
+}
+
+// ----- Công khai (article F2): API công khai chỉ trả bài ĐÃ XUẤT BẢN, không có tác giả, không có trạng thái -----
+export function makePublished(
+  overrides: Partial<ArticleDetail> = {},
+): ArticleDetail {
+  return makeDetail({
+    trangThai: 'DaXuatBan',
+    thoiDiemXuatBan: '2026-11-28T03:00:00.000Z',
+    ...overrides,
+  });
+}
+
+// Đúng 6 khoá của danh sách công khai (hợp đồng B2)
+export function toPublicItem(detail: ArticleDetail): PublicArticleItem {
+  return {
+    baiVietId: detail.baiVietId,
+    tieuDe: detail.tieuDe,
+    moTaNgan: detail.moTaNgan,
+    anhDaiDien: detail.anhDaiDien,
+    thoiDiemXuatBan: detail.thoiDiemXuatBan,
+    hashtag: [...detail.hashtag],
+  };
+}
+
+export function toPublicDetail(detail: ArticleDetail): PublicArticleDetail {
+  return { ...toPublicItem(detail), noiDung: detail.noiDung };
+}
+
+export function makePublicItem(
+  overrides: Partial<PublicArticleItem> = {},
+): PublicArticleItem {
+  return toPublicItem(makePublished(overrides));
+}
+
+export function makePublicPage(
+  items: PublicArticleItem[],
+  overrides: Partial<PublicArticlePage> = {},
+): PublicArticlePage {
+  return {
+    items,
+    total: items.length,
+    page: 1,
+    pageSize: 9,
+    ...overrides,
+  };
+}
+
+// `count` bài đã xuất bản "Bài n" (n từ 1); bài 1 xuất bản MỚI nhất (thời điểm giảm dần theo n) nên thứ tự công khai là 1, 2, 3…
+export function makeManyPublished(count: number): ArticleDetail[] {
+  return Array.from({ length: count }, (_, index) =>
+    makePublished({
+      baiVietId: String(index + 1),
+      tieuDe: `Bài ${index + 1}`,
+      thoiDiemXuatBan: new Date(
+        Date.UTC(2026, 10, 28, 3, 0) - index * 60_000,
+      ).toISOString(),
+      noiDung: `Nội dung ${index + 1}`,
+      hashtag: [],
+    }),
+  );
 }

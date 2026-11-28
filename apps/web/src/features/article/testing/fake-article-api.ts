@@ -2,6 +2,8 @@ import { ApiError, RequestAbortedError } from '../../../shared/api/errors';
 import type { ArticleApi } from '../api/article-api';
 import {
   ARTICLE_LIST_PAGE_SIZE,
+  ARTICLE_SEARCH_MAX_LENGTH,
+  PUBLIC_LIST_PAGE_SIZE,
   TAG_SUGGESTION_LIMIT,
   type ArticleDetail,
   type ArticleListPage,
@@ -9,8 +11,14 @@ import {
   type ArticleStatus,
 } from '../api/article-types';
 import { ARTICLE_ERROR } from '../common/article-errors';
+import { isArticleId } from '../common/article-paths';
 import { normalizeHashtag, HASHTAG_MAX_COUNT } from '../common/hashtag-name';
-import { countByStatus, toListItem } from './article-fixtures';
+import {
+  countByStatus,
+  toListItem,
+  toPublicDetail,
+  toPublicItem,
+} from './article-fixtures';
 
 // Máy chủ bài viết GIẢ trong bộ nhớ, làm đúng hợp đồng PLAN article 5.7 và 5.8 (kiểm dữ liệu, mã lỗi, đếm theo trạng thái, sắp theo cập nhật giảm dần).
 // Chỉ dùng trong test. Hợp đồng thật do B1 giữ: đối chiếu lại khi B1 vào `main`.
@@ -41,6 +49,10 @@ const MAX_TITLE = 255;
 const MAX_SUMMARY = 500;
 const MAX_CONTENT_CHARS = 20_000;
 const MAX_CONTENT_BYTES = 60_000;
+// Công khai (B2): bộ lọc sai dạng có mã riêng; `q` tối đa 100 đơn vị UTF-16; thẻ phổ biến tối đa 20
+const INVALID_FILTER = 'BO_LOC_KHONG_HOP_LE';
+const MAX_KEYWORD = ARTICLE_SEARCH_MAX_LENGTH;
+const MAX_POPULAR_TAGS = 20;
 
 // Ký tự điều khiển bị cấm, trừ xuống dòng và tab (PLAN article T7). Duyệt mã ký tự thay vì regex để khỏi vướng luật `no-control-regex`.
 function hasControlChars(text: string): boolean {
@@ -267,6 +279,76 @@ export function createFakeArticleApi(
         .filter((name) => foldAccents(name).startsWith(foldAccents(prefix)))
         .sort()
         .slice(0, TAG_SUGGESTION_LIMIT);
+    },
+
+    // ----- Công khai (article F2): làm đúng hợp đồng B2 đã merge (`83bd275`), kể cả những chỗ máy chủ TỪ CHỐI -----
+    async listPublic(query, signal) {
+      await enter('listPublic', [query], signal);
+      // `the` RỖNG hay sai dạng ⇒ 400 `BO_LOC_KHONG_HOP_LE`: bản giả từ chối để test bắt được web lỡ gửi `the=`
+      const tag = query.the === undefined ? null : normalizeHashtag(query.the);
+      if (tag !== null && !tag.ok) {
+        throw apiError(400, INVALID_FILTER, {
+          loi: [{ truong: 'the', ma: ARTICLE_ERROR.tagInvalid }],
+        });
+      }
+      const keyword = query.q?.trim().normalize('NFC');
+      if (keyword !== undefined && keyword.length > MAX_KEYWORD) {
+        throw fieldError('q', ARTICLE_ERROR.invalidKeyword);
+      }
+      // Khớp tiêu đề và thẻ KHÔNG phân biệt hoa thường, dấu thanh, mũ, móc (collation `utf8mb4_unicode_ci`); `đ` khác `d`
+      const matching = [...store.values()]
+        .filter((article) => article.trangThai === 'DaXuatBan')
+        .filter(
+          (article) =>
+            !keyword ||
+            foldAccents(article.tieuDe).includes(foldAccents(keyword)),
+        )
+        .filter(
+          (article) =>
+            tag === null ||
+            article.hashtag.some(
+              (name) => foldAccents(name) === foldAccents(tag.name),
+            ),
+        )
+        // Mới nhất trước; bài thiếu thời điểm xuất bản (dữ liệu lệch) xếp CUỐI; hoà thì mã giảm dần
+        .sort(
+          (a, b) =>
+            (b.thoiDiemXuatBan ?? '').localeCompare(a.thoiDiemXuatBan ?? '') ||
+            Number(b.baiVietId) - Number(a.baiVietId),
+        );
+      const pageSize = query.pageSize ?? PUBLIC_LIST_PAGE_SIZE;
+      const start = (query.page - 1) * pageSize;
+      return {
+        items: matching.slice(start, start + pageSize).map(toPublicItem),
+        total: matching.length,
+        page: query.page,
+        pageSize,
+      };
+    },
+
+    // Sai dạng, không có, nháp, lưu trữ: CÙNG một 404 `KHONG_TIM_THAY`
+    async getPublic(id, signal) {
+      await enter('getPublic', [id], signal);
+      const article = isArticleId(id) ? store.get(id) : undefined;
+      if (article === undefined || article.trangThai !== 'DaXuatBan') {
+        throw apiError(404, ARTICLE_ERROR.notFound);
+      }
+      return toPublicDetail(article);
+    },
+
+    async listPublicTags(signal) {
+      await enter('listPublicTags', [], signal);
+      const counts = new Map<string, number>();
+      for (const article of store.values()) {
+        if (article.trangThai !== 'DaXuatBan') continue;
+        for (const name of article.hashtag) {
+          counts.set(name, (counts.get(name) ?? 0) + 1);
+        }
+      }
+      return [...counts]
+        .map(([ten, soBai]) => ({ ten, soBai }))
+        .sort((a, b) => b.soBai - a.soBai || a.ten.localeCompare(b.ten, 'vi'))
+        .slice(0, MAX_POPULAR_TAGS);
     },
   };
 }

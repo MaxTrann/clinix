@@ -116,7 +116,13 @@ describe('PublicHeader', () => {
       'aria-current',
       'page',
     );
-    for (const name of ['Cẩm nang', 'Liên hệ']) {
+    // article F2 (ABG-01): "Cẩm nang" mở trang danh sách bài viết nên là liên kết thật; chỉ "Liên hệ" còn là nút vô hiệu
+    expect(nav.getByRole('link', { name: 'Cẩm nang' })).toHaveAttribute(
+      'href',
+      '/cam-nang',
+    );
+    expect(nav.queryByRole('button', { name: /Cẩm nang/ })).toBeNull();
+    for (const name of ['Liên hệ']) {
       expect(
         nav.getByRole('button', { name: new RegExp(name) }),
       ).toBeDisabled();
