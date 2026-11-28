@@ -432,6 +432,9 @@ describe('article B2 — API công khai bài viết (HTTP)', () => {
         anhDaiDien: null,
         thoiDiemXuatBan: at(5).toISOString(),
         hashtag: ['ho', 'sot'],
+        // article B3 cộng hai khoá (bài chưa ai bấm ⇒ 0); các luật "không tác giả, email, trạng thái" bên dưới giữ nguyên
+        luotThich: 0,
+        luotKhongThich: 0,
       });
       const text = JSON.stringify(response.body);
       for (const secret of [AUTHOR_EMAIL, AUTHOR_NAME, 'tacGia', 'trangThai'])

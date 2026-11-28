@@ -2,6 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { escapeLikePattern } from '../../common/paging/like-pattern.js';
 import { runReadOnly } from '../../common/transaction/read-only-tx.js';
+import {
+  readRatingCounts,
+  type RatingTotals,
+} from '../common/rating-counts.js';
 
 // SQL của API công khai bài viết (article B2; PLAN article 5.7, 5.10, T19). CHỈ ĐỌC: mỗi lời gọi chạy trong MỘT `runReadOnly` (REPEATABLE READ, READ ONLY) nên `total` khớp `items`
 // và mọi câu ghi lọt vào đây bị MySQL từ chối (ABP-09). Mọi giá trị đi qua tham số `?`; các mảnh SQL cố định là hằng UPPER_SNAKE_CASE.
@@ -95,10 +99,15 @@ export class PublicArticleRepository {
     });
   }
 
-  /** Chi tiết một bài ĐÃ XUẤT BẢN kèm nội dung và thẻ hoạt động; `null` nếu không có hay chưa/không còn xuất bản. */
-  async detail(
-    id: string,
-  ): Promise<{ row: PublicArticleDetailRow; tags: string[] } | null> {
+  /**
+   * Chi tiết một bài ĐÃ XUẤT BẢN kèm nội dung, thẻ hoạt động và số Thích / Không thích (B3, cùng `runReadOnly` nên cùng ảnh chụp với câu chi tiết); `null` nếu không có hay chưa/không còn xuất bản.
+   * Ẩn bài KHÔNG xoá phiếu nên xuất bản lại thì số cũ hiện lại (2.4.55 A2 3c, ABR-09).
+   */
+  async detail(id: string): Promise<{
+    row: PublicArticleDetailRow;
+    tags: string[];
+    counts: RatingTotals;
+  } | null> {
     return runReadOnly(this.db, async (manager) => {
       const rows: PublicArticleDetailRow[] = await manager.query(DETAIL_SQL, [
         id,
@@ -106,7 +115,8 @@ export class PublicArticleRepository {
       const row = rows[0];
       if (!row) return null;
       const tags = await this.tagsOf(manager, [row.baiVietId]);
-      return { row, tags: tags.get(row.baiVietId) ?? [] };
+      const counts = await readRatingCounts(manager, row.baiVietId);
+      return { row, tags: tags.get(row.baiVietId) ?? [], counts };
     });
   }
 

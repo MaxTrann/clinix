@@ -61,9 +61,11 @@ export interface PublicArticleItem {
   hashtag: string[];
 }
 
-/** Chi tiết: như một phần tử danh sách, thêm `noiDung`. B3 CỘNG thêm `luotThich`, `luotKhongThich` (không đổi khoá cũ). */
+/** Chi tiết: như một phần tử danh sách, thêm `noiDung`. B3 CỘNG thêm `luotThich`, `luotKhongThich` (số nguyên không âm, 0 khi chưa ai bấm; không đổi khoá cũ, ABR-09). */
 export interface PublicArticleDetail extends PublicArticleItem {
   noiDung: string;
+  luotThich: number;
+  luotKhongThich: number;
 }
 
 export type PublicArticlePage = Paged<PublicArticleItem>;

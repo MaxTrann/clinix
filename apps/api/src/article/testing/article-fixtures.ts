@@ -1,3 +1,4 @@
+import { onTestFinished } from 'vitest';
 import { EntityManager, QueryFailedError, type DataSource } from 'typeorm';
 import type { AppException } from '../../common/errors/app.exception.js';
 import { ARTICLE_TABLES } from '../article.constants.js';
@@ -89,6 +90,45 @@ export class ArticleFixtures {
       'INSERT INTO benh_nhan_danh_gia_bai_viet (benh_nhan_id, bai_viet_id, loai) VALUES (?, ?, ?)',
       [benhNhanId, baiVietId, loai],
     );
+  }
+
+  // --- article B3: quan sát phiếu đánh giá cho test API đánh giá (đọc thẳng bảng, độc lập với mã đang kiểm) ---
+
+  /** Loại phiếu của một Bệnh nhân cho một bài; `null` nếu không có phiếu. */
+  async ratingOf(
+    benhNhanId: string,
+    baiVietId: string,
+  ): Promise<LoaiDanhGiaBaiViet | null> {
+    const rows: { loai: LoaiDanhGiaBaiViet }[] = await this.db.query(
+      'SELECT loai FROM benh_nhan_danh_gia_bai_viet WHERE benh_nhan_id = ? AND bai_viet_id = ?',
+      [benhNhanId, baiVietId],
+    );
+    return rows[0]?.loai ?? null;
+  }
+
+  /** Mọi phiếu của một bài (mã Bệnh nhân và loại), sắp theo mã Bệnh nhân tăng dần. */
+  async ratingRows(
+    baiVietId: string,
+  ): Promise<{ benhNhanId: string; loai: LoaiDanhGiaBaiViet }[]> {
+    return this.db.query(
+      'SELECT CAST(benh_nhan_id AS CHAR) AS benhNhanId, loai FROM benh_nhan_danh_gia_bai_viet WHERE bai_viet_id = ? ORDER BY benh_nhan_id',
+      [baiVietId],
+    );
+  }
+
+  /** Số Thích và Không thích của một bài tính bằng một câu KHÁC với câu của mã (cộng có điều kiện, không `GROUP BY`): đối chứng độc lập. */
+  async ratingTotals(
+    baiVietId: string,
+  ): Promise<{ luotThich: number; luotKhongThich: number }> {
+    const rows: { thich: string | null; khong: string | null }[] =
+      await this.db.query(
+        "SELECT SUM(loai = 'Thich') AS thich, SUM(loai = 'KhongThich') AS khong FROM benh_nhan_danh_gia_bai_viet WHERE bai_viet_id = ?",
+        [baiVietId],
+      );
+    return {
+      luotThich: Number(rows[0]?.thich ?? 0),
+      luotKhongThich: Number(rows[0]?.khong ?? 0),
+    };
   }
 
   // --- article B2: dữ liệu cho test API công khai ---
@@ -320,4 +360,38 @@ export function createGate(): {
     markReached = resolve;
   });
   return { opened, open, reached, markReached };
+}
+
+/**
+ * article B3: giữ giao dịch giữa hai bước cho ca cổng (ABR-07, ABR-08). Sau khi lời gọi thứ `call` (mặc định 1) của `method` trên `prototype` chạy xong (thật, không giả kết quả),
+ * giao dịch của nó dừng ở `gate` cho tới khi `gate.open()`; các lời gọi khác chạy bình thường. Cổng được mở cả khi ca đỏ giữa chừng (`onTestFinished`): giao dịch bị giữ phải kết thúc,
+ * nếu không nó giữ khoá làm hook `TRUNCATE` của ca sau treo (bài học B1). Khôi phục ở `vi.restoreAllMocks()` của `useIntegrationHooks`.
+ */
+export function holdAfter(
+  prototype: object,
+  method: string,
+  gate: ReturnType<typeof createGate>,
+  call = 1,
+): void {
+  const target = prototype as Record<
+    string,
+    (...args: unknown[]) => Promise<unknown>
+  >;
+  const real = target[method];
+  if (typeof real !== 'function')
+    throw new Error(`Không có phương thức ${method} để giữ cổng`);
+  let calls = 0;
+  vi.spyOn(target, method).mockImplementation(async function (
+    this: unknown,
+    ...args: unknown[]
+  ) {
+    const result = await real.apply(this, args);
+    calls += 1;
+    if (calls === call) {
+      gate.markReached();
+      await gate.opened;
+    }
+    return result;
+  });
+  onTestFinished(() => gate.open());
 }

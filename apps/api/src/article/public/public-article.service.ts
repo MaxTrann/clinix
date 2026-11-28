@@ -8,6 +8,7 @@ import {
   invalidFilter,
 } from '../common/article-errors.js';
 import { normalizeHashtag } from '../common/hashtag-name.js';
+import type { RatingTotals } from '../common/rating-counts.js';
 import type {
   PublicArticleDetail,
   PublicArticleItem,
@@ -36,12 +37,18 @@ function toItem(row: PublicArticleRow, tags: string[]): PublicArticleItem {
   };
 }
 
-/** Chi tiết dựng ở MỘT chỗ để B3 cộng `luotThich`, `luotKhongThich` mà không đụng danh sách. */
+/** Chi tiết dựng ở MỘT chỗ; B3 cộng `luotThich`, `luotKhongThich` (đếm cùng ảnh chụp với câu chi tiết) mà không đụng danh sách. */
 function toDetail(
   row: PublicArticleDetailRow,
   tags: string[],
+  counts: RatingTotals,
 ): PublicArticleDetail {
-  return { ...toItem(row, tags), noiDung: row.noiDung };
+  return {
+    ...toItem(row, tags),
+    noiDung: row.noiDung,
+    luotThich: counts.luotThich,
+    luotKhongThich: counts.luotKhongThich,
+  };
 }
 
 /** `the` vắng ⇒ không lọc; sai dạng (kể cả rỗng) ⇒ 400 `BO_LOC_KHONG_HOP_LE`; đúng dạng thì chuẩn hoá như khi lưu (thẻ không có thì danh sách rỗng, không lỗi). */
@@ -86,7 +93,7 @@ export class PublicArticleService {
     if (!isArticleId(rawId)) throw articleNotFound();
     const found = await this.repository.detail(rawId);
     if (!found) throw articleNotFound();
-    return toDetail(found.row, found.tags);
+    return toDetail(found.row, found.tags, found.counts);
   }
 
   async popularTags(): Promise<{ items: PublicTagItem[] }> {

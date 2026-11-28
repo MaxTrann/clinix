@@ -82,11 +82,12 @@ describe('article B2 — service công khai: chi tiết', () => {
     expect(bodies[0]).toMatchObject({ maLoi: 'KHONG_TIM_THAY' });
   });
 
-  it('ABP-06: chi tiết có đúng 7 khoá (không tacGia, tacGiaId, email, trangThai) dù repository đọc thừa; thời điểm thành ISO UTC', async () => {
+  it('ABP-06, ABR-09: chi tiết có đúng 9 khoá (7 của B2 + luotThich, luotKhongThich của B3; không tacGia, tacGiaId, email, trangThai) dù repository đọc thừa; thời điểm thành ISO UTC', async () => {
     const { service, repository } = setup();
     repository.detail.mockResolvedValue({
       row: { ...dirty(), noiDung: 'Nội dung <b>nguyên văn</b>' },
       tags: ['sot', 'ho'],
+      counts: { luotThich: 3, luotKhongThich: 2 },
     });
     const result = await service.detail('7');
     expect(Object.keys(result).sort()).toEqual(
@@ -94,6 +95,8 @@ describe('article B2 — service công khai: chi tiết', () => {
         'anhDaiDien',
         'baiVietId',
         'hashtag',
+        'luotKhongThich',
+        'luotThich',
         'moTaNgan',
         'noiDung',
         'thoiDiemXuatBan',
@@ -108,6 +111,8 @@ describe('article B2 — service công khai: chi tiết', () => {
       thoiDiemXuatBan: '2026-11-05T02:30:00.000Z',
       hashtag: ['sot', 'ho'],
       noiDung: 'Nội dung <b>nguyên văn</b>',
+      luotThich: 3,
+      luotKhongThich: 2,
     });
     expect(JSON.stringify(result)).not.toMatch(/tac\.gia|Tác Giả|DaXuatBan/);
   });
@@ -117,6 +122,7 @@ describe('article B2 — service công khai: chi tiết', () => {
     repository.detail.mockResolvedValue({
       row: { ...dirty({ thoiDiemXuatBan: null }), noiDung: 'x' },
       tags: [],
+      counts: { luotThich: 0, luotKhongThich: 0 },
     });
     expect((await service.detail('7')).thoiDiemXuatBan).toBeNull();
   });
