@@ -319,7 +319,7 @@ apps/api/src/dashboard/
   dashboard.module.ts
   filter/        dashboard-filter.dto.ts · date-range.rules.ts (hàm thuần: mặc định, giới hạn, gom tuần)
   queries/       appointment-metrics.query.ts · slot-usage.query.ts · money.query.ts · trend.query.ts · pending.query.ts
-  admin/         admin-dashboard.controller.ts · admin-dashboard.service.ts · admin-dashboard.dto.ts
+  admin/         admin-dashboard.controller.ts · admin-dashboard.service.ts · admin-dashboard.dto.ts · ratio.rules.ts (B1: phần trăm T5)
   reception/     reception-dashboard.controller.ts · reception-dashboard.service.ts   (B3)
   testing/       dashboard-fixtures.ts (bộ D0 ở 7.0)
   architecture.spec.ts
@@ -455,7 +455,7 @@ WHERE h.trang_thai = 'ThatBai' AND NOT EXISTS (SELECT 1 FROM lich_su_hoan_tien s
 | `DU_LIEU_KHONG_HOP_LE` + `NGAY_KHONG_HOP_LE` | 400 | ngày sai | "Ngày không hợp lệ." |
 | … + `KHOANG_NGAY_KHONG_HOP_LE` | 400 | thiếu một đầu hay đảo ngược | "Chọn đủ hai ngày; \"Đến ngày\" không được trước \"Từ ngày\"." |
 | … + `KHOANG_NGAY_QUA_DAI` (**mã mới**) | 400 | quá 366 ngày | "Khoảng thời gian tối đa 366 ngày." |
-| … + `TRUONG_KHONG_DUOC_PHEP` hay `chiNhanhId` sai dạng | 400 | tham số lạ | "Bộ lọc không hợp lệ." |
+| … + `TRUONG_KHONG_DUOC_PHEP` hay `chiNhanhId` sai dạng (mã trường `CHI_NHANH_KHONG_HOP_LE` `[đề xuất]`, chọn ở B1) | 400 | tham số lạ | "Bộ lọc không hợp lệ." |
 | `KHONG_TIM_THAY` | 404 | chi nhánh ngoài phạm vi hay không có | "Không tìm thấy chi nhánh." kèm nút "Xem phạm vi của tôi" (bỏ bộ lọc chi nhánh) |
 | `KHONG_DU_QUYEN` | 403 | sai vai hay phạm vi hỏng | trang không đủ quyền có sẵn |
 | `LOI_HE_THONG`, mất mạng, quá giờ | 500, — | | câu lỗi chung sẵn có và nút "Thử lại" |

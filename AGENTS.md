@@ -82,7 +82,7 @@ Nếu issue hoặc plan dẫn tới thứ không có trong repo (ví dụ đoạ
 8. Cuối phiên, báo: file đã đổi, test đã chạy và kết quả, tài liệu đã/chưa đồng bộ, câu hỏi còn mở, **gợi ý** tiêu đề commit/PR.
 
 **Commit/PR:** Conventional Commits, tiêu đề PR = commit cuối (squash). Ví dụ `feat(admin): thêm quản lý chuyên khoa`. Scope hợp lệ (`commitlint.config.cjs`):
-`auth patient search doctor booking payment wallet waitlist followup notification chat chatbot admin rbac audit import-export report ai api web mobile db ci docker docs deps repo`.
+`auth patient search doctor booking payment wallet waitlist followup notification chat chatbot admin rbac audit import-export report dashboard ai api web mobile db ci docker docs deps repo`.
 Tiêu đề ≤ 100 ký tự. PR cần **người còn lại approve** và CI xanh (check bắt buộc hiện tại là 7: `detect`, `pr-title`, `secrets`, `security`, `api`, `web`, `docker`; bật ngày 27/10/2026, task P7).
 
 ## 6. Phân công và chỗ dùng chung
