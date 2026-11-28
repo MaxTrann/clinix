@@ -13,7 +13,7 @@ Trợ lý AI (scope #12) trả lời trên dữ liệu công khai của phòng k
 ## Quyết định
 
 - **Nhà cung cấp và thứ tự** (Q1):
-  1. Groq: `POST {GROQ_BASE_URL}/chat/completions`, mặc định `https://api.groq.com/openai/v1`, model `openai/gpt-oss-20b`, `reasoning_effort` thấp, đầu ra `json_schema` có `strict: true`. Mỗi lần thử chờ tối đa 6 giây.
+  1. Groq: `POST {GROQ_BASE_URL}/chat/completions`, mặc định `https://api.groq.com/openai/v1`, model `openai/gpt-oss-120b` (mặc định từ 28/11/2026, trước đó `openai/gpt-oss-20b`; TRACKING chatbot 3.12), `reasoning_effort` thấp, đầu ra `json_schema` có `strict: true`. Mỗi lần thử chờ tối đa 6 giây.
   2. Gemini: Interactions API `POST {GEMINI_BASE_URL}/interactions`, mặc định `https://generativelanguage.googleapis.com/v1beta`, model `gemini-3.5-flash-lite`, `store: false`, đầu ra JSON theo lược đồ. Mỗi lần thử chờ tối đa 8 giây.
   3. Câu dựng sẵn (không gọi AI): hằng của chatbot B1.
   - Hai model mặc định là `[đề xuất]`, **chốt sau chatbot X1** (đo độ trễ, đầu ra đúng lược đồ, ánh xạ chuyên khoa, hạn mức).

@@ -294,7 +294,7 @@ Các địa chỉ `ai.google.dev` chuyển hướng 301 sang `aistudio.google.co
 | Số ADR kế tiếp; số issue Epic; nhãn `module:chatbot`, milestone `chatbot` | P1, 6.6 | `[cần điền]` (Đại tạo bằng script) |
 | Số PR và commit ở nháp AI log | TRACKING 4.1 | `[cần điền]` |
 | Có bảng hay file ngoài repo cần đồng bộ ngoài 4.6 | 4.6 | `[cần điền]` |
-| Model mặc định `openai/gpt-oss-20b`, `gemini-3.5-flash-lite`; thời gian chờ Groq 6 giây, Gemini 8 giây, tối thiểu 2 giây mới thử; `reasoning_effort` low; trần đầu ra | 5.5, 5.13 | `[đề xuất]` (chốt sau X1) |
+| Model mặc định `openai/gpt-oss-120b` (đổi từ `gpt-oss-20b` ngày 28/11/2026 theo số đo bộ 30 câu của X2, TRACKING 3.12), `gemini-3.5-flash-lite`; thời gian chờ Groq 6 giây, Gemini 8 giây, tối thiểu 2 giây mới thử; `reasoning_effort` low; trần đầu ra | 5.5, 5.13 | `[đề xuất]` (chốt sau X1) |
 | Trần toàn cục Groq 20, Gemini 10 lời gọi mỗi phút; trần 10.000 IP trong bộ nhớ | 5.10 | `[đề xuất]` |
 | MH1 đến MH8 | 3.5 | `[đề xuất]` |
 | Trần ngữ cảnh 6.000 ký tự, tối đa 8 bác sĩ, mô tả chuyên khoa cắt 120 ký tự | 5.6 | `[đề xuất]` |
@@ -389,7 +389,7 @@ type ProviderFailure =
 
 | Lớp | Thứ tự | Mặc định `[đề xuất]` | Chờ mỗi lần |
 |---|---|---|---|
-| Groq | 1 | `openai/gpt-oss-20b`, `reasoning_effort` low, `include_reasoning` false, `json_schema` strict | 6 giây |
+| Groq | 1 | `openai/gpt-oss-120b` (mặc định từ 28/11/2026; trước đó `gpt-oss-20b`), `reasoning_effort` low, `include_reasoning` false, `json_schema` strict | 6 giây |
 | Gemini | 2 | `gemini-3.5-flash-lite`, Interactions API, `store: false`, `response_format` JSON | 8 giây |
 | Câu dựng sẵn | 3 | hằng ở `canned-answers.ts` | — |
 
@@ -531,7 +531,7 @@ type ProviderFailure =
 |---|---|---|
 | `AI_ENABLED` | `true` | `false` thì mọi câu hỏi nhận câu dựng sẵn |
 | `GROQ_API_KEY`, `GEMINI_API_KEY` | trống | trống thì bỏ qua lớp; **không** tiền tố `VITE_` |
-| `GROQ_MODEL`, `GEMINI_MODEL` | `openai/gpt-oss-20b`, `gemini-3.5-flash-lite` | `[đề xuất]`; đặt model đã biết là ngừng (`gemini-2.0-flash`, `llama-3.1-8b-instant`) thì khởi động ghi cảnh báo (T4) |
+| `GROQ_MODEL`, `GEMINI_MODEL` | `openai/gpt-oss-120b`, `gemini-3.5-flash-lite` | `[đề xuất]`; Groq đổi từ `gpt-oss-20b` ngày 28/11/2026 (TRACKING 3.12); đặt model đã biết là ngừng (`gemini-2.0-flash`, `llama-3.1-8b-instant`) thì khởi động ghi cảnh báo (T4) |
 | `GROQ_BASE_URL`, `GEMINI_BASE_URL` | địa chỉ ở 3.4 | chỉ nhận `https` (hay `http://localhost` cho giả lập ở dev) |
 | `AI_GROQ_TIMEOUT_MS`, `AI_GEMINI_TIMEOUT_MS`, `AI_TOTAL_TIMEOUT_MS` | 6000, 8000, 20000 | miền kiểm lúc khởi động; tổng < 45000 |
 | `AI_COOLDOWN_SECONDS` | 60 | |
