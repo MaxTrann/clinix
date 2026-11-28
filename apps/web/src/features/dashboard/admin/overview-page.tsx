@@ -17,6 +17,7 @@ import { ErrorState } from '../../../shared/ui/error-state';
 import { LoadingState } from '../../../shared/ui/loading-state';
 import { OfflineBanner } from '../../../shared/ui/offline-banner';
 import { AdminForbiddenPage, useAdminScope } from '../../admin';
+import { TrendChart } from '../chart/trend-chart';
 import {
   getAdminDashboard,
   listBranchOptions,
@@ -43,7 +44,7 @@ import { VisitResultCard } from './visit-result-card';
 
 // Trang Tổng quan của Quản trị viên tại `/admin` (dashboard F1; Figma `507:2` Toàn hệ thống, `587:2` Chi nhánh; PLAN dashboard 5.11).
 // Bố cục bám Figma; NỘI DUNG theo PLAN (quyết định của Trung 28/11/2026): không doanh thu, không so sánh kỳ trước, không danh sách chờ, không biểu đồ dịch vụ
-// (L10). Biểu đồ xu hướng là của F2. Mọi số là của máy chủ (T5): trang chỉ định dạng.
+// (L10). Biểu đồ xu hướng đăng ký (F2) ở `chart/`. Mọi số là của máy chủ (T5): trang chỉ định dạng.
 // URL là nguồn duy nhất của bộ lọc (T11); `useRemote` huỷ yêu cầu cũ khi bộ lọc đổi nên phản hồi cũ về sau không đè kết quả mới (DWB-08).
 
 export const EMPTY_TEXT = 'Không có dữ liệu trong khoảng thời gian đã chọn.';
@@ -253,13 +254,15 @@ function OverviewContent({
           </ul>
         </section>
       </div>
+      {/* Như Figma `507:460`: biểu đồ cạnh "Việc cần xử lý"; "Kết quả lịch khám" xuống hàng sau, cột trái (F2) */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <VisitResultCard data={data} />
+        <TrendChart trend={data.xuHuong} />
         <PendingList
           pending={data.choDuyet}
           isSystemAdmin={isSystemAdmin}
           filteredByBranch={filteredByBranch}
         />
+        <VisitResultCard data={data} />
       </div>
     </>
   );

@@ -192,6 +192,56 @@ describe('dashboard F1 — mở trang và trạng thái', () => {
   });
 });
 
+describe('dashboard F2 — biểu đồ xu hướng trên trang', () => {
+  it('DBD-01: trang vẽ đúng `xuHuong` máy chủ trả (chuỗi D0, 7 cột) cạnh "Việc cần xử lý"; rỗng A1 vẫn có khối biểu đồ', async () => {
+    await signIn();
+    const d0 = [3, 2, 1, 2, 0, 0, 1].map((soLuong, i) => ({
+      tuNgay: `2026-12-0${i + 1}`,
+      denNgay: `2026-12-0${i + 1}`,
+      soLuong,
+    }));
+    answer({ ...SAMPLE, xuHuong: { donVi: 'Ngay', diem: d0 } });
+    renderAt('/admin');
+    expect(
+      await screen.findByRole('img', {
+        name: 'Xu hướng đăng ký khám theo ngày: tổng 9 lịch đặt mới; cao nhất 3 lịch, ngày 01/12/2026.',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId('trend-bar')).toHaveLength(7);
+    // Cùng một lưới với "Việc cần xử lý" (Figma 507:460): biểu đồ đứng trước
+    const chart = screen.getByRole('region', { name: 'Xu hướng đăng ký khám' });
+    const pending = screen.getByRole('heading', { name: 'Việc cần xử lý' });
+    expect(chart.parentElement).toContainElement(pending);
+    expect(
+      chart.compareDocumentPosition(pending) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    cleanup();
+
+    await signIn();
+    answer(EMPTY_ADMIN_DASHBOARD);
+    renderAt('/admin');
+    expect(await screen.findByText(EMPTY_TEXT)).toBeInTheDocument();
+    expect(
+      screen.getByRole('region', { name: 'Xu hướng đăng ký khám' }),
+    ).toBeInTheDocument();
+  });
+
+  it('DBD-01 (biên): phản hồi thiếu `xuHuong.diem` ⇒ khối lỗi, trang không vỡ', async () => {
+    await signIn();
+    answer({ ...SAMPLE, xuHuong: { donVi: 'Ngay' } });
+    renderAt('/admin');
+    // Khối lỗi CỦA TRANG (có "Thử lại", tiêu đề và bộ lọc vẫn còn), không phải màn lỗi của router khi component vỡ
+    const alert = await screen.findByRole('alert');
+    expect(
+      within(alert).getByRole('button', { name: 'Thử lại' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Tổng quan' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('trend-bar')).toBeNull();
+  });
+});
+
 describe('dashboard F1 — bộ lọc', () => {
   it('DWB-04: đổi ngày rồi "Áp dụng" ⇒ gọi đúng tham số; thiếu, đảo ngược, quá 366 ngày ⇒ lỗi tại chỗ, KHÔNG gọi', async () => {
     await signIn();
