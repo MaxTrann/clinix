@@ -19,7 +19,7 @@ import {
 } from './../src/dashboard/testing/dashboard-fixtures.js';
 import { resetTables } from './../src/database/testing/test-database.js';
 
-// dashboard B1 — `GET /admin/dashboard` qua HTTP THẬT (AppModule, MySQL thật, `configureApp` như main.ts): DQP-01…DQP-04, DBL-01…DBL-07, DRG-04 (PLAN dashboard 7.1, 7.2, 7.5).
+// dashboard B1, B2 — `GET /admin/dashboard` qua HTTP THẬT (AppModule, MySQL thật, `configureApp` như main.ts): DQP-01…DQP-04, DBL-01…DBL-07, DRG-04 (B1); DRG-01, DCD-02, DCD-03 (B2) (PLAN dashboard 7.1, 7.2, 7.4, 7.5).
 // Số liệu chi tiết từng chỉ số ở `src/dashboard/admin/admin-dashboard.int-spec.ts`. ĐỒNG HỒ: `vi.setSystemTime` đổi giờ của cả token, nên tạo token SAU khi đặt giờ.
 const PATH = '/admin/dashboard';
 const RANGE = '?tuNgay=2026-12-01&denNgay=2026-12-07';
@@ -272,17 +272,28 @@ describe('GET /admin/dashboard — riêng tư', () => {
       'tuSo',
       'mauSo',
       'phanTram',
+      'soKhoan',
+      'tongTien',
+      'soKhoanDangLoi',
+      'donVi',
+      'diem',
+      'soLuong',
+      'nghiPhep',
+      'doiLich',
+      'thayDoiChiNhanh',
+      'rutTien',
     ]);
     expect(
       collectKeys(body).filter((key) => !allowedKeys.has(key)),
     ).toStrictEqual([]);
-    // Chuỗi duy nhất là ngày, giờ cập nhật và id chi nhánh: không dữ liệu nào của bệnh nhân, bác sĩ hay lịch hẹn
+    // Chuỗi duy nhất là ngày, giờ cập nhật, id chi nhánh, đơn vị biểu đồ và tổng tiền: không dữ liệu nào của bệnh nhân, bác sĩ, lịch hay giao dịch
     const allowedStrings = new Set([
-      '2026-12-01',
-      '2026-12-07',
-      '2026-12-04',
+      ...[1, 2, 3, 4, 5, 6, 7].map((day) => `2026-12-0${day}`),
       D0_NOW.toISOString(),
       w.branchA,
+      'Ngay',
+      '620000.00',
+      '230000.00',
     ]);
     expect(
       collectStrings(body).filter((s) => !allowedStrings.has(s)),
@@ -294,6 +305,74 @@ describe('GET /admin/dashboard — riêng tư', () => {
       w.d1.account.hoTen,
     ])
       expect(text).not.toContain(secret);
-    expect(logs.join('\n')).not.toMatch(/lichKham|vangMat|khungGio/);
+    expect(logs.join('\n')).not.toMatch(
+      /lichKham|vangMat|khungGio|tongTien|620000/,
+    );
+  });
+
+  it('DRG-01: khoảng không có dữ liệu (03/2027) ⇒ số 0, tỉ lệ null, `coDuLieu` false, xu hướng đủ điểm 0; chờ duyệt và khoản lỗi vẫn đúng', async () => {
+    const w = await world();
+    const res = await get('?tuNgay=2027-03-01&denNgay=2027-03-31', w.toan);
+    expect(res.status).toBe(200);
+    const body = bodyOf(res);
+    expect(body).toMatchObject({
+      trongKhoang: { lichKham: 0, hoanThanh: 0 },
+      vangMat: { tuSo: 0, mauSo: 0, phanTram: null },
+      khungGio: { tuSo: 0, mauSo: 0, phanTram: null },
+      tienCoc: { soKhoan: 0, tongTien: '0.00' },
+      hoanTien: { soKhoan: 0, tongTien: '0.00', soKhoanDangLoi: 1 },
+      choDuyet: { nghiPhep: 2, doiLich: 3, thayDoiChiNhanh: 1, rutTien: 2 },
+      coDuLieu: false,
+    });
+    expect(body.xuHuong.donVi).toBe('Ngay');
+    expect(body.xuHuong.diem).toHaveLength(31);
+    expect(body.xuHuong.diem.every((point) => point.soLuong === 0)).toBe(true);
+    // Đối chứng: khoảng chuẩn có dữ liệu
+    expect(bodyOf(await get(RANGE, w.toan)).coDuLieu).toBe(true);
+  });
+});
+
+describe('GET /admin/dashboard — yêu cầu chờ duyệt', () => {
+  it('DCD-02: Quản trị viên Chi nhánh nhận `rutTien` là `null` (không phải 0); Toàn hệ thống nhận số', async () => {
+    const w = await world();
+    const a = bodyOf(await get(RANGE, w.a));
+    expect(a.choDuyet).toStrictEqual({
+      nghiPhep: 1,
+      doiLich: 2,
+      thayDoiChiNhanh: 1,
+      rutTien: null,
+    });
+    expect('rutTien' in a.choDuyet).toBe(true);
+    expect(bodyOf(await get(RANGE, w.toan)).choDuyet.rutTien).toBe(2);
+  });
+
+  it('DCD-03: số chờ duyệt bằng `total` của chính bốn danh sách duyệt hiện có, cùng phạm vi, trạng thái chờ', async () => {
+    const w = await world();
+    const totalOf = async (path: string, token: string) => {
+      const res = await request(h.app.getHttpServer())
+        .get(path)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      return (res.body as { total: number }).total;
+    };
+    for (const token of [w.toan, w.a, w.b]) {
+      const choDuyet = bodyOf(await get(RANGE, token)).choDuyet;
+      expect(choDuyet.nghiPhep).toBe(
+        await totalOf('/admin/leave-requests?trangThai=ChoDuyet', token),
+      );
+      expect(choDuyet.doiLich).toBe(
+        await totalOf('/admin/reschedule-requests?trangThai=ChoDuyet', token),
+      );
+      expect(choDuyet.thayDoiChiNhanh).toBe(
+        await totalOf(
+          '/admin/branch-change-requests?trangThai=ChoDuyet',
+          token,
+        ),
+      );
+    }
+    // Rút tiền chỉ Toàn hệ thống xem được (trang duyệt cũng chỉ cho Toàn hệ thống)
+    expect(bodyOf(await get(RANGE, w.toan)).choDuyet.rutTien).toBe(
+      await totalOf('/admin/wallet/withdrawals?trangThai=ChoDuyet', w.toan),
+    );
   });
 });

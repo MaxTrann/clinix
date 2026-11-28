@@ -2,6 +2,7 @@ import type { DataSource } from 'typeorm';
 import { vi } from 'vitest';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import {
+  interceptStatements,
   recordStatements,
   WRITE_OR_LOCK_SQL,
 } from '../../appointments/testing/statement-recorder.js';
@@ -18,7 +19,8 @@ import {
 } from '../testing/dashboard-fixtures.js';
 import { AdminDashboardService } from './admin-dashboard.service.js';
 
-// dashboard B1 — tầng service và SQL trên MySQL THẬT với bộ D0 (PLAN dashboard 7.0, 7.1, 7.3, 7.5): DVM-01…DVM-03, DKG-01…DKG-04, DHN-01…DHN-03, DQP-06, DRG-02.
+// dashboard B1, B2 — tầng service và SQL trên MySQL THẬT với bộ D0 (PLAN dashboard 7.0, 7.1, 7.3 đến 7.5): DVM-01…DVM-03, DKG-01…DKG-04, DHN-01…DHN-03, DQP-06,
+// DRG-02 (B1); DCH-01…DCH-05, DXH-01, DXH-02, DXH-04, DCD-01, DCD-04, DRG-03 (B2).
 // Phần HTTP (quyền, mã lỗi, header, khoá phản hồi) ở `test/dashboard-admin.e2e-spec.ts`. Đồng hồ giả ở 04/12/2026 10:00 giờ Việt Nam.
 
 let db: DataSource;
@@ -36,6 +38,13 @@ beforeEach(() => {
 });
 
 const ALL: AdminScope = { kind: 'ToanHeThong' };
+
+/** Điểm theo ngày của bộ lọc chuẩn 01/12 đến 07/12, số lịch lần lượt từng ngày. */
+const dailyPoints = (counts: readonly number[]) =>
+  counts.map((soLuong, index) => {
+    const ngay = `2026-12-0${index + 1}`;
+    return { tuNgay: ngay, denNgay: ngay, soLuong };
+  });
 const branchScope = (chiNhanhId: string): AdminScope => ({
   kind: 'ChiNhanh',
   chiNhanhId,
@@ -82,9 +91,10 @@ async function errorOf(promise: Promise<unknown>): Promise<AppException> {
 }
 
 describe('dashboard B1 — số liệu lịch hẹn trên bộ D0', () => {
-  it('DVM-01, DKG-01, DHN-01: tất cả, chi nhánh A, chi nhánh B đúng bảng 7.0', async () => {
+  it('DVM-01, DKG-01, DHN-01, DCH-01, DXH-01, DCD-01: tất cả, chi nhánh A, chi nhánh B đúng bảng 7.0', async () => {
     const w = await dfx.d0();
     const all = await service.overview(ALL, D0_RANGE);
+    // So TOÀN BỘ phản hồi (danh sách khoá đúng như hợp đồng 5.7)
     expect(all).toStrictEqual({
       boLoc: { ...D0_RANGE, chiNhanhId: null },
       capNhatLuc: D0_NOW.toISOString(),
@@ -92,6 +102,32 @@ describe('dashboard B1 — số liệu lịch hẹn trên bộ D0', () => {
       trongKhoang: { lichKham: 7, hoanThanh: 3 },
       vangMat: { tuSo: 2, mauSo: 6, phanTram: 33.3 },
       khungGio: { tuSo: 7, mauSo: 12, phanTram: 58.3 },
+      tienCoc: { soKhoan: 6, tongTien: '710000.00' },
+      hoanTien: { soKhoan: 3, tongTien: '230000.00', soKhoanDangLoi: 1 },
+      xuHuong: { donVi: 'Ngay', diem: dailyPoints([3, 2, 1, 2, 0, 0, 1]) },
+      choDuyet: { nghiPhep: 2, doiLich: 3, thayDoiChiNhanh: 1, rutTien: 2 },
+      coDuLieu: true,
+    });
+    // Quản trị viên Chi nhánh A (phạm vi ép), và Toàn hệ thống lọc A (rút tiền vẫn là số toàn hệ thống, MH1)
+    expect(
+      await service.overview(branchScope(w.branchA), D0_RANGE),
+    ).toMatchObject({
+      tienCoc: { soKhoan: 5, tongTien: '620000.00' },
+      hoanTien: { soKhoan: 3, tongTien: '230000.00', soKhoanDangLoi: 0 },
+      xuHuong: { diem: dailyPoints([2, 2, 1, 2, 0, 0, 1]) },
+      choDuyet: { nghiPhep: 1, doiLich: 2, thayDoiChiNhanh: 1, rutTien: null },
+    });
+    expect(
+      (await service.overview(ALL, { ...D0_RANGE, chiNhanhId: w.branchA }))
+        .choDuyet.rutTien,
+    ).toBe(2);
+    expect(
+      await service.overview(branchScope(w.branchB), D0_RANGE),
+    ).toMatchObject({
+      tienCoc: { soKhoan: 1, tongTien: '90000.00' },
+      hoanTien: { soKhoan: 0, tongTien: '0.00', soKhoanDangLoi: 1 },
+      xuHuong: { diem: dailyPoints([1, 0, 0, 0, 0, 0, 0]) },
+      choDuyet: { nghiPhep: 1, doiLich: 1, thayDoiChiNhanh: 0, rutTien: null },
     });
     const a = await service.overview(branchScope(w.branchA), D0_RANGE);
     expect(a).toMatchObject({
@@ -101,14 +137,16 @@ describe('dashboard B1 — số liệu lịch hẹn trên bộ D0', () => {
       vangMat: { tuSo: 1, mauSo: 4, phanTram: 25 },
       khungGio: { tuSo: 5, mauSo: 8, phanTram: 62.5 },
     });
-    // Toàn hệ thống lọc B ra cùng số với Quản trị viên B
+    // Toàn hệ thống lọc B ra cùng số với Quản trị viên B, TRỪ rút tiền: Toàn hệ thống thấy số toàn hệ thống (MH1), Chi nhánh thấy `null` (Q6)
     const b = await service.overview(ALL, {
       ...D0_RANGE,
       chiNhanhId: w.branchB,
     });
-    expect(b).toStrictEqual(
-      await service.overview(branchScope(w.branchB), D0_RANGE),
-    );
+    const adminB = await service.overview(branchScope(w.branchB), D0_RANGE);
+    expect(b).toStrictEqual({
+      ...adminB,
+      choDuyet: { ...adminB.choDuyet, rutTien: 2 },
+    });
     expect(b).toMatchObject({
       boLoc: { chiNhanhId: w.branchB },
       homNay: { lichKham: 0, hoanThanh: 0 },
@@ -383,11 +421,308 @@ describe('dashboard B1 — phạm vi và chỉ đọc', () => {
     ).toHaveLength(1);
     expect(seen.filter((sql) => /^\s*COMMIT/i.test(sql))).toHaveLength(1);
     const statements = seen.filter((sql) => !control.test(sql));
-    // Kiểm chi nhánh tồn tại, hôm nay, trong khoảng, khung giờ
-    expect(statements).toHaveLength(4);
+    // Kiểm chi nhánh tồn tại, hôm nay, trong khoảng, khung giờ (B1); cọc, đã hoàn, khoản đang lỗi, xu hướng, chờ duyệt (B2)
+    expect(statements).toHaveLength(9);
     for (const sql of statements) {
       expect(sql.trim()).toMatch(/^SELECT\b/i);
       expect(sql).not.toMatch(WRITE_OR_LOCK_SQL);
     }
+  });
+});
+
+/** Thêm một khoản cọc qua ví (mặc định thành công) cho lịch `appointment` của bộ D0. */
+const addDeposit = (
+  w: D0World,
+  input: {
+    appointment: string;
+    soTien: string;
+    thoiDiemTao: string;
+    trangThai?: 'KhoiTao' | 'DangXuLy' | 'ThanhCong' | 'ThatBai' | 'HetHan';
+  },
+) =>
+  dfx.wallet.insertPayment({
+    viNoiBoId: w.walletId,
+    lichHenId: w.appointments[input.appointment] ?? '',
+    loai: 'ThanhToanLichHen',
+    phuongThuc: 'Vi',
+    soTien: input.soTien,
+    thoiDiemTao: input.thoiDiemTao,
+    ...(input.trangThai ? { trangThai: input.trangThai } : {}),
+  });
+
+/** Thêm một dòng hoàn cho khoản `payment` (tên P1…P13 hoặc id) của bộ D0. */
+const addRefund = (
+  w: D0World,
+  payment: string,
+  input: {
+    loai: 'TuDong' | 'DacBiet';
+    trangThai: 'ThanhCong' | 'ThatBai';
+    soTien: string;
+    soLanThu: number;
+    thoiDiem: string;
+  },
+) =>
+  dfx.refund({
+    giaoDichThanhToanId: w.payments[payment] ?? payment,
+    viNoiBoId: w.walletId,
+    ...input,
+  });
+
+describe('dashboard B2 — cọc và hoàn tiền', () => {
+  it('DCH-02: loại dòng 0đ, tiền mặt, nạp ví, giao dịch chưa thành công; biên 00:00:00 đầu khoảng vào, 00:00:00 sau ngày cuối không vào', async () => {
+    const w = await dfx.d0();
+    // Bộ D0 đã có: 0đ (P6), tiền mặt (P7), nạp ví (P8) trong khoảng và bị loại; P11 lúc 07/12 23:59:59 vào, P12 lúc 08/12 00:00:00 không vào
+    for (const trangThai of [
+      'KhoiTao',
+      'DangXuLy',
+      'ThatBai',
+      'HetHan',
+    ] as const)
+      await addDeposit(w, {
+        appointment: 'L2',
+        soTien: '1000.00',
+        thoiDiemTao: '2026-12-03 10:00:00',
+        trangThai,
+      });
+    await addDeposit(w, {
+      appointment: 'L2',
+      soTien: '7000.00',
+      thoiDiemTao: '2026-12-01 00:00:00',
+    });
+    await addDeposit(w, {
+      appointment: 'L2',
+      soTien: '9000.00',
+      thoiDiemTao: '2026-11-30 23:59:59',
+    });
+    expect((await service.overview(ALL, D0_RANGE)).tienCoc).toStrictEqual({
+      soKhoan: 7,
+      tongTien: '717000.00',
+    });
+    // Khoảng đúng một ngày 08/12: chỉ P12 (đối chứng biên phía sau)
+    const day8 = { tuNgay: '2026-12-08', denNgay: '2026-12-08' };
+    expect((await service.overview(ALL, day8)).tienCoc).toStrictEqual({
+      soKhoan: 1,
+      tongTien: '70000.00',
+    });
+  });
+
+  it('DCH-03: dòng hoàn thất bại không cộng; hoàn đặc biệt cộng; biên ngày đúng', async () => {
+    const w = await dfx.d0();
+    // P10 của chi nhánh B chưa có dòng hoàn nào; dòng mới nhất (lần 4) thành công nên khoản không "đang lỗi"
+    const rows = [
+      ['DacBiet', 'ThatBai', '1000.00', '2026-12-03 10:00:00'],
+      ['DacBiet', 'ThanhCong', '2000.00', '2026-12-07 23:59:59'],
+      ['TuDong', 'ThanhCong', '4000.00', '2026-12-01 00:00:00'],
+      ['TuDong', 'ThanhCong', '8000.00', '2026-11-30 23:59:59'],
+    ] as const;
+    for (const [index, [loai, trangThai, soTien, thoiDiem]] of rows.entries())
+      await addRefund(w, 'P10', {
+        loai,
+        trangThai,
+        soTien,
+        soLanThu: index + 1,
+        thoiDiem,
+      });
+    expect(
+      (await service.overview(branchScope(w.branchB), D0_RANGE)).hoanTien,
+    ).toStrictEqual({ soKhoan: 2, tongTien: '6000.00', soKhoanDangLoi: 1 });
+    // Toàn bộ: 3 dòng của D0 cộng 2 dòng trên; R6 (08/12 00:00:00) vẫn ngoài khoảng
+    expect((await service.overview(ALL, D0_RANGE)).hoanTien).toStrictEqual({
+      soKhoan: 5,
+      tongTien: '236000.00',
+      soKhoanDangLoi: 1,
+    });
+  });
+
+  it('DCH-04: khoản đang lỗi xét dòng hoàn MỚI NHẤT mọi loại: tự động thất bại rồi đặc biệt thành công thì hết lỗi; không theo bộ lọc ngày', async () => {
+    const w = await dfx.d0();
+    const refundsOfB = async (range = D0_RANGE) =>
+      (await service.overview(branchScope(w.branchB), range)).hoanTien;
+    // (a) P13 chỉ có dòng tự động thất bại
+    expect((await refundsOfB()).soKhoanDangLoi).toBe(1);
+    // (d) đổi bộ lọc ngày trên (a): vẫn 1 (không theo ngày)
+    const farAway = { tuNgay: '2027-03-01', denNgay: '2027-03-31' };
+    expect((await refundsOfB(farAway)).soKhoanDangLoi).toBe(1);
+    // (b) thêm dòng ĐẶC BIỆT thành công lần 2: hết lỗi (câu lấy MAX riêng `TuDong` sẽ ra 1: ca này bắt lỗi đó)
+    const second = {
+      trangThai: 'ThanhCong',
+      soTien: '40000.00',
+      soLanThu: 2,
+      thoiDiem: '2026-12-04 09:00:00',
+    } as const;
+    const special = await addRefund(w, 'P13', { loai: 'DacBiet', ...second });
+    expect(await refundsOfB()).toStrictEqual({
+      soKhoan: 1,
+      tongTien: '40000.00',
+      soKhoanDangLoi: 0,
+    });
+    // (c) như (b) nhưng dòng thêm là TỰ ĐỘNG thành công
+    await db.query(
+      'DELETE FROM lich_su_hoan_tien WHERE lich_su_hoan_tien_id = ?',
+      [special],
+    );
+    await addRefund(w, 'P13', { loai: 'TuDong', ...second });
+    expect(await refundsOfB()).toStrictEqual({
+      soKhoan: 1,
+      tongTien: '40000.00',
+      soKhoanDangLoi: 0,
+    });
+  });
+
+  it('DCH-05: tổng rất lớn đúng từng chữ số (chuỗi, không qua number); không dòng nào ⇒ "0.00"', async () => {
+    const w = await dfx.d0();
+    const big = '9999999999.99';
+    const payments: string[] = [];
+    for (let i = 0; i < 3; i += 1)
+      payments.push(
+        await addDeposit(w, {
+          appointment: 'L2',
+          soTien: big,
+          thoiDiemTao: '2026-12-05 10:00:00',
+        }),
+      );
+    for (const payment of payments.slice(0, 2))
+      await addRefund(w, payment, {
+        loai: 'DacBiet',
+        trangThai: 'ThanhCong',
+        soTien: big,
+        soLanThu: 1,
+        thoiDiem: '2026-12-05 11:00:00',
+      });
+    const all = await service.overview(ALL, D0_RANGE);
+    // 710.000,00 + 3 × 9.999.999.999,99 và 230.000,00 + 2 × 9.999.999.999,99 (số xu vượt 2^53 nếu cộng bằng number)
+    expect(all.tienCoc).toStrictEqual({
+      soKhoan: 9,
+      tongTien: '30000709999.97',
+    });
+    expect(all.hoanTien).toMatchObject({
+      soKhoan: 5,
+      tongTien: '20000229999.98',
+    });
+    const empty = await service.overview(ALL, {
+      tuNgay: '2027-03-01',
+      denNgay: '2027-03-31',
+    });
+    expect(empty.tienCoc).toStrictEqual({ soKhoan: 0, tongTien: '0.00' });
+    expect(empty.hoanTien).toMatchObject({ soKhoan: 0, tongTien: '0.00' });
+  });
+});
+
+describe('dashboard B2 — xu hướng đăng ký và yêu cầu chờ duyệt', () => {
+  /** Đặt `thoi_diem_tao` (và nếu có, `lich_hen_truoc_id`) cho một lịch vừa thêm. */
+  const setCreated = (id: string, thoiDiemTao: string, truocId?: string) =>
+    db.query(
+      'UPDATE lich_hen SET thoi_diem_tao = ?, lich_hen_truoc_id = ? WHERE lich_hen_id = ?',
+      [thoiDiemTao, truocId ?? null, id],
+    );
+  const counts = (trend: { diem: { soLuong: number }[] }) =>
+    trend.diem.map((point) => point.soLuong);
+
+  it('DXH-02: không đếm dòng sinh do đổi lịch; đếm lịch đã huỷ (gồm lịch huỷ do quá hạn thanh toán)', async () => {
+    const w = await dfx.d0();
+    const [moved, rebooked, cancelled] = await addAppointments(w, {
+      doctor: 'd1',
+      ngay: '2026-12-06',
+      items: [
+        ['08:00', 'DaDoiLich'],
+        ['08:30', 'DaXacNhan'],
+        ['09:00', 'DaHuy'],
+      ],
+    });
+    await setCreated(moved ?? '', '2026-12-05 08:00:00');
+    // Lịch mới do đổi lịch, tạo cùng ngày: KHÔNG đếm
+    await setCreated(rebooked ?? '', '2026-12-05 09:00:00', moved);
+    await setCreated(cancelled ?? '', '2026-12-05 10:00:00');
+    // 05/12: lịch gốc (đã đổi) và lịch huỷ được đếm, lịch mới thì không ⇒ 2
+    expect(
+      counts((await service.overview(ALL, D0_RANGE)).xuHuong),
+    ).toStrictEqual([3, 2, 1, 2, 2, 0, 1]);
+  });
+
+  it.each(['UTC', 'Asia/Ho_Chi_Minh'])(
+    'DXH-04 (TZ=%s): gom theo ngày Việt Nam; 00:00:00 và 23:59:59 vào cùng ngày; 00:00:00 ngày sau ngày cuối không vào',
+    async (zone) => {
+      const previous = process.env.TZ;
+      process.env.TZ = zone;
+      try {
+        const w = await dfx.d0();
+        const [first, last] = await addAppointments(w, {
+          doctor: 'd2',
+          ngay: '2026-12-10',
+          ca: 'CaChieu',
+          items: [
+            ['13:30', 'DaXacNhan'],
+            ['14:00', 'DaXacNhan'],
+          ],
+        });
+        await setCreated(first ?? '', '2026-12-03 00:00:00');
+        await setCreated(last ?? '', '2026-12-03 23:59:59');
+        // 03/12: L7 cộng hai lịch trên; N1 tạo lúc 08/12 00:00:00 không vào điểm 07/12
+        expect(
+          counts((await service.overview(ALL, D0_RANGE)).xuHuong),
+        ).toStrictEqual([3, 2, 3, 2, 0, 0, 1]);
+      } finally {
+        if (previous === undefined) delete process.env.TZ;
+        else process.env.TZ = previous;
+      }
+    },
+  );
+
+  it('DCD-04: đổi bộ lọc ngày thì số chờ duyệt KHÔNG đổi', async () => {
+    await dfx.d0();
+    const inRange = await service.overview(ALL, D0_RANGE);
+    const farAway = await service.overview(ALL, {
+      tuNgay: '2027-03-01',
+      denNgay: '2027-03-31',
+    });
+    expect(farAway.choDuyet).toStrictEqual(inRange.choDuyet);
+    expect(inRange.choDuyet).toStrictEqual({
+      nghiPhep: 2,
+      doiLich: 3,
+      thayDoiChiNhanh: 1,
+      rutTien: 2,
+    });
+  });
+
+  it('DRG-03: kết nối khác thêm và commit cọc, hoàn, rút tiền GIỮA hai câu của cùng lần gọi ⇒ kết quả vẫn theo MỘT ảnh chụp', async () => {
+    const w = await dfx.d0();
+    let injected = false;
+    interceptStatements(db, async (call, run) => {
+      const result = await run();
+      // Ngay sau câu SELECT ĐẦU TIÊN (ảnh chụp REPEATABLE READ đã chốt), kết nối khác của pool chèn và tự commit
+      if (!injected && /^\s*SELECT\b/i.test(call.sql)) {
+        injected = true;
+        const payment = await addDeposit(w, {
+          appointment: 'L2',
+          soTien: '5000.00',
+          thoiDiemTao: '2026-12-02 10:00:00',
+        });
+        await addRefund(w, payment, {
+          loai: 'DacBiet',
+          trangThai: 'ThanhCong',
+          soTien: '5000.00',
+          soLanThu: 1,
+          thoiDiem: '2026-12-02 11:00:00',
+        });
+        await dfx.wallet.insertWithdrawal({
+          viNoiBoId: w.walletId,
+          soTien: '1000.00',
+        });
+      }
+      return result;
+    });
+    const during = await service.overview(ALL, D0_RANGE);
+    expect(injected).toBe(true);
+    expect(during.tienCoc).toStrictEqual({ soKhoan: 6, tongTien: '710000.00' });
+    expect(during.hoanTien).toMatchObject({
+      soKhoan: 3,
+      tongTien: '230000.00',
+    });
+    expect(during.choDuyet.rutTien).toBe(2);
+    // Đối chứng: lần gọi sau thấy dữ liệu đã commit
+    const after = await service.overview(ALL, D0_RANGE);
+    expect(after.tienCoc).toStrictEqual({ soKhoan: 7, tongTien: '715000.00' });
+    expect(after.hoanTien).toMatchObject({ soKhoan: 4, tongTien: '235000.00' });
+    expect(after.choDuyet.rutTien).toBe(3);
   });
 });
