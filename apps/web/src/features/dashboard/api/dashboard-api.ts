@@ -67,6 +67,9 @@ function isAdminDashboard(value: unknown): value is AdminDashboard {
   ];
   return (
     keys.every((key) => isRecord(value[key])) &&
+    // Biểu đồ (F2) duyệt `xuHuong.diem`: thiếu mảng thì báo lỗi thay vì làm vỡ trang
+    isRecord(value.xuHuong) &&
+    Array.isArray(value.xuHuong.diem) &&
     typeof value.coDuLieu === 'boolean'
   );
 }
