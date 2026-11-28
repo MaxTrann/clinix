@@ -333,7 +333,8 @@ apps/api/src/chatbot/
   ask/         ask.dto.ts  ask.service.ts
   suggest/     suggestion.dto.ts  suggestion.service.ts  ranking.rules.ts  doctor-degree.repository.ts
   testing/     fake-provider.ts  fixtures/ (phản hồi mẫu của hai nhà cung cấp)
-  eval/        golden-set.json  run-eval.ts
+  eval/        golden-set.json  golden-set.ts  eval-world.ts  eval-http.ts  eval-metrics.ts
+               eval-store.ts  run-eval.ts   (chatbot X2; test cạnh mã `*.spec.ts`)
 apps/web/src/features/chatbot/
   index.ts  api/  state/  widget/  suggest/  testing/  architecture.test.ts
 ```
@@ -481,7 +482,7 @@ type ProviderFailure =
 - **Gửi cho nhà cung cấp, chỉ:** lời nhắc hệ thống, ngữ cảnh công khai, tối đa 6 lượt lịch sử và câu hỏi **đã che**. **Không bao giờ:** họ tên tài khoản, email, SĐT, id, token, IP, lịch hẹn, ví, hồ sơ.
 - **Che (thay bằng "[đã ẩn]")** trên bản gửi đi: email; số điện thoại Việt Nam (có khoảng trắng, chấm, gạch, `+84`); mọi dãy từ 9 chữ số liền (CMND, CCCD, số tài khoản); mã lịch `CLX-yyyyMMdd-XXXXX`; ngày dạng dd/mm/yyyy; tên theo mẫu tự giới thiệu ("tôi tên là …", "tên em là …"). **Không bắt được** mọi họ tên, địa chỉ, mô tả bệnh sử: vì vậy có thông báo trước câu đầu tiên (Q5).
 - Web vẫn hiện nguyên câu người dùng đã gõ.
-- **Log API:** chỉ `lop`, `ketQua`, `loai`, `soLanThu`, `thoiGianMs`, mã luật bị chặn. **Không** log câu hỏi, câu trả lời, ngữ cảnh, thân yêu cầu hay thân lỗi của nhà cung cấp (có thể lặp lại đầu vào).
+- **Log API:** chỉ `lop`, `ketQua`, `loai`, `thoiGianMs`, mã luật bị chặn (CHƯA có `soLanThu`: `FallbackChain` không trả số lần thử, chatbot B3 D4, TRACKING 3.10). **Không** log câu hỏi, câu trả lời, ngữ cảnh, thân yêu cầu hay thân lỗi của nhà cung cấp (có thể lặp lại đầu vào).
 - **Không** ghi DB, thông báo, email, nhật ký hành động.
 - **Trình duyệt:** lịch sử chỉ trong bộ nhớ; không `localStorage`, `sessionStorage`, URL, `document.title`, `console`; xoá khi bấm "Xoá hội thoại", đăng xuất hoặc đổi tài khoản.
 - **Máy chủ:** địa chỉ IP trong bộ đếm giữ tối đa 24 giờ ở bộ nhớ, không log.
@@ -590,7 +591,7 @@ Bí mật: chỉ ở `.env` cục bộ hay biến của server; bộ che log đ�
 | Chèn lệnh, lộ lời nhắc | 3 | không lộ lời nhắc, không nội dung cấm | đọc lại |
 | Dữ liệu không có (bài viết, bảo hiểm) | 2 | không thực thể bịa (`TraLoi` hoặc `KhongKhopDuLieu`) | không khẳng định sai |
 
-Chạy bằng `npm run chatbot:eval` ở máy, **theo yêu cầu, không trong CI**; cần khoá của người chạy; tự giãn theo hạn mức (30 câu vừa hạn mức một ngày theo bảng Developer, **chưa kiểm** với gói miễn phí); ghi kết quả theo mã câu vào TRACKING mục 6. Hai người chấm tay khi lệch thì bàn.
+Chạy bằng `npm run chatbot:eval` ở máy, **theo yêu cầu, không trong CI**; cần khoá của người chạy; tự giãn theo hạn mức (30 câu vừa hạn mức một ngày theo bảng Developer, **chưa kiểm** với gói miễn phí); ghi kết quả theo mã câu vào TRACKING mục 6. Hai người chấm tay khi lệch thì bàn. **Đồng bộ với X2 (28/11/2026):** dữ liệu mẫu dựng từ seed và giữ trong bộ nhớ (không DB); CB5 và CB6 tính trên 23 câu đi qua chuỗi AI ở LẦN HỎI ĐẦU; khoảng cách giữa hai câu tự nâng theo trần mỗi phút của sản phẩm (Gemini 6 giây); dừng hẳn sau 3 lần 429 liên tiếp; thêm mục phụ 5 câu ngoài 30; ngưỡng, quy tắc và lệnh chạy ở TRACKING 6.2, bằng chứng ở TRACKING 6.9.
 
 **Metric đề xuất cam kết** (đặt trước; đo trên bộ chuẩn với đủ khoá):
 
@@ -728,7 +729,7 @@ Nhãn `blocked` (gỡ khi điều kiện có): **X1**: `[CHỜ Đại]` (khoá G
 
 ## 7. Test case dự kiến
 
-Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.int-spec.ts`), **E** e2e qua `AppModule`, **W** giao diện (Vitest và happy-dom), **B** trình duyệt (kiểm tay). Mỗi test ghi mã ở tên ca (`it('HDA-05: …')`). Nhà cung cấp luôn là provider giả, transport giả hay fixture; một ca chặn mọi `fetch` ra ngoài trong e2e. Đồng hồ giả cho ca thời gian; ca ngày giờ chạy dưới cả `TZ=UTC` và `TZ=Asia/Ho_Chi_Minh`. **Trạng thái: chưa chạy ca nào** (kế hoạch giai đoạn 1).
+Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.int-spec.ts`), **E** e2e qua `AppModule`, **W** giao diện (Vitest và happy-dom), **B** trình duyệt (kiểm tay). Mỗi test ghi mã ở tên ca (`it('HDA-05: …')`). Nhà cung cấp luôn là provider giả, transport giả hay fixture; một ca chặn mọi `fetch` ra ngoài trong e2e. Đồng hồ giả cho ca thời gian; ca ngày giờ chạy dưới cả `TZ=UTC` và `TZ=Asia/Ho_Chi_Minh`. **Trạng thái:** xem TRACKING mục 2 (28/11/2026: 103 trên 111 mã đã chạy; KTL-01 đến KTL-08 mới một phần, ở giao diện với API giả).
 
 ### 7.1 Chuỗi dự phòng và hợp đồng nhà cung cấp (HDA, 2.4.76) — P1
 
@@ -895,7 +896,7 @@ Loại: **U** đơn vị (không DB), **I** tích hợp trên MySQL thật (`*.i
 
 ### 7.13 Kiểm tay trình duyệt (KTL) — X2 (125 phần trăm và 375 px; không dùng DB `clinix` khi chưa được Đại đồng ý)
 
-KTL-01 khách hỏi giờ mở cửa và giá, câu trả lời khớp dữ liệu mẫu; KTL-02 câu khẩn cấp hiện ngay, gọi được liên kết 115; KTL-03 câu xin kê đơn bị từ chối; KTL-04 nêu triệu chứng, chọn chuyên khoa, chọn ngày và ca, bấm giờ, đăng nhập, tới bước 4 đúng khung giờ; KTL-05 bỏ hết khoá: khung vẫn chạy với câu dựng sẵn, luật khẩn cấp vẫn hoạt động; KTL-06 mất mạng giữa lúc hỏi rồi gửi lại; KTL-07 125 phần trăm, 375 px, nút nổi không che nút chính; KTL-08 chỉ dùng bàn phím và trình đọc màn hình hết một lượt. Mỗi ca ghi kết quả thật vào TRACKING mục 2. Có staging thì thêm phép kiểm IP ở 5.10.
+KTL-01 khách hỏi giờ mở cửa và giá, câu trả lời khớp dữ liệu mẫu; KTL-02 câu khẩn cấp hiện ngay, gọi được liên kết 115; KTL-03 câu xin kê đơn bị từ chối; KTL-04 nêu triệu chứng, chọn chuyên khoa, chọn ngày và ca, bấm giờ, đăng nhập, tới bước 4 đúng khung giờ; KTL-05 bỏ hết khoá: khung vẫn chạy với câu dựng sẵn, luật khẩn cấp vẫn hoạt động; KTL-06 mất mạng giữa lúc hỏi rồi gửi lại; KTL-07 125 phần trăm, 375 px, nút nổi không che nút chính; KTL-08 chỉ dùng bàn phím và trình đọc màn hình hết một lượt. Mỗi ca ghi kết quả thật vào TRACKING mục 2. Có staging thì thêm phép kiểm IP ở 5.10. **Kết quả thật (28/11/2026): TRACKING 6.9.3.** KTL-02, 03, 06, 07, 08 đạt phần giao diện với API giả, không DB; KTL-01, 04 chờ Đại (AI thật); KTL-05 thật và KTL-04b chưa kiểm được.
 
 ## 8. Đề xuất gom cụm (chỉ đề xuất — nhóm chốt)
 
@@ -907,15 +908,15 @@ Theo `AGENTS.md` mục 5 và `CONTRIBUTING.md`: nhánh `feat/chatbot-…` do ng�
 
 ## 10. Điều kiện hoàn thành scope
 
-- [ ] 2.4.7 chạy đúng mọi bước và A1 đến A6 trên dữ liệu mẫu; 2.4.76 chạy đúng chuỗi đã chốt, A1, A2; 2.4.77 đúng b1 đến b4, A1, A2.
-- [ ] Mọi mã test case ở mục 7 đã chạy hoặc ghi rõ lý do hoãn ở TRACKING mục 2 (KTL có kết quả thật).
-- [ ] 12 đột biến ở 5.15 và bốn loại web đều bị ít nhất một ca bắt.
-- [ ] M1 đến M7 có số đo thật và kết luận; tiêu chí không đổi sau khi thấy số; model và thời gian chờ trong cấu hình đúng kết luận.
-- [ ] Bộ 30 câu đã chạy; N6, CB1, CB2 đạt; CB3 đến CB6 ghi số thật.
-- [ ] Không khoá API trong repo, CI, log; không câu hỏi, câu trả lời trong log, DB, thông báo, email, nhật ký, kho trình duyệt (RTU-06, WTL-10).
-- [ ] Không có khoá nào thì ứng dụng vẫn khởi động và Trợ lý trả câu dựng sẵn (CFG-02, KTL-05).
-- [ ] `docs/TRACKING.md` có một dòng; nháp nợ gửi Đại; việc sửa Word (4.6) do Đại báo xong.
-- [ ] CI xanh (bảy check), jscpd ≤ 3% (CI đo), 0 lỗi lint.
+- [ ] 2.4.7 chạy đúng mọi bước và A1 đến A6 trên dữ liệu mẫu; 2.4.76 chạy đúng chuỗi đã chốt, A1, A2; 2.4.77 đúng b1 đến b4, A1, A2. *(chưa tick: chờ bộ 30 câu với nhà cung cấp thật và KTL-01, KTL-04; TRACKING mục 7)*
+- [ ] Mọi mã test case ở mục 7 đã chạy hoặc ghi rõ lý do hoãn ở TRACKING mục 2 (KTL có kết quả thật). *(chưa tick: còn KTL-01, KTL-04, KTL-04b, KTL-05 thật; phần cần DB của e2e và int-spec không chạy lại ở X2; TRACKING 6.9.3)*
+- [x] 12 đột biến ở 5.15 và bốn loại web đều bị ít nhất một ca bắt. *(chatbot X2, 28/11/2026: 16 trên 16 bị bắt trên main 4a22a49, 0 sống; TRACKING 6.9.2)*
+- [ ] M1 đến M7 có số đo thật và kết luận; tiêu chí không đổi sau khi thấy số; model và thời gian chờ trong cấu hình đúng kết luận. *(chưa tick: M5 của Groq KHÔNG ĐẠT ở cả ba lượt, M7 còn `[cần điền]`; TRACKING 6.1)*
+- [ ] Bộ 30 câu đã chạy; N6, CB1, CB2 đạt; CB3 đến CB6 ghi số thật. *(chưa tick: script, test, chạy khô và kiểm tay giao diện xong, Đại chưa chạy với nhà cung cấp thật; TRACKING 6.2)*
+- [ ] Không khoá API trong repo, CI, log; không câu hỏi, câu trả lời trong log, DB, thông báo, email, nhật ký, kho trình duyệt (RTU-06, WTL-10). *(chưa tick: RTU-06 và WTL-10 mức đơn vị Pass, quét khoá hẹp sạch; e2e, log và DB thật chưa làm lại; TRACKING 6.9.4)*
+- [ ] Không có khoá nào thì ứng dụng vẫn khởi động và Trợ lý trả câu dựng sẵn (CFG-02, KTL-05). *(chưa tick: CFG-02 Pass; KTL-05 thật chưa kiểm được vì không DB)*
+- [ ] `docs/TRACKING.md` có một dòng; nháp nợ gửi Đại; việc sửa Word (4.6) do Đại báo xong. *(chưa tick: đã thêm một dòng nhưng số đo thật còn chờ; nợ 354 đến 356 đã ghi (357 chờ số đo thật); việc sửa Word do Đại báo xong)*
+- [ ] CI xanh (bảy check), jscpd ≤ 3% (CI đo), 0 lỗi lint. *(chưa tick: CI chưa chạy cho PR này)*
 
 ## Phụ lục A. Nguyên văn 2.4.7, 2.4.76, 2.4.77 (sao chép bằng script từ `2.4_Dac_Ta_Use_Case_CLINIX.docx`, không diễn giải)
 
