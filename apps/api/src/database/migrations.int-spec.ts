@@ -15,6 +15,7 @@ import { TaoBangNhacLichHen1794052800000 } from './migrations/1794052800000-tao-
 import { ChiMucThongBaoTaiKhoan1794139200000 } from './migrations/1794139200000-chi-muc-thong-bao-tai-khoan.js';
 import { TaoBangChat1794225600000 } from './migrations/1794225600000-tao-bang-chat.js';
 import { ChiMucTinNhanNguoiGui1794312000000 } from './migrations/1794312000000-chi-muc-tin-nhan-nguoi-gui.js';
+import { TaoBangBaiViet1794398400000 } from './migrations/1794398400000-tao-bang-bai-viet.js';
 import { TaoBangMocHoanTien1793534400000 } from './migrations/1793534400000-tao-bang-moc-hoan-tien.js';
 import { TaoBangNghiPhep1793275200000 } from './migrations/1793275200000-tao-bang-nghi-phep.js';
 import { NhatKyPhanCongNghiPhep1793361600000 } from './migrations/1793361600000-nhat-ky-phan-cong-nghi-phep.js';
@@ -89,11 +90,19 @@ const TABLES_BEFORE_PAYMENT = [...TABLES_BEFORE_EXAM, ...EXAM_TABLES];
 const DOI_LICH_TABLES = ['yeu_cau_doi_lich_ngoai_chinh_sach'];
 // notification P1: bảng nhắc lịch hẹn (có trong file SQL từ trước, nay mới có migration)
 const NHAC_LICH_HEN_TABLES = ['nhac_lich_hen'];
+// article B1: bốn bảng bài viết (có trong file SQL từ trước, nay mới có migration; ABD-01)
+const ARTICLE_TABLES = [
+  'bai_viet',
+  'hashtag',
+  'bai_viet_hashtag',
+  'benh_nhan_danh_gia_bai_viet',
+];
 const MIGRATED_TABLES = [
   ...TABLES_BEFORE_PAYMENT,
   ...PAYMENT_TABLES,
   ...DOI_LICH_TABLES,
   ...NHAC_LICH_HEN_TABLES,
+  ...ARTICLE_TABLES,
 ];
 // 20 hành động đã có trước P4 (đúng thứ tự trong migration vận hành).
 const HANH_DONG_TRUOC_P4 = [
@@ -131,6 +140,7 @@ const NHAC_LICH_HEN_NAME = TaoBangNhacLichHen1794052800000.name;
 const CHI_MUC_THONG_BAO_NAME = ChiMucThongBaoTaiKhoan1794139200000.name;
 const CHAT_NAME = TaoBangChat1794225600000.name;
 const CHI_MUC_TIN_NHAN_NAME = ChiMucTinNhanNguoiGui1794312000000.name;
+const ARTICLE_NAME = TaoBangBaiViet1794398400000.name;
 const settings = readTestDbSettings(process.env, 'clinix_migration_test');
 let dataSource: DataSource;
 
@@ -704,7 +714,8 @@ describe('vòng đời migration', () => {
     // reschedule P1 (đổi): thêm migration đổi lịch đứng sau nữa, cũng được hoàn tác trước (down của nó không chặn vì DB chưa có dữ liệu đổi lịch).
     // notification P1, P2 (đổi): migration bảng nhắc lịch hẹn và chỉ mục thông báo đứng sau, cũng được hoàn tác trước (down của chúng không chặn).
     // chat P1 (đổi): migration ba bảng chat đứng sau cùng, cũng được hoàn tác trước (down chỉ chặn khi tin_nhan còn dòng; ở đây rỗng).
-    // chat P2 (đổi): migration chỉ mục tin_nhan đứng sau cùng, cũng được hoàn tác trước (down chỉ xoá chỉ mục).
+    // chat P2 (đổi): migration chỉ mục tin_nhan đứng sau, cũng được hoàn tác trước (down chỉ xoá chỉ mục).
+    // article B1 (đổi): migration bốn bảng bài viết đứng sau cùng, cũng được hoàn tác trước (down chỉ chặn khi bai_viet hay hashtag còn dòng; ở đây rỗng).
     expect(later).toEqual([
       NTC_NAME,
       DOI_LICH_NAME,
@@ -712,6 +723,7 @@ describe('vòng đời migration', () => {
       CHI_MUC_THONG_BAO_NAME,
       CHAT_NAME,
       CHI_MUC_TIN_NHAN_NAME,
+      ARTICLE_NAME,
     ]);
     const MOC_COLUMNS = [
       'thoi_diem_xac_nhan',
@@ -1615,8 +1627,9 @@ describe('vòng đời migration', () => {
 
     it('MCH-12: up, down, up trên DB có tin nhắn: down chỉ xoá chỉ mục (UNIQUE theo người gửi còn nguyên), dữ liệu không đổi; up lại giống hệt', async () => {
       await runPendingMigrations(dataSource);
+      // article B1 (đổi): trước là `expect(later).toEqual([])` vì chat P2 là migration cuối; nay migration bài viết đứng sau và được hoàn tác trước
       const later = await revertAfter(CHI_MUC_TIN_NHAN_NAME);
-      expect(later).toEqual([]);
+      expect(later).toEqual([ARTICLE_NAME]);
       expect(await indexColumns()).toEqual(['nguoi_gui_id', 'thoi_diem_gui']);
       const upState = await showTinNhan();
       const queryRunner = dataSource.createQueryRunner();
@@ -1642,6 +1655,7 @@ describe('vòng đời migration', () => {
 
       expect(await runPendingMigrations(dataSource)).toEqual([
         CHI_MUC_TIN_NHAN_NAME,
+        ...later,
       ]);
       expect(await showTinNhan()).toBe(upState);
       expect(await checksum()).toBe(before);
@@ -1649,7 +1663,88 @@ describe('vòng đời migration', () => {
     });
   });
 
-  // chat P1 (đổi): hạ rồi nâng lại cả 18 migration mất khoảng 23 giây khi chạy riêng, vượt 30 giây mặc định khi chạy cùng cả bộ (đo 27/11/2026): nới riêng ca này
+  // article B1 (#795): ABD-03 (up, down, up; down TỪ CHỐI khi còn bài viết hay thẻ). ABD-02 ở migration-source.spec.ts, ABD-01 ở schema-parity.int-spec.ts.
+  describe('article B1: bốn bảng bai_viet, hashtag, bai_viet_hashtag, benh_nhan_danh_gia_bai_viet', () => {
+    const showArticle = async (): Promise<string[]> => {
+      const result: string[] = [];
+      for (const table of ARTICLE_TABLES)
+        result.push(
+          (
+            (await dataSource.query(
+              `SHOW CREATE TABLE \`${table}\``,
+            )) as Record<string, string>[]
+          )[0]?.['Create Table'] ?? '',
+        );
+      return result;
+    };
+    const countRows = async (table: string): Promise<number> => {
+      const [{ total }] = (await dataSource.query(
+        `SELECT COUNT(*) AS total FROM \`${table}\``,
+      )) as [{ total: string | number }];
+      return Number(total);
+    };
+    /** Chèn một dòng mà không cần tài khoản thật: tắt kiểm khóa ngoại trên MỘT kết nối (nếp MCH-02). */
+    const insertWithoutForeignKeys = async (sql: string): Promise<void> => {
+      const queryRunner = dataSource.createQueryRunner();
+      await queryRunner.connect();
+      try {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0');
+        await queryRunner.query(sql);
+      } finally {
+        await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1');
+        await queryRunner.release();
+      }
+    };
+
+    it('ABD-03: up, down, up khi bốn bảng rỗng: down xoá đúng bốn bảng, bảng khác còn nguyên; up lại giống hệt', async () => {
+      await runPendingMigrations(dataSource);
+      const upState = await showArticle();
+      expect(upState).toHaveLength(4);
+      expect(upState.every((ddl) => ddl.startsWith('CREATE TABLE'))).toBe(true);
+      const otherTables = (await listTables(dataSource)).filter(
+        (table) => !ARTICLE_TABLES.includes(table),
+      );
+
+      expect(await revertLastMigration(dataSource)).toBe(ARTICLE_NAME);
+      expect(await listTables(dataSource)).toEqual(otherTables);
+
+      expect(await runPendingMigrations(dataSource)).toEqual([ARTICLE_NAME]);
+      expect(await showArticle()).toEqual(upState);
+    });
+
+    it('ABD-03: down khi còn một bài viết: TỪ CHỐI, bốn bảng và dòng còn nguyên, migration vẫn được ghi là đã chạy', async () => {
+      await runPendingMigrations(dataSource);
+      await insertWithoutForeignKeys(
+        "INSERT INTO bai_viet (tac_gia_id, tieu_de, noi_dung) VALUES (900001, 'ABD03', '')",
+      );
+
+      await expect(revertLastMigration(dataSource)).rejects.toThrow(
+        /bảng bai_viet còn dữ liệu/,
+      );
+      for (const table of ARTICLE_TABLES)
+        expect(await listTables(dataSource)).toContain(table);
+      expect(await countRows('bai_viet')).toBe(1);
+      expect((await listMigrations(dataSource)).at(-1)?.executed).toBe(true);
+
+      await dataSource.query("DELETE FROM bai_viet WHERE tieu_de = 'ABD03'");
+    });
+
+    it('ABD-03: down khi chỉ còn một thẻ (không bài, thẻ mồ côi theo MH8) cũng TỪ CHỐI; xoá thẻ rồi down thì được', async () => {
+      await runPendingMigrations(dataSource);
+      await dataSource.query("INSERT INTO hashtag (ten) VALUES ('abd03')");
+
+      await expect(revertLastMigration(dataSource)).rejects.toThrow(
+        /bảng hashtag còn dữ liệu/,
+      );
+      expect(await countRows('hashtag')).toBe(1);
+
+      await dataSource.query("DELETE FROM hashtag WHERE ten = 'abd03'");
+      expect(await revertLastMigration(dataSource)).toBe(ARTICLE_NAME);
+      expect(await runPendingMigrations(dataSource)).toEqual([ARTICLE_NAME]);
+    });
+  });
+
+  // chat P1 (đổi): hạ rồi nâng lại cả 18 migration mất khoảng 23 giây khi chạy riêng, vượt 30 giây mặc định khi chạy cùng cả bộ (đo 27/11/2026): nới riêng ca này (article B1: nay 19 migration)
   it('hoàn tác hết rồi hoàn tác tiếp: trả về null, không lỗi', async () => {
     for (let i = 0; i < MIGRATIONS.length; i++)
       await revertLastMigration(dataSource);

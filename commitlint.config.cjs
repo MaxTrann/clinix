@@ -14,6 +14,7 @@ module.exports = {
         'auth', 'patient', 'search', 'doctor', 'booking', 'payment', 'wallet', 'waitlist',
         'followup', 'notification', 'chat', 'chatbot', 'admin', 'rbac', 'audit', 'import-export', 'report', 'dashboard', 'ai',
         'api', 'web', 'mobile', 'db', 'ci', 'docker', 'docs', 'deps', 'repo',
+        'article',
       ],
     ],
     'header-max-length': [2, 'always', 100],

@@ -1,6 +1,7 @@
 import { AppointmentsModule } from './appointments/appointments.module.js';
 import { NotificationsModule } from './appointments/notifications/notifications.module.js';
 import { DoctorModule } from './doctor/doctor.module.js';
+import { ArticleModule } from './article/article.module.js';
 import { UploadModule } from './common/upload/upload.module.js';
 import { RbacModule } from './rbac/rbac.module.js';
 import { Module } from '@nestjs/common';
@@ -56,6 +57,7 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
     StaffActivationPublicModule,
     AccountResendModule,
     SearchModule,
+    ArticleModule,
     PatientModule,
     AccountNoShowModule,
     DoctorModule,

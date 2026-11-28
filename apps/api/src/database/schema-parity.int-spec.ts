@@ -79,6 +79,13 @@ const DOI_LICH_TABLES = ['yeu_cau_doi_lich_ngoai_chinh_sach'];
 const NHAC_LICH_HEN_TABLES = ['nhac_lich_hen'];
 // chat P1: ba bảng nhắn tin (có trong file SQL từ trước, nay mới có migration; tin_nhan dùng bản DDL đã sửa ở P1)
 const CHAT_TABLES = ['hoi_thoai', 'tai_khoan_hoi_thoai', 'tin_nhan'];
+// article B1: bốn bảng bài viết (có trong file SQL từ trước, nay mới có migration; ABD-01)
+const ARTICLE_TABLES = [
+  'bai_viet',
+  'hashtag',
+  'bai_viet_hashtag',
+  'benh_nhan_danh_gia_bai_viet',
+];
 const MIGRATED_TABLES = [
   ...AUTH_TABLES,
   ...CATALOG_TABLES,
@@ -92,6 +99,7 @@ const MIGRATED_TABLES = [
   ...DOI_LICH_TABLES,
   ...NHAC_LICH_HEN_TABLES,
   ...CHAT_TABLES,
+  ...ARTICLE_TABLES,
 ];
 let migrated: DataSource;
 let reference: DataSource;
@@ -234,6 +242,49 @@ describe('migration khớp schema chính thức (docs/database/clinix_mysql.sql)
     expect(await showCreateTable(migrated, 'tai_khoan_hoi_thoai')).toContain(
       'REFERENCES `tin_nhan`',
     );
+
+    // ABD-01 (article B1): bốn bảng bài viết có mặt thật và mang đủ ENUM, mặc định, ON UPDATE, UNIQUE, khóa chính kép, hai chỉ mục và năm khóa ngoại, để phép so ở trên không rỗng
+    const baiViet = await showCreateTable(migrated, 'bai_viet');
+    for (const part of [
+      "`trang_thai` enum('BanNhap','DaXuatBan','LuuTruAn') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'BanNhap'",
+      '`cap_nhat_lan_cuoi` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+      '`noi_dung` text COLLATE utf8mb4_unicode_ci NOT NULL',
+      'CONSTRAINT `bai_viet_ibfk_1` FOREIGN KEY (`tac_gia_id`) REFERENCES `quan_tri_vien` (`tai_khoan_id`)',
+    ]) {
+      expect(baiViet, part).toContain(part);
+    }
+    // `bai_viet` không có chỉ mục nào ngoài khóa chính và khóa ngoại (PLAN article 5.10: chỉ mục chỉ thêm khi X1 đo không đạt và Đại đồng ý)
+    expect(baiViet).not.toMatch(/\n\s+(?:UNIQUE )?KEY `(?!tac_gia_id`)/);
+    const hashtag = await showCreateTable(migrated, 'hashtag');
+    for (const part of [
+      '`ten` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL',
+      '`trang_thai_hoat_dong` tinyint(1) NOT NULL DEFAULT',
+      'UNIQUE KEY `ten` (`ten`)',
+    ]) {
+      expect(hashtag, part).toContain(part);
+    }
+    const baiVietHashtag = await showCreateTable(migrated, 'bai_viet_hashtag');
+    for (const part of [
+      'PRIMARY KEY (`bai_viet_id`,`hashtag_id`)',
+      'KEY `bai_viet_hashtag_index_23` (`hashtag_id`,`bai_viet_id`)',
+      'FOREIGN KEY (`bai_viet_id`) REFERENCES `bai_viet`',
+      'FOREIGN KEY (`hashtag_id`) REFERENCES `hashtag`',
+    ]) {
+      expect(baiVietHashtag, part).toContain(part);
+    }
+    const danhGiaBaiViet = await showCreateTable(
+      migrated,
+      'benh_nhan_danh_gia_bai_viet',
+    );
+    for (const part of [
+      "`loai` enum('Thich','KhongThich') COLLATE utf8mb4_unicode_ci NOT NULL",
+      'PRIMARY KEY (`benh_nhan_id`,`bai_viet_id`)',
+      'KEY `benh_nhan_danh_gia_bai_viet_index_24` (`bai_viet_id`,`loai`)',
+      'FOREIGN KEY (`benh_nhan_id`) REFERENCES `benh_nhan`',
+      'FOREIGN KEY (`bai_viet_id`) REFERENCES `bai_viet`',
+    ]) {
+      expect(danhGiaBaiViet, part).toContain(part);
+    }
   });
 
   it('mọi câu lệnh trong migration thuộc đúng 5 bảng auth', () => {
