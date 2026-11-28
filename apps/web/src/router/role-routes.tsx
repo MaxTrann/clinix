@@ -1,5 +1,6 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { ADMIN_ROUTES } from '../features/admin/admin-routes';
+import { ARTICLE_ADMIN_ROUTES } from '../features/article';
 import { RequireAuth, ROLE_HOME_PATHS, type VaiTro } from '../features/auth';
 import { CHAT_ROUTES, createChatRoutes } from '../features/chat';
 import { DOCTOR_TEAM_PATH } from '../features/search';
@@ -138,6 +139,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
       ...createAdminApprovalsRoutes(ADMIN_RESCHEDULE_REQUEST_ROUTES),
       // doctor-exam F7: Kiểm duyệt đánh giá của Quản trị viên (đã bọc AdminScopeGuard)
       ...ADMIN_REVIEWS_ROUTES,
+      // article F1: Bài viết của Quản trị viên (đã bọc AdminScopeGuard ToanHeThong)
+      ...ARTICLE_ADMIN_ROUTES,
       // booking F10: Lịch hẹn của Quản trị viên (đã bọc AdminScopeGuard)
       ...ADMIN_APPOINTMENT_ROUTES,
       // payment F5: Đặt cọc & Hoàn tiền (đã bọc AdminScopeGuard ToanHeThong)

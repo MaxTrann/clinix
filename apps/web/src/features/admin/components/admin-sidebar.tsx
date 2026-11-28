@@ -144,7 +144,13 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: 'Nội dung',
     items: [
-      { label: 'Bài viết', icon: 'posts' },
+      // article F1: trang quản trị bài viết, chỉ Toàn hệ thống (T14: `systemOnly`, route cũng bọc AdminScopeGuard ToanHeThong); ghi bằng chữ để không import chéo features/
+      {
+        label: 'Bài viết',
+        icon: 'posts',
+        systemOnly: true,
+        to: `${ROLE_HOME_PATHS.QuanTriVien}/bai-viet`,
+      },
       {
         label: 'Kiểm duyệt đánh giá',
         icon: 'reviews',

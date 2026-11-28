@@ -92,6 +92,8 @@ describe('Admin F1 shell', () => {
       'Email Preview',
       'Phụ phí bác sĩ',
       'Cài đặt hệ thống',
+      // article F1 (T14): Admin chi nhánh không thấy mục "Bài viết" (chỉ Toàn hệ thống biên tập)
+      'Bài viết',
     ];
     await signIn();
     api.failNext('/admin/me', () =>
