@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import type { AdminMe } from '../admin-me';
 import { AdminMeProvider } from '../admin-me-context';
 import { ClinicInfoPage } from './clinic-info-page';
@@ -24,7 +25,10 @@ function clinicInfo(overrides: Partial<ClinicInfo> = {}): ClinicInfo {
 function renderPage(scope: AdminMe = { phamVi: 'ToanHeThong' }) {
   return render(
     <AdminMeProvider value={scope}>
-      <ClinicInfoPage />
+      {/* dashboard F1: trang đọc `?tab=` nên cần router */}
+      <MemoryRouter>
+        <ClinicInfoPage />
+      </MemoryRouter>
     </AdminMeProvider>,
   );
 }
@@ -103,7 +107,9 @@ describe('ClinicInfoPage (F4)', () => {
     });
     render(
       <AdminMeProvider value={{ phamVi: 'ToanHeThong' }}>
-        <ClinicInfoPage />
+        <MemoryRouter>
+          <ClinicInfoPage />
+        </MemoryRouter>
       </AdminMeProvider>,
     );
     await screen.findByDisplayValue('CLINIX Clinic');

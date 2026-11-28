@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { AdminMeProvider } from '../admin-me-context';
 import { ClinicInfoPage } from './clinic-info-page';
 
@@ -34,7 +35,9 @@ async function openForm() {
   fetchMock.mockResolvedValueOnce(response(current));
   render(
     <AdminMeProvider value={{ phamVi: 'ToanHeThong' }}>
-      <ClinicInfoPage />
+      <MemoryRouter>
+        <ClinicInfoPage />
+      </MemoryRouter>
     </AdminMeProvider>,
   );
   await screen.findByDisplayValue('CLINIX Clinic');

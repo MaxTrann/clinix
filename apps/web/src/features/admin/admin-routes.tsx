@@ -1,6 +1,5 @@
 import type { RouteObject } from 'react-router';
 import { AdminScopeGuard } from './admin-scope-guard';
-import { AdminOverviewPage } from './admin-overview-page';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { SpecialtyPage } from './specialties/specialty-page';
 
@@ -8,7 +7,7 @@ export const ADMIN_ROUTES: RouteObject[] = [
   {
     element: <AdminScopeGuard policy="Any" />,
     children: [
-      { index: true, element: <AdminOverviewPage /> },
+      // Route `index` (`/admin`, trang Tổng quan) do module dashboard làm (dashboard F1), router ghép `ADMIN_OVERVIEW_ROUTES`
       { path: 'chuyen-khoa', element: <SpecialtyPage /> },
       // admin F7: Hồ sơ bác sĩ, cả hai phạm vi (Chi nhánh chỉ thấy bác sĩ chi nhánh mình, không đổi được chi nhánh)
       {

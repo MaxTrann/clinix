@@ -7,3 +7,5 @@ export type { AdminMe } from './admin-me';
 // doctor F6 (Q36): module doctor bọc route Admin bằng AdminScopeGuard và đọc phạm vi bằng useAdminScope, chỉ qua index này
 export { AdminScopeGuard } from './admin-scope-guard';
 export { useAdminScope } from './use-admin-scope';
+// dashboard F1: trang Tổng quan hiện trang "không đủ quyền" của khu Admin khi API trả 403
+export { AdminForbiddenPage } from './admin-forbidden-page';

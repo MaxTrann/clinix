@@ -50,7 +50,8 @@ describe('Admin F1 shell', () => {
     await restoreSession();
   }
 
-  it('AF1-01 hiển thị shell và nhãn Toàn hệ thống, không dựng dashboard mẫu', async () => {
+  // dashboard F1: `/admin` nay là trang Tổng quan thật (module dashboard); ca này vẫn khẳng định KHÔNG có chỉ số mẫu của Figma ngoài phạm vi (doanh thu, tổng bệnh nhân)
+  it('AF1-01 hiển thị shell và nhãn Toàn hệ thống, không có chỉ số mẫu ngoài phạm vi (doanh thu, tổng bệnh nhân)', async () => {
     await signIn();
     api.failNext('/admin/me', () => response({ phamVi: 'ToanHeThong' }));
 

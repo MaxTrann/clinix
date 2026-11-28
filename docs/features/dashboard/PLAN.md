@@ -485,7 +485,7 @@ Không bảng tổng hợp, không bộ nhớ đệm ở bản đầu. Khoảng 
 ### 5.11 Giao diện Quản trị viên (F1, F2)
 
 - Tiêu đề "Tổng quan"; dòng phạm vi (Chi nhánh: tên chi nhánh).
-- **Bộ lọc:** "Từ ngày", "Đến ngày" (`input type="date"`), "Chi nhánh" chỉ khi Toàn hệ thống (mặc định "Tất cả chi nhánh"), nút "Áp dụng" và "Tải lại". Kiểm tại chỗ trước khi gọi (thiếu, đảo ngược, quá 366 ngày). Giá trị ở URL (T11). Chi nhánh: **không** gửi `chiNhanhId`.
+- **Bộ lọc:** "Từ ngày", "Đến ngày" (`input type="date"`), "Chi nhánh" chỉ khi Toàn hệ thống (mặc định "Tất cả chi nhánh"), nút "Áp dụng" và "Tải lại". Kiểm tại chỗ trước khi gọi (thiếu, đảo ngược, quá 366 ngày). Giá trị ở URL (T11). Chi nhánh: **không** gửi `chiNhanhId`. *(Đã làm ở F1, 28/11/2026: hai ô ngày dùng `DateField` dùng chung, dd/mm/yyyy, vì luật UX1-61 cấm `input type="date"` ngoài nó; thêm bốn nút kỳ "7 ngày", "30 ngày", "Tháng này", "Năm nay" của Figma `507:2`, làm sớm mục "làm sau" ở 6.5 theo quyết định của Trung; bố cục bám Figma `507:2`, nội dung theo hợp đồng 5.7, khác Figma ghi ở TRACKING.)*
 - **Khối "Hôm nay":** hai thẻ (lịch khám, ca hoàn thành).
 - **Khối "Trong khoảng đã chọn":** thẻ lịch khám, ca hoàn thành, tỉ lệ vắng mặt, tỉ lệ sử dụng khung giờ (phần trăm lớn, dòng "x trên y"; mẫu 0 hiện "—" và "Chưa đủ dữ liệu"), cọc (tổng, số khoản), đã hoàn (tổng, số khoản, số khoản đang lỗi). Thẻ là danh sách có tiêu đề để trình đọc màn hình đọc được.
 - **Biểu đồ "Xu hướng đăng ký khám" (F2):** cột bằng SVG co theo khung, trục ghi ngày hay tuần, số lớn nhất ở trục; `role="img"` kèm tên tóm tắt (tổng số, ngày cao nhất); **bảng số** cùng dữ liệu mở bằng nút "Xem bảng số" (bàn phím tới được). Mọi giá trị bằng 0: không chia cho 0, hiện trục và thông báo. Không chỉ dùng màu để phân biệt.
@@ -718,7 +718,7 @@ Thứ tự làm và chia Iteration `[đề xuất]` (một người; phần Qu�
 
 **Thứ tự làm thêm của phần Quản trị viên khi còn giờ:** (không còn mục nào: B3, F3 đã chuyển sang phần ba vai trò ở trên).
 
-**"Làm sau", KHÔNG tạo issue:** so sánh với kỳ trước (+3 giờ); xuất CSV (+3); nút chọn nhanh kỳ (+1); lọc theo chuyên khoa, dịch vụ, bác sĩ (+4); thu tiền mặt tại quầy và doanh thu (+2); hàng đợi "nạp ví chưa cộng" và số bệnh nhân bị khoá đặt lịch (+2); tự làm mới (+1); tỉ lệ chấp nhận lời mời khi có module danh sách chờ (Khóa luận). Giờ là `[đề xuất]`.
+**"Làm sau", KHÔNG tạo issue:** so sánh với kỳ trước (+3 giờ); xuất CSV (+3); ~~nút chọn nhanh kỳ (+1)~~ (đã làm ở F1, 28/11/2026, quyết định của Trung); lọc theo chuyên khoa, dịch vụ, bác sĩ (+4); thu tiền mặt tại quầy và doanh thu (+2); hàng đợi "nạp ví chưa cộng" và số bệnh nhân bị khoá đặt lịch (+2); tự làm mới (+1); tỉ lệ chấp nhận lời mời khi có module danh sách chờ (Khóa luận). Giờ là `[đề xuất]`.
 
 ### 6.6 Thông tin để sinh issue (**KHÔNG tạo issue lúc này**: Đại tự chạy script sau khi PR tài liệu merge)
 
