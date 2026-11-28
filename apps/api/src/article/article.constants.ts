@@ -28,3 +28,14 @@ export const ARTICLE_LIMITS = {
   /** Số gợi ý thẻ tối đa. */
   suggestMax: 10,
 } as const;
+
+// --- article B2: route công khai (PLAN article 5.7, MH10, T10) ---
+
+/** Giới hạn và tiền tố của API công khai bài viết. Danh sách công khai mặc định 9 bài (lưới 3 cột), tối đa 30; thẻ phổ biến tối đa 20 (5.6). */
+export const ARTICLE_PUBLIC = {
+  /** Mọi route công khai dưới tiền tố này (tiền tố `/api` do proxy thêm). */
+  routePrefix: 'public',
+  pageSizeDefault: 9,
+  pageSizeMax: 30,
+  popularTagsMax: 20,
+} as const;

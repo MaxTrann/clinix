@@ -1,4 +1,4 @@
-import { QueryFailedError, type DataSource, type EntityManager } from 'typeorm';
+import { EntityManager, QueryFailedError, type DataSource } from 'typeorm';
 import type { AppException } from '../../common/errors/app.exception.js';
 import { ARTICLE_TABLES } from '../article.constants.js';
 import type {
@@ -18,6 +18,12 @@ export interface ArticleSeed {
   thoiDiemXuatBan?: Date | null;
   thoiDiemTao?: Date;
   capNhatLanCuoi?: Date;
+}
+
+/** Hạt giống của `published`: như `ArticleSeed` (trừ ràng buộc về trạng thái) kèm tên thẻ. */
+export interface PublishedSeed extends ArticleSeed {
+  /** Tên các thẻ gắn vào bài (thẻ chưa có thì tạo). */
+  hashtags?: readonly string[];
 }
 
 export interface RawArticleRow {
@@ -83,6 +89,47 @@ export class ArticleFixtures {
       'INSERT INTO benh_nhan_danh_gia_bai_viet (benh_nhan_id, bai_viet_id, loai) VALUES (?, ?, ?)',
       [benhNhanId, baiVietId, loai],
     );
+  }
+
+  // --- article B2: dữ liệu cho test API công khai ---
+
+  /**
+   * Chèn một bài ĐÃ XUẤT BẢN kèm các thẻ theo tên (thẻ chưa có thì tạo, đang hoạt động); trả id. `thoiDiemXuatBan` mặc định 08:00 ngày 02/11/2026 giờ Việt Nam;
+   * truyền `null` để dựng dữ liệu lệch (ABP-12). Truyền `trangThai` để dựng bài nháp hay lưu trữ có cùng thẻ.
+   */
+  async published(seed: PublishedSeed): Promise<string> {
+    const id = await this.article({
+      ...seed,
+      trangThai: seed.trangThai ?? 'DaXuatBan',
+      thoiDiemXuatBan:
+        seed.thoiDiemXuatBan === undefined ? DEFAULT_AT : seed.thoiDiemXuatBan,
+    });
+    for (const ten of seed.hashtags ?? []) {
+      const existing: { id: string }[] = await this.db.query(
+        'SELECT CAST(hashtag_id AS CHAR) AS id FROM hashtag WHERE ten = ?',
+        [ten],
+      );
+      await this.attach(id, existing[0]?.id ?? (await this.hashtag(ten)));
+    }
+    return id;
+  }
+
+  /** Chèn `count` bài đã xuất bản, thời điểm xuất bản tăng dần mỗi phút từ 08:00 ngày 02/11/2026 (bài số lớn nhất mới nhất); trả mã theo thứ tự chèn. */
+  async publishedMany(
+    tacGiaId: string,
+    count: number,
+    titlePrefix = 'Bài',
+  ): Promise<string[]> {
+    const ids: string[] = [];
+    for (let index = 1; index <= count; index++)
+      ids.push(
+        await this.published({
+          tacGiaId,
+          tieuDe: `${titlePrefix} ${index}`,
+          thoiDiemXuatBan: new Date(DEFAULT_AT.getTime() + index * 60_000),
+        }),
+      );
+    return ids;
   }
 
   /** Số dòng của từng bảng trong bốn bảng của article. */
@@ -162,6 +209,31 @@ export async function mysqlErrno(work: Promise<unknown>): Promise<number> {
   );
   return (error as QueryFailedError & { driverError: { errno: number } })
     .driverError.errno;
+}
+
+/**
+ * article B2: ghi lại mọi câu SQL chạy qua `EntityManager.query` (chỗ các repository công khai chạy trong `runReadOnly`) và, sau MỖI câu, gọi `after(sql, manager)` với đúng `manager` của lời gọi:
+ * chỗ để chèn dữ liệu bằng kết nối KHÁC giữa hai câu (ABP-09, ảnh chụp) hay thử ghi bằng chính `manager` đó (ABP-09, READ ONLY). Trả mảng câu đã chạy (cập nhật dần).
+ * Khôi phục tự động ở `vi.restoreAllMocks()` (hook của `useIntegrationHooks`). Không bắt `DataSource.query` nên các câu chèn của fixture không lẫn vào.
+ */
+export function captureSql(
+  after?: (sql: string, manager: EntityManager) => Promise<void> | void,
+): string[] {
+  const statements: string[] = [];
+  // Giữ bản gốc để gọi lại bên trong bản giả (luôn gọi bằng `.call(this, …)`), nên việc tham chiếu hàm chưa gắn `this` là chủ ý
+  // oxlint-disable-next-line typescript/unbound-method
+  const real = EntityManager.prototype.query;
+  vi.spyOn(EntityManager.prototype, 'query').mockImplementation(async function (
+    this: EntityManager,
+    sql: string,
+    parameters?: unknown[],
+  ) {
+    const result: unknown = await real.call(this, sql, parameters);
+    statements.push(sql);
+    await after?.(sql, this);
+    return result;
+  } as never);
+  return statements;
 }
 
 /** Lỗi `AppException` mà `work` ném ra; không ném thì làm test đỏ. */

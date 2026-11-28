@@ -25,7 +25,17 @@ export const ARTICLE_ERROR_CODES = {
   INVALID_INITIAL_STATUS: 'TRANG_THAI_KHONG_HOP_LE',
   TAG_ACCENT_CONFLICT: 'THE_TRUNG_KHONG_DAU',
   TAG_DISABLED: 'THE_DA_TAT',
+  /** B2: bộ lọc của route công khai sai dạng (PLAN 5.7: `the`); chi tiết từng trường nằm ở `loi[]`. */
+  INVALID_FILTER: 'BO_LOC_KHONG_HOP_LE',
 } as const;
+
+/** B2: 400 `BO_LOC_KHONG_HOP_LE` kèm tên trường lọc sai và mã của trường đó (service công khai; nếp `parseFilterId` của search). */
+export function invalidFilter(truong: string, ma: string): AppException {
+  return new AppException(400, ARTICLE_ERROR_CODES.INVALID_FILTER, {
+    thongBao: 'Bộ lọc không hợp lệ.',
+    loi: [{ truong, ma }],
+  });
+}
 
 /** 400 `DU_LIEU_KHONG_HOP_LE` không kèm danh sách trường (thân `PATCH` rỗng). */
 export function emptyPatch(): AppException {
