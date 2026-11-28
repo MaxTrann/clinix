@@ -36,7 +36,7 @@
 - `NotificationService` chung thay cả 7 notifier hiện có (Q5 chọn sổ danh mục chỉ đọc; lý do và chi phí ở 4.2).
 - Job dọn thông báo cũ (Q4: giữ mãi; ghi nợ).
 - Chuông ở header công khai khi Bệnh nhân đang đặt lịch (Q10: không ở đợt đầu; ghi nợ). Hộp thả xuống (dropdown) của chuông: **chuông là liên kết tới trang** (Q14, Đại đã trả lời; hộp thả xuống ghi nợ, nháp TECH_DEBT 272).
-- Sự kiện và thư của **danh sách chờ** (#11: mời, kết quả), của **chat** (tin nhắn mới): chỉ chừa dòng ở danh mục.
+- Sự kiện và thư của **danh sách chờ** (#11: mời, kết quả), của **chat** (tin nhắn mới): chỉ chừa dòng ở danh mục. *(Cập nhật ở chat D1, 28/11/2026: chat đã khai `TinNhanMoi` ở chat B6, chỉ trong ứng dụng, không thư; lộ trình chốt chat là scope #11, danh sách chờ lùi sau.)*
 - Thông báo cho Bệnh nhân khi tiếp đón hay khôi phục trạng thái (2.4.34 b5): Q7 chỉ thêm cho Bác sĩ; phần còn lại ghi lệch.
 - Tắt hay bật từng loại thông báo theo người dùng, xoá thông báo, lưu trữ: use case không có.
 - Phản hồi nhanh trong thư nhắc (2.4.69: "không kèm phản hồi nhanh"); thông báo trong ứng dụng cho nhắc lịch (2.4.75 b4 và `COMMENT` của bảng: nhắc lịch **không có** `thong_bao`).
@@ -351,7 +351,7 @@ interface CatalogEntry {
 | `YeuCauThayDoiChiNhanhQuaHan` (`:v{n}`) | ChiNhanh | Yêu cầu thay đổi chi nhánh quá hạn | Quản trị viên Toàn hệ thống, người đề xuất | không | ThayDoiChiNhanh | admin | CoMa |
 | `RutThayDoiChiNhanh` | ChiNhanh | Yêu cầu thay đổi chi nhánh đã được rút | Quản trị viên Toàn hệ thống | không | ThayDoiChiNhanh | admin | CoMa |
 
-Chừa chỗ (không có mã, **không** là dòng của danh mục; ghi ở comment `CHO_MODULE` để DMS-13 nhắc): danh sách chờ (lời mời, kết quả; scope #11, thư theo 2.4.75), chat (tin nhắn mới tới Bác sĩ, Lễ tân, Bệnh nhân; 2.4.20, 2.4.21, 2.4.29), "thanh toán cọc thất bại" (nếu Đại muốn: L5).
+Chừa chỗ (không có mã, **không** là dòng của danh mục; ghi ở comment `CHO_MODULE` để DMS-13 nhắc): danh sách chờ (lời mời, kết quả; scope #11, thư theo 2.4.75), chat (tin nhắn mới tới Bác sĩ, Lễ tân, Bệnh nhân; 2.4.20, 2.4.21, 2.4.29), "thanh toán cọc thất bại" (nếu Đại muốn: L5). *(Chat D1, 28/11/2026: mục chat đã rời `CHO_MODULE` và là dòng `TinNhanMoi` của danh mục từ chat B6; mã lưu `TinNhanMoi:{hoiThoaiId}`, liên kết `{ kieu: 'HoiThoai', hoiThoaiId }`; ca TBC-07.)*
 
 Tổng "có thư" sau scope: booking 4 + `LichHenHoanThanh` 1 + nghỉ phép 3 + payment 5 + thay đổi chi nhánh 4 + đổi lịch 4 = **21** loại (DMS-04 khớp `MAIL_EVENTS`; 13 hiện có + 4 của reschedule B3 + 4 của scope này).
 
@@ -785,7 +785,7 @@ Theo `AGENTS.md` mục 5 và `CONTRIBUTING.md`: nhánh `feat/notification-…` d
 - [x] IVN-01…IVN-05 xanh sau mọi ca đồng thời; 0 lần 503; số 1213 và 1205 được ghi ở CTB-02 (X2, 25/11/2026: 0 và 0).
 - [x] 24 đột biến ở 5.12 đều bị ít nhất một ca bắt (26/11/2026: 14 ở các task B, F; đột biến 8 đến 17 ở X3; cả 24 bị bắt).
 - [x] M1 đến M7 có số đo thật và kết luận (P2 làm hay đóng); tiêu chí không đổi sau khi thấy số (X1, 25/11/2026; M1 không đạt ⇒ P2 phần (b) đã làm; M4 không đạt ⇒ quy tắc 41 sửa ở D1).
-- [ ] Không còn thẻ `[CHỜ …]` trong PLAN này (trừ `[CHỜ waitlist]`, `[CHỜ chat]` chừa chỗ), không còn `[cần điền]` chặn mã.
+- [ ] Không còn thẻ `[CHỜ …]` trong PLAN này (trừ `[CHỜ waitlist]` chừa chỗ; `[CHỜ chat]` đã gỡ ở chat D1, 28/11/2026), không còn `[cần điền]` chặn mã.
 - [ ] Danh mục khớp mã (DMS xanh); `MAIL_EVENTS` khớp danh mục; HDK-06 đã sửa; nháp đóng TECH_DEBT 62, 186, mục Doctor B10 (và 90 nếu P2 làm) gửi Đại; D2 (Word) do Đại báo xong. **(26/11/2026: mọi phần đã xong, TECH_DEBT 186 và mục Doctor B10 đóng ở B4, B5, dòng 62 đóng ở D1; dòng 90 giữ vì P2 không thêm chỉ mục `lich_hen`; CÒN D2 của Đại.)**
 - [ ] Ba file `docs/database/*` khớp migration (P1 không đổi DDL; P2 nếu có); PLAN booking, doctor, doctor-exam, `docs/TRACKING.md` đã đồng bộ ở D1. **(26/11/2026, D1: ba file `docs/database/*` và PLAN booking, doctor, doctor-exam đã đồng bộ; dòng `docs/TRACKING.md` để ở X3 khi cả scope xong, theo AGENTS mục 5 bước 5, Trung chọn.)**
 - [ ] CI xanh (bảy check), jscpd ≤ 3% (CI đo), 0 lỗi lint.

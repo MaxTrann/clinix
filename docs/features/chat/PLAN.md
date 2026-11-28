@@ -947,15 +947,17 @@ Theo `AGENTS.md` mục 5 và `CONTRIBUTING.md`: nhánh `feat/chat-…` do ngư�
 
 ## 10. Điều kiện hoàn thành scope
 
-- [ ] Ba use case chạy đúng trên MySQL thật: 2.4.20 (mọi bước và A1), 2.4.21 (mọi bước và A1), 2.4.29 (hai luồng, A1, A2).
-- [ ] Mọi mã test case ở mục 7 đã chạy hoặc ghi rõ lý do hoãn ở TRACKING mục 2 (KCH có kết quả thật).
-- [ ] IVC-01…IVC-08 xanh sau mọi ca đồng thời; 0 lần 503; số 1213 và 1205 được ghi.
-- [ ] 30 đột biến ở 5.15 đều bị ít nhất một ca bắt.
-- [ ] M1 đến M10 có số đo thật và kết luận (P2 làm hay đóng); tiêu chí không đổi sau khi thấy số.
-- [ ] Không nội dung tin, tên tệp trong log, thông báo, email, nhật ký (BCH, TBC-05).
-- [ ] Chạy được qua Vite proxy và ảnh nginx, gồm WebSocket và tải tệp; volume tệp được mô tả cách sao lưu.
-- [ ] Danh mục thông báo khớp mã (DMS xanh); ba file `docs/database/*` khớp migration; `docs/TRACKING.md` có một dòng; nháp nợ gửi Đại; việc sửa Word (4.6) do Đại báo xong.
-- [ ] CI xanh (bảy check), jscpd ≤ 3% (CI đo), 0 lỗi lint.
+Trạng thái ghi ở chat D1 (28/11/2026): ô nào chưa tick thì ghi rõ còn chờ task nào; X3 tick nốt khi tổng kết scope.
+
+- [ ] Ba use case chạy đúng trên MySQL thật: 2.4.20 (mọi bước và A1), 2.4.21 (mọi bước và A1), 2.4.29 (hai luồng, A1, A2). *(Chờ X3: ca tự động NBS, NLE, NBN đã Pass trên MySQL thật; còn kiểm tay KCH.)*
+- [ ] Mọi mã test case ở mục 7 đã chạy hoặc ghi rõ lý do hoãn ở TRACKING mục 2 (KCH có kết quả thật). *(149/172 đã chạy; chờ X2: CCH-01…CCH-11, X3: KCH-01…KCH-12.)*
+- [ ] IVC-01…IVC-08 xanh sau mọi ca đồng thời; 0 lần 503; số 1213 và 1205 được ghi. *(Chờ X2.)*
+- [x] 30 đột biến ở 5.15 đều bị ít nhất một ca bắt. *(Mỗi đột biến đã bị bắt ở task của nó, ghi ở TRACKING mục 2; X3 chạy lại theo lô.)*
+- [ ] M1 đến M10 có số đo thật và kết luận (P2 làm hay đóng); tiêu chí không đổi sau khi thấy số. *(M1 đến M7 có số, P2 làm phần (b); chờ X1: M8, M9, M10.)*
+- [x] Không nội dung tin, tên tệp trong log, thông báo, email, nhật ký (BCH, TBC-05). *(BCH-01…BCH-06, TBC-05 Pass ở B1 đến B6, F3.)*
+- [ ] Chạy được qua Vite proxy và ảnh nginx, gồm WebSocket và tải tệp; volume tệp được mô tả cách sao lưu. *(WebSocket qua nginx và Vite: SOC-16 ở P4; chờ X3: tải tệp qua nginx; cách sao lưu volume chưa có, nợ 323 (b).)*
+- [ ] Danh mục thông báo khớp mã (DMS xanh); ba file `docs/database/*` khớp migration; `docs/TRACKING.md` có một dòng; nháp nợ gửi Đại; việc sửa Word (4.6) do Đại báo xong. *(DMS, ba file DB, dòng `docs/TRACKING.md` và nợ 323 đến 325 đã xong ở D1; chờ Đại: sửa Word 4.6.)*
+- [ ] CI xanh (bảy check), jscpd ≤ 3% (CI đo), 0 lỗi lint. *(Mỗi PR đã merge đều xanh; chờ CI của các PR X1 đến X3.)*
 
 ## Phụ lục A. Nguyên văn 2.4.20, 2.4.21, 2.4.29 (sao chép bằng script từ `2.4_Dac_Ta_Use_Case_CLINIX.docx`, không diễn giải)
 
