@@ -26,7 +26,7 @@ Scope "Nhắn tin" cho Bệnh nhân gửi ảnh (JPEG, PNG, WebP) và PDF cho B�
 
 ## Đánh đổi và hệ quả
 
-- Volume tách khỏi DB nên **phải sao lưu và khôi phục cùng `db-data`**: khôi phục DB mà thiếu volume thì tin trỏ tới tệp đã mất (tải xuống trả 404, B4 ghi log id tin). Đồ án chưa có quy trình sao lưu tự động; khoản nợ này ghi ở `docs/TECH_DEBT.md` khi B4 merge (dòng dự kiến trong TRACKING chat mục nợ, Q5, Q6).
+- Volume tách khỏi DB nên **phải sao lưu và khôi phục cùng `db-data`**: khôi phục DB mà thiếu volume thì tin trỏ tới tệp đã mất (tải xuống trả 404, B4 ghi log id tin). Đồ án chưa có quy trình sao lưu tự động; khoản nợ này đã ghi ở `docs/TECH_DEBT.md` dòng 323 khi B4 merge (Q5, Q6; kiểm lại ở chat D1, 28/11/2026).
 - Không quét virus (Q6). Bù lại, B4 chỉ nhận bốn loại theo nội dung, mã hoá lại ảnh và chỉ cho tải PDF xuống.
 - Một máy chủ một volume: chưa chạy được nhiều bản API trên nhiều máy. Muốn mở rộng thì viết bản `ChatFileStore` mới (ví dụ kho đối tượng tự quản lý), B4 không đổi.
 - Tiến trình chết giữa lúc ghi và đổi tên có thể để lại tệp tạm `.<uuid>.tmp`. `list()` bỏ qua tệp tạm. Job dọn mồ côi của B4 chỉ xoá tệp đúng mẫu khoá, nên tệp tạm sót lại nằm ngoài phạm vi job đó (hiếm gặp, kiểm tay).
