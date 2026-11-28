@@ -1,14 +1,19 @@
 import { ApiError, RequestAbortedError } from '../../../shared/api/errors';
+import type { VaiTro } from '../../auth';
 import type { ArticleApi } from '../api/article-api';
 import {
   ARTICLE_LIST_PAGE_SIZE,
   ARTICLE_SEARCH_MAX_LENGTH,
   PUBLIC_LIST_PAGE_SIZE,
+  RATING_CHOICES,
   TAG_SUGGESTION_LIMIT,
   type ArticleDetail,
   type ArticleListPage,
   type ArticlePatch,
+  type ArticleRatingResult,
   type ArticleStatus,
+  type RatingChoice,
+  type RatingTotals,
 } from '../api/article-types';
 import { ARTICLE_ERROR } from '../common/article-errors';
 import { isArticleId } from '../common/article-paths';
@@ -43,6 +48,20 @@ export interface FakeArticleApi extends ArticleApi {
   failNext(method: ArticleApiMethod, error: unknown): void;
   // Lời gọi KẾ TIẾP của `method` chờ tới khi `release()` hay `fail()`
   hold(method: ArticleApiMethod): Gate;
+  // ----- Đánh giá (article F3) -----
+  // Người gọi route `patient/…`: mặc định là KHÁCH. Danh tính được CHỤP lúc gọi (như token đi theo request), không phải lúc máy chủ xử lý.
+  signInAs(vaiTro: VaiTro, accountId?: string): void;
+  signOut(): void;
+  // Thêm phiếu của một tài khoản (không qua kiểm quyền); dùng để dựng "đã có phiếu" và số đếm
+  seedRating(articleId: string, accountId: string, loai: RatingChoice): void;
+  // Thêm `thich` phiếu Thích và `khongThich` phiếu Không thích của những tài khoản khác
+  seedRatings(
+    articleId: string,
+    counts: { thich?: number; khongThich?: number },
+  ): void;
+  // Phiếu hiện có của một tài khoản; số dòng phiếu của một bài (khoá chính `(tài khoản, bài)`: tối đa một dòng mỗi tài khoản)
+  ratingOf(articleId: string, accountId: string): RatingChoice | null;
+  ratingRows(articleId: string): number;
 }
 
 const MAX_TITLE = 255;
@@ -53,6 +72,14 @@ const MAX_CONTENT_BYTES = 60_000;
 const INVALID_FILTER = 'BO_LOC_KHONG_HOP_LE';
 const MAX_KEYWORD = ARTICLE_SEARCH_MAX_LENGTH;
 const MAX_POPULAR_TAGS = 20;
+// Đánh giá (B3): khách 401 `CHUA_DANG_NHAP`; `loai` lạ ⇒ 400 `DU_LIEU_KHONG_HOP_LE` kèm `loi[{ loai, LOAI_DANH_GIA_KHONG_HOP_LE }]`
+const NOT_LOGGED_IN = 'CHUA_DANG_NHAP';
+const INVALID_RATING = 'LOAI_DANH_GIA_KHONG_HOP_LE';
+
+interface Caller {
+  vaiTro: VaiTro;
+  accountId: string;
+}
 
 // Ký tự điều khiển bị cấm, trừ xuống dòng và tab (PLAN article T7). Duyệt mã ký tự thay vì regex để khỏi vướng luật `no-control-regex`.
 function hasControlChars(text: string): boolean {
@@ -164,6 +191,52 @@ export function createFakeArticleApi(
     hashtag: [...article.hashtag],
   });
 
+  // ----- Đánh giá (article F3; làm đúng hợp đồng B3 đã merge `1c6e901`, kể cả những chỗ máy chủ TỪ CHỐI) -----
+  // Phiếu theo bài: bài ⇒ (tài khoản ⇒ loại). Khoá chính kép của bảng thật: mỗi tài khoản tối đa MỘT phiếu cho mỗi bài
+  const ratings = new Map<string, Map<string, RatingChoice>>();
+  let caller: Caller | null = null;
+  let seededVoters = 0;
+
+  function votesOf(articleId: string): Map<string, RatingChoice> {
+    let votes = ratings.get(articleId);
+    if (votes === undefined) {
+      votes = new Map();
+      ratings.set(articleId, votes);
+    }
+    return votes;
+  }
+
+  // Số đếm TÍNH Ở BẢN GIẢ từ chính kho phiếu (như `GROUP BY loai` của máy chủ), không ai nhập sẵn
+  function totalsOf(articleId: string): RatingTotals {
+    let luotThich = 0;
+    let luotKhongThich = 0;
+    for (const loai of votesOf(articleId).values()) {
+      if (loai === 'Thich') luotThich += 1;
+      else luotKhongThich += 1;
+    }
+    return { luotThich, luotKhongThich };
+  }
+
+  const ratingResult = (
+    articleId: string,
+    loai: RatingChoice | null,
+  ): ArticleRatingResult => ({ loai, ...totalsOf(articleId) });
+
+  // Guard của máy chủ (chạy TRƯỚC pipe và service): khách 401, vai khác Bệnh nhân 403
+  function requirePatient(who: Caller | null): string {
+    if (who === null) throw apiError(401, NOT_LOGGED_IN);
+    if (who.vaiTro !== 'BenhNhan') throw apiError(403, ARTICLE_ERROR.forbidden);
+    return who.accountId;
+  }
+
+  // Service: chỉ bài ĐÃ XUẤT BẢN; sai dạng, không có, nháp, lưu trữ cùng một 404 `KHONG_TIM_THAY` (phiếu của bài đang bị ẩn cũng không đụng được)
+  function requirePublished(id: string): void {
+    const article = isArticleId(id) ? store.get(id) : undefined;
+    if (article === undefined || article.trangThai !== 'DaXuatBan') {
+      throw apiError(404, ARTICLE_ERROR.notFound);
+    }
+  }
+
   // Ghi thêm: bài đã sửa rồi kiểm luật nghiệp vụ (xuất bản cần nội dung); `thoiDiemXuatBan` đặt MỘT lần ở lần đầu xuất bản
   function save(article: ArticleDetail): ArticleDetail {
     if (article.trangThai === 'DaXuatBan' && article.noiDung.trim() === '') {
@@ -194,6 +267,27 @@ export function createFakeArticleApi(
       gates.set(method, [...(gates.get(method) ?? []), promise]);
       return { release, fail };
     },
+
+    signInAs(vaiTro, accountId = 'bn-1') {
+      caller = { vaiTro, accountId };
+    },
+    signOut() {
+      caller = null;
+    },
+    seedRating(articleId, accountId, loai) {
+      votesOf(articleId).set(accountId, loai);
+    },
+    seedRatings(articleId, counts) {
+      for (let i = 0; i < (counts.thich ?? 0); i += 1) {
+        votesOf(articleId).set(`seed-${(seededVoters += 1)}`, 'Thich');
+      }
+      for (let i = 0; i < (counts.khongThich ?? 0); i += 1) {
+        votesOf(articleId).set(`seed-${(seededVoters += 1)}`, 'KhongThich');
+      }
+    },
+    ratingOf: (articleId, accountId) =>
+      votesOf(articleId).get(accountId) ?? null,
+    ratingRows: (articleId) => votesOf(articleId).size,
 
     async list(query, signal) {
       await enter('list', [query], signal);
@@ -333,7 +427,7 @@ export function createFakeArticleApi(
       if (article === undefined || article.trangThai !== 'DaXuatBan') {
         throw apiError(404, ARTICLE_ERROR.notFound);
       }
-      return toPublicDetail(article);
+      return toPublicDetail(article, totalsOf(id));
     },
 
     async listPublicTags(signal) {
@@ -349,6 +443,37 @@ export function createFakeArticleApi(
         .map(([ten, soBai]) => ({ ten, soBai }))
         .sort((a, b) => b.soBai - a.soBai || a.ten.localeCompare(b.ten, 'vi'))
         .slice(0, MAX_POPULAR_TAGS);
+    },
+
+    // Thứ tự của máy chủ thật: guard (401, 403) ⇒ pipe (400 `loai` lạ) ⇒ service (404). Danh tính chụp LÚC GỌI, như token đi theo request
+    async getMyRating(id, signal) {
+      const who = caller;
+      await enter('getMyRating', [id], signal);
+      const accountId = requirePatient(who);
+      requirePublished(id);
+      return votesOf(id).get(accountId) ?? null;
+    },
+
+    async setRating(id, loai) {
+      const who = caller;
+      await enter('setRating', [id, loai]);
+      const accountId = requirePatient(who);
+      if (!RATING_CHOICES.some((choice) => choice === loai)) {
+        throw fieldError('loai', INVALID_RATING);
+      }
+      requirePublished(id);
+      votesOf(id).set(accountId, loai);
+      return ratingResult(id, loai);
+    },
+
+    // Idempotent: thu hồi khi chưa có phiếu vẫn 200 (số đếm giữ nguyên)
+    async clearRating(id) {
+      const who = caller;
+      await enter('clearRating', [id]);
+      const accountId = requirePatient(who);
+      requirePublished(id);
+      votesOf(id).delete(accountId);
+      return ratingResult(id, null);
     },
   };
 }

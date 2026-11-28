@@ -7,9 +7,11 @@ import {
 } from './parse-article';
 
 // article F2, ABG-14: bộ kiểm hình dạng thân phản hồi công khai. Khoá giao diện CẦN (mã, tiêu đề, thẻ, nội dung, tổng, trang) thiếu hay sai kiểu ⇒ `UnexpectedResponseError`;
-// khoá phụ (mô tả, ảnh, thời điểm xuất bản) chịu thiếu và coi là `null`; khoá thừa (B3 cộng `luotThich`) bị bỏ qua.
+// khoá phụ (mô tả, ảnh, thời điểm xuất bản) chịu thiếu và coi là `null`; khoá thừa ngoài kiểu bị bỏ qua.
+// article F3: chi tiết có thêm hai số đếm CẦN (`luotThich`, `luotKhongThich`); các ca chi tiết dưới đây mang sẵn hai số để mỗi ca chỉ thử ĐÚNG khoá nó nêu (ca của hai số đếm ở `parse-rating.test.ts`, ABU-12).
 const item = () =>
   makePublicItem({ baiVietId: '12', tieuDe: 'Sốt xuất huyết' });
+const counts = { luotThich: 3, luotKhongThich: 1 };
 
 describe('parsePublicArticlePage', () => {
   it('ABG-14 thân đúng ⇒ trả đúng; khoá thừa của phần tử và của trang bị bỏ', () => {
@@ -79,24 +81,28 @@ describe('parsePublicArticlePage', () => {
 });
 
 describe('parsePublicArticleDetail', () => {
-  it('ABG-14 chi tiết đúng ⇒ có noiDung; khoá thừa (luotThich của B3) bị bỏ', () => {
+  it('ABG-14 chi tiết đúng ⇒ có noiDung và hai số đếm (F3); khoá thừa ngoài kiểu bị bỏ', () => {
     const parsed = parsePublicArticleDetail({
       ...item(),
+      ...counts,
       noiDung: 'Nội dung bài',
-      luotThich: 3,
-      luotKhongThich: 1,
+      tacGia: { hoTen: 'x' },
     });
-    expect(parsed).toEqual({ ...item(), noiDung: 'Nội dung bài' });
+    expect(parsed).toEqual({
+      ...item(),
+      ...counts,
+      noiDung: 'Nội dung bài',
+    });
   });
 
   it('ABG-14 thiếu hay sai `noiDung`, `tieuDe`, `baiVietId` ⇒ UnexpectedResponseError', () => {
     for (const raw of [
       null,
-      item(),
-      { ...item(), noiDung: 5 },
-      { ...item(), noiDung: null },
-      { ...item(), noiDung: 'x', tieuDe: null },
-      { ...item(), noiDung: 'x', baiVietId: undefined },
+      { ...item(), ...counts },
+      { ...item(), ...counts, noiDung: 5 },
+      { ...item(), ...counts, noiDung: null },
+      { ...item(), ...counts, noiDung: 'x', tieuDe: null },
+      { ...item(), ...counts, noiDung: 'x', baiVietId: undefined },
     ]) {
       expect(() => parsePublicArticleDetail(raw)).toThrow(
         UnexpectedResponseError,
@@ -105,9 +111,9 @@ describe('parsePublicArticleDetail', () => {
   });
 
   it('ABG-14 biên: nội dung rỗng là chuỗi hợp lệ', () => {
-    expect(parsePublicArticleDetail({ ...item(), noiDung: '' }).noiDung).toBe(
-      '',
-    );
+    expect(
+      parsePublicArticleDetail({ ...item(), ...counts, noiDung: '' }).noiDung,
+    ).toBe('');
   });
 });
 

@@ -345,3 +345,140 @@ describe('article F2: ranh giới `public/` và `admin/` (ABG-13)', () => {
     }
   });
 });
+
+// ----- article F3, ABU-08: `rating/` (khối "Bài viết có ích không?") -----
+// `rating/` chỉ dùng `shared/`, `features/auth` (qua index), `common/`, `api/` và chính nó: KHÔNG `public/` (vì `public/` import `rating/`, ngược lại sẽ thành vòng), KHÔNG `admin/`,
+// KHÔNG `testing/`, KHÔNG `features/search`, `features/admin`. Chiều ĐƯỢC PHÉP: `public/` import `rating/` (trang chi tiết gắn khối). Hai chiều đều có ca ÂM và DƯƠNG.
+const reachesRating = (file: string, target: Target) => {
+  const parts = resolvedParts(file, target.specifier);
+  return (
+    parts[0] === 'features' && parts[1] === 'article' && parts[2] === 'rating'
+  );
+};
+
+describe('article F3: ranh giới `rating/` (ABU-08)', () => {
+  const ratingSources = () => folderOf(prodSources, 'rating');
+
+  it('ABU-08 có đủ file mã ở `rating/` để phép quét có nghĩa', () => {
+    expect(Object.keys(ratingSources()).sort()).toEqual(
+      expect.arrayContaining([
+        './rating/article-rating.tsx',
+        './rating/rating-buttons.tsx',
+        './rating/rating-styles.ts',
+        './rating/rating-text.ts',
+        './rating/use-article-rating.ts',
+      ]),
+    );
+  });
+
+  it('ABU-08 `rating/` chỉ import thư viện đã có, `shared/`, `features/auth` qua index, `common/`, `api/` và chính nó (không `public/`, `admin/`, `testing/`, `features/search`, `features/admin`)', () => {
+    const files = ratingSources();
+    expect(
+      violations(files, (_file, target) => target.kind === 'other'),
+    ).toEqual([]);
+    expect(
+      violations(files, (_file, target) => target.kind === 'testing'),
+    ).toEqual([]);
+    expect(violations(files, reachesAdmin)).toEqual([]);
+    expect(violations(files, reachesPublic)).toEqual([]);
+    const indexImports = violations(
+      files,
+      (_file, target) => target.kind === 'index',
+    );
+    expect(indexImports.length).toBeGreaterThan(0);
+    for (const entry of indexImports) expect(entry).toMatch(/\/auth'?$/u);
+  });
+
+  it('ABU-08 chiều ĐƯỢC PHÉP: `public/` import `rating/` (chỉ trang chi tiết) và vẫn không vi phạm luật nào của ABG-13', () => {
+    const publicSources = folderOf(prodSources, 'public');
+    expect(
+      violations(publicSources, reachesRating).map(
+        (entry) => entry.split(' → ')[0],
+      ),
+    ).toEqual(['./public/article-detail-page.tsx']);
+    expect(
+      violations(publicSources, (_file, target) => target.kind === 'other'),
+    ).toEqual([]);
+    expect(violations(publicSources, reachesAdmin)).toEqual([]);
+    // `admin/` không cần `rating/`
+    expect(violations(folderOf(prodSources, 'admin'), reachesRating)).toEqual(
+      [],
+    );
+  });
+
+  it('ABU-08 bộ quét có tác dụng: BẮT file giả trong `rating/` import `public/`, `admin/`, `testing/`, `features/search`, `features/admin` hay module khác; không báo nhầm mẫu lành; `public/` import `rating/` không bị bắt (đối chứng ÂM và DƯƠNG, hai chiều)', () => {
+    const bad = {
+      './rating/a.tsx': "import { x } from '../public/article-public-text';",
+      './rating/b.tsx': "import { y } from '../../search';",
+      './rating/c.tsx': "import z from '../admin/article-styles';",
+      './rating/d.tsx': "import { AdminTable } from '../../admin';",
+      './rating/e.tsx': "import { f } from '../testing/fake-article-api';",
+      './rating/f.tsx': "const m = await import('../../booking');",
+    };
+    const files = folderOf(bad, 'rating');
+    expect(violations(files, reachesPublic)).toEqual([
+      './rating/a.tsx → ../public/article-public-text',
+    ]);
+    expect(violations(files, reachesAdmin)).toHaveLength(2);
+    expect(
+      violations(files, (_file, target) => target.kind === 'testing'),
+    ).toHaveLength(1);
+    // `features/search` và `features/booking` đều là `other`
+    expect(
+      violations(files, (_file, target) => target.kind === 'other'),
+    ).toHaveLength(2);
+
+    const good = {
+      './rating/a.tsx': [
+        "import { useAuth, LOGIN_PATH } from '../../auth';",
+        "import { ErrorState } from '../../../shared/ui/error-state';",
+        "import { collectErrorCodes } from '../common/article-errors';",
+        "import { useArticleApi } from '../api/article-api-context';",
+        "import { RATING_TEXT } from './rating-text';",
+        "// import w from '../public/article-public-text';",
+      ].join('\n'),
+      './public/b.tsx':
+        "import { ArticleRating } from '../rating/article-rating';",
+    };
+    const goodRating = folderOf(good, 'rating');
+    expect(violations(goodRating, reachesPublic)).toEqual([]);
+    expect(violations(goodRating, reachesAdmin)).toEqual([]);
+    expect(
+      violations(goodRating, (_file, target) => target.kind === 'other'),
+    ).toEqual([]);
+    expect(
+      violations(goodRating, (_file, target) => target.kind === 'testing'),
+    ).toEqual([]);
+    // Chiều được phép: `public/` → `rating/` là import nội bộ của module, không phải `other`, không phải admin
+    const goodPublic = folderOf(good, 'public');
+    expect(violations(goodPublic, reachesRating)).toHaveLength(1);
+    expect(
+      violations(goodPublic, (_file, target) => target.kind === 'other'),
+    ).toEqual([]);
+    expect(violations(goodPublic, reachesAdmin)).toEqual([]);
+  });
+
+  it('ABU-08 `rating/` không viết lớp theo gốc 16 px (`min-h-11`, `min-w-11`), không `focus:`, `ring-`, `outline-` (viền focus do lớp base vẽ)', () => {
+    const MISCONVERTED =
+      /(?<![\w-])(?:max-w-300|px-7\.5|h-15|size-7\.5|size-4\.5|py-11|gap-7\.5|mt-7\.5|pt-5\.5|min-h-11|min-w-11)(?![\w.-])/;
+    const OWN_FOCUS = /(?<![\w-])(?:focus:|focus-visible:|ring-|outline-)/;
+    const offenders = Object.entries(ratingSources())
+      .filter(
+        ([, source]) =>
+          MISCONVERTED.test(strip(source)) || OWN_FOCUS.test(strip(source)),
+      )
+      .map(([file]) => file);
+    expect(offenders).toEqual([]);
+
+    // Đối chứng: bắt mẫu xấu, bỏ qua chú thích và mẫu lành
+    expect(MISCONVERTED.test(strip('const c = "min-h-11 flex";'))).toBe(true);
+    expect(OWN_FOCUS.test(strip('const c = "focus:ring-2";'))).toBe(true);
+    expect(OWN_FOCUS.test(strip('const c = "outline-none";'))).toBe(true);
+    expect(MISCONVERTED.test(strip('// min-h-11'))).toBe(false);
+    expect(
+      OWN_FOCUS.test(
+        strip('const c = "min-h-[44px] aria-disabled:opacity-60";'),
+      ),
+    ).toBe(false);
+  });
+});
