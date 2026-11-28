@@ -54,6 +54,11 @@ import {
   CHI_MUC_TIN_NHAN_NGUOI_GUI_SQL,
   ChiMucTinNhanNguoiGui1794312000000,
 } from './migrations/1794312000000-chi-muc-tin-nhan-nguoi-gui.js';
+import {
+  TAO_BANG_BAI_VIET_SQL,
+  TaoBangBaiViet1794398400000,
+} from './migrations/1794398400000-tao-bang-bai-viet.js';
+import { ARTICLE_TABLES } from '../article/article.constants.js';
 import { getMetadataArgsStorage } from 'typeorm';
 import { ThongBao } from '../admin/entities/thong-bao.entity.js';
 import { TinNhan } from '../chat/entities/tin-nhan.entity.js';
@@ -1054,14 +1059,90 @@ describe('migration chat P2 (chỉ mục tin_nhan theo người gửi và thời
     expect(index?.unique).toBeFalsy();
   });
 
-  it('MCH-12: migration chat P2 đứng cuối sổ, ngay sau chat P1, mốc lớn hơn', () => {
+  // article B1 (đổi): bỏ điều kiện "đứng cuối sổ" (đúng tại thời điểm chat P2) vì migration bài viết đứng sau; giữ "ngay sau chat P1, mốc lớn hơn" (cách MCH-11 đã làm ở chat P2)
+  it('MCH-12: migration chat P2 đứng ngay sau chat P1, mốc lớn hơn', () => {
     const index = MIGRATIONS.indexOf(ChiMucTinNhanNguoiGui1794312000000);
-    expect(index).toBe(MIGRATIONS.length - 1);
+    expect(index).toBeGreaterThan(0);
     expect(MIGRATIONS[index - 1]).toBe(TaoBangChat1794225600000);
     for (const earlier of MIGRATIONS.slice(0, index))
       expect(Number(/(\d{13})$/.exec(earlier.name)?.[1])).toBeLessThan(
         1794312000000,
       );
+  });
+});
+
+// article B1 (#795): ABD-02 phần chữ DDL (không cần DB) và ABD-07 (thứ tự mốc). SHOW CREATE TABLE (ABD-01) ở schema-parity.int-spec.ts, ràng buộc thật (ABD-04 đến ABD-06) ở
+// article-schema.int-spec.ts, vòng đời up/down (ABD-03) ở migrations.int-spec.ts, bốn entity (ABD-07) ở article/entities/article-entities.spec.ts.
+describe('migration article B1 (bai_viet, hashtag, bai_viet_hashtag, benh_nhan_danh_gia_bai_viet) khớp schema SQL chính thức', () => {
+  const official =
+    officialStatementsFor(ARTICLE_TABLES).map(normalizeStatement);
+
+  it('ABD-02: 11 câu DDL trùng từng câu, cùng thứ tự, với clinix_mysql.sql; ca âm: đổi một ký tự, bỏ một câu hay đảo thứ tự thì không còn trùng', () => {
+    expect(official).toHaveLength(11);
+    expect(TAO_BANG_BAI_VIET_SQL.map(normalizeStatement)).toEqual(official);
+    const changed = TAO_BANG_BAI_VIET_SQL.map((sql) =>
+      sql.replace('varchar(255)', 'varchar(256)'),
+    );
+    expect(changed.map(normalizeStatement)).not.toEqual(official);
+    expect(TAO_BANG_BAI_VIET_SQL.slice(1).map(normalizeStatement)).not.toEqual(
+      official,
+    );
+    expect(
+      [...TAO_BANG_BAI_VIET_SQL].reverse().map(normalizeStatement),
+    ).not.toEqual(official);
+  });
+
+  it('ABD-02: thứ tự bốn bảng, hai chỉ mục, năm khóa ngoại; không CHECK, không COMMENT bảng; mọi câu chỉ tác động bốn bảng của article', () => {
+    const kinds = TAO_BANG_BAI_VIET_SQL.map((sql) =>
+      sql.startsWith('CREATE TABLE')
+        ? 'bang'
+        : /^CREATE (UNIQUE )?INDEX/.test(sql)
+          ? 'chi-muc'
+          : sql.includes('ADD FOREIGN KEY')
+            ? 'khoa-ngoai'
+            : 'khac',
+    );
+    expect(kinds).toEqual([
+      ...Array<string>(4).fill('bang'),
+      ...Array<string>(2).fill('chi-muc'),
+      ...Array<string>(5).fill('khoa-ngoai'),
+    ]);
+    expect(
+      TAO_BANG_BAI_VIET_SQL.filter(
+        (sql) => sql.includes('CHECK') || sql.includes(' COMMENT = '),
+      ),
+    ).toEqual([]);
+    for (const statement of TAO_BANG_BAI_VIET_SQL)
+      expect(ARTICLE_TABLES as readonly string[]).toContain(
+        targetTable(statement),
+      );
+  });
+
+  it('ABD-02: các mảnh then chốt có mặt: ENUM trạng thái mặc định BanNhap, UNIQUE của ten, khóa ngoại tác giả tới quan_tri_vien và phiếu tới benh_nhan, hai chỉ mục theo đúng thứ tự cột', () => {
+    const all = TAO_BANG_BAI_VIET_SQL.join('\n');
+    for (const part of [
+      "`trang_thai` ENUM ('BanNhap', 'DaXuatBan', 'LuuTruAn') NOT NULL DEFAULT 'BanNhap'",
+      '`cap_nhat_lan_cuoi` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
+      '`ten` varchar(50) UNIQUE NOT NULL',
+      'PRIMARY KEY (`bai_viet_id`, `hashtag_id`)',
+      'PRIMARY KEY (`benh_nhan_id`, `bai_viet_id`)',
+      'CREATE INDEX `bai_viet_hashtag_index_23` ON `bai_viet_hashtag` (`hashtag_id`, `bai_viet_id`)',
+      'CREATE INDEX `benh_nhan_danh_gia_bai_viet_index_24` ON `benh_nhan_danh_gia_bai_viet` (`bai_viet_id`, `loai`)',
+      'ALTER TABLE `bai_viet` ADD FOREIGN KEY (`tac_gia_id`) REFERENCES `quan_tri_vien` (`tai_khoan_id`)',
+      'ALTER TABLE `benh_nhan_danh_gia_bai_viet` ADD FOREIGN KEY (`benh_nhan_id`) REFERENCES `benh_nhan` (`tai_khoan_id`)',
+    ])
+      expect(all, part).toContain(part);
+  });
+
+  it('ABD-07: mốc article B1 đứng ngay sau chat P2 (1794312000000), lớn hơn mọi mốc trước, tên lớp kết thúc bằng mốc', () => {
+    const index = MIGRATIONS.indexOf(TaoBangBaiViet1794398400000);
+    expect(index).toBeGreaterThan(0);
+    expect(MIGRATIONS[index - 1]).toBe(ChiMucTinNhanNguoiGui1794312000000);
+    for (const earlier of MIGRATIONS.slice(0, index))
+      expect(Number(/(\d{13})$/.exec(earlier.name)?.[1])).toBeLessThan(
+        1794398400000,
+      );
+    expect(TaoBangBaiViet1794398400000.name).toMatch(/1794398400000$/);
   });
 });
 
