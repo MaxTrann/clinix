@@ -27,6 +27,7 @@
     "migration:revert": "nest build && node dist/database/migrate.js down",
     "migration:status": "nest build && node dist/database/migrate.js status",
     "test:p7": "vitest run --config ./vitest.config.p7.ts",
+    "perf:dashboard": "vitest run --config ./vitest.config.dashboard-perf.ts",
     "seed:catalog": "nest build && node dist/database/seeds/seed.js catalog",
     "seed:dev-accounts": "nest build && node dist/database/seeds/seed.js dev-accounts",
     "seed:first-admin": "nest build && node dist/database/seeds/seed.js first-admin",
