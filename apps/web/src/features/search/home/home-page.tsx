@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router';
 import { homePathFor, useAuth } from '../../auth';
@@ -24,7 +24,9 @@ import { HeroSuggestions } from './hero-suggestions';
 export const HOME_PREVIEW_SIZE = 8;
 const container = PUBLIC_CONTAINER;
 
-export function HomePage() {
+// `handbookSlot`: khối "Cẩm nang sức khỏe" do module article cung cấp, `router/routes.tsx` truyền vào (article F2, T13): `features/*` không import chéo nhau.
+// Không truyền ⇒ trang chủ không có khối nào về cẩm nang (ca `TCH-02`). Khối tự ẩn khi tải, lỗi hay rỗng.
+export function HomePage({ handbookSlot }: { handbookSlot?: ReactNode } = {}) {
   const { user } = useAuth();
   const { selection } = useSelectedBranch();
   const branchId = selection?.chiNhanhId ?? null;
@@ -284,6 +286,7 @@ export function HomePage() {
             ))}
         </div>
       </section>
+      {handbookSlot}
       <HomeProcess />
     </main>
   );

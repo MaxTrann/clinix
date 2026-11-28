@@ -15,6 +15,10 @@ export function emptyPublicHomeResponse(input: string): Response | null {
     case '/api/public/doctors':
       body = { items: [], total: 0, page: 1, pageSize: 8 };
       break;
+    // article F2: khối "Cẩm nang sức khỏe" của trang chủ gọi danh sách bài; rỗng thì khối không vẽ gì
+    case '/api/public/articles':
+      body = { items: [], total: 0, page: 1, pageSize: 4 };
+      break;
     default:
       return null;
   }

@@ -5,6 +5,10 @@ import {
   type ArticleListItem,
   type ArticleListPage,
   type ArticleStatusCounts,
+  type PublicArticleDetail,
+  type PublicArticleItem,
+  type PublicArticlePage,
+  type PublicArticleTag,
 } from './article-types';
 
 // Kiểm hình dạng thân phản hồi (PLAN article ABW-12): thiếu khoá mà giao diện CẦN, hay sai kiểu, thì ném `UnexpectedResponseError`
@@ -93,5 +97,45 @@ export function parseTagSuggestions(raw: unknown): string[] {
   if (!isRecord(raw) || !Array.isArray(raw.items)) return bad();
   return raw.items.map((item) =>
     isRecord(item) ? requireString(item.ten) : bad(),
+  );
+}
+
+// ----- Công khai (article F2, ABG-14) -----
+// Cùng nguyên tắc: khoá giao diện CẦN (mã, tiêu đề, thẻ, nội dung) thiếu hay sai kiểu ⇒ `UnexpectedResponseError`; khoá chỉ để hiển thị phụ
+// (mô tả, ảnh, thời điểm xuất bản) thì chịu thiếu và coi là `null`. Khoá thừa (ví dụ B3 cộng `luotThich`) bị bỏ qua, không làm vỡ.
+function parsePublicItem(value: unknown): PublicArticleItem {
+  if (!isRecord(value)) return bad();
+  return {
+    baiVietId: requireString(value.baiVietId),
+    tieuDe: requireString(value.tieuDe),
+    moTaNgan: stringOrNull(value.moTaNgan),
+    anhDaiDien: stringOrNull(value.anhDaiDien),
+    thoiDiemXuatBan: stringOrNull(value.thoiDiemXuatBan),
+    hashtag: requireStrings(value.hashtag),
+  };
+}
+
+export function parsePublicArticlePage(raw: unknown): PublicArticlePage {
+  if (!isRecord(raw) || !Array.isArray(raw.items)) return bad();
+  return {
+    items: raw.items.map(parsePublicItem),
+    total: requireCount(raw.total),
+    page: requireCount(raw.page),
+    pageSize: requireCount(raw.pageSize),
+  };
+}
+
+export function parsePublicArticleDetail(raw: unknown): PublicArticleDetail {
+  if (!isRecord(raw)) return bad();
+  return { ...parsePublicItem(raw), noiDung: requireString(raw.noiDung) };
+}
+
+// `GET public/article-tags` trả `{ items: [{ ten, soBai }] }`
+export function parsePublicTags(raw: unknown): PublicArticleTag[] {
+  if (!isRecord(raw) || !Array.isArray(raw.items)) return bad();
+  return raw.items.map((item) =>
+    isRecord(item)
+      ? { ten: requireString(item.ten), soBai: requireCount(item.soBai) }
+      : bad(),
   );
 }

@@ -1,4 +1,8 @@
 import type { RouteObject } from 'react-router';
+import {
+  ARTICLE_PUBLIC_ROUTES,
+  HomeHandbookSection,
+} from '../features/article';
 import { AUTH_PAGE_ROUTES, RequireAuth } from '../features/auth';
 import { BOOKING_WIZARD_ROUTES } from '../features/booking';
 import {
@@ -37,7 +41,11 @@ export function createAppRoutes(
         {
           element: <PublicLayout nav={PUBLIC_NAV} />,
           children: [
-            { index: true, element: <HomePage /> },
+            // Khối "Cẩm nang sức khỏe" (article F2, T13): truyền qua khe để `features/search` không import `features/article`
+            {
+              index: true,
+              element: <HomePage handbookSlot={<HomeHandbookSection />} />,
+            },
             { path: 'chi-nhanh', element: <BranchListPage /> },
             { path: 'chi-nhanh/:id', element: <BranchDetailPage /> },
             { path: 'chuyen-khoa', element: <SpecialtyListPage /> },
@@ -58,6 +66,8 @@ export function createAppRoutes(
             { path: 'bac-si', element: <DoctorTeamPage /> },
             // Chi tiết bác sĩ (search F7)
             { path: 'bac-si/:id', element: <DoctorDetailPage /> },
+            // "Cẩm nang sức khỏe" (article F2): danh sách `/cam-nang` và chi tiết `/cam-nang/:idSlug`
+            ...ARTICLE_PUBLIC_ROUTES,
             { path: '*', element: <NotFoundPage /> },
           ],
         },
