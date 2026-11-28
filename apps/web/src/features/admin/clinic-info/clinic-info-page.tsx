@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Info } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { ApiError } from '../../../shared/api/errors';
 import { errorMessageFor } from '../../../shared/api/error-message';
 import { ErrorState } from '../../../shared/ui/error-state';
@@ -386,8 +387,14 @@ function GeneralInfoPanel() {
 }
 
 export function ClinicInfoPage() {
-  const [activeTab, setActiveTab] = useState<'general' | 'branches'>('general');
-  const [branchesVisited, setBranchesVisited] = useState(false);
+  // dashboard F1 (T10): `?tab=chi-nhanh` mở thẳng tab Chi nhánh (liên kết "Thay đổi chi nhánh" của trang Tổng quan); không có tham số thì vẫn ở tab chung.
+  // Chỉ là GIÁ TRỊ KHỞI TẠO: bấm tab sau đó không ghi lại URL.
+  const [searchParams] = useSearchParams();
+  const openBranches = searchParams.get('tab') === 'chi-nhanh';
+  const [activeTab, setActiveTab] = useState<'general' | 'branches'>(
+    openBranches ? 'branches' : 'general',
+  );
+  const [branchesVisited, setBranchesVisited] = useState(openBranches);
 
   return (
     <section className={styles.page} aria-labelledby="clinic-info-title">

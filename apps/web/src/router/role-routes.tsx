@@ -26,6 +26,7 @@ import {
   PATIENT_APPOINTMENT_ROUTES,
   RECEPTION_APPOINTMENT_ROUTES,
 } from '../features/booking';
+import { ADMIN_OVERVIEW_ROUTES } from '../features/dashboard';
 import { NOTIFICATION_ROUTES } from '../features/notification';
 import { ADMIN_DEPOSIT_POLICY_ROUTES } from '../features/payment';
 import {
@@ -128,6 +129,8 @@ const ROLE_ROUTES: Record<VaiTro, RouteObject> = {
     element: <AdminShell />,
     // doctor F6, F8: Lịch làm việc bác sĩ và Duyệt yêu cầu của Quản trị viên (đã bọc AdminScopeGuard ở từng mảng route)
     children: [
+      // dashboard F1: trang Tổng quan là route `index` của `/admin` (đã bọc AdminScopeGuard Any)
+      ...ADMIN_OVERVIEW_ROUTES,
       ...ADMIN_ROUTES,
       ...ADMIN_PROFILE_ROUTES,
       ...ADMIN_SCHEDULE_ROUTES,

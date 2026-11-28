@@ -1,3 +1,5 @@
+import { EMPTY_ADMIN_DASHBOARD } from './empty-admin-dashboard';
+
 // API xác thực giả cho test của F1. Mô phỏng đúng hai điều dễ sai nhất: cookie đổi sau mỗi lần xoay, và hai làm mới cùng cookie
 // (không xếp hàng) thì bên thua bị coi là dùng lại nên phiên bị thu hồi (TECH_DEBT dòng 11).
 export interface FakeAccount {
@@ -198,6 +200,8 @@ export function createFakeAuthApi(
       }
       if (path === '/auth/me') return json(200, account);
       if (path === '/admin/me') return json(200, { phamVi: 'ToanHeThong' });
+      // dashboard F1: mở `/admin` là mở trang Tổng quan; trả số liệu rỗng đúng hình dạng (PLAN dashboard R3)
+      if (path === '/admin/dashboard') return json(200, EMPTY_ADMIN_DASHBOARD);
       // Đổi mật khẩu (A13): xoay cookie của phiên hiện tại, access token giữ nguyên. Refresh mang cookie cũ về sau thì bị coi là dùng lại.
       if (path === '/auth/change-password') {
         api.cookie = (api.cookie ?? 0) + 1;
