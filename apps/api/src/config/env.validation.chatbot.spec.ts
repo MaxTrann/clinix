@@ -35,7 +35,7 @@ describe('validateEnv: khối AI (chatbot P1)', () => {
     expect(env.AI_ENABLED).toBe(true);
     expect(env.GROQ_API_KEY).toBeUndefined();
     expect(env.GEMINI_API_KEY).toBeUndefined();
-    expect(env.GROQ_MODEL).toBe('openai/gpt-oss-20b');
+    expect(env.GROQ_MODEL).toBe('openai/gpt-oss-120b');
     expect(env.GEMINI_MODEL).toBe('gemini-3.5-flash-lite');
     expect(env.GROQ_BASE_URL).toBe('https://api.groq.com/openai/v1');
     expect(env.GEMINI_BASE_URL).toBe(
@@ -75,7 +75,7 @@ describe('validateEnv: khối AI (chatbot P1)', () => {
     expect(env.AI_ENABLED).toBe(true);
     expect(env.GROQ_API_KEY).toBeUndefined();
     expect(env.GEMINI_API_KEY).toBeUndefined();
-    expect(env.GROQ_MODEL).toBe('openai/gpt-oss-20b');
+    expect(env.GROQ_MODEL).toBe('openai/gpt-oss-120b');
     expect(env.GEMINI_BASE_URL).toBe(
       'https://generativelanguage.googleapis.com/v1beta',
     );

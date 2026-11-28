@@ -8,7 +8,7 @@ export const AI_PROVIDERS = Symbol('AI_PROVIDERS');
 /** Giá trị mặc định của biến môi trường (PLAN 5.13). Biến bỏ trống hay không đặt thì dùng đúng các giá trị này. */
 export const AI_DEFAULTS = {
   enabled: true,
-  groqModel: 'openai/gpt-oss-20b',
+  groqModel: 'openai/gpt-oss-120b',
   geminiModel: 'gemini-3.5-flash-lite',
   // Địa chỉ GỐC, chưa gồm đường dẫn của từng lời gọi (`/chat/completions`, `/interactions`). Nguồn: PLAN 3.4, ngày tra 27/11/2026.
   groqBaseUrl: 'https://api.groq.com/openai/v1',

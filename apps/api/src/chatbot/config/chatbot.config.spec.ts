@@ -30,7 +30,7 @@ const DEFAULT_CONFIG = {
   totalTimeoutMs: 20_000,
   cooldownMs: 60_000,
   groq: {
-    model: 'openai/gpt-oss-20b',
+    model: 'openai/gpt-oss-120b',
     baseUrl: 'https://api.groq.com/openai/v1',
     timeoutMs: 6000,
     perMinute: 20,
