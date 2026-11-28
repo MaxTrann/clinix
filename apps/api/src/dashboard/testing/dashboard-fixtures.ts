@@ -2,9 +2,12 @@ import type { DataSource } from 'typeorm';
 import type { BacSi } from '../../admin/entities/bac-si.entity.js';
 import type { TrangThaiLichHen } from '../../admin/entities/enums.js';
 import { BookingFixtures } from '../../appointments/testing/booking-fixtures.js';
+import { PendingChangeFixtures } from '../../appointments/testing/pending-change-fixtures.js';
+import { insertRequestAt } from '../../appointments/testing/reschedule-request-world.js';
+import { WalletFixtures } from '../../wallet/testing/wallet-fixtures.js';
 
-// Bộ dữ liệu dựng sẵn D0 của dashboard (PLAN dashboard 7.0), phần B1 cần: hai chi nhánh, hai bác sĩ, sáu ca, nghỉ phép và 14 lịch hẹn.
-// B2 thêm giao dịch cọc, dòng hoàn và yêu cầu chờ duyệt vào đây. Ghi thật vào DB test qua fixture của admin, doctor, booking (BỌC, không chép).
+// Bộ dữ liệu dựng sẵn D0 của dashboard (PLAN dashboard 7.0): hai chi nhánh, hai bác sĩ, sáu ca, nghỉ phép, 14 lịch hẹn (B1); 13 giao dịch, 6 dòng hoàn
+// và các yêu cầu chờ duyệt (B2). Ghi thật vào DB test qua fixture của admin, doctor, booking, wallet (BỌC, không chép).
 // Mọi giờ là CHUỖI giờ Việt Nam `YYYY-MM-DD HH:MM:SS` (không qua `Date` nên không lệch theo múi giờ máy). Dữ liệu giả.
 
 /** "Bây giờ" của bộ D0: 04/12/2026 10:00 giờ Việt Nam. */
@@ -35,6 +38,33 @@ const D0_APPOINTMENTS = [
   string,
 ])[];
 
+/** Giao dịch của bảng 7.0: tên, lịch gốc, loại (`Vi` = cọc qua ví, `TienMat` = tiền mặt tại quầy, `NapVi` = nạp ví VNPay), số tiền, `thoi_diem_tao`. */
+const D0_PAYMENTS = [
+  ['P1', 'L1', 'Vi', '100000.00', '2026-11-28 10:05:00'],
+  ['P2', 'L2', 'Vi', '150000.00', '2026-12-01 08:05:00'],
+  ['P3', 'L3', 'Vi', '200000.00', '2026-12-01 09:05:00'],
+  ['P4', 'L4', 'Vi', '120000.00', '2026-12-02 00:05:00'],
+  ['P5', 'L6', 'Vi', '100000.00', '2026-12-02 23:59:59'],
+  ['P6', 'L7', 'Vi', '0.00', '2026-12-03 15:00:00'],
+  ['P7', 'L7', 'TienMat', '80000.00', '2026-12-04 08:40:00'],
+  ['P8', null, 'NapVi', '500000.00', '2026-12-02 10:00:00'],
+  ['P9', 'M2', 'Vi', '60000.00', '2026-11-30 23:59:59'],
+  ['P10', 'M1', 'Vi', '90000.00', '2026-12-01 10:05:00'],
+  ['P11', 'L10', 'Vi', '50000.00', '2026-12-07 23:59:59'],
+  ['P12', 'N1', 'Vi', '70000.00', '2026-12-08 00:00:00'],
+  ['P13', 'M3', 'Vi', '40000.00', '2026-11-29 23:05:00'],
+] as const;
+
+/** Dòng hoàn của bảng 7.0 (R1 đến R6): khoản, loại, kết quả, số tiền, `so_lan_thu`, `thoi_diem`. */
+const D0_REFUNDS = [
+  ['P3', 'TuDong', 'ThanhCong', '100000.00', 1, '2026-12-01 12:00:00'],
+  ['P5', 'TuDong', 'ThatBai', '100000.00', 1, '2026-12-03 09:00:00'],
+  ['P5', 'TuDong', 'ThanhCong', '100000.00', 2, '2026-12-03 09:05:00'],
+  ['P2', 'DacBiet', 'ThanhCong', '30000.00', 1, '2026-12-05 10:00:00'],
+  ['P13', 'TuDong', 'ThatBai', '40000.00', 1, '2026-12-02 16:00:00'],
+  ['P1', 'DacBiet', 'ThanhCong', '10000.00', 1, '2026-12-08 00:00:00'],
+] as const;
+
 const MORNING = ['08:00', '08:30', '09:00', '09:30'];
 const AFTERNOON = ['13:30', '14:00', '14:30', '15:00'];
 
@@ -42,9 +72,11 @@ export type D0World = Awaited<ReturnType<DashboardFixtures['d0']>>;
 
 export class DashboardFixtures {
   readonly fx: BookingFixtures;
+  readonly wallet: WalletFixtures;
 
   constructor(private readonly db: DataSource) {
     this.fx = new BookingFixtures(db);
+    this.wallet = new WalletFixtures(db);
   }
 
   /** Một ca và các khung giờ `ConTrong` ở đúng các giờ cho trước (bảng 7.0 dùng 4 khung mỗi ca, không phải 8 khung của `shiftWithSlots`). */
@@ -70,7 +102,7 @@ export class DashboardFixtures {
     return ids;
   }
 
-  /** Bộ D0 (phần B1). Trả id các chi nhánh, tài khoản và lịch theo tên ở bảng 7.0. */
+  /** Bộ D0. Trả id các chi nhánh, tài khoản, lịch và giao dịch theo tên ở bảng 7.0. */
   async d0() {
     const admin = this.fx.admin;
     const branchA = await admin.branch();
@@ -198,6 +230,40 @@ export class DashboardFixtures {
       [appointments.L4, appointments.L5],
     );
 
+    const walletId = patient.wallet.viNoiBoId;
+    const payments = await this.d0Payments(
+      appointments,
+      walletId,
+      receptionistA.account.taiKhoanId,
+    );
+    for (const [
+      payment,
+      loai,
+      trangThai,
+      soTien,
+      soLanThu,
+      thoiDiem,
+    ] of D0_REFUNDS)
+      await this.refund({
+        giaoDichThanhToanId: required(payments, payment),
+        viNoiBoId: walletId,
+        loai,
+        trangThai,
+        soTien,
+        soLanThu,
+        thoiDiem,
+      });
+    await this.d0Requests({
+      appointments,
+      slots,
+      walletId,
+      branchA: branchA.chiNhanhId,
+      branchB: branchB.chiNhanhId,
+      adminA: adminA.account.taiKhoanId,
+      adminB: adminB.account.taiKhoanId,
+      systemAdmin: systemAdmin.account.taiKhoanId,
+    });
+
     return {
       branchA: branchA.chiNhanhId,
       branchB: branchB.chiNhanhId,
@@ -210,6 +276,134 @@ export class DashboardFixtures {
       adminB,
       slots,
       appointments,
+      walletId,
+      payments,
     };
   }
+
+  /** Mười ba giao dịch của bảng 7.0 (P1 đến P13). Trả id theo tên. */
+  private async d0Payments(
+    appointments: Record<string, string>,
+    walletId: string,
+    cashierId: string,
+  ): Promise<Record<string, string>> {
+    const ids: Record<string, string> = {};
+    for (const [name, appointment, kind, soTien, thoiDiemTao] of D0_PAYMENTS) {
+      ids[name] = await this.wallet.insertPayment(
+        kind === 'NapVi'
+          ? {
+              viNoiBoId: walletId,
+              loai: 'NapVi',
+              phuongThuc: 'VNPay',
+              soTien,
+              thoiDiemTao,
+            }
+          : kind === 'TienMat'
+            ? {
+                lichHenId: required(appointments, appointment),
+                loai: 'ThanhToanLichHen',
+                phuongThuc: 'TienMatTaiQuay',
+                nguoiThuId: cashierId,
+                soTien,
+                thoiDiemTao,
+              }
+            : {
+                viNoiBoId: walletId,
+                lichHenId: required(appointments, appointment),
+                loai: 'ThanhToanLichHen',
+                phuongThuc: 'Vi',
+                soTien,
+                thoiDiemTao,
+              },
+      );
+    }
+    return ids;
+  }
+
+  /** Một dòng `lich_su_hoan_tien` (một lần thử hoàn), đặt được loại và giờ (fixture của wallet luôn ghi `TuDong` ở một giờ cố định). */
+  async refund(input: {
+    giaoDichThanhToanId: string;
+    viNoiBoId: string;
+    loai: 'TuDong' | 'DacBiet';
+    trangThai: 'ThanhCong' | 'ThatBai';
+    soTien: string;
+    soLanThu: number;
+    thoiDiem: string;
+  }): Promise<string> {
+    const result: { insertId: string } = await this.db.query(
+      `INSERT INTO lich_su_hoan_tien (giao_dich_thanh_toan_id, vi_noi_bo_id, loai, so_tien, ly_do, trang_thai, so_lan_thu, thoi_diem)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        input.giaoDichThanhToanId,
+        input.viNoiBoId,
+        input.loai,
+        input.soTien,
+        input.loai === 'DacBiet' ? 'Hoàn đặc biệt mẫu' : null,
+        input.trangThai,
+        input.soLanThu,
+        input.thoiDiem,
+      ],
+    );
+    return String(result.insertId);
+  }
+
+  /**
+   * Yêu cầu của bảng 7.0: đổi lịch chờ duyệt cho L5, L10, N1 và một yêu cầu từ chối cho L8; rút tiền 2 chờ duyệt, 1 đã duyệt; thay đổi chi nhánh A chờ
+   * duyệt, B đã duyệt chưa áp dụng. Dùng lại fixture của booking (đổi lịch), wallet (rút tiền) và admin (thay đổi chi nhánh), không chép.
+   */
+  private async d0Requests(input: {
+    appointments: Record<string, string>;
+    slots: Record<string, string | undefined>;
+    walletId: string;
+    branchA: string;
+    branchB: string;
+    adminA: string;
+    adminB: string;
+    systemAdmin: string;
+  }): Promise<void> {
+    const reschedules = [
+      ['L5', 's14', 'ChoDuyet'],
+      ['L10', 's15', 'ChoDuyet'],
+      ['N1', 'u2', 'ChoDuyet'],
+      ['L8', 's16', 'TuChoi'],
+    ] as const;
+    for (const [appointment, slot, trangThai] of reschedules)
+      await insertRequestAt(this.db, {
+        lichHenId: required(input.appointments, appointment),
+        khungGioMongMuonId: required(input.slots, slot),
+        thoiDiemTao: '2026-12-03 09:00:00',
+        trangThai,
+        nguoiXuLyId: input.systemAdmin,
+      });
+    for (const trangThai of ['ChoDuyet', 'ChoDuyet', 'DaDuyet'] as const)
+      await this.wallet.insertWithdrawal({
+        viNoiBoId: input.walletId,
+        soTien: '50000.00',
+        trangThai,
+        nguoiXuLyId: input.systemAdmin,
+      });
+    const changes = new PendingChangeFixtures(this.db);
+    await changes.insert({
+      chiNhanhId: input.branchA,
+      proposerId: input.adminA,
+      approverId: input.systemAdmin,
+      trangThai: 'ChoDuyet',
+    });
+    await changes.insert({
+      chiNhanhId: input.branchB,
+      proposerId: input.adminB,
+      approverId: input.systemAdmin,
+      trangThai: 'DaDuyet',
+    });
+  }
+}
+
+/** Giá trị theo tên ở bảng 7.0; thiếu là lỗi của chính fixture. */
+function required(
+  table: Record<string, string | undefined>,
+  name: string | null,
+): string {
+  const value = name === null ? undefined : table[name];
+  if (value === undefined) throw new Error(`Thiếu ${String(name)} trong bộ D0`);
+  return value;
 }

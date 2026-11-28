@@ -10,8 +10,16 @@ import {
   toDateTimeBounds,
   type DateRange,
 } from '../filter/date-range.rules.js';
+import { buildTrend } from '../filter/trend-buckets.rules.js';
 import { countAppointments } from '../queries/appointment-metrics.query.js';
+import {
+  countFailingRefunds,
+  sumDeposits,
+  sumRefunds,
+} from '../queries/money.query.js';
+import { countPending } from '../queries/pending.query.js';
 import { countSlotUsage } from '../queries/slot-usage.query.js';
+import { countBookingsPerDay } from '../queries/trend.query.js';
 import type { AdminDashboard } from './admin-dashboard.dto.js';
 import { toRatio } from './ratio.rules.js';
 
@@ -71,18 +79,31 @@ export class AdminDashboardService {
       if (!choice.found) return null;
       const chiNhanhId = choice.chiNhanhId;
       const todayBounds = toDateTimeBounds({ tuNgay: today, denNgay: today });
+      const bounds = toDateTimeBounds(range);
       const homNay = await countAppointments(manager, todayBounds, chiNhanhId);
-      const trongKhoang = await countAppointments(
-        manager,
-        toDateTimeBounds(range),
-        chiNhanhId,
-      );
+      const trongKhoang = await countAppointments(manager, bounds, chiNhanhId);
       const slots = await countSlotUsage(manager, range, chiNhanhId);
-      return { chiNhanhId, homNay, trongKhoang, slots };
+      const tienCoc = await sumDeposits(manager, bounds, chiNhanhId);
+      const daHoan = await sumRefunds(manager, bounds, chiNhanhId);
+      const dangLoi = await countFailingRefunds(manager, chiNhanhId);
+      const perDay = await countBookingsPerDay(manager, bounds, chiNhanhId);
+      const pending = await countPending(manager, chiNhanhId);
+      return {
+        chiNhanhId,
+        homNay,
+        trongKhoang,
+        slots,
+        tienCoc,
+        daHoan,
+        dangLoi,
+        perDay,
+        pending,
+      };
     });
     // Ném SAU khi giao dịch đã đóng, ở MỘT chỗ: chi nhánh ngoài phạm vi và chi nhánh không tồn tại ra cùng một thân 404 (T3, DQP-03)
     if (result === null)
       throw new AppException(404, COMMON_ERROR_CODES.NOT_FOUND);
+    const xuHuong = buildTrend(range, result.perDay);
 
     return {
       boLoc: { ...range, chiNhanhId: result.chiNhanhId },
@@ -98,6 +119,22 @@ export class AdminDashboardService {
       },
       vangMat: toRatio(result.trongKhoang.vangMat, result.trongKhoang.coKetQua),
       khungGio: toRatio(result.slots.daDat, result.slots.phatRa),
+      tienCoc: result.tienCoc,
+      hoanTien: { ...result.daHoan, soKhoanDangLoi: result.dangLoi },
+      xuHuong,
+      choDuyet: {
+        nghiPhep: result.pending.nghiPhep,
+        doiLich: result.pending.doiLich,
+        thayDoiChiNhanh: result.pending.thayDoiChiNhanh,
+        // Rút tiền chỉ Quản trị viên Toàn hệ thống duyệt và không gắn chi nhánh: Chi nhánh nhận `null` (ẩn khối), không phải 0 (Q6, DCD-02)
+        rutTien: scope.kind === 'ToanHeThong' ? result.pending.rutTien : null,
+      },
+      // A1 (MH2): khung giờ đã phát ra và số chờ duyệt KHÔNG tính là "có dữ liệu" (chúng có mà không cần lịch hay giao dịch nào trong khoảng)
+      coDuLieu:
+        result.trongKhoang.lichKham > 0 ||
+        xuHuong.diem.some((point) => point.soLuong > 0) ||
+        result.tienCoc.soKhoan > 0 ||
+        result.daHoan.soKhoan > 0,
     };
   }
 

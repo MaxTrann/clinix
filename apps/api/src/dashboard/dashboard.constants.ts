@@ -6,6 +6,9 @@ export const DEFAULT_RANGE_DAYS = 30;
 /** Khoảng dài nhất được phép, tính cả hai đầu (Q7). */
 export const MAX_RANGE_DAYS = 366;
 
+/** Biểu đồ xu hướng: khoảng tới 62 ngày thì một điểm mỗi ngày, dài hơn thì một điểm mỗi tuần (Q5). */
+export const MAX_DAILY_TREND_DAYS = 62;
+
 /**
  * Mã của một trường bộ lọc (PLAN 5.8). `KHOANG_NGAY_QUA_DAI` là mã mới của PLAN; `CHI_NHANH_KHONG_HOP_LE` (id chi nhánh sai dạng) là `[đề xuất]`
  * của B1 vì PLAN chỉ ghi "chiNhanhId sai dạng ⇒ 400".

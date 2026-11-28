@@ -1,7 +1,10 @@
+import type { Trend } from '../filter/trend-buckets.rules.js';
+import type { MoneyTotal } from '../queries/money.query.js';
 import type { Ratio } from './ratio.rules.js';
 
-// Phản hồi của `GET /admin/dashboard` (PLAN dashboard 5.7). B1 trả sáu khoá dưới đây; B2 thêm `tienCoc`, `hoanTien`, `xuHuong`, `choDuyet`, `coDuLieu`.
-// CHỈ số tổng hợp, ngày và id chi nhánh: không họ tên, SĐT, email, mã lịch, id tài khoản (5.9, DRG-04). Id BIGINT là chuỗi.
+// Phản hồi của `GET /admin/dashboard` (PLAN dashboard 5.7). B1: `boLoc`, `capNhatLuc`, `homNay`, `trongKhoang`, `vangMat`, `khungGio`;
+// B2: `tienCoc`, `hoanTien`, `xuHuong`, `choDuyet`, `coDuLieu`.
+// CHỈ số tổng hợp, ngày và id chi nhánh: không họ tên, SĐT, email, mã lịch, id tài khoản (5.9, DRG-04). Id BIGINT và tiền là chuỗi.
 
 export interface AdminDashboard {
   /** Bộ lọc ĐÃ ÁP DỤNG (sau mặc định và phạm vi): Quản trị viên Chi nhánh luôn thấy chi nhánh được gán; `null` = mọi chi nhánh */
@@ -15,14 +18,34 @@ export interface AdminDashboard {
   vangMat: Ratio;
   /** Khung đã đặt trên khung đã phát ra, trừ nghỉ phép đã duyệt (Q2) */
   khungGio: Ratio;
+  /** Cọc ví thành công theo ngày giao dịch (Q3) */
+  tienCoc: MoneyTotal;
+  /** Đã hoàn vào ví theo ngày hoàn; `soKhoanDangLoi` tại thời điểm xem, không theo bộ lọc ngày (Q3, T7) */
+  hoanTien: MoneyTotal & { soKhoanDangLoi: number };
+  /** Lịch đặt mới theo ngày đặt; đủ điểm kể cả 0 (Q5, T8) */
+  xuHuong: Trend;
+  /** Yêu cầu đang chờ duyệt, mọi thời điểm; `rutTien` là `null` với Quản trị viên Chi nhánh (Q6) */
+  choDuyet: {
+    nghiPhep: number;
+    doiLich: number;
+    thayDoiChiNhanh: number;
+    rutTien: number | null;
+  };
+  /** `false` khi trong khoảng không có lịch khám, lịch đặt mới, khoản cọc hay khoản hoàn nào (A1, MH2) */
+  coDuLieu: boolean;
 }
 
 /** Khoá của phản hồi (sắp theo bảng chữ cái), để test so danh sách trắng (DRG-04). */
 export const ADMIN_DASHBOARD_KEYS = [
   'boLoc',
   'capNhatLuc',
+  'choDuyet',
+  'coDuLieu',
+  'hoanTien',
   'homNay',
   'khungGio',
+  'tienCoc',
   'trongKhoang',
   'vangMat',
+  'xuHuong',
 ] as const;

@@ -59,7 +59,8 @@ export function toDateTimeBounds(range: DateRange): DateTimeBounds {
   };
 }
 
-function epochDay(ngay: string): number {
+/** Ngày `YYYY-MM-DD` ⇒ số ngày kể từ 1970-01-01 (để cộng trừ ngày không qua múi giờ máy). */
+export function epochDay(ngay: string): number {
   const day = parseCalendarDate(ngay);
   // Nơi gọi đã kiểm ngày có thật (DTO); tới đây mà sai là lỗi lập trình, không phải lỗi người dùng
   if (day === null) throw new Error(`Ngày không hợp lệ: ${ngay}`);

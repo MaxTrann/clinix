@@ -896,7 +896,7 @@ Yêu cầu: đổi lịch chờ duyệt cho L5, L10, N1 và một yêu cầu t�
 | DXH-04 | I | mốc nửa đêm, `TZ=UTC` | gom theo ngày Việt Nam; 00:00:00 ngày kế không vào |
 | DCD-01 | I | bộ D0: tất cả, A, B | theo bảng 7.0 |
 | DCD-02 | E | Quản trị viên Chi nhánh | `rutTien` là `null`, không phải 0 |
-| DCD-03 | I | đối chiếu tổng của bốn danh sách duyệt hiện có, cùng phạm vi, trạng thái chờ | bằng nhau |
+| DCD-03 | I → **E** (B2) | đối chiếu tổng của bốn danh sách duyệt hiện có, cùng phạm vi, trạng thái chờ (B2 gọi thật bốn route `GET /admin/leave-requests`, `/admin/reschedule-requests`, `/admin/branch-change-requests`, `/admin/wallet/withdrawals` với `trangThai=ChoDuyet` cho ba Quản trị viên: dựng bốn service ở tầng tích hợp kéo quá nhiều phụ thuộc) | bằng nhau |
 | DCD-04 | I | đổi bộ lọc ngày | số chờ duyệt không đổi |
 
 ### 7.5 Rỗng, nhất quán, riêng tư (DRG) — B1, B2
