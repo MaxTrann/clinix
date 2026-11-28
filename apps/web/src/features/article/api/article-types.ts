@@ -85,7 +85,8 @@ export interface PublicArticleItem {
   hashtag: string[];
 }
 
-export interface PublicArticleDetail extends PublicArticleItem {
+// article F3: chi tiết công khai nay trả thêm hai số đếm (B3; số nguyên không âm, 0 khi chưa ai bấm). Thiếu hay sai kiểu ⇒ `UnexpectedResponseError`.
+export interface PublicArticleDetail extends PublicArticleItem, RatingTotals {
   noiDung: string;
 }
 
@@ -100,6 +101,25 @@ export interface PublicArticlePage {
 export interface PublicArticleTag {
   ten: string;
   soBai: number;
+}
+
+// ----- Đánh giá Thích / Không thích (article F3; PLAN 5.7 "Đánh giá (B3)"; đã đối chiếu với mã B3 thật ở `1c6e901`) -----
+export const RATING_CHOICES = ['Thich', 'KhongThich'] as const;
+export type RatingChoice = (typeof RATING_CHOICES)[number];
+
+export function isRatingChoice(value: unknown): value is RatingChoice {
+  return RATING_CHOICES.some((choice) => choice === value);
+}
+
+// Số đếm do MÁY CHỦ tính; web không cộng trừ
+export interface RatingTotals {
+  luotThich: number;
+  luotKhongThich: number;
+}
+
+// Thân trả về của `PUT` và `DELETE`: loại phiếu sau khi ghi (`null` sau khi thu hồi) kèm số đếm mới
+export interface ArticleRatingResult extends RatingTotals {
+  loai: RatingChoice | null;
 }
 
 // Máy chủ: mặc định 9, tối đa 30. Khối trang chủ lấy 4 bài mới nhất.

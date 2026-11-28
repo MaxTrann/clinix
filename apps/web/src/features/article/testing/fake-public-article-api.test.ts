@@ -138,7 +138,9 @@ describe('createFakeArticleApi: chi tiết và thẻ công khai', () => {
     ]);
     const detail = await api.getPublic('12', signal());
     expect(detail.noiDung).toBe('Nội dung bài');
-    expect(Object.keys(detail)).toHaveLength(7);
+    // 7 khoá của B2 cộng `luotThich`, `luotKhongThich` của B3 (article F3); chưa ai đánh giá thì 0
+    expect(Object.keys(detail)).toHaveLength(9);
+    expect(detail).toMatchObject({ luotThich: 0, luotKhongThich: 0 });
   });
 
   it('ABG-07 id sai dạng, không có, bản nháp, lưu trữ ⇒ CÙNG MỘT 404 KHONG_TIM_THAY', async () => {

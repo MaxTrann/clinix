@@ -11,6 +11,7 @@ import {
   ARTICLE_DATE_NONE,
   formatArticleDate,
 } from '../common/format-article-date';
+import { ArticleRating } from '../rating/article-rating';
 import { ArticleBreadcrumb } from './article-breadcrumb';
 import { articleIdSlug, parseIdSlug } from './article-public-paths';
 import { articleListPath } from './article-public-query';
@@ -112,6 +113,14 @@ function ArticleDetailContent({ id, idSlug }: { id: string; idSlug: string }) {
             </div>
             <div className="mt-6 text-base">
               <ArticleContent text={article.noiDung} />
+            </div>
+            {/* article F3: khối "Bài viết có ích không?" dưới thân bài; số đếm ban đầu lấy từ chính chi tiết công khai này */}
+            <div className="mt-8 border-t border-gray-200 pt-6">
+              <ArticleRating
+                articleId={id}
+                luotThich={article.luotThich}
+                luotKhongThich={article.luotKhongThich}
+              />
             </div>
           </article>
         )}

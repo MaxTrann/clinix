@@ -6,6 +6,7 @@ import type {
   PublicArticleDetail,
   PublicArticleItem,
   PublicArticlePage,
+  RatingTotals,
 } from '../api/article-types';
 
 // Dữ liệu giả đúng hợp đồng PLAN article 5.7 (không phải của ai). Chỉ dùng trong test.
@@ -90,8 +91,17 @@ export function toPublicItem(detail: ArticleDetail): PublicArticleItem {
   };
 }
 
-export function toPublicDetail(detail: ArticleDetail): PublicArticleDetail {
-  return { ...toPublicItem(detail), noiDung: detail.noiDung };
+// Chi tiết công khai đủ 9 khoá: 6 khoá của danh sách, `noiDung` và (B3) hai số đếm; chưa ai bấm thì 0
+export function toPublicDetail(
+  detail: ArticleDetail,
+  totals: RatingTotals = { luotThich: 0, luotKhongThich: 0 },
+): PublicArticleDetail {
+  return {
+    ...toPublicItem(detail),
+    noiDung: detail.noiDung,
+    luotThich: totals.luotThich,
+    luotKhongThich: totals.luotKhongThich,
+  };
 }
 
 export function makePublicItem(

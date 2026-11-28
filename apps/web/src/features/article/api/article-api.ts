@@ -7,10 +7,12 @@ import {
   type ArticleListPage,
   type ArticleListQuery,
   type ArticlePatch,
+  type ArticleRatingResult,
   type PublicArticleDetail,
   type PublicArticleListQuery,
   type PublicArticlePage,
   type PublicArticleTag,
+  type RatingChoice,
   PUBLIC_LIST_PAGE_SIZE,
 } from './article-types';
 import {
@@ -19,6 +21,8 @@ import {
   parsePublicArticleDetail,
   parsePublicArticlePage,
   parsePublicTags,
+  parseRatingChoice,
+  parseRatingResult,
   parseTagSuggestions,
 } from './parse-article';
 
@@ -42,11 +46,20 @@ export interface ArticleApi {
   getPublic(id: string, signal: AbortSignal): Promise<PublicArticleDetail>;
   // Thẻ phổ biến (tối đa 20) cho chip lọc
   listPublicTags(signal: AbortSignal): Promise<PublicArticleTag[]>;
+  // ----- Đánh giá (article F3): route của Bệnh nhân, nên KHÔNG dùng `skipAuthToken` (có Authorization; 401 kích hoạt làm mới phiên) -----
+  // Phiếu của CHÍNH người gọi (`null` = chưa đánh giá); chỉ gọi sau khi biết là Bệnh nhân
+  getMyRating(id: string, signal: AbortSignal): Promise<RatingChoice | null>;
+  // Đặt hoặc đổi loại phiếu; idempotent. Số đếm trong thân trả về do máy chủ tính
+  setRating(id: string, loai: RatingChoice): Promise<ArticleRatingResult>;
+  // Thu hồi phiếu; idempotent (200 kể cả khi chưa có phiếu)
+  clearRating(id: string): Promise<ArticleRatingResult>;
 }
 
 const articlePath = (id: string) => `admin/articles/${encodeURIComponent(id)}`;
 const publicArticlePath = (id: string) =>
   `public/articles/${encodeURIComponent(id)}`;
+const ratingPath = (id: string) =>
+  `patient/articles/${encodeURIComponent(id)}/rating`;
 
 export const httpArticleApi: ArticleApi = {
   async list(query, signal) {
@@ -124,6 +137,27 @@ export const httpArticleApi: ArticleApi = {
         skipAuthToken: true,
         signal,
       }),
+    );
+  },
+
+  async getMyRating(id, signal) {
+    return parseRatingChoice(
+      await request<unknown>(ratingPath(id), { signal }),
+    );
+  },
+
+  async setRating(id, loai) {
+    return parseRatingResult(
+      await request<unknown>(ratingPath(id), {
+        method: 'PUT',
+        json: { loai },
+      }),
+    );
+  },
+
+  async clearRating(id) {
+    return parseRatingResult(
+      await request<unknown>(ratingPath(id), { method: 'DELETE' }),
     );
   },
 };
