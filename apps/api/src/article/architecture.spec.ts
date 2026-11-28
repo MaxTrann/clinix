@@ -32,8 +32,8 @@ import { ArticleModule } from './article.module.js';
 
 // article B1 — ABQ-05 (PLAN article 7.2; T9): quét metadata của controller trong `ArticleModule` và mã nguồn `src/article` (bỏ test và thư mục `testing/`).
 // Mỗi luật có ĐỐI CHỨNG ÂM (controller giả hay nguồn giả vi phạm thì bị bắt) để luật không xanh vì quét sai chỗ.
-// B1 chưa có route công khai và chưa có route `patient/`: các luật cho hai nhóm đó vẫn chạy và nhận danh sách RỖNG; article B2 (công khai) và B3 (đánh giá) thêm controller vào
-// ArticleModule là TỰ được quét, không phải sửa file này. Luật "tiền tố lạ" chặn controller đặt ngoài ba nhóm admin, public, patient.
+// B1 chưa có route công khai và chưa có route `patient/`: các luật cho hai nhóm đó chạy trên danh sách RỖNG. article B2 thêm route công khai (hai controller trong `public/`), nên các ca ghim
+// "chưa có route công khai" được đổi sang ghim danh sách route thật của B2; B3 (đánh giá, `patient/`) thêm controller vào ArticleModule là TỰ được quét. Luật "tiền tố lạ" chặn controller đặt ngoài ba nhóm admin, public, patient.
 const ARTICLE_DIR = fileURLToPath(new URL('.', import.meta.url));
 
 const sources = listSourceFiles(ARTICLE_DIR).map((file) => ({
@@ -170,10 +170,12 @@ const moduleControllers = (Reflect.getMetadata('controllers', ArticleModule) ??
 const moduleRoutes = routesOf(moduleControllers);
 
 describe('article B1 — kiến trúc: route (ABQ-05, T9)', () => {
-  it('có controller và route để quét (chống quét rỗng); B1 chỉ có route quản trị', () => {
+  it('có controller và route để quét (chống quét rỗng); B1 có năm route quản trị, B2 thêm ba route công khai chỉ GET', () => {
     expect(moduleControllers.map((c) => c.name).sort()).toEqual([
       'ArticleAdminController',
       'HashtagAdminController',
+      'PublicArticleController',
+      'PublicArticleTagController',
     ]);
     expect(
       moduleRoutes.map((r) => `${RequestMethod[r.method]} ${r.path}`).sort(),
@@ -181,6 +183,9 @@ describe('article B1 — kiến trúc: route (ABQ-05, T9)', () => {
       'GET admin/articles',
       'GET admin/articles/:id',
       'GET admin/hashtags',
+      'GET public/article-tags',
+      'GET public/articles',
+      'GET public/articles/:id',
       'PATCH admin/articles/:id',
       'POST admin/articles',
     ]);
@@ -262,7 +267,7 @@ describe('article B1 — kiến trúc: route (ABQ-05, T9)', () => {
     expect(adminFailures(moduleRoutes)).toEqual([]);
   });
 
-  it('ABQ-05: route public qua auditPublicControllers (chỉ GET, public/, @Public, không @Roles); B1 chưa có route public nên rỗng; đối chứng âm: controller giả bị bắt', () => {
+  it('ABQ-05: route public qua auditPublicControllers (chỉ GET, public/, @Public, không @Roles, không decorator tham số tuỳ biến); mã thật của B2 đạt; đối chứng âm: controller giả bị bắt', () => {
     @Controller('public/articles')
     class MissingPublic {
       @Get()
@@ -299,8 +304,12 @@ describe('article B1 — kiến trúc: route (ABQ-05, T9)', () => {
     expect(
       auditPublicControllers(publicControllersOf(routesOf([Good]))),
     ).toEqual([]);
-    // Mã thật: B1 chưa có controller công khai; B2 thêm vào ArticleModule là tự bị quét ở đây
-    expect(publicControllersOf(moduleRoutes)).toEqual([]);
+    // Mã thật (B2): hai controller công khai trong ArticleModule tự bị quét ở đây và phải đạt mọi luật
+    expect(
+      publicControllersOf(moduleRoutes)
+        .map((c) => c.name)
+        .sort(),
+    ).toEqual(['PublicArticleController', 'PublicArticleTagController']);
     expect(auditPublicControllers(publicControllersOf(moduleRoutes))).toEqual(
       [],
     );
@@ -429,6 +438,34 @@ describe('article B1 — kiến trúc: mã nguồn (ABQ-05)', () => {
     expect([...written].sort()).toEqual(
       ['bai_viet', 'bai_viet_hashtag', 'hashtag'].sort(),
     );
+  });
+
+  it('ABP-09 (tĩnh): mã dưới public/ không có câu ghi (INSERT, UPDATE, DELETE), kể cả bảng của article; đối chứng âm: câu ghi giả bị bắt, chú thích không tính', () => {
+    // Chống quét rỗng: B2 có hai controller, DTO, service và repository dưới public/
+    const publicSources = sources.filter(
+      ({ file }) => file.split(/[\\/]/)[0] === 'public',
+    );
+    expect(publicSources.length).toBeGreaterThanOrEqual(5);
+    // Đối chứng âm: bộ quét THẤY câu ghi vào bảng của article (nếu không thì phép kiểm bên dưới vô nghĩa) và bỏ qua chữ trong chú thích
+    expect(writtenTables("q('INSERT INTO bai_viet (a) VALUES (?)')")).toEqual([
+      'bai_viet',
+    ]);
+    expect(writtenTables("q('UPDATE hashtag SET ten = ?')")).toEqual([
+      'hashtag',
+    ]);
+    expect(
+      writtenTables("q('DELETE FROM bai_viet_hashtag WHERE a = ?')"),
+    ).toEqual(['bai_viet_hashtag']);
+    expect(
+      writtenTables(
+        stripComments('// UPDATE bai_viet SET a = 1\nconst x = 1;'),
+      ),
+    ).toEqual([]);
+    expect(
+      publicSources.flatMap(({ file, code }) =>
+        writtenTables(code).map((table) => `${file}: ${table}`),
+      ),
+    ).toEqual([]);
   });
 
   it('ABQ-05: SQL tham số hoá (không nối chuỗi giá trị), không `SELECT *`, không `console`; đối chứng âm bị bắt', () => {
