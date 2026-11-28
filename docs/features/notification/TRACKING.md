@@ -161,7 +161,7 @@ Booking B15: `thong_bao` ghi trong giao dịch của lõi, chỉ nuốt 1062 đ�
 | Trung (admin) | P1: `admin/entities/nhac-lich-hen.entity.ts`, `enums.ts`; F3: `admin-header.tsx`, `admin-sidebar.tsx`; B1: ghi nhận `BranchChangeNotifier` (không sửa) | Trung là người làm | không cần |
 | Trung (doctor, doctor-exam) | B4: `ExamNotifier`, ca HDK-06; B5: `LeaveNotifier`; F1: `DoctorLayout` | Trung là người làm; báo Đại vì cùng worker | không cần |
 | payment, wallet | B1: chỉ đọc hằng ở file spec; không đổi mã | báo Đại biết khi thêm mã mới ở hai module này | không cần xác nhận |
-| waitlist (#11), chat (sau) | thông báo mời, kết quả, tin nhắn mới | chừa chỗ ở danh mục (DMS-13); khi có mã thì khai và (nếu có thư) thêm `MAIL_EVENTS` | `[CHỜ waitlist]`, `[CHỜ chat]` (không chặn) |
+| waitlist (sau chat), chat (#11) | thông báo mời, kết quả, tin nhắn mới | chừa chỗ ở danh mục (DMS-13); khi có mã thì khai và (nếu có thư) thêm `MAIL_EVENTS` | `[CHỜ waitlist]` (không chặn); chat **xong** ở chat B6 (27/11/2026): `TinNhanMoi` không thư nên `MAIL_EVENTS` không đổi, ca TBC-07; ghi ở chat D1 (28/11/2026) |
 | search | `PublicHeader` (chuông cho Bệnh nhân đang đặt lịch) | không làm (Q10) | ghi nợ 272 |
 | Đại (GitHub) | nhãn `module:notification`, milestone `notification`, Epic, script sinh issue; seed demo (X3); sửa Word (D2) | Q18: đã đồng ý tên, **phiên kiểm có script tự tạo nhãn và milestone**; Q16: chưa có Excel | nhãn, milestone: phiên kiểm; còn lại chờ |
 
