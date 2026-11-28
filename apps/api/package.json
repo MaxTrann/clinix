@@ -35,7 +35,8 @@
     "seed:doctor-demo": "nest build && node dist/database/seeds/seed.js doctor-demo",
     "seed:exam-demo": "nest build && node dist/database/seeds/seed.js exam-demo",
     "seed:payment-demo": "nest build && node dist/database/seeds/seed.js payment-demo",
-    "seed:notification-demo": "nest build && node dist/database/seeds/seed.js notification-demo"
+    "seed:notification-demo": "nest build && node dist/database/seeds/seed.js notification-demo",
+    "chatbot:eval": "nest build && node dist/chatbot/eval/run-eval.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
