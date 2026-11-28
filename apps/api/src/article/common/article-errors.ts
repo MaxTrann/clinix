@@ -17,6 +17,8 @@ export const ARTICLE_FIELD_ERRORS = {
   INVALID_ARTICLE_ID: 'MA_BAI_VIET_KHONG_HOP_LE',
   INVALID_KEYWORD: 'TU_KHOA_KHONG_HOP_LE',
   INVALID_PAGE: 'TRANG_KHONG_HOP_LE',
+  /** B3: `loai` của phiếu đánh giá không phải `Thich` hay `KhongThich` (PLAN 5.8; mã của trường `loai` trong `loi[]`, vì là trường của thân chứ không phải bộ lọc). */
+  INVALID_RATING_TYPE: 'LOAI_DANH_GIA_KHONG_HOP_LE',
 } as const;
 
 /** Mã nghiệp vụ trả thẳng ở `maLoi` (không nằm trong `loi[]`). */

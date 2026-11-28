@@ -16,9 +16,12 @@ import { PublicArticleTagController } from './public/public-article-tag.controll
 import { PublicArticleController } from './public/public-article.controller.js';
 import { PublicArticleRepository } from './public/public-article.repository.js';
 import { PublicArticleService } from './public/public-article.service.js';
+import { PatientRatingController } from './rating/patient-rating.controller.js';
+import { PatientRatingRepository } from './rating/patient-rating.repository.js';
+import { PatientRatingService } from './rating/patient-rating.service.js';
 
 // Module "Bài viết và cẩm nang sức khỏe" (scope article; PLAN docs/features/article/PLAN.md). article B1: nền bài viết và API quản trị (danh sách, chi tiết, tạo, `PATCH`) và gợi ý thẻ.
-// article B2 thêm route công khai `public/articles`, `public/articles/:id` và `public/article-tags` (thư mục `public/`); B3 thêm API đánh giá (`patient/articles/:id/rating`), B4 thêm ảnh: cùng module này, mỗi phần một thư mục riêng.
+// article B2 thêm route công khai `public/articles`, `public/articles/:id` và `public/article-tags` (thư mục `public/`); B3 thêm API đánh giá (`patient/articles/:id/rating`, thư mục `rating/`), B4 thêm ảnh: cùng module này, mỗi phần một thư mục riêng.
 // `RbacModule` cho `AdminScopeGuard` và `BranchAccessPolicy` (phạm vi Quản trị viên đọc từ DB mỗi yêu cầu). `DataSource` có sẵn toàn cục từ `DatabaseModule`.
 @Module({
   imports: [RbacModule],
@@ -27,6 +30,7 @@ import { PublicArticleService } from './public/public-article.service.js';
     HashtagAdminController,
     PublicArticleController,
     PublicArticleTagController,
+    PatientRatingController,
   ],
   providers: [
     ArticleAdminService,
@@ -35,16 +39,23 @@ import { PublicArticleService } from './public/public-article.service.js';
     HashtagRepository,
     PublicArticleService,
     PublicArticleRepository,
+    PatientRatingService,
+    PatientRatingRepository,
   ],
 })
 export class ArticleModule implements NestModule {
   // Route quản trị là dữ liệu biên tập chưa công bố: `Cache-Control: no-store` cho MỌI phản hồi, kể cả 401, 403, 404 (middleware chạy trước guard; T10).
   // Dùng lại đúng hàm của Trung tâm thông báo (như `ChatModule`), không viết lại.
   // B2: route CÔNG KHAI dùng `Cache-Control: no-cache` (luôn hỏi lại máy chủ, vẫn cho 304) cho cả 200, 400 và 404. Hai nhóm tách theo LỚP controller, không theo module: route công khai không bao giờ `no-store`.
+  // B3: route đánh giá của Bệnh nhân là dữ liệu của tài khoản nên `no-store` cho MỌI phản hồi (cả 400, 401, 403, 404; T10), cùng hàm `noStore` với route quản trị.
   configure(consumer: MiddlewareConsumer): void {
     consumer
       .apply(noStore)
-      .forRoutes(ArticleAdminController, HashtagAdminController);
+      .forRoutes(
+        ArticleAdminController,
+        HashtagAdminController,
+        PatientRatingController,
+      );
     consumer
       .apply(noCache)
       .forRoutes(PublicArticleController, PublicArticleTagController);

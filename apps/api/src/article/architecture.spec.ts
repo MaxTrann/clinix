@@ -6,6 +6,7 @@ import {
   Delete,
   Get,
   Post,
+  Put,
   RequestMethod,
   type Type,
 } from '@nestjs/common';
@@ -33,7 +34,8 @@ import { ArticleModule } from './article.module.js';
 // article B1 — ABQ-05 (PLAN article 7.2; T9): quét metadata của controller trong `ArticleModule` và mã nguồn `src/article` (bỏ test và thư mục `testing/`).
 // Mỗi luật có ĐỐI CHỨNG ÂM (controller giả hay nguồn giả vi phạm thì bị bắt) để luật không xanh vì quét sai chỗ.
 // B1 chưa có route công khai và chưa có route `patient/`: các luật cho hai nhóm đó chạy trên danh sách RỖNG. article B2 thêm route công khai (hai controller trong `public/`), nên các ca ghim
-// "chưa có route công khai" được đổi sang ghim danh sách route thật của B2; B3 (đánh giá, `patient/`) thêm controller vào ArticleModule là TỰ được quét. Luật "tiền tố lạ" chặn controller đặt ngoài ba nhóm admin, public, patient.
+// "chưa có route công khai" được đổi sang ghim danh sách route thật của B2; article B3 thêm ba route đánh giá `patient/articles/:id/rating` (một controller trong `rating/`), nên các ca ghim cũng được đổi sang
+// ghim danh sách thật và có luật riêng cho ba route đó. Luật "tiền tố lạ" chặn controller đặt ngoài ba nhóm admin, public, patient.
 const ARTICLE_DIR = fileURLToPath(new URL('.', import.meta.url));
 
 const sources = listSourceFiles(ARTICLE_DIR).map((file) => ({
@@ -146,6 +148,45 @@ function patientFailures(routes: readonly RouteInfo[]): string[] {
     });
 }
 
+/** Đường dẫn của ba route đánh giá (B3). */
+const RATING_PATH = /^patient\/articles\/:id\/rating$/;
+
+/**
+ * Lỗi của route đánh giá (article B3, ABR-01): dưới `patient/articles` CHỈ có `GET`, `PUT`, `DELETE` ở `:id/rating`; mỗi route có `@Roles('BenhNhan')` ghi ở CHÍNH hàm
+ * (nếp "ghi trên từng route": `RolesGuard` cho qua route không có `@Roles`, nên không dựa vào decorator ở lớp) và không `@Public`.
+ */
+function ratingFailures(routes: readonly RouteInfo[]): string[] {
+  const failures: string[] = [];
+  const underArticles = routes.filter((r) =>
+    r.path.startsWith('patient/articles'),
+  );
+  for (const route of underArticles.filter((r) => !RATING_PATH.test(r.path)))
+    failures.push(
+      `${route.controller.name}.${route.name}: route patient/articles ngoài đánh giá "${route.path}"`,
+    );
+  const rating = underArticles.filter((r) => RATING_PATH.test(r.path));
+  const methods = rating.map((r) => RequestMethod[r.method]).sort();
+  if (methods.join(',') !== 'DELETE,GET,PUT')
+    failures.push(
+      `phương thức của route đánh giá là [${methods.join(', ')}], cần [DELETE, GET, PUT]`,
+    );
+  for (const route of rating) {
+    const where = `${route.controller.name}.${route.name}`;
+    const own = Reflect.getMetadata(ROLES_KEY, route.handler) as
+      string[] | undefined;
+    if (own?.length !== 1 || own[0] !== 'BenhNhan')
+      failures.push(`${where}: thiếu @Roles('BenhNhan') ở chính route`);
+    if (
+      reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+        route.handler,
+        route.controller,
+      ]) === true
+    )
+      failures.push(`${where}: là @Public`);
+  }
+  return failures;
+}
+
 /** Route ngoài ba nhóm admin, public, patient. */
 function strayFailures(routes: readonly RouteInfo[]): string[] {
   return routes
@@ -170,24 +211,28 @@ const moduleControllers = (Reflect.getMetadata('controllers', ArticleModule) ??
 const moduleRoutes = routesOf(moduleControllers);
 
 describe('article B1 — kiến trúc: route (ABQ-05, T9)', () => {
-  it('có controller và route để quét (chống quét rỗng); B1 có năm route quản trị, B2 thêm ba route công khai chỉ GET', () => {
+  it('có controller và route để quét (chống quét rỗng); B1 có năm route quản trị, B2 thêm ba route công khai chỉ GET, B3 thêm ba route đánh giá của Bệnh nhân', () => {
     expect(moduleControllers.map((c) => c.name).sort()).toEqual([
       'ArticleAdminController',
       'HashtagAdminController',
+      'PatientRatingController',
       'PublicArticleController',
       'PublicArticleTagController',
     ]);
     expect(
       moduleRoutes.map((r) => `${RequestMethod[r.method]} ${r.path}`).sort(),
     ).toEqual([
+      'DELETE patient/articles/:id/rating',
       'GET admin/articles',
       'GET admin/articles/:id',
       'GET admin/hashtags',
+      'GET patient/articles/:id/rating',
       'GET public/article-tags',
       'GET public/articles',
       'GET public/articles/:id',
       'PATCH admin/articles/:id',
       'POST admin/articles',
+      'PUT patient/articles/:id/rating',
     ]);
   });
 
@@ -315,7 +360,7 @@ describe('article B1 — kiến trúc: route (ABQ-05, T9)', () => {
     );
   });
 
-  it("ABQ-05: mọi route patient/ có @Roles('BenhNhan'); B1 chưa có route patient; đối chứng âm: controller giả thiếu thì bị bắt", () => {
+  it("ABQ-05: mọi route patient/ có @Roles('BenhNhan') (B3: ba route đánh giá thật); đối chứng âm: controller giả thiếu thì bị bắt", () => {
     @Controller('patient/articles/:id/rating')
     class NoRoles {
       @Get()
@@ -340,6 +385,134 @@ describe('article B1 — kiến trúc: route (ABQ-05, T9)', () => {
     ]);
     expect(patientFailures(routesOf([Good]))).toEqual([]);
     expect(patientFailures(moduleRoutes)).toEqual([]);
+    // Chống quét rỗng: B3 đã thêm route patient/ thật nên luật không còn chạy trên danh sách rỗng
+    expect(
+      moduleRoutes.filter((r) => prefixOf(r.path) === 'patient'),
+    ).toHaveLength(3);
+  });
+
+  it("ABR-01 (tĩnh): ba route đánh giá là đúng GET, PUT, DELETE ở patient/articles/:id/rating, @Roles('BenhNhan') ghi ở CHÍNH route, không @Public, không route patient/articles nào khác; đối chứng âm", () => {
+    @Controller('patient/articles/:id/rating')
+    class Good {
+      @Get()
+      @Roles('BenhNhan')
+      get() {
+        return null;
+      }
+      @Put()
+      @Roles('BenhNhan')
+      put() {
+        return null;
+      }
+      @Delete()
+      @Roles('BenhNhan')
+      remove() {
+        return null;
+      }
+    }
+    // @Roles chỉ ở LỚP: `patientFailures` cho qua nhưng luật riêng của đánh giá bắt (ghi trên từng route)
+    @Controller('patient/articles/:id/rating')
+    @Roles('BenhNhan')
+    class RolesOnClassOnly {
+      @Get()
+      get() {
+        return null;
+      }
+      @Put()
+      put() {
+        return null;
+      }
+      @Delete()
+      remove() {
+        return null;
+      }
+    }
+    @Controller('patient/articles/:id/rating')
+    class MissingPut {
+      @Get()
+      @Roles('BenhNhan')
+      get() {
+        return null;
+      }
+      @Delete()
+      @Roles('BenhNhan')
+      remove() {
+        return null;
+      }
+    }
+    @Controller('patient/articles/:id/rating')
+    class ExtraPost {
+      @Get()
+      @Roles('BenhNhan')
+      get() {
+        return null;
+      }
+      @Put()
+      @Roles('BenhNhan')
+      put() {
+        return null;
+      }
+      @Delete()
+      @Roles('BenhNhan')
+      remove() {
+        return null;
+      }
+      @Post()
+      @Roles('BenhNhan')
+      create() {
+        return null;
+      }
+    }
+    @Controller('patient/articles/:id/rating')
+    class WrongRoleAndPublic {
+      @Get()
+      @Roles('BenhNhan', 'BacSi')
+      get() {
+        return null;
+      }
+      @Put()
+      @Public()
+      @Roles('BenhNhan')
+      put() {
+        return null;
+      }
+      @Delete()
+      @Roles('BenhNhan')
+      remove() {
+        return null;
+      }
+    }
+    @Controller('patient/articles')
+    class OtherPath {
+      @Get(':id')
+      @Roles('BenhNhan')
+      get() {
+        return null;
+      }
+    }
+    expect(ratingFailures(routesOf([Good]))).toEqual([]);
+    expect(patientFailures(routesOf([RolesOnClassOnly]))).toEqual([]);
+    expect(ratingFailures(routesOf([RolesOnClassOnly]))).toEqual([
+      "RolesOnClassOnly.get: thiếu @Roles('BenhNhan') ở chính route",
+      "RolesOnClassOnly.put: thiếu @Roles('BenhNhan') ở chính route",
+      "RolesOnClassOnly.remove: thiếu @Roles('BenhNhan') ở chính route",
+    ]);
+    expect(ratingFailures(routesOf([MissingPut]))).toEqual([
+      'phương thức của route đánh giá là [DELETE, GET], cần [DELETE, GET, PUT]',
+    ]);
+    expect(ratingFailures(routesOf([ExtraPost]))).toEqual([
+      'phương thức của route đánh giá là [DELETE, GET, POST, PUT], cần [DELETE, GET, PUT]',
+    ]);
+    expect(ratingFailures(routesOf([WrongRoleAndPublic]))).toEqual([
+      "WrongRoleAndPublic.get: thiếu @Roles('BenhNhan') ở chính route",
+      'WrongRoleAndPublic.put: là @Public',
+    ]);
+    expect(ratingFailures(routesOf([OtherPath]))).toEqual([
+      'OtherPath.get: route patient/articles ngoài đánh giá "patient/articles/:id"',
+      'phương thức của route đánh giá là [], cần [DELETE, GET, PUT]',
+    ]);
+    // Mã thật của B3
+    expect(ratingFailures(moduleRoutes)).toEqual([]);
   });
 
   it('ABQ-05: không route ngoài ba nhóm admin, public, patient; đối chứng âm: tiền tố lạ bị bắt', () => {
@@ -433,10 +606,43 @@ describe('article B1 — kiến trúc: mã nguồn (ABQ-05)', () => {
         forbiddenWrites(code).map((table) => `${file}: ${table}`),
       ),
     ).toEqual([]);
-    // Phép quét không rỗng: mã thật có ghi ba bảng (B1 chưa ghi phiếu đánh giá, đó là việc của B3)
+    // Phép quét không rỗng: mã thật ghi cả bốn bảng (B1: ba bảng bài viết và thẻ; B3 ghi thêm phiếu đánh giá)
     const written = new Set(sources.flatMap(({ code }) => writtenTables(code)));
     expect([...written].sort()).toEqual(
-      ['bai_viet', 'bai_viet_hashtag', 'hashtag'].sort(),
+      [
+        'bai_viet',
+        'bai_viet_hashtag',
+        'benh_nhan_danh_gia_bai_viet',
+        'hashtag',
+      ].sort(),
+    );
+  });
+
+  it('ABR-02 (tĩnh): mã dưới rating/ chỉ ghi bảng benh_nhan_danh_gia_bai_viet (không ghi bài viết hay thẻ); đối chứng âm: câu ghi bảng khác bị bắt', () => {
+    const ratingSources = sources.filter(
+      ({ file }) => file.split(/[\\/]/)[0] === 'rating',
+    );
+    expect(ratingSources.length).toBeGreaterThanOrEqual(3);
+    const notRating = (code: string): string[] =>
+      writtenTables(code).filter(
+        (table) => table !== 'benh_nhan_danh_gia_bai_viet',
+      );
+    expect(notRating("q('UPDATE bai_viet SET trang_thai = ?')")).toEqual([
+      'bai_viet',
+    ]);
+    expect(
+      notRating(
+        "q('INSERT INTO benh_nhan_danh_gia_bai_viet (a) VALUES (?) ON DUPLICATE KEY UPDATE loai = 1')",
+      ),
+    ).toEqual([]);
+    expect(
+      ratingSources.flatMap(({ file, code }) =>
+        notRating(code).map((table) => `${file}: ${table}`),
+      ),
+    ).toEqual([]);
+    // Chống quét rỗng: mã dưới rating/ thật sự có câu ghi phiếu
+    expect(ratingSources.flatMap(({ code }) => writtenTables(code))).toContain(
+      'benh_nhan_danh_gia_bai_viet',
     );
   });
 
